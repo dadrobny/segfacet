@@ -52,13 +52,18 @@ __all__ = [
 #:   label ids, level names, containers iterated, availability gates, band
 #:   values and other message interpolation, context that only gates or
 #:   exempts.
+#: - ``"condition-signal"`` — (item 150) the path carries a case
+#:   **condition**'s evidence -- a state of the case that gates other rules
+#:   and is deliberately not a failure mode (``segfacet.failure_modes.
+#:   CONDITIONS``). Allowed only on a mode-less declaration, requires a
+#:   reason naming the condition, and contributes no mode anywhere.
 #: - ``"not-read"`` — the rule does **not** read this path at all; the
 #:   catalogue attributes it by mechanism B's last-path-segment name match
 #:   (see :mod:`segfacet.catalogue`). ``segfacet.catalogue.
 #:   path_classification_conflicts()`` refuses a ``"not-read"`` claim on a
 #:   pair carrying mechanism-A ``"observed"`` evidence, so it cannot be used
 #:   as an escape hatch.
-PATH_ROLES: Tuple[str, ...] = ("signal", "bookkeeping", "not-read")
+PATH_ROLES: Tuple[str, ...] = ("signal", "bookkeeping", "not-read", "condition-signal")
 
 # Module-level registry: rule_id → Rule instance.
 # Deliberately exposed (not name-mangled) so tests can snapshot/restore it.
@@ -227,7 +232,7 @@ class RuleModeDeclaration:
                     f"of PATH_ROLES {PATH_ROLES!r} (matched exactly, "
                     f"case-sensitively)."
                 )
-            if element.role in ("bookkeeping", "not-read") and not (
+            if element.role in ("bookkeeping", "not-read", "condition-signal") and not (
                 isinstance(element.reason, str) and element.reason
             ):
                 raise ValueError(
@@ -241,6 +246,13 @@ class RuleModeDeclaration:
                     f"{element.path!r} is classified 'signal', but this "
                     f"declaration's 'modes' is empty -- a signal path must have a "
                     f"mode to carry."
+                )
+            if element.role == "condition-signal" and not self.mode_less_reason:
+                raise ValueError(
+                    f"RuleModeDeclaration: 'consumed_paths' entry for path "
+                    f"{element.path!r} is classified 'condition-signal', which is "
+                    f"only valid on a mode-less declaration (one carrying a "
+                    f"'mode_less_reason'): a condition is not a failure mode."
                 )
             if previous_path is not None and element.path == previous_path:
                 raise ValueError(

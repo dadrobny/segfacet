@@ -46,6 +46,7 @@ from segfacet.synth.coverage_border_overlap import (
     CropAtBorderPerturbation,
     ForceOverlapPerturbation,
     RemoveLevelPerturbation,
+    RemoveLevelRelabelPerturbation,
 )
 from segfacet.synth.identity_ordering_alignment import (
     DisplacePerturbation,
@@ -128,6 +129,7 @@ __all__ = [
     "FusePerturbation",
     "InjectIslandsPerturbation",
     "RemoveLevelPerturbation",
+    "RemoveLevelRelabelPerturbation",
     "CropAtBorderPerturbation",
     "ForceOverlapPerturbation",
     "DisplacePerturbation",

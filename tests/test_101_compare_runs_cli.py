@@ -189,8 +189,12 @@ def test_ac23_with_flag_txt_carries_a_per_mode_magnitude_section(tmp_path):
     assert exit_code == 0
 
     txt = (out_dir / "eval_report.txt").read_text(encoding="utf-8")
+    # Item 150: the per-mode magnitude section is the Stage-18 surface,
+    # still keyed and named by the pre-sign-off numbering.
+    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+
     for mode in range(1, 9):
-        assert FAILURE_MODE_NAMES[mode] in txt
+        assert LEGACY_STAGE18_MODE_NAMES[mode] in txt
 
 
 def test_ac23_run_id_flag_stamps_per_mode_magnitude_run_id(tmp_path):

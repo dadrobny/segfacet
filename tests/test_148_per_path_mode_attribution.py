@@ -5,13 +5,26 @@ Item 136's mode attribution was rule-granular: every leaf path a declaring
 rule consumes inherited that rule's *whole* mode tuple. This item gives each
 rule's ``RuleModeDeclaration`` a declared per-path classification
 (``segfacet.heuristics.rule.ConsumedPath``, ``PATH_ROLES ==
-("signal", "bookkeeping", "not-read")``) of every leaf path it consumes, and
-``segfacet.catalogue.build_catalogue`` gates a rule's mode contribution to a
-path on that path being classified ``"signal"`` for that rule. The catalogue
-renders the classification (``CatalogueEntry.mode_roles``, two new
-``mode_evidence`` tags) rather than silently dropping it, and
+("signal", "bookkeeping", "not-read", "condition-signal")``) of every leaf
+path it consumes, and ``segfacet.catalogue.build_catalogue`` gates a rule's
+mode contribution to a path on that path being classified ``"signal"`` for
+that rule. The catalogue renders the classification
+(``CatalogueEntry.mode_roles``, three new ``mode_evidence`` tags) rather than
+silently dropping it, and
 ``segfacet.catalogue.path_classification_conflicts()`` is the new
 conformance checker.
+
+The item-150 maintainer sign-off (2026-09-14) re-organised the failure-mode
+catalogue and extended this item's own vocabulary: ``PATH_ROLES`` gained
+``"condition-signal"`` -- a path that evidences a *condition* rather than a
+failure mode, valid only on a mode-less declaration and, like
+``bookkeeping``/``not-read``, requiring a reason -- and ``mode_evidence``
+gained ``"rule_condition_signal"``. The pins below follow the signed-off
+catalogue: ``reference_delta`` now declares modes ``(1, 2, 3, 5)``,
+``mislabel``'s spline-offset detector serves no mode (its
+``offset_mm``/``dx``/``dy``/``dz`` paths are ``bookkeeping``), ``border`` is
+mode-less and carries its six ``touches_*`` paths as ``condition-signal``,
+and modes 7 and 8 are ``proposed`` entries no rule declares at all.
 
 AC -> test map (one focused test per AC, in AC order):
 
@@ -28,7 +41,8 @@ AC -> test map (one focused test per AC, in AC order):
 - AC9:  test_ac9_mode_roles_rendered_in_json_and_markdown
 - AC10: test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly
 - AC11: test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows
-- AC12: test_ac12_every_mode_keeps_a_signal_path
+- AC12: test_ac12_every_declared_mode_keeps_a_signal_path,
+        test_ac12_mode_less_border_carries_condition_signal_paths_only
 - AC13: test_ac13_classification_moves_attribution_columns_and_nothing_else
 - AC14: test_ac14_artifacts_byte_identical_run_to_run_and_match_committed
 - AC15: test_ac15_schema_version_and_status_report_loader
@@ -89,6 +103,7 @@ _CANONICAL_TAG_ORDER = (
     "rule_mode_less",
     "rule_bookkeeping",
     "rule_not_read",
+    "rule_condition_signal",
 )
 
 
@@ -175,7 +190,7 @@ def _aide_module():
 def test_ac1_consumed_path_fields_and_path_roles_vocabulary():
     from segfacet.heuristics.rule import ConsumedPath, PATH_ROLES
 
-    assert PATH_ROLES == ("signal", "bookkeeping", "not-read")
+    assert PATH_ROLES == ("signal", "bookkeeping", "not-read", "condition-signal")
 
     assert dataclasses.is_dataclass(ConsumedPath)
     assert ConsumedPath.__dataclass_params__.frozen is True
@@ -289,9 +304,23 @@ _AC3_INVALID_CONSTRUCTIONS = [
         id="not_read_empty_reason",
     ),
     pytest.param(
+        dict(mode_less_reason="rationale", consumed_paths=(_cp("aa.bb", "condition-signal", ""),)),
+        "aa.bb",
+        id="condition_signal_empty_reason",
+    ),
+    pytest.param(
         dict(mode_less_reason="rationale", consumed_paths=(_cp("aa.bb", "signal"),)),
         "aa.bb",
         id="signal_on_mode_less_declaration",
+    ),
+    pytest.param(
+        dict(
+            modes=(1,),
+            evidence=("ev",),
+            consumed_paths=(_cp("aa.bb", "condition-signal", "a condition, not a mode"),),
+        ),
+        "aa.bb",
+        id="condition_signal_on_mode_carrying_declaration",
     ),
 ]
 
@@ -426,7 +455,7 @@ def test_ac7_not_read_cannot_hide_an_observed_path(monkeypatch, shipped_catalogu
                 continue
             decl = _RULES[rule_id].mode_declaration
             cp = next((c for c in decl.consumed_paths if c.path == entry.path), None)
-            if cp is not None and cp.role in ("signal", "bookkeeping"):
+            if cp is not None and cp.role in ("signal", "bookkeeping", "condition-signal"):
                 target = (rule_id, entry.path)
                 break
         if target is not None:
@@ -589,9 +618,13 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
         entry = _entry(cat, path)
         assert entry.failure_modes == (), path
 
+    # The sibling "signal" path on the same rule still carries every mode
+    # ``reference_delta`` declares -- (1, 2, 3, 5) since the item-150
+    # sign-off -- so the three bookkeeping paths above are dropped by their
+    # classification, not by the rule losing its modes.
     robust_z_path = "reference_delta.{label}.features.physical_volume_mm3.robust_z"
     entry = _entry(cat, robust_z_path)
-    assert entry.failure_modes == (1, 2), robust_z_path
+    assert entry.failure_modes == (1, 2, 3, 5), robust_z_path
 
 
 # =========================================================================== #
@@ -599,21 +632,66 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
 # =========================================================================== #
 
 
-def test_ac12_every_mode_keeps_a_signal_path(shipped_catalogue):
+def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
+    """Since the item-150 sign-off, two catalogued modes -- 7 ("Shifted label
+    sequence") and 8 ("Collapsed or duplicated label set") -- are ``proposed``:
+    no rule declares them and no Stage-18 metric anchors them, so they reach
+    no path *by design*. Every other catalogued mode must still reach at
+    least one path, and only through a ``"signal"`` classification. The
+    exempt set is derived from ``SPECIFICATION``/``MODE_ANCHOR_PATHS``, not
+    hardcoded, so a rule declaring mode 7 tomorrow tightens this test rather
+    than leaving it stale."""
+    import segfacet.failure_modes as fm
+    import segfacet.feature_docs as feature_docs
+
     cat = shipped_catalogue
     paths_by_mode: dict = {}
     for entry in cat.entries:
         for mode in entry.failure_modes:
             paths_by_mode.setdefault(mode, set()).add(entry.path)
 
-    mode9_paths = paths_by_mode.get(9, set())
-    assert mode9_paths == {
+    catalogued = set(fm.SPECIFICATION)
+    assert catalogued, "expected a non-empty specification"
+    unreachable = {
+        mode
+        for mode in catalogued
+        if not fm.SPECIFICATION[mode].intended_rules and mode not in feature_docs.MODE_ANCHOR_PATHS
+    }
+    assert unreachable == {7, 8}, unreachable
+    assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
+
+    # Mode 10 ("implausible tissue under a label", entered as mode 9 by item
+    # 146 and re-numbered at the sign-off) is reached by exactly the two
+    # intensity paths its declaring rules classify "signal".
+    mode10_paths = paths_by_mode.get(10, set())
+    assert mode10_paths == {
         "image_features.per_label.{label}.first_order.median",
         "image_features.per_label.{label}.first_order.std",
-    }, mode9_paths
+    }, mode10_paths
 
-    for mode in range(1, 9):
-        assert paths_by_mode.get(mode), mode
+
+def test_ac12_mode_less_border_carries_condition_signal_paths_only(shipped_catalogue):
+    """``border`` records the FOV-truncation *condition* (the item-150
+    sign-off retired it as mode 6), so its six ``touches_*`` paths carry the
+    ``condition-signal`` role -- which is not ``signal`` and must therefore
+    reach no failure mode at all, while still being rendered rather than
+    silently dropped."""
+    from segfacet.heuristics.rule import _RULES
+
+    cat = shipped_catalogue
+    decl = _RULES["border"].mode_declaration
+    assert decl.modes == (), "border must stay mode-less"
+    assert decl.mode_less_reason, "border must carry a mode_less_reason"
+
+    condition_paths = {cp.path for cp in decl.consumed_paths if cp.role == "condition-signal"}
+    assert len(condition_paths) == 6, sorted(condition_paths)
+    assert all(".geometry.touches_" in path for path in condition_paths), sorted(condition_paths)
+
+    for path in sorted(condition_paths):
+        entry = _entry(cat, path)
+        assert entry.failure_modes == (), path
+        assert dict(entry.mode_roles)["border"] == "condition-signal", path
+        assert "rule_condition_signal" in entry.mode_evidence, path
 
 
 # =========================================================================== #
@@ -642,8 +720,20 @@ def test_ac13_classification_moves_attribution_columns_and_nothing_else(
         reach = sorted(reach_by_rule.get(rule_id, ()))
         if not reach:
             continue
-        all_signal = tuple(ConsumedPath(path=p, role="signal", reason="") for p in reach)
-        replacement = dataclasses.replace(decl, consumed_paths=all_signal)
+        # A "signal" pair is only valid on a declaration that carries modes;
+        # a mode-less rule's strongest legal role is "condition-signal"
+        # (item 150), which -- like "signal" -- means "this rule genuinely
+        # reads this path". Widening each declaration to its own strongest
+        # legal role is the AC13 probe: it must move the attribution columns
+        # and nothing else.
+        if decl.modes:
+            widened = tuple(ConsumedPath(path=p, role="signal", reason="") for p in reach)
+        else:
+            widened = tuple(
+                ConsumedPath(path=p, role="condition-signal", reason="AC13 adversarial probe")
+                for p in reach
+            )
+        replacement = dataclasses.replace(decl, consumed_paths=widened)
         monkeypatch.setattr(rule, "mode_declaration", replacement)
         patched += 1
     assert patched > 0, "adversarial precondition: expected >=1 patched declaration"

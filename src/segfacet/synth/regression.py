@@ -326,7 +326,10 @@ def verify_case(case: dict, config=None) -> bool:
     """The whole per-case check, dispatched on ``detection``:
 
     * ``pipeline``: verdict label matches, and (clean case -> no findings) or
-      (non-clean case -> designated rule fires and offending labels match).
+      (a case designating no rule -> no findings; "not detected today") or
+      (non-clean case, including a condition-only case with
+      ``failure_mode == 0`` and a ``condition`` -> designated rule fires
+      and offending labels match).
     * ``reconstructed_record``: plain pipeline hides the designated rule,
       the reconstruction fires it, and the offending labels match.
     """
@@ -335,7 +338,11 @@ def verify_case(case: dict, config=None) -> bool:
     if case["detection"] == "pipeline":
         if pipeline_verdict_label(case, config) != case["expected_verdict"]:
             return False
-        if case.get("failure_mode") == 0:
+        if case.get("failure_mode") == 0 and not case.get("condition"):
+            return pipeline_findings(case, config) == ()
+        if not case["expected_rule_ids"]:
+            # A failure-mode case no shipped rule detects yet (item 150:
+            # remove_level_relabel) -- honest only if nothing fires.
             return pipeline_findings(case, config) == ()
         return designated_rule_fired(case, config) and offending_labels_match(
             case, config

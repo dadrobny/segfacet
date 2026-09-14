@@ -1,19 +1,34 @@
-"""Tests for item 040 — committed synthetic fixture corpus spanning all 8
-failure modes + the clean-control positive control, and its manifest.
+"""Tests for item 040 — committed synthetic fixture corpus spanning the
+catalogued failure modes + the clean-control positive control, and its
+manifest.
+
+Re-pinned for item 150's maintainer sign-off (2026-09-14), which re-keyed
+the taxonomy: the corpus's modes are now ids of
+``segfacet.failure_modes.SPECIFICATION`` (overlap is 9, not 8), "partial
+vertebra at the FOV border" became the ``fov_truncation`` *condition* (mode
+0 plus a non-empty ``condition``, not a clean control), every manifest case
+gained a ``condition`` key, and two cases joined the corpus --
+``fuse_adjacent`` (mode 2) and ``remove_level_relabel`` (mode 4, expected to
+fire nothing). The ``modeN_`` case-id prefixes are historical and no longer
+track mode ids. Group E below covers the new and re-homed cases.
 
 Covers Acceptance Criteria AC1-AC18:
 
 - AC1-AC6 (Group A, manifest structure & completeness): the manifest loads,
-  is versioned, and round-trips through json.dumps/json.loads; every §6 mode
-  0-8 is represented; case ids are unique and filesystem-safe; every case
-  carries the full schema with correct types; failure_mode_name matches the
-  shared FAILURE_MODE_NAMES taxonomy; expected_verdict is a valid Severity
+  is versioned, and round-trips through json.dumps/json.loads; every mode
+  (and condition) the specification gives this corpus is represented, the
+  expected set derived from SPECIFICATION/CONDITIONS rather than a literal
+  range; case ids are unique and filesystem-safe; every case carries the
+  full schema with correct types; failure_mode_name matches the shared
+  taxonomy -- FAILURE_MODE_NAMES for a mode case, the condition's
+  short_name for a condition case; expected_verdict is a valid Severity
   label.
 - AC7-AC9 (Group B, detection classification): detection is one of
-  {"pipeline", "reconstructed_record"}; mode 8 is classified
-  reconstructed_record with the matching reconstruction technique (mode 4
-  moved to pipeline in item 132, 2026-08-31, and mode 1 moved to pipeline in
-  item 120), the rest are pipeline with no reconstruction; the
+  {"pipeline", "reconstructed_record"}; the overlap case (mode 9) is
+  classified reconstructed_record with the matching reconstruction technique
+  (the relabel-swap case moved to pipeline in item 132, 2026-08-31, and the
+  displace case in item 120), the rest are pipeline with no
+  reconstruction; the
   reconstructed-record fixture genuinely hides its mode from plain run_qc.
 - AC10-AC12 (Group C, fixtures load via the Stage 0 loader): every
   referenced fixture file exists; every case loads via load_case with a
@@ -31,9 +46,9 @@ Covers Acceptance Criteria AC1-AC18:
 
 Adversarial / edge-case scenarios included:
 - The case-level mode5_remove_level case (expected_labels == []) still loads
-  and is schema-valid.
+  and is schema-valid (mode 6 since the item-150 sign-off).
 - Every seg_fixture path is distinct (no two cases silently share a seg).
-- All nine cases share exactly one scan_fixture path (the dedup contract).
+- Every case shares exactly one scan_fixture path (the dedup contract).
 - The shared base scan is byte-identical to a freshly written base
   build_clean_spine().scan_img.
 - Re-running write_corpus over an existing directory reproduces identical
@@ -59,6 +74,7 @@ import segfacet.synth  # noqa: F401 -- triggers self-registration of every opera
 from segfacet.config import bundled_default_config
 from segfacet.io import load_case
 from segfacet.pipeline import run_qc
+from segfacet.failure_modes import CONDITIONS, SPECIFICATION
 from segfacet.synth import FAILURE_MODE_NAMES, build_clean_spine, get_perturbation
 from segfacet.synth.corpus import (
     CORPUS_DIR,
@@ -81,11 +97,19 @@ _VALID_RECONSTRUCTIONS = {
     "monotonic_true_spatial_order",
     "overlap_mask_stack",
 }
-# 2026-08-31 (item 132): mode 4 moved from _RECONSTRUCTED_MODES to
+# 2026-08-31 (item 132): the swap case moved from _RECONSTRUCTED_MODES to
 # _PIPELINE_ONLY_MODES -- the traversal-ordered reference fit surfaces the
 # swap through plain run_qc.
-_RECONSTRUCTED_MODES = {8}
-_PIPELINE_ONLY_MODES = {0, 1, 2, 3, 4, 5, 6, 7}
+#
+# Re-keyed for item 150's sign-off (2026-09-14). These are failure-mode ids
+# of ``segfacet.failure_modes.SPECIFICATION``, not vision.md §6's old
+# numbering: "overlapping segments" is now mode 9, and the corpus's
+# remaining cases sit at 0-4 and 6 (mode 0 now covers both the clean control
+# and the FOV-truncation *condition* case, which carries no mode). Together
+# they must still partition every mode the corpus uses -- AC8's ``else``
+# branch is what enforces that.
+_RECONSTRUCTED_MODES = {9}
+_PIPELINE_ONLY_MODES = {0, 1, 2, 3, 4, 6}
 
 _CASE_ID_RE = re.compile(r"^[a-z0-9_]+$")
 
@@ -93,6 +117,9 @@ _SCHEMA_KEYS_TYPES = {
     "case_id": str,
     "failure_mode": int,
     "failure_mode_name": str,
+    # Item 150 (2026-09-14): the id of the failure_modes.CONDITIONS entry the
+    # case exhibits, "" for a case that exhibits none.
+    "condition": str,
     "detection": str,
     "perturbation": str,
     "perturbation_params": dict,
@@ -168,11 +195,36 @@ def test_ac1_manifest_loads_versioned_and_round_trips():
     assert json.loads(json.dumps(manifest)) == manifest
 
 
-def test_ac2_every_mode_0_through_8_represented():
-    """AC2: the multiset of failure_mode over cases contains >= 1 entry for
-    each of {0, ..., 8}."""
+def test_ac2_every_mode_the_specification_gives_this_corpus_is_represented():
+    """AC2 (re-pinned for item 150, 2026-09-14): originally "every §6 mode
+    0-8 appears". The signed-off catalogue has ten modes, four of which
+    (5, 7, 8 and the intensity-only 10) have no geometric corpus case at
+    all, so a literal 0-8 range is no longer the claim. Derive the expected
+    set instead -- every mode ``SPECIFICATION`` records a ``"geometric"``
+    corpus case for, plus 0 for the clean control and the condition-only
+    case -- so the corpus and the specification cannot drift apart silently
+    in either direction."""
+    expected = {
+        mode_id
+        for mode_id, spec in SPECIFICATION.items()
+        if any(case.corpus == "geometric" for case in spec.corpus_cases)
+    } | {0}
+    assert len(expected) > 1, "the specification records no geometric corpus case"
     modes = {c["failure_mode"] for c in _cases()}
-    assert modes >= set(range(9))
+    assert modes == expected
+
+
+def test_ac2_every_condition_the_specification_records_is_represented():
+    """The condition half of AC2's completeness claim (item 150): a
+    ``CONDITIONS`` entry with a geometric corpus case must have a
+    corresponding manifest case carrying that condition id."""
+    expected = {
+        condition_id
+        for condition_id, spec in CONDITIONS.items()
+        if any(case.corpus == "geometric" for case in spec.corpus_cases)
+    }
+    assert expected, "the specification records no geometric condition case"
+    assert {c["condition"] for c in _cases() if c["condition"]} == expected
 
 
 def test_ac3_case_ids_unique_and_filesystem_safe():
@@ -198,10 +250,26 @@ def test_ac4_each_case_has_full_schema_with_correct_types():
 
 
 def test_ac5_failure_mode_name_matches_taxonomy():
-    """AC5: case["failure_mode_name"] == FAILURE_MODE_NAMES[failure_mode]
-    for every case."""
+    """AC5: every case's ``failure_mode_name`` comes from the shared
+    taxonomy -- ``FAILURE_MODE_NAMES[failure_mode]`` for a case that
+    exhibits a failure mode, and (item 150, 2026-09-14) the *condition*'s
+    ``short_name`` for a case that exhibits a condition instead. A
+    condition case carries ``failure_mode == 0``, so reading its name from
+    ``FAILURE_MODE_NAMES`` would mislabel it "clean control"; that is the
+    substitution this test now forbids."""
+    condition_cases = 0
     for case in _cases():
-        assert case["failure_mode_name"] == FAILURE_MODE_NAMES[case["failure_mode"]]
+        if case["condition"]:
+            assert case["condition"] in CONDITIONS, case["case_id"]
+            assert case["failure_mode_name"] == CONDITIONS[case["condition"]].short_name
+            assert (
+                case["failure_mode_name"]
+                != FAILURE_MODE_NAMES[case["failure_mode"]]
+            ), case["case_id"]
+            condition_cases += 1
+        else:
+            assert case["failure_mode_name"] == FAILURE_MODE_NAMES[case["failure_mode"]]
+    assert condition_cases, "expected at least one condition-carrying case"
 
 
 def test_ac6_expected_verdict_is_valid_severity_label():
@@ -229,9 +297,10 @@ def test_ac8_modes_4_8_reconstructed_record_rest_pipeline():
     with failure_mode in ``_PIPELINE_ONLY_MODES`` is pipeline with no
     reconstruction. Mode 1 moved into the pipeline set in item 120, which
     promoted a held-out per-label spline offset into the pipeline itself;
-    mode 4 moved into the pipeline set in item 132 (2026-08-31), which
-    judges monotonicity against a traversal-ordered reference fit. Only
-    mode 8 (overlap) remains reconstructed_record."""
+    the relabel-swap case moved into the pipeline set in item 132
+    (2026-08-31), which judges monotonicity against a traversal-ordered
+    reference fit. Only the overlap case -- mode 9 since item 150's sign-off
+    (2026-09-14) -- remains reconstructed_record."""
     for case in _cases():
         mode = case["failure_mode"]
         if mode in _RECONSTRUCTED_MODES:
@@ -297,11 +366,15 @@ def test_ac12_clean_control_fixture_is_the_default_clean_spine():
 
 
 def test_ac13_clean_control_declares_a_pass_verdict():
-    """AC13: the manifest's failure_mode == 0 case has expected_verdict ==
-    "pass", expected_rule_ids == [], expected_labels == [], and
-    detection == "pipeline"."""
+    """AC13: the clean control has expected_verdict == "pass",
+    expected_rule_ids == [], expected_labels == [], and detection ==
+    "pipeline". Since item 150 (2026-09-14) ``failure_mode == 0`` alone no
+    longer identifies it -- the FOV-truncation case carries mode 0 plus a
+    condition -- so the clean control is the mode-0 case with an *empty*
+    condition, and that is asserted here rather than assumed."""
     case = _case("clean_control")
     assert case["failure_mode"] == 0
+    assert case["condition"] == ""
     assert case["expected_verdict"] == "pass"
     assert case["expected_rule_ids"] == []
     assert case["expected_labels"] == []
@@ -365,8 +438,17 @@ def test_ac17_manifest_expectations_equal_operators_expectation():
     get_perturbation(...)(...).apply(<base clean seg>, seed).expectation
     .to_dict() yields failure_mode / expected_rule_ids / expected_labels /
     expected_verdict equal to the manifest case's corresponding fields."""
-    non_clean = [c for c in _cases() if c["failure_mode"] != 0]
+    # Item 150 (2026-09-14): "non-clean" can no longer mean "failure_mode
+    # != 0" -- the FOV-truncation case carries mode 0 plus a condition and
+    # is emphatically not a clean control. Every case built by an operator
+    # other than the identity is rebuilt here, the condition case included.
+    non_clean = [
+        c for c in _cases() if c["failure_mode"] != 0 or c["condition"]
+    ]
     assert non_clean  # sanity
+    assert {c["case_id"] for c in _cases()} - {c["case_id"] for c in non_clean} == {
+        "clean_control"
+    }
     for case in non_clean:
         base = build_clean_spine(**case["base"])
         operator_cls = get_perturbation(case["perturbation"])
@@ -375,6 +457,8 @@ def test_ac17_manifest_expectations_equal_operators_expectation():
         expected = result.expectation.to_dict()
 
         assert expected["failure_mode"] == case["failure_mode"], case["case_id"]
+        assert expected["condition"] == case["condition"], case["case_id"]
+        assert expected["failure_mode_name"] == case["failure_mode_name"], case["case_id"]
         assert expected["expected_rule_ids"] == case["expected_rule_ids"], case["case_id"]
         assert expected["expected_labels"] == case["expected_labels"], case["case_id"]
         assert expected["expected_verdict"] == case["expected_verdict"], case["case_id"]
@@ -395,16 +479,88 @@ def test_ac18_the_one_command_regeneration_entry_point_runs(tmp_path):
 
 
 # =========================================================================== #
+# E. The cases item 150's sign-off added / re-homed (2026-09-14)
+#
+# No AC of their own -- they postdate this item -- but the same claims the
+# ACs above make for the original nine: the manifest's recorded expectation
+# and the real pipeline agree.
+# =========================================================================== #
+
+
+def test_fuse_adjacent_case_records_mode_2_with_both_co_detected_rules():
+    """``fuse_adjacent`` is mode 2's ("fused or split vertebra segments")
+    fixture, and it names *both* rules the fused map trips: the survivor's
+    fragmentation finding and the case-level coverage finding for the level
+    the fuse consumed. Both must actually fire."""
+    case = _case("fuse_adjacent")
+    assert case["failure_mode"] == 2
+    assert case["condition"] == ""
+    assert case["detection"] == "pipeline"
+    assert sorted(case["expected_rule_ids"]) == ["coverage", "fragmentation"]
+    assert case["expected_verdict"] == "flagged-for-review"
+
+    seg_img = _seg_nifti_from_case(case)
+    case_result, _block = run_qc(seg_img, bundled_default_config())
+    fired = {f.rule_id for f in case_result.findings}
+    assert set(case["expected_rule_ids"]) <= fired
+    assert case_result.verdict.overall.label == case["expected_verdict"]
+
+
+def test_remove_level_relabel_case_records_mode_4_and_honestly_fires_nothing():
+    """``remove_level_relabel`` is mode 4's ("vertebra not segmented")
+    fixture and the corpus's first deliberately *undetected* case: the
+    caudal labels are renumbered, so no shipped rule sees anything. Its
+    expectation records that honestly -- no rule, a "pass" verdict -- and
+    the pipeline must agree, which is what makes it a regression guard for
+    the day a rule does detect it."""
+    case = _case("remove_level_relabel")
+    assert case["failure_mode"] == 4
+    assert case["condition"] == ""
+    assert case["detection"] == "pipeline"
+    assert case["expected_rule_ids"] == []
+    assert case["expected_labels"] == []
+    assert case["expected_verdict"] == "pass"
+
+    seg_img = _seg_nifti_from_case(case)
+    case_result, _block = run_qc(seg_img, bundled_default_config())
+    assert list(case_result.findings) == []
+    assert case_result.verdict.overall == Severity.PASS
+
+
+def test_condition_case_is_not_a_clean_control_despite_failure_mode_zero():
+    """The FOV-truncation case carries ``failure_mode == 0`` because it
+    exhibits no failure mode -- but a non-empty ``condition``, a designated
+    rule, and a non-pass verdict. Treating mode 0 as "clean control" would
+    silently turn this into a case expected to fire nothing, so the
+    distinction is pinned here."""
+    case = _case("mode6_crop_at_border")
+    assert case["failure_mode"] == 0
+    assert case["condition"] == "fov_truncation"
+    assert case["expected_rule_ids"] == ["border"]
+    assert case["expected_verdict"] == "flagged-for-review"
+
+    seg_img = _seg_nifti_from_case(case)
+    case_result, _block = run_qc(seg_img, bundled_default_config())
+    fired = {f.rule_id for f in case_result.findings}
+    assert "border" in fired
+    assert case_result.verdict.overall != Severity.PASS
+
+
+# =========================================================================== #
 # Adversarial / edge cases
 # =========================================================================== #
 
 
-def test_adv_mode5_remove_level_case_level_labels_stay_schema_valid():
-    """Adversarial: the case-level mode5_remove_level case (expected_labels
-    == []) still loads without crashing and is schema-valid."""
+def test_adv_remove_level_case_level_labels_stay_schema_valid():
+    """Adversarial: the case-level ``mode5_remove_level`` case
+    (expected_labels == []) still loads without crashing and is
+    schema-valid. Its mode moved from 5 to 6 at item 150's sign-off
+    (2026-09-14) -- a missing interior level is a label-sequence finding --
+    while the case id is historical and deliberately unchanged."""
     case = _case("mode5_remove_level")
     assert case["expected_labels"] == []
-    assert case["failure_mode"] == 5
+    assert case["failure_mode"] == 6
+    assert case["condition"] == ""
     loaded = _loaded_case(case)
     assert len(loaded.label_inventory) > 0
 

@@ -140,19 +140,20 @@ class IntensityRule(Rule):
     # specification's own schema, which is what vision.md §6 says should
     # happen when the catalogue is short a mode.
     mode_declaration = RuleModeDeclaration(
-        modes=(9,),
+        modes=(10,),
         evidence=(
             "intensity-corpus-manifest",
             "This rule judges tissue plausibility -- an implausibly low "
             "median HU reads as soft tissue/air, an implausibly high median "
             "reads as metal/implant, and a near-zero std reads as a "
-            "degenerate/uniform region -- which is exactly mode 9 "
-            "(implausible tissue under a label), entered into "
-            "segfacet.failure_modes.SPECIFICATION by item 146. Three of "
+            "degenerate/uniform region -- which is exactly mode 10 "
+            "(implausible tissue under a label; entered as mode 9 by item "
+            "146, re-numbered at the item-150 sign-off, 2026-09-14) of "
+            "segfacet.failure_modes.SPECIFICATION. Three of "
             "tests/corpus/intensity/manifest.json's four cases "
             "(implausible_metal, implausible_soft_tissue, "
-            "degenerate_uniform) drive this rule end-to-end and now carry "
-            "failure_mode 9; clean_hu is the negative control at "
+            "degenerate_uniform) drive this rule end-to-end and carry "
+            "failure_mode 10; clean_hu is the negative control at "
             "failure_mode 0."
         ),
         consumed_paths=(

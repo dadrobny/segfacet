@@ -173,6 +173,21 @@ CASE_RECIPE: List[_RecipeEntry] = [
         detection="reconstructed_record",
         reconstruction="overlap_mask_stack",
     ),
+    # Item 150 (2026-09-14): the two cases the signed-off taxonomy needed.
+    # Case ids keep the historical "modeN_" prefixes above as stable
+    # identifiers; the manifest's failure_mode field is the authority.
+    _RecipeEntry(
+        case_id="fuse_adjacent",
+        perturbation="fuse",
+        perturbation_params={"target_label": 22, "neighbour_label": 23},
+        detection="pipeline",
+    ),
+    _RecipeEntry(
+        case_id="remove_level_relabel",
+        perturbation="remove_level_relabel",
+        perturbation_params={"target_label": 22},
+        detection="pipeline",
+    ),
 ]
 
 
@@ -306,6 +321,7 @@ def write_corpus(dest: Path) -> Path:
             "case_id": case.case_id,
             "failure_mode": expectation_dict["failure_mode"],
             "failure_mode_name": expectation_dict["failure_mode_name"],
+            "condition": expectation_dict["condition"],
             "detection": case.detection,
             "reconstruction": case.reconstruction,
             "perturbation": case.perturbation,

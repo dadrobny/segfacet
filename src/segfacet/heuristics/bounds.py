@@ -304,14 +304,16 @@ class BoundsRule(Rule):
     # (border), and declaring it here would overstate this rule's coverage.
     # See item 137 Assumptions A2.
     mode_declaration = RuleModeDeclaration(
-        modes=(2,),
+        modes=(1, 2, 3),
         evidence=(
             "analytic",
             "per-label physical volume and x/y/z extent are compared against "
-            "level-aware plausible ranges: a fused pair of vertebrae reads "
-            "over the maximum and an under-segmented or partially-labelled "
-            "vertebra reads under the minimum, which is §6 mode 2's own "
-            "definition (over-/under-segmentation).",
+            "level-aware plausible ranges: an over-segmented vertebra or a "
+            "fused pair reads over the maximum, an under-segmented, split or "
+            "island-depleted vertebra reads under the minimum -- the volume "
+            "proxy for modes 1 (segmentation accuracy), 2 (fused/split) and "
+            "3 (disconnected components) of the catalogue signed off at "
+            "item 150 (2026-09-14); every edge needs-real-data.",
         ),
         consumed_paths=(
             ConsumedPath(

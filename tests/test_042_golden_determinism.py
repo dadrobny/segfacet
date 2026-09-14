@@ -212,8 +212,8 @@ def test_ac5_canonical_form_is_a_fixed_point(case):
 
 def test_ac6_exactly_one_golden_per_manifest_case_no_more_no_fewer(tmp_path):
     """AC6 (item 126 replacement): the set of *.json filename stems written
-    by write_goldens(tmp_path) equals the set of committed case_ids -- nine
-    files, no orphan and no missing golden. The committed corpus-golden
+    by write_goldens(tmp_path) equals the set of committed case_ids -- one
+    file per manifest case, no orphan and no missing golden. The committed corpus-golden
     snapshot store this used to check was retired; the harness
     (write_goldens) survives and is exercised here against a fresh
     caller-supplied directory instead."""
@@ -221,7 +221,8 @@ def test_ac6_exactly_one_golden_per_manifest_case_no_more_no_fewer(tmp_path):
     write_goldens(out_dir)
     golden_stems = {p.stem for p in out_dir.glob("*.json")}
     assert golden_stems == _COMMITTED_CASE_IDS
-    assert len(golden_stems) == 9
+    assert len(_COMMITTED_CASE_IDS) >= 9  # the original nine, plus item 150's
+    assert len(golden_stems) == len(_COMMITTED_CASE_IDS)
 
 
 @pytest.mark.parametrize("case", _CASES, ids=_case_id)

@@ -1,11 +1,13 @@
 """Per-mode failure-magnitude metric API (Stage 18, item 099).
 
 Item 098 named §6 mode 3's stray-island quantity; this module builds the
-**measurement surface** for all eight §6 failure modes named in
-:data:`segfacet.synth.perturbation.FAILURE_MODE_NAMES` (keys ``1``-``8``,
+**measurement surface** for the eight failure modes of the pre-item-150
+catalogue, named in :data:`LEGACY_STAGE18_MODE_NAMES` (keys ``1``-``8``,
 ``0`` is the clean-control sentinel and is deliberately excluded): exactly
 one named scalar metric per mode, computed all at once by
-:func:`compute_per_mode_metrics`.
+:func:`compute_per_mode_metrics`. The catalogue was re-organised at the
+item-150 sign-off (2026-09-14) and this surface is not yet re-keyed to it --
+see :data:`LEGACY_STAGE18_MODE_NAMES`.
 
 Detection rate vs. magnitude
 ----------------------------
@@ -107,7 +109,30 @@ from segfacet.eval.overlap import OverlapResult, compute_overlap
 from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.io import FacetInputError
 from segfacet.labels import LabelConvention
-from segfacet.synth.perturbation import FAILURE_MODE_NAMES
+from types import MappingProxyType as _MappingProxyType
+
+#: The pre-item-150 failure-mode numbering this Stage-18 surface is still
+#: keyed by. The catalogue was re-organised at the item-150 sign-off
+#: (2026-09-14; ``segfacet.failure_modes``, "Taxonomy as signed off"), and
+#: re-keying the per-mode metrics, scale specs and severity ladders needs
+#: re-measured ladder constants -- a follow-up item. Until then the metric
+#: ids 1-8 and these names are the **legacy Stage-18 numbering**, frozen
+#: here rather than read from ``FAILURE_MODE_NAMES`` (which now carries the
+#: signed-off catalogue), so the eval artifacts stay self-consistent. The
+#: legacy -> signed-off mapping is recorded beside
+#: ``segfacet.feature_docs.MODE_ANCHOR_PATHS``.
+LEGACY_STAGE18_MODE_NAMES: Mapping[int, str] = _MappingProxyType(
+    {
+        1: "label not aligned with the vertebra it names",
+        2: "over-/under-segmentation (fused / fragmented)",
+        3: "disconnected components / rogue islands",
+        4: "semantic mislabelling (wrong identification)",
+        5: "not all vertebrae segmented (missing levels)",
+        6: "partial vertebra at the image border",
+        7: "non-continuous label sequence",
+        8: "overlapping segments",
+    }
+)
 
 __all__ = [
     "MetricSpec",
@@ -329,7 +354,7 @@ PER_MODE_METRIC_SPECS: Mapping[int, MetricSpec] = MappingProxyType(
     {
         mode: MetricSpec(
             failure_mode=mode,
-            failure_mode_name=FAILURE_MODE_NAMES[mode],
+            failure_mode_name=LEGACY_STAGE18_MODE_NAMES[mode],
             metric_name=name,
             direction=direction,
             source=source,

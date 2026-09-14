@@ -175,17 +175,19 @@ class MislabelRule(Rule):
     # (src/segfacet/synth/identity_ordering_alignment.py), both via
     # Expectation(..., expected_rule_ids={"mislabel"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(1, 4),
+        modes=(6,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode1_displace and "
-            "mode4_relabel_swap designate this rule for §6 modes 1 and 4 "
-            "respectively -- Detector A (position/alignment) for the "
-            "first, Detector B (ordering/identity) for the second. "
-            "Free-form provenance -- item 147 retired the reserved "
-            "'corpus' evidence tag, and the per-mode evidence claims are "
-            "the per-edge rungs in "
-            "segfacet.failure_modes.SPECIFICATION[1] and [4].",
+            "tests/corpus/manifest.json's mode4_relabel_swap designates "
+            "this rule for mode 6 (implausible label sequence) of the "
+            "catalogue signed off at item 150 (2026-09-14) via Detector B "
+            "(ordering). Detector A (spline offset) serves NO failure mode "
+            "since that sign-off: the offset from the spinal curve is an "
+            "anatomy-classification signal (spondylolisthesis, scoliosis), "
+            "so its firing on mode1_displace and on the FOV-truncation "
+            "condition's fixture mode6_crop_at_border is a recorded "
+            "co-detection, and its read paths are classified bookkeeping "
+            "below rather than attributed to mode 6.",
         ),
         consumed_paths=(
             ConsumedPath(
@@ -204,15 +206,30 @@ class MislabelRule(Rule):
             ),
             ConsumedPath(
                 path="stage3.per_label_offsets[].dx_mm",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation only (the ', predominantly "
+                    "<axis>' clause), and read by Detector A, which serves "
+                    "no failure mode since item 150"
+                ),
             ),
             ConsumedPath(
                 path="stage3.per_label_offsets[].dy_mm",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation only (the ', predominantly "
+                    "<axis>' clause), and read by Detector A, which serves "
+                    "no failure mode since item 150"
+                ),
             ),
             ConsumedPath(
                 path="stage3.per_label_offsets[].dz_mm",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation only (the ', predominantly "
+                    "<axis>' clause), and read by Detector A, which serves "
+                    "no failure mode since item 150"
+                ),
             ),
             ConsumedPath(
                 path="stage3.per_label_offsets[].is_terminal",
@@ -240,7 +257,14 @@ class MislabelRule(Rule):
             ),
             ConsumedPath(
                 path="stage3.per_label_offsets[].offset_mm",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "Detector A's firing signal, and Detector A serves no "
+                    "failure mode since item 150 (the spline offset is an "
+                    "anatomy-classification signal); it cannot evidence "
+                    "mode 6, which Detector B decides on "
+                    "non_monotonic_pairs[]"
+                ),
             ),
         ),
     )

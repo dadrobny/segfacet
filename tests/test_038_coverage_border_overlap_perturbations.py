@@ -3,6 +3,12 @@ remove_level, crop_at_border, force_overlap.
 
 Covers Acceptance Criteria AC1-AC28:
 
+Plus Group A2 (``remove_level_relabel``), the operator item 150's sign-off
+added on 2026-09-14: the same deletion with the caudal labels renumbered, so
+the sequence stays continuous and nothing fires. It has no AC of its own --
+it postdates this item -- and is covered here beside its sibling, and folded
+into the Group D cross-cutting parametrizations.
+
 - AC1-AC9 (Group A, ``remove_level``): registration; deletes exactly the
   target interior level; fires the missing-interior-level coverage finding
   naming L3; no spurious border flag; only-coverage/case-level findings;
@@ -51,6 +57,7 @@ from segfacet.heuristics.bounds import DEFAULT_BOUNDS
 from segfacet.heuristics.overlap import OverlapRule
 from segfacet.io import FacetInputError
 from segfacet.pipeline import run_qc
+from segfacet.failure_modes import CONDITIONS
 from segfacet.synth import (
     FAILURE_MODE_NAMES,
     build_clean_spine,
@@ -62,7 +69,9 @@ from segfacet.synth.coverage_border_overlap import (
     CropAtBorderPerturbation,
     ForceOverlapPerturbation,
     RemoveLevelPerturbation,
+    RemoveLevelRelabelPerturbation,
 )
+from segfacet.synth.perturbation import CLEAN_CONTROL_MODE
 
 
 # =========================================================================== #
@@ -91,6 +100,7 @@ def _flagged_present_labels(findings):
 # parametrizations.
 _EXPLICIT_TARGET_FACTORIES = [
     lambda: RemoveLevelPerturbation(target_label=22),
+    lambda: RemoveLevelRelabelPerturbation(target_label=22),
     lambda: CropAtBorderPerturbation(target_label=22, face="anterior"),
     lambda: ForceOverlapPerturbation(target_label=20, neighbour_label=21),
 ]
@@ -99,11 +109,17 @@ _EXPLICIT_TARGET_FACTORIES = [
 # seed-varying test.
 _UNSPECIFIED_TARGET_FACTORIES = [
     lambda: RemoveLevelPerturbation(),
+    lambda: RemoveLevelRelabelPerturbation(),
     lambda: CropAtBorderPerturbation(),
     lambda: ForceOverlapPerturbation(),
 ]
 
-_OPERATOR_IDS = ["remove_level", "crop_at_border", "force_overlap"]
+_OPERATOR_IDS = [
+    "remove_level",
+    "remove_level_relabel",
+    "crop_at_border",
+    "force_overlap",
+]
 
 
 def _designated_rule_fires(operator_name, labelmap, clean_data, expectation):
@@ -116,6 +132,14 @@ def _designated_rule_fires(operator_name, labelmap, clean_data, expectation):
             f.rule_id == "coverage" and f.reason.startswith("Missing interior level(s):")
             for f in findings
         )
+    if operator_name == "remove_level_relabel":
+        # Item 150: this operator's expectation designates NO rule -- the
+        # renumbering hides the gap from every shipped rule, and the
+        # recorded outcome is "nothing fires, verdict pass". Its
+        # self-consistency check is therefore the negative one; an
+        # expectation that started naming a rule would fail here.
+        assert expectation.expected_rule_ids == frozenset()
+        return not _findings(labelmap)
     if operator_name == "crop_at_border":
         findings = _findings(labelmap)
         (target,) = expectation.expected_labels
@@ -195,12 +219,19 @@ def test_ac5_remove_level_only_fired_rule_is_coverage_and_case_level():
 
 
 def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():
-    """AC6: Expectation fields are pinned and verdict.overall.label matches."""
+    """AC6: Expectation fields are pinned and verdict.overall.label matches.
+
+    Re-pinned for item 150's sign-off (2026-09-14): a missing *interior*
+    level is a label-sequence finding, so ``remove_level`` moved from the
+    old mode 5 to mode 6, "implausible label sequence". Mode 4 ("vertebra
+    not segmented") keeps the case where the labels are renumbered to hide
+    the gap -- ``remove_level_relabel``, Group A2 below."""
     clean = _clean()
     result = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
-    assert exp.failure_mode == 5
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[5]
+    assert exp.failure_mode == 6
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
+    assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"coverage"})
     assert exp.expected_labels == frozenset()
     assert exp.expected_verdict == "flagged-for-review"
@@ -241,6 +272,126 @@ def test_ac9_remove_level_rejects_explicit_terminal_target():
     clean = _clean()
     with pytest.raises(FacetInputError):
         RemoveLevelPerturbation(target_label=20).apply(clean.seg_img, seed=0)
+
+
+# =========================================================================== #
+# A2. remove_level_relabel (item 150, 2026-09-14)
+#
+# The sign-off split "a vertebra is missing" in two. ``remove_level`` leaves
+# the label sequence discontinuous, which the ``coverage`` rule sees -- that
+# is mode 6 (implausible label sequence), Group A above. Mode 4 ("vertebra
+# not segmented") is the form a real segmenter produces: the vertebra is
+# gone AND the caudal labels are renumbered, so the sequence stays
+# continuous and no shipped rule sees anything. This group mirrors Group A's
+# claims for that operator, including the honest "nothing fires" expectation.
+# =========================================================================== #
+
+
+def test_remove_level_relabel_registered_under_its_name():
+    """Registration: get_perturbation("remove_level_relabel") is
+    RemoveLevelRelabelPerturbation, and it is in both registry views."""
+    assert get_perturbation("remove_level_relabel") is RemoveLevelRelabelPerturbation
+    assert "remove_level_relabel" in perturbation_names()
+    assert RemoveLevelRelabelPerturbation in list(iter_perturbations())
+
+
+def test_remove_level_relabel_renumbers_caudal_labels_contiguously():
+    """The target level's voxels are gone and every caudal label shifts one
+    position up, so the present labels stay contiguous with no gap: clean
+    [20..24] with target 22 becomes [20, 21, 22, 23], where the new 22 is
+    the old 23's body and the new 23 is the old 24's."""
+    clean = _clean()
+    clean_data = np.asanyarray(clean.seg_img.dataobj)
+    result = RemoveLevelRelabelPerturbation(target_label=22).apply(
+        clean.seg_img, seed=0
+    )
+    data = np.asanyarray(result.labelmap.dataobj)
+    present = sorted(int(v) for v in np.unique(data) if v != 0)
+
+    assert present == [20, 21, 22, 23]
+    assert present == list(range(present[0], present[-1] + 1)), "labels must be contiguous"
+    # The cranial labels are untouched...
+    for label in (20, 21):
+        assert int(np.count_nonzero(data == label)) == clean.voxel_counts[label]
+    # ...and each renumbered label carries exactly the body it inherited.
+    assert np.array_equal(data == 22, clean_data == 23)
+    assert np.array_equal(data == 23, clean_data == 24)
+    # The removed vertebra's voxels are background, not reassigned.
+    assert int(np.count_nonzero((clean_data == 22) & (data != 0))) == 0
+
+
+def test_remove_level_relabel_leaves_no_missing_level_for_coverage_to_see():
+    """The point of the operator: ``relationships.missing_levels`` is empty,
+    unlike ``remove_level``'s, so the gap is invisible to ``coverage``."""
+    clean = _clean()
+    result = RemoveLevelRelabelPerturbation(target_label=22).apply(
+        clean.seg_img, seed=0
+    )
+    _case_result, block = run_qc(result.labelmap, bundled_default_config())
+    relationships = block.get("relationships")
+    assert relationships is not None
+    assert not (relationships.get("missing_levels") or [])
+
+    # Contrast with the un-renumbered sibling, so this test cannot pass by
+    # the feature simply never being populated.
+    gapped = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
+    _gapped_result, gapped_block = run_qc(gapped.labelmap, bundled_default_config())
+    assert (gapped_block["relationships"].get("missing_levels") or [])
+
+
+def test_remove_level_relabel_expectation_well_formed_and_pipeline_agrees():
+    """Expectation fields are pinned -- mode 4, no designated rule, verdict
+    "pass" -- and the pipeline agrees: no finding at all fires."""
+    clean = _clean()
+    result = RemoveLevelRelabelPerturbation(target_label=22).apply(
+        clean.seg_img, seed=0
+    )
+    exp = result.expectation
+    assert exp.failure_mode == 4
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[4]
+    assert exp.condition == ""
+    assert exp.expected_rule_ids == frozenset()
+    assert exp.expected_labels == frozenset()
+    assert exp.expected_verdict == "pass"
+
+    case_result, _block = run_qc(result.labelmap, bundled_default_config())
+    assert list(case_result.findings) == []
+    assert case_result.verdict.overall.label == "pass"
+
+
+def test_remove_level_relabel_unspecified_target_picks_an_interior_level():
+    """An unspecified target removes a non-terminal level and still leaves a
+    contiguous present-label set one shorter than the clean span."""
+    clean = _clean()
+    result = RemoveLevelRelabelPerturbation().apply(clean.seg_img, seed=0)
+    data = np.asanyarray(result.labelmap.dataobj)
+    present = sorted(int(v) for v in np.unique(data) if v != 0)
+    assert len(present) == len(clean.labels) - 1
+    assert present == list(range(present[0], present[-1] + 1))
+    assert present[0] == min(clean.labels)
+
+
+def test_remove_level_relabel_rejects_span_with_no_interior_level():
+    """A two-label map has no interior level to remove: FacetInputError."""
+    two_label = build_clean_spine(levels=["L1", "L2"]).seg_img
+    with pytest.raises(FacetInputError):
+        RemoveLevelRelabelPerturbation().apply(two_label, seed=0)
+
+
+def test_remove_level_relabel_rejects_explicit_terminal_target():
+    """An explicit terminal target (label 20, the superior span end) raises
+    FacetInputError, as ``remove_level``'s does."""
+    clean = _clean()
+    with pytest.raises(FacetInputError):
+        RemoveLevelRelabelPerturbation(target_label=20).apply(clean.seg_img, seed=0)
+
+
+def test_remove_level_relabel_explicit_target_absent_raises_clear_error():
+    """Adversarial: an explicit target_label not present in the map raises
+    FacetInputError rather than silently no-op-ing."""
+    clean = _clean()
+    with pytest.raises(FacetInputError):
+        RemoveLevelRelabelPerturbation(target_label=999).apply(clean.seg_img, seed=0)
 
 
 # =========================================================================== #
@@ -303,8 +454,17 @@ def test_ac14_crop_at_border_expectation_well_formed_and_pipeline_agrees():
         clean.seg_img, seed=0
     )
     exp = result.expectation
-    assert exp.failure_mode == 6
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
+    # Item 150's sign-off (2026-09-14) turned "partial vertebra at the FOV
+    # border" from a failure mode into the ``fov_truncation`` *condition*:
+    # the map is not wrong, the acquisition was truncated. So the case
+    # carries failure_mode 0 (no mode) plus a non-empty ``condition``, and
+    # its name is the condition's short_name, not a FAILURE_MODE_NAMES
+    # entry -- which is why this case is still a designated-rule case and
+    # not a clean control.
+    assert exp.failure_mode == CLEAN_CONTROL_MODE
+    assert exp.condition == "fov_truncation"
+    assert exp.failure_mode_name == CONDITIONS["fov_truncation"].short_name
+    assert exp.failure_mode_name != FAILURE_MODE_NAMES[CLEAN_CONTROL_MODE]
     assert exp.expected_rule_ids == frozenset({"border"})
     assert exp.expected_labels == frozenset({22})
     assert exp.expected_verdict == "flagged-for-review"
@@ -404,8 +564,11 @@ def test_ac21_force_overlap_expectation_well_formed():
         target_label=20, neighbour_label=21, overlap_depth=3
     ).apply(clean.seg_img, seed=0)
     exp = result.expectation
-    assert exp.failure_mode == 8
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[8]
+    # Item 150 (2026-09-14): "overlapping segments" is mode 9 in the
+    # signed-off catalogue (it was 8 under vision.md §6's numbering).
+    assert exp.failure_mode == 9
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[9]
+    assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"overlap"})
     assert exp.expected_labels == frozenset({20, 21})
     assert exp.expected_verdict == "flagged-for-review"

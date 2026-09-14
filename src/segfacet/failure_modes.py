@@ -12,14 +12,72 @@ the object the rest of the stage (items 145-151) reads, writes into, and
 renders.
 
 **This module ships the schema, the validation, the derivation and the
-rendering.** Item 144 shipped a minimal seed set of two entries (modes 3 and
-8) to exercise both derivation paths end-to-end (item spec A4); item 145
-entered the remaining six and re-authored those two, so :data:`SPECIFICATION`
-now carries all **eight** of vision.md §6's hypothesised modes, every schema
-field populated, each with the live-registry-declared edges, the
-per-corpus-case measured firing set, and (mode 6) a freshly measured
-centroid-displacement value. Item 146 then added the **ninth** mode and the
-first ``proposed`` entry, so :data:`SPECIFICATION` now carries ten.
+rendering.** Item 144 shipped a minimal seed set of two entries to exercise
+both derivation paths end-to-end (item spec A4); item 145 entered vision.md
+§6's eight hypothesised modes; item 146 added the ninth mode and the first
+``proposed`` entry; item 147 collapsed the five partial sources onto it.
+Item 150's maintainer sign-off (2026-09-14) then **re-organised the
+catalogue** -- see "Taxonomy as signed off" below -- so :data:`SPECIFICATION`
+now carries ten modes in a one-tier hierarchy plus one :data:`CONDITIONS`
+entry.
+
+Taxonomy as signed off (item 150, 2026-09-14)
+---------------------------------------------
+Ids are assigned in this module and are stable from the sign-off on; the
+vision.md §6 list is provenance only (:data:`VISION_SEED_DISPOSITION`), so a
+§6 re-issue through the create-vision entry point is owed and does not move
+an id. The tree runs generic to specific, and a case that meets a parent's
+definition but no sub-mode's rule is classified at the parent::
+
+    1  Segmentation accuracy (over-/under-segmentation)   needs-ground-truth
+       2  Fused or split vertebra segments                 single-channel (proxies, to be proven)
+       3  Disconnected components / islands                single-channel
+       4  Vertebra not segmented                           needs-ground-truth
+    5  Semantic mislabelling                               single-channel (proxies)
+       6  Implausible label sequence                       single-channel; severity fail
+       7  Shifted label sequence                           needs-external-classifier; proposed
+       8  Collapsed or duplicated label set                single-channel; proposed
+    9  Overlapping segments                                structurally-unobservable
+    10 Implausible tissue under a label                    needs-paired-scan
+    Condition: FOV truncation (was mode 6)                  border rule records it
+
+What moved, and why (the full walkthrough is transcribed in
+``docs/aide/items/150-maintainer-sign-off-of-the-specification.md``):
+
+* The old mode 1 ("label not aligned with the vertebra it names") is
+  retired: it was covered by semantic mislabelling, and the spline-offset
+  signal it rested on is an anatomy-classification signal
+  (spondylolisthesis, scoliosis), not a failure signal. ``mislabel``'s
+  spline-offset detector therefore serves **no** mode; its ordering
+  detector serves mode 6.
+* The old mode 2 ("over-/under-segmentation") is split: overall accuracy
+  is the new catch-all mode 1, and fused/split correspondence is mode 2.
+  A label in two large pieces is a connectivity defect, so
+  ``mode2_fragment`` and ``fragmentation``'s component detector move to
+  mode 3.
+* "Missing interior level" is a label-sequence finding, so ``coverage``'s
+  interior-gap detector and ``mode5_remove_level`` move to mode 6; mode 4
+  (vertebra not segmented) keeps ``coverage``'s opt-in span/count checks
+  and gains ``remove_level_relabel`` -- a vertebra removed with the labels
+  renumbered to stay continuous -- which no shipped rule detects.
+* A relabel swap breaks the sequence, so ``mode4_relabel_swap`` and
+  ``mislabel``'s ordering detector move to mode 6. Mode 5 keeps only the
+  per-level-geometry proxy (``reference_delta``).
+* Mode 6 (partial vertebra at the border) becomes the FOV-truncation
+  **condition**: ``border`` declares no mode, and ``mode6_crop_at_border``
+  is the condition's fixture, still expecting ``{border, mislabel}``.
+* Two observability classes are added, ``needs-ground-truth`` and
+  ``needs-external-classifier``; ``bounds`` and ``reference_delta`` are
+  declared for every mode their volume/extent signal can proxy.
+* ``"validated"`` now requires a non-empty agreeing case that fires one of
+  the mode's **own** intended rules (:func:`_demonstrates`); co-detections
+  and empty expected sets never validate.
+
+Known divergence, deferred to a follow-up item: the Stage-18/29 eval
+harness (``segfacet.eval.per_mode``, ``severity_ladder``,
+``per_mode_cohort``) is still keyed by the **pre-sign-off** ids 1-8 and
+names them through ``segfacet.eval.per_mode.LEGACY_STAGE18_MODE_NAMES``;
+re-keying it needs re-measured ladder constants and is not this module's.
 
 Adding the ninth mode (item 146, 2026-09-04)
 --------------------------------------------
@@ -179,9 +237,12 @@ Public API
 
 Sign-off
 --------
-No maintainer sign-off is recorded yet. Item 150 records it here, in this
-docstring, once the finished Stage-30 rendering (items 145-149) has been
-reviewed.
+Signed off: 2026-09-14 -- accepted with changes: the maintainer reviewed all ten entries of the item-149 rendering and re-organised the catalogue (one mode retired, one split, one re-homed as a condition, one added, ids re-assigned in a one-tier hierarchy, two observability classes added); the entry-by-entry walkthrough is transcribed in docs/aide/items/150-maintainer-sign-off-of-the-specification.md.
+
+The changes are the "Taxonomy as signed off" section above, applied in
+this module, the rule declarations, both committed corpora and
+``feature_docs.MODE_ANCHOR_PATHS``; the eval-harness re-key, the vision.md
+§6 re-issue and the new rules the review asked for are follow-up items.
 """
 
 from __future__ import annotations
@@ -198,7 +259,13 @@ __all__ = [
     "IntendedRule",
     "CorpusCaseExpectation",
     "SPECIFICATION",
+    "ConditionSpec",
+    "CONDITIONS",
     "iter_modes",
+    "iter_conditions",
+    "mode_path",
+    "VISION_SEED_DISPOSITION",
+    "vision_seed_conflicts",
     "vision_seed_titles",
     "failure_mode_names",
     "CLEAN_CONTROL_NAME",
@@ -222,14 +289,15 @@ __all__ = [
     "MD_PATH",
 ]
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
 MD_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
 
 _NOTE = (
-    "Generated by `python -m segfacet.failure_modes` (item 144). Do not "
+    "Generated by `python -m segfacet.failure_modes` (item 144; taxonomy "
+    "signed off at item 150, 2026-09-14). Do not "
     "hand-edit this document -- edit the seed ModeSpec entries in "
     "src/segfacet/failure_modes.py (the authored fields), then regenerate. "
     "`status_authored` is the hand-set proposed/specified value; "
@@ -249,6 +317,8 @@ AUTHORED_STATUSES: Tuple[str, ...] = ("proposed", "specified")
 OBSERVABILITY: Tuple[str, ...] = (
     "single-channel-observable",
     "needs-paired-scan",
+    "needs-ground-truth",
+    "needs-external-classifier",
     "structurally-unobservable",
 )
 
@@ -347,6 +417,7 @@ class ModeSpec:
     id: int
     name: str
     short_name: str = ""
+    parent: Optional[int] = None
     definition: str = ""
     discriminator: str = ""
     mechanism: str = ""
@@ -360,6 +431,7 @@ class ModeSpec:
 
     def __post_init__(self) -> None:
         self._require_valid_id()
+        self._require_valid_parent()
 
         # `short_name` and `mechanism` are the two fields item 147 moved onto
         # this schema from the partial sources it retired
@@ -435,6 +507,20 @@ class ModeSpec:
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             raise ValueError(
                 f"ModeSpec {self.name!r}: 'id' must be an int >= 1, got {value!r}."
+            )
+
+    def _require_valid_parent(self) -> None:
+        value = self.parent
+        if value is None:
+            return
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(
+                f"ModeSpec {self.id}: 'parent' must be an int >= 1 or None, got "
+                f"{value!r}."
+            )
+        if value == self.id:
+            raise ValueError(
+                f"ModeSpec {self.id}: 'parent' must not be the mode's own id."
             )
 
     def _validate_candidate_features(self) -> None:
@@ -533,58 +619,161 @@ class ModeSpec:
             seen_case_ids.add(case.case_id)
 
 
+@dataclasses.dataclass(frozen=True)
+class ConditionSpec:
+    """One case **condition** (item 150): a state of the case that gates
+    other rules and is deliberately **not** a failure mode. FOV truncation
+    is the first: the maintainer's 2026-09-14 sign-off retired failure mode
+    6 ("partial vertebra at the image border") into this section, because
+    a truncated vertebra is a property of the scan, not a defect of the
+    segmentation. A condition carries the rule(s) that *record* it, the
+    rule(s) that grant it an exemption today, and its corpus fixtures with
+    expected firing sets -- measured and compared exactly as a mode's are,
+    so a condition case is never a silent hole in the conformance report.
+    """
+
+    id: str
+    name: str
+    short_name: str
+    definition: str
+    mechanism: str
+    candidate_features: Tuple[str, ...]
+    recording_rules: Tuple[str, ...]
+    exempting_rules: Tuple[str, ...]
+    corpus_cases: Tuple[CorpusCaseExpectation, ...]
+
+    def __post_init__(self) -> None:
+        for field_name in ("id", "name", "short_name", "definition", "mechanism"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value:
+                raise ValueError(
+                    f"ConditionSpec {self.id!r}: '{field_name}' must be a non-empty "
+                    f"str, got {value!r}."
+                )
+        for field_name in (
+            "candidate_features",
+            "recording_rules",
+            "exempting_rules",
+            "corpus_cases",
+        ):
+            value = getattr(self, field_name)
+            if not isinstance(value, tuple):
+                raise ValueError(
+                    f"ConditionSpec {self.id!r}: '{field_name}' must be a tuple, got "
+                    f"{type(value).__name__} -- a bare str or a list is not accepted."
+                )
+        if not self.recording_rules:
+            raise ValueError(
+                f"ConditionSpec {self.id!r}: 'recording_rules' must name at least "
+                f"one rule."
+            )
+        seen: set = set()
+        for case in self.corpus_cases:
+            if not isinstance(case, CorpusCaseExpectation):
+                raise ValueError(
+                    f"ConditionSpec {self.id!r}: 'corpus_cases' elements must be "
+                    f"CorpusCaseExpectation, got {case!r}."
+                )
+            if not isinstance(case.expected_firing, tuple):
+                raise ValueError(
+                    f"ConditionSpec {self.id!r}: corpus case {case.case_id!r}'s "
+                    f"'expected_firing' must be a tuple."
+                )
+            if case.case_id in seen:
+                raise ValueError(
+                    f"ConditionSpec {self.id!r}: duplicate corpus case_id "
+                    f"{case.case_id!r}."
+                )
+            seen.add(case.case_id)
+
+
 # =========================================================================== #
-# The shipped eight (item 145): every vision.md section 6 mode entered.
+# The catalogue as signed off (item 150, 2026-09-14).
 #
-# expected_firing, the detector tags and the mode-6 displacement are measured
-# live on the item-143-corrected corpus and recorded literally here
-# (transcribing a *computed* value would defeat AC1's no-heavy-import-at-
-# module-level contract) -- see this item's Decisions log for the
-# measurement transcript. The edge set/rung per mode is the live registry's
-# declaration (AC5, AC6) as it stood on 2026-09-03; names are the vision.md
-# section 6 parse (AC3), never hand-typed independently of it.
+# Ids are assigned HERE and are stable from this sign-off on; the vision.md
+# section 6 list is provenance only (see VISION_SEED_DISPOSITION). The tree is
+# generic-to-specific: a case that meets a parent's definition but no
+# sub-mode's rule is classified at the parent. expected_firing values are
+# measured live on the item-150 corpus and recorded literally (a computed
+# value at module level would defeat the no-heavy-import contract).
 # =========================================================================== #
 
 _MODE_1 = ModeSpec(
     id=1,
-    name="Label not aligned with the anatomical vertebra it names",
-    short_name="label not aligned with the vertebra it names",
+    name="Segmentation accuracy (over-/under-segmentation)",
+    short_name="segmentation accuracy (over-/under-segmentation)",
     definition=(
-        "A vertebra segment is present and carries the correct level's "
-        "label, but its measured position -- the centroid's offset from the "
-        "fitted spinal curve -- is displaced from where that vertebra "
-        "actually sits, with the label touching no image border and its "
-        "identity itself unquestioned."
+        "Relative to ground truth, the predicted segment for a correctly "
+        "identified and labelled vertebra misses part of that vertebra "
+        "(under-segmentation) or extends beyond it into background or "
+        "adjacent tissue (over-segmentation). The catch-all for accuracy "
+        "defects no more specific sub-mode claims: a case that is inaccurate "
+        "but meets no sub-mode's rule is classified here."
     ),
     discriminator=(
-        "Distinguishes from mode 4 by whether the label's identity is wrong "
-        "(mode 4, an ordering/identity failure) or only its position along "
-        "the spine is wrong while the identity stays correct (mode 1); "
-        "distinguishes from mode 6 by whether a border-touching face "
-        "explains the displacement (mode 6, a crop) or none does (mode 1)."
+        "Mode 2 when the overreach covers a substantial part of a "
+        "neighbouring vertebra, or the missing part is claimed by another "
+        "label; mode 3 when the surplus is a disconnected component rather "
+        "than contiguous with the body; mode 4 when the whole vertebra is "
+        "absent; the FOV-truncation condition when the missing part lies "
+        "beyond an image face."
     ),
     mechanism=(
-        "Item 120's held-out spline-offset measurement demonstrates label "
-        "displacement end-to-end on the committed corpus case "
-        "mode1_displace; under plain run_qc (no reference attached) it is "
-        "caught solely by mislabel's Detector A via "
-        "stage3.per_label_offsets[].offset_mm (measured: findings == "
-        "['mislabel']). reference_delta additionally scores "
-        "spline_offset_mm, but only once a reference is attached, which "
-        "this corpus case's plain-pipeline detection is not."
+        "No shipped rule decides this mode: it needs a ground-truth label "
+        "map, which the per-case pipeline never sees. The label-map proxies "
+        "are the bounds rule's per-label volume/extent ranges "
+        "(per_label.{label}.geometry.physical_volume_mm3) and "
+        "reference_delta's cohort z-scores "
+        "(reference_delta.{label}.features.physical_volume_mm3.robust_z), "
+        "both declared at needs-real-data. The corpus case mode1_displace "
+        "(a rigidly translated vertebra, which is over-segmentation into "
+        "background plus under-segmentation of the true body) fires "
+        "mislabel's spline-offset detector via "
+        "stage3.per_label_offsets[].offset_mm -- a detector that serves no "
+        "failure mode (the spline offset is an anatomy-classification "
+        "signal), so the case is recorded as a co-detection and does not "
+        "validate this mode."
     ),
-    observability="single-channel-observable",
+    observability="needs-ground-truth",
     candidate_features=(
         CandidateFeature(
             path="stage3.per_label_offsets[].offset_mm",
             role="stage18-metric-anchor",
         ),
+        CandidateFeature(
+            path="per_label.{label}.geometry.physical_volume_mm3",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="eval.overlap.per_label[].dice",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="eval.per_mode.unanchored_foreground_fraction",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="boundary_error_band_thickness_mm",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="local_blob_error_volume_mm3",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="error_spatial_distribution",
+            role="hypothesised",
+        ),
     ),
     intended_rules=(
         IntendedRule(
-            rule_id="mislabel",
-            detector="Vertebra misaligned from spinal curve:",
-            evidence_rung="synthetic-demonstrable",
+            rule_id="bounds",
+            detector="",
+            evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
@@ -598,16 +787,13 @@ _MODE_1 = ModeSpec(
             corpus="geometric",
             expected_firing=("mislabel",),
             reason=(
-                "pipeline-detected; mislabel (Detector A, position/"
-                "alignment) is the sole rule that fires on this corpus "
-                "case, measured live via "
-                "segfacet.synth.regression.pipeline_findings on the "
-                "item-143-corrected corpus (2026-09-03): label 22 (L3)'s "
-                "centroid lies measurably off the fitted spinal curve while "
-                "touching no image face, so reference_delta stays "
-                "needs-real-data -- no committed corpus case designates it, "
-                "only a cohort reference artifact can (A9/A1's analytic-only "
-                "class)."
+                "pipeline-detected by a mode-less detector only: mislabel's "
+                "spline-offset detector fires because label 22 (L3) is "
+                "rigidly translated off the fitted spinal curve, measured "
+                "live via segfacet.synth.regression.pipeline_findings "
+                "(2026-09-14). Neither of this mode's intended rules fires "
+                "without a reference attached, so the case is a recorded "
+                "co-detection and does not validate mode 1."
             ),
         ),
     ),
@@ -618,33 +804,139 @@ _MODE_1 = ModeSpec(
 
 _MODE_2 = ModeSpec(
     id=2,
-    name="Over-/under-segmentation — fused or fragmented vertebra segments",
-    short_name="over-/under-segmentation (fused / fragmented)",
+    parent=1,
+    name="Fused or split vertebra segments",
+    short_name="fused or split vertebra segments",
     definition=(
-        "A label's physical volume, x/y/z extent, or fragmentation index "
-        "departs from the plausible range for its level: fusion with a "
-        "neighbouring vertebra reads over the volume/extent range and "
-        "produces a fragmentation_index below the intact-body threshold "
-        "(two comparably-sized components), while an under-segmented or "
-        "partially-labelled vertebra reads under the range."
+        "Fused: one predicted segment covers a substantial part of more than "
+        "one ground-truth vertebra. Split: one ground-truth vertebra is "
+        "covered by more than one predicted segment, such that merging them "
+        "gives a better prediction. Typically a mostly correct vertebra that "
+        "misses a part or extends partly onto a neighbour; both can occur at "
+        "once. Sub-type: transitional lumbosacral anatomy (sacralised L5, "
+        "lumbarised S1) causing a fusion or split at the junction; a "
+        "hypothesised extra signal is disc labels lying inside the sacrum "
+        "label, which needs an intervertebral-disc channel the current label "
+        "convention does not carry."
     ),
     discriminator=(
-        "Distinguishes from mode 3 by whether the dominant body itself "
-        "stays intact: mode 2's label splits into components of comparable "
-        "size (fragmentation_index below threshold, largest_component_"
-        "fraction well under 0.9), while mode 3's dominant body stays "
-        "largely intact (largest_component_fraction >= 0.9) with only a "
-        "small stray island splitting off."
+        "Mode 1 when the error stays within one vertebra and its "
+        "background; mode 3 when the pieces carry the same label rather "
+        "than a neighbour's; mode 4 when the missing vertebra's voxels are "
+        "unclaimed rather than absorbed by a neighbour; mode 8 when two "
+        "whole vertebrae share one label a full spacing apart."
     ),
     mechanism=(
-        "The corpus case mode2_fragment demonstrates over-/"
-        "under-segmentation end-to-end; under plain run_qc (no reference "
-        "attached) it is caught solely by fragmentation's component-count "
-        "checks (measured: findings == ['fragmentation']). bounds and "
-        "reference_delta fire only once a reference is attached, and then "
-        "fire identically on clean_control -- the documented "
-        "uncalibrated-baseline noise (CLAUDE.md Gotchas, item 125) -- not "
-        "evidence of mode-2-specific detection."
+        "Observable from the label map via proxies, still to be proven: a "
+        "fused pair reads over the level's volume/extent range and a split "
+        "part reads under it (bounds, "
+        "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
+        "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
+        "both edges needs-real-data. The corpus case fuse_adjacent absorbs "
+        "label 23 (L4) into 22 (L3) unbridged, so what fires today is "
+        "fragmentation's component detector "
+        "(per_label.{label}.components.fragmentation_index) and coverage's "
+        "interior-gap detector (relationships.missing_levels[]) -- mode 3's "
+        "and mode 6's detectors co-detecting, recorded, not this mode's own."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="per_label.{label}.geometry.physical_volume_mm3",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.spacing_consistency.spacings_mm[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.per_label_offsets[].offset_mm",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="spline_leave_one_out_shape_change",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="surface_topology",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="metric_change_under_split_or_merge_candidate",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="disc_labels_inside_sacrum_label",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(
+        IntendedRule(
+            rule_id="bounds",
+            detector="",
+            evidence_rung="needs-real-data",
+        ),
+        IntendedRule(
+            rule_id="reference_delta",
+            detector="",
+            evidence_rung="needs-real-data",
+        ),
+    ),
+    corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="fuse_adjacent",
+            corpus="geometric",
+            expected_firing=("coverage", "fragmentation"),
+            reason=(
+                "pipeline-detected by co-detections only, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
+                "the fused label 22 spans two disconnected bodies "
+                "(fragmentation, Fragmentation:) and the absorbed level L4 "
+                "is missing from the interior of the span (coverage, "
+                "Missing interior level(s):). Neither of this mode's own "
+                "intended rules fires without a reference, so the case does "
+                "not validate mode 2."
+            ),
+        ),
+    ),
+    severity="flagged-for-review",
+    status="specified",
+    provenance="hypothesised",
+)
+
+_MODE_3 = ModeSpec(
+    id=3,
+    parent=1,
+    name="Disconnected components / islands",
+    short_name="disconnected components / islands",
+    definition=(
+        "A label's foreground voxels form more than one connected component, "
+        "of any size ratio. Islands tend to be small fractions of the label, "
+        "may cover background (non-vertebra) voxels, and may lie far from "
+        "the main component, for example noise at the scan border."
+    ),
+    discriminator=(
+        "Mode 1 when the surplus is contiguous with the body; mode 2 when "
+        "the pieces carry different labels; mode 8 when the components are "
+        "two whole vertebrae one spacing apart. The size ratio and the "
+        "island's distance from the main body grade the finding rather than "
+        "bound the mode: the further an island lies from the label's "
+        "centroid, the larger it may be and still count as an island."
+    ),
+    mechanism=(
+        "Both fragmentation detectors serve this mode end-to-end on the "
+        "committed corpus: mode2_fragment splits label 22 into two "
+        "comparably-sized components and drives the Fragmentation: "
+        "detector via per_label.{label}.components.fragmentation_index; "
+        "mode3_inject_islands adds tiny rogue blocks and drives the Rogue "
+        "island(s): detector via "
+        "per_label.{label}.components.stray_component_sizes[]. bounds and "
+        "reference_delta stay needs-real-data: a stray island shifts volume "
+        "only marginally."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -652,11 +944,23 @@ _MODE_2 = ModeSpec(
             path="per_label.{label}.components.fragmentation_index",
             role="stage18-metric-anchor",
         ),
+        CandidateFeature(
+            path="per_label.{label}.components.stray_component_sizes[]",
+            role="stage18-metric-anchor",
+        ),
+        CandidateFeature(
+            path="per_label.{label}.components.largest_component_fraction",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="island_distance_from_main_body_mm",
+            role="hypothesised",
+        ),
     ),
     intended_rules=(
         IntendedRule(
             rule_id="fragmentation",
-            detector="Fragmentation:",
+            detector="Fragmentation: / Rogue island(s):",
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
@@ -678,59 +982,14 @@ _MODE_2 = ModeSpec(
             reason=(
                 "pipeline-detected; fragmentation (Fragmentation: the "
                 "label's fragmentation_index falls below threshold, two "
-                "comparably-sized components) is the sole rule that fires "
-                "on this corpus case, measured live via "
-                "segfacet.synth.regression.pipeline_findings on the "
-                "item-143-corrected corpus (2026-09-03). bounds and "
-                "reference_delta both stay needs-real-data: no committed "
-                "corpus case designates either for this mode, only "
-                "hand-set physical ranges or a cohort reference artifact "
-                "can (A1's analytic-only class)."
+                "comparably-sized components) is the sole rule that fires, "
+                "measured live via segfacet.synth.regression."
+                "pipeline_findings (2026-09-14). Re-homed from the retired "
+                "over-/under-segmentation mode at the item-150 sign-off: a "
+                "label in two large pieces is a connectivity defect, not a "
+                "label-to-vertebra correspondence defect."
             ),
         ),
-    ),
-    severity="flagged-for-review",
-    status="specified",
-    provenance="hypothesised",
-)
-
-_MODE_3 = ModeSpec(
-    id=3,
-    name="Disconnected components / islands, especially tiny rogue segments",
-    short_name="disconnected components / rogue islands",
-    definition=(
-        "A label's foreground voxels split into more than one connected "
-        "component, with at least one stray component far smaller than the "
-        "dominant body."
-    ),
-    discriminator=(
-        "Distinguishes from mode 2 by whether the dominant body stays "
-        "intact: mode 3 keeps its largest component holding "
-        "largest_component_fraction >= 0.9 of the label's voxels, with a "
-        "small stray island elsewhere, while mode 2's largest component "
-        "holds a materially smaller share, reflecting genuine "
-        "fragmentation rather than a rogue island."
-    ),
-    mechanism=(
-        "The corpus case mode3_inject_islands demonstrates disconnected "
-        "rogue-island segments end-to-end, detected by the fragmentation "
-        "rule's stray-component checks."
-    ),
-    observability="single-channel-observable",
-    candidate_features=(
-        CandidateFeature(
-            path="per_label.{label}.components.stray_component_sizes[]",
-            role="stage18-metric-anchor",
-        ),
-    ),
-    intended_rules=(
-        IntendedRule(
-            rule_id="fragmentation",
-            detector="Rogue island(s):",
-            evidence_rung="synthetic-demonstrable",
-        ),
-    ),
-    corpus_cases=(
         CorpusCaseExpectation(
             case_id="mode3_inject_islands",
             corpus="geometric",
@@ -738,9 +997,8 @@ _MODE_3 = ModeSpec(
             reason=(
                 "pipeline-detected; fragmentation (Rogue island(s): a small "
                 "non-dominant component strictly below island_min_voxels) "
-                "is the sole rule that fires on this corpus case, measured "
-                "live via segfacet.synth.regression.pipeline_findings on "
-                "the item-143-corrected corpus (2026-09-03)."
+                "is the sole rule that fires, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-14)."
             ),
         ),
     ),
@@ -751,56 +1009,84 @@ _MODE_3 = ModeSpec(
 
 _MODE_4 = ModeSpec(
     id=4,
-    name="Semantic mislabelling (wrong vertebra identification)",
-    short_name="semantic mislabelling (wrong identification)",
+    parent=1,
+    name="Vertebra not segmented",
+    short_name="vertebra not segmented",
     definition=(
-        "A vertebra is segmented with the label of a different vertebra "
-        "level: two adjacent labels are out of the anatomically expected "
-        "order along the fitted spinal curve, even though each label's own "
-        "geometry is otherwise plausible -- the labels' identities, not "
-        "their positions, are wrong."
+        "One or more vertebrae in the scan are not segmented: a "
+        "ground-truth vertebra is (mostly) not covered by any predicted "
+        "segment. Usually the level's label is also absent, but the labels "
+        "of the remaining vertebrae may have been renumbered so that the "
+        "label sequence stays continuous over a spatial gap."
     ),
     discriminator=(
-        "Distinguishes from mode 1 by whether the label's identity is "
-        "wrong (mode 4, an ordering/identity failure between two adjacent "
-        "labels) or only its position is wrong while the identity stays "
-        "correct (mode 1)."
+        "Mode 2 when the missing vertebra's voxels are absorbed by a "
+        "neighbouring label rather than left unclaimed; modes 5 and 6 when "
+        "the expected label is present but used elsewhere on the wrong "
+        "vertebra; mode 6 when the only evidence is a missing label in an "
+        "otherwise complete span (that finding is mode 6's, and the "
+        "unsegmented vertebra it implies is this mode's)."
     ),
     mechanism=(
-        "Item 132 closed the interpolating-spline-fit defect for semantic "
-        "mislabelling, and the corpus case mode4_relabel_swap demonstrates "
-        "a relabel-swap end-to-end, caught by mislabel's Detector B via "
-        "stage3.monotonic_consistency.non_monotonic_pairs[] -- the field "
-        "Detector B actually reads; MODE_ANCHOR_PATHS anchors this mode "
-        "instead on the neighbouring is_monotonic field by design "
-        "(feature_docs.py), not on the field the rule reads."
+        "Defined against ground truth (the Stage-18 metric counts GT levels "
+        "with no candidate voxels). From the label map alone the shipped "
+        "signals are indirect: coverage's opt-in expected-span and "
+        "expected-count checks over relationships.present_levels[] (both "
+        "ship disabled, needs-real-data), and the hypothesised spacing-gap "
+        "signal -- the corpus case remove_level_relabel deletes L3 and "
+        "renumbers L4/L5 to L3/L4, leaving a continuous label sequence with "
+        "a double inter-centroid spacing that no shipped rule reads, so its "
+        "expected firing set is empty and the mode does not validate. Two "
+        "further hypothesised signals cover a missing vertebra at the FOV "
+        "end: extrapolating the centroid sequence toward the image face, "
+        "and checking that no label touches a scan boundary that lacks a "
+        "terminal label."
     ),
-    observability="single-channel-observable",
+    observability="needs-ground-truth",
     candidate_features=(
         CandidateFeature(
-            path="stage3.monotonic_consistency.is_monotonic",
+            path="relationships.present_levels[]",
             role="stage18-metric-anchor",
+        ),
+        CandidateFeature(
+            path="stage3.spacing_consistency.spacings_mm[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="eval.per_mode.missing_level_count",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="extrapolated_centroid_gap_to_image_face_mm",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="scan_boundary_without_terminal_label",
+            role="hypothesised",
         ),
     ),
     intended_rules=(
         IntendedRule(
-            rule_id="mislabel",
-            detector="Vertebra ordering inconsistent with label:",
-            evidence_rung="synthetic-demonstrable",
+            rule_id="coverage",
+            detector="Incomplete coverage (span): / Below expected count:",
+            evidence_rung="needs-real-data",
         ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode4_relabel_swap",
+            case_id="remove_level_relabel",
             corpus="geometric",
-            expected_firing=("mislabel",),
+            expected_firing=(),
             reason=(
-                "pipeline-detected; mislabel (Detector B, ordering/"
-                "identity) is the sole rule that fires on this corpus "
-                "case, measured live via "
-                "segfacet.synth.regression.pipeline_findings on the "
-                "item-143-corrected corpus (2026-09-03): labels 21 (L2) "
-                "and 22 (L3) are out of expected order along the spline."
+                "not detected today: label 22 (L3) is deleted and labels "
+                "23/24 (L4/L5) are renumbered to 22/23, so the label "
+                "sequence stays continuous while the centroid spacing "
+                "between L2 and the renumbered L3 doubles; no shipped rule "
+                "reads stage3.spacing_consistency.spacings_mm[], measured "
+                "live via segfacet.synth.regression.pipeline_findings "
+                "(2026-09-14). Recorded so the hypothesised spacing-gap "
+                "signal has its fixture; an empty expected set never "
+                "validates a mode."
             ),
         ),
     ),
@@ -811,56 +1097,60 @@ _MODE_4 = ModeSpec(
 
 _MODE_5 = ModeSpec(
     id=5,
-    name="Not all vertebrae in the image are segmented",
-    short_name="not all vertebrae segmented (missing levels)",
+    name="Semantic mislabelling (wrong vertebra identification)",
+    short_name="semantic mislabelling (wrong level identity)",
     definition=(
-        "One or more vertebrae expected to be present within the observed "
-        "span of present levels carry no label at all -- the level is "
-        "missing from the segmentation entirely, not merely misplaced or "
-        "malformed."
+        "A segmented vertebra carries the label of a different vertebra "
+        "level. Any number of vertebrae per scan may be affected, and the "
+        "label sequence may remain valid: mislabelling need not take the "
+        "form of swapped labels. The catch-all for identity defects no "
+        "sub-mode claims."
     ),
     discriminator=(
-        "Distinguishes from every other mode by being an absence rather "
-        "than a defect: no per-label geometry exists at all for the "
-        "missing level, whereas modes 1-4 and 6 all involve a mislocated, "
-        "malformed or displaced *existing* label."
+        "Mode 6 when the wrong identities make the label sequence "
+        "implausible (every mode-6 case contains at least one mislabelled "
+        "vertebra); mode 7 when every label is offset by the same number of "
+        "levels; mode 8 when two labels collapse onto one centroid or one "
+        "label covers two vertebrae. The label sits on a real vertebra, "
+        "which separates it from mode 1's voxel-level inaccuracy."
     ),
     mechanism=(
-        "The corpus case mode5_remove_level demonstrates a missing "
-        "vertebra end-to-end, caught by the coverage rule against "
-        "relationships.missing_levels[] -- the field the rule actually "
-        "reads; relationships.present_levels[] is read only by coverage's "
-        "opt-in expected-levels span check, which ships disabled "
-        "(expected_levels=[])."
+        "Single-channel-observable only where the mislabelled vertebra's "
+        "geometry does not fit the level it is named: reference_delta's "
+        "per-level cohort z-scores "
+        "(reference_delta.{label}.features.physical_volume_mm3.robust_z) "
+        "are the shipped proxy, needs-real-data. The whole-sequence shift "
+        "is mode 7 and needs an external vertebra classifier. The corpus "
+        "swap case (mode4_relabel_swap) is a mode-6 case: a swap breaks the "
+        "sequence, which is the observable form."
     ),
     observability="single-channel-observable",
     candidate_features=(
         CandidateFeature(
-            path="relationships.present_levels[]",
+            path="stage3.monotonic_consistency.is_monotonic",
             role="stage18-metric-anchor",
+        ),
+        CandidateFeature(
+            path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="eval.per_mode.mislabelled_volume_fraction",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="vertebra_level_classifier_output",
+            role="hypothesised",
         ),
     ),
     intended_rules=(
         IntendedRule(
-            rule_id="coverage",
-            detector="Missing interior level(s):",
-            evidence_rung="synthetic-demonstrable",
+            rule_id="reference_delta",
+            detector="",
+            evidence_rung="needs-real-data",
         ),
     ),
-    corpus_cases=(
-        CorpusCaseExpectation(
-            case_id="mode5_remove_level",
-            corpus="geometric",
-            expected_firing=("coverage",),
-            reason=(
-                "pipeline-detected; coverage (Missing interior level(s): "
-                "L3 absent within the observed present-level span) is the "
-                "sole rule that fires on this corpus case, measured live "
-                "via segfacet.synth.regression.pipeline_findings on the "
-                "item-143-corrected corpus (2026-09-03)."
-            ),
-        ),
-    ),
+    corpus_cases=(),
     severity="flagged-for-review",
     status="specified",
     provenance="hypothesised",
@@ -868,118 +1158,71 @@ _MODE_5 = ModeSpec(
 
 _MODE_6 = ModeSpec(
     id=6,
-    name="Partial vertebra at the image border whose appearance changes",
-    short_name="partial vertebra at the image border",
+    parent=5,
+    name="Implausible label sequence",
+    short_name="implausible label sequence",
     definition=(
-        "A vertebra at the edge of the imaging field of view is only "
-        "partially captured: its label touches an image face, and the "
-        "missing tissue displaces its measured centroid off the fitted "
-        "spinal curve, changing both its geometry and its apparent "
-        "position."
+        "The sequence of labelled vertebra levels is not one a spine can "
+        "carry: a level appears out of cranio-caudal order relative to its "
+        "neighbours, a level is missing from the interior of an otherwise "
+        "present span, or a valid but unprompted numbering variant is used "
+        "(a transitional label such as T13 or L6 in a scan not configured "
+        "for it, where the default numbering is expected). A valid sequence "
+        "is a contiguous run in canonical order, with transitional labels "
+        "admitted only when configured or prompted, and accommodates a "
+        "varying field of view."
     ),
     discriminator=(
-        "Distinguishes from mode 1 by a border-touching face: mode 6's "
-        "clipped vertebra touches an image face, and that crop is what "
-        "explains the centroid displacement, while mode 1's displaced "
-        "vertebra touches no face at all -- the same misalignment "
-        "detector legitimately co-fires on mode 6's case (co-detection is "
-        "recorded, not suppressed), but the border-touch face is what "
-        "identifies mode 6 rather than mode 1."
+        "Always contains at least one mode-5 mislabelling, not the "
+        "converse: mode 5 alone when the sequence stays valid. Mode 7 when "
+        "the whole sequence is offset but internally valid. Mode 4 owns the "
+        "unsegmented vertebra a missing interior label implies; this mode "
+        "owns the label-sequence finding itself. An out-of-order sequence "
+        "means at least one label is certainly wrong and should fail the "
+        "case; an unprompted variant is plausible anatomy off the default "
+        "numbering and is flagged."
     ),
     mechanism=(
-        "The corpus case mode6_crop_at_border demonstrates a "
-        "border-cropped vertebra end-to-end -- the corpus operator crops "
-        "the anterior face -- caught by the border rule reading "
-        "per_label.{label}.geometry.touches_anterior."
-    ),
-    observability="single-channel-observable",
-    candidate_features=(
-        CandidateFeature(
-            path="per_label.{label}.geometry.touches_left",
-            role="stage18-metric-anchor",
-        ),
-    ),
-    intended_rules=(
-        IntendedRule(
-            rule_id="border",
-            detector="Partial vertebra clipped by FOV:",
-            evidence_rung="synthetic-demonstrable",
-        ),
-    ),
-    corpus_cases=(
-        CorpusCaseExpectation(
-            case_id="mode6_crop_at_border",
-            corpus="geometric",
-            expected_firing=("border", "mislabel"),
-            reason=(
-                "pipeline-detected; measured live via "
-                "segfacet.synth.regression.pipeline_findings on the "
-                "item-143-corrected corpus (2026-09-03), this case fires "
-                "two rules: border, because the cropped label 22 (L3) "
-                "touches the anterior image face; and mislabel, because "
-                "cropping the vertebra at the image border displaces its "
-                "centroid 17.51 mm off the fitted spinal curve (spline) -- "
-                "the legitimate co-detection this mode's discriminator "
-                "names. mislabel is deliberately not one of mode 6's own "
-                "intended_rules edges (AC5): only border is registered for "
-                "mode 6."
-            ),
-        ),
-    ),
-    severity="flagged-for-review",
-    status="specified",
-    provenance="hypothesised",
-)
-
-_MODE_7 = ModeSpec(
-    id=7,
-    name="Non-continuous label sequence (e.g. L1 → T12 → L2 → L5)",
-    short_name="non-continuous label sequence",
-    definition=(
-        "The sequence of labelled vertebra levels departs from anatomical "
-        "order -- a level appears out of its expected cranio-caudal "
-        "sequence relative to its neighbours in the labelled sequence, "
-        "independent of any single label's own position or identity."
-    ),
-    discriminator=(
-        "Distinguishes from mode 4 by scope: mode 4 is a pairwise ordering "
-        "inconsistency between two adjacent labels along the fitted "
-        "spinal curve, while mode 7 is a sequence-level discontinuity in "
-        "the labelled level ordering itself, independent of any single "
-        "label's spatial position."
-    ),
-    # Item 147 settles this sentence, correcting the claim item 145
-    # transcribed from the retired traceability.MODE_RUNGS[7] and the
-    # duplicate that stood in this mode's corpus-case reason
-    # (docs/aide/insights.md, item 145, 2026-09-03). Every clause below is
-    # measured, not asserted: the ranks from segfacet.labels (2026-09-04),
-    # the "caps nothing" claim by driving SequenceRule on a one-descent and
-    # a two-descent record (one finding each). This is the sentence's only
-    # home in src/segfacet/.
-    mechanism=(
-        "segfacet.labels.CANONICAL_ORDER inserts the transitional label "
-        "T13 at index 19, so a lumbar label's canonical rank equals its "
-        "integer value (L1 = 20 → rank 20 ... L5 = 24 → rank 24) while a "
-        "thoracic label's rank is its value minus one (T12 = 19 → rank "
-        "18); section 6.7's own L1 → T12 → L2 → L5 example is therefore "
-        "a SINGLE rank descent (ranks 20, 18, 21, 24), not the two "
-        "descents §6 and the retired constant both called it. The sequence "
-        "rule caps nothing: it raises exactly one finding whenever "
-        "relationships.out_of_order_labels is non-empty, on a one-descent "
-        "and on a two-descent record alike, as measured. The "
-        "single-relabel cap belongs to the fixture generator "
-        "synth/identity_ordering_alignment.py's SequenceBreakPerturbation, "
-        "which relabels exactly one vertebra -- the tail, to T13 -- so the "
-        "committed case mode7_sequence_break can express only a "
-        "single-relabel break and a multi-relabel scramble needs real "
-        "data, which is why this edge stays one rung below its case's "
-        "pipeline detection."
+        "Three detectors serve this mode: sequence fires on "
+        "relationships.out_of_order_labels[] (mode7_sequence_break relabels "
+        "the tail to T13 -- one rank descent, since "
+        "segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); "
+        "mislabel's ordering detector fires on "
+        "stage3.monotonic_consistency.non_monotonic_pairs[] "
+        "(mode4_relabel_swap exchanges L2 and L3); coverage's interior-gap "
+        "detector fires on relationships.missing_levels[] "
+        "(mode5_remove_level deletes L3 without renumbering). The "
+        "unprompted-variant detector does not exist yet: it is a candidate "
+        "over relationships.present_levels[] plus a configuration flag. A "
+        "multi-relabel scramble is not expressible by the fixture "
+        "generator, which is why the sequence edge stays needs-real-data "
+        "although its case is pipeline-detected."
     ),
     observability="single-channel-observable",
     candidate_features=(
         CandidateFeature(
             path="relationships.is_continuous",
             role="stage18-metric-anchor",
+        ),
+        CandidateFeature(
+            path="relationships.out_of_order_labels[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.monotonic_consistency.non_monotonic_pairs[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="relationships.missing_levels[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="relationships.present_levels[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="unprompted_transitional_label",
+            role="hypothesised",
         ),
     ),
     intended_rules=(
@@ -988,31 +1231,165 @@ _MODE_7 = ModeSpec(
             detector="Non-continuous label sequence:",
             evidence_rung="needs-real-data",
         ),
+        IntendedRule(
+            rule_id="mislabel",
+            detector="Vertebra ordering inconsistent with label:",
+            evidence_rung="synthetic-demonstrable",
+        ),
+        IntendedRule(
+            rule_id="coverage",
+            detector="Missing interior level(s):",
+            evidence_rung="synthetic-demonstrable",
+        ),
     ),
     corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="mode4_relabel_swap",
+            corpus="geometric",
+            expected_firing=("mislabel",),
+            reason=(
+                "pipeline-detected; mislabel's ordering detector is the "
+                "sole rule that fires, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
+                "labels 21 (L2) and 22 (L3) are out of expected order along "
+                "the spline. Re-homed from semantic mislabelling at the "
+                "item-150 sign-off: a swap is the sequence-breaking form of "
+                "mislabelling."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="mode5_remove_level",
+            corpus="geometric",
+            expected_firing=("coverage",),
+            reason=(
+                "pipeline-detected; coverage (Missing interior level(s): L3 "
+                "absent within the observed present-level span) is the sole "
+                "rule that fires, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-14). "
+                "Re-homed from vertebra-not-segmented at the item-150 "
+                "sign-off: the finding is about the label sequence; the "
+                "unsegmented vertebra it implies is mode 4's."
+            ),
+        ),
         CorpusCaseExpectation(
             case_id="mode7_sequence_break",
             corpus="geometric",
             expected_firing=("sequence",),
             reason=(
-                "pipeline-detected; sequence is the sole rule that fires "
-                "on this corpus case, measured live via "
-                "segfacet.synth.regression.pipeline_findings on the "
-                "item-143-corrected corpus (2026-09-03). Why this edge's "
-                "rung sits below that measured detection -- what the "
-                "fixture generator can and cannot express -- is recorded "
-                "once, in this mode's mechanism sentence (item 147); it is "
-                "deliberately not repeated here."
+                "pipeline-detected; sequence is the sole rule that fires, "
+                "measured live via segfacet.synth.regression."
+                "pipeline_findings (2026-09-14). The tail vertebra is "
+                "relabelled to T13, a single rank descent; why the edge's "
+                "rung sits below this measured detection is in the "
+                "mechanism sentence."
             ),
         ),
     ),
-    severity="flagged-for-review",
+    severity="fail",
     status="specified",
+    provenance="hypothesised",
+)
+
+_MODE_7 = ModeSpec(
+    id=7,
+    parent=5,
+    name="Shifted label sequence",
+    short_name="shifted label sequence",
+    definition=(
+        "Every label in the scan is offset from its true level by the same "
+        "number of levels, so the sequence is internally valid and no "
+        "label-map feature distinguishes it from a correct labelling. "
+        "Deciding it needs an external vertebra-level classifier -- spine "
+        "section, rib attachment, or a counting reference such as C2 or "
+        "the sacrum -- or ground truth."
+    ),
+    discriminator=(
+        "Mode 6 when the sequence itself is implausible; mode 5 when only "
+        "some labels are wrong. The whole-sequence offset with a valid "
+        "sequence is what makes this a separate mode: a rule reading the "
+        "label map alone cannot fire on it."
+    ),
+    mechanism=(
+        "No shipped rule, no candidate feature in the record, no corpus "
+        "case: listed as proposed. The one hypothesised input is a "
+        "vertebra-level classifier's output (spine section and counting "
+        "reference), compared against relationships.present_levels[]."
+    ),
+    observability="needs-external-classifier",
+    candidate_features=(
+        CandidateFeature(
+            path="vertebra_level_classifier_output",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="relationships.present_levels[]",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="proposed",
     provenance="hypothesised",
 )
 
 _MODE_8 = ModeSpec(
     id=8,
+    parent=5,
+    name="Collapsed or duplicated label set",
+    short_name="collapsed or duplicated label set",
+    definition=(
+        "Decidable on centroids alone. Collapsed: two or more labels' "
+        "centroids lie closer together than a fraction of the expected "
+        "inter-vertebral spacing. Duplicated: one label value carries two "
+        "centroids -- in segmentation terms, two whole vertebrae roughly a "
+        "vertebral spacing apart share a label. When centroids coincide "
+        "exactly the Stage 3 spline fit cannot be computed, the record "
+        "carries a stage3_unavailable reason instead of a stage3 block, "
+        "every stage3-reading rule short-circuits and no finding of any "
+        "kind is raised: the case passes silently (carried defect, item "
+        "129, 2026-08-31)."
+    ),
+    discriminator=(
+        "Mode 3 when the components under one label are a vertebra in "
+        "pieces (an island is smaller than a body); mode 2 when the shared "
+        "label is a fusion (the bodies are adjacent, not a spacing apart); "
+        "mode 9 (overlapping segments) needs a shared voxel, which a "
+        "collapsed pair of disjoint labels never has."
+    ),
+    mechanism=(
+        "No rule exists for this mode yet, which is what proposed means. "
+        "The candidate inputs are per-component centroids and volumes "
+        "(not extracted today), the minimum inter-label centroid distance "
+        "relative to the expected spacing "
+        "(stage3.spacing_consistency.spacings_mm[]), and the "
+        "stage3_unavailable.reason field the degenerate case populates "
+        "(item 129), which no rule reads."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="stage3_unavailable.reason",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.spacing_consistency.spacings_mm[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="per_component_centroids",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="proposed",
+    provenance="hypothesised",
+)
+
+_MODE_9 = ModeSpec(
+    id=9,
     name="Overlapping segments",
     short_name="overlapping segments",
     definition=(
@@ -1021,15 +1398,15 @@ _MODE_8 = ModeSpec(
         "single-channel integer label map."
     ),
     discriminator=(
-        "Distinguishes from every other mode by requiring a second "
-        "label's mask: it is unobservable from any single label's "
-        "geometry alone, unlike modes 1-7, which are all detectable from "
-        "one label's own geometry or the whole label map's per-label "
-        "statistics."
+        "Distinguishes from every other mode by requiring a second label's "
+        "mask: it is unobservable from any single label's geometry alone, "
+        "and from a single-channel label map at all, unlike modes 1-8, "
+        "which are decidable from one label's geometry, the label map's "
+        "per-label statistics, or an external input."
     ),
     mechanism=(
-        "A single-channel integer label map cannot assign two labels to "
-        "one voxel, so overlaps[] populates only on a case deliberately "
+        "A single-channel integer label map cannot assign two labels to one "
+        "voxel, so overlaps[] populates only on a case deliberately "
         "corrupted to violate that invariant, which no real segmenter "
         "output can be; mode8_force_overlap therefore stays "
         "detection=\"reconstructed_record\" rather than pipeline-detected, "
@@ -1058,12 +1435,11 @@ _MODE_8 = ModeSpec(
             reason=(
                 "reconstructed-record-detected; overlap is the sole rule "
                 "that fires on this corpus case, measured live via "
-                "segfacet.synth.regression.reconstructed_findings on the "
-                "item-143-corrected corpus (2026-09-03). A voxel in a "
-                "single-channel integer label map holds exactly one "
-                "label, so overlaps[] can only populate when the record "
-                "is deliberately corrupted to violate that invariant -- "
-                "which this case's reconstruction does."
+                "segfacet.synth.regression.reconstructed_findings "
+                "(2026-09-14). A voxel in a single-channel integer label map "
+                "holds exactly one label, so overlaps[] can only populate "
+                "when the record is deliberately corrupted to violate that "
+                "invariant -- which this case's reconstruction does."
             ),
         ),
     ),
@@ -1072,27 +1448,10 @@ _MODE_8 = ModeSpec(
     provenance="hypothesised",
 )
 
-
-# =========================================================================== #
-# The ninth mode and the first `proposed` entry (item 146).
-#
-# Mode 9 is deliberately NOT one of vision.md section 6's numbered eight: it
-# enters through the schema, acquires its rules by their declarations moving
-# from mode-less to modes=(9,), and derives its status from live state --
-# the exercise of section 6's own claim that a mode can be added without
-# everything being rebuilt. Mode 10 is the catalogue's first `proposed`
-# entry: listed, defined, and deliberately unimplemented.
-#
-# Mode 9's firing sets are measured through the item-146 harness
-# segfacet.synth.regression.intensity_pipeline_findings over the committed
-# intensity corpus (2026-09-04); see the item's Decisions log for the
-# transcript.
-# =========================================================================== #
-
-_MODE_9 = ModeSpec(
-    id=9,
+_MODE_10 = ModeSpec(
+    id=10,
     name="Implausible tissue under a label",
-    short_name="Implausible tissue under a label",
+    short_name="implausible tissue under a label",
     definition=(
         "On CT, the voxels a vertebra label claims do not carry "
         "bone-plausible Hounsfield-unit statistics: the label's median HU "
@@ -1104,28 +1463,25 @@ _MODE_9 = ModeSpec(
         "is not the tissue the label names."
     ),
     discriminator=(
-        "Distinguishes from modes 1-8 by requiring the paired intensity "
-        "scan: every one of those eight is decidable from the label map "
-        "alone, whereas mode 9 is invisible without the scan "
-        "(observability = needs-paired-scan). Distinguishes from mode 1 in "
-        "particular by what is wrong with an otherwise correctly-shaped, "
-        "correctly-placed label -- mode 1's centroid is displaced from the "
-        "fitted curve, while mode 9's label may sit exactly where it "
-        "belongs and still cover the wrong tissue."
+        "Distinguishes from modes 1-9 by requiring the paired intensity "
+        "scan: every one of those is decidable from the label map, ground "
+        "truth or an external classifier, whereas this mode is invisible "
+        "without the scan (observability = needs-paired-scan). A label may "
+        "sit exactly where it belongs, correctly shaped, and still cover "
+        "the wrong tissue."
     ),
     mechanism=(
-        "The committed intensity corpus demonstrates mode 9 end-to-end "
-        "three times over: implausible_metal (label 22's median reads "
-        "2999 HU, above the plausible bone band's ceiling), "
+        "The committed intensity corpus demonstrates this mode end-to-end "
+        "three times over: implausible_metal (label 22's median reads 2999 "
+        "HU, above the plausible bone band's ceiling), "
         "implausible_soft_tissue (40 HU, below its floor) and "
         "degenerate_uniform (a constant fill, zero spread) each drive the "
         "intensity rule through "
         "segfacet.synth.regression.intensity_pipeline_findings, which is "
-        "why that edge sits at the strongest rung. "
-        "intensity_reference_delta stays a rung below: the synthetic "
-        "intensity corpus is built against no reference distribution and "
-        "the harness attaches none, so nothing in the committed corpus "
-        "can exercise it."
+        "why that edge sits at the strongest rung. intensity_reference_delta "
+        "stays a rung below: the synthetic intensity corpus is built "
+        "against no reference distribution and the harness attaches none, "
+        "so nothing in the committed corpus can exercise it."
     ),
     observability="needs-paired-scan",
     candidate_features=(
@@ -1166,12 +1522,12 @@ _MODE_9 = ModeSpec(
                 "intensity-pipeline-detected; intensity is the sole rule "
                 "that fires on this case, measured live via "
                 "segfacet.synth.regression.intensity_pipeline_findings over "
-                "tests/corpus/intensity/manifest.json (2026-09-04): label "
-                "22 (L3)'s median reads 2999 HU, above the plausible bone "
+                "tests/corpus/intensity/manifest.json (2026-09-14): label 22 "
+                "(L3)'s median reads 2999 HU, above the plausible bone "
                 "band's 2000 HU ceiling. intensity_reference_delta cannot "
                 "fire here because the synthetic intensity corpus is built "
                 "against no reference distribution and the harness attaches "
-                "none (item 146 A3), which is why its mode-9 edge stays at "
+                "none (item 146 A3), which is why its edge stays at "
                 "needs-real-data."
             ),
         ),
@@ -1183,11 +1539,11 @@ _MODE_9 = ModeSpec(
                 "intensity-pipeline-detected; intensity is the sole rule "
                 "that fires on this case, measured live via "
                 "segfacet.synth.regression.intensity_pipeline_findings over "
-                "tests/corpus/intensity/manifest.json (2026-09-04): label "
-                "22 (L3)'s median reads 40 HU, below the plausible bone "
-                "band's 100 HU floor -- soft tissue under a vertebra label. "
-                "intensity_reference_delta attaches no reference here "
-                "(item 146 A3), so it stays needs-real-data."
+                "tests/corpus/intensity/manifest.json (2026-09-14): label 22 "
+                "(L3)'s median reads 40 HU, below the plausible bone band's "
+                "100 HU floor -- soft tissue under a vertebra label. "
+                "intensity_reference_delta attaches no reference here (item "
+                "146 A3), so it stays needs-real-data."
             ),
         ),
         CorpusCaseExpectation(
@@ -1198,8 +1554,8 @@ _MODE_9 = ModeSpec(
                 "intensity-pipeline-detected; intensity is the sole rule "
                 "that fires on this case, measured live via "
                 "segfacet.synth.regression.intensity_pipeline_findings over "
-                "tests/corpus/intensity/manifest.json (2026-09-04). It "
-                "raises two findings, both from the same rule: the "
+                "tests/corpus/intensity/manifest.json (2026-09-14). It raises "
+                "two findings, both from the same rule: the "
                 "degenerate/uniform detector (std 0.00 HU, at or below the "
                 "1.00 HU threshold) and, because the constant fill is 0 HU, "
                 "the too-low detector as well -- so the firing SET is still "
@@ -1213,60 +1569,101 @@ _MODE_9 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_10 = ModeSpec(
-    id=10,
-    name="Collapsed or duplicated label set",
-    short_name="collapsed or duplicated label set",
+
+# =========================================================================== #
+# Conditions (item 150): case conditions that gate other rules and are not
+# failure modes. Rendered as their own section after the modes.
+# =========================================================================== #
+
+_CONDITION_FOV_TRUNCATION = ConditionSpec(
+    id="fov_truncation",
+    name="FOV truncation (partial vertebra at the image border)",
+    short_name="FOV truncation (condition, not a failure mode)",
     definition=(
-        "Two or more labels share an exact centroid -- the degenerate case "
-        "a collapsed or duplicated label set produces. The Stage 3 spline "
-        "fit cannot be computed over coincident centroids, so the record "
-        "carries a stage3_unavailable reason instead of a stage3 block, "
-        "every stage3-reading rule short-circuits on the missing block, and "
-        "no finding of any kind is raised: the case passes silently "
-        "(carried defect, item 129, 2026-08-31). The failure is the "
-        "silence, not any single rule's verdict."
-    ),
-    discriminator=(
-        "Distinguishes from mode 2 (fused or fragmented segments) by what "
-        "the labels do rather than what the components do: mode 2's labels "
-        "keep distinct centroids and its detectors fire, whereas mode 10's "
-        "labels collapse onto one point and every stage3 detector goes "
-        "quiet. Distinguishes from mode 8 (overlapping segments) by not "
-        "requiring any shared voxel -- two disjoint labels can still share "
-        "a centroid."
+        "A vertebra at the edge of the imaging field of view is only "
+        "partially captured: its label touches an image face, its geometry "
+        "is impacted to a varying degree (overall size, connectedness, "
+        "shape), and the missing region displaces its measured centroid. "
+        "Many rules cannot be applied to such a vertebra unless the missing "
+        "region has little impact. A vertebra at a cranio-caudal FOV end is "
+        "the expected form; an in-plane (left/right/anterior/posterior) "
+        "clip is the unexpected form. Retired as failure mode 6 at the "
+        "item-150 sign-off (2026-09-14): a condition on the case, not a "
+        "defect of the segmentation."
     ),
     mechanism=(
-        "No rule exists for this mode yet, which is what `proposed` means: "
-        "the failure is the silence, and silence is not something a "
-        "detector can be pointed at without first deciding what the "
-        "record should carry in place of the stage3 block. The candidate "
-        "feature this mode names, stage3_unavailable.reason, is the one "
-        "field a future detector would read -- it is populated today "
-        "(item 129) and read by no rule, so the mode is listed, defined "
-        "and deliberately unimplemented rather than hypothetical."
+        "The border rule records the condition end-to-end on "
+        "mode6_crop_at_border, which crops label 22's anterior face "
+        "(per_label.{label}.geometry.touches_anterior), classifying it an "
+        "unexpected clip; cropping also displaces the centroid off the "
+        "fitted spinal curve, so mislabel's mode-less spline-offset "
+        "detector co-fires via stage3.per_label_offsets[].offset_mm. The "
+        "border rule declares no failure mode. The exemptions the condition "
+        "grants today: mislabel's spline-offset detector skips terminal "
+        "entries (stage3.per_label_offsets[].is_terminal), and coverage's "
+        "border-aware span check resolves the covered span through the "
+        "FOV-end labels."
     ),
-    observability="single-channel-observable",
     candidate_features=(
-        CandidateFeature(
-            path="stage3_unavailable.reason",
-            role="hypothesised",
+        "per_label.{label}.geometry.touches_anterior",
+        "per_label.{label}.geometry.touches_posterior",
+        "per_label.{label}.geometry.touches_left",
+        "per_label.{label}.geometry.touches_right",
+        "per_label.{label}.geometry.touches_superior",
+        "per_label.{label}.geometry.touches_inferior",
+        "stage3.per_label_offsets[].is_terminal",
+        "fraction_of_expected_volume_present",
+    ),
+    recording_rules=("border",),
+    exempting_rules=("mislabel", "coverage"),
+    corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="mode6_crop_at_border",
+            corpus="geometric",
+            expected_firing=("border", "mislabel"),
+            reason=(
+                "pipeline-detected; measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
+                "border, because the cropped label 22 (L3) touches the "
+                "anterior image face, and mislabel, because the crop "
+                "displaces the centroid off the fitted spinal curve. Both "
+                "are the condition's recorded signature; neither names a "
+                "failure mode."
+            ),
         ),
     ),
-    intended_rules=(),
-    corpus_cases=(),
-    severity="flagged-for-review",
-    status="proposed",
-    provenance="hypothesised",
+)
+
+
+# =========================================================================== #
+# Provenance: what became of each vision.md section 6 seed title (item 150).
+# The vision list is the SEED the catalogue started from, never its ids; the
+# one conformance claim in that direction is that every seed title has a
+# disposition here and every referenced mode id exists.
+# =========================================================================== #
+
+VISION_SEED_DISPOSITION: Mapping[str, str] = MappingProxyType(
+    {
+        "Label not aligned with the anatomical vertebra it names": "retired",
+        "Over-/under-segmentation — fused or fragmented vertebra segments": "mode:1",
+        "Disconnected components / islands, especially tiny rogue segments": "mode:3",
+        "Semantic mislabelling (wrong vertebra identification)": "mode:5",
+        "Not all vertebrae in the image are segmented": "mode:4",
+        "Partial vertebra at the image border whose appearance changes": (
+            "condition:fov_truncation"
+        ),
+        "Non-continuous label sequence (e.g. L1 → T12 → L2 → L5)": "mode:6",
+        "Overlapping segments": "mode:9",
+    }
 )
 
 
 def _build_specification(modes: Iterable[ModeSpec]) -> Mapping[int, ModeSpec]:
     """Index *modes* by ``id`` into an immutable, ascending mapping,
     rejecting a duplicate ``id`` rather than letting the later entry
-    silently replace the earlier one -- a dict comprehension would drop a
-    hand-authored mode with a typo'd id with no diagnostic at all (items
-    145/146 author six more entries by hand)."""
+    silently replace the earlier one, and validating the hierarchy: every
+    ``parent`` must name a mode in the same set, and a parent is itself a
+    top-level mode (one tier of sub-modes, item 150)."""
     by_id: Dict[int, ModeSpec] = {}
     for mode in modes:
         if mode.id in by_id:
@@ -1276,7 +1673,34 @@ def _build_specification(modes: Iterable[ModeSpec]) -> Mapping[int, ModeSpec]:
                 f"be unique."
             )
         by_id[mode.id] = mode
+    for mode in by_id.values():
+        if mode.parent is None:
+            continue
+        if mode.parent not in by_id:
+            raise ValueError(
+                f"SPECIFICATION: mode {mode.id} names parent {mode.parent}, which "
+                f"is not a mode id in the specification (ids: {sorted(by_id)!r})."
+            )
+        if by_id[mode.parent].parent is not None:
+            raise ValueError(
+                f"SPECIFICATION: mode {mode.id} names parent {mode.parent}, which "
+                f"is itself a sub-mode of {by_id[mode.parent].parent}; the "
+                f"hierarchy is one tier deep."
+            )
     return MappingProxyType({mode_id: by_id[mode_id] for mode_id in sorted(by_id)})
+
+
+def _build_conditions(
+    conditions: Iterable[ConditionSpec],
+) -> Mapping[str, ConditionSpec]:
+    by_id: Dict[str, ConditionSpec] = {}
+    for condition in conditions:
+        if condition.id in by_id:
+            raise ValueError(
+                f"CONDITIONS: duplicate condition id {condition.id!r}."
+            )
+        by_id[condition.id] = condition
+    return MappingProxyType({key: by_id[key] for key in sorted(by_id)})
 
 
 SPECIFICATION: Mapping[int, ModeSpec] = _build_specification(
@@ -1294,6 +1718,28 @@ SPECIFICATION: Mapping[int, ModeSpec] = _build_specification(
     )
 )
 
+CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
+    (_CONDITION_FOV_TRUNCATION,)
+)
+
+
+def iter_conditions() -> Iterator[ConditionSpec]:
+    """Yield the conditions in ascending ``id`` order. Takes no argument."""
+    for condition_id in sorted(CONDITIONS):
+        yield CONDITIONS[condition_id]
+
+
+def mode_path(mode: ModeSpec) -> str:
+    """The hierarchical display path of *mode* -- ``"1"`` for a top-level
+    mode, ``"1.2"`` for the second sub-mode (by ascending id) of mode 1.
+    Display only: the stable identity is ``mode.id``."""
+    if mode.parent is None:
+        return str(mode.id)
+    siblings = sorted(
+        m.id for m in SPECIFICATION.values() if m.parent == mode.parent
+    )
+    return f"{mode.parent}.{siblings.index(mode.id) + 1}"
+
 
 def iter_modes() -> Iterator[ModeSpec]:
     """Yield the seed modes in ascending ``id`` order. Takes no argument."""
@@ -1309,13 +1755,14 @@ def iter_modes() -> Iterator[ModeSpec]:
 def vision_seed_titles() -> Dict[int, str]:
     """The numbered titles of ``docs/aide/vision.md`` §6, parsed live.
 
-    This is the **seed**, not the record. §6 names the eight modes this
-    catalogue started from; :data:`SPECIFICATION` is what the catalogue
-    *is* today, and it has grown past §6's list (mode 9 entered through
-    the lifecycle, mode 10 is the first ``proposed`` entry). The one
-    conformance claim in this direction is that the eight seed entries'
-    ``name`` fields still equal §6's list -- nothing else reads this, and
-    no consumer should treat a missing key as a missing mode.
+    This is the **seed**, not the record, and it provides no ids. §6
+    names the eight modes this catalogue started from; :data:`SPECIFICATION`
+    is what the catalogue *is* today, re-organised at the item-150 sign-off
+    (2026-09-14). The one conformance claim in this direction is
+    :func:`vision_seed_conflicts`: every seed title has a
+    :data:`VISION_SEED_DISPOSITION` entry that resolves -- nothing else
+    reads this, and no consumer should treat a missing key as a missing
+    mode.
 
     Item 147 moved this function here from ``segfacet.traceability``
     (where it was private) so that exactly one module under
@@ -1536,15 +1983,28 @@ def derive_status(mode: ModeSpec) -> str:
     entries that reach the corpus-agreement clause are declared.
     """
     declared = _registry_declares(mode.id)
-    if (
-        declared
-        and mode.corpus_cases
-        and all(case_agrees(case) for case in mode.corpus_cases)
-    ):
+    if declared and mode.corpus_cases and _demonstrates(mode):
         return "validated"
     if declared:
         return "implemented"
     return mode.status
+
+
+def _demonstrates(mode: ModeSpec) -> bool:
+    """The item-150 lifecycle semantics for ``"validated"``: every corpus
+    case agrees with its measurement, **and** at least one case has a
+    non-empty expected firing set that names one of the mode's own
+    ``intended_rules``. An empty expected set is recorded (it documents
+    "not detected today") and never validates; a case detected only by
+    another mode's rule, or by a mode-less detector, is a recorded
+    co-detection and never validates either."""
+    if not all(case_agrees(case) for case in mode.corpus_cases):
+        return False
+    own_rules = {edge.rule_id for edge in mode.intended_rules}
+    return any(
+        case.expected_firing and own_rules.intersection(case.expected_firing)
+        for case in mode.corpus_cases
+    )
 
 
 def derive_mode_rung(mode: ModeSpec) -> Optional[str]:
@@ -1687,6 +2147,13 @@ def _corpus_case_conflicts(modes: Tuple[ModeSpec, ...]) -> Tuple[str, ...]:
             mode_id = case.get("failure_mode")
             case_id = case.get("case_id")
             if mode_id == 0:
+                condition_id = case.get("condition") or ""
+                if condition_id:
+                    conflicts.extend(
+                        _condition_case_conflicts(
+                            corpus_name, case, condition_id, expectation_key, relation
+                        )
+                    )
                 continue
             mode = by_id.get(mode_id)
             if mode is None:
@@ -1729,6 +2196,90 @@ def _corpus_case_conflicts(modes: Tuple[ModeSpec, ...]) -> Tuple[str, ...]:
     return tuple(conflicts)
 
 
+def _condition_case_conflicts(
+    corpus_name: str,
+    case: dict,
+    condition_id: str,
+    expectation_key: str,
+    relation: str,
+) -> Tuple[str, ...]:
+    """The condition half of :func:`_corpus_case_conflicts` (item 150): a
+    manifest case carrying ``failure_mode == 0`` **and** a ``condition``
+    must be carried by that :class:`ConditionSpec`'s ``corpus_cases`` with
+    an agreeing expectation, under the same relation as a mode's case."""
+    case_id = case.get("case_id")
+    condition = CONDITIONS.get(condition_id)
+    if condition is None:
+        return (
+            f"corpus case {case_id!r} ({corpus_name}) names condition "
+            f"{condition_id!r}, which is not a CONDITIONS entry (known: "
+            f"{sorted(CONDITIONS)!r}).",
+        )
+    expectation = None
+    for candidate in condition.corpus_cases:
+        if candidate.case_id == case_id:
+            expectation = candidate
+            break
+    if expectation is None:
+        return (
+            f"corpus case {case_id!r} ({corpus_name}) names condition "
+            f"{condition_id!r}, but that condition's corpus_cases do not carry "
+            f"that case_id (carried: "
+            f"{sorted(c.case_id for c in condition.corpus_cases)!r}).",
+        )
+    manifest_set = set(case.get(expectation_key) or ())
+    specified_set = set(expectation.expected_firing)
+    disagrees = (
+        not manifest_set <= specified_set
+        if relation == "subset"
+        else manifest_set != specified_set
+    )
+    if disagrees:
+        return (
+            f"corpus case {case_id!r} ({corpus_name}, condition {condition_id!r}): "
+            f"the manifest's {expectation_key} {sorted(manifest_set)!r} disagrees "
+            f"with the specification's expected_firing {sorted(specified_set)!r} "
+            f"under the {relation} relation this corpus is compared by.",
+        )
+    return ()
+
+
+def vision_seed_conflicts() -> Tuple[str, ...]:
+    """The one conformance claim kept in the vision -> specification
+    direction (item 150): every ``docs/aide/vision.md`` section 6 seed
+    title has a :data:`VISION_SEED_DISPOSITION` entry, every disposition
+    resolves (``mode:<id>`` to a :data:`SPECIFICATION` key,
+    ``condition:<id>`` to a :data:`CONDITIONS` key, or ``retired``), and no
+    disposition names a title section 6 does not carry. The seed list
+    provides provenance, never ids."""
+    conflicts = []
+    titles = set(vision_seed_titles().values())
+    for title in sorted(titles):
+        if title not in VISION_SEED_DISPOSITION:
+            conflicts.append(
+                f"vision.md section 6 seed title {title!r} has no "
+                f"VISION_SEED_DISPOSITION entry."
+            )
+    for title, disposition in VISION_SEED_DISPOSITION.items():
+        if title not in titles:
+            conflicts.append(
+                f"VISION_SEED_DISPOSITION names {title!r}, which vision.md section "
+                f"6 does not carry."
+            )
+        if disposition == "retired":
+            continue
+        kind, _sep, target = disposition.partition(":")
+        if kind == "mode" and target.isdigit() and int(target) in SPECIFICATION:
+            continue
+        if kind == "condition" and target in CONDITIONS:
+            continue
+        conflicts.append(
+            f"VISION_SEED_DISPOSITION[{title!r}] = {disposition!r} does not "
+            f"resolve to a SPECIFICATION mode, a CONDITIONS entry or 'retired'."
+        )
+    return tuple(conflicts)
+
+
 # =========================================================================== #
 # Rendering: specification_to_dict / render_markdown (AC19, AC20, AC23)
 # =========================================================================== #
@@ -1743,6 +2294,8 @@ def specification_to_dict() -> dict:
         modes.append(
             {
                 "id": mode.id,
+                "parent": mode.parent,
+                "path": mode_path(mode),
                 "name": mode.name,
                 "short_name": mode.short_name,
                 "definition": mode.definition,
@@ -1778,10 +2331,36 @@ def specification_to_dict() -> dict:
                 "provenance": mode.provenance,
             }
         )
+    conditions = []
+    for condition in iter_conditions():
+        conditions.append(
+            {
+                "id": condition.id,
+                "name": condition.name,
+                "short_name": condition.short_name,
+                "definition": condition.definition,
+                "mechanism": condition.mechanism,
+                "candidate_features": list(condition.candidate_features),
+                "recording_rules": list(condition.recording_rules),
+                "exempting_rules": list(condition.exempting_rules),
+                "corpus_cases": [
+                    {
+                        "case_id": case.case_id,
+                        "corpus": case.corpus,
+                        "expected_firing": list(case.expected_firing),
+                        "reason": case.reason,
+                        "agrees": case_agrees(case),
+                    }
+                    for case in condition.corpus_cases
+                ],
+            }
+        )
     return {
         "schema_version": SCHEMA_VERSION,
         "note": _NOTE,
         "modes": modes,
+        "conditions": conditions,
+        "vision_seed_disposition": dict(VISION_SEED_DISPOSITION),
     }
 
 
@@ -1811,9 +2390,17 @@ def render_markdown() -> str:
         "",
     ]
     for mode in payload["modes"]:
-        lines.append(f"## Mode {mode['id']}: {mode['name']}")
+        if mode["parent"] is None:
+            lines.append(f"## Mode {mode['id']}: {mode['name']}")
+        else:
+            lines.append(
+                f"## Mode {mode['id']} ({mode['path']}, sub-mode of "
+                f"{mode['parent']}): {mode['name']}"
+            )
         lines.append("")
         lines.append(f"- Short name (corpus manifests): {mode['short_name'] or '(none)'}")
+        parent = mode["parent"] if mode["parent"] is not None else "(none, top-level)"
+        lines.append(f"- Parent: {parent}")
         lines.append(f"- Definition: {_md_escape(mode['definition'])}")
         lines.append(f"- Discriminator: {_md_escape(mode['discriminator'])}")
         lines.append(f"- Observability: {mode['observability']}")
@@ -1867,6 +2454,41 @@ def render_markdown() -> str:
                 f"{_md_escape(case['reason'])}"
             )
         lines.append("")
+    for condition in payload["conditions"]:
+        lines.append(f"## Condition {condition['id']}: {condition['name']}")
+        lines.append("")
+        lines.append(f"- Short name (corpus manifests): {condition['short_name']}")
+        lines.append(f"- Definition: {_md_escape(condition['definition'])}")
+        lines.append(
+            f"- Recording rules: {', '.join(condition['recording_rules'])}"
+        )
+        exempting = ", ".join(condition["exempting_rules"]) or "(none)"
+        lines.append(f"- Exempting rules: {exempting}")
+        lines.append("")
+        lines.append("Candidate features:")
+        lines.append("")
+        for path in condition["candidate_features"]:
+            lines.append(f"- `hypothesised` candidate path: `{path}`")
+        lines.append("")
+        lines.append(f"Mechanism: {_md_escape(condition['mechanism'])}")
+        lines.append("")
+        lines.append("Corpus cases:")
+        lines.append("")
+        if not condition["corpus_cases"]:
+            lines.append("- (none)")
+        for case in condition["corpus_cases"]:
+            expected = ", ".join(case["expected_firing"]) if case["expected_firing"] else "(none)"
+            lines.append(
+                f"- `{case['case_id']}` ({case['corpus']}): expected firing = "
+                f"[{expected}]; agrees with live measurement: {case['agrees']}. "
+                f"{_md_escape(case['reason'])}"
+            )
+        lines.append("")
+    lines.append("## Vision section 6 seed disposition")
+    lines.append("")
+    for title, disposition in payload["vision_seed_disposition"].items():
+        lines.append(f"- {_md_escape(title)} -> {disposition}")
+    lines.append("")
     while lines and lines[-1] == "":
         lines.pop()
     return "\n".join(lines) + "\n"

@@ -438,7 +438,7 @@ def _pipeline_detected_modes_excluding_clean_control() -> set:
     }
 
 
-def test_ac15_manifest_pipeline_detected_mode_count_is_seven():
+def test_ac15_manifest_pipeline_detected_mode_count_is_five():
     """Pin FLIPPED 2026-08-31 (item 132): mode 4 moved from
     ``reconstructed_record`` to ``pipeline`` detection, so the pipeline-
     detected count (excluding the mode-0 clean control) rises from 6 to 7
@@ -446,9 +446,14 @@ def test_ac15_manifest_pipeline_detected_mode_count_is_seven():
     outside item 132's authorised edit list for this module (only the AC7
     pin and its module-docstring line were authorised there) -- see that
     item's Decisions log, 2026-08-31."""
+    # Re-pinned 2026-09-14 (item 150): the catalogue was re-organised; the
+    # pipeline-detection cases now file under modes 1, 2, 3, 4 and 6 (mode 4's
+    # case, remove_level_relabel, is detection="pipeline" but designates no
+    # rule), the crop case is a failure_mode-0 condition case, and overlap is
+    # mode 9.
     modes = _pipeline_detected_modes_excluding_clean_control()
-    assert len(modes) == 7, modes
-    assert modes == {1, 2, 3, 4, 5, 6, 7}
+    assert len(modes) == 5, modes
+    assert modes == {1, 2, 3, 4, 6}
 
 
 def test_ac15_agrees_with_test_040_mode_sets():
@@ -468,7 +473,9 @@ def test_ac15_agrees_with_test_057_pipeline_detectable_modes():
     import test_057_acceptance_stage7 as t057
 
     manifest_pipeline_modes = _pipeline_detected_modes_excluding_clean_control()
-    assert manifest_pipeline_modes == set(t057._PIPELINE_DETECTABLE_MODES)
+    # test_057's constant names the modes whose case is DETECTED (sensitivity
+    # 1.0); mode 4's case is pipeline-typed but undetected today (item 150).
+    assert set(t057._PIPELINE_DETECTABLE_MODES) == manifest_pipeline_modes - {4}
 
 
 # =========================================================================== #

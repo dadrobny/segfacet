@@ -151,53 +151,21 @@ def _mode3_kwargs(**overrides) -> dict:
                 evidence_rung="synthetic-demonstrable",
             ),
         ),
-        corpus_cases=(
+        # Every committed manifest case the corpus assigns to mode 3, so a
+        # probe built from this helper is self-consistent with the manifest
+        # and `specification_conflicts((mode,))`'s corpus-side check reports
+        # nothing but the conflict a given test is actually asking about.
+        # Derived from the manifest, never transcribed (item 150 re-homed
+        # `mode2_fragment` onto mode 3).
+        corpus_cases=tuple(
             fm.CorpusCaseExpectation(
-                case_id="mode3_inject_islands",
+                case_id=case["case_id"],
                 corpus="geometric",
-                expected_firing=_measured_expected_firing("mode3_inject_islands"),
+                expected_firing=_measured_expected_firing(case["case_id"]),
                 reason="pipeline-detected, measured on the committed corpus",
-            ),
-        ),
-        severity="flagged-for-review",
-        status="specified",
-        provenance="hypothesised",
-    )
-    kwargs.update(overrides)
-    return kwargs
-
-
-def _mode8_kwargs(**overrides) -> dict:
-    import segfacet.failure_modes as fm
-    import segfacet.feature_docs as feature_docs
-
-    kwargs = dict(
-        id=8,
-        name="Overlapping segments",
-        definition="Two labels' foreground voxel sets intersect.",
-        discriminator="Distinguishes from every other mode by requiring a "
-        "second label's mask, unobservable from a single label map alone.",
-        observability="structurally-unobservable",
-        candidate_features=(
-            fm.CandidateFeature(
-                path=feature_docs.MODE_ANCHOR_PATHS[8][0],
-                role="stage18-metric-anchor",
-            ),
-        ),
-        intended_rules=(
-            fm.IntendedRule(
-                rule_id="overlap",
-                detector="",
-                evidence_rung="structurally-unobservable",
-            ),
-        ),
-        corpus_cases=(
-            fm.CorpusCaseExpectation(
-                case_id="mode8_force_overlap",
-                corpus="geometric",
-                expected_firing=_measured_expected_firing("mode8_force_overlap"),
-                reason="reconstructed-record-detected, measured on the committed corpus",
-            ),
+            )
+            for case in _manifest_cases()
+            if case["failure_mode"] == 3
         ),
         severity="flagged-for-review",
         status="specified",
@@ -354,7 +322,8 @@ def test_ac1_import_adds_no_heavy_module_beyond_the_package_init():
 
 
 # =========================================================================== #
-# AC2: ModeSpec is a frozen dataclass with exactly §6's fields
+# AC2: ModeSpec is a frozen dataclass with exactly the catalogue's fields
+# (§6's list plus `parent`, the one-tier hierarchy link item 150 added)
 # =========================================================================== #
 
 
@@ -366,6 +335,7 @@ def test_ac2_field_names_are_exactly_section_six_fields():
         "id",
         "name",
         "short_name",
+        "parent",
         "definition",
         "discriminator",
         "mechanism",
@@ -476,16 +446,19 @@ def test_ac4_authored_status_members_are_accepted(status):
 
 
 # =========================================================================== #
-# AC5: the observability vocabulary is closed at three members
+# AC5: the observability vocabulary is closed (five members since item 150
+# added needs-ground-truth and needs-external-classifier)
 # =========================================================================== #
 
 
-def test_ac5_observability_vocabulary_is_exactly_three_members():
+def test_ac5_observability_vocabulary_is_exactly_five_members():
     import segfacet.failure_modes as fm
 
     assert fm.OBSERVABILITY == (
         "single-channel-observable",
         "needs-paired-scan",
+        "needs-ground-truth",
+        "needs-external-classifier",
         "structurally-unobservable",
     )
 
@@ -503,7 +476,13 @@ def test_ac5_observability_outside_vocabulary_raises_naming_mode_and_field():
 
 @pytest.mark.parametrize(
     "value",
-    ["single-channel-observable", "needs-paired-scan", "structurally-unobservable"],
+    [
+        "single-channel-observable",
+        "needs-paired-scan",
+        "needs-ground-truth",
+        "needs-external-classifier",
+        "structurally-unobservable",
+    ],
 )
 def test_ac5_each_observability_member_is_accepted(value):
     import segfacet.failure_modes as fm
@@ -742,17 +721,39 @@ def test_ac9_derive_status_implemented_iff_a_registered_rule_declares_the_mode(
 
 def test_ac9_multi_mode_declaration_implements_every_mode_it_lists():
     """vision.md §6's lifecycle: "``implemented`` -- at least one registered
-    rule declares the mode". The real ``heuristics.fragmentation`` declares
-    ``modes=(2, 3)``, so mode 3 is implemented by it even though that
-    declaration is not the singleton ``(3,)`` -- read live from the
-    unmodified registry, not transcribed."""
+    rule declares the mode". A declaration listing several modes counts for
+    **every** mode it lists, not only for one it declares alone.
+
+    The subject is found live in the registry rather than named: the
+    item-150 sign-off moved ``fragmentation`` to the singleton ``(3,)`` and
+    made ``bounds``/``reference_delta``/``coverage`` the multi-mode
+    declarations, so naming one would be a pin that moves with the next
+    re-organisation. The test is still able to fail -- it asserts such a
+    declaration exists at all, then that *every* mode it lists derives
+    ``"implemented"`` off the unmodified registry.
+    """
     import segfacet.failure_modes as fm
-    from segfacet.heuristics.rule import _RULES
+    from segfacet.heuristics.rule import iter_rule_declarations
 
-    declaration = _RULES["fragmentation"].mode_declaration
-    assert 3 in declaration.modes, declaration.modes
-    assert declaration.modes != (3,), declaration.modes
+    multi = {
+        rule_id: declaration.modes
+        for rule_id, declaration in iter_rule_declarations()
+        if declaration is not None and len(declaration.modes) > 1
+    }
+    assert multi, "expected at least one registered rule declaring several modes"
 
+    for rule_id, modes in sorted(multi.items()):
+        for mode_id in modes:
+            spec = fm.SPECIFICATION[mode_id]
+            assert fm.derive_status(spec) in ("implemented", "validated"), (
+                rule_id,
+                mode_id,
+                fm.derive_status(spec),
+            )
+
+    # And the same claim on a test-constructed mode, so the assertion above
+    # cannot be carried by some *other* rule declaring the same id: mode 3
+    # is implemented on a probe with no corpus cases at all.
     mode = fm.ModeSpec(**_mode3_kwargs(corpus_cases=()))
     assert fm.derive_status(mode) == "implemented"
 
@@ -1129,56 +1130,179 @@ def test_ac15_each_accepted_severity_is_accepted(severity):
 
 
 # =========================================================================== #
-# AC16: the shipped seed is exactly two entries, grounded in vision.md §6
+# AC16: the shipped catalogue as signed off (item 150) -- ten modes in a
+# one-tier hierarchy, plus the vision.md §6 seed's disposition
 # =========================================================================== #
 
+#: The ids the item-150 sign-off assigned. Pinned literally on purpose: this
+#: is the one test that asserts *which* entries the catalogue carries, so
+#: deriving it from ``SPECIFICATION`` would assert nothing.
+_SIGNED_OFF_MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-def test_ac16_specification_carries_all_eight_modes():
-    """Item 145 entered the remaining six §6 modes: the seed of two (3, 8)
-    this test used to pin becomes all eight (1-8). Rescoped (item 146,
-    2026-09-03): item 146 adds modes 9 and 10, so this no longer pins
-    ``ids == (1..8)`` exactly -- restated as "the eight seed ids are
-    present, in ascending order, as the first eight"."""
+
+def test_ac16_specification_carries_all_ten_signed_off_modes():
+    """Item 145 entered vision.md §6's eight seed modes; item 146 added two
+    more; the item-150 sign-off (2026-09-14) re-organised the whole
+    catalogue and re-assigned ids, landing on ten entries in a one-tier
+    hierarchy. Ids are assigned in ``failure_modes.py`` from that sign-off
+    on -- §6 is provenance only, so this no longer compares against it."""
     import segfacet.failure_modes as fm
 
     ids = tuple(m.id for m in fm.iter_modes())
-    assert ids[:8] == (1, 2, 3, 4, 5, 6, 7, 8)
-    assert ids == tuple(sorted(ids))
+    assert ids == _SIGNED_OFF_MODE_IDS
+    assert ids == tuple(sorted(fm.SPECIFICATION))
 
 
-@pytest.mark.parametrize("mode_id", [1, 2, 3, 4, 5, 6, 7, 8])
-def test_ac16_every_field_non_empty(mode_id):
+def test_ac16_hierarchy_is_one_tier_and_every_parent_resolves():
+    """The sign-off's tree shape: a ``parent`` is either ``None`` (top
+    level) or a mode id that is itself top level, and ``mode_path`` renders
+    the sub-mode as ``"<parent>.<n>"``."""
+    import segfacet.failure_modes as fm
+
+    sub_modes = [m for m in fm.iter_modes() if m.parent is not None]
+    assert sub_modes, "expected the signed-off catalogue to carry sub-modes"
+    for mode in fm.iter_modes():
+        if mode.parent is None:
+            assert fm.mode_path(mode) == str(mode.id)
+            continue
+        assert mode.parent in fm.SPECIFICATION, mode.id
+        assert fm.SPECIFICATION[mode.parent].parent is None, mode.id
+        assert fm.mode_path(mode).startswith(f"{mode.parent}."), mode.id
+
+
+@pytest.mark.parametrize("mode_id", _SIGNED_OFF_MODE_IDS)
+def test_ac16_every_required_field_non_empty(mode_id):
+    """Every authored *string* field carries text on every shipped entry,
+    and every tuple field is a tuple. ``parent`` is legitimately ``None``
+    on a top-level mode, and ``intended_rules`` / ``corpus_cases`` are
+    legitimately empty on a ``proposed`` entry -- both are pinned by
+    ``test_ac16_proposed_entries_are_the_empty_ones`` below rather than
+    swept into a blanket "nothing is empty"."""
     import segfacet.failure_modes as fm
 
     mode = next(m for m in fm.iter_modes() if m.id == mode_id)
-    for field in dataclasses.fields(mode):
-        value = getattr(mode, field.name)
-        assert value not in ("", (), None), field.name
-    assert mode.intended_rules
-    assert mode.corpus_cases
+    for field_name in (
+        "name",
+        "short_name",
+        "definition",
+        "discriminator",
+        "mechanism",
+        "observability",
+        "severity",
+        "status",
+        "provenance",
+    ):
+        value = getattr(mode, field_name)
+        assert isinstance(value, str) and value, field_name
+    for field_name in ("candidate_features", "intended_rules", "corpus_cases"):
+        assert isinstance(getattr(mode, field_name), tuple), field_name
+    assert mode.candidate_features, "every shipped entry carries candidate features"
+    assert mode.parent is None or mode.parent in fm.SPECIFICATION
 
 
-@pytest.mark.parametrize("mode_id", [1, 2, 3, 4, 5, 6, 7, 8])
-def test_ac16_each_id_is_a_key_of_mode_anchor_paths(mode_id):
+def test_ac16_proposed_entries_are_the_empty_ones():
+    """The authored lifecycle statuses partition the catalogue: a
+    ``"proposed"`` entry is listed and deliberately unimplemented (no
+    intended-rule edges, no corpus cases), while every ``"specified"``
+    entry carries at least one intended-rule edge. Derived from the
+    ``status`` field, so it keeps holding as entries are re-authored."""
+    import segfacet.failure_modes as fm
+
+    proposed = [m for m in fm.iter_modes() if m.status == "proposed"]
+    specified = [m for m in fm.iter_modes() if m.status == "specified"]
+    assert proposed, "expected at least one proposed entry"
+    assert specified, "expected at least one specified entry"
+    for mode in proposed:
+        assert mode.intended_rules == (), mode.id
+        assert mode.corpus_cases == (), mode.id
+    for mode in specified:
+        assert mode.intended_rules, mode.id
+
+
+def test_ac16_stage18_anchors_and_mode_anchor_paths_agree_exactly():
+    """Since the item-150 sign-off only some modes are anchored in a
+    Stage-18 metric (``MODE_ANCHOR_PATHS`` keys are a proper subset of the
+    mode ids), so "every mode is a key" is no longer the claim. The claim
+    that survives, and is stronger, is that the two sides agree exactly:
+    a mode carries a ``stage18-metric-anchor`` candidate feature iff it is
+    a ``MODE_ANCHOR_PATHS`` key, and each such path is one of that key's."""
     import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs
 
-    mode = next(m for m in fm.iter_modes() if m.id == mode_id)
-    assert mode.id in feature_docs.MODE_ANCHOR_PATHS
+    anchored = {}
+    for mode in fm.iter_modes():
+        paths = tuple(
+            f.path
+            for f in mode.candidate_features
+            if f.role == "stage18-metric-anchor"
+        )
+        if paths:
+            anchored[mode.id] = paths
+
+    assert anchored, "expected at least one mode carrying a Stage-18 anchor"
+    assert set(anchored) == set(feature_docs.MODE_ANCHOR_PATHS), (
+        sorted(anchored),
+        sorted(feature_docs.MODE_ANCHOR_PATHS),
+    )
+    for mode_id, paths in sorted(anchored.items()):
+        for path in paths:
+            assert path in feature_docs.MODE_ANCHOR_PATHS[mode_id], (mode_id, path)
 
 
-def test_ac16_names_match_vision_section_six_parsed_titles():
-    """Rescoped (item 146, 2026-09-03): iterate the eight seed ids only, not
-    ``iter_modes()`` -- modes 9/10 are deliberately not in vision.md §6's
-    numbered list (that is the point of item 146)."""
+def test_ac16_vision_section_six_seed_titles_all_have_a_resolving_disposition():
+    """Re-targeted at the item-150 sign-off: mode ``name`` fields no longer
+    equal vision.md §6's titles, by design -- §6 is the **seed** the
+    catalogue started from, and ``VISION_SEED_DISPOSITION`` records what
+    became of each of its titles (``mode:<id>``, ``condition:<id>`` or
+    ``retired``).
+
+    The §6 parse here is the test's own (``_vision_mode_titles``, A10), so
+    the two sides are independent: a title added to or dropped from §6
+    without a matching disposition fails here even if the module's own
+    parse and its mapping were changed together.
+    """
     import segfacet.failure_modes as fm
 
     titles = _vision_mode_titles()
     assert titles
-    for mode_id in (1, 2, 3, 4, 5, 6, 7, 8):
-        mode = fm.SPECIFICATION[mode_id]
-        assert mode.id in titles, mode.id
-        assert mode.name == titles[mode.id], (mode.id, mode.name, titles[mode.id])
+    assert set(titles.values()) == set(fm.VISION_SEED_DISPOSITION), (
+        sorted(set(titles.values()) - set(fm.VISION_SEED_DISPOSITION)),
+        sorted(set(fm.VISION_SEED_DISPOSITION) - set(titles.values())),
+    )
+
+    resolved = 0
+    for title, disposition in sorted(fm.VISION_SEED_DISPOSITION.items()):
+        kind, _sep, target = disposition.partition(":")
+        if disposition == "retired":
+            resolved += 1
+        elif kind == "mode":
+            assert target.isdigit(), (title, disposition)
+            assert int(target) in fm.SPECIFICATION, (title, disposition)
+            resolved += 1
+        elif kind == "condition":
+            assert target in fm.CONDITIONS, (title, disposition)
+            resolved += 1
+        else:
+            raise AssertionError(f"unrecognised disposition {disposition!r} for {title!r}")
+    assert resolved == len(titles)
+
+    assert fm.vision_seed_conflicts() == ()
+
+
+def test_ac16_vision_seed_conflicts_reports_an_unresolvable_disposition(monkeypatch):
+    """The conformance check must be able to fail: a disposition naming a
+    mode id the specification does not carry is reported, naming it."""
+    import segfacet.failure_modes as fm
+
+    titles = _vision_mode_titles()
+    assert titles
+    victim = titles[1]
+    broken = dict(fm.VISION_SEED_DISPOSITION)
+    broken[victim] = "mode:9999"
+    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", broken)
+
+    conflicts = fm.vision_seed_conflicts()
+    assert any("mode:9999" in c for c in conflicts), conflicts
 
 
 # =========================================================================== #
@@ -1308,9 +1432,36 @@ def test_ac20_markdown_carries_every_json_field_per_mode():
                 assert rule_id in md_text, (mode_record["id"], rule_id)
 
 
+def _md_mode_sections(md_text: str) -> dict:
+    """Split the rendered Markdown into ``{mode id: section text}``.
+
+    Scoping the anchor-role assertion below to a mode's **own** section is
+    what the item-150 catalogue requires: a mechanism sentence legitimately
+    names another mode's anchor path (mode 2's names mode 3's
+    ``fragmentation_index``), so a document-wide "first occurrence" search
+    lands in the wrong entry.
+    """
+    sections = {}
+    current = None
+    for line in md_text.splitlines():
+        heading = re.match(r"^## Mode (\d+)\b", line)
+        if heading is not None:
+            current = int(heading.group(1))
+            sections[current] = []
+            continue
+        if line.startswith("## "):
+            current = None
+            continue
+        if current is not None:
+            sections[current].append(line)
+    assert sections, "expected the rendering to carry '## Mode N' headings"
+    return {mode_id: "\n".join(lines) for mode_id, lines in sections.items()}
+
+
 def test_ac20_stage18_anchor_role_rendered_as_metric_path_not_rule_read():
     committed_payload = json.loads(_COMMITTED_JSON.read_text(encoding="utf-8"))
     md_text = _COMMITTED_MD.read_text(encoding="utf-8")
+    sections = _md_mode_sections(md_text)
 
     modes = committed_payload["modes"]
     assert modes
@@ -1320,11 +1471,17 @@ def test_ac20_stage18_anchor_role_rendered_as_metric_path_not_rule_read():
             if feature_record["role"] != "stage18-metric-anchor":
                 continue
             checked = True
-            assert feature_record["path"] in md_text, feature_record["path"]
+            section = sections.get(mode_record["id"])
+            assert section, mode_record["id"]
+            assert feature_record["path"] in section, (
+                mode_record["id"],
+                feature_record["path"],
+            )
             # The path must be rendered under a role label naming the metric
-            # anchor, never as a generic "rule read" path.
-            idx = md_text.find(feature_record["path"])
-            window = md_text[max(0, idx - 200) : idx + 200].lower()
+            # anchor, never as a generic "rule read" path -- and the first
+            # place it appears in its own mode's section must be that label.
+            idx = section.find(feature_record["path"])
+            window = section[max(0, idx - 200) : idx + 200].lower()
             assert "metric" in window or "stage18" in window or "anchor" in window, window
     assert checked, "expected at least one stage18-metric-anchor candidate feature"
 
@@ -1499,13 +1656,17 @@ def test_adv_seed_mode3_corpus_case_is_pipeline_detected_and_measured_live():
     assert set(measured) == set(case_expectation.expected_firing)
 
 
-def test_adv_seed_mode8_corpus_case_is_reconstructed_and_measured_live():
+def test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live():
+    """``mode8_force_overlap`` is the case id the corpus has always carried
+    (the ``modeN_`` prefixes are historical), but the mode it belongs to is
+    **9** since the item-150 sign-off re-assigned ids -- the mode id is read
+    from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 
     case = _manifest_case("mode8_force_overlap")
     assert case["detection"] == "reconstructed_record"
 
-    mode = next(m for m in fm.iter_modes() if m.id == 8)
+    mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
     assert len(mode.corpus_cases) >= 1
     case_expectation = next(c for c in mode.corpus_cases if c.case_id == "mode8_force_overlap")
     measured = fm.measured_firing(case_expectation)

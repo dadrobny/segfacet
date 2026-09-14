@@ -78,8 +78,8 @@
           32767
         ]
       },
-      "failure_mode": 9,
-      "failure_mode_name": "Implausible tissue under a label",
+      "failure_mode": 10,
+      "failure_mode_name": "implausible tissue under a label",
       "fill": {
         "mean": 3000,
         "name": "metal",
@@ -119,8 +119,8 @@
           100
         ]
       },
-      "failure_mode": 9,
-      "failure_mode_name": "Implausible tissue under a label",
+      "failure_mode": 10,
+      "failure_mode_name": "implausible tissue under a label",
       "fill": {
         "mean": 40,
         "name": "soft_tissue",
@@ -160,8 +160,8 @@
           0
         ]
       },
-      "failure_mode": 9,
-      "failure_mode_name": "Implausible tissue under a label",
+      "failure_mode": 10,
+      "failure_mode_name": "implausible tissue under a label",
       "fill": {
         "mean": 0,
         "name": "degenerate_uniform",

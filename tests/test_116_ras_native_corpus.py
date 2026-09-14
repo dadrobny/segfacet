@@ -360,6 +360,16 @@ def _rule_label_pairs(findings) -> list:
 _MANIFEST_CASES = load_manifest()["cases"]
 _REFERENCE_SHA = _reference_sha()
 
+#: Cases item 150 (2026-09-14) added to the corpus; no pre-migration golden
+#: exists for them at ``_REFERENCE_GOLDEN_SHA``, so the identity comparison
+#: below runs over the original nine only. Asserted present so the exclusion
+#: cannot silently widen.
+_ITEM_150_NEW_CASES = frozenset({"fuse_adjacent", "remove_level_relabel"})
+assert _ITEM_150_NEW_CASES <= {c["case_id"] for c in _MANIFEST_CASES}
+_REFERENCE_MANIFEST_CASES = [
+    c for c in _MANIFEST_CASES if c["case_id"] not in _ITEM_150_NEW_CASES
+]
+
 
 #: Item 120 makes the per-vertebra spline offset a held-out measurement,
 #: which deliberately adds a ``mislabel`` finding on label 22 to these two
@@ -383,7 +393,7 @@ _ITEM_132_NEW_MISLABEL_CASES = frozenset({"mode4_relabel_swap"})
     _REFERENCE_SHA is None,
     reason="reference commit aeb2f55 not present in this clone",
 )
-@pytest.mark.parametrize("case", _MANIFEST_CASES, ids=lambda c: c["case_id"])
+@pytest.mark.parametrize("case", _REFERENCE_MANIFEST_CASES, ids=lambda c: c["case_id"])
 def test_ac7_case_identity_preserved_vs_merge_base(case):
     """AC7: the freshly-built report's (rule_id, sorted labels) pairs match
     the pre-migration committed golden's exactly -- numeric feature values may

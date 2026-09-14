@@ -133,19 +133,20 @@ class IntensityReferenceDeltaRule(Rule):
     # disposition): mode 9, for the same reason as "intensity" -- it is the
     # reference-relative form of the same tissue-plausibility judgement.
     mode_declaration = RuleModeDeclaration(
-        modes=(9,),
+        modes=(10,),
         evidence=(
             "intensity-corpus-manifest",
             "This rule is the reference-relative form of the intensity "
             "rule's tissue-plausibility judgement: it thresholds how far a "
             "labelled region's intensity statistics deviate from a "
             "level-aware VerSe-derived reference distribution, which is the "
-            "same claim mode 9 (implausible tissue under a label) names, "
+            "same claim mode 10 (implausible tissue under a label; mode 9 "
+            "before the item-150 sign-off) names, "
             "measured against a cohort instead of against a fixed HU band. "
             "It shares mode 9's corpus, tests/corpus/intensity/manifest.json, "
             "but fires on none of its four cases: that corpus is built "
             "against no reference distribution and the item-146 harness "
-            "attaches none, so this rule's mode-9 edge sits at the "
+            "attaches none, so this rule's mode-10 edge sits at the "
             "needs-real-data rung -- the same analytic-only shape item 137 "
             "recorded for reference_delta."
         ),

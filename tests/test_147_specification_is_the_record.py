@@ -1,6 +1,17 @@
 """Tests for item 147 -- collapsing the five partial sources onto the
 failure-mode specification (``segfacet.failure_modes``).
 
+Re-pointed at the signed-off catalogue (item 150, 2026-09-14), which
+re-organised the taxonomy under this item's tests: ten modes in a one-tier
+hierarchy plus one ``ConditionSpec`` (FOV truncation, the retired mode 6),
+ids re-assigned, and vision.md §6's list demoted from "the names" to
+provenance (``VISION_SEED_DISPOSITION``). Every AC below is unchanged in
+what it claims; the ids, counts and section headings it claims it about are
+the signed-off ones. The three AC whose subject moved carry the reason at
+their own section heading: AC5 (§6 titles are provenance, not names), AC8
+(the rung-less entries are the two ``proposed`` modes, not the single mode
+10) and AC10 (the corrected label-sequence sentence is mode 6's).
+
 AC -> test map (house style, items 144-146):
 
 - AC1:  test_ac1_one_source_for_mode_names_in_production_code,
@@ -11,12 +22,13 @@ AC -> test map (house style, items 144-146):
         test_adv_ac3_walker_flags_a_planted_real_reference
 - AC4:  test_ac4_vision_parse_has_one_home,
         test_adv_ac4_walker_flags_a_planted_real_read
-- AC5:  test_ac5_eight_seed_names_equal_vision_titles
+- AC5:  test_ac5_every_vision_seed_title_disposes_and_resolves,
+        test_adv_ac5_unresolvable_disposition_is_reported
 - AC6:  test_ac6_matrix_titles_come_from_the_specification
 - AC7:  test_ac7_mode_rungs_are_derived_from_the_specification
-- AC8:  test_ac8_mode10_absent_rung_renders_explicitly
+- AC8:  test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode
 - AC9:  test_ac9_every_mechanism_names_a_token_that_resolves_live
-- AC10: test_ac10_mode7_corrected_sentence_is_measured,
+- AC10: test_ac10_label_sequence_corrected_sentence_is_measured,
         test_adv_ac10_stale_false_claim_fails_the_tree_wide_check
 - AC11: test_ac11_sequence_rule_caps_nothing
 - AC12: test_ac12_declared_mode_outside_specification_is_reported
@@ -158,12 +170,18 @@ def measured():
 
 
 def _mode_section(markdown: str, mode_id: int) -> str:
+    """The rendered section for *mode_id*. A top-level mode's heading reads
+    ``## Mode 9: ...``; a sub-mode's reads ``## Mode 3 (1.2, sub-mode of
+    1): ...`` (item 150's one-tier hierarchy), so both spellings are
+    matched, and a section runs to the next ``## `` heading of any kind --
+    the conditions section and the vision-seed-disposition section are
+    ``## `` headings too."""
     match = re.search(
-        rf"^## Mode {mode_id}:.*?(?=^## Mode \d|\Z)",
+        rf"^## Mode {mode_id}(?::| \().*?(?=^## |\Z)",
         markdown,
         flags=re.MULTILINE | re.DOTALL,
     )
-    assert match is not None, f"expected a '## Mode {mode_id}:' section"
+    assert match is not None, f"expected a '## Mode {mode_id}' section"
     return match.group(0)
 
 
@@ -267,7 +285,27 @@ def test_ac1_one_source_for_mode_names_in_production_code(src_literals_by_file):
     assert offenders == {
         "src/segfacet/failure_modes.py",
         "src/segfacet/synth/intensity.py",
+        # `eval/per_mode.py::LEGACY_STAGE18_MODE_NAMES` (item 150): the
+        # deliberately frozen pre-sign-off name map the Stage-18/29 eval
+        # harness is still keyed by, documented as such at its definition.
+        # Re-keying that harness needs re-measured ladder constants and is a
+        # separate item, so this is a named exception, not a second source.
+        "src/segfacet/eval/per_mode.py",
     }, offenders
+
+    # ... and the exception is exactly that map: the only mode-name literals
+    # `per_mode.py` carries are its values, so the allowance cannot quietly
+    # cover a freshly hand-typed name.
+    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+
+    per_mode_literals = next(
+        literals
+        for path, literals in src_literals_by_file.items()
+        if _rel(path) == "src/segfacet/eval/per_mode.py"
+    )
+    assert (per_mode_literals & needles) <= set(LEGACY_STAGE18_MODE_NAMES.values()), (
+        per_mode_literals & needles
+    )
 
 
 def test_adv_ac1_walker_flags_a_planted_mode_name_literal(tmp_path):
@@ -328,7 +366,13 @@ def test_ac3_mode_anchor_paths_stays_under_its_own_metric_label(matrix):
     import segfacet.feature_docs as feature_docs_module
     import segfacet.traceability as traceability
 
-    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == set(range(1, 9))
+    # The signed-off key set (item 150): the Stage-18 metric anchors now
+    # cover modes 1, 3, 4, 5, 6 and 9 -- mode 3 carries two paths, and the
+    # FOV-truncation anchor moved to `CONDITION_ANCHOR_PATHS` when mode 6
+    # became a condition.
+    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == {1, 3, 4, 5, 6, 9}
+    assert set(feature_docs_module.MODE_ANCHOR_PATHS) <= set(fm.SPECIFICATION)
+    assert set(feature_docs_module.CONDITION_ANCHOR_PATHS) <= set(fm.CONDITIONS)
 
     checked_any = False
     for mode in fm.SPECIFICATION.values():
@@ -438,23 +482,80 @@ def test_adv_ac4_walker_flags_a_planted_real_read(tmp_path):
 
 
 # =========================================================================== #
-# AC5: the eight seed names still equal vision §6's list
+# AC5: the vision §6 seed list is provenance, and every title disposes
+#
+# Re-targeted at the item-150 sign-off (2026-09-14). AC5's original claim --
+# "modes 1-8's `name` fields equal vision.md §6's numbered list" -- was
+# retired with the taxonomy: §6's titles are the SEED the catalogue started
+# from and provide no ids (one title retired, one re-homed as a condition,
+# one split, ids re-assigned). The claim kept in that direction is
+# `VISION_SEED_DISPOSITION` / `vision_seed_conflicts()`: every §6 title has a
+# disposition, and every disposition resolves.
 # =========================================================================== #
 
 
-def test_ac5_eight_seed_names_equal_vision_titles():
+def test_ac5_every_vision_seed_title_disposes_and_resolves():
     import segfacet.failure_modes as fm
 
     titles = fm.vision_seed_titles()
-    for mode_id in range(1, 9):
-        assert mode_id in titles, mode_id
-        assert fm.SPECIFICATION[mode_id].name == titles[mode_id], (
-            mode_id,
-            fm.SPECIFICATION[mode_id].name,
-            titles[mode_id],
-        )
-    assert 9 not in titles
-    assert 10 not in titles
+    assert titles, "expected >=1 title parsed from vision.md §6"
+    assert set(titles) == set(range(1, len(titles) + 1)), sorted(titles)
+
+    assert fm.vision_seed_conflicts() == ()
+    assert set(fm.VISION_SEED_DISPOSITION) == set(titles.values()), (
+        set(fm.VISION_SEED_DISPOSITION) ^ set(titles.values())
+    )
+
+    resolved = 0
+    for title, disposition in fm.VISION_SEED_DISPOSITION.items():
+        assert title in set(titles.values()), title
+        if disposition == "retired":
+            resolved += 1
+            continue
+        kind, _sep, target = disposition.partition(":")
+        if kind == "mode":
+            assert target.isdigit() and int(target) in fm.SPECIFICATION, disposition
+        elif kind == "condition":
+            assert target in fm.CONDITIONS, disposition
+        else:
+            raise AssertionError(f"unresolvable disposition {disposition!r} for {title!r}")
+        resolved += 1
+    assert resolved == len(fm.VISION_SEED_DISPOSITION), resolved
+
+    # The seed titles are no longer the mode names, by design -- so the
+    # retired claim must not have quietly survived as an accident.
+    assert set(titles.values()) != {mode.name for mode in fm.SPECIFICATION.values()}
+
+
+def test_adv_ac5_unresolvable_disposition_is_reported(monkeypatch):
+    """Positive control for the check above: `vision_seed_conflicts()` must
+    be able to fail, in each of its three directions."""
+    import segfacet.failure_modes as fm
+
+    baseline = dict(fm.VISION_SEED_DISPOSITION)
+    assert baseline, "expected a non-empty disposition map"
+
+    dropped_title = sorted(baseline)[0]
+
+    missing_entry = {k: v for k, v in baseline.items() if k != dropped_title}
+    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", missing_entry)
+    conflicts = fm.vision_seed_conflicts()
+    assert any(dropped_title in msg for msg in conflicts), conflicts
+
+    unknown_title = dict(baseline)
+    unknown_title["__item150_no_such_vision_title__"] = "retired"
+    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", unknown_title)
+    conflicts = fm.vision_seed_conflicts()
+    assert any("__item150_no_such_vision_title__" in msg for msg in conflicts), conflicts
+
+    unresolvable = dict(baseline)
+    unresolvable[dropped_title] = "mode:9999"
+    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", unresolvable)
+    conflicts = fm.vision_seed_conflicts()
+    assert any("mode:9999" in msg for msg in conflicts), conflicts
+
+    monkeypatch.undo()
+    assert fm.vision_seed_conflicts() == ()
 
 
 # =========================================================================== #
@@ -489,29 +590,37 @@ def test_ac7_mode_rungs_are_derived_from_the_specification(matrix):
 
 
 # =========================================================================== #
-# AC8: mode 10's absent rung renders explicitly
+# AC8: a mode with no edges renders its absent rung explicitly
+#
+# The catalogue's rung-less entries are its `proposed` ones: modes 7
+# (shifted label sequence) and 8 (collapsed or duplicated label set) since
+# the item-150 sign-off. AC8 was written when that was the single mode 10.
 # =========================================================================== #
 
 
-def test_ac8_mode10_absent_rung_renders_explicitly(matrix):
+def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     import segfacet.failure_modes as fm
     import segfacet.traceability as traceability
 
-    mode10 = fm.SPECIFICATION[10]
-    assert not mode10.intended_rules
-    assert fm.derive_mode_rung(mode10) is None
+    edgeless = [mode for mode in fm.SPECIFICATION.values() if not mode.intended_rules]
+    assert {mode.id for mode in edgeless} == {7, 8}, [mode.id for mode in edgeless]
 
     records_by_mode = {m.mode: m for m in matrix.modes}
-    assert records_by_mode[10].rung == ""
-
     d = traceability.matrix_to_dict(matrix)
-    mode10_json = d["modes"][str(10)]
-    assert mode10_json["rung"] is None, mode10_json["rung"]
-
     md = traceability.render_markdown(matrix)
-    row = _row_for_mode(md, 10)
-    assert row is not None, "expected a rendered row for mode 10"
-    assert any("(none)" in cell for cell in row), row
+
+    for mode in edgeless:
+        assert fm.derive_mode_rung(mode) is None, mode.id
+        assert records_by_mode[mode.id].rung == "", mode.id
+        assert d["modes"][str(mode.id)]["rung"] is None, mode.id
+        row = _row_for_mode(md, mode.id)
+        assert row is not None, f"expected a rendered row for mode {mode.id}"
+        assert any("(none)" in cell for cell in row), row
+
+    # ... and a mode that does carry edges renders a rung, so the assertion
+    # above is not passing on a table that renders "(none)" everywhere.
+    with_edges = next(mode for mode in fm.SPECIFICATION.values() if mode.intended_rules)
+    assert records_by_mode[with_edges.id].rung != "", with_edges.id
 
 
 # =========================================================================== #
@@ -552,11 +661,17 @@ def test_ac9_every_mechanism_names_a_token_that_resolves_live(mode_id):
 
 
 # =========================================================================== #
-# AC10: mode 7's corrected sentence, measured
+# AC10: the corrected label-sequence sentence, measured
+#
+# Item 147 settled the correction on the then-mode 7 ("non-continuous label
+# sequence"); the item-150 sign-off re-homed that mode as mode 6
+# ("Implausible label sequence"), carrying the sentence with it. The claim
+# is unchanged: `rank(v) == v - 1` is false, and the sentence that replaced
+# it must name what makes it false.
 # =========================================================================== #
 
 
-def test_ac10_mode7_corrected_sentence_is_measured():
+def test_ac10_label_sequence_corrected_sentence_is_measured():
     import segfacet.failure_modes as fm
     from segfacet.labels import CANONICAL_ORDER, DEFAULT_LABEL_MAP
 
@@ -591,16 +706,17 @@ def test_ac10_mode7_corrected_sentence_is_measured():
     ]
     assert offending == [], offending
 
-    mechanism = fm.SPECIFICATION[7].mechanism
-    assert mechanism, "expected a non-empty mode-7 mechanism sentence"
+    mechanism = fm.SPECIFICATION[6].mechanism
+    assert mechanism, "expected a non-empty mode-6 mechanism sentence"
     for token in ("CANONICAL_ORDER", "T13"):
         assert token in mechanism, (token, mechanism)
+    assert "rank(v) == v - 1" not in mechanism, mechanism
 
 
 def test_adv_ac10_stale_false_claim_fails_the_tree_wide_check(tmp_path):
-    """Positive control: a planted mode-7 reason containing the false claim
+    """Positive control: a planted label-sequence reason containing the false claim
     is caught by the same tree-wide scan AC10 relies on."""
-    planted = tmp_path / "planted_mode7_reason.py"
+    planted = tmp_path / "planted_label_sequence_reason.py"
     planted.write_text(
         'reason = "single rank descent (rank(v) == v - 1 under the default)."\n',
         encoding="utf-8",
@@ -1021,8 +1137,25 @@ def test_ac22_committed_corpora_agree_with_the_derived_name_map():
 
     geometric_cases = corpus_module.load_manifest()["cases"]
     assert geometric_cases, "expected a non-empty geometric manifest"
+    condition_cases = 0
     for case in geometric_cases:
+        # A case carrying `failure_mode == 0` **and** a `condition` is a
+        # condition fixture, not a clean control (item 150:
+        # `mode6_crop_at_border` became the FOV-truncation condition's
+        # case). Its `failure_mode_name` is the condition's `short_name`;
+        # `failure_mode_names()[0]` -- the clean-control name -- belongs
+        # only to a case with no condition.
+        condition_id = case.get("condition") or ""
+        if condition_id:
+            assert case["failure_mode"] == 0, case["case_id"]
+            assert condition_id in fm.CONDITIONS, (case["case_id"], condition_id)
+            assert (
+                case["failure_mode_name"] == fm.CONDITIONS[condition_id].short_name
+            ), case["case_id"]
+            condition_cases += 1
+            continue
         assert case["failure_mode_name"] == derived[case["failure_mode"]], case["case_id"]
+    assert condition_cases, "expected >=1 condition case in the geometric manifest"
 
     intensity_cases = intensity_module.load_intensity_manifest()["cases"]
     assert intensity_cases, "expected a non-empty intensity manifest"
@@ -1043,7 +1176,8 @@ def test_ac23_new_fields_reach_both_artifacts(tmp_path):
     fm.main(["--json", str(json_dest), "--md", str(md_dest)])
 
     payload = json.loads(json_dest.read_text(encoding="utf-8"))
-    assert len(payload["modes"]) == 10
+    assert payload["modes"], "expected a non-empty rendered mode list"
+    assert len(payload["modes"]) == len(fm.SPECIFICATION)
     for mode_record in payload["modes"]:
         assert "short_name" in mode_record, mode_record["id"]
         assert "mechanism" in mode_record, mode_record["id"]
@@ -1100,14 +1234,24 @@ def test_ac24_all_three_artifact_pairs_regenerate_byte_identically(tmp_path):
     assert_matches_committed_artifact(fm_json_a, _COMMITTED_FM_JSON)
     # Markdown: structural section comparison (no ground for byte-exact
     # comparison exists in tests/committed_artifact_guard.py, and this item
-    # adds none) -- extracted "## Mode N: title" headings must agree.
-    fresh_headings = dict(
-        re.findall(r"^## Mode (\d+): (.+)$", fm_md_a.read_text(encoding="utf-8"), flags=re.MULTILINE)
-    )
-    committed_headings = dict(
-        re.findall(r"^## Mode (\d+): (.+)$", _COMMITTED_FM_MD.read_text(encoding="utf-8"), flags=re.MULTILINE)
-    )
-    assert fresh_headings, "expected >=1 parsed mode heading"
+    # adds none) -- extracted mode headings must agree. A sub-mode's heading
+    # carries its path and parent ("## Mode 3 (1.2, sub-mode of 1): ...")
+    # since item 150, so both spellings are captured; capturing only the
+    # top-level spelling would silently compare six of the ten.
+    _HEADING_RE = r"^## Mode (\d+)((?: \([^)]*\))?): (.+)$"
+    fresh_headings = {
+        mode_id: (suffix, title)
+        for mode_id, suffix, title in re.findall(
+            _HEADING_RE, fm_md_a.read_text(encoding="utf-8"), flags=re.MULTILINE
+        )
+    }
+    committed_headings = {
+        mode_id: (suffix, title)
+        for mode_id, suffix, title in re.findall(
+            _HEADING_RE, _COMMITTED_FM_MD.read_text(encoding="utf-8"), flags=re.MULTILINE
+        )
+    }
+    assert len(fresh_headings) == len(fm.SPECIFICATION), sorted(fresh_headings)
     assert fresh_headings == committed_headings
 
     # -- traceability_matrix.generated.{json,md} ---------------------------- #
@@ -1159,19 +1303,52 @@ def test_ac25_matrix_note_names_the_specification_not_a_retired_constant(matrix)
 # =========================================================================== #
 
 
+#: The lifecycle status every catalogue entry derives from live state as
+#: signed off (item 150, 2026-09-14). Authored status is "specified" or
+#: "proposed"; everything here is computed from the rule registry and the
+#: committed corpora on every read, so a rule that stops firing, a corpus
+#: case whose measurement moves, or a declaration that is dropped moves one
+#: of these values and fails this test. "implemented" (not "validated") is
+#: the honest value for a mode whose only corpus evidence is a co-detection
+#: by a rule the mode does not own, or a case recording "not detected today"
+#: with an empty expected set.
+_EXPECTED_DERIVED_STATUS = {
+    1: "implemented",   # mode1_displace is a co-detection (mode-less offset detector)
+    2: "implemented",   # fuse_adjacent fires coverage/fragmentation, neither mode 2's own
+    3: "validated",
+    4: "implemented",   # remove_level_relabel expects {} -- not detected today
+    5: "implemented",   # no corpus case
+    6: "validated",
+    7: "proposed",
+    8: "proposed",
+    9: "validated",
+    10: "validated",
+}
+
+
 def test_ac26_every_corpus_case_agrees_and_status_derives_correctly(measured):
     import segfacet.failure_modes as fm
 
+    assert set(_EXPECTED_DERIVED_STATUS) == set(fm.SPECIFICATION), (
+        set(_EXPECTED_DERIVED_STATUS) ^ set(fm.SPECIFICATION)
+    )
+
     for mode_id, mode in fm.SPECIFICATION.items():
-        assert mode.corpus_cases or mode_id == 10, mode_id
         for case in mode.corpus_cases:
             assert fm.case_agrees(case), (mode_id, case.case_id)
+        assert fm.derive_status(mode) == _EXPECTED_DERIVED_STATUS[mode_id], (
+            mode_id,
+            fm.derive_status(mode),
+        )
 
-        derived = fm.derive_status(mode)
-        if mode_id == 10:
-            assert derived == "proposed", derived
-        else:
-            assert derived == "validated", (mode_id, derived)
+    # The conditions' corpus cases are measured by the same harness and must
+    # agree too -- a condition case is never a silent hole (item 150).
+    checked_condition_cases = 0
+    for condition in fm.iter_conditions():
+        for case in condition.corpus_cases:
+            assert fm.case_agrees(case), (condition.id, case.case_id)
+            checked_condition_cases += 1
+    assert checked_condition_cases, "expected >=1 condition corpus case"
 
 
 # =========================================================================== #

@@ -126,16 +126,15 @@ class BorderRule(Rule):
     # (src/segfacet/synth/coverage_border_overlap.py) designates "border" for
     # mode 6 via its Expectation(failure_mode=6, expected_rule_ids={"border"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(6,),
-        evidence=(
-            "corpus-manifest",
-            "tests/corpus/manifest.json's mode6_crop_at_border designates "
-            "this rule for §6 mode 6: the corpus operator crops the "
-            "anterior face, and this rule fires on the resulting "
-            "border-touching label. Free-form provenance -- item 147 "
-            "retired the reserved 'corpus' evidence tag, and the mode 6 <-> "
-            "border evidence claim is the per-edge rung in "
-            "segfacet.failure_modes.SPECIFICATION[6].",
+        mode_less_reason=(
+            "records the FOV-truncation CONDITION, not a failure mode: the "
+            "item-150 sign-off (2026-09-14) retired 'partial vertebra at "
+            "the image border' from the failure catalogue into "
+            "segfacet.failure_modes.CONDITIONS['fov_truncation'], because a "
+            "truncated vertebra is a property of the scan that gates other "
+            "rules, not a defect of the segmentation. "
+            "tests/corpus/manifest.json's mode6_crop_at_border is that "
+            "condition's fixture."
         ),
         consumed_paths=(
             ConsumedPath(
@@ -149,27 +148,51 @@ class BorderRule(Rule):
             ),
             ConsumedPath(
                 path="per_label.{label}.geometry.touches_anterior",
-                role="signal",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
             ),
             ConsumedPath(
                 path="per_label.{label}.geometry.touches_inferior",
-                role="signal",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
             ),
             ConsumedPath(
                 path="per_label.{label}.geometry.touches_left",
-                role="signal",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
             ),
             ConsumedPath(
                 path="per_label.{label}.geometry.touches_posterior",
-                role="signal",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
             ),
             ConsumedPath(
                 path="per_label.{label}.geometry.touches_right",
-                role="signal",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
             ),
             ConsumedPath(
                 path="per_label.{label}.geometry.touches_superior",
-                role="signal",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
             ),
             ConsumedPath(
                 path="per_label.{label}.level_name",

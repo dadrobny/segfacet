@@ -73,7 +73,7 @@ Per-path classification (item 148)
 Both rule-sourced mode terms are **gated per path**. Each declaration also
 carries ``consumed_paths`` — a ``ConsumedPath(path, role, reason)`` for every
 leaf path this module attributes to that rule, with ``role`` from the closed
-vocabulary ``("signal", "bookkeeping", "not-read")`` (see
+vocabulary ``("signal", "bookkeeping", "not-read", "condition-signal")`` (see
 :data:`segfacet.heuristics.rule.PATH_ROLES`). A rule contributes its
 corpus-derived (C) and declared (item 136) modes to a path **only** where
 that ``(rule, path)`` pair is ``"signal"``: before item 148 every leaf path a
@@ -103,7 +103,9 @@ only) ∪ (modes of ``consuming_rules`` declared per rule, item 136 — may
 include an analytic attribution outside the C term, item 137; item 148:
 through a ``"signal"`` path only). ``mode_evidence`` is the ordered
 subsequence of ``("per_mode_metric", "rule_mode_map", "rule_declaration",
-"rule_mode_less", "rule_bookkeeping", "rule_not_read")`` whose sources fired,
+"rule_mode_less", "rule_bookkeeping", "rule_not_read",
+"rule_condition_signal")`` whose sources fired (the last, item 150, marks a
+path a mode-less rule reads as a case *condition*'s evidence),
 or exactly ``("rule_unmapped",)`` when no source fired but a consuming rule
 said nothing, or ``()`` when neither applies. ``status`` = an authored
 :data:`segfacet.feature_docs.STATUS_OVERRIDES` entry if present, else
@@ -978,6 +980,7 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
         had_unmapped_rule = False
         had_bookkeeping_rule = False
         had_not_read_rule = False
+        had_condition_signal_rule = False
         mode_roles: List[Tuple[str, str]] = []
         for rule_id in rule_ids:
             modes_for_rule = rule_mode_map.get(rule_id)
@@ -990,6 +993,8 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
                 had_bookkeeping_rule = True
             elif role == "not-read":
                 had_not_read_rule = True
+            elif role == "condition-signal":
+                had_condition_signal_rule = True
             # Item 148: only a "signal" pair lets this rule's modes reach
             # this path. A bookkeeping / not-read / unclassified pair
             # contributes no mode, in either mechanism.
@@ -1017,6 +1022,8 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
             mode_evidence_parts.append("rule_bookkeeping")
         if had_not_read_rule:
             mode_evidence_parts.append("rule_not_read")
+        if had_condition_signal_rule:
+            mode_evidence_parts.append("rule_condition_signal")
 
         if all_modes:
             failure_modes = tuple(sorted(all_modes))
@@ -1190,7 +1197,25 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
             # same rule a second time here would say nothing new.
             continue
         declared_modes = set(decl.modes)
-        for mode in sorted(corpus_modes - declared_modes):
+        # Item 150: a corpus case's expected rule set records co-detections
+        # too (vision.md section 6, "co-detection is recorded, not
+        # suppressed"), so a designated (rule, mode) pair is a conflict only
+        # when the specification does NOT carry that rule in one of the
+        # mode's corpus cases' expected_firing -- the specification, not the
+        # Expectation literal, is the authority on what a case fires.
+        # The exemption is narrow by construction: it covers a rule that
+        # co-detects on the mode's case WITHOUT being one of that mode's own
+        # intended rules. A rule the specification names as intended for the
+        # mode must declare it, and a corpus designation it drops is reported
+        # here -- otherwise this direction could never fire, because the scan
+        # and the co-detection record derive from the same expected sets.
+        recorded_co_detections = {
+            mode_id
+            for mode_id, mode_spec in _failure_modes_module.SPECIFICATION.items()
+            if any(rule_id in case.expected_firing for case in mode_spec.corpus_cases)
+            and rule_id not in {edge.rule_id for edge in mode_spec.intended_rules}
+        }
+        for mode in sorted(corpus_modes - declared_modes - recorded_co_detections):
             messages.append(
                 f"rule {rule_id!r}: corpus designates §6 mode {mode} but the "
                 f"declaration does not include it (declared modes: {sorted(declared_modes)!r})."

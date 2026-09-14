@@ -260,8 +260,10 @@ def _walk_tests_non_py_files() -> set:
 
 def test_ac3_current_tree_has_30_non_py_fixtures():
     """Item 126 reconciled this count: 30 (surveyed 2026-08-30) minus the
-    eleven retired snapshots plus the one new format-contract fixture = 20."""
-    assert len(_walk_tests_non_py_files()) == 20
+    eleven retired snapshots plus the one new format-contract fixture = 20.
+    Item 150 (2026-09-14) added two corpus fixtures (fuse_adjacent,
+    remove_level_relabel) = 22."""
+    assert len(_walk_tests_non_py_files()) == 22
 
 
 def test_ac3_section1_fixture_set_equals_filesystem_walk_both_directions(section1_rows, sections):
@@ -682,7 +684,7 @@ def test_adv_ac3_empty_header_only_table_fails_with_full_missing_list():
     assert rows == []
     documented_set = {r["fixture"] for r in rows}
     missing = sorted(_walk_tests_non_py_files() - documented_set)
-    assert len(missing) == 20, "an empty table must not trivially pass on two empty sets"
+    assert len(missing) == 22, "an empty table must not trivially pass on two empty sets"
 
 
 def test_adv_ac6_asserted_by_naming_nonexistent_module_is_detectable():

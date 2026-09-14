@@ -20,14 +20,17 @@ Covers Acceptance Criteria AC1-AC18:
 
 - AC1:  every one of the ten registered rules carries a declaration with
         ``pending_reason == ""`` -- nothing ships pending.
-- AC2:  ``bounds`` declares exactly ``(2,)``, analytic.
-- AC3:  ``reference_delta`` declares exactly ``(1, 2)``, analytic (corrected
-        2026-09-02, commit b1c593c -- originally ``(2,)`` on a false
-        evidence claim; see the module note above).
+- AC2:  ``bounds`` declares an exact analytic mode tuple -- ``(2,)`` at item
+        137, ``(1, 2, 3)`` after the item-150 sign-off re-assigned the ids
+        and widened the declaration.
+- AC3:  ``reference_delta`` likewise -- ``(1, 2)`` at item 137 (corrected
+        2026-09-02, commit b1c593c, from a false-premised ``(2,)``; see the
+        module note above), ``(1, 2, 3, 5)`` after the sign-off.
 - AC4:  both analytic declarations are analytic (``"analytic" in evidence``,
         ``"corpus" not in evidence``) and name the mechanism (>= 40 chars).
-- AC5:  ``intensity`` / ``intensity_reference_delta`` are mode-less, not
-        pending.
+- AC5:  ``intensity`` / ``intensity_reference_delta`` are dispositioned, not
+        pending -- mode-less at item 137, declaring mode 9 from item 146 and
+        mode 10 after the item-150 re-assignment of ids.
 - AC6:  both mode-less reasons are substantive (>= 120 chars, contain "§6").
 - AC7:  ``intensity``'s reason cites the corpus manifest path.
 - AC8:  the cited manifest evidence actually holds (no ``failure_mode`` key,
@@ -41,15 +44,19 @@ Covers Acceptance Criteria AC1-AC18:
 - AC12: nothing on this tree still reports ``rule_unmapped``.
 - AC13: every entry consumed by ``bounds``/``reference_delta`` carries mode 2
         in ``failure_modes``.
-- AC14: every intensity-only, non-anchor entry is honestly mode-less
-        (``failure_modes == ()``, ``mode_evidence == ("rule_mode_less",)``).
+- AC14: every intensity-only, non-anchor entry is honest about what it
+        evidences -- ``(10,)``/``("rule_declaration",)`` where the rule reads
+        it as a signal, ``()``/``("rule_bookkeeping",)`` where it does not.
 - AC15: both committed catalogue artifacts regenerate byte-identically,
         ``schema_version`` still ``"1.1"`` (``"1.2"`` since item 148,
         2026-09-04).
 - AC16: the catalogue-gap finding is captured durably in the insight inbox
         (or one of its archives).
-- AC17: §6 stays at exactly eight numbered modes; ``MODE_ANCHOR_PATHS``'s key
-        set is still ``{1, ..., 8}``.
+- AC17: vision.md §6 stays at exactly eight numbered titles (provenance
+        since the item-150 sign-off, not ids), and ``MODE_ANCHOR_PATHS``
+        invents no mode id of its own -- its keys are signed-off mode ids
+        ({1, 3, 4, 5, 6, 9}), with the ``fov_truncation`` condition's anchor
+        held separately in ``CONDITION_ANCHOR_PATHS``.
 - AC18: the disposition is metadata only -- replacing any of the four
         declarations leaves ``run_rules`` unchanged.
 
@@ -69,8 +76,8 @@ with no ``consuming_rules`` gains neither ``"rule_declaration"`` nor
 ``"rule_mode_less"``; an entry consumed by both an analytic declarer and a
 mode-less declarer carries both tags in canonical order and keeps the
 declarer's own declared modes in ``failure_modes``; the ``per_label``
-container keeps its corpus-derived modes and gains ``"rule_mode_less"``
-last; the insights search globs the archive files too; ``reference_delta``'s
+container is honestly mode-less and carries its three rule-sourced tags in
+canonical order; the insights search globs the archive files too; ``reference_delta``'s
 declared modes are tied to its own tracked-feature vocabulary, not just
 pinned by value, so a re-narrowing to ``(2,)`` is caught structurally.
 """
@@ -106,7 +113,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _ANALYTIC_RULES = ("bounds", "reference_delta")
 # bounds declares mode 2 alone; reference_delta declares modes 1 and 2
 # (corrected 2026-09-02, commit b1c593c -- see the module note above).
-_ANALYTIC_DECLARED_MODES = {"bounds": (2,), "reference_delta": (1, 2)}
+# Reconciled (item 150, 2026-09-14): the maintainer sign-off re-assigned the
+# mode ids and widened both analytic declarations to every mode their
+# volume/extent signal can proxy -- bounds (1, 2, 3), reference_delta
+# (1, 2, 3, 5). Item 137's claim is unchanged in kind: each analytic rule
+# declares an authored, exact mode tuple, on an analytic (not corpus)
+# evidence sentence.
+_ANALYTIC_DECLARED_MODES = {"bounds": (1, 2, 3), "reference_delta": (1, 2, 3, 5)}
 # Item 146 (2026-09-03): no rule ships mode-less any more -- intensity /
 # intensity_reference_delta move from mode-less to declaring §6 mode 9 -- so
 # this roll call becomes empty rather than removed (its consumers below are
@@ -138,6 +151,11 @@ _CANONICAL_TAG_ORDER = (
     "rule_mode_less",
     "rule_bookkeeping",
     "rule_not_read",
+    # Reconciled (item 150, 2026-09-14): the sign-off re-homes "partial
+    # vertebra at the image border" from a failure mode to the
+    # `fov_truncation` CONDITION, and `catalogue.build_catalogue` appends a
+    # seventh tag last for a path a rule reads as a condition signal.
+    "rule_condition_signal",
 )
 
 
@@ -283,9 +301,13 @@ def test_adv_analytic_declaration_claiming_an_unlisted_mode_is_rejected(monkeypa
 def test_ac5_mode_less_rule_declares_no_modes_not_pending(rule_id):
     """Rescoped (item 146, 2026-09-03): the two intensity rules move from
     mode-less to declaring §6 mode 9 -- restated as "dispositioned, not
-    pending, and now declares mode 9" (item 146 AC9)."""
+    pending, and now declares mode 9" (item 146 AC9).
+
+    Reconciled (item 150, 2026-09-14): the sign-off re-assigned the ids, and
+    "implausible tissue under a label" is now mode 10; the rules' disposition
+    is otherwise untouched."""
     decl = _RULES[rule_id].mode_declaration
-    assert decl.modes == (9,)
+    assert decl.modes == (10,)
     assert decl.pending_reason == ""
     assert decl.mode_less_reason == ""
 
@@ -355,13 +377,33 @@ def test_ac9_rule_declaration_conflicts_empty_on_this_tree():
     assert catalogue.rule_declaration_conflicts() == ()
 
 
-def test_ac9_analytic_modes_are_within_the_mode_anchor_key_set():
+def test_ac9_analytic_modes_are_within_the_specification_key_set():
+    """Reconciled (item 150, 2026-09-14). The claim is, and always was, that
+    an analytic declaration may not invent a mode -- item 137 spelled the
+    catalogue of real modes as ``feature_docs.MODE_ANCHOR_PATHS``'s key set,
+    which at the time was exactly §6's 1-8. The sign-off separates the two:
+    ``MODE_ANCHOR_PATHS`` now keys only the modes that have a Stage-18 metric
+    anchor ({1, 3, 4, 5, 6, 9}), while the catalogue of modes is
+    ``segfacet.failure_modes.SPECIFICATION`` -- the same source
+    ``catalogue.rule_declaration_conflicts()`` checks declarations against.
+    Re-pointed there, so an analytic rule declaring an unlisted mode (e.g.
+    ``bounds``'s mode 2, which has no anchor path) is not a false failure and
+    a genuinely invented mode still is."""
+    import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs_module
 
-    anchor_modes = set(feature_docs_module.MODE_ANCHOR_PATHS.keys())
+    known_modes = set(fm.SPECIFICATION)
+    assert known_modes, "expected a non-empty failure-mode specification"
     for rule_id in _ANALYTIC_RULES:
         decl = _RULES[rule_id].mode_declaration
-        assert set(decl.modes) <= anchor_modes, rule_id
+        assert decl.modes, rule_id
+        assert set(decl.modes) <= known_modes, rule_id
+
+    # The anchor key set is a strict subset of the specification's, so the
+    # weaker source this test used to read cannot silently become the same
+    # check again.
+    anchor_modes = set(feature_docs_module.MODE_ANCHOR_PATHS)
+    assert anchor_modes < known_modes
 
 
 def test_adv_future_corpus_case_still_binds_analytic_declaration(monkeypatch):
@@ -391,11 +433,17 @@ def test_ac10_rule_mode_less_tag_present_iff_mode_less_consuming_rule():
     """Rescoped (item 146, 2026-09-03): no rule ships mode-less any more, so
     the `iff` half's positive branch cannot be exercised on this tree;
     restated to the liveness half only -- the tag is derived correctly
-    (never present) rather than asserting a positive example exists."""
+    (never present) rather than asserting a positive example exists.
+
+    Restored (item 150, 2026-09-14): the sign-off makes ``border`` mode-less
+    -- it records the ``fov_truncation`` condition, not a failure mode -- so
+    a positive example exists again and the full ``iff`` is back, with both
+    branches required to be non-empty so neither can rot unnoticed."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     assert cat.entries, "expected a non-empty catalogue"
-    checked = False
+    with_mode_less = 0
+    without_mode_less = 0
     for entry in cat.entries:
         has_mode_less_rule = any(
             (decl := rule_mod.declaration_for(rid)) is not None and decl.mode_less_reason
@@ -403,9 +451,12 @@ def test_ac10_rule_mode_less_tag_present_iff_mode_less_consuming_rule():
         )
         has_tag = "rule_mode_less" in entry.mode_evidence
         assert has_tag == has_mode_less_rule, entry.path
-        assert has_mode_less_rule is False, entry.path
-        checked = True
-    assert checked, "expected a non-empty catalogue to check"
+        if has_mode_less_rule:
+            with_mode_less += 1
+        else:
+            without_mode_less += 1
+    assert with_mode_less, "expected at least one entry consumed by a mode-less rule"
+    assert without_mode_less, "expected at least one entry with no mode-less consuming rule"
 
 
 def test_adv_entry_with_no_consuming_rules_has_neither_declaration_tag():
@@ -486,17 +537,28 @@ def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last()
     it, ``not-read`` for those three (item 148's Description, A2). No rule
     classifies it ``signal``, so it now honestly carries
     ``failure_modes == ()`` with both rule-sourced tags, restating the
-    "keeps its corpus-derived modes" claim in the honest, narrower form."""
+    "keeps its corpus-derived modes" claim in the honest, narrower form.
+
+    Reconciled again (item 150, 2026-09-14): ``border`` is now mode-less, and
+    it is one of the six rules that iterate this container (``bookkeeping``),
+    so the entry legitimately carries ``"rule_mode_less"`` again -- ahead of
+    ``"rule_bookkeeping"`` and ``"rule_not_read"`` in the canonical order.
+    ``failure_modes`` is still ``()``: no rule classifies the container
+    ``signal``."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entry = next((e for e in cat.entries if e.path == "per_label"), None)
     assert entry is not None, "expected a per_label container entry"
     assert entry.consuming_rules, "expected per_label to still have consuming rules"
+    roles = dict(entry.mode_roles)
+    assert "signal" not in set(roles.values()), roles
     assert entry.failure_modes == (), entry.mode_evidence
-    assert "rule_mode_less" not in entry.mode_evidence, entry.mode_evidence
     assert "rule_declaration" not in entry.mode_evidence, entry.mode_evidence
+    assert "rule_mode_less" in entry.mode_evidence, entry.mode_evidence
     assert "rule_bookkeeping" in entry.mode_evidence, entry.mode_evidence
     assert "rule_not_read" in entry.mode_evidence, entry.mode_evidence
+    positions = [_CANONICAL_TAG_ORDER.index(t) for t in entry.mode_evidence]
+    assert positions == sorted(positions), entry.mode_evidence
 
 
 # =========================================================================== #
@@ -568,7 +630,10 @@ def test_ac14_intensity_only_non_anchor_entries_are_honestly_mode_less():
     ``(9,)``/``("rule_declaration",)``; a bookkeeping-only entry (e.g.
     ``image_features.available``) is now even more honest --
     ``()``/``("rule_bookkeeping",)``, since a rule reading a path only to
-    gate or identify cannot evidence the mode it declares elsewhere."""
+    gate or identify cannot evidence the mode it declares elsewhere.
+
+    Reconciled again (item 150, 2026-09-14): the id only -- "implausible
+    tissue under a label" is mode 10 after the sign-off."""
     catalogue = _catalogue()
     import segfacet.feature_docs as feature_docs_module
 
@@ -588,7 +653,7 @@ def test_ac14_intensity_only_non_anchor_entries_are_honestly_mode_less():
         role_by_rule = dict(entry.mode_roles)
         roles = {role_by_rule[rid] for rid in entry.consuming_rules}
         if roles == {"signal"}:
-            assert entry.failure_modes == (9,), entry.path
+            assert entry.failure_modes == (10,), entry.path
             assert entry.mode_evidence == ("rule_declaration",), entry.path
             signal_checked += 1
         elif roles == {"bookkeeping"}:
@@ -656,33 +721,61 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     Steps step 6); the 86-entry () bucket and the 2-entry
     ("per_mode_metric",) bucket do not move. Figures re-verified from item
     148's spec, not re-measured here (the classification itself does not
-    exist on this tree until the builder implements it)."""
+    exist on this tree until the builder implements it).
+
+    Re-measured (item 150, 2026-09-14) against the regenerated committed
+    catalogue on the sign-off branch. Three things move it: the mode ids are
+    re-assigned (so the per-mode path counts this test pins are counts of
+    different modes' paths); both analytic declarations widen (bounds
+    (1, 2, 3), reference_delta (1, 2, 3, 5)); and ``border`` becomes mode-less
+    with its six ``touches_*`` paths classified ``condition-signal``, adding
+    the ``"rule_mode_less"`` and ``"rule_condition_signal"`` tags back to the
+    distribution. The entry count is unchanged at 138 -- the sign-off moved
+    attribution, not the leaf set -- and the three buckets item 137 pinned as
+    *absent* (``("rule_mode_less",)`` alone, and its two combinations with
+    ``"rule_declaration"``) are still absent, which is why they are re-asserted
+    rather than dropped."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
     assert len(entries) == 138
 
-    mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
-    assert mode2_count == 12
-
+    # The two analytic rules' own declared modes ...
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 8
+    assert mode1_count == 9
 
-    mode9_count = sum(1 for e in entries if 9 in e.failure_modes)
-    assert mode9_count == 2
+    mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
+    assert mode2_count == 14
+
+    # ... and the intensity rules' own declared mode, 9 before the item-150
+    # sign-off re-assigned the ids, 10 after.
+    mode10_count = sum(1 for e in entries if 10 in e.failure_modes)
+    assert mode10_count == 2
 
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
         (): 86,
-        ("rule_bookkeeping",): 16,
-        ("rule_mode_map", "rule_declaration"): 14,
+        ("rule_bookkeeping",): 18,
         ("rule_declaration",): 6,
-        ("per_mode_metric", "rule_mode_map", "rule_declaration"): 5,
-        ("rule_bookkeeping", "rule_not_read"): 5,
+        ("rule_mode_less", "rule_condition_signal"): 6,
+        ("rule_mode_map", "rule_declaration"): 6,
+        ("rule_bookkeeping", "rule_not_read"): 4,
+        ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,
         ("per_mode_metric",): 2,
-        ("per_mode_metric", "rule_mode_map", "rule_declaration", "rule_bookkeeping"): 1,
+        ("per_mode_metric", "rule_bookkeeping"): 1,
+        ("rule_mode_less", "rule_bookkeeping"): 1,
+        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 1,
+        (
+            "per_mode_metric",
+            "rule_mode_map",
+            "rule_declaration",
+            "rule_mode_less",
+            "rule_bookkeeping",
+        ): 1,
     }
+    # The table is exhaustive: no bucket may appear that it does not name.
+    assert set(distribution) == set(expected), sorted(set(distribution) ^ set(expected))
     for key, count in expected.items():
         assert distribution.get(key, 0) == count, (key, distribution)
     assert distribution.get(("rule_unmapped",), 0) == 0
@@ -744,10 +837,26 @@ def test_ac17_vision_section_six_still_has_exactly_eight_modes():
     assert len(numbered_headings) == 8, numbered_headings
 
 
-def test_ac17_mode_anchor_paths_key_set_still_one_through_eight():
+def test_ac17_mode_anchor_paths_keys_are_signed_off_mode_ids():
+    """Reconciled (item 150, 2026-09-14). Item 137's claim was that it grew
+    nothing: §6's eight modes were the whole catalogue and ``MODE_ANCHOR_PATHS``
+    keyed exactly those eight. The sign-off re-assigned the ids and re-homed
+    one mode as the ``fov_truncation`` condition, so the anchor map now keys
+    the six signed-off modes that have a Stage-18 metric anchor, and the
+    condition's anchor path lives in its own ``CONDITION_ANCHOR_PATHS``. The
+    claim restated: the anchor map invents no mode id of its own -- every key
+    is a listed mode -- and no condition id leaks into it."""
+    import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs_module
 
-    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == set(range(1, 9))
+    anchor_keys = set(feature_docs_module.MODE_ANCHOR_PATHS)
+    assert anchor_keys == {1, 3, 4, 5, 6, 9}
+    assert anchor_keys <= set(fm.SPECIFICATION)
+
+    condition_keys = set(feature_docs_module.CONDITION_ANCHOR_PATHS)
+    assert condition_keys == set(fm.CONDITIONS)
+    assert condition_keys, "expected at least one condition anchor"
+    assert not condition_keys & {str(k) for k in anchor_keys}
 
 
 # =========================================================================== #

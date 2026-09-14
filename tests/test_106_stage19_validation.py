@@ -1113,10 +1113,11 @@ def test_ac22_nine_goldens_match_corpus_case_ids(tmp_path):
     out_dir = tmp_path / "regen_ac22"
     write_goldens(out_dir)
     files = sorted(out_dir.glob("*.json"))
-    assert len(files) == 9
     stems = {f.stem for f in files}
     manifest = json.loads((_TESTS_DIR / "corpus" / "manifest.json").read_text(encoding="utf-8"))
     case_ids = {c["case_id"] for c in manifest["cases"]}
+    assert len(case_ids) >= 9  # the original nine, plus item 150's cases
+    assert len(files) == len(case_ids)
     assert stems == case_ids
 
 

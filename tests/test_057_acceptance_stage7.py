@@ -80,9 +80,14 @@ from segfacet.synth.regression import loaded_seg_image
 #: moved here in item 120, which promoted a held-out per-label spline offset
 #: into the pipeline itself. Mode 4 moved here in item 132 (2026-08-31),
 #: which judges monotonicity against a traversal-ordered reference fit.
-_PIPELINE_DETECTABLE_MODES = (1, 2, 3, 4, 5, 6, 7)
-#: Sec.6 modes documented as structurally invisible to the plain pipeline.
-_RECONSTRUCTED_RECORD_MODES = (8,)
+#: Re-keyed 2026-09-14 (item 150) to the signed-off catalogue: modes 1, 2, 3
+#: and 6 have >=1 corpus case detected by plain run_qc; mode 4's only case
+#: (remove_level_relabel) designates no rule and expects "pass", so it is not
+#: an expected-failure record at all; the crop case files under failure_mode
+#: 0 with the fov_truncation condition.
+_PIPELINE_DETECTABLE_MODES = (1, 2, 3, 6)
+#: Modes documented as structurally invisible to the plain pipeline.
+_RECONSTRUCTED_RECORD_MODES = (9,)
 
 
 # =========================================================================== #
@@ -174,15 +179,16 @@ def test_reconstructed_record_modes_are_not_over_claimed_as_caught(mode):
     assert entry.sensitivity == 0.0
 
 
-def test_overall_corpus_sensitivity_is_seven_of_eight_not_over_claimed():
-    """Renamed and updated 2026-08-31 (item 132): overall cohort sensitivity
-    (TP / (TP + FN)) is 7/8 -- the seven pipeline-detectable failures caught
-    (item 120 promoted mode 1's held-out per-label spline offset into the
-    pipeline; item 132 judges mode 4's monotonicity against a
-    traversal-ordered reference fit), the one reconstructed-record mode
-    (mode 8) missed -- not 1.0 (Assumptions). Was 6/8 before item 132."""
+def test_overall_corpus_sensitivity_is_eight_of_nine_not_over_claimed():
+    """Updated 2026-09-14 (item 150): overall cohort sensitivity
+    (TP / (TP + FN)) is 8/9 over the re-organised corpus -- nine
+    expected-failure records (the fov_truncation condition case files under
+    failure_mode 0 and still expects a verdict; remove_level_relabel expects
+    "pass" and is not an expected-failure record), eight caught, the one
+    reconstructed-record mode (overlap, mode 9) missed -- not 1.0
+    (Assumptions). Was 7/8 from item 132 to item 150, 6/8 before item 132."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(7.0 / 8.0)
+    assert metrics.sensitivity == pytest.approx(8.0 / 9.0)
 
 
 # =========================================================================== #

@@ -331,7 +331,27 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
             )
             measured = failure_modes_module.measured_firing(probe)
 
-            if mode_id == 0:
+            condition_id = manifest_case.get("condition") or ""
+            if mode_id == 0 and condition_id:
+                # Item 150: a condition-only case (failure_mode 0 plus a
+                # condition) is carried by CONDITIONS, not SPECIFICATION.
+                condition = failure_modes_module.CONDITIONS.get(condition_id)
+                condition_case = None
+                if condition is not None:
+                    for candidate in condition.corpus_cases:
+                        if candidate.case_id == case_id:
+                            condition_case = candidate
+                            break
+                if condition_case is None:
+                    expected_firing = ()
+                    expected_source = "unspecified"
+                    agrees = False
+                    unspecified_cases.append((corpus_name, case_id))
+                else:
+                    expected_firing = tuple(condition_case.expected_firing)
+                    expected_source = "specification-condition"
+                    agrees = set(measured) == set(expected_firing)
+            elif mode_id == 0:
                 expected_firing: Tuple[str, ...] = ()
                 expected_source = "manifest-clean-control"
                 agrees = set(measured) == set(expected_firing)

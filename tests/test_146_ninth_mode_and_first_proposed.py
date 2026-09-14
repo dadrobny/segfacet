@@ -1,34 +1,43 @@
 """Tests for item 146 -- the ninth mode enters the failure-mode specification
 through the lifecycle items 144/145 established, and the catalogue's first
-``proposed`` entry (mode 10, the collapsed/duplicated-label-set mode).
+``proposed`` entry (the collapsed/duplicated-label-set mode).
 
-Three deliverables, one seam: (1) mode 9 (implausible tissue under a label),
+**Ids re-assigned at the item-150 sign-off (2026-09-14).** The two entries
+this item authored kept their content and changed their numbers: the
+implausible-tissue mode this module calls "the ninth mode" is now **mode
+10**, and the first ``proposed`` entry is now **mode 8** (mode 7, shifted
+label sequence, is a second ``proposed`` entry added by the same sign-off).
+Nothing this item claims changed; every id, count and heading below is the
+signed-off one. Test names say which mode they are about, so they moved
+with the ids.
+
+Three deliverables, one seam: (1) mode 10 (implausible tissue under a label),
 whose ``intensity`` / ``intensity_reference_delta`` rule declarations move
-from mode-less to declaring mode 9; (2) the intensity sibling of
+from mode-less to declaring it; (2) the intensity sibling of
 ``synth/regression.py::pipeline_findings`` (``loaded_intensity_case`` /
 ``intensity_pipeline_findings``), and ``measured_firing``'s new corpus
 dispatch that routes through it; (3) mode 10, the first ``proposed`` (never
 implemented) specification entry, and the rendering/conformance-check support
 an unimplemented mode needs.
 
-AC -> test map (one focused test per AC, in AC order; AC1-AC8 the ninth mode
-itself, AC9-AC13 the two rule declarations, AC14-AC18 the public intensity
-harness, AC19-AC21 the ``measured_firing`` dispatch, AC22-AC26 the intensity
-manifest, AC27-AC31 the first ``proposed`` entry, AC32-AC36 artifacts and the
-record):
+AC -> test map (one focused test per AC, in AC order; AC1-AC8 the
+implausible-tissue mode itself, AC9-AC13 the two rule declarations,
+AC14-AC18 the public intensity harness, AC19-AC21 the ``measured_firing``
+dispatch, AC22-AC26 the intensity manifest, AC27-AC31 the first ``proposed``
+entry, AC32-AC36 artifacts and the record):
 
-- AC1:  test_ac1_mode9_present_with_every_schema_field
+- AC1:  test_ac1_mode10_present_with_every_schema_field
 - AC2:  test_ac2_definition_states_modality_and_three_subshapes
 - AC3:  test_ac3_discriminator_names_a_sibling_mode_derived_live
-- AC4:  test_ac4_mode9_candidate_features_are_hypothesised,
-        test_ac4_mode9_anchor_role_candidate_rejected_naming_mode_and_anchor_paths
-- AC5:  test_ac5_mode9_edge_set_equals_live_registry_declared_set
-- AC6:  test_ac6_mode9_edge_rungs_match_a_fresh_measurement
-- AC7:  test_ac7_mode9_derives_validated_from_live_state,
+- AC4:  test_ac4_mode10_candidate_features_are_hypothesised,
+        test_ac4_mode10_anchor_role_candidate_rejected_naming_mode_and_anchor_paths
+- AC5:  test_ac5_mode10_edge_set_equals_live_registry_declared_set
+- AC6:  test_ac6_mode10_edge_rungs_match_a_fresh_measurement
+- AC7:  test_ac7_mode10_derives_validated_from_live_state,
         test_ac7_narrowed_expected_firing_drops_status_to_implemented
-- AC8:  test_ac8_mode9_rung_is_derived_from_its_edges,
+- AC8:  test_ac8_mode10_rung_is_derived_from_its_edges,
         test_ac8_weakened_strongest_edge_derives_weaker_rung
-- AC9:  test_ac9_both_intensity_rules_declare_mode9
+- AC9:  test_ac9_both_intensity_rules_declare_mode10
 - AC10: test_ac10_neither_declaration_binds_reserved_corpus_tag
 - AC11: test_ac11_declaration_specification_check_is_clean_both_directions
 - AC12: test_ac12_mode_absent_from_specification_is_still_reported
@@ -46,19 +55,19 @@ record):
 - AC19: test_ac19_geometric_corpus_case_dispatches_through_geometric_manifest,
         test_ac19_intensity_corpus_case_dispatches_through_intensity_manifest,
         test_ac19_unrecognised_corpus_raises_naming_case_and_corpus
-- AC20: test_ac20_mode9_cases_measure_to_expected_sets
-- AC21: test_ac21_geometric_dispatch_is_unchanged_for_seed_modes
+- AC20: test_ac20_mode10_cases_measure_to_expected_sets
+- AC21: test_ac21_geometric_dispatch_is_unchanged_for_geometric_cases
 - AC22: test_ac22_every_intensity_case_carries_the_new_fields
 - AC23: test_ac23_clean_case_carries_mode_zero,
-        test_ac23_implausible_cases_carry_mode_nine
+        test_ac23_implausible_cases_carry_mode_ten
 - AC24: test_ac24_every_cases_expected_firing_equals_fresh_measurement
 - AC25: test_ac25_generator_writes_new_fields_byte_reproducibly,
         test_ac25_committed_manifest_is_lf_bytes_with_one_trailing_newline,
         test_ac25_gitattributes_still_pins_intensity_manifest_eol_lf
 - AC26: test_ac26_manifest_version_unchanged
-- AC27: test_ac27_mode10_present_as_unimplemented_entry
-- AC28: test_ac28_mode10_status_and_rung_are_derived_not_authored
-- AC29: test_ac29_mode10_empty_sections_render_as_none,
+- AC27: test_ac27_mode8_present_as_unimplemented_entry
+- AC28: test_ac28_mode8_status_and_rung_are_derived_not_authored
+- AC29: test_ac29_mode8_empty_sections_render_as_none,
         test_ac29_probe_mode_with_empty_candidate_features_renders_none,
         test_ac29_no_heading_immediately_followed_by_blank_then_heading
 - AC30: test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported
@@ -68,7 +77,7 @@ record):
 - AC33: test_ac33_downstream_artifacts_regenerate_byte_identically_run_to_run,
         test_ac33_feature_catalogue_matches_committed_via_tolerance_helper,
         test_ac33_traceability_matrix_matches_committed_structurally
-- AC34: test_ac34_mode9_catalogue_attribution_equals_declaring_rules_reach
+- AC34: test_ac34_mode10_catalogue_attribution_equals_declaring_rules_reach
 - AC35: test_ac35_module_docstring_records_the_change_with_resolvable_paths
 - AC36: test_ac36_aide_check_reports_no_error_and_no_new_warning_class,
         test_ac36_no_warning_names_a_path_this_item_writes
@@ -193,6 +202,17 @@ def _intensity_manifest_cases() -> list:
     return cases
 
 
+def _mode_heading_index(lines: list, mode_id: int) -> int:
+    """The index of *mode_id*'s ``## Mode ...`` heading line. A top-level
+    mode renders ``## Mode 9: ...``; a sub-mode renders ``## Mode 8 (5.3,
+    sub-mode of 5): ...`` (item 150's one-tier hierarchy), so both spellings
+    are accepted and nothing else is."""
+    prefixes = (f"## Mode {mode_id}:", f"## Mode {mode_id} (")
+    matches = [i for i, line in enumerate(lines) if line.startswith(prefixes)]
+    assert len(matches) == 1, (mode_id, matches)
+    return matches[0]
+
+
 def _intensity_manifest_case(case_id: str) -> dict:
     for case in _intensity_manifest_cases():
         if case["case_id"] == case_id:
@@ -213,22 +233,30 @@ def _fixed_record():
 
 
 # =========================================================================== #
-# AC1: mode 9 present with every schema field
+# AC1: the implausible-tissue mode (mode 10 since the item-150 sign-off) is
+# present with every schema field
 # =========================================================================== #
 
 
-def test_ac1_mode9_present_with_every_schema_field():
+def test_ac1_mode10_present_with_every_schema_field():
     from segfacet.verdict import Severity
 
     import segfacet.failure_modes as fm
 
-    assert 9 in fm.SPECIFICATION
-    mode = fm.SPECIFICATION[9]
+    assert 10 in fm.SPECIFICATION
+    mode = fm.SPECIFICATION[10]
 
     for field_info in dataclasses.fields(mode):
         value = getattr(mode, field_info.name)
         if field_info.name in ("candidate_features", "intended_rules", "corpus_cases"):
             assert value, (field_info.name, value)
+            continue
+        if field_info.name == "parent":
+            # `parent` (item 150's one-tier hierarchy) is None for a
+            # top-level mode, and this one is top-level -- so "not empty"
+            # is the wrong claim for it; the right one is that it is
+            # top-level.
+            assert value is None, value
             continue
         assert value not in ("", (), None), (field_info.name, value)
 
@@ -248,7 +276,7 @@ def test_ac1_mode9_present_with_every_schema_field():
 def test_ac2_definition_states_modality_and_three_subshapes():
     import segfacet.failure_modes as fm
 
-    definition = fm.SPECIFICATION[9].definition
+    definition = fm.SPECIFICATION[10].definition
     assert "CT" in definition, definition
     lowered = definition.lower()
     assert "soft tissue" in lowered or "air" in lowered, definition
@@ -264,7 +292,7 @@ def test_ac2_definition_states_modality_and_three_subshapes():
 def test_ac3_discriminator_names_a_sibling_mode_derived_live():
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[9]
+    mode = fm.SPECIFICATION[10]
     all_ids = {m.id for m in fm.iter_modes()}
     tokens = {int(t) for t in re.findall(r"\d+", mode.discriminator)}
     siblings = tokens & (all_ids - {mode.id})
@@ -272,25 +300,30 @@ def test_ac3_discriminator_names_a_sibling_mode_derived_live():
 
 
 # =========================================================================== #
-# AC4: mode 9's candidate features are hypothesised; an anchor role rejected
+# AC4: mode 10's candidate features are hypothesised; an anchor role rejected
 # =========================================================================== #
 
 
-def test_ac4_mode9_candidate_features_are_hypothesised():
+def test_ac4_mode10_candidate_features_are_hypothesised():
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[9]
-    assert mode.candidate_features, "expected >=1 candidate feature on mode 9"
+    mode = fm.SPECIFICATION[10]
+    assert mode.candidate_features, "expected >=1 candidate feature on mode 10"
     for feature in mode.candidate_features:
         assert feature.role == "hypothesised", feature
 
 
-def test_ac4_mode9_anchor_role_candidate_rejected_naming_mode_and_anchor_paths():
+def test_ac4_mode10_anchor_role_candidate_rejected_naming_mode_and_anchor_paths():
     import segfacet.failure_modes as fm
+    import segfacet.feature_docs as feature_docs
+
+    # The probe rests on mode 10 carrying no MODE_ANCHOR_PATHS entry: that
+    # is the branch whose message must name the mode and the constant.
+    assert 10 not in feature_docs.MODE_ANCHOR_PATHS, sorted(feature_docs.MODE_ANCHOR_PATHS)
 
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(
-            id=9,
+            id=10,
             name="probe",
             definition="probe definition",
             discriminator="probe discriminator naming mode 1",
@@ -307,41 +340,41 @@ def test_ac4_mode9_anchor_role_candidate_rejected_naming_mode_and_anchor_paths()
             provenance="hypothesised",
         )
     message = str(excinfo.value)
-    assert "9" in message, message
+    assert "10" in message, message
     assert "MODE_ANCHOR_PATHS" in message, message
 
 
 # =========================================================================== #
-# AC5: mode 9's edge set equals the live registry's
+# AC5: mode 10's edge set equals the live registry's
 # =========================================================================== #
 
 
-def test_ac5_mode9_edge_set_equals_live_registry_declared_set():
+def test_ac5_mode10_edge_set_equals_live_registry_declared_set():
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
     declared = {
         rule_id
         for rule_id, decl in iter_rule_declarations()
-        if decl is not None and 9 in decl.modes
+        if decl is not None and 10 in decl.modes
     }
     assert declared == {"intensity", "intensity_reference_delta"}, declared
 
-    mode = fm.SPECIFICATION[9]
+    mode = fm.SPECIFICATION[10]
     edge_ids = {edge.rule_id for edge in mode.intended_rules}
     assert edge_ids == declared, (edge_ids, declared)
 
 
 # =========================================================================== #
-# AC6: each mode-9 edge's rung matches a fresh measurement
+# AC6: each mode-10 edge's rung matches a fresh measurement
 # =========================================================================== #
 
 
-def test_ac6_mode9_edge_rungs_match_a_fresh_measurement(measured):
+def test_ac6_mode10_edge_rungs_match_a_fresh_measurement(measured):
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[9]
-    assert mode.corpus_cases, "expected >=1 corpus case on mode 9"
+    mode = fm.SPECIFICATION[10]
+    assert mode.corpus_cases, "expected >=1 corpus case on mode 10"
 
     fired_anywhere: set = set()
     for case in mode.corpus_cases:
@@ -358,20 +391,20 @@ def test_ac6_mode9_edge_rungs_match_a_fresh_measurement(measured):
 
 
 # =========================================================================== #
-# AC7: mode 9 derives validated from live state
+# AC7: mode 10 derives validated from live state
 # =========================================================================== #
 
 
-def test_ac7_mode9_derives_validated_from_live_state():
+def test_ac7_mode10_derives_validated_from_live_state():
     import segfacet.failure_modes as fm
 
-    assert fm.derive_status(fm.SPECIFICATION[9]) == "validated"
+    assert fm.derive_status(fm.SPECIFICATION[10]) == "validated"
 
 
 def test_ac7_narrowed_expected_firing_drops_status_to_implemented(measured):
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[9]
+    mode = fm.SPECIFICATION[10]
     case = mode.corpus_cases[0]
     fired = set(measured(case))
     assert fired, "adversarial precondition: the case must fire something"
@@ -382,18 +415,18 @@ def test_ac7_narrowed_expected_firing_drops_status_to_implemented(measured):
 
     assert fm.derive_status(probe) == "implemented"
     # The shipped SPECIFICATION entry itself is untouched.
-    assert fm.derive_status(fm.SPECIFICATION[9]) == "validated"
+    assert fm.derive_status(fm.SPECIFICATION[10]) == "validated"
 
 
 # =========================================================================== #
-# AC8: mode 9's rung is derived from its edges
+# AC8: mode 10's rung is derived from its edges
 # =========================================================================== #
 
 
-def test_ac8_mode9_rung_is_derived_from_its_edges():
+def test_ac8_mode10_rung_is_derived_from_its_edges():
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[9]
+    mode = fm.SPECIFICATION[10]
     strongest = min(
         (edge.evidence_rung for edge in mode.intended_rules),
         key=lambda rung: fm.EVIDENCE_RUNGS.index(rung),
@@ -404,11 +437,13 @@ def test_ac8_mode9_rung_is_derived_from_its_edges():
 def test_ac8_weakened_strongest_edge_derives_weaker_rung():
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[9]
+    mode = fm.SPECIFICATION[10]
     before = fm.derive_mode_rung(mode)
 
     strengths = [fm.EVIDENCE_RUNGS.index(e.evidence_rung) for e in mode.intended_rules]
     strongest_index = strengths.index(min(strengths))
+    # The probe needs a weaker rung to exist below the strongest edge's.
+    assert strengths[strongest_index] + 1 < len(fm.EVIDENCE_RUNGS), strengths
     weaker_rung = fm.EVIDENCE_RUNGS[strengths[strongest_index] + 1]
 
     weakened_edges = tuple(
@@ -421,20 +456,20 @@ def test_ac8_weakened_strongest_edge_derives_weaker_rung():
     assert after != before, (before, after)
     assert after == weaker_rung
 
-    assert fm.derive_mode_rung(fm.SPECIFICATION[9]) == before
+    assert fm.derive_mode_rung(fm.SPECIFICATION[10]) == before
 
 
 # =========================================================================== #
-# AC9: both intensity rules declare mode 9
+# AC9: both intensity rules declare mode 10
 # =========================================================================== #
 
 
 @pytest.mark.parametrize("rule_id", ["intensity", "intensity_reference_delta"])
-def test_ac9_both_intensity_rules_declare_mode9(rule_id):
+def test_ac9_both_intensity_rules_declare_mode10(rule_id):
     from segfacet.heuristics.rule import _RULES
 
     decl = _RULES[rule_id].mode_declaration
-    assert decl.modes == (9,), rule_id
+    assert decl.modes == (10,), rule_id
     assert decl.mode_less_reason == "", rule_id
     assert decl.pending_reason == "", rule_id
     assert decl.evidence, rule_id
@@ -791,16 +826,16 @@ def test_ac19_unrecognised_corpus_raises_naming_case_and_corpus():
 
 
 # =========================================================================== #
-# AC20: mode 9's cases measure to their expected sets
+# AC20: mode 10's cases measure to their expected sets
 # =========================================================================== #
 
 
-def test_ac20_mode9_cases_measure_to_expected_sets(measured):
+def test_ac20_mode10_cases_measure_to_expected_sets(measured):
     import segfacet.failure_modes as fm
     from segfacet.synth.regression import intensity_pipeline_findings
 
-    mode = fm.SPECIFICATION[9]
-    assert mode.corpus_cases, "expected >=1 corpus case on mode 9"
+    mode = fm.SPECIFICATION[10]
+    assert mode.corpus_cases, "expected >=1 corpus case on mode 10"
     for case in mode.corpus_cases:
         got = set(measured(case))
         assert got, (case.case_id, "expected >=1 measured rule_id")
@@ -815,18 +850,63 @@ def test_ac20_mode9_cases_measure_to_expected_sets(measured):
 
 # =========================================================================== #
 # AC21: the geometric dispatch is unchanged
+#
+# Re-pointed at the signed-off catalogue (item 150): the geometric cases are
+# no longer "modes 1-8's", since the ids were re-assigned, one mode's case
+# moved to the FOV-truncation condition, and two cases were added. The
+# claim -- adding the intensity branch moved nothing on the geometric one --
+# is asserted over every geometric-corpus case the specification carries,
+# and the set of those is checked against the committed manifest so a case
+# dropped from the specification cannot pass by not being looked at.
+#
+# The old form's second assertion (`derive_status(mode) == "validated"` for
+# each) is deliberately not carried over: it is false by design since the
+# sign-off tightened `"validated"` to need a case demonstrating one of the
+# mode's OWN rules, so modes whose only geometric evidence is a co-detection
+# (mode 1) or a recorded "not detected today" (mode 4) derive
+# `"implemented"`. That derivation is pinned per mode by
+# `test_147_specification_is_the_record.py::test_ac26_*`.
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode_id", range(1, 9))
-def test_ac21_geometric_dispatch_is_unchanged_for_seed_modes(mode_id):
+def test_ac21_geometric_dispatch_is_unchanged_for_geometric_cases():
     import segfacet.failure_modes as fm
+    from segfacet.synth.corpus import load_manifest
 
-    mode = fm.SPECIFICATION[mode_id]
-    assert mode.corpus_cases, mode_id
-    for case in mode.corpus_cases:
-        assert fm.case_agrees(case) is True, (mode_id, case.case_id)
-    assert fm.derive_status(mode) == "validated", mode_id
+    owners = [(f"mode {mode.id}", mode.corpus_cases) for mode in fm.iter_modes()]
+    owners += [
+        (f"condition {condition.id!r}", condition.corpus_cases)
+        for condition in fm.iter_conditions()
+    ]
+
+    measured_case_ids = []
+    for owner, cases in owners:
+        for case in cases:
+            if case.corpus != "geometric":
+                continue
+            assert set(fm.measured_firing(case)) == set(case.expected_firing), (
+                owner,
+                case.case_id,
+            )
+            assert fm.case_agrees(case) is True, (owner, case.case_id)
+            measured_case_ids.append(case.case_id)
+
+    assert len(measured_case_ids) == len(set(measured_case_ids)), measured_case_ids
+
+    # Every committed geometric case that is not a bare clean control (a
+    # case with a `condition` is the condition's fixture, not a control)
+    # must be one of the cases just measured.
+    manifest_cases = load_manifest()["cases"]
+    assert manifest_cases, "expected a non-empty geometric manifest"
+    expected_case_ids = {
+        case["case_id"]
+        for case in manifest_cases
+        if case.get("failure_mode") != 0 or case.get("condition")
+    }
+    assert expected_case_ids, "expected >=1 non-control case in the geometric manifest"
+    assert set(measured_case_ids) == expected_case_ids, (
+        set(measured_case_ids) ^ expected_case_ids
+    )
 
 
 # =========================================================================== #
@@ -870,12 +950,15 @@ def test_ac23_clean_case_carries_mode_zero():
 @pytest.mark.parametrize(
     "case_id", ["implausible_metal", "implausible_soft_tissue", "degenerate_uniform"]
 )
-def test_ac23_implausible_cases_carry_mode_nine(case_id):
+def test_ac23_implausible_cases_carry_mode_ten(case_id):
     import segfacet.failure_modes as fm
 
     case = _intensity_manifest_case(case_id)
-    assert case["failure_mode"] == 9
-    assert case["failure_mode_name"] == fm.SPECIFICATION[9].name
+    assert case["failure_mode"] == 10
+    # The manifests carry the mode's `short_name` paraphrase (item 147's
+    # `failure_mode_names()`), not its title-cased `name`.
+    assert case["failure_mode_name"] == fm.SPECIFICATION[10].short_name
+    assert case["failure_mode_name"] == fm.failure_mode_names()[10]
 
 
 # =========================================================================== #
@@ -935,21 +1018,29 @@ def test_ac26_manifest_version_unchanged():
 
 
 # =========================================================================== #
-# AC27: mode 10 is present as an unimplemented entry
+# AC27: the collapsed/duplicated-label-set entry (mode 8 since the item-150
+# sign-off) is present as an unimplemented entry
 # =========================================================================== #
 
 
-def test_ac27_mode10_present_as_unimplemented_entry():
+def test_ac27_mode8_present_as_unimplemented_entry():
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[10]
+    mode = fm.SPECIFICATION[8]
+    assert mode.short_name == "collapsed or duplicated label set", mode.short_name
     assert mode.status == "proposed"
     assert mode.intended_rules == ()
     assert mode.corpus_cases == ()
-    assert len(mode.candidate_features) == 1, mode.candidate_features
-    feature = mode.candidate_features[0]
-    assert feature.role == "hypothesised"
-    assert feature.path == "stage3_unavailable.reason"
+    # The sign-off added two further hypothesised inputs beside the one this
+    # item authored; what AC27 claims is that they are all hypothesised (an
+    # unimplemented mode anchors nothing) and that the authored one is still
+    # among them.
+    assert mode.candidate_features, "expected >=1 candidate feature"
+    for feature in mode.candidate_features:
+        assert feature.role == "hypothesised", feature
+    assert "stage3_unavailable.reason" in {
+        feature.path for feature in mode.candidate_features
+    }, mode.candidate_features
 
     lowered = mode.definition.lower()
     assert "centroid" in lowered, mode.definition
@@ -965,14 +1056,14 @@ def test_ac27_mode10_present_as_unimplemented_entry():
 
 
 # =========================================================================== #
-# AC28: mode 10's status and rung are derived, not authored
+# AC28: mode 8's status and rung are derived, not authored
 # =========================================================================== #
 
 
-def test_ac28_mode10_status_and_rung_are_derived_not_authored():
+def test_ac28_mode8_status_and_rung_are_derived_not_authored():
     import segfacet.failure_modes as fm
 
-    mode = fm.SPECIFICATION[10]
+    mode = fm.SPECIFICATION[8]
     assert fm.derive_status(mode) == "proposed"
     assert fm.derive_mode_rung(mode) is None
 
@@ -982,14 +1073,16 @@ def test_ac28_mode10_status_and_rung_are_derived_not_authored():
 # =========================================================================== #
 
 
-def test_ac29_mode10_empty_sections_render_as_none():
+def test_ac29_mode8_empty_sections_render_as_none():
     import segfacet.failure_modes as fm
 
     md = fm.render_markdown()
     lines = md.splitlines()
-    start = next(i for i, line in enumerate(lines) if line.startswith("## Mode 10:"))
+    start = _mode_heading_index(lines, 8)
+    # A section runs to the next `## ` heading of any kind: the conditions
+    # and vision-seed-disposition sections are `## ` headings too.
     end = next(
-        (i for i in range(start + 1, len(lines)) if lines[i].startswith("## Mode ")), len(lines)
+        (i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines)
     )
     block = lines[start:end]
 
@@ -1006,8 +1099,8 @@ def test_ac29_probe_mode_with_empty_candidate_features_renders_none(monkeypatch)
     import segfacet.failure_modes as fm
     from types import MappingProxyType
 
-    probe = dataclasses.replace(fm.SPECIFICATION[10], candidate_features=())
-    monkeypatch.setattr(fm, "SPECIFICATION", MappingProxyType({10: probe}))
+    probe = dataclasses.replace(fm.SPECIFICATION[8], candidate_features=())
+    monkeypatch.setattr(fm, "SPECIFICATION", MappingProxyType({probe.id: probe}))
 
     md = fm.render_markdown()
     lines = md.splitlines()
@@ -1046,28 +1139,30 @@ def test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported(isolated_reg
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import _RULES, Rule, RuleModeDeclaration, register_rule
 
+    assert fm.SPECIFICATION[8].status == "proposed", fm.SPECIFICATION[8].status
+
     before = fm.specification_conflicts()
     assert before == ()
 
-    class _FakeMode10Detector(Rule):
-        rule_id = "__item146_fake_mode10_detector__"
-        mode_declaration = RuleModeDeclaration(modes=(10,), evidence=("analytic", "AC30 probe"))
+    class _FakeMode8Detector(Rule):
+        rule_id = "__item146_fake_mode8_detector__"
+        mode_declaration = RuleModeDeclaration(modes=(8,), evidence=("analytic", "AC30 probe"))
 
         def evaluate(self, record, config):
             return []
 
-    register_rule(_FakeMode10Detector)
+    register_rule(_FakeMode8Detector)
 
     conflicts = fm.specification_conflicts()
-    assert conflicts, "expected >=1 conflict once mode 10 acquires a declaring rule"
+    assert conflicts, "expected >=1 conflict once mode 8 acquires a declaring rule"
     assert any(
-        "10" in msg and "proposed" in msg and "implemented" in msg for msg in conflicts
+        "mode 8" in msg and "proposed" in msg and "implemented" in msg for msg in conflicts
     ), conflicts
 
     # Retract the stub and confirm the conflict retracts with it -- the
     # transition is attributed to the stub in both directions, not to a
     # `specification_conflicts()` default-argument artefact.
-    del _RULES[_FakeMode10Detector.rule_id]
+    del _RULES[_FakeMode8Detector.rule_id]
     assert fm.specification_conflicts() == ()
 
 
@@ -1079,15 +1174,21 @@ def test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported(isolated_reg
 def test_ac31_specified_entry_deriving_further_is_not_reported():
     import segfacet.failure_modes as fm
 
-    checked = 0
-    for mode_id in range(1, 10):
+    specified_ids = sorted(
+        mode_id
+        for mode_id, mode in fm.SPECIFICATION.items()
+        if mode.status == "specified"
+    )
+    # The signed-off split (item 150): every entry except the two `proposed`
+    # ones (7, shifted label sequence; 8, collapsed or duplicated label set)
+    # is authored `specified`.
+    assert specified_ids == [1, 2, 3, 4, 5, 6, 9, 10], specified_ids
+
+    for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]
-        assert mode.status == "specified", mode_id
         derived = fm.derive_status(mode)
         assert derived in ("implemented", "validated"), (mode_id, derived)
         assert derived != mode.status, (mode_id, derived)
-        checked += 1
-    assert checked == 9, checked
 
     assert fm.specification_conflicts() == ()
 
@@ -1141,8 +1242,11 @@ def test_ac32_fresh_matches_committed_and_is_lf_with_one_trailing_newline():
     assert committed_md.strip(), "expected non-empty committed markdown"
     fresh_md = fm.render_markdown()
     assert fresh_md == committed_md
+    fresh_lines = fresh_md.splitlines()
     for mode_id in range(1, 11):
-        assert f"Mode {mode_id}:" in fresh_md, mode_id
+        # Exactly one heading per mode, in either spelling (a sub-mode's
+        # carries its path and parent since item 150).
+        _mode_heading_index(fresh_lines, mode_id)
 
 
 # =========================================================================== #
@@ -1213,33 +1317,40 @@ def test_ac33_traceability_matrix_matches_committed_structurally(tmp_path):
 # =========================================================================== #
 
 
-def test_ac34_mode9_catalogue_attribution_equals_declaring_rules_reach():
+def test_ac34_mode10_catalogue_attribution_equals_declaring_rules_reach():
     """Reconciled (item 148, 2026-09-04): item 148 is the narrowing this
-    docstring anticipates. "Reached" now means "reached by a mode-9
-    declarer that classifies this path 'signal'" -- a mode-9 declarer's
-    bookkeeping/not-read paths no longer inherit mode 9, so the mode-9 path
-    set drops from the declarers' whole reach (12 paths, pre-148) to
-    exactly the two ``first_order`` paths either rule classifies signal."""
+    docstring anticipates. "Reached" now means "reached by a declarer of
+    this mode that classifies this path 'signal'" -- such a declarer's
+    bookkeeping/not-read paths no longer inherit the mode, so its path set
+    drops from the declarers' whole reach (12 paths, pre-148) to exactly the
+    two ``first_order`` paths either rule classifies signal.
+
+    (The implausible-tissue mode is mode 10 since the item-150 sign-off.)"""
     import segfacet.catalogue as catalogue
     from segfacet.heuristics.rule import iter_rule_declarations
 
-    mode9_declarers = {
+    declarers = {
         rule_id
         for rule_id, decl in iter_rule_declarations()
-        if decl is not None and 9 in decl.modes
+        if decl is not None and 10 in decl.modes
     }
-    assert mode9_declarers == {"intensity", "intensity_reference_delta"}
+    assert declarers == {"intensity", "intensity_reference_delta"}
 
     cat = catalogue.build_catalogue(strict=True)
     assert cat.entries, "expected a non-empty catalogue"
     checked = 0
+    attributed = 0
     for entry in cat.entries:
-        has_mode9 = 9 in entry.failure_modes
+        has_mode = 10 in entry.failure_modes
         role_by_rule = dict(entry.mode_roles)
-        reached_as_signal = any(role_by_rule.get(rid) == "signal" for rid in mode9_declarers)
-        assert has_mode9 == reached_as_signal, entry.path
+        reached_as_signal = any(role_by_rule.get(rid) == "signal" for rid in declarers)
+        assert has_mode == reached_as_signal, entry.path
+        attributed += 1 if has_mode else 0
         checked += 1
     assert checked > 0
+    # Not vacuous: the equality above would hold trivially if the mode were
+    # attributed to nothing at all.
+    assert attributed > 0
 
 
 # =========================================================================== #
@@ -1344,7 +1455,15 @@ def test_ac36_aide_check_reports_no_error_and_no_new_warning_class():
 def test_ac36_no_warning_names_a_path_this_item_writes():
     """The negatives AC36 names by hand: no `.gitattributes` lint for any
     path this item regenerated, no `insights.md` entry-shape warning, and no
-    warning naming any file the item wrote."""
+    warning naming any file the item wrote.
+
+    Human-gate warnings are excluded from the path sweep, and only from it
+    (they are still classified by the test above): a gate's warning quotes
+    the gate's own prose, and a Stage-30 gate legitimately names
+    `src/segfacet/failure_modes.py` while asking a person to sign the
+    specification off -- which is the loop working, not a lint firing. The
+    `.gitattributes` / `insights.md` negatives still apply to every warning.
+    """
     aide = _aide_module()
     _errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
     written_paths = (
@@ -1356,11 +1475,19 @@ def test_ac36_no_warning_names_a_path_this_item_writes():
         "src/segfacet/heuristics/intensity_reference_delta.py",
         "tests/corpus/intensity/manifest.json",
     )
+    swept = 0
     for warning in warnings:
         assert "insights.md" not in warning, warning
         assert ".gitattributes" not in warning, warning
+        if _classify_warning(warning) == "awaiting-a-decision":
+            continue
+        swept += 1
         for written_path in written_paths:
             assert written_path not in warning, (written_path, warning)
+    assert swept, (
+        "every warning was a human gate -- the path sweep checked nothing; "
+        "re-read the baseline before trusting this test"
+    )
 
 
 def test_adv_unclassified_warning_would_be_caught():
@@ -1441,7 +1568,7 @@ def test_adv_unrecognised_detection_in_intensity_manifest_raises_naming_case(mon
     assert "clean_hu" in str(excinfo.value)
 
 
-def test_adv_mode9_corpus_case_bare_str_expected_firing_rejected():
+def test_adv_mode10_corpus_case_bare_str_expected_firing_rejected():
     import segfacet.failure_modes as fm
 
     bad_case = fm.CorpusCaseExpectation(
@@ -1453,37 +1580,37 @@ def test_adv_mode9_corpus_case_bare_str_expected_firing_rejected():
     with pytest.raises(ValueError):
         fm.case_agrees(bad_case)
 
-    mode9 = fm.SPECIFICATION[9]
+    mode10 = fm.SPECIFICATION[10]
     with pytest.raises(ValueError):
-        dataclasses.replace(mode9, corpus_cases=(bad_case,))
+        dataclasses.replace(mode10, corpus_cases=(bad_case,))
 
 
-def test_adv_mode10_with_intended_rules_is_legal_at_construction_but_flagged(isolated_registry):
+def test_adv_mode8_with_intended_rules_is_legal_at_construction_but_flagged(isolated_registry):
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
 
-    mode10 = fm.SPECIFICATION[10]
+    mode8 = fm.SPECIFICATION[8]
     fake_edge = fm.IntendedRule(
-        rule_id="__item146_adv_mode10_edge__", detector="", evidence_rung="needs-real-data"
+        rule_id="__item146_adv_mode8_edge__", detector="", evidence_rung="needs-real-data"
     )
-    contradictory = dataclasses.replace(mode10, intended_rules=(fake_edge,))  # must not raise
+    contradictory = dataclasses.replace(mode8, intended_rules=(fake_edge,))  # must not raise
     assert contradictory.intended_rules == (fake_edge,)
     assert contradictory.status == "proposed"
 
-    class _FakeMode10Detector(Rule):
-        rule_id = "__item146_adv_mode10_edge__"
+    class _FakeMode8Detector(Rule):
+        rule_id = "__item146_adv_mode8_edge__"
         mode_declaration = RuleModeDeclaration(
-            modes=(10,), evidence=("analytic", "adversarial probe")
+            modes=(8,), evidence=("analytic", "adversarial probe")
         )
 
         def evaluate(self, record, config):
             return []
 
-    register_rule(_FakeMode10Detector)
+    register_rule(_FakeMode8Detector)
 
     conflicts = fm.specification_conflicts((contradictory,))
     assert conflicts, "expected the proposed-drift check to fire"
-    assert any("10" in msg for msg in conflicts), conflicts
+    assert any("mode 8" in msg for msg in conflicts), conflicts
 
 
 def test_adv_render_markdown_twice_equal():
@@ -1492,19 +1619,19 @@ def test_adv_render_markdown_twice_equal():
     assert fm.render_markdown() == fm.render_markdown()
 
 
-def test_adv_specification_to_dict_twice_equal_and_mode10_lists_not_shared():
+def test_adv_specification_to_dict_twice_equal_and_mode8_lists_not_shared():
     import segfacet.failure_modes as fm
 
     first = fm.specification_to_dict()
     second = fm.specification_to_dict()
     assert first == second
 
-    mode10_first = next(m for m in first["modes"] if m["id"] == 10)
-    mode10_second = next(m for m in second["modes"] if m["id"] == 10)
-    assert mode10_first["intended_rules"] == []
-    assert mode10_first["intended_rules"] is not mode10_second["intended_rules"]
-    mode10_first["intended_rules"].append({"sneaky": "mutation"})
-    assert mode10_second["intended_rules"] == []
+    mode8_first = next(m for m in first["modes"] if m["id"] == 8)
+    mode8_second = next(m for m in second["modes"] if m["id"] == 8)
+    assert mode8_first["intended_rules"] == []
+    assert mode8_first["intended_rules"] is not mode8_second["intended_rules"]
+    mode8_first["intended_rules"].append({"sneaky": "mutation"})
+    assert mode8_second["intended_rules"] == []
 
 
 def test_adv_isolated_registry_fixture_restores_shipped_registry():
@@ -1674,7 +1801,7 @@ def test_review_derive_status_requires_a_declaring_rule_for_validated():
     # The shipped modes are unmoved by the guard: every one of them that
     # reaches the corpus-agreement clause is declared.
     assert fm.derive_status(fm.SPECIFICATION[3]) == "validated"
-    assert fm.derive_status(fm.SPECIFICATION[9]) == "validated"
+    assert fm.derive_status(fm.SPECIFICATION[10]) == "validated"
 
 
 # --------------------------------------------------------------------------- #

@@ -88,6 +88,17 @@ carries the principles this stage implements, and no acceptance criterion in
 Stage 30 requires either document to change — a finding that the principles are
 wrong is recorded in `insights.md` and handed back.
 
+> **Amended 2026-09-14 at item 150 (maintainer decision, recorded in that
+> item's spec under "Stage-30 maintainer sign-off").** The sign-off review
+> re-organised the catalogue, and the maintainer chose to apply it inside
+> item 150 rather than re-plan: two corpus cases were added
+> (`fuse_adjacent`, `remove_level_relabel`), one operator was added
+> (`remove_level_relabel`), the `ModeSpec` schema gained `parent`, a
+> `ConditionSpec` section and two observability classes, and the rule
+> declarations moved. Still not touched: any rule's `evaluate` body or
+> threshold, `vision.md`, `roadmap.md`. The eval-harness re-key and the
+> vision §6 re-issue are recorded in `insights.md` as follow-ups.
+
 **No new rules, and no new corpus cases beyond the ninth mode's.** The one
 corpus change sanctioned here is `tests/corpus/intensity/manifest.json` gaining
 the `failure_mode` and expected-firing fields the geometric manifest already

@@ -206,10 +206,26 @@ def test_ac4_no_clean_case_u_values_move(case_id):
     )
 
 
+#: Corpus cases added *after* this item measured the u-value table above, so
+#: this item never recorded u-values for them. Added by item 150
+#: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
+#: coverage for modes 2 and 4. The table is deliberately not extended with
+#: values item 132 never measured; the uncovered set is pinned exactly
+#: instead, so a *third* uncovered case still fails this test.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel"}
+
+
 def test_ac4_pre_item_table_covers_every_non_mode4_manifest_case():
     manifest = load_manifest()
     case_ids = {c["case_id"] for c in manifest["cases"]} - {"mode4_relabel_swap"}
-    assert set(_PRE_ITEM_U_VALUES) == case_ids
+    uncovered = case_ids - set(_PRE_ITEM_U_VALUES)
+    assert uncovered == _ADDED_AFTER_ITEM, (
+        f"corpus cases with no pre-item u-value measurement: {sorted(uncovered)}"
+    )
+    assert set(_PRE_ITEM_U_VALUES) <= case_ids, (
+        "pre-item u-value table names cases the corpus no longer has: "
+        f"{sorted(set(_PRE_ITEM_U_VALUES) - case_ids)}"
+    )
 
 
 # =========================================================================== #
@@ -477,30 +493,49 @@ def test_ac19_fixtures_regenerate_byte_identically(tmp_path):
 def test_ac20_test_040_detection_partition_reconciled():
     import test_040_synthetic_corpus as t040
 
-    assert t040._RECONSTRUCTED_MODES == {8}
-    assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 3, 4, 5, 6, 7}
+    # Re-keyed 2026-09-14 (item 150): the signed-off catalogue renumbered the
+    # modes -- overlap is mode 9, and the pipeline-only set is the remaining
+    # designated modes plus the mode-less clean/condition cases.
+    assert t040._RECONSTRUCTED_MODES == {9}
+    assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 3, 4, 6}
     t040.test_ac8_modes_4_8_reconstructed_record_rest_pipeline()
 
 
 # =========================================================================== #
-# AC21/AC22: mode 4 claimed caught at full sensitivity; honest overall 7/8
-# (test_057)
+# AC21/AC22: the relabel-swap case is claimed caught at full sensitivity; the
+# overall corpus sensitivity stays honestly below 1.0 (test_057)
 # =========================================================================== #
 
 
-def test_ac21_test_057_mode4_claimed_caught_at_full_sensitivity():
+def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
+    """The swap case's failure-mode id is read from the manifest rather than
+    hard-coded: item 150 (2026-09-14) renumbered the catalogue, moving
+    ``mode4_relabel_swap`` from mode 4 to mode 6 (implausible label sequence)
+    and overlap from mode 8 to mode 9. What AC21 pins is that *this case's*
+    mode is claimed pipeline-detectable at sensitivity 1.0, not the number
+    that mode happened to carry in 2026-08-31's numbering."""
     import test_057_acceptance_stage7 as t057
 
-    assert 4 in t057._PIPELINE_DETECTABLE_MODES
-    assert t057._RECONSTRUCTED_RECORD_MODES == (8,)
-    t057.test_ac9_pipeline_detectable_mode_sensitivity_is_one(4)
+    swap_mode = next(
+        c["failure_mode"]
+        for c in load_manifest()["cases"]
+        if c["case_id"] == "mode4_relabel_swap"
+    )
+    assert swap_mode in t057._PIPELINE_DETECTABLE_MODES
+    assert swap_mode not in t057._RECONSTRUCTED_RECORD_MODES
+    t057.test_ac9_pipeline_detectable_mode_sensitivity_is_one(swap_mode)
 
 
-def test_ac22_overall_corpus_sensitivity_is_seven_of_eight():
+def test_ac22_overall_corpus_sensitivity_is_not_over_claimed():
+    """AC22's subject is the honesty of the overall number, not its value:
+    catching the swap case must not be reported as catching everything. The
+    exact fraction is owned by test_057 (8/9 as of item 150, 2026-09-14) and
+    delegated to rather than copied here."""
     import test_057_acceptance_stage7 as t057
 
+    t057.test_overall_corpus_sensitivity_is_eight_of_nine_not_over_claimed()
     metrics = t057._corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(7.0 / 8.0)
+    assert metrics.sensitivity < 1.0
 
 
 # =========================================================================== #

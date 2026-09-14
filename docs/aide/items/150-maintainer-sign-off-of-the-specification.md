@@ -94,6 +94,23 @@ a corpus case; edit `vision.md` or `roadmap.md`; or tick a Stage-30 acceptance
 criterion (see **D1** in Decisions & Trade-offs — the stage acceptance replay is
 item 151's, and it requires a clean-tree run this item does not perform).
 
+> **Fence widened 2026-09-14 by the maintainer, during the review itself.**
+> The entry-by-entry read did not confirm the catalogue; it re-organised it
+> (one mode retired, one split, one re-homed as a condition, one added, ids
+> re-assigned in a one-tier hierarchy, two observability classes added, the
+> `validated` semantics tightened). Offered the choice between capturing the
+> rework for a later queue, widening this item, or declining the gate, the
+> maintainer chose to **widen this item and apply the rework now**, with the
+> eval-harness re-key deferred to a follow-up item. So this item *did*: change
+> the `ModeSpec` schema (`parent`), add `ConditionSpec`/`CONDITIONS`, change
+> `derive_status`, both renderers and `specification_conflicts`; move every
+> rule's `RuleModeDeclaration` (no `evaluate` body or threshold changed); add
+> the `condition-signal` path role; add one synthetic operator and two corpus
+> cases and regenerate both manifests; re-key `feature_docs.MODE_ANCHOR_PATHS`;
+> and reconcile the tests that pinned the old catalogue. It still did not edit
+> `vision.md` or `roadmap.md`, tick any Stage-30 criterion, or change a rule's
+> behaviour. The walkthrough below records what each entry became and why.
+
 ## Acceptance Criteria
 
 _Every criterion below is an invariant over the resulting content, re-checkable
@@ -355,24 +372,93 @@ around._
 
 ## Authorised paths
 
+> **Rewritten 2026-09-14 when the maintainer widened the item** (see the
+> Scope fence amendment above and the "Stage-30 maintainer sign-off"
+> transcript). The original list — the module docstring's `Sign-off` section,
+> the two generated artifacts, the gate row, this spec, its tests and appended
+> insight lines — is a strict subset of the list below.
+
 **May change:**
 
-- `src/segfacet/failure_modes.py` — the module docstring's `Sign-off` section
-  (step 9), plus any **authored `ModeSpec` field value** the maintainer's reading
-  calls for (step 7). No schema field added or removed, no function body changed.
-- `docs/aide/failure_modes.generated.md` — regenerated (step 8).
-- `docs/aide/failure_modes.generated.json` — regenerated (step 8).
-- `docs/aide/traceability_matrix.generated.md` — regenerated only if step 7
-  changed a field this artifact renders.
-- `docs/aide/traceability_matrix.generated.json` — the same.
-- `docs/aide/progress.md` — the `## Human gates` row only (step 3), plus whatever
-  the `aide` CLI writes there (the gate resolution, the item status). No
-  acceptance box is ticked by this item — see **D1**.
-- `docs/aide/items/150-maintainer-sign-off-of-the-specification.md` — this spec:
-  the `### Stage-30 maintainer sign-off` transcript and the Decisions log.
-- `tests/test_150_maintainer_sign_off.py` — this item's tests.
-- `docs/aide/insights.md` — appended lines only (step 11); nothing reworded,
-  reordered or deleted.
+- `src/segfacet/catalogue.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/eval/per_mode.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/eval/severity_ladder.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/failure_modes.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/feature_docs.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/border.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/bounds.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/coverage.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/fragmentation.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/intensity.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/intensity_reference_delta.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/mislabel.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/overlap.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/reference_delta.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/rule.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/heuristics/sequence.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/__init__.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/component_shape.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/corpus.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/coverage_border_overlap.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/identity_ordering_alignment.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/intensity.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/perturbation.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/synth/regression.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `src/segfacet/traceability.py` — the signed-off taxonomy applied: schema, declarations, operators, harnesses, anchors, legacy eval names (no rule's `evaluate` body or threshold changed)
+- `tests/corpus/fixtures/fuse_adjacent_seg.nii.gz` — both manifests regenerated by their generators; two new fixtures
+- `tests/corpus/fixtures/remove_level_relabel_seg.nii.gz` — both manifests regenerated by their generators; two new fixtures
+- `tests/corpus/intensity/manifest.json` — both manifests regenerated by their generators; two new fixtures
+- `tests/corpus/manifest.json` — both manifests regenerated by their generators; two new fixtures
+- `docs/aide/failure_modes.generated.json` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/failure_modes.generated.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/feature_catalogue.generated.json` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/feature_catalogue.generated.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/golden-decision-table.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/golden_evidence.generated.json` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/insights.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/items/150-maintainer-sign-off-of-the-specification.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/progress.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/queue/queue-020.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/traceability_matrix.generated.json` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/aide/traceability_matrix.generated.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `docs/corpus-s-axis-correction.md` — regenerated artifacts, the sign-off transcript, the queue's dated scope-fence annotation, appended insight lines, the gate row and whatever the `aide` CLI writes; the decision table and the item-143 record gain rows for the two new fixtures
+- `tests/test_036_perturbation_framework.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_037_component_shape_perturbations.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_038_coverage_border_overlap_perturbations.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_039_identity_ordering_alignment_perturbations.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_040_synthetic_corpus.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_041_regression_suite.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_042_golden_determinism.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_057_acceptance_stage7.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_091_stage14_acceptance.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_099_per_mode_metrics.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_100_severity_ladder.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_101_compare_runs_cli.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_102_stage18_validation.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_103_feature_catalogue.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_105_golden_decision_table.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_106_stage19_validation.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_116_ras_native_corpus.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_120_leave_one_out_offset.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_121_tangent_orientation.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_125_stage28_validation.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_126_golden_retirement.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_129_coincident_centroids_and_held_out_floor.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_131_tangent_direction_normalisation.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_132_monotonicity_against_traversal_order.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_134_decision_table_evidence_companion.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_135_stage29_validation.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_136_rule_mode_declarations.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_137_mode_less_rule_disposition.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_138_traceability_matrix.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_143_s_axis_correction.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_144_failure_mode_specification.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_145_eight_hypothesised_modes.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_146_ninth_mode_and_first_proposed.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_147_specification_is_the_record.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_148_per_path_mode_attribution.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_149_conformance_report.py` — reconciled to the signed-off catalogue (item-150 tests are new)
+- `tests/test_150_maintainer_sign_off.py` — reconciled to the signed-off catalogue (item-150 tests are new)
 
 **Asserts against:**
 
@@ -382,19 +468,14 @@ around._
 - `.aide/VERSION` — the engine token AC14 compares each `item 150` insight
   against. Unchanged.
 - `docs/aide/vision.md` — §6's numbered seed titles, read live through
-  `failure_modes.vision_seed_titles()` during regeneration (AC11). Unchanged, and
-  framework/process-gated regardless.
-- `docs/aide/feature_catalogue.generated.md` — read as part of the review pack
-  and unchanged by this item; a change here would mean step 7 exceeded its fence.
-- `tests/corpus/manifest.json` — driven live by `measured_firing` /
-  `derive_status` on every regeneration (AC11, AC12). Unchanged.
-- `tests/corpus/intensity/manifest.json` — the same, for mode 9. Unchanged.
-- `src/segfacet/heuristics/rule.py` and the concrete rule modules — the registry
-  `derive_status` reads. Unchanged: this item declares no mode and writes no rule.
-- `src/segfacet/feature_docs.py` — the `STATUS_OVERRIDES` comment is the recorded
-  precedent AC7's transcript-pointer requirement is modelled on; read, never
-  written.
-- `.gitattributes` — the two `text eol=lf` pins AC11's LF assertions rest on
+  `failure_modes.vision_seed_titles()` during regeneration (AC11). Unchanged,
+  and framework/process-gated regardless; its re-issue is a recorded follow-up.
+- `docs/aide/roadmap.md` — unchanged.
+- Every rule's `evaluate` body and thresholds (the rule modules are listed
+  under May change for their declarations only) — no behaviour moved:
+  `run_rules` on a fixed record is unchanged, which the regenerated corpus
+  manifests' measured firing sets attest.
+- `.gitattributes` — the `text eol=lf` pins AC11's LF assertions rest on
   (**A8**). Unchanged.
 
 ## Testing Strategy
@@ -560,3 +641,84 @@ to-be-filled placeholders above are written as `<angle brackets>` for that
 reason.
 
 To be updated during implementation.
+
+### Stage-30 maintainer sign-off
+
+**Date:** 2026-09-14. **Outcome:** accepted with changes — the maintainer read
+all ten entries of the item-149 rendering (`docs/aide/failure_modes.generated.md`
+as committed at `a27d083`) with the agent, one mode at a time, and re-organised
+the catalogue. The disposition literal recorded in the module docstring is
+`accepted with changes`.
+
+**Facets reviewed per entry, and the `ModeSpec` / `IntendedRule` /
+`CorpusCaseExpectation` field each resolves onto:** definition → `definition`;
+discriminator → `discriminator`; expected firing → `expected_firing`; severity
+→ `severity`; observability → `observability`; evidence rung →
+`evidence_rung`; status → `status`; provenance → `provenance`.
+
+**Cross-cutting decisions** (each a maintainer answer, recorded once here):
+
+1. Ids are assigned in the specification and are stable from this sign-off on;
+   `vision.md` §6 provides provenance, never ids (`VISION_SEED_DISPOSITION`).
+   The tree runs generic to specific with one tier of sub-modes (`parent`), and
+   a case that meets a parent's definition but no sub-mode's rule is classified
+   at the parent. Integer ids plus a `parent` field were chosen over dotted
+   string ids because every consumer (manifests, declarations, Stage-18
+   metrics, eval ladders) is integer-typed.
+2. Two observability classes are added: `needs-ground-truth` (modes 1 and 4)
+   and `needs-external-classifier` (mode 7).
+3. `validated` requires a declaring rule, every corpus case agreeing, and at
+   least one case with a non-empty expected set that fires one of the mode's
+   **own** intended rules. An empty expected set never validates (the vacuous-
+   agreement half of insight 35 — decided here); a co-detection never validates.
+4. The spline offset from the fitted curve is a spondylolisthesis / scoliosis
+   classification signal with no clear failure mode, so `mislabel`'s Detector
+   A serves no mode and its read paths are `bookkeeping` (this also settles
+   insight 53's `dx_mm`/`dy_mm`/`dz_mm` question).
+5. `bounds` and `reference_delta` are declared for every mode their
+   volume/extent signal can proxy — modes 1, 2, 3 (and, per level, 5 for
+   `reference_delta`) — each edge `needs-real-data`.
+6. A partial vertebra at the image border is a **condition** of the case that
+   gates other rules, not a failure mode; it is recorded as
+   `CONDITIONS["fov_truncation"]`, the `border` rule is mode-less, and the crop
+   fixture is the condition's.
+7. Corpus case ids keep their historical `modeN_` prefixes as stable
+   identifiers (43 test modules name them); the manifest's `failure_mode`
+   field is the authority.
+8. The Stage-18/29 eval harness stays on the pre-sign-off ids for one more
+   queue (`eval.per_mode.LEGACY_STAGE18_MODE_NAMES`), documented as a known
+   divergence — re-keying it needs re-measured ladder constants.
+
+**Out-of-scope observations** — each appended verbatim to `docs/aide/insights.md`
+with provenance `item 150, 2026-09-14`:
+
+- knowledge — the per-label spline offset (`stage3.per_label_offsets[].offset_mm`) is an anatomy-classification signal (spondylolisthesis, scoliosis grading), not a failure signal: after the item-150 sign-off `mislabel`'s Detector A serves no failure mode, its read paths are classified `bookkeeping`, and the feature belongs in a clinical-descriptor group when Stage 27 re-taxonomises the feature schema
+- gap — the Stage-18/29 eval harness (`segfacet.eval.per_mode`, `severity_ladder`, `per_mode_cohort`, their JSON schemas and the `test_099`-`test_102`/`test_109`/`test_125`/`test_135` pins) is still keyed by the pre-sign-off mode ids 1-8, frozen as `eval.per_mode.LEGACY_STAGE18_MODE_NAMES`; re-keying it to the signed-off catalogue needs re-measured ladder constants (`KNOWN_CROSS_MODE_COUPLINGS`, `RECORDED_MARGINS`), and the `displace` ladder then corresponds to no mode at all. One follow-up item, after the vision §6 re-issue
+- gap — `docs/aide/vision.md` §6's numbered eight-item list no longer matches the catalogue (`segfacet.failure_modes.SPECIFICATION` now assigns the ids, in a one-tier hierarchy, with one seed title retired and one re-homed as a condition); §6 must be re-issued through `/aide-create-vision` as principles plus a pointer to the specification, never a numbered list, and until then `failure_modes.VISION_SEED_DISPOSITION` carries the seed-to-record provenance
+- gap — three detectors the sign-off asked for that no shipped rule provides: a spacing-gap detector over `stage3.spacing_consistency.spacings_mm[]` for mode 4 (its fixture `remove_level_relabel` fires nothing today), an unprompted-transitional-label detector over `relationships.present_levels[]` plus a configuration flag for mode 6 (T13/L6 in a scan not configured for them), and a centroid-based collapsed/duplicated detector for mode 8 that needs per-component centroids the feature layer does not extract. Each is a rule item, not a specification edit
+- gap — mode 2's lumbosacral transitional-anatomy sub-type (sacralised L5, lumbarised S1) wants an intervertebral-disc label channel -- disc labels lying inside the sacrum label are the hypothesised signal -- which `segfacet.labels.DEFAULT_LABEL_MAP` does not carry; needs a decision on a second label channel before any rule can read it
+- knowledge — `synth.component_shape.FusePerturbation` fuses unbridged (the absorbed neighbour's voxels keep their gap), so `fuse_adjacent` is detected only by co-detections (fragmentation on two bodies under one label, coverage on the absorbed level); a bridged fuse operator that fills the inter-body gap is the honest fixture for mode 2's own bounds / reference_delta volume proxy, and would let mode 2 validate
+- gap — per-detector attribution is now a live need, not a nicety: `mislabel` has one detector serving mode 6 and one serving no mode, and the only way item 148's per-path schema can say so is to classify Detector A's `offset_mm`/`dx_mm`/`dy_mm`/`dz_mm` as `bookkeeping`, so the catalogue renders a detector's firing signal under `rule_bookkeeping`. The rule-side detector ids insight 50 asks for would replace that workaround
+
+**Entry-by-entry** (one line per `SPECIFICATION` key; `changed` lines name the
+authored fields that moved):
+
+- Mode 1 — changed: name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, mechanism. The seed entry "label not aligned with the vertebra it names" is **retired** (covered by semantic mislabelling; its signal is not a failure signal) and id 1 is re-used for the new catch-all *Segmentation accuracy (over-/under-segmentation)*: GT-relative, `needs-ground-truth`, no rule of its own beyond the `bounds`/`reference_delta` proxies, sub-analysis (boundary-band thickness, local blob volume, spatial distribution) recorded as hypothesised features only. `mode1_displace` stays as its fixture, expecting `{mislabel}` as a co-detection by the mode-less offset detector.
+- Mode 2 — changed: name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, parent, mechanism. Split out of the seed "over-/under-segmentation": *Fused or split vertebra segments*, defined by label-to-GT-vertebra correspondence, sub-mode of 1, observable via label-map proxies (to be proven: centroid spacing, spline shape and leave-one-out change, surface topology, metrics under split/merge candidates), with the lumbosacral transitional-anatomy sub-type named. New fixture `fuse_adjacent` expects `{coverage, fragmentation}` — co-detections, so the mode derives `implemented`.
+- Mode 3 — changed: definition, discriminator, candidate_features, corpus_cases, parent. *Disconnected components / islands* now covers any component-size ratio (a label in two large pieces is a connectivity defect), so `mode2_fragment` and `fragmentation`'s component detector move here; island distance from the main body is the new hypothesised feature (the tolerated island size grows with distance; border contact is irrelevant).
+- Mode 4 — changed: name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, parent, mechanism. *Vertebra not segmented*, `needs-ground-truth`, sub-mode of 1. The missing-interior-label detector and `mode5_remove_level` move to mode 6 (a label-sequence finding); the mode keeps `coverage`'s opt-in span/count checks and gains the fixture `remove_level_relabel` (vertebra removed, labels renumbered to stay continuous), which no shipped rule detects — expected set empty, recorded as "not detected today". Hypothesised: extrapolating centroids toward the image face, and a scan boundary with no terminal label.
+- Mode 5 — changed: definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, mechanism. *Semantic mislabelling* covers any number of vertebrae and a still-valid sequence; single-channel-observable only through the per-level geometry proxy (`reference_delta`), with the whole-sequence shift split off as mode 7. The swap case and `mislabel`'s ordering detector move to mode 6, so this mode has no corpus case and derives `implemented`. Severity stays flagged-for-review.
+- Mode 6 — changed: name, definition, discriminator, severity, intended_rules, corpus_cases, evidence_rung, parent, mechanism. *Implausible label sequence*, sub-mode of 5, always containing at least one mode-5 mislabelling: out-of-order levels, a missing interior level, or a valid-but-unprompted numbering variant (T13/L6 in an unconfigured scan). Severity `fail` for an out-of-order sequence (a label is certainly wrong); the unprompted variant is flagged and its detector is a candidate feature, not a rule. Three detectors serve it (`sequence`, `mislabel` ordering, `coverage` interior gap) and three fixtures (`mode4_relabel_swap`, `mode5_remove_level`, `mode7_sequence_break`); the `sequence` edge stays `needs-real-data` for the fixture generator's single-relabel cap.
+- Mode 7 — changed: id, name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, status, parent, mechanism. New entry *Shifted label sequence*: every label offset by a constant, sequence internally valid, decidable only with an external vertebra classifier (spine section, rib attachment, C2/sacrum counting reference) — `needs-external-classifier`, `proposed`, sub-mode of 5.
+- Mode 8 — changed: id, definition, discriminator, candidate_features, parent, mechanism. *Collapsed or duplicated label set* (was seed mode 10) becomes centroid-based: collapsed = centroids closer than a fraction of the expected spacing (the "exact centroid" wording relaxed), duplicated = two centroids under one label (two whole vertebrae a spacing apart — not an island, which is smaller, nor a fusion, which is adjacent). Sub-mode of 5, `proposed`; per-component centroids named as the missing feature.
+- Mode 9 — changed: id, discriminator. *Overlapping segments* (was seed mode 8): content confirmed as rendered; the id moved and the discriminator now lists modes 1-8 and the external-input classes.
+- Mode 10 — changed: id, short_name, discriminator. *Implausible tissue under a label* (was mode 9): content confirmed as rendered; the id moved, the manifest paraphrase is lower-cased to match its siblings, and the discriminator now spans modes 1-9.
+- Condition fov_truncation — new: the seed mode 6 "partial vertebra at the image border" retired into `CONDITIONS`: a vertebra at the FOV edge touches an image face, its geometry and centroid are impacted to a varying degree, and many rules cannot be applied to it. `border` records it (mode-less, paths `condition-signal`); `mode6_crop_at_border` is its fixture, still measuring `{border, mislabel}`.
+
+**Measured on 2026-09-14** (`segfacet.synth.regression.pipeline_findings` /
+`reconstructed_findings` / `intensity_pipeline_findings` over the regenerated
+manifests): every one of the 15 corpus cases agrees with its recorded expected
+set; derived statuses are modes 3, 6, 9, 10 `validated`, modes 1, 2, 4, 5
+`implemented`, modes 7 and 8 `proposed`; all four conformance checks
+(`specification_conflicts`, `vision_seed_conflicts`,
+`rule_declaration_conflicts`, `path_classification_conflicts`) return `()`.

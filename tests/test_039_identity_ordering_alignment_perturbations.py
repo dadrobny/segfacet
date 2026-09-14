@@ -286,8 +286,14 @@ def test_ac6_displace_expectation_well_formed():
     clean = _clean()
     result = DisplacePerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
+    # Item 150 (2026-09-14): the old mode 1 ("label not aligned with the
+    # vertebra it names") was retired, and this case now records mode 1 of
+    # the signed-off catalogue, "segmentation accuracy". ``mislabel`` stays
+    # its designated rule as a recorded *co-detection* -- the spline-offset
+    # detector that fires serves no mode of its own.
     assert exp.failure_mode == 1
     assert exp.failure_mode_name == FAILURE_MODE_NAMES[1]
+    assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"mislabel"})
     assert exp.expected_labels == frozenset({22})
     assert exp.expected_verdict == "flagged-for-review"
@@ -399,8 +405,14 @@ def test_ac12_relabel_swap_expectation_well_formed():
         clean.seg_img, seed=0
     )
     exp = result.expectation
-    assert exp.failure_mode == 4
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[4]
+    # Item 150's sign-off (2026-09-14): swapping two adjacent identities
+    # breaks the label *sequence*, so this case moved from the old mode 4 to
+    # mode 6, "implausible label sequence". The detector that fires is
+    # ``mislabel``'s ordering detector, which the sign-off likewise assigned
+    # to mode 6.
+    assert exp.failure_mode == 6
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
+    assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"mislabel"})
     assert exp.expected_labels == frozenset({21, 22})
     assert exp.expected_verdict == "flagged-for-review"
@@ -481,8 +493,11 @@ def test_ac18_sequence_break_expectation_well_formed_and_pipeline_agrees():
     clean = _clean()
     result = SequenceBreakPerturbation().apply(clean.seg_img, seed=0)
     exp = result.expectation
-    assert exp.failure_mode == 7
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[7]
+    # Item 150 (2026-09-14): "implausible label sequence" is mode 6 in the
+    # signed-off catalogue (it was 7 under vision.md §6's numbering).
+    assert exp.failure_mode == 6
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
+    assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"sequence"})
     assert exp.expected_labels == frozenset({28})
     assert exp.expected_verdict == "flagged-for-review"

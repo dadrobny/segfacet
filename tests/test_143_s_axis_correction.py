@@ -282,6 +282,34 @@ def test_ac5_docstrings_state_the_caudal_contract():
 #: guarantee that the correction cannot change |net advance|, only its sign
 #: -- the authoritative post-fix table lives in test_131 and is the
 #: builder's to reconcile, not retyped here.
+#: Corpus cases added *after* this item measured the pre-item tables below,
+#: so this item never recorded values for them. Added by item 150
+#: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
+#: coverage for modes 2 and 4. A pre-item table is deliberately not extended
+#: with values the item it belongs to never measured; instead each sweep pins
+#: the uncovered set exactly, so a *third* uncovered case still fails.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel"}
+
+
+def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
+    """Manifest cases the pre-item *table* covers, after asserting that the
+    only cases it does not cover are exactly the post-item additions."""
+    case_ids = {c["case_id"] for c in manifest["cases"]}
+    uncovered = case_ids - set(table)
+    assert uncovered == _ADDED_AFTER_ITEM, (
+        f"corpus cases with no pre-item measurement: {sorted(uncovered)}"
+    )
+    assert set(table) <= case_ids, (
+        "pre-item table names cases the corpus no longer has: "
+        f"{sorted(set(table) - case_ids)}"
+    )
+    return [
+        c
+        for c in manifest["cases"]
+        if c["case_id"] in table and c["case_id"] not in also_excluded
+    ]
+
+
 _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
     "clean_control": 160.0,
     "mode1_displace": 160.0,
@@ -297,7 +325,13 @@ _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
 
 def test_ac6_every_corpus_case_net_advance_is_negative():
     manifest = load_manifest()
-    assert set(_PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE) == {c["case_id"] for c in manifest["cases"]}
+    covered = {
+        c["case_id"]
+        for c in _cases_covered_by(_PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE, manifest)
+    }
+    # The caudal *sign* is the AC's own claim and holds for every case,
+    # post-item additions included; only the pre-item magnitude comparison is
+    # restricted to the cases this item measured.
     for case in manifest["cases"]:
         centroids = _ordered_centroids_for_case(case)
         net = float(centroids[-1].centroid_mm[2]) - float(centroids[0].centroid_mm[2])
@@ -305,6 +339,8 @@ def test_ac6_every_corpus_case_net_advance_is_negative():
             f"{case['case_id']}: net +S advance {net} is not negative -- ascending "
             f"labels are still advancing superiorly, not caudally"
         )
+        if case["case_id"] not in covered:
+            continue
         expected_magnitude = _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE[case["case_id"]]
         assert abs(net) == pytest.approx(expected_magnitude, abs=1e-6), (
             f"{case['case_id']}: |net advance| {abs(net)} != pre-item magnitude "
@@ -325,19 +361,18 @@ def test_ac6_single_case_caudal_assertion_would_fail_pre_correction():
 
 
 # =========================================================================== #
-# AC7/AC8: tangent_angles_deg holds for eight cases; mode4 moves only by
-# item 131's measured fit asymmetry
+# AC7/AC8: tangent_angles_deg holds for every case this item measured except
+# mode4, which moves only by item 131's measured fit asymmetry
 # =========================================================================== #
 
 _MODE4_CASE_ID = "mode4_relabel_swap"
 
 
-def test_ac7_tangent_angles_deg_unmoved_on_the_eight_non_doubling_back_cases():
+def test_ac7_tangent_angles_deg_unmoved_on_the_non_doubling_back_cases():
     manifest = load_manifest()
-    assert set(_PRE_ITEM_TANGENT_ANGLES_DEG) == {c["case_id"] for c in manifest["cases"]}
-    for case in manifest["cases"]:
-        if case["case_id"] == _MODE4_CASE_ID:
-            continue
+    for case in _cases_covered_by(
+        _PRE_ITEM_TANGENT_ANGLES_DEG, manifest, also_excluded={_MODE4_CASE_ID}
+    ):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
         actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])

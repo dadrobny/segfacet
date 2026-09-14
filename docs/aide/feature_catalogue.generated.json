@@ -600,7 +600,9 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3
           ],
           "measures": "Physical span of the label along image axis x.",
           "mode_evidence": [
@@ -669,7 +671,9 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3
           ],
           "measures": "Physical span of the label along image axis y.",
           "mode_evidence": [
@@ -738,7 +742,9 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3
           ],
           "measures": "Physical span of the label along image axis z.",
           "mode_evidence": [
@@ -808,7 +814,9 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3
           ],
           "measures": "Physical volume of the label.",
           "mode_evidence": [
@@ -876,18 +884,16 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the anterior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
-              "signal"
+              "condition-signal"
             ]
           ],
           "observed": {
@@ -944,18 +950,16 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the inferior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
-              "signal"
+              "condition-signal"
             ]
           ],
           "observed": {
@@ -1012,19 +1016,16 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the left image face.",
           "mode_evidence": [
-            "per_mode_metric",
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
-              "signal"
+              "condition-signal"
             ]
           ],
           "observed": {
@@ -1081,18 +1082,16 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the posterior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
-              "signal"
+              "condition-signal"
             ]
           ],
           "observed": {
@@ -1149,18 +1148,16 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the right image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
-              "signal"
+              "condition-signal"
             ]
           ],
           "observed": {
@@ -1217,18 +1214,16 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the superior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
-              "signal"
+              "condition-signal"
             ]
           ],
           "observed": {
@@ -2138,6 +2133,7 @@
           "failure_modes": [],
           "measures": "Anatomical vertebra name, e.g. \"T8\", \"L3\".",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping"
           ],
           "mode_roles": [
@@ -2309,7 +2305,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
-            7
+            6
           ],
           "measures": "Whether the levels were labelled in a head-to-tail-consistent order.",
           "mode_evidence": [
@@ -2366,7 +2362,9 @@
           ],
           "documented": true,
           "failure_modes": [
-            5
+            2,
+            4,
+            6
           ],
           "measures": "Canonical levels absent within the observed present-level span.",
           "mode_evidence": [
@@ -2490,7 +2488,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            7
+            6
           ],
           "measures": "Level names that broke the monotonic canonical-rank check.",
           "mode_evidence": [
@@ -2564,13 +2562,16 @@
           ],
           "documented": true,
           "failure_modes": [
-            5
+            2,
+            4,
+            6
           ],
           "measures": "Recognised anatomical levels, in canonical head-to-tail order.",
           "mode_evidence": [
             "per_mode_metric",
             "rule_mode_map",
             "rule_declaration",
+            "rule_mode_less",
             "rule_bookkeeping"
           ],
           "mode_roles": [
@@ -2981,7 +2982,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            8
+            9
           ],
           "measures": "Number of voxels claimed by both labels of the pair.",
           "mode_evidence": [
@@ -3102,19 +3103,15 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Signed x-axis displacement from the fitted spline.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
             [
               "mislabel",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -3168,19 +3165,15 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Signed y-axis displacement from the fitted spline.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
             [
               "mislabel",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -3234,19 +3227,15 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Signed z-axis displacement from the fitted spline.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
             [
               "mislabel",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -3493,19 +3482,17 @@
           ],
           "documented": true,
           "failure_modes": [
-            1,
-            4
+            1
           ],
           "measures": "Perpendicular distance from the vertebra's centroid to the fitted spline.",
           "mode_evidence": [
             "per_mode_metric",
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
             [
               "mislabel",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -4400,7 +4387,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
-            4
+            5
           ],
           "measures": "Whether every vertebra's closest-spline-parameter u increases along the anatomical order.",
           "mode_evidence": [
@@ -4455,7 +4442,7 @@
           "documented": true,
           "failure_modes": [
             1,
-            4
+            6
           ],
           "measures": "Level-name pairs whose spline parameter does not advance.",
           "mode_evidence": [
@@ -5828,7 +5815,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            9
+            10
           ],
           "measures": "Median scan intensity under the label mask.",
           "mode_evidence": [
@@ -6256,7 +6243,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            9
+            10
           ],
           "measures": "Spread of scan intensity under the label mask.",
           "mode_evidence": [
@@ -7058,7 +7045,9 @@
           "documented": true,
           "failure_modes": [
             1,
-            2
+            2,
+            3,
+            5
           ],
           "measures": "Per-label aggregate anomaly score against the reference.",
           "mode_evidence": [
@@ -7245,7 +7234,9 @@
           "documented": true,
           "failure_modes": [
             1,
-            2
+            2,
+            3,
+            5
           ],
           "measures": "Outlier-resistant z-score against the reference.",
           "mode_evidence": [
@@ -7548,7 +7539,9 @@
           "documented": true,
           "failure_modes": [
             1,
-            2
+            2,
+            3,
+            5
           ],
           "measures": "Feature names whose case value falls outside the reference's percentile band.",
           "mode_evidence": [
@@ -7691,6 +7684,7 @@
           "failure_modes": [],
           "measures": "The per-label feature map, keyed by integer label.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping",
             "rule_not_read"
           ],
