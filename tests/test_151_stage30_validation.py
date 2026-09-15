@@ -365,18 +365,21 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
     """A synthetic manifest case naming a real mode but no carried case_id
     must surface as an unspecified case -- the manifest enumeration, not the
-    specification, drives the walk."""
+    specification, drives the walk.
+
+    Built from a copy of a real, loadable manifest entry (rather than a bare
+    dict) so ``measured_firing`` -- which ``_build_conformance`` calls on
+    every case -- still finds a ``scan_fixture``/``seg_fixture`` pair to
+    load; only ``case_id`` is overridden to one no ``ModeSpec.corpus_cases``
+    entry carries.
+    """
+    real_case = _manifest_case("mode1_displace")
+    assert real_case["failure_mode"] == 1
 
     def _fake_load_manifest():
-        return {
-            "cases": [
-                {
-                    "case_id": "synthetic_unspecified_case",
-                    "failure_mode": 1,
-                    "detection": "pipeline",
-                }
-            ]
-        }
+        fake_case = dict(real_case)
+        fake_case["case_id"] = "synthetic_unspecified_case"
+        return {"cases": [fake_case]}
 
     monkeypatch.setattr(corpus_module, "load_manifest", _fake_load_manifest)
     monkeypatch.setattr(
@@ -645,15 +648,23 @@ def test_ac17_vocabularies_hold():
             assert fm.SPECIFICATION[mode.parent].parent is None, mode.id
 
 
-def test_ac17_tuple_fields_are_tuples_and_empty_only_when_proposed():
+def test_ac17_tuple_fields_are_tuples_of_the_right_element_type():
+    """D5 (corrected 2026-09-15): no tuple field is required to be
+    non-empty, whatever the authored status. Modes 3 and 8 are authored
+    `specified` with an empty `corpus_cases`, and every mode -- `proposed`
+    included -- carries a non-empty `candidate_features`. So this AC checks
+    only that each of the three tuple fields is a tuple whose elements are
+    the right dataclass type; it asserts no emptiness rule at all."""
     for mode in fm.SPECIFICATION.values():
-        for field_name in ("candidate_features", "intended_rules", "corpus_cases"):
+        for field_name, element_type in (
+            ("candidate_features", fm.CandidateFeature),
+            ("intended_rules", fm.IntendedRule),
+            ("corpus_cases", fm.CorpusCaseExpectation),
+        ):
             value = getattr(mode, field_name)
             assert isinstance(value, tuple), (mode.id, field_name)
-            if not value:
-                assert mode.status == "proposed", (
-                    mode.id, field_name, "empty tuple on a non-proposed mode"
-                )
+            for element in value:
+                assert isinstance(element, element_type), (mode.id, field_name, element)
 
 
 # =========================================================================== #
@@ -819,7 +830,7 @@ def test_ac26_no_module_binds_mode_rungs_or_rung_vocabulary_at_module_level():
                 names = [t.id for t in targets if isinstance(t, ast.Name)]
                 for banned in ("MODE_RUNGS", "ModeRung", "RUNGS"):
                     if banned in names:
-                        offenders.append((str(py_file.relative_to(_REPO_ROOT)), banned))
+                        offenders.append((py_file.relative_to(_REPO_ROOT).as_posix(), banned))
     assert offenders == [], offenders
 
 
@@ -877,9 +888,15 @@ _NUMBER_WORDS = {
 
 
 def _count_before_entries(text: str) -> int:
-    match = re.search(r"(\w+)\s+entries", text)
-    assert match, f"no '<count> entries' phrase found in: {text!r}"
-    token = match.group(1).lower()
+    """The outcome sentence's entry count -- AC29 means the *final* count the
+    sign-off arrived at, not an intermediate one it mentions along the way.
+    The committed sentence names two: "reviewed all ten entries of the
+    item-149 rendering" (the starting point) and "giving sixteen entries"
+    (what the review produced). The last `<count> entries` phrase in the text
+    is the outcome, so this takes the last match, never the first."""
+    matches = list(re.finditer(r"(\w+)\s+entries", text))
+    assert matches, f"no '<count> entries' phrase found in: {text!r}"
+    token = matches[-1].group(1).lower()
     if token.isdigit():
         return int(token)
     assert token in _NUMBER_WORDS, f"unrecognised number word {token!r} in {text!r}"
@@ -894,6 +911,14 @@ def test_ac29_sign_off_entry_count_matches_specification_length():
 def test_adv_ac29_count_parser_rejects_missing_entries_phrase():
     with pytest.raises(AssertionError):
         _count_before_entries("accepted with changes: no count phrase here at all")
+
+
+def test_adv_ac29_count_parser_resolves_to_the_outcome_count_not_the_first():
+    text = (
+        "accepted with changes: the maintainer reviewed all ten entries of "
+        "the item-149 rendering and re-organised it, giving sixteen entries"
+    )
+    assert _count_before_entries(text) == 16
 
 
 # =========================================================================== #
