@@ -1575,7 +1575,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
 - ✅ **D6** Maintainer sign-off of `failure_modes.generated.md`, entry by entry, with date
   and outcome recorded in the specification module's docstring. Until recorded, the
   remainder of Stage 20 is not queued. *(Item 150)*
-- 📋 **D7** Stage validation: both artifacts regenerated from a clean tree, every corpus
+- 🚧 **D7** Stage validation: both artifacts regenerated from a clean tree, every corpus
   case across both corpora driven and expected equals measured confirmed, derived
   statuses checked against live state, the per-status / per-rung count recorded here as a
   measured number. *(Item 151)*
