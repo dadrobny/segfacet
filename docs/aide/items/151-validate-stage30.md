@@ -1097,6 +1097,21 @@ before this replay wrote that bookkeeping.
   retracted): `OK (7 warning(s))`, same multiset — no `stage 30 criterion 7
   was retracted` warning, as expected since AC30–AC34 held.
 - **AC38, the full suite on a fresh clone of the final commit.** Performed
-  after every commit of this item landed, on a separate clone from the
-  mutation clone; recorded in this same Decisions entry once run (see the
-  suite result reported by the validator alongside this item's merge).
+  after every commit of this item landed (final commit `c839974`), on a
+  separate clone from the mutation clone: `python -P -m pytest <clone>/tests
+  -n auto -q` (module resolution proof as in AC1) → `7156 passed, 66 skipped,
+  0 failed` in ~227s. All 66 skips are environment-gated (docker, CuPy/GPU,
+  PyRadiomics, real VerSe19 cohort not mounted) or clone-relative (a queue-018
+  base ref unavailable in a shallow single-branch clone; a pre-098 pinned
+  shape absent) — none is a failure. A first background run of the same
+  command was interrupted by a monitor-tooling wake-up loss (not a test
+  failure) and was independently repeated end to end, reproducing the same
+  `7156 passed, 66 skipped, 0 failed`. Separately, the working checkout's own
+  full suite (`aide.toml`'s `test_command`, `python -m pytest -n auto -q`,
+  run from the repo root with no path argument) gives `7946 passed, 66
+  skipped, 0 failed` in ~214s — the ~790-test difference from AC38's number is
+  `.aide/scripts/tests/` (the aide-loop framework's own stdlib test suite),
+  which the bare root invocation additionally collects and AC38's
+  `<clone>/tests`-scoped invocation does not; both counts are internally
+  consistent with `--collect-only` (8012 total in the working checkout, no
+  path restriction) and both runs are green.
