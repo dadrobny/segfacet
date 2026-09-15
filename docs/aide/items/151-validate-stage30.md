@@ -926,4 +926,16 @@ does not re-log them.
   modes 1-8's `name` fields still equal §6's list". That is superseded by
   `vision_seed_conflicts()`, and roadmap v3.1's Stage 31 D2 owns it.
 
-To be updated during implementation.
+### Builder: no production change (2026-09-15)
+
+**D13 — this item ships no `src/segfacet` change.** The "Authorised paths"
+section lists every `src/segfacet/**` path under **Asserts against**, never
+**May change**: this item's whole job, per the Description and Implementation
+Steps, is to replay Stage 30's acceptance against the tree items 143–150
+already merged, not to alter that tree. **May change** is limited to the new
+in-suite test module, `progress.md`'s seven Stage 30 boxes, `insights.md`, this
+spec's own Decisions log, and conditionally `tests/test_114_...py` (A9, only if
+AC37 retracts). No Acceptance Criterion asks for a behavioural change; every AC
+is phrased as a measurement, a comparison, or a mutation-and-restore replay
+(AC19–AC21 mutate a *clone*, never the working checkout, and are reverted with
+`cmp`). Builder therefore made no `src/segfacet` edit.
