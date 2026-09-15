@@ -963,3 +963,140 @@ AC37 retracts). No Acceptance Criterion asks for a behavioural change; every AC
 is phrased as a measurement, a comparison, or a mutation-and-restore replay
 (AC19–AC21 mutate a *clone*, never the working checkout, and are reverted with
 `cmp`). Builder therefore made no `src/segfacet` edit.
+
+### Validator: replay record (2026-09-15, round 2)
+
+**D14 — the clean-clone replay, recorded as observed output.** Round 1's three
+test-authoring defects (AC9's adversarial fixture, AC29's parser, AC17's
+tuple-emptiness clause) and the portability warning were confirmed fixed by
+commit `6464b2e`: `tests/test_151_stage30_validation.py -q` gave `95 passed`
+with only AC35/AC36/AC37/AC39 red (the expected bookkeeping-not-written state)
+before this replay wrote that bookkeeping.
+
+- **AC1, the rig.** Cloned `aide/151-validate-stage-30-failure-mode` into the
+  scratchpad (`.../scratchpad/clone-mutation`); clone `HEAD` =
+  `6464b2ea3a7d5b537adeeea210a6441ce0047cd8`, equal to the branch tip at
+  replay start. Bootstrapped via
+  `python <clone>/.aide/scripts/aide.py --repo <clone> env --bootstrap`
+  (`aide env: bootstrap done (ok)`). Resolution proof, run with `-P` plus an
+  explicit `sys.path` insert of the clone root (needed for `tests`, a
+  namespace package with no `__init__.py`, since `-P` disables the implicit
+  cwd prepend): `segfacet.__file__` =
+  `<clone>/src/segfacet/__init__.py`; `tests.__path__` = `['<clone>/tests']`.
+  Both resolve under the clone, never the working checkout.
+- **AC2, the four conformance artifacts.** Two independent regenerations
+  (`gen1`, `gen2`) of `failure_modes.generated.{json,md}` and
+  `traceability_matrix.generated.{json,md}`: all 4 `cmp` exit 0 against the
+  clone's committed copies, and `gen1` `cmp` exit 0 against `gen2` (8 `cmp`
+  calls total, all silent/exit 0).
+- **AC7, the feature catalogue.** `segfacet.catalogue` regenerated into
+  scratch: `fc.md` `cmp` exit 0 against the committed copy; `fc.json` accepted
+  by `assert_matches_committed_artifact` and additionally byte-identical
+  (`filecmp.cmp(..., shallow=False)` True).
+- **AC8, per-case measured firing sets (clone `6464b2e`).** 15 cases (11
+  geometric + 4 intensity), every measured set equal to expected:
+  `clean_control []=[]`, `mode1_displace ['mislabel']`,
+  `mode2_fragment ['fragmentation']`, `mode3_inject_islands ['fragmentation']`,
+  `mode4_relabel_swap ['mislabel']`, `mode5_remove_level ['coverage']`,
+  `mode6_crop_at_border ['border','mislabel']`, `mode7_sequence_break
+  ['sequence']`, `mode8_force_overlap ['overlap']`,
+  `fuse_adjacent ['coverage','fragmentation']`, `remove_level_relabel []=[]`,
+  `clean_hu []=[]`, `implausible_metal ['intensity']`,
+  `implausible_soft_tissue ['intensity']`, `degenerate_uniform ['intensity']`.
+  `matrix.conformance`: `unspecified_cases=()`, `disagreements=()`,
+  `agree_count=15`.
+- **AC11, label 22's crop offset.** On `mode6_crop_at_border`:
+  `touches_anterior=True`, `is_terminal=False`,
+  `offset_mm=17.507444781475748` (> `max_offset_mm=13.0`). On
+  `clean_control`: `touches_anterior=False`.
+- **AC14, the analytic edge list.** Measured from `matrix.modes[*].rule_attribution`:
+  `[(1,'bounds'),(1,'reference_delta'),(2,'bounds'),(2,'reference_delta'),
+  (3,'bounds'),(3,'reference_delta'),(4,'bounds'),(4,'reference_delta'),
+  (8,'reference_delta'),(16,'intensity_reference_delta')]` — 10 edges,
+  matching D12's recorded list exactly.
+- **AC16, mode8_force_overlap.** `extract_feature_record(...).overlaps == []`;
+  `pipeline_findings` rule ids `[]`; `reconstructed_findings` rule ids
+  `['overlap']`; manifest `detection == "reconstructed_record"`.
+- **AC27, the seed-title equality count.** `vision_seed_conflicts() == ()`.
+  `vision_seed_titles()` (a `Dict[int, str]`) has 8 entries; exactly 2 equal a
+  current `SPECIFICATION[*].name`: seed 4 → `Semantic mislabelling (wrong
+  vertebra identification)`, seed 8 → `Overlapping segments` — matching the
+  spec's measured 2/8.
+- **AC19–AC21, the three mutation replays, in `clone-mutation`.**
+  - AC19: `_MODE_2.status` set to `"validated"` in the clone's
+    `src/segfacet/failure_modes.py`. `python -P -m pytest
+    tests/test_144_failure_mode_specification.py -x -q` failed at import
+    (`ModuleNotFoundError`-free; a `ValueError` from `ModeSpec.__post_init__`):
+    `ValueError: ModeSpec 2: 'status' may only be authored as one of
+    AUTHORED_STATUSES ('proposed', 'specified'); 'validated' is derived
+    exclusively by derive_status(), never hand-authored past construction.`
+    — names mode 2 (`ModeSpec 2`). Restored; `cmp` against the working
+    checkout's copy exit 0.
+  - AC20: `overlap.py`'s `RuleModeDeclaration(modes=(15,), ...)` changed to
+    `modes=(5, 15)`.
+    `test_144_failure_mode_specification.py::test_ac11_shipped_specification_has_no_conflicts`
+    failed: `assert fm.specification_conflicts() == ()` →
+    `"mode 5: authored status 'proposed' but derive_status() now returns
+    'implemented' -- a proposed (listed, unimplemented) entry has acquired a
+    declaring rule or a demonstrating corpus case, and wants re-authoring as
+    'specified'."` — names mode 5. Restored; `cmp` exit 0.
+  - AC21: mode 16's `status_derived` in the clone's committed
+    `docs/aide/failure_modes.generated.json` changed from `validated` to
+    `implemented`.
+    `test_144_failure_mode_specification.py` and
+    `test_150_maintainer_sign_off.py` run together: 2 failed, 169 passed.
+    `test_ac19_committed_json_parses_to_a_fresh_build` failed on a structural
+    JSON diff (no mode named in the truncated pytest summary — the modes list
+    differs, printed without an index). `test_ac11_artifacts_are_byte_identical_to_a_fresh_regeneration`
+    failed with `AssertionError: fresh structure does not match committed
+    artifact ... at /modes/15/status_derived: fresh='validated'
+    committed='implemented'` — names only the JSON pointer position
+    (`/modes/15`, mode 16's list index), never "mode 16" by name. Per the
+    AC21 text this is logged as a finding rather than a re-run: AC19 and
+    AC20 already establish criterion 1's "naming the mode" clause with an
+    explicit mode number in the failure text; AC21's own two committed-artifact
+    comparison tests report by structural pointer instead. Restored; `cmp`
+    exit 0. The mutation clone was deleted after AC19–AC21.
+- **AC31, both corpora.** `segfacet.synth.corpus` and `segfacet.synth.intensity`
+  regenerated into scratch. Both manifests accepted by
+  `assert_matches_committed_artifact` and additionally byte-identical. All 12
+  geometric + 5 intensity `*.nii.gz` fixtures byte-identical (`filecmp.cmp`,
+  `shallow=False`); the two fixture path sets equal.
+- **AC32, the default reference artifact.** `segfacet.reference.artifact`
+  regenerated; accepted by `assert_matches_committed_artifact` and additionally
+  byte-identical against `src/segfacet/reference/reference_default.json`.
+- **AC33, the real-cohort artifact.**
+  `tests/test_128_reference_verse_v1_integrity.py` passed (2 passed) in the
+  clone. `docs/corpus-s-axis-correction.md`'s `reference_verse_v1.json` row
+  reads `unmoved`, reason "no synthetic input feeds this artifact". Not
+  rebuilt (reading D7).
+- **AC34, commit ancestry.** Correction commit resolved fresh by subject
+  `fix(143): correct the synthetic corpus's S-axis stacking` →
+  `513f50b2edc8b6a083f1910225c842f446e65f7e`, matching the spec's `513f50b` at
+  writing. `git rev-list HEAD -- src/segfacet/failure_modes.py` = 8 commits;
+  `git rev-list 513f50b..HEAD -- src/segfacet/failure_modes.py` = the same 8
+  commits — every commit touching the module postdates the correction.
+- **AC40, environment.** `aide env`: `OK (venv present, import succeeds)`.
+  `aide env --profile pyradiomics`: NOT satisfied (`ModuleNotFoundError: No
+  module named 'radiomics'`). `--profile docker`: NOT satisfied. `--profile
+  gpu`: NOT satisfied (`ModuleNotFoundError: No module named 'cupy'`). None
+  gates any criterion (D9): the intensity harness pins
+  `enable_pyradiomics=False`, and AC8's measured firing sets confirm mode 16
+  fires identically without it.
+- **AC35–AC37, AC39 bookkeeping.** `progress accept 30 --criterion N` run for
+  N=1..6 (each `accepted`); `progress amend 30 --criterion 7` run once (AC30–
+  AC34 all held, so amended rather than retracted). `insights list --open`
+  resolved the criterion-7 entry to number 29 at replay time; ticked via
+  `insights tick 29 --pointer "item 151: ..."`. Re-running
+  `tests/test_151_stage30_validation.py -q` after the bookkeeping:
+  `101 passed` (was `95 passed, 6 failed` before).
+- **AC41, `aide check`.** Baseline (before this item's edits, at commit
+  `6464b2e`): `OK (7 warning(s))` — 1 assumptions-block, 2 awaiting-a-decision
+  (gates 1, 2), 4 retracted-criterion (Stage 20 criteria 1, 3, 4, 5). After
+  this item's `progress.md`/`insights.md` edits (criterion 7 amended, not
+  retracted): `OK (7 warning(s))`, same multiset — no `stage 30 criterion 7
+  was retracted` warning, as expected since AC30–AC34 held.
+- **AC38, the full suite on a fresh clone of the final commit.** Performed
+  after every commit of this item landed, on a separate clone from the
+  mutation clone; recorded in this same Decisions entry once run (see the
+  suite result reported by the validator alongside this item's merge).
