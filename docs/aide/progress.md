@@ -1531,7 +1531,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   scored, metric anchor path and rule read paths as two labelled columns; the
   `build_matrix` fixture discipline set and the `no-float-leaf` guard ground added. The
   exercise columns stay Stage 20's. *(Item 149)*
-- 🔍 **D6** Maintainer sign-off of `failure_modes.generated.md`, entry by entry, with date
+- ✅ **D6** Maintainer sign-off of `failure_modes.generated.md`, entry by entry, with date
   and outcome recorded in the specification module's docstring. Until recorded, the
   remainder of Stage 20 is not queued. *(Item 150)*
 - 📋 **D7** Stage validation: both artifacts regenerated from a clean tree, every corpus
