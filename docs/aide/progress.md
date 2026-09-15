@@ -1586,7 +1586,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   four-state vocabulary and a provenance; `implemented` and `validated` are derived from
   live state, and a hand-set status that disagrees with the registry or the corpus fails
   a test naming the mode (**G8**).
-- [ ] For every corpus case across both committed corpora, the measured firing set equals
+- [x] For every corpus case across both committed corpora, the measured firing set equals *(AC8 measured all 15 manifest cases (11 geometric + 4 intensity) in clone 6464b2e: every measured firing set equals expected; matrix.conformance.agree_count=15, unspecified_cases=(), disagreements=(); AC10/AC11 mode6_crop_at_border expects {border, mislabel} with reason, measured label 22 touches_anterior=True, offset_mm=17.507 (>13.0 max), is_terminal=False; clean_control label 22 touches_anterior=False. Reading D2 (clean, condition-less cases scored against the empty set) and D3 (mode6_crop_at_border is the fov_truncation condition's fixture, no longer a Stage 20 gate-3 co-detection claim))*
   the specification's expected firing set, and `mode6_crop_at_border` expects
   `{border, mislabel}` with a recorded reason (**G2**).
 - [ ] Every mode ↔ rule edge carries an authored evidence rung and every mode's rung is
