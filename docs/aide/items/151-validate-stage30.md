@@ -261,8 +261,13 @@ criterion without the annotation closes none._
   `status` and `provenance` are non-empty strings. `status in AUTHORED_STATUSES`,
   `provenance in PROVENANCE`, `observability in OBSERVABILITY` and
   `scope in SCOPES`. `parent` is `None` or a top-level `SPECIFICATION` key. The
-  three tuple fields are tuples, and may be empty only for a mode authored
-  `proposed` (reading D5). *(closes Stage 30 criterion 1)*
+  three tuple fields `candidate_features`, `intended_rules` and `corpus_cases`
+  are tuples whose elements are `CandidateFeature`, `IntendedRule` and
+  `CorpusCaseExpectation` respectively. No tuple field is required to be
+  non-empty, whatever the authored status (reading D5): `ModeSpec.__post_init__`
+  enforces no emptiness, and the one status consequence of an empty
+  `corpus_cases` (the mode cannot derive `validated`) is AC18's
+  at-least-one-corpus-case clause, not this AC's. *(closes Stage 30 criterion 1)*
 - [ ] **AC18: the derived statuses equal an independent live derivation.**
   (In-suite.) The test recomputes each mode's status without calling
   `derive_status`:
@@ -483,7 +488,7 @@ criterion without the annotation closes none._
   `7e4bb5c`) and is mirrored in `progress.md`'s Stage 30 note. Readings D2–D7 in
   Decisions apply it and add nothing it does not say, except where Decisions
   flags a reading as this spec's own (D2 clean controls, D4 the rendering's
-  columns, D5 empty tuples on `proposed` modes, D7 the real-cohort artifact). If
+  columns, D5 empty tuple fields on any mode, D7 the real-cohort artifact). If
   a human disagrees with any of those four, the matching criterion stays
   unticked with that disagreement as its reason. No new gate is raised for them,
   because each is a record-keeping reading and not a decision the work cannot
@@ -851,12 +856,31 @@ naming `src/segfacet/failure_modes.py` plus its content equalling the live
 `specification_to_dict()` (AC4). For the matrix it is read literally, through the
 `primary_source` field (AC3). This spec's own reading, named in the evidence.
 
-**D5 — criterion 1's "every schema field" for `proposed` modes.** Seven modes
-are authored `proposed` with empty `candidate_features`, `intended_rules` or
-`corpus_cases` by design (item 146's first `proposed` entry, extended at the
-sign-off). "Carries every field" is read as: every dataclass field is present
-with a valid value, required strings are non-empty, and the three tuple fields
-may be empty only on a `proposed` mode. This spec's own reading.
+**D5 — criterion 1's "every schema field" and empty tuple fields.** Several
+modes carry an empty tuple field by design. The seven `proposed` modes (5, 7,
+10–14) have empty `intended_rules` and `corpus_cases` (item 146's first
+`proposed` entry, extended at the sign-off). Two `specified` modes have an empty
+`corpus_cases`: mode 3 (*Split vertebra segment*), whose split fixture is not
+yet authored, and mode 8 (*Semantic mislabelling*), whose swap case and ordering
+detector item 150's sign-off moved to mode 9. Both still derive `implemented`
+through their declaring rules. "Carries every field" is read as: every dataclass
+field is present with a valid value, required strings are non-empty, and each
+tuple field is a tuple of its element type, which may be empty on any mode. An
+empty `corpus_cases` bounds the derived status below `validated` (AC18), not
+below `implemented`. This spec's own reading.
+- **2026-09-15** → Corrected after validation round 1. The earlier reading said
+  the three tuple fields may be empty only on a `proposed` mode, and that the
+  `proposed` modes' empty fields included `candidate_features`. The committed
+  specification contradicts both. Modes 3 and 8 are authored `specified` with
+  `corpus_cases=()` (`src/segfacet/failure_modes.py`, `_MODE_3` and `_MODE_8`),
+  and every one of the sixteen modes, `proposed` included, carries a non-empty
+  `candidate_features`. The new reading holds because it is exactly what the
+  module enforces. `ModeSpec.__post_init__` checks each tuple field's type, its
+  element type and duplicate `rule_id`/`case_id` values, and never its emptiness.
+  Its only status `ValueError` rejects authoring `implemented` or `validated`.
+  `derive_status` requires at least one corpus case for `validated` but none for
+  `implemented`. So a narrower reading, that an empty `corpus_cases` keeps a mode
+  at `specified`, would also be false: modes 3 and 8 derive `implemented`.
 
 **D6 — the queue asks that `feature_catalogue.generated.md` also "names the
 specification as its primary source".** It does not: its note names
