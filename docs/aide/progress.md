@@ -1582,7 +1582,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
 
 **Acceptance.**
 
-- [ ] Every mode in the specification carries every schema field, a status from the
+- [x] Every mode in the specification carries every schema field, a status from the *(AC17/AC18 in-suite (dataclass fields, vocabularies, independent status recomputation all match); AC19/AC20/AC21 replayed in clone 6464b2e: hand-set status='validated' on _MODE_2 rejected by ModeSpec.__post_init__ (names 'ModeSpec 2'); overlap.py declaring modes=(5,15) makes specification_conflicts() name mode 5 (authored 'proposed' but derives 'implemented'); hand-edited mode 16 status_derived='implemented' in the committed JSON fails test_144's AC19 and test_150's AC11 (names only JSON pointer /modes/15/status_derived, not the mode literally -- logged as a finding, since AC19/AC20 already establish the naming clause); all three mutations restored and cmp-confirmed against the working checkout; derived status counts over 16 modes: validated 6, implemented 3, specified 0, proposed 7; validated through a pipeline-detected case 5, through a reconstructed record only 1)*
   four-state vocabulary and a provenance; `implemented` and `validated` are derived from
   live state, and a hand-set status that disagrees with the registry or the corpus fails
   a test naming the mode (**G8**).
