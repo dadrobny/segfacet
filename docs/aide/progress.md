@@ -56,7 +56,7 @@
 | 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | 📋     |
 | 28    | Spinal Curve Model: Formulation, Offset & Orientation                   | G2, G7          | ✅     |
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
-| 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | 🚧     |
+| 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | 📋     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 📋     |
 
@@ -1509,7 +1509,7 @@ per-deliverable provenance.
 
 ---
 
-## Stage 30 — Failure-Mode Specification: the §6 catalogue as an authored source (G2, G7, G8) — 🚧
+## Stage 30 — Failure-Mode Specification: the §6 catalogue as an authored source (G2, G7, G8) — ✅
 
 > **Read after item 150's sign-off** *(roadmap v3.1, 2026-09-15; full note in
 > [`roadmap.md`](roadmap.md))*. D6's review re-organised the catalogue into sixteen modes
@@ -1575,7 +1575,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
 - ✅ **D6** Maintainer sign-off of `failure_modes.generated.md`, entry by entry, with date
   and outcome recorded in the specification module's docstring. Until recorded, the
   remainder of Stage 20 is not queued. *(Item 150)*
-- 🔍 **D7** Stage validation: both artifacts regenerated from a clean tree, every corpus
+- ✅ **D7** Stage validation: both artifacts regenerated from a clean tree, every corpus
   case across both corpora driven and expected equals measured confirmed, derived
   statuses checked against live state, the per-status / per-rung count recorded here as a
   measured number. *(Item 151)*
