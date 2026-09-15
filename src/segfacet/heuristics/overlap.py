@@ -100,19 +100,19 @@ class OverlapRule(Rule):
     # (src/segfacet/synth/coverage_border_overlap.py) designates "overlap"
     # for mode 8 via its Expectation(failure_mode=8, expected_rule_ids={"overlap"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(9,),
+        modes=(15,),
         evidence=(
             "corpus-manifest",
             "tests/corpus/manifest.json's mode8_force_overlap designates "
-            "this rule for mode 9 (overlapping segments) of the catalogue "
-            "signed off at item 150 (2026-09-14). That case is "
+            "this rule for mode 15 (overlapping segments) of the catalogue "
+            "signed off at item 150 (2026-09-14, revised 2026-09-15). That case is "
             "detection=\"reconstructed_record\", not pipeline-detected: a "
             "single-channel integer label map cannot assign two labels to "
             "one voxel, so overlaps[] populates only on a deliberately "
             "corrupted record. Free-form provenance -- item 147 retired "
-            "the reserved 'corpus' evidence tag, and the mode 9 <-> "
+            "the reserved 'corpus' evidence tag, and the mode 15 <-> "
             "overlap evidence claim is the per-edge rung in "
-            "segfacet.failure_modes.SPECIFICATION[9].",
+            "segfacet.failure_modes.SPECIFICATION[15].",
         ),
         consumed_paths=(
             ConsumedPath(

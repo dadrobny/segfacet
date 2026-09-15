@@ -175,19 +175,20 @@ class MislabelRule(Rule):
     # (src/segfacet/synth/identity_ordering_alignment.py), both via
     # Expectation(..., expected_rule_ids={"mislabel"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(6,),
+        modes=(9,),
         evidence=(
             "corpus-manifest",
             "tests/corpus/manifest.json's mode4_relabel_swap designates "
-            "this rule for mode 6 (implausible label sequence) of the "
-            "catalogue signed off at item 150 (2026-09-14) via Detector B "
+            "this rule for mode 9 (out-of-order label sequence) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15) via Detector B "
             "(ordering). Detector A (spline offset) serves NO failure mode "
             "since that sign-off: the offset from the spinal curve is an "
             "anatomy-classification signal (spondylolisthesis, scoliosis), "
             "so its firing on mode1_displace and on the FOV-truncation "
             "condition's fixture mode6_crop_at_border is a recorded "
             "co-detection, and its read paths are classified bookkeeping "
-            "below rather than attributed to mode 6.",
+            "below rather than attributed to mode 9.",
         ),
         consumed_paths=(
             ConsumedPath(

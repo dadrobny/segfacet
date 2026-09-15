@@ -277,16 +277,17 @@ class FragmentationRule(Rule):
     # (src/segfacet/synth/component_shape.py), all via
     # Expectation(..., expected_rule_ids={"fragmentation"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(3,),
+        modes=(1, 4),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode2_fragment and "
-            "mode3_inject_islands both designate this rule for mode 3 "
-            "(disconnected components / islands, any size ratio) of the "
-            "catalogue signed off at item 150 (2026-09-14) -- the "
-            "component-count detector for the first, the stray-island "
-            "detector for the second. The per-mode evidence claim is the "
-            "per-edge rung in segfacet.failure_modes.SPECIFICATION[3].",
+            "tests/corpus/manifest.json's mode2_fragment designates this "
+            "rule for mode 1 (segmentation accuracy: a vertebra cut into "
+            "large same-label pieces) and mode3_inject_islands for mode 4 "
+            "(islands) of the catalogue signed off at item 150 "
+            "(2026-09-14, revised 2026-09-15) -- the Fragmentation: "
+            "detector for the first, the Rogue island(s): detector for the "
+            "second. The per-mode evidence claims are the per-edge rungs in "
+            "segfacet.failure_modes.SPECIFICATION[1] and [4].",
         ),
         consumed_paths=(
             ConsumedPath(

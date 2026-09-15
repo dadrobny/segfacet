@@ -294,11 +294,12 @@ _CLEAN_MODE_NAME: str = "clean control (no failure)"
 
 #: The implausible-tissue failure mode (item 146; mode 9 until the item-150
 #: sign-off re-numbered it to 10 on 2026-09-14), authored in
-#: ``segfacet.failure_modes.SPECIFICATION[10]``. Written here as a literal, not
+#: ``segfacet.failure_modes.SPECIFICATION[16]`` (16 since the 2026-09-15
+#: revision of that sign-off). Written here as a literal, not
 #: imported: this generator is the corpus's declared ground truth and must not
 #: acquire a dependency on the specification module it feeds. AC23 pins the two
 #: against each other.
-_IMPLAUSIBLE_TISSUE_MODE_ID: int = 10
+_IMPLAUSIBLE_TISSUE_MODE_ID: int = 16
 _IMPLAUSIBLE_TISSUE_MODE_NAME: str = "implausible tissue under a label"
 
 

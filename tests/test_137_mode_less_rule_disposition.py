@@ -22,15 +22,18 @@ Covers Acceptance Criteria AC1-AC18:
         ``pending_reason == ""`` -- nothing ships pending.
 - AC2:  ``bounds`` declares an exact analytic mode tuple -- ``(2,)`` at item
         137, ``(1, 2, 3)`` after the item-150 sign-off re-assigned the ids
-        and widened the declaration.
+        and widened the declaration, ``(1, 2, 3, 4)`` on its 2026-09-15
+        revision.
 - AC3:  ``reference_delta`` likewise -- ``(1, 2)`` at item 137 (corrected
         2026-09-02, commit b1c593c, from a false-premised ``(2,)``; see the
-        module note above), ``(1, 2, 3, 5)`` after the sign-off.
+        module note above), ``(1, 2, 3, 5)`` after the sign-off,
+        ``(1, 2, 3, 4, 8)`` on its 2026-09-15 revision.
 - AC4:  both analytic declarations are analytic (``"analytic" in evidence``,
         ``"corpus" not in evidence``) and name the mechanism (>= 40 chars).
 - AC5:  ``intensity`` / ``intensity_reference_delta`` are dispositioned, not
         pending -- mode-less at item 137, declaring mode 9 from item 146 and
-        mode 10 after the item-150 re-assignment of ids.
+        mode 10 after the item-150 re-assignment of ids, mode 16 on the
+        2026-09-15 revision.
 - AC6:  both mode-less reasons are substantive (>= 120 chars, contain "§6").
 - AC7:  ``intensity``'s reason cites the corpus manifest path.
 - AC8:  the cited manifest evidence actually holds (no ``failure_mode`` key,
@@ -45,7 +48,7 @@ Covers Acceptance Criteria AC1-AC18:
 - AC13: every entry consumed by ``bounds``/``reference_delta`` carries mode 2
         in ``failure_modes``.
 - AC14: every intensity-only, non-anchor entry is honest about what it
-        evidences -- ``(10,)``/``("rule_declaration",)`` where the rule reads
+        evidences -- ``(16,)``/``("rule_declaration",)`` where the rule reads
         it as a signal, ``()``/``("rule_bookkeeping",)`` where it does not.
 - AC15: both committed catalogue artifacts regenerate byte-identically,
         ``schema_version`` still ``"1.1"`` (``"1.2"`` since item 148,
@@ -55,7 +58,7 @@ Covers Acceptance Criteria AC1-AC18:
 - AC17: vision.md §6 stays at exactly eight numbered titles (provenance
         since the item-150 sign-off, not ids), and ``MODE_ANCHOR_PATHS``
         invents no mode id of its own -- its keys are signed-off mode ids
-        ({1, 3, 4, 5, 6, 9}), with the ``fov_truncation`` condition's anchor
+        ({1, 4, 6, 8, 9, 15} on the 2026-09-15 revision), with the ``fov_truncation`` condition's anchor
         held separately in ``CONDITION_ANCHOR_PATHS``.
 - AC18: the disposition is metadata only -- replacing any of the four
         declarations leaves ``run_rules`` unchanged.
@@ -119,7 +122,10 @@ _ANALYTIC_RULES = ("bounds", "reference_delta")
 # (1, 2, 3, 5). Item 137's claim is unchanged in kind: each analytic rule
 # declares an authored, exact mode tuple, on an analytic (not corpus)
 # evidence sentence.
-_ANALYTIC_DECLARED_MODES = {"bounds": (1, 2, 3), "reference_delta": (1, 2, 3, 5)}
+# Revised 2026-09-15 (sixteen-mode catalogue): bounds (1, 2, 3, 4) --
+# accuracy, fused, split, islands; reference_delta (1, 2, 3, 4, 8) -- the
+# same four plus semantic mislabelling.
+_ANALYTIC_DECLARED_MODES = {"bounds": (1, 2, 3, 4), "reference_delta": (1, 2, 3, 4, 8)}
 # Item 146 (2026-09-03): no rule ships mode-less any more -- intensity /
 # intensity_reference_delta move from mode-less to declaring §6 mode 9 -- so
 # this roll call becomes empty rather than removed (its consumers below are
@@ -305,9 +311,10 @@ def test_ac5_mode_less_rule_declares_no_modes_not_pending(rule_id):
 
     Reconciled (item 150, 2026-09-14): the sign-off re-assigned the ids, and
     "implausible tissue under a label" is now mode 10; the rules' disposition
-    is otherwise untouched."""
+    is otherwise untouched. Revised 2026-09-15: the sixteen-mode catalogue
+    re-numbers it mode 16."""
     decl = _RULES[rule_id].mode_declaration
-    assert decl.modes == (10,)
+    assert decl.modes == (16,)
     assert decl.pending_reason == ""
     assert decl.mode_less_reason == ""
 
@@ -383,7 +390,7 @@ def test_ac9_analytic_modes_are_within_the_specification_key_set():
     catalogue of real modes as ``feature_docs.MODE_ANCHOR_PATHS``'s key set,
     which at the time was exactly §6's 1-8. The sign-off separates the two:
     ``MODE_ANCHOR_PATHS`` now keys only the modes that have a Stage-18 metric
-    anchor ({1, 3, 4, 5, 6, 9}), while the catalogue of modes is
+    anchor ({1, 4, 6, 8, 9, 15} on the 2026-09-15 revision), while the catalogue of modes is
     ``segfacet.failure_modes.SPECIFICATION`` -- the same source
     ``catalogue.rule_declaration_conflicts()`` checks declarations against.
     Re-pointed there, so an analytic rule declaring an unlisted mode (e.g.
@@ -633,7 +640,8 @@ def test_ac14_intensity_only_non_anchor_entries_are_honestly_mode_less():
     gate or identify cannot evidence the mode it declares elsewhere.
 
     Reconciled again (item 150, 2026-09-14): the id only -- "implausible
-    tissue under a label" is mode 10 after the sign-off."""
+    tissue under a label" is mode 10 after the sign-off, mode 16 after its
+    2026-09-15 revision."""
     catalogue = _catalogue()
     import segfacet.feature_docs as feature_docs_module
 
@@ -653,7 +661,7 @@ def test_ac14_intensity_only_non_anchor_entries_are_honestly_mode_less():
         role_by_rule = dict(entry.mode_roles)
         roles = {role_by_rule[rid] for rid in entry.consuming_rules}
         if roles == {"signal"}:
-            assert entry.failure_modes == (10,), entry.path
+            assert entry.failure_modes == (16,), entry.path
             assert entry.mode_evidence == ("rule_declaration",), entry.path
             signal_checked += 1
         elif roles == {"bookkeeping"}:
@@ -734,7 +742,12 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     attribution, not the leaf set -- and the three buckets item 137 pinned as
     *absent* (``("rule_mode_less",)`` alone, and its two combinations with
     ``"rule_declaration"``) are still absent, which is why they are re-asserted
-    rather than dropped."""
+    rather than dropped.
+
+    Re-measured (item 150, revised catalogue 2026-09-15): ``fragmentation``
+    now declares modes (1, 4), so its five signal paths join mode 1 (9 -> 14);
+    mode 2's count is unchanged at 14; the intensity rules' mode is re-numbered
+    16 (still 2 paths). The ``mode_evidence`` distribution does not move."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -742,15 +755,15 @@ def test_adv_measured_artifact_movement_counts_from_spec():
 
     # The two analytic rules' own declared modes ...
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 9
+    assert mode1_count == 14
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     assert mode2_count == 14
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
-    # sign-off re-assigned the ids, 10 after.
-    mode10_count = sum(1 for e in entries if 10 in e.failure_modes)
-    assert mode10_count == 2
+    # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
+    mode16_count = sum(1 for e in entries if 16 in e.failure_modes)
+    assert mode16_count == 2
 
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
@@ -850,7 +863,9 @@ def test_ac17_mode_anchor_paths_keys_are_signed_off_mode_ids():
     import segfacet.feature_docs as feature_docs_module
 
     anchor_keys = set(feature_docs_module.MODE_ANCHOR_PATHS)
-    assert anchor_keys == {1, 3, 4, 5, 6, 9}
+    # Revised catalogue (2026-09-15): accuracy, islands, not segmented,
+    # semantic mislabelling, out-of-order sequence, overlapping segments.
+    assert anchor_keys == {1, 4, 6, 8, 9, 15}
     assert anchor_keys <= set(fm.SPECIFICATION)
 
     condition_keys = set(feature_docs_module.CONDITION_ANCHOR_PATHS)

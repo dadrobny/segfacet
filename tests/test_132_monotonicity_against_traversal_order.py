@@ -493,11 +493,13 @@ def test_ac19_fixtures_regenerate_byte_identically(tmp_path):
 def test_ac20_test_040_detection_partition_reconciled():
     import test_040_synthetic_corpus as t040
 
-    # Re-keyed 2026-09-14 (item 150): the signed-off catalogue renumbered the
-    # modes -- overlap is mode 9, and the pipeline-only set is the remaining
-    # designated modes plus the mode-less clean/condition cases.
-    assert t040._RECONSTRUCTED_MODES == {9}
-    assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 3, 4, 6}
+    # Re-keyed 2026-09-15 (item 150's catalogue revision): the modes were
+    # renumbered -- overlap is mode 15, and the pipeline-only set is the
+    # remaining designated modes plus the mode-less clean/condition cases.
+    # Mode 10 (skipped level label) has no corpus case; mode5_remove_level
+    # is mode 6's.
+    assert t040._RECONSTRUCTED_MODES == {15}
+    assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 4, 6, 9}
     t040.test_ac8_modes_4_8_reconstructed_record_rest_pipeline()
 
 
@@ -509,9 +511,10 @@ def test_ac20_test_040_detection_partition_reconciled():
 
 def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
     """The swap case's failure-mode id is read from the manifest rather than
-    hard-coded: item 150 (2026-09-14) renumbered the catalogue, moving
-    ``mode4_relabel_swap`` from mode 4 to mode 6 (implausible label sequence)
-    and overlap from mode 8 to mode 9. What AC21 pins is that *this case's*
+    hard-coded: item 150 renumbered the catalogue, moving
+    ``mode4_relabel_swap`` from mode 4 to mode 6 on 2026-09-14 and then to
+    mode 9 (out-of-order label sequence) on 2026-09-15, and overlap from
+    mode 8 to 9 and then 15. What AC21 pins is that *this case's*
     mode is claimed pipeline-detectable at sensitivity 1.0, not the number
     that mode happened to carry in 2026-08-31's numbering."""
     import test_057_acceptance_stage7 as t057

@@ -111,16 +111,16 @@ class SequenceRule(Rule):
     # "sequence" for mode 7 via its Expectation(failure_mode=7,
     # expected_rule_ids={"sequence"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(6,),
+        modes=(9,),
         evidence=(
             "corpus-manifest",
             "tests/corpus/manifest.json's mode7_sequence_break designates "
-            "this rule for mode 6 (implausible label sequence) of the "
-            "catalogue signed off at item 150 (2026-09-14): the fixture "
-            "relabels one vertebra to the transitional label T13, and this "
-            "rule fires on the resulting non-monotonic sequence. The mode "
-            "6 <-> sequence evidence claim is the per-edge rung in "
-            "segfacet.failure_modes.SPECIFICATION[6].",
+            "this rule for mode 9 (out-of-order label sequence) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15): the fixture relabels one vertebra to the "
+            "transitional label T13, and this rule fires on the resulting "
+            "non-monotonic sequence. The mode 9 <-> sequence evidence claim "
+            "is the per-edge rung in segfacet.failure_modes.SPECIFICATION[9].",
         ),
         consumed_paths=(
             ConsumedPath(

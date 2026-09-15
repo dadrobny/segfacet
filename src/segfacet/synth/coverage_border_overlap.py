@@ -216,10 +216,10 @@ class RemoveLevelPerturbation(Perturbation):
             detail=(
                 f"remove_level: deleted interior level {level_name} "
                 f"(label {target}) from the span {labels!r}. Mode 6 "
-                "(implausible label sequence) of the catalogue signed off at "
-                "item 150: the missing interior label is a label-sequence "
-                "finding; the unsegmented vertebra it implies is mode 4's, "
-                "whose fixture is remove_level_relabel."
+                "(vertebra not segmented) of the catalogue signed off at "
+                "item 150: the vertebra is missed and every remaining label "
+                "is right, so the gap in the label sequence is that missed "
+                "vertebra's signature, not a skipped label (mode 10)."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
@@ -288,8 +288,8 @@ class RemoveLevelRelabelPerturbation(Perturbation):
 
         level_name = _level_name(target)
         expectation = Expectation(
-            failure_mode=4,
-            failure_mode_name=FAILURE_MODE_NAMES[4],
+            failure_mode=6,
+            failure_mode_name=FAILURE_MODE_NAMES[6],
             expected_rule_ids=frozenset(),
             expected_labels=frozenset(),
             expected_verdict="pass",
@@ -297,7 +297,7 @@ class RemoveLevelRelabelPerturbation(Perturbation):
                 f"remove_level_relabel: deleted interior level {level_name} "
                 f"(label {target}) and renumbered the caudal labels "
                 f"{renumbered!r} so the label sequence stays continuous over "
-                "the spatial gap. Mode 4 (vertebra not segmented) of the "
+                "the spatial gap. Mode 6 (vertebra not segmented) of the "
                 "catalogue signed off at item 150; not detected by any "
                 "shipped rule (the doubled centroid spacing is a "
                 "hypothesised signal), recorded as expected."
@@ -527,8 +527,8 @@ class ForceOverlapPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=9,
-            failure_mode_name=FAILURE_MODE_NAMES[9],
+            failure_mode=15,
+            failure_mode_name=FAILURE_MODE_NAMES[15],
             expected_rule_ids=frozenset({"overlap"}),
             expected_labels=frozenset({target, neighbour}),
             expected_verdict="flagged-for-review",

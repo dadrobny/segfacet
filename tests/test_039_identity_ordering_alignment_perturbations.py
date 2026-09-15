@@ -405,13 +405,12 @@ def test_ac12_relabel_swap_expectation_well_formed():
         clean.seg_img, seed=0
     )
     exp = result.expectation
-    # Item 150's sign-off (2026-09-14): swapping two adjacent identities
-    # breaks the label *sequence*, so this case moved from the old mode 4 to
-    # mode 6, "implausible label sequence". The detector that fires is
-    # ``mislabel``'s ordering detector, which the sign-off likewise assigned
-    # to mode 6.
-    assert exp.failure_mode == 6
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
+    # Item 150's catalogue revision (2026-09-15): swapping two adjacent
+    # identities puts the label sequence out of order, so this case is mode
+    # 9, "out-of-order label sequence" (a child of mode 8). The detector
+    # that fires is ``mislabel``'s ordering detector, which declares mode 9.
+    assert exp.failure_mode == 9
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[9]
     assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"mislabel"})
     assert exp.expected_labels == frozenset({21, 22})
@@ -493,10 +492,10 @@ def test_ac18_sequence_break_expectation_well_formed_and_pipeline_agrees():
     clean = _clean()
     result = SequenceBreakPerturbation().apply(clean.seg_img, seed=0)
     exp = result.expectation
-    # Item 150 (2026-09-14): "implausible label sequence" is mode 6 in the
-    # signed-off catalogue (it was 7 under vision.md §6's numbering).
-    assert exp.failure_mode == 6
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
+    # Item 150 (2026-09-15): an out-of-order label sequence is mode 9 in the
+    # revised catalogue (it was 7 under vision.md §6's numbering).
+    assert exp.failure_mode == 9
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[9]
     assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"sequence"})
     assert exp.expected_labels == frozenset({28})

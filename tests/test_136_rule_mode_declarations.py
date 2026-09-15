@@ -93,17 +93,22 @@ def _catalogue():
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # The six rules item 136 dispositioned from committed-corpus corroboration,
-# with the modes each one declares after the item-150 sign-off (2026-09-14).
+# with the modes each one declares after the item-150 sign-off, as revised
+# 2026-09-15 (sixteen modes: coverage carries 6 "vertebra not segmented" --
+# mode 10 is now "skipped level label", label-only and proposed, with no
+# rule; fragmentation carries 1 "segmentation
+# accuracy" and 4 "islands"; mislabel and sequence carry 9 "out-of-order
+# label sequence"; overlap carries 15 "overlapping segments").
 # `border` is now mode-less on purpose: it records the `fov_truncation`
 # condition (`segfacet.failure_modes.CONDITIONS`), which is not a failure
 # mode, so it maps to the empty tuple here and is asserted mode-less below.
 _CORROBORATED = {
     "border": (),
-    "coverage": (4, 6),
-    "fragmentation": (3,),
-    "mislabel": (6,),
-    "overlap": (9,),
-    "sequence": (6,),
+    "coverage": (6,),
+    "fragmentation": (1, 4),
+    "mislabel": (9,),
+    "overlap": (15,),
+    "sequence": (9,),
 }
 _CONTESTED = ("bounds", "intensity", "reference_delta", "intensity_reference_delta")
 
@@ -298,9 +303,13 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
 
     # (rule_id, mode) pairs the corpus designates that the rule does NOT
     # declare, each one a co-detection the sign-off records deliberately.
+    # Revised 2026-09-15: mode 2 is "fused vertebra segments" (fuse_adjacent),
+    # which neither coverage nor fragmentation declares; mode 1 still carries
+    # mode1_displace, which mislabel detects only as a co-detection
+    # (fragmentation's mode-1 designation is now declared, via mode2_fragment).
     expected_co_detections = {
         ("coverage", 2),  # fuse_adjacent fires coverage alongside fragmentation
-        ("fragmentation", 2),  # ... and fragmentation is mode 2's own intended rule
+        ("fragmentation", 2),  # ... and fragmentation, neither declaring mode 2
         ("mislabel", 1),  # mode1_displace is detected only as a co-detection
     }
 

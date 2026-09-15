@@ -78,7 +78,7 @@
           32767
         ]
       },
-      "failure_mode": 10,
+      "failure_mode": 16,
       "failure_mode_name": "implausible tissue under a label",
       "fill": {
         "mean": 3000,
@@ -119,7 +119,7 @@
           100
         ]
       },
-      "failure_mode": 10,
+      "failure_mode": 16,
       "failure_mode_name": "implausible tissue under a label",
       "fill": {
         "mean": 40,
@@ -160,7 +160,7 @@
           0
         ]
       },
-      "failure_mode": 10,
+      "failure_mode": 16,
       "failure_mode_name": "implausible tissue under a label",
       "fill": {
         "mean": 0,

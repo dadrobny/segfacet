@@ -110,6 +110,10 @@ item 151's, and it requires a clean-tree run this item does not perform).
 > and reconcile the tests that pinned the old catalogue. It still did not edit
 > `vision.md` or `roadmap.md`, tick any Stage-30 criterion, or change a rule's
 > behaviour. The walkthrough below records what each entry became and why.
+> On 2026-09-15, with the gate still awaiting, the maintainer continued the
+> same review inside the same widened fence: paired sub-modes split into
+> single defects (sixteen modes), the schema gained `scope`, and the rule
+> declarations, case `failure_mode` values and anchors moved again.
 
 ## Acceptance Criteria
 
@@ -644,10 +648,13 @@ To be updated during implementation.
 
 ### Stage-30 maintainer sign-off
 
-**Date:** 2026-09-14. **Outcome:** accepted with changes — the maintainer read
-all ten entries of the item-149 rendering (`docs/aide/failure_modes.generated.md`
-as committed at `a27d083`) with the agent, one mode at a time, and re-organised
-the catalogue. The disposition literal recorded in the module docstring is
+**Date:** 2026-09-14, continued 2026-09-15. **Outcome:** accepted with
+changes — the maintainer read all ten entries of the item-149 rendering
+(`docs/aide/failure_modes.generated.md` as committed at `a27d083`) with the
+agent, one mode at a time, and re-organised the catalogue (applied in
+`3cb522f`); on 2026-09-15 the maintainer revised that rendering once more,
+splitting every paired sub-mode into single defects (ten entries became
+sixteen). The disposition literal recorded in the module docstring is
 `accepted with changes`.
 
 **Facets reviewed per entry, and the `ModeSpec` / `IntendedRule` /
@@ -688,9 +695,34 @@ discriminator → `discriminator`; expected firing → `expected_firing`; severi
 8. The Stage-18/29 eval harness stays on the pre-sign-off ids for one more
    queue (`eval.per_mode.LEGACY_STAGE18_MODE_NAMES`), documented as a known
    divergence — re-keying it needs re-measured ladder constants.
+9. *(2026-09-15)* A sub-mode names one defect, never a pair of converse
+   defects, so that every shipped detector serves at most one mode: fused /
+   split, islands / holes, not segmented / hallucinated, and collapsed /
+   duplicated each become two ids, and the implausible label sequence becomes
+   three (out-of-order and skipped level label, both severity `fail`;
+   unprompted numbering variant, `flagged-for-review`). A gap in the label
+   sequence left by a vertebra that was not segmented is mode 6's, never
+   mode 10's: mode 10 is only a skipped label on segmented vertebrae. The
+   generic
+   volume proxies `bounds` and `reference_delta` necessarily stay declared on
+   several modes. Ids were re-assigned once more; the review had not closed,
+   so the "stable from this sign-off on" rule of decision 1 starts at the
+   revised ids.
+10. *(2026-09-15)* Fused and split are defined by a substantial part of a
+    vertebra under a neighbour's label; islands and holes by small same-label
+    topology defects near the vertebra (rarely a larger distant blob, such as
+    background or a device). A vertebra cut into large same-label pieces by a
+    missing slab of its own body (`mode2_fragment`) is neither, so it and
+    `fragmentation`'s `Fragmentation:` detector sit at the parent, mode 1. A
+    duplicated label is the same label on non-adjacent vertebrae anywhere in
+    the sequence; adjacent vertebrae sharing a label are a fusion.
+11. *(2026-09-15)* `ModeSpec.scope` (and `ConditionSpec.scope`) records
+    whether a finding is about one `vertebra` or about the labels along the
+    `spine` (`failure_modes.SCOPES`); schema version 2.1.
 
 **Out-of-scope observations** — each appended verbatim to `docs/aide/insights.md`
-with provenance `item 150, 2026-09-14`:
+with provenance `item 150`, dated the day it was raised (the entries raised on
+2026-09-14 name that pass's mode ids):
 
 - knowledge — the per-label spline offset (`stage3.per_label_offsets[].offset_mm`) is an anatomy-classification signal (spondylolisthesis, scoliosis grading), not a failure signal: after the item-150 sign-off `mislabel`'s Detector A serves no failure mode, its read paths are classified `bookkeeping`, and the feature belongs in a clinical-descriptor group when Stage 27 re-taxonomises the feature schema
 - gap — the Stage-18/29 eval harness (`segfacet.eval.per_mode`, `severity_ladder`, `per_mode_cohort`, their JSON schemas and the `test_099`-`test_102`/`test_109`/`test_125`/`test_135` pins) is still keyed by the pre-sign-off mode ids 1-8, frozen as `eval.per_mode.LEGACY_STAGE18_MODE_NAMES`; re-keying it to the signed-off catalogue needs re-measured ladder constants (`KNOWN_CROSS_MODE_COUPLINGS`, `RECORDED_MARGINS`), and the `displace` ladder then corresponds to no mode at all. One follow-up item, after the vision §6 re-issue
@@ -699,26 +731,38 @@ with provenance `item 150, 2026-09-14`:
 - gap — mode 2's lumbosacral transitional-anatomy sub-type (sacralised L5, lumbarised S1) wants an intervertebral-disc label channel -- disc labels lying inside the sacrum label are the hypothesised signal -- which `segfacet.labels.DEFAULT_LABEL_MAP` does not carry; needs a decision on a second label channel before any rule can read it
 - knowledge — `synth.component_shape.FusePerturbation` fuses unbridged (the absorbed neighbour's voxels keep their gap), so `fuse_adjacent` is detected only by co-detections (fragmentation on two bodies under one label, coverage on the absorbed level); a bridged fuse operator that fills the inter-body gap is the honest fixture for mode 2's own bounds / reference_delta volume proxy, and would let mode 2 validate
 - gap — per-detector attribution is now a live need, not a nicety: `mislabel` has one detector serving mode 6 and one serving no mode, and the only way item 148's per-path schema can say so is to classify Detector A's `offset_mm`/`dx_mm`/`dy_mm`/`dz_mm` as `bookkeeping`, so the catalogue renders a detector's firing signal under `rule_bookkeeping`. The rule-side detector ids insight 50 asks for would replace that workaround
+- knowledge — the item-150 insight lines dated 2026-09-14 name mode ids of that day's catalogue, which the 2026-09-15 revision of the same review re-assigned: old 1 → 1, old 2 (fused or split) → 2 fused and 3 split, old 3 (islands) → 4, old 4 (not segmented) → 6, old 5 (mislabelling) → 8, old 6 (implausible sequence) → 9 out-of-order, 10 missing interior level and 11 unprompted variant, old 7 (shifted) → 12, old 8 (collapsed or duplicated) → 13 collapsed and 14 duplicated, old 9 (overlap) → 15, old 10 (tissue) → 16; new are 5 (holes) and 7 (hallucinated vertebra). `mode2_fragment` moved from old 3 to mode 1. Read those lines through this map
+- gap — detectors and fixtures the 2026-09-15 split asked for that nothing provides: an enclosed-cavity count/volume or Euler-characteristic feature for mode 5 (holes), an above-expected-count check for mode 7 (hallucinated vertebra; `coverage`'s count check tests only a shortfall), and a split operator that reassigns part of one label to its neighbour so mode 3 (split vertebra segment) has a corpus case. Each is a feature, rule or corpus item, not a specification edit
+- knowledge — mode 10 (missing interior level) sits under semantic mislabelling (mode 8) but, unlike its siblings, need not contain a mislabelling: a missed vertebra with correct labels leaves the same gap. The one-tier hierarchy has no label-sequence parent to hold it, so its discriminator records the exception; a top-level label-sequence mode is the alternative if more sequence modes without a mislabelling appear
+- knowledge — superseding the entry above: the maintainer resolved it the same day by narrowing mode 10 to a skipped level label on segmented vertebrae (renamed *Skipped level label*, severity `fail`, `proposed`), so it always contains a mislabelling; a label gap left by a missed vertebra is mode 6's, which now carries `coverage`'s interior-gap detector and `mode5_remove_level`. What separates the two from the label map is the centroid spacing across the gap, which no rule reads; a skip-relabel fixture and a spacing-aware detector are owed to mode 10
 
-**Entry-by-entry** (one line per `SPECIFICATION` key; `changed` lines name the
-authored fields that moved):
+**Entry-by-entry** (one line per `SPECIFICATION` key, under the ids of the
+2026-09-15 revision; `changed` lines name the authored fields that moved
+relative to the item-149 rendering):
 
-- Mode 1 — changed: name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, mechanism. The seed entry "label not aligned with the vertebra it names" is **retired** (covered by semantic mislabelling; its signal is not a failure signal) and id 1 is re-used for the new catch-all *Segmentation accuracy (over-/under-segmentation)*: GT-relative, `needs-ground-truth`, no rule of its own beyond the `bounds`/`reference_delta` proxies, sub-analysis (boundary-band thickness, local blob volume, spatial distribution) recorded as hypothesised features only. `mode1_displace` stays as its fixture, expecting `{mislabel}` as a co-detection by the mode-less offset detector.
-- Mode 2 — changed: name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, parent, mechanism. Split out of the seed "over-/under-segmentation": *Fused or split vertebra segments*, defined by label-to-GT-vertebra correspondence, sub-mode of 1, observable via label-map proxies (to be proven: centroid spacing, spline shape and leave-one-out change, surface topology, metrics under split/merge candidates), with the lumbosacral transitional-anatomy sub-type named. New fixture `fuse_adjacent` expects `{coverage, fragmentation}` — co-detections, so the mode derives `implemented`.
-- Mode 3 — changed: definition, discriminator, candidate_features, corpus_cases, parent. *Disconnected components / islands* now covers any component-size ratio (a label in two large pieces is a connectivity defect), so `mode2_fragment` and `fragmentation`'s component detector move here; island distance from the main body is the new hypothesised feature (the tolerated island size grows with distance; border contact is irrelevant).
-- Mode 4 — changed: name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, parent, mechanism. *Vertebra not segmented*, `needs-ground-truth`, sub-mode of 1. The missing-interior-label detector and `mode5_remove_level` move to mode 6 (a label-sequence finding); the mode keeps `coverage`'s opt-in span/count checks and gains the fixture `remove_level_relabel` (vertebra removed, labels renumbered to stay continuous), which no shipped rule detects — expected set empty, recorded as "not detected today". Hypothesised: extrapolating centroids toward the image face, and a scan boundary with no terminal label.
-- Mode 5 — changed: definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, mechanism. *Semantic mislabelling* covers any number of vertebrae and a still-valid sequence; single-channel-observable only through the per-level geometry proxy (`reference_delta`), with the whole-sequence shift split off as mode 7. The swap case and `mislabel`'s ordering detector move to mode 6, so this mode has no corpus case and derives `implemented`. Severity stays flagged-for-review.
-- Mode 6 — changed: name, definition, discriminator, severity, intended_rules, corpus_cases, evidence_rung, parent, mechanism. *Implausible label sequence*, sub-mode of 5, always containing at least one mode-5 mislabelling: out-of-order levels, a missing interior level, or a valid-but-unprompted numbering variant (T13/L6 in an unconfigured scan). Severity `fail` for an out-of-order sequence (a label is certainly wrong); the unprompted variant is flagged and its detector is a candidate feature, not a rule. Three detectors serve it (`sequence`, `mislabel` ordering, `coverage` interior gap) and three fixtures (`mode4_relabel_swap`, `mode5_remove_level`, `mode7_sequence_break`); the `sequence` edge stays `needs-real-data` for the fixture generator's single-relabel cap.
-- Mode 7 — changed: id, name, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, status, parent, mechanism. New entry *Shifted label sequence*: every label offset by a constant, sequence internally valid, decidable only with an external vertebra classifier (spine section, rib attachment, C2/sacrum counting reference) — `needs-external-classifier`, `proposed`, sub-mode of 5.
-- Mode 8 — changed: id, definition, discriminator, candidate_features, parent, mechanism. *Collapsed or duplicated label set* (was seed mode 10) becomes centroid-based: collapsed = centroids closer than a fraction of the expected spacing (the "exact centroid" wording relaxed), duplicated = two centroids under one label (two whole vertebrae a spacing apart — not an island, which is smaller, nor a fusion, which is adjacent). Sub-mode of 5, `proposed`; per-component centroids named as the missing feature.
-- Mode 9 — changed: id, discriminator. *Overlapping segments* (was seed mode 8): content confirmed as rendered; the id moved and the discriminator now lists modes 1-8 and the external-input classes.
-- Mode 10 — changed: id, short_name, discriminator. *Implausible tissue under a label* (was mode 9): content confirmed as rendered; the id moved, the manifest paraphrase is lower-cased to match its siblings, and the discriminator now spans modes 1-9.
-- Condition fov_truncation — new: the seed mode 6 "partial vertebra at the image border" retired into `CONDITIONS`: a vertebra at the FOV edge touches an image face, its geometry and centroid are impacted to a varying degree, and many rules cannot be applied to it. `border` records it (mode-less, paths `condition-signal`); `mode6_crop_at_border` is its fixture, still measuring `{border, mislabel}`.
+- Mode 1 — changed: name, scope, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, mechanism. The seed entry "label not aligned with the vertebra it names" is **retired** (covered by semantic mislabelling; its signal is not a failure signal) and id 1 is re-used for the new catch-all *Segmentation accuracy (over-/under-segmentation)*: GT-relative, `needs-ground-truth`, sub-analysis (boundary-band thickness, local blob volume, spatial distribution) recorded as hypothesised features. `mode1_displace` stays as a co-detection by the mode-less offset detector; on 2026-09-15 `mode2_fragment` and `fragmentation`'s `Fragmentation:` detector moved here (a vertebra cut into large same-label pieces is neither a split nor an island), so the mode derives `validated`.
+- Mode 2 — changed: name, scope, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, parent, mechanism. *Fused vertebra segments*, sub-mode of 1: one segment covers a substantial part of two or more adjacent vertebrae, with the sacralised-L5 sub-type. Observable via the over-range `bounds`/`reference_delta` proxies (to be proven). Fixture `fuse_adjacent` expects `{coverage, fragmentation}` — co-detections by modes 1's and 10's detectors, so the mode derives `implemented`.
+- Mode 3 — changed: id, name, scope, definition, discriminator, candidate_features, intended_rules, corpus_cases, parent, mechanism. New entry *Split vertebra segment* (split from fused on 2026-09-15): a substantial part of one vertebra carries a neighbour's label, with the lumbarised-S1 sub-type; under-range `bounds`/`reference_delta` proxies, no corpus case yet; derives `implemented`.
+- Mode 4 — changed: id, name, scope, definition, discriminator, candidate_features, corpus_cases, parent, mechanism. *Islands (disconnected components)* (was seed mode 3): typically small islands near the vertebra from image noise, rarely larger distant blobs (background, devices); island distance from the main body grades the finding. `mode3_inject_islands` and the `Rogue island(s):` detector; derives `validated`.
+- Mode 5 — changed: id, name, scope, definition, discriminator, observability, candidate_features, status, parent, mechanism. New entry *Holes (enclosed background)* (2026-09-15): background enclosed inside a segment where the vertebra is bone, beyond the vertebral foramen; `proposed`, no rule and no extracted feature.
+- Mode 6 — changed: id, name, scope, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, parent, mechanism. *Vertebra not segmented* (was seed mode 5), `needs-ground-truth`, sub-mode of 1, scope `spine`. Covers a missed vertebra whether the remaining labels are kept or renumbered: `coverage`'s interior-gap detector with `mode5_remove_level` (vertebra deleted, labels kept) drives it end-to-end, so the mode derives `validated`; the opt-in span/count checks stay `needs-real-data`, and `remove_level_relabel` (labels renumbered to stay continuous) is detected by no shipped rule — expected set empty, recorded as "not detected today".
+- Mode 7 — changed: id, name, scope, definition, discriminator, observability, candidate_features, status, parent, mechanism. New entry *Hallucinated vertebra* (2026-09-15): a segment with its own vertebra label where no vertebra exists (rib, ilium, device, background), the converse of mode 6; `proposed`.
+- Mode 8 — changed: id, scope, definition, discriminator, observability, candidate_features, intended_rules, corpus_cases, mechanism. *Semantic mislabelling* (was seed mode 4) covers any number of vertebrae and a still-valid sequence; single-channel-observable only through the per-level geometry proxy (`reference_delta`). The swap case and `mislabel`'s ordering detector are mode 9's, so this mode has no corpus case and derives `implemented`.
+- Mode 9 — changed: id, name, scope, definition, discriminator, severity, intended_rules, corpus_cases, evidence_rung, parent, mechanism. *Out-of-order label sequence*, sub-mode of 8, severity `fail` (a label is certainly wrong): `sequence` and `mislabel`'s ordering detector, fixtures `mode4_relabel_swap` and `mode7_sequence_break`; the `sequence` edge stays `needs-real-data` for the fixture generator's single-relabel cap. Split from the implausible label sequence on 2026-09-15.
+- Mode 10 — changed: id, name, scope, definition, discriminator, candidate_features, status, severity, parent, mechanism. New entry *Skipped level label* (split from the implausible label sequence on 2026-09-15): every vertebra segmented but the labels skip a level, so every label past the skip is wrong — severity `fail`. A missed vertebra is mode 6's, so `coverage`'s interior-gap detector (which cannot tell the two apart) and `mode5_remove_level` serve mode 6; this mode is `proposed`, awaiting a spacing-aware detector and a skip-relabel fixture.
+- Mode 11 — changed: id, name, scope, definition, discriminator, candidate_features, status, parent, mechanism. New entry *Unprompted numbering variant* (split from the implausible label sequence on 2026-09-15): a transitional label such as T13 or L6 in canonical order in a scan not configured for it; `proposed`, flagged.
+- Mode 12 — changed: id, name, scope, definition, discriminator, observability, candidate_features, status, parent, mechanism. New entry *Shifted label sequence*: every label offset by a constant, sequence internally valid, decidable only with an external vertebra classifier (spine section, rib attachment, C2/sacrum counting reference) — `needs-external-classifier`, `proposed`, sub-mode of 8.
+- Mode 13 — changed: id, name, scope, definition, discriminator, candidate_features, parent, mechanism. *Collapsed labels* (split on 2026-09-15 from the seed-10 "collapsed or duplicated label set"): two or more labels' centroids closer than a fraction of the expected spacing (the "exact centroid" wording relaxed), with the item-129 silent-pass defect recorded; `proposed`.
+- Mode 14 — changed: id, name, scope, definition, discriminator, candidate_features, parent, mechanism. *Duplicated label* (split on 2026-09-15 from the same seed-10 entry): one label on two or more non-adjacent vertebrae anywhere in the sequence, typically more than one spacing apart — adjacent vertebrae sharing a label are a fusion (mode 2); `proposed`, per-component centroids named as the missing feature.
+- Mode 15 — changed: id, scope, discriminator. *Overlapping segments* (was seed mode 8): content confirmed as rendered; the id moved and the discriminator now spans modes 1-14.
+- Mode 16 — changed: id, scope, short_name, discriminator. *Implausible tissue under a label* (was mode 9): content confirmed as rendered; the id moved, the manifest paraphrase is lower-cased to match its siblings, and the discriminator now spans modes 1-15.
+- Condition fov_truncation — new: the seed mode 6 "partial vertebra at the image border" retired into `CONDITIONS`: a vertebra at the FOV edge touches an image face, its geometry and centroid are impacted to a varying degree, and many rules cannot be applied to it. `border` records it (mode-less, paths `condition-signal`); `mode6_crop_at_border` is its fixture, still measuring `{border, mislabel}`. Scope `vertebra`.
 
-**Measured on 2026-09-14** (`segfacet.synth.regression.pipeline_findings` /
+**Measured on 2026-09-15** (`segfacet.synth.regression.pipeline_findings` /
 `reconstructed_findings` / `intensity_pipeline_findings` over the regenerated
 manifests): every one of the 15 corpus cases agrees with its recorded expected
-set; derived statuses are modes 3, 6, 9, 10 `validated`, modes 1, 2, 4, 5
-`implemented`, modes 7 and 8 `proposed`; all four conformance checks
-(`specification_conflicts`, `vision_seed_conflicts`,
-`rule_declaration_conflicts`, `path_classification_conflicts`) return `()`.
+set; derived statuses are modes 1, 4, 6, 9, 15, 16 `validated`, modes 2, 3,
+8 `implemented`, modes 5, 7, 10, 11, 12, 13, 14 `proposed`;
+all four conformance checks (`specification_conflicts`,
+`vision_seed_conflicts`, `rule_declaration_conflicts`,
+`path_classification_conflicts`) return `()`.

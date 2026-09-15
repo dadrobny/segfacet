@@ -349,29 +349,30 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # --------------------------------------------------------------------------- #
 # MODE_ANCHOR_PATHS -- item 099's per-mode metrics -> record leaf path(s),
 # keyed by the failure-mode ids of segfacet.failure_modes.SPECIFICATION as
-# signed off at item 150 (2026-09-14). The metrics themselves
-# (segfacet.eval.per_mode.PER_MODE_METRIC_SPECS) are still keyed by the
-# pre-sign-off ids 1-8 pending the eval re-key item; the mapping from metric
-# to signed-off mode is: legacy 1 (unanchored foreground fraction) -> mode 1;
-# legacy 2 (min dominant component fraction) and 3 (rogue island count) ->
-# mode 3; legacy 4 (mislabelled volume fraction) -> mode 5; legacy 5 (missing
-# level count) -> mode 4; legacy 7 (out-of-order label count) -> mode 6;
-# legacy 8 (overlapping voxel count) -> mode 9; legacy 6 (FOV-clipped label
-# count) -> the fov_truncation CONDITION, carried in CONDITION_ANCHOR_PATHS.
-# Modes 2, 7, 8 and 10 have no Stage-18 metric and no anchor.
+# signed off at item 150 (2026-09-14, revised 2026-09-15). The metrics
+# themselves (segfacet.eval.per_mode.PER_MODE_METRIC_SPECS) are still keyed by
+# the pre-sign-off ids 1-8 pending the eval re-key item; the mapping from
+# metric to signed-off mode is: legacy 1 (unanchored foreground fraction) and
+# legacy 2 (min dominant component fraction) -> mode 1; legacy 3 (rogue island
+# count) -> mode 4; legacy 4 (mislabelled volume fraction) -> mode 8; legacy 5
+# (missing level count) -> mode 6; legacy 7 (out-of-order label count) ->
+# mode 9; legacy 8 (overlapping voxel count) -> mode 15; legacy 6 (FOV-clipped
+# label count) -> the fov_truncation CONDITION, carried in
+# CONDITION_ANCHOR_PATHS. Modes 2, 3, 5, 7 and 10-14 and 16 have no Stage-18
+# metric and no anchor.
 # --------------------------------------------------------------------------- #
 
 MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
     {
-        1: ("stage3.per_label_offsets[].offset_mm",),
-        3: (
+        1: (
+            "stage3.per_label_offsets[].offset_mm",
             "per_label.{label}.components.fragmentation_index",
-            "per_label.{label}.components.stray_component_sizes[]",
         ),
-        4: ("relationships.present_levels[]",),
-        5: ("stage3.monotonic_consistency.is_monotonic",),
-        6: ("relationships.is_continuous",),
-        9: ("overlaps[].overlap_voxels",),
+        4: ("per_label.{label}.components.stray_component_sizes[]",),
+        6: ("relationships.present_levels[]",),
+        8: ("stage3.monotonic_consistency.is_monotonic",),
+        9: ("relationships.is_continuous",),
+        15: ("overlaps[].overlap_voxels",),
     }
 )
 

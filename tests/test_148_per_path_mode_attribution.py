@@ -619,12 +619,12 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
         assert entry.failure_modes == (), path
 
     # The sibling "signal" path on the same rule still carries every mode
-    # ``reference_delta`` declares -- (1, 2, 3, 5) since the item-150
-    # sign-off -- so the three bookkeeping paths above are dropped by their
-    # classification, not by the rule losing its modes.
+    # ``reference_delta`` declares -- (1, 2, 3, 4, 8) since the item-150
+    # sign-off's 2026-09-15 revision -- so the three bookkeeping paths above
+    # are dropped by their classification, not by the rule losing its modes.
     robust_z_path = "reference_delta.{label}.features.physical_volume_mm3.robust_z"
     entry = _entry(cat, robust_z_path)
-    assert entry.failure_modes == (1, 2, 3, 5), robust_z_path
+    assert entry.failure_modes == (1, 2, 3, 4, 8), robust_z_path
 
 
 # =========================================================================== #
@@ -633,10 +633,12 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
 
 
 def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
-    """Since the item-150 sign-off, two catalogued modes -- 7 ("Shifted label
-    sequence") and 8 ("Collapsed or duplicated label set") -- are ``proposed``:
-    no rule declares them and no Stage-18 metric anchors them, so they reach
-    no path *by design*. Every other catalogued mode must still reach at
+    """Since the item-150 sign-off's 2026-09-15 revision, seven catalogued
+    modes -- 5 (holes), 7 (hallucinated vertebra), 10 (skipped level label),
+    11 (unprompted numbering
+    variant), 12 (shifted label sequence), 13 (collapsed labels) and 14
+    (duplicated label) -- are ``proposed``: no rule declares them and no
+    Stage-18 metric anchors them, so they reach no path *by design*. Every other catalogued mode must still reach at
     least one path, and only through a ``"signal"`` classification. The
     exempt set is derived from ``SPECIFICATION``/``MODE_ANCHOR_PATHS``, not
     hardcoded, so a rule declaring mode 7 tomorrow tightens this test rather
@@ -657,17 +659,17 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
         for mode in catalogued
         if not fm.SPECIFICATION[mode].intended_rules and mode not in feature_docs.MODE_ANCHOR_PATHS
     }
-    assert unreachable == {7, 8}, unreachable
+    assert unreachable == {5, 7, 10, 11, 12, 13, 14}, unreachable
     assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
 
-    # Mode 10 ("implausible tissue under a label", entered as mode 9 by item
+    # Mode 16 ("implausible tissue under a label", entered as mode 9 by item
     # 146 and re-numbered at the sign-off) is reached by exactly the two
     # intensity paths its declaring rules classify "signal".
-    mode10_paths = paths_by_mode.get(10, set())
-    assert mode10_paths == {
+    intensity_mode_paths = paths_by_mode.get(16, set())
+    assert intensity_mode_paths == {
         "image_features.per_label.{label}.first_order.median",
         "image_features.per_label.{label}.first_order.std",
-    }, mode10_paths
+    }, intensity_mode_paths
 
 
 def test_ac12_mode_less_border_carries_condition_signal_paths_only(shipped_catalogue):

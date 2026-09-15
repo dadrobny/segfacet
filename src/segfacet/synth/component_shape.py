@@ -185,8 +185,8 @@ class FragmentPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=3,
-            failure_mode_name=FAILURE_MODE_NAMES[3],
+            failure_mode=1,
+            failure_mode_name=FAILURE_MODE_NAMES[1],
             expected_rule_ids=frozenset({"fragmentation"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
@@ -390,8 +390,8 @@ class InjectIslandsPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=3,
-            failure_mode_name=FAILURE_MODE_NAMES[3],
+            failure_mode=4,
+            failure_mode_name=FAILURE_MODE_NAMES[4],
             expected_rule_ids=frozenset({"fragmentation"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",

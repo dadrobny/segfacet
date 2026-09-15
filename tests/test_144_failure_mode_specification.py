@@ -121,26 +121,28 @@ def _measured_expected_firing(case_id: str) -> tuple:
     return firing
 
 
-def _mode3_kwargs(**overrides) -> dict:
-    """A valid, self-consistent kwargs dict for mode 3 (``ModeSpec``'s exact
-    AC2 field tuple), grounded in the live ``MODE_ANCHOR_PATHS`` and a live
-    measurement of the committed geometric corpus -- not transcribed
-    values."""
+def _mode4_kwargs(**overrides) -> dict:
+    """A valid, self-consistent kwargs dict for mode 4 -- islands, the mode
+    the islands operator ``mode3_inject_islands`` and ``fragmentation``'s
+    Rogue island(s): detector serve since the item-150 sign-off
+    (2026-09-15 revision) -- grounded in the live ``MODE_ANCHOR_PATHS`` and
+    a live measurement of the committed geometric corpus -- not transcribed
+    values. (Mode 3 was the islands mode before that revision.)"""
     import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs
 
     kwargs = dict(
-        id=3,
-        name="Disconnected components / islands, especially tiny rogue segments",
-        definition="A label's foreground voxels split into more than one "
-        "connected component, with at least one stray component far smaller "
+        id=4,
+        name="Islands (disconnected components)",
+        definition="A label's foreground includes components disconnected "
+        "from its main body, with at least one stray component far smaller "
         "than the dominant body.",
-        discriminator="Distinguishes from mode 2 (over-/under-segmentation) "
+        discriminator="Distinguishes from mode 1 (segmentation accuracy) "
         "by whether the dominant body itself stays intact.",
         observability="single-channel-observable",
         candidate_features=(
             fm.CandidateFeature(
-                path=feature_docs.MODE_ANCHOR_PATHS[3][0],
+                path=feature_docs.MODE_ANCHOR_PATHS[4][0],
                 role="stage18-metric-anchor",
             ),
         ),
@@ -151,12 +153,13 @@ def _mode3_kwargs(**overrides) -> dict:
                 evidence_rung="synthetic-demonstrable",
             ),
         ),
-        # Every committed manifest case the corpus assigns to mode 3, so a
+        # Every committed manifest case the corpus assigns to mode 4, so a
         # probe built from this helper is self-consistent with the manifest
         # and `specification_conflicts((mode,))`'s corpus-side check reports
         # nothing but the conflict a given test is actually asking about.
-        # Derived from the manifest, never transcribed (item 150 re-homed
-        # `mode2_fragment` onto mode 3).
+        # Derived from the manifest, never transcribed (the item-150
+        # 2026-09-15 revision re-homed `mode2_fragment` onto mode 1 and left
+        # `mode3_inject_islands` alone on mode 4).
         corpus_cases=tuple(
             fm.CorpusCaseExpectation(
                 case_id=case["case_id"],
@@ -165,7 +168,7 @@ def _mode3_kwargs(**overrides) -> dict:
                 reason="pipeline-detected, measured on the committed corpus",
             )
             for case in _manifest_cases()
-            if case["failure_mode"] == 3
+            if case["failure_mode"] == 4
         ),
         severity="flagged-for-review",
         status="specified",
@@ -323,7 +326,8 @@ def test_ac1_import_adds_no_heavy_module_beyond_the_package_init():
 
 # =========================================================================== #
 # AC2: ModeSpec is a frozen dataclass with exactly the catalogue's fields
-# (§6's list plus `parent`, the one-tier hierarchy link item 150 added)
+# (§6's list plus `parent`, the one-tier hierarchy link item 150 added, and
+# `scope`, the vertebra/spine field its 2026-09-15 revision added)
 # =========================================================================== #
 
 
@@ -336,6 +340,7 @@ def test_ac2_field_names_are_exactly_section_six_fields():
         "name",
         "short_name",
         "parent",
+        "scope",
         "definition",
         "discriminator",
         "mechanism",
@@ -349,6 +354,31 @@ def test_ac2_field_names_are_exactly_section_six_fields():
     )
 
 
+def test_ac2_scopes_vocabulary_is_exactly_two_members():
+    import segfacet.failure_modes as fm
+
+    assert fm.SCOPES == ("vertebra", "spine")
+
+
+def test_ac2_scope_outside_vocabulary_raises_naming_mode_and_field():
+    import segfacet.failure_modes as fm
+
+    kwargs = _mode4_kwargs(scope="pelvis")
+    with pytest.raises(ValueError) as excinfo:
+        fm.ModeSpec(**kwargs)
+    message = str(excinfo.value)
+    assert "4" in message
+    assert "scope" in message
+
+
+@pytest.mark.parametrize("value", ["", "vertebra", "spine"])
+def test_ac2_scope_empty_or_member_is_accepted(value):
+    import segfacet.failure_modes as fm
+
+    mode = fm.ModeSpec(**_mode4_kwargs(scope=value))
+    assert mode.scope == value
+
+
 def test_ac2_is_frozen_dataclass():
     import segfacet.failure_modes as fm
 
@@ -359,7 +389,7 @@ def test_ac2_is_frozen_dataclass():
 def test_ac2_frozen_instance_rejects_attribute_assignment():
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs())
+    mode = fm.ModeSpec(**_mode4_kwargs())
     with pytest.raises(dataclasses.FrozenInstanceError):
         mode.name = "renamed"  # type: ignore[misc]
 
@@ -384,12 +414,12 @@ _AC3_STRING_FIELDS = (
 def test_ac3_empty_required_string_field_raises_naming_mode_and_field(field_name):
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(**{field_name: ""})
+    kwargs = _mode4_kwargs(**{field_name: ""})
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
     assert message.strip()
-    assert "3" in message
+    assert "4" in message
     assert field_name in message
 
 
@@ -406,7 +436,7 @@ def test_ac3_empty_required_string_field_raises_naming_mode_and_field(field_name
 def test_ac3_invalid_id_raises_naming_name_and_field(id_value):
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(id=id_value)
+    kwargs = _mode4_kwargs(id=id_value)
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
@@ -429,11 +459,11 @@ def test_ac4_statuses_vocabulary_is_exactly_four_members():
 def test_ac4_status_outside_vocabulary_raises_naming_mode_and_status():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(status="not-a-real-status")
+    kwargs = _mode4_kwargs(status="not-a-real-status")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "status" in message
 
 
@@ -441,7 +471,7 @@ def test_ac4_status_outside_vocabulary_raises_naming_mode_and_status():
 def test_ac4_authored_status_members_are_accepted(status):
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs(status=status))
+    mode = fm.ModeSpec(**_mode4_kwargs(status=status))
     assert mode.status == status
 
 
@@ -466,11 +496,11 @@ def test_ac5_observability_vocabulary_is_exactly_five_members():
 def test_ac5_observability_outside_vocabulary_raises_naming_mode_and_field():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(observability="not-a-real-observability")
+    kwargs = _mode4_kwargs(observability="not-a-real-observability")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "observability" in message
 
 
@@ -487,7 +517,7 @@ def test_ac5_observability_outside_vocabulary_raises_naming_mode_and_field():
 def test_ac5_each_observability_member_is_accepted(value):
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs(observability=value))
+    mode = fm.ModeSpec(**_mode4_kwargs(observability=value))
     assert mode.observability == value
 
 
@@ -505,11 +535,11 @@ def test_ac6_provenance_vocabulary_is_exactly_two_members():
 def test_ac6_provenance_outside_vocabulary_raises_naming_mode_and_field():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(provenance="not-a-real-provenance")
+    kwargs = _mode4_kwargs(provenance="not-a-real-provenance")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "provenance" in message
 
 
@@ -517,7 +547,7 @@ def test_ac6_provenance_outside_vocabulary_raises_naming_mode_and_field():
 def test_ac6_each_provenance_member_is_accepted(value):
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs(provenance=value))
+    mode = fm.ModeSpec(**_mode4_kwargs(provenance=value))
     assert mode.provenance == value
 
 
@@ -529,69 +559,69 @@ def test_ac6_each_provenance_member_is_accepted(value):
 def test_ac7_candidate_features_bare_string_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(candidate_features="not-a-tuple")
+    kwargs = _mode4_kwargs(candidate_features="not-a-tuple")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "candidate_features" in message
 
 
 def test_ac7_candidate_features_list_rejected():
     import segfacet.failure_modes as fm
 
-    valid = _mode3_kwargs()["candidate_features"]
-    kwargs = _mode3_kwargs(candidate_features=list(valid))
+    valid = _mode4_kwargs()["candidate_features"]
+    kwargs = _mode4_kwargs(candidate_features=list(valid))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "candidate_features" in message
 
 
 def test_ac7_intended_rules_bare_string_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(intended_rules="fragmentation")
+    kwargs = _mode4_kwargs(intended_rules="fragmentation")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "intended_rules" in message
 
 
 def test_ac7_intended_rules_list_rejected():
     import segfacet.failure_modes as fm
 
-    valid = _mode3_kwargs()["intended_rules"]
-    kwargs = _mode3_kwargs(intended_rules=list(valid))
+    valid = _mode4_kwargs()["intended_rules"]
+    kwargs = _mode4_kwargs(intended_rules=list(valid))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "intended_rules" in message
 
 
 def test_ac7_corpus_cases_bare_string_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(corpus_cases="mode3_inject_islands")
+    kwargs = _mode4_kwargs(corpus_cases="mode3_inject_islands")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "corpus_cases" in message
 
 
 def test_ac7_corpus_cases_list_rejected():
     import segfacet.failure_modes as fm
 
-    valid = _mode3_kwargs()["corpus_cases"]
-    kwargs = _mode3_kwargs(corpus_cases=list(valid))
+    valid = _mode4_kwargs()["corpus_cases"]
+    kwargs = _mode4_kwargs(corpus_cases=list(valid))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "corpus_cases" in message
 
 
@@ -602,7 +632,7 @@ def test_ac7_expected_firing_bare_string_rejected_not_split_character_wise():
     ``insights.md``, item 136, 2026-09-02."""
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(
+    kwargs = _mode4_kwargs(
         corpus_cases=(
             fm.CorpusCaseExpectation(
                 case_id="mode3_inject_islands",
@@ -615,14 +645,14 @@ def test_ac7_expected_firing_bare_string_rejected_not_split_character_wise():
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "expected_firing" in message
 
 
 def test_ac7_expected_firing_list_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(
+    kwargs = _mode4_kwargs(
         corpus_cases=(
             fm.CorpusCaseExpectation(
                 case_id="mode3_inject_islands",
@@ -635,7 +665,7 @@ def test_ac7_expected_firing_list_rejected():
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "expected_firing" in message
 
 
@@ -648,11 +678,11 @@ def test_ac7_expected_firing_list_rejected():
 def test_ac8_derived_only_status_rejected_at_construction(status):
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(status=status)
+    kwargs = _mode4_kwargs(status=status)
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "status" in message
 
 
@@ -725,12 +755,12 @@ def test_ac9_multi_mode_declaration_implements_every_mode_it_lists():
     **every** mode it lists, not only for one it declares alone.
 
     The subject is found live in the registry rather than named: the
-    item-150 sign-off moved ``fragmentation`` to the singleton ``(3,)`` and
-    made ``bounds``/``reference_delta``/``coverage`` the multi-mode
-    declarations, so naming one would be a pin that moves with the next
-    re-organisation. The test is still able to fail -- it asserts such a
-    declaration exists at all, then that *every* mode it lists derives
-    ``"implemented"`` off the unmodified registry.
+    item-150 sign-off (2026-09-15 revision) made ``fragmentation`` ``(1, 4)``,
+    ``coverage`` ``(6, 10)`` and ``bounds``/``reference_delta`` the widest
+    multi-mode declarations, so naming one would be a pin that moves with
+    the next re-organisation. The test is still able to fail -- it asserts
+    such a declaration exists at all, then that *every* mode it lists
+    derives ``"implemented"`` (or better) off the unmodified registry.
     """
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
@@ -752,9 +782,9 @@ def test_ac9_multi_mode_declaration_implements_every_mode_it_lists():
             )
 
     # And the same claim on a test-constructed mode, so the assertion above
-    # cannot be carried by some *other* rule declaring the same id: mode 3
+    # cannot be carried by some *other* rule declaring the same id: mode 4
     # is implemented on a probe with no corpus cases at all.
-    mode = fm.ModeSpec(**_mode3_kwargs(corpus_cases=()))
+    mode = fm.ModeSpec(**_mode4_kwargs(corpus_cases=()))
     assert fm.derive_status(mode) == "implemented"
 
 
@@ -766,7 +796,7 @@ def test_ac9_multi_mode_declaration_implements_every_mode_it_lists():
 def test_ac10_derive_status_validated_iff_every_corpus_case_measured_matches():
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs())
+    mode = fm.ModeSpec(**_mode4_kwargs())
     assert fm.derive_status(mode) == "validated"
 
 
@@ -779,7 +809,7 @@ def test_ac10_wrong_expected_firing_drops_validated_to_implemented():
         expected_firing=("__item144_no_such_rule_ever_fires__",),
         reason="adversarial: deliberately wrong expected_firing",
     )
-    mode = fm.ModeSpec(**_mode3_kwargs(corpus_cases=(wrong_case,)))
+    mode = fm.ModeSpec(**_mode4_kwargs(corpus_cases=(wrong_case,)))
     assert fm.derive_status(mode) == "implemented"
 
     conflicts = fm.specification_conflicts()
@@ -800,7 +830,7 @@ def test_adv_expected_firing_empty_on_case_that_fires_something_is_disagreement(
         reason="adversarial: empty expected_firing against a case that fires",
     )
     assert fm.case_agrees(empty_case) is False
-    mode = fm.ModeSpec(**_mode3_kwargs(corpus_cases=(empty_case,)))
+    mode = fm.ModeSpec(**_mode4_kwargs(corpus_cases=(empty_case,)))
     assert fm.derive_status(mode) == "implemented"
 
 
@@ -811,11 +841,11 @@ def test_adv_empty_corpus_cases_and_intended_rules_derives_specified_not_validat
     vacuously into a stronger status. Measured against an emptied registry so
     that the asserted value is "specified" exactly -- with the real registry
     the same mode is legitimately "implemented" (heuristics.fragmentation
-    declares mode 3), which is still not "validated"."""
+    declares mode 4), which is still not "validated"."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import _RULES
 
-    mode = fm.ModeSpec(**_mode3_kwargs(intended_rules=(), corpus_cases=()))
+    mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=(), corpus_cases=()))
     assert fm.derive_status(mode) != "validated"
 
     _RULES.clear()
@@ -836,12 +866,12 @@ def test_ac11_shipped_specification_has_no_conflicts():
 def test_ac11_forced_status_past_post_init_is_reported_naming_the_mode():
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs())
+    mode = fm.ModeSpec(**_mode4_kwargs())
     object.__setattr__(mode, "status", "implemented")
 
     conflicts = fm.specification_conflicts((mode,))
     assert len(conflicts) == 1
-    assert "3" in conflicts[0]
+    assert "4" in conflicts[0]
     assert "status" in conflicts[0]
 
 
@@ -860,11 +890,11 @@ def test_ac12_role_outside_vocabulary_raises_naming_mode_and_path():
     import segfacet.failure_modes as fm
 
     bad_feature = fm.CandidateFeature(path="per_label.{label}.geometry.touches_left", role="bogus")
-    kwargs = _mode3_kwargs(candidate_features=(bad_feature,))
+    kwargs = _mode4_kwargs(candidate_features=(bad_feature,))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert bad_feature.path in message
 
 
@@ -876,11 +906,11 @@ def test_ac12_anchor_path_not_in_mode_anchor_paths_raises_naming_all_three():
 
     near_miss_path = "per_label.{label}.components.stray_component_size[]"  # missing 's'
     bad_feature = fm.CandidateFeature(path=near_miss_path, role="stage18-metric-anchor")
-    kwargs = _mode3_kwargs(candidate_features=(bad_feature,))
+    kwargs = _mode4_kwargs(candidate_features=(bad_feature,))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert near_miss_path in message
     assert "stray_component_sizes" in message  # names the anchor set it was checked against
 
@@ -888,7 +918,7 @@ def test_ac12_anchor_path_not_in_mode_anchor_paths_raises_naming_all_three():
 def test_ac12_valid_anchor_path_is_accepted():
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs())
+    mode = fm.ModeSpec(**_mode4_kwargs())
     assert mode.candidate_features[0].role == "stage18-metric-anchor"
 
 
@@ -899,7 +929,7 @@ def test_adv_mode_id_absent_from_mode_anchor_paths_raises_naming_mode_not_keyerr
         path="per_label.{label}.components.stray_component_sizes[]",
         role="stage18-metric-anchor",
     )
-    kwargs = _mode3_kwargs(id=999, candidate_features=(bad_feature,), name="not a real mode")
+    kwargs = _mode4_kwargs(id=999, candidate_features=(bad_feature,), name="not a real mode")
     # A KeyError from an un-guarded MODE_ANCHOR_PATHS[999] lookup would also
     # satisfy a bare `with pytest.raises(Exception)`, so pin ValueError
     # specifically -- naming the mode, not crashing on the missing key.
@@ -928,11 +958,11 @@ def test_ac13_rung_outside_vocabulary_raises_naming_mode_and_rule_id():
     import segfacet.failure_modes as fm
 
     bad_rule = fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="not-a-rung")
-    kwargs = _mode3_kwargs(intended_rules=(bad_rule,))
+    kwargs = _mode4_kwargs(intended_rules=(bad_rule,))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "fragmentation" in message
 
 
@@ -940,18 +970,18 @@ def test_ac13_empty_rule_id_raises_naming_mode_and_rule_id():
     import segfacet.failure_modes as fm
 
     bad_rule = fm.IntendedRule(rule_id="", detector="", evidence_rung="synthetic-demonstrable")
-    kwargs = _mode3_kwargs(intended_rules=(bad_rule,))
+    kwargs = _mode4_kwargs(intended_rules=(bad_rule,))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
 
 
 def test_ac13_detector_may_be_empty():
     import segfacet.failure_modes as fm
 
     rule = fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="synthetic-demonstrable")
-    mode = fm.ModeSpec(**_mode3_kwargs(intended_rules=(rule,)))
+    mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=(rule,)))
     assert mode.intended_rules[0].detector == ""
 
 
@@ -962,7 +992,7 @@ def test_ac13_each_rung_member_is_accepted(rung):
     import segfacet.failure_modes as fm
 
     rule = fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung=rung)
-    mode = fm.ModeSpec(**_mode3_kwargs(intended_rules=(rule,)))
+    mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=(rule,)))
     assert mode.intended_rules[0].evidence_rung == rung
 
 
@@ -973,11 +1003,11 @@ def test_adv_duplicate_rule_id_within_intended_rules_rejected():
         fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="synthetic-demonstrable"),
         fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="needs-real-data"),
     )
-    kwargs = _mode3_kwargs(intended_rules=rules)
+    kwargs = _mode4_kwargs(intended_rules=rules)
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "fragmentation" in message
 
 
@@ -998,11 +1028,11 @@ def test_adv_duplicate_case_id_within_corpus_cases_rejected():
             reason="duplicate",
         ),
     )
-    kwargs = _mode3_kwargs(corpus_cases=cases)
+    kwargs = _mode4_kwargs(corpus_cases=cases)
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "mode3_inject_islands" in message
 
 
@@ -1012,12 +1042,12 @@ def test_adv_duplicate_mode_ids_rejected_rather_than_silently_dropped():
     -- items 145/146 author six more entries by hand."""
     import segfacet.failure_modes as fm
 
-    first = fm.ModeSpec(**_mode3_kwargs())
-    second = fm.ModeSpec(**_mode3_kwargs(name="a different mode wearing id 3"))
+    first = fm.ModeSpec(**_mode4_kwargs())
+    second = fm.ModeSpec(**_mode4_kwargs(name="a different mode wearing id 4"))
     with pytest.raises(ValueError) as excinfo:
         fm._build_specification((first, second))
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "duplicate" in message.lower()
 
 
@@ -1054,7 +1084,7 @@ def test_ac14_derive_mode_rung_is_the_strongest_edge():
         fm.IntendedRule(rule_id="b", detector="", evidence_rung="needs-real-data"),
         fm.IntendedRule(rule_id="c", detector="", evidence_rung="synthetic-demonstrable"),
     )
-    mode = fm.ModeSpec(**_mode3_kwargs(intended_rules=rules, corpus_cases=()))
+    mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=rules, corpus_cases=()))
     assert fm.derive_mode_rung(mode) == "synthetic-demonstrable"
 
 
@@ -1066,7 +1096,7 @@ def test_ac14_weakening_the_strongest_edge_changes_the_derived_rung():
         fm.IntendedRule(rule_id="b", detector="", evidence_rung="needs-real-data"),
         fm.IntendedRule(rule_id="c", detector="", evidence_rung="synthetic-demonstrable"),
     )
-    mode = fm.ModeSpec(**_mode3_kwargs(intended_rules=rules, corpus_cases=()))
+    mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=rules, corpus_cases=()))
     before = fm.derive_mode_rung(mode)
 
     weakened_rules = (
@@ -1074,7 +1104,7 @@ def test_ac14_weakening_the_strongest_edge_changes_the_derived_rung():
         fm.IntendedRule(rule_id="b", detector="", evidence_rung="needs-real-data"),
         fm.IntendedRule(rule_id="c", detector="", evidence_rung="needs-real-data"),
     )
-    mode2 = fm.ModeSpec(**_mode3_kwargs(intended_rules=weakened_rules, corpus_cases=()))
+    mode2 = fm.ModeSpec(**_mode4_kwargs(intended_rules=weakened_rules, corpus_cases=()))
     after = fm.derive_mode_rung(mode2)
     assert after != before
     assert after == "needs-real-data"
@@ -1083,7 +1113,7 @@ def test_ac14_weakening_the_strongest_edge_changes_the_derived_rung():
 def test_ac14_zero_edge_mode_derives_none():
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs(intended_rules=(), corpus_cases=()))
+    mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=(), corpus_cases=()))
     assert fm.derive_mode_rung(mode) is None
 
 
@@ -1102,22 +1132,22 @@ def test_ac15_accepted_severities_equal_severity_labels_minus_pass():
 def test_ac15_pass_severity_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(severity="pass")
+    kwargs = _mode4_kwargs(severity="pass")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "severity" in message
 
 
 def test_ac15_nonmember_severity_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode3_kwargs(severity="catastrophic")
+    kwargs = _mode4_kwargs(severity="catastrophic")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
-    assert "3" in message
+    assert "4" in message
     assert "severity" in message
 
 
@@ -1125,32 +1155,57 @@ def test_ac15_nonmember_severity_rejected():
 def test_ac15_each_accepted_severity_is_accepted(severity):
     import segfacet.failure_modes as fm
 
-    mode = fm.ModeSpec(**_mode3_kwargs(severity=severity))
+    mode = fm.ModeSpec(**_mode4_kwargs(severity=severity))
     assert mode.severity == severity
 
 
 # =========================================================================== #
-# AC16: the shipped catalogue as signed off (item 150) -- ten modes in a
+# AC16: the shipped catalogue as signed off (item 150) -- sixteen modes in a
 # one-tier hierarchy, plus the vision.md §6 seed's disposition
 # =========================================================================== #
 
-#: The ids the item-150 sign-off assigned. Pinned literally on purpose: this
-#: is the one test that asserts *which* entries the catalogue carries, so
-#: deriving it from ``SPECIFICATION`` would assert nothing.
-_SIGNED_OFF_MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+#: The ids the item-150 sign-off assigned (2026-09-14, revised 2026-09-15).
+#: Pinned literally on purpose: this is the one test that asserts *which*
+#: entries the catalogue carries, so deriving it from ``SPECIFICATION`` would
+#: assert nothing.
+_SIGNED_OFF_MODE_IDS = tuple(range(1, 17))
+
+#: The one-tier hierarchy as signed off (2026-09-15 revision): modes 2-7 are
+#: sub-modes of 1, modes 9-14 sub-modes of 8; 1, 8, 15 and 16 are top level.
+#: Pinned literally for the same reason as the id set.
+_SIGNED_OFF_PARENTS = {
+    1: None,
+    2: 1,
+    3: 1,
+    4: 1,
+    5: 1,
+    6: 1,
+    7: 1,
+    8: None,
+    9: 8,
+    10: 8,
+    11: 8,
+    12: 8,
+    13: 8,
+    14: 8,
+    15: None,
+    16: None,
+}
 
 
-def test_ac16_specification_carries_all_ten_signed_off_modes():
+def test_ac16_specification_carries_all_sixteen_signed_off_modes():
     """Item 145 entered vision.md §6's eight seed modes; item 146 added two
     more; the item-150 sign-off (2026-09-14) re-organised the whole
-    catalogue and re-assigned ids, landing on ten entries in a one-tier
-    hierarchy. Ids are assigned in ``failure_modes.py`` from that sign-off
-    on -- §6 is provenance only, so this no longer compares against it."""
+    catalogue and re-assigned ids, and its 2026-09-15 revision split every
+    paired sub-mode, landing on sixteen entries in a one-tier hierarchy.
+    Ids are assigned in ``failure_modes.py`` from that sign-off on -- §6 is
+    provenance only, so this no longer compares against it."""
     import segfacet.failure_modes as fm
 
     ids = tuple(m.id for m in fm.iter_modes())
     assert ids == _SIGNED_OFF_MODE_IDS
     assert ids == tuple(sorted(fm.SPECIFICATION))
+    assert {m.id: m.parent for m in fm.iter_modes()} == _SIGNED_OFF_PARENTS
 
 
 def test_ac16_hierarchy_is_one_tier_and_every_parent_resolves():
@@ -1184,6 +1239,7 @@ def test_ac16_every_required_field_non_empty(mode_id):
     for field_name in (
         "name",
         "short_name",
+        "scope",
         "definition",
         "discriminator",
         "mechanism",
@@ -1198,6 +1254,7 @@ def test_ac16_every_required_field_non_empty(mode_id):
         assert isinstance(getattr(mode, field_name), tuple), field_name
     assert mode.candidate_features, "every shipped entry carries candidate features"
     assert mode.parent is None or mode.parent in fm.SPECIFICATION
+    assert mode.scope in fm.SCOPES, mode.scope
 
 
 def test_ac16_proposed_entries_are_the_empty_ones():
@@ -1437,7 +1494,7 @@ def _md_mode_sections(md_text: str) -> dict:
 
     Scoping the anchor-role assertion below to a mode's **own** section is
     what the item-150 catalogue requires: a mechanism sentence legitimately
-    names another mode's anchor path (mode 2's names mode 3's
+    names another mode's anchor path (mode 2's names mode 1's
     ``fragmentation_index``), so a document-wide "first occurrence" search
     lands in the wrong entry.
     """
@@ -1642,13 +1699,17 @@ def test_adv_main_called_twice_is_deterministic(tmp_path):
 # =========================================================================== #
 
 
-def test_adv_seed_mode3_corpus_case_is_pipeline_detected_and_measured_live():
+def test_adv_islands_corpus_case_is_pipeline_detected_and_measured_live():
+    """``mode3_inject_islands`` keeps its historical ``modeN_`` case id; the
+    mode it belongs to is **4** (islands) since the item-150 sign-off -- read
+    from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 
     case = _manifest_case("mode3_inject_islands")
     assert case["detection"] == "pipeline"
+    assert case["failure_mode"] == 4
 
-    mode = next(m for m in fm.iter_modes() if m.id == 3)
+    mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
     assert len(mode.corpus_cases) >= 1
     case_expectation = next(c for c in mode.corpus_cases if c.case_id == "mode3_inject_islands")
     measured = fm.measured_firing(case_expectation)
@@ -1659,7 +1720,7 @@ def test_adv_seed_mode3_corpus_case_is_pipeline_detected_and_measured_live():
 def test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live():
     """``mode8_force_overlap`` is the case id the corpus has always carried
     (the ``modeN_`` prefixes are historical), but the mode it belongs to is
-    **9** since the item-150 sign-off re-assigned ids -- the mode id is read
+    **15** since the item-150 sign-off re-assigned ids -- the mode id is read
     from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 

@@ -134,7 +134,7 @@ class ReferenceDeltaRule(Rule):
     # plausibly-sized label can therefore fire this rule on spline_offset_mm
     # alone, a mode-1 detection, so mode 1 is declared alongside mode 2.
     mode_declaration = RuleModeDeclaration(
-        modes=(1, 2, 3, 5),
+        modes=(1, 2, 3, 4, 8),
         evidence=(
             "analytic",
             "compute_reference_delta scores every feature the reference "
@@ -142,11 +142,13 @@ class ReferenceDeltaRule(Rule):
             "artifacts carry 21 per-label features, spanning "
             "physical_volume_mm3 and extent_{x,y,z}_mm -- the same magnitude "
             "signal 'bounds' targets, measured against a cohort instead of "
-            "hand-set bounds, so the cohort proxy for modes 1, 2 and 3 of "
-            "the catalogue signed off at item 150 (2026-09-14) -- and, "
-            "because the reference is per level, a vertebra whose geometry "
-            "does not fit the level it is named is mode 5's (semantic "
-            "mislabelling) single-channel proxy. Every edge needs-real-data.",
+            "hand-set bounds, so the cohort proxy for modes 1 (segmentation "
+            "accuracy), 2 (fused), 3 (split) and 4 (islands) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15) -- and, because the reference is per level, a "
+            "vertebra whose geometry does not fit the level it is named is "
+            "mode 8's (semantic mislabelling) single-channel proxy. Every "
+            "edge needs-real-data.",
         ),
         consumed_paths=(
             ConsumedPath(

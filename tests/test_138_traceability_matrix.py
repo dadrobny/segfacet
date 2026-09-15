@@ -17,16 +17,17 @@ is three edges over two rules -- ``(1, reference_delta)``, ``(2, bounds)``,
 ``(2, reference_delta)`` -- not the pre-correction two-edge shape.
 
 Reconciled (item 150, 2026-09-14) to the maintainer-signed-off taxonomy. The
-catalogue is ten modes plus one condition, the ids are re-assigned, and
+catalogue is sixteen modes plus one condition (ten at the 2026-09-14 pass;
+the 2026-09-15 revision split every paired sub-mode), the ids are re-assigned, and
 ``vision.md`` §6's eight titles are provenance (``VISION_SEED_DISPOSITION``)
 rather than the id-bearing list -- so the mode roll call is derived from
 ``failure_modes.SPECIFICATION`` (``MODES``) instead of ``range(1, 9)``, mode
 titles are ground-truthed against the hand-transcribed
-``SIGNED_OFF_MODE_TITLES``, and the two ``proposed`` modes (``PROPOSED_MODES``,
-derived) carry a ``None`` derived rung -- legal for them alone, rendered
+``SIGNED_OFF_MODE_TITLES``, and the ``proposed`` modes (``PROPOSED_MODES``,
+derived; seven since the 2026-09-15 revision) carry a ``None`` derived rung -- legal for them alone, rendered
 ``(none)`` in the Markdown. Four further consequences are recorded on the
-tests that carry them: attribution is per-edge, not per-rule (``coverage`` is
-``analytic`` for mode 4 and ``corpus`` for mode 6); a mechanism may name a
+tests that carry them: attribution is per-edge, not per-rule (on the 2026-09-14
+sign-off ``coverage`` mixed an analytic and a corpus edge); a mechanism may name a
 co-detecting rule's path (modes 1 and 2 are authored to say exactly that); no
 shipped mechanism uses the ``(measured: findings == [...])`` idiom any more,
 so that checker is exercised against a live measurement instead of a shipped
@@ -130,11 +131,17 @@ MODES = _specification_mode_ids()
 PROPOSED_MODES = _proposed_mode_ids()
 
 #: The mode used by the "named anchor path is not consumed by any declared
-#: rule" adversarial pair (fixture + test). Mode 5 after the item-150 sign-off;
-#: see ``matrix_anchor_not_consumed_bogus_mechanism``. The test asserts the
+#: rule" adversarial pair (fixture + test). Mode 8 (semantic mislabelling)
+#: after the item-150 sign-off's 2026-09-15 revision; see
+#: ``matrix_anchor_not_consumed_bogus_mechanism``. The test asserts the
 #: fixture assumption (anchor present, declared rules do not consume it) rather
 #: than trusting this constant.
-_ANCHOR_NOT_CONSUMED_MODE = 5
+_ANCHOR_NOT_CONSUMED_MODE = 8
+
+#: "Overlapping segments" -- mode 15 after the item-150 sign-off's 2026-09-15
+#: revision (it was 8 before item 150, 9 at the 2026-09-14 pass). Its one
+#: corpus case keeps the historical id ``mode8_force_overlap``.
+_OVERLAP_MODE = 15
 RULE_IDS = (
     "border",
     "bounds",
@@ -318,20 +325,22 @@ def matrix(raw_matrix):
 
 
 @pytest.fixture
-def matrix_mode8_rung_stale(monkeypatch):
+def matrix_overlap_mode_rung_stale(monkeypatch):
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
-    _patch_derive_mode_rung(monkeypatch, failure_modes_module, 8, "not-a-real-rung")
+    _patch_derive_mode_rung(monkeypatch, failure_modes_module, _OVERLAP_MODE, "not-a-real-rung")
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
 @pytest.fixture
-def matrix_mode8_rung_synthetic(monkeypatch):
+def matrix_overlap_mode_rung_synthetic(monkeypatch):
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
-    _patch_derive_mode_rung(monkeypatch, failure_modes_module, 8, "synthetic-demonstrable")
+    _patch_derive_mode_rung(
+        monkeypatch, failure_modes_module, _OVERLAP_MODE, "synthetic-demonstrable"
+    )
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
@@ -359,7 +368,7 @@ def matrix_overlap_mode_less(monkeypatch):
 
     rule = _RULES["overlap"]
     replacement = rule_mod.RuleModeDeclaration(
-        mode_less_reason="AC138-adversarial: mode 8 hole test, overlap made mode-less"
+        mode_less_reason="AC138-adversarial: overlap-mode hole test, overlap made mode-less"
     )
     monkeypatch.setattr(rule, "mode_declaration", replacement)
     return traceability.matrix_to_dict(traceability.build_matrix())
@@ -423,7 +432,9 @@ def matrix_overlap_mode_bogus_mechanism(monkeypatch):
         "This sentence is deliberately long and describes nothing that "
         "lives in the codebase or the corpus at all, on purpose, for a test."
     )
-    _patch_specification_mode(monkeypatch, failure_modes_module, 9, mechanism=bogus_mechanism)
+    _patch_specification_mode(
+        monkeypatch, failure_modes_module, _OVERLAP_MODE, mechanism=bogus_mechanism
+    )
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
@@ -436,7 +447,9 @@ def matrix_overlap_mode_typo_mechanism(monkeypatch):
         "The mechanism names mode8_force_overlaps, one character off the "
         "real case id, on purpose, for a test."
     )
-    _patch_specification_mode(monkeypatch, failure_modes_module, 9, mechanism=typo_mechanism)
+    _patch_specification_mode(
+        monkeypatch, failure_modes_module, _OVERLAP_MODE, mechanism=typo_mechanism
+    )
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
@@ -447,13 +460,15 @@ def matrix_anchor_not_consumed_bogus_mechanism(monkeypatch, matrix):
     already-built record, then re-derives with the mechanism patched to name
     it.
 
-    Re-pointed (item 150, 2026-09-14) from the old mode 4 to mode 5. The
-    defect's shape needs a mode whose anchor path its declared rules do not
-    consume, and the sign-off moved exactly that configuration: the anchor
-    ``stage3.monotonic_consistency.is_monotonic`` now belongs to mode 5
-    (semantic mislabelling), whose only declared rule is ``reference_delta``,
-    which never reads it. The old mode 4 no longer exhibits it -- its anchor
-    ``relationships.present_levels[]`` is genuinely consumed by ``coverage``."""
+    Re-pointed (item 150, 2026-09-14) from the old mode 4 to mode 5, and
+    again (2026-09-15) to mode 8. The defect's shape needs a mode whose
+    anchor path its declared rules do not consume, and the sign-off moved
+    exactly that configuration: the anchor
+    ``stage3.monotonic_consistency.is_monotonic`` belongs to semantic
+    mislabelling (mode 8 since the 2026-09-15 revision), whose only declared
+    rule is ``reference_delta``, which never reads it. The old mode 4 no
+    longer exhibits it -- its anchor ``relationships.present_levels[]`` (now
+    mode 6's) is genuinely consumed by ``coverage``."""
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
@@ -778,7 +793,8 @@ VISION_SECTION_SIX_MODE_TITLES = {
 #: ``fov_truncation`` condition, six re-pointed at re-assigned ids) -- and a
 #: mode's title is its ``SPECIFICATION[id].name``. The hand-transcription
 #: discipline the AC9 ground-truth check rests on moves with it: these are the
-#: ten signed-off names, typed out by hand from the "Taxonomy as signed off"
+#: sixteen signed-off names (2026-09-15 revision: every paired sub-mode split
+#: into single defects), typed out by hand from the "Taxonomy as signed off"
 #: table in ``src/segfacet/failure_modes.py``'s module docstring, so that an
 #: edit to a ``ModeSpec.name`` literal that is not mirrored in the docstring
 #: table (or vice versa) fails here rather than flowing silently into both
@@ -786,15 +802,21 @@ VISION_SECTION_SIX_MODE_TITLES = {
 #: is exactly the self-comparison this check exists to avoid.
 SIGNED_OFF_MODE_TITLES = {
     1: "Segmentation accuracy (over-/under-segmentation)",
-    2: "Fused or split vertebra segments",
-    3: "Disconnected components / islands",
-    4: "Vertebra not segmented",
-    5: "Semantic mislabelling (wrong vertebra identification)",
-    6: "Implausible label sequence",
-    7: "Shifted label sequence",
-    8: "Collapsed or duplicated label set",
-    9: "Overlapping segments",
-    10: "Implausible tissue under a label",
+    2: "Fused vertebra segments",
+    3: "Split vertebra segment",
+    4: "Islands (disconnected components)",
+    5: "Holes (enclosed background)",
+    6: "Vertebra not segmented",
+    7: "Hallucinated vertebra",
+    8: "Semantic mislabelling (wrong vertebra identification)",
+    9: "Out-of-order label sequence",
+    10: "Skipped level label",
+    11: "Unprompted numbering variant",
+    12: "Shifted label sequence",
+    13: "Collapsed labels",
+    14: "Duplicated label",
+    15: "Overlapping segments",
+    16: "Implausible tissue under a label",
 }
 
 
@@ -920,11 +942,12 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
     direction = d["directions"]["mode_to_rule"]
     assert direction["complete"] is False
     assert set(direction["holes"]) == proposed_mode_ids
-    # Witness (item 150, 2026-09-14): the sign-off's two proposed entries --
-    # 7 "Shifted label sequence" (needs an external classifier) and 8
-    # "Collapsed or duplicated label set" (no detector exists). Mode 10, the
-    # single hole item 146 left, is now `validated`.
-    assert proposed_mode_ids == {"7", "8"}
+    # Witness (item 150, 2026-09-15 revision): the sign-off's seven proposed
+    # entries -- 5 holes, 7 hallucinated vertebra, 10 skipped level label
+    # (label-only; a missed vertebra is mode 6), 11 unprompted numbering
+    # variant, 12 shifted label sequence (needs an external classifier), 13
+    # collapsed labels and 14 duplicated label (no detector exists for any).
+    assert proposed_mode_ids == {"5", "7", "10", "11", "12", "13", "14"}
 
 
 # =========================================================================== #
@@ -986,21 +1009,21 @@ def test_ac12_proposed_mode_rung_renders_as_none_in_the_markdown():
         assert "None" not in rung_cell, (mode, rung_cell)
 
 
-def test_adv_ac12_stale_rung_outside_vocabulary_is_detectable(matrix_mode8_rung_stale):
-    record = _mode_record(matrix_mode8_rung_stale, 8)
+def test_adv_ac12_stale_rung_outside_vocabulary_is_detectable(matrix_overlap_mode_rung_stale):
+    record = _mode_record(matrix_overlap_mode_rung_stale, _OVERLAP_MODE)
     assert record["rung"] not in RUNGS, record["rung"]
 
 
 # =========================================================================== #
 # AC13: the overlapping-segments mode's rung names the single-channel
-# mechanism. Re-pointed (item 150, 2026-09-14): "Overlapping segments" is
-# mode 9 after the sign-off re-assigned the ids; nothing about the claim
-# changed.
+# mechanism. Re-pointed (item 150): "Overlapping segments" is mode 15 after
+# the sign-off's 2026-09-15 revision re-assigned the ids; nothing about the
+# claim changed.
 # =========================================================================== #
 
 
 def test_ac13_overlap_mode_rung_and_mechanism_name_the_single_channel_mechanism(matrix):
-    overlap_mode = _mode_record(matrix, 9)
+    overlap_mode = _mode_record(matrix, _OVERLAP_MODE)
     assert overlap_mode["title"] == "Overlapping segments"
     assert overlap_mode["rung"] == "structurally-unobservable"
     assert "single-channel" in overlap_mode["mechanism"]
@@ -1009,8 +1032,9 @@ def test_ac13_overlap_mode_rung_and_mechanism_name_the_single_channel_mechanism(
 
 # =========================================================================== #
 # AC14: the overlapping-segments mode is not pipeline-detected, from the
-# manifest. Re-pointed (item 150, 2026-09-14) from mode 8 to mode 9; the
-# fixture case id (``mode8_force_overlap``) is historical and unchanged.
+# manifest. Re-pointed (item 150) from mode 8 to mode 15 (2026-09-15
+# revision); the fixture case id (``mode8_force_overlap``) is historical and
+# unchanged.
 # =========================================================================== #
 
 
@@ -1018,7 +1042,7 @@ def test_ac14_overlap_mode_not_pipeline_detected_names_reconstructed_case(matrix
     manifest_detection = _manifest_detection_by_case_id()
     assert "mode8_force_overlap" in manifest_detection
 
-    mode8 = _mode_record(matrix, 9)
+    mode8 = _mode_record(matrix, _OVERLAP_MODE)
     assert mode8["pipeline_detected"] is False
 
     cases = mode8["cases"]
@@ -1044,13 +1068,14 @@ def test_ac15_rung_and_pipeline_detected_cross_check(mode, matrix):
         assert record["pipeline_detected"] is False, mode
 
 
-def test_adv_ac15_cross_check_violation_when_mode8_rung_monkeypatched_synthetic(
-    matrix_mode8_rung_synthetic,
+def test_adv_ac15_cross_check_violation_when_overlap_mode_rung_monkeypatched_synthetic(
+    matrix_overlap_mode_rung_synthetic,
 ):
-    mode8 = _mode_record(matrix_mode8_rung_synthetic, 8)
+    mode8 = _mode_record(matrix_overlap_mode_rung_synthetic, _OVERLAP_MODE)
     # AC15 requires pipeline_detected True whenever rung is
-    # synthetic-demonstrable; mode 8 is still (correctly) reconstructed, so
-    # the two facts below jointly demonstrate the cross-check now fails.
+    # synthetic-demonstrable; the overlap mode (15 since item 150's
+    # 2026-09-15 revision) is still (correctly) reconstructed, so the two
+    # facts below jointly demonstrate the cross-check now fails.
     assert mode8["rung"] == "synthetic-demonstrable"
     assert mode8["pipeline_detected"] is False
 
@@ -1062,12 +1087,15 @@ def test_adv_ac15_cross_check_violation_when_mode8_rung_monkeypatched_synthetic(
 # re-homed both of those cases (mode1_displace is now a mode-1 co-detection
 # that deliberately does NOT validate, and mode4_relabel_swap moved to the
 # label-sequence mode), leaving modes 3 and 6 as the two the corpus
-# demonstrates with their own intended rules.
+# demonstrates with their own intended rules. Re-pointed again (2026-09-15
+# revision): mode2_fragment and fragmentation's Fragmentation: detector moved
+# to the parent mode 1, and the relabel swap sits under mode 9 (out-of-order
+# label sequence) -- same two cases, same claim.
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode, case_id", [(3, "mode2_fragment"), (6, "mode4_relabel_swap")])
-def test_ac16_modes_three_and_six_are_synthetic_demonstrable(mode, case_id, matrix):
+@pytest.mark.parametrize("mode, case_id", [(1, "mode2_fragment"), (9, "mode4_relabel_swap")])
+def test_ac16_fragment_and_swap_modes_are_synthetic_demonstrable(mode, case_id, matrix):
     manifest_detection = _manifest_detection_by_case_id()
     assert case_id in manifest_detection
 
@@ -1092,10 +1120,13 @@ def test_adv_ac16_rung_unmoved_by_weaker_rules_joining_a_modes_rule_list(matrix)
     3, which is the same shape under the signed-off ids: ``fragmentation``
     demonstrates it on two committed corpus cases (synthetic-demonstrable),
     while ``bounds`` and ``reference_delta`` joined at needs-real-data as
-    volume/extent proxies. The mode keeps the strongest edge's rung."""
+    volume/extent proxies. The mode keeps the strongest edge's rung.
+    Re-pointed again (2026-09-15 revision) to mode 4 (islands), which keeps
+    that shape: ``fragmentation``'s Rogue island(s): edge is demonstrated on
+    mode3_inject_islands, and ``bounds``/``reference_delta`` sit below it."""
     import segfacet.failure_modes as failure_modes_module
 
-    record = _mode_record(matrix, 3)
+    record = _mode_record(matrix, 4)
     assert set(record["rules"]) == {"bounds", "fragmentation", "reference_delta"}, record["rules"]
     assert record["rung"] == "synthetic-demonstrable"
     assert record["pipeline_detected"] is True
@@ -1103,7 +1134,7 @@ def test_adv_ac16_rung_unmoved_by_weaker_rules_joining_a_modes_rule_list(matrix)
     # The two weaker edges really are weaker -- otherwise this asserts nothing.
     edge_rungs = {
         edge.rule_id: edge.evidence_rung
-        for edge in failure_modes_module.SPECIFICATION[3].intended_rules
+        for edge in failure_modes_module.SPECIFICATION[4].intended_rules
     }
     assert edge_rungs["fragmentation"] == "synthetic-demonstrable", edge_rungs
     assert edge_rungs["bounds"] == "needs-real-data", edge_rungs
@@ -1139,10 +1170,13 @@ def test_ac17_label_sequence_mode_mechanism_records_the_corrected_rank_claim(mat
     longer quoted in the sentence (the corrected claim is about
     ``CANONICAL_ORDER``'s ranking of ``T13``, and the example illustrated the
     false one), so that literal is not asserted; the §6 title carrying it is
-    still pinned, as provenance, in ``VISION_SECTION_SIX_MODE_TITLES``."""
+    still pinned, as provenance, in ``VISION_SECTION_SIX_MODE_TITLES``.
+    Re-pointed again (2026-09-15 revision): the implausible label sequence
+    split three ways, and the order-breaking sub-mode carrying ``sequence``
+    and ``mislabel``'s ordering detector is mode 9."""
     import segfacet.failure_modes as failure_modes_module
 
-    record = _mode_record(matrix, 6)
+    record = _mode_record(matrix, 9)
     assert record["rung"] == "synthetic-demonstrable"
     assert "rank(v) == v - 1" not in record["mechanism"]
     for token in ("CANONICAL_ORDER", "T13"):
@@ -1151,7 +1185,7 @@ def test_ac17_label_sequence_mode_mechanism_records_the_corrected_rank_claim(mat
     # The cap itself, on the one edge that still carries it.
     edge_rungs = {
         edge.rule_id: edge.evidence_rung
-        for edge in failure_modes_module.SPECIFICATION[6].intended_rules
+        for edge in failure_modes_module.SPECIFICATION[9].intended_rules
     }
     assert edge_rungs["sequence"] == "needs-real-data", edge_rungs
     assert "needs-real-data" in record["mechanism"], record["mechanism"]
@@ -1211,16 +1245,17 @@ def test_ac19_every_mode_to_rule_edge_is_attributed_from_the_specification(matri
     modes = _mode_records(d)
     assert modes
 
-    # Re-pointed (item 150, 2026-09-14): the rule-less `proposed` entries are
-    # now modes 7 and 8, and the intensity pair's mode is 10.
-    assert PROPOSED_MODES == {7, 8}, PROPOSED_MODES
+    # Re-pointed (item 150, 2026-09-15 revision): the rule-less `proposed`
+    # entries are modes 5, 7, 11, 12, 13 and 14, and the intensity pair's
+    # mode is 16.
+    assert PROPOSED_MODES == {5, 7, 10, 11, 12, 13, 14}, PROPOSED_MODES
     for proposed_mode in sorted(PROPOSED_MODES):
         record = modes[proposed_mode]
         assert record["rules"] == [], record
         assert record["rule_attribution"] == {}, record
         assert record["read_paths"] == [], record
 
-    intensity_mode = modes[10]
+    intensity_mode = modes[16]
     assert intensity_mode["rule_attribution"] == {
         "intensity": "corpus",
         "intensity_reference_delta": "analytic",
@@ -1297,14 +1332,14 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     assert actual_all_edges == expected_total_edges
     assert actual_analytic == expected_analytic
 
-    # 2026-09-14, item 150: what the derivation above currently evaluates to
-    # on this tree -- a dated witness, not a floor a future change must
-    # match. The sign-off re-assigned the ids and widened both analytic
-    # declarations (bounds 1-3, reference_delta 1-3 and 5), and added one
-    # analytic edge that is new in kind: (4, "coverage"). Mode 4's corpus
-    # case remove_level_relabel expects NOTHING to fire (a vertebra removed
-    # with the labels renumbered, which no shipped rule detects), so the edge
-    # is analytic even though the mode does carry a committed case.
+    # 2026-09-15, item 150 (revision of the 2026-09-14 sign-off): what the
+    # derivation above currently evaluates to on this tree -- a dated
+    # witness, not a floor a future change must match. The revision split
+    # the paired sub-modes and re-assigned the ids: bounds declares 1-4,
+    # reference_delta 1-4 and 8. (6, "coverage") is a corpus edge: mode 6
+    # ("vertebra not segmented") carries mode5_remove_level, which expects
+    # coverage to fire, alongside remove_level_relabel, which expects nothing.
+    # Mode 10 ("skipped level label") is proposed and declares no rule.
     witness = {
         (1, "bounds"),
         (1, "reference_delta"),
@@ -1312,9 +1347,10 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
         (2, "reference_delta"),
         (3, "bounds"),
         (3, "reference_delta"),
-        (4, "coverage"),
-        (5, "reference_delta"),
-        (10, "intensity_reference_delta"),
+        (4, "bounds"),
+        (4, "reference_delta"),
+        (8, "reference_delta"),
+        (16, "intensity_reference_delta"),
     }
     assert actual_analytic == witness
 
@@ -1324,11 +1360,13 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # Attribution is a property of the EDGE, not of the rule. Item 138
     # asserted per-rule uniformity, which held only incidentally: while every
     # rule declared modes the corpus either designated for it throughout or
-    # never at all. The item-150 sign-off breaks that -- `coverage` declares
-    # mode 4 (whose committed case expects nothing to fire, so: analytic) and
-    # mode 6 (three cases designate it, so: corpus) -- so the invariant is
-    # restated as the per-edge derivation it always was, with the mixed rule
-    # asserted explicitly so the distinction cannot quietly collapse back.
+    # never at all. The 2026-09-14 sign-off briefly broke that (`coverage`
+    # declared one analytic and one corpus mode), so the invariant is
+    # restated as the per-edge derivation it always was. On the 2026-09-15
+    # revision (mode 10 narrowed to a label-only, rule-less proposed mode;
+    # coverage declares only mode 6, which mode5_remove_level designates) no
+    # rule is mixed again -- asserted as a dated witness so a rule that
+    # becomes mixed is noticed here rather than passing silently.
     by_rule: dict = {}
     for mode, rule_id in actual_analytic:
         by_rule.setdefault(rule_id, set()).add("analytic")
@@ -1337,7 +1375,7 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     for rule_id, tags in by_rule.items():
         assert tags <= {"analytic", "corpus"}, (rule_id, tags)
     mixed = {rule_id for rule_id, tags in by_rule.items() if len(tags) == 2}
-    assert mixed == {"coverage"}, by_rule
+    assert mixed == set(), by_rule
 
 
 def test_adv_ac20_mistagged_corpus_evidence_changes_no_attribution(matrix_bounds_mistagged_evidence):
@@ -1477,15 +1515,18 @@ def test_ac25_unregistered_designated_rule_id_is_reported_and_fails_completeness
 
 def test_adv_mode_to_rule_hole_when_a_declaration_is_monkeypatched_mode_less(matrix_overlap_mode_less):
     """Adversarial -- mode -> rule hole. Monkeypatching the live declaration
-    of ``overlap`` to a mode-less one makes mode 8 a hole naming the mode,
-    with complete: false."""
+    of ``overlap`` to a mode-less one makes the overlap mode (15 since item
+    150's 2026-09-15 revision) a hole naming the mode, with complete: false.
+    The unpatched tree already carries holes (the proposed modes), so the
+    membership is exact, never a substring match another id could satisfy."""
     d = matrix_overlap_mode_less
     assert d["directions"]["mode_to_rule"]["complete"] is False
     holes = d["directions"]["mode_to_rule"]["holes"]
     assert holes, "expected at least one hole"
-    assert any("8" in str(hole) for hole in holes), holes
+    assert str(_OVERLAP_MODE) in {str(hole) for hole in holes}, holes
+    assert str(_OVERLAP_MODE) not in {str(mode) for mode in PROPOSED_MODES}
 
-    mode8 = _mode_record(d, 8)
+    mode8 = _mode_record(d, _OVERLAP_MODE)
     assert mode8["rules"] == []
 
 
@@ -1673,7 +1714,17 @@ def test_ac31_mode_mechanism_names_a_resolvable_live_token(mode, matrix):
     sentence that names its hypothesised input as a real record leaf path
     instead. The claim is therefore split, not weakened: a mode with rules
     must still name an anchor, a case or one of its own rules; a proposed
-    mode must name a path the feature catalogue actually carries."""
+    mode must name a path the feature catalogue actually carries.
+
+    Reconciled again (item 150, 2026-09-15 revision): seven proposed modes now.
+    Five name a catalogued path. Mode 5 (holes) cannot: none of its
+    hypothesised candidate features is extracted, and its authored sentence
+    says so. The claim is split once more rather than weakened: a proposed
+    mode with a catalogued candidate feature must name a catalogued path; a
+    proposed mode with none must have a mechanism stating the feature layer
+    extracts none, and which modes those are is pinned as a witness."""
+    import segfacet.failure_modes as failure_modes_module
+
     record = _mode_record(matrix, mode)
     mechanism = record["mechanism"]
     assert mechanism, mode
@@ -1684,8 +1735,16 @@ def test_ac31_mode_mechanism_names_a_resolvable_live_token(mode, matrix):
         assert record["rules"] == [], mode
         catalogue_paths = {e.path for e in catalogue_module.build_catalogue(strict=True).entries}
         assert catalogue_paths, "expected a non-empty feature catalogue"
-        named = {path for path in catalogue_paths if path and path in mechanism}
-        assert named, (mode, mechanism)
+        candidate_paths = {
+            f.path for f in failure_modes_module.SPECIFICATION[mode].candidate_features
+        }
+        assert candidate_paths, mode
+        if candidate_paths & catalogue_paths:
+            named = {path for path in catalogue_paths if path and path in mechanism}
+            assert named, (mode, mechanism)
+        else:
+            assert mode == 5, (mode, sorted(candidate_paths))
+            assert "extracts neither" in mechanism, (mode, mechanism)
         return
 
     candidate_tokens = _live_token_candidates(record, mode)
@@ -1730,13 +1789,12 @@ def test_ac31_no_character_count_threshold_assertions_in_this_module():
 def test_adv_ac31_stale_mechanism_naming_no_live_identifier_is_detectable(
     matrix_overlap_mode_bogus_mechanism,
 ):
-    """Re-pointed (item 150, 2026-09-14) from mode 8 to mode 9 -- the
-    sign-off re-assigned "Overlapping segments" to id 9, and id 8 is now a
-    rule-less `proposed` entry with no live token to miss."""
-    record = _mode_record(matrix_overlap_mode_bogus_mechanism, 9)
+    """Re-pointed (item 150) from mode 8 to mode 15 -- the sign-off's
+    2026-09-15 revision assigns "Overlapping segments" id 15."""
+    record = _mode_record(matrix_overlap_mode_bogus_mechanism, _OVERLAP_MODE)
     assert record["rules"], "expected the overlap mode to still declare a rule"
 
-    candidate_tokens = _live_token_candidates(record, 9)
+    candidate_tokens = _live_token_candidates(record, _OVERLAP_MODE)
     assert candidate_tokens, "expected at least one live token candidate"
     assert not any(_token_in_mechanism(token, record["mechanism"]) for token in candidate_tokens)
 
@@ -1744,16 +1802,19 @@ def test_adv_ac31_stale_mechanism_naming_no_live_identifier_is_detectable(
 def test_adv_ac31_stale_mechanism_one_character_off_the_real_case_id_is_detectable(
     matrix_overlap_mode_typo_mechanism,
 ):
-    """Re-pointed (item 150, 2026-09-14) from mode 8 to mode 9; the corpus
-    case id (``mode8_force_overlap``) is historical and unchanged."""
-    case_ids = {c["case_id"] for c in _manifest_cases() if c.get("failure_mode") == 9}
+    """Re-pointed (item 150) from mode 8 to mode 15 (2026-09-15 revision);
+    the corpus case id (``mode8_force_overlap``) is historical and
+    unchanged."""
+    case_ids = {
+        c["case_id"] for c in _manifest_cases() if c.get("failure_mode") == _OVERLAP_MODE
+    }
     assert case_ids, "expected at least one overlap-mode corpus case"
     assert "mode8_force_overlap" in case_ids
 
-    record = _mode_record(matrix_overlap_mode_typo_mechanism, 9)
+    record = _mode_record(matrix_overlap_mode_typo_mechanism, _OVERLAP_MODE)
     assert record["rules"], "expected the overlap mode to still declare a rule"
 
-    candidate_tokens = _live_token_candidates(record, 9)
+    candidate_tokens = _live_token_candidates(record, _OVERLAP_MODE)
     assert candidate_tokens, "expected at least one live token candidate"
     assert not any(_token_in_mechanism(token, record["mechanism"]) for token in candidate_tokens)
 
@@ -1890,9 +1951,9 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
     """Reproduces the pre-fix mode-4 defect directly: naming a real,
     resolvable path (the mode's own anchor) that none of the mode's declared
     rules actually consumes must be distinguishable from a genuine claim --
-    demonstrating check (1) above would have failed it. Re-pointed (item 150,
-    2026-09-14) onto mode 5, which carries that configuration after the
-    sign-off; see ``matrix_anchor_not_consumed_bogus_mechanism``.
+    demonstrating check (1) above would have failed it. Re-pointed (item 150)
+    onto mode 8, which carries that configuration after the sign-off's
+    2026-09-15 revision; see ``matrix_anchor_not_consumed_bogus_mechanism``.
 
     The fixture assumptions are asserted, not assumed: the mode's anchor
     exists, its declared rules do not consume it, and -- since check (1) now

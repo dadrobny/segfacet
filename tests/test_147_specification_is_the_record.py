@@ -1,16 +1,17 @@
 """Tests for item 147 -- collapsing the five partial sources onto the
 failure-mode specification (``segfacet.failure_modes``).
 
-Re-pointed at the signed-off catalogue (item 150, 2026-09-14), which
-re-organised the taxonomy under this item's tests: ten modes in a one-tier
-hierarchy plus one ``ConditionSpec`` (FOV truncation, the retired mode 6),
-ids re-assigned, and vision.md §6's list demoted from "the names" to
-provenance (``VISION_SEED_DISPOSITION``). Every AC below is unchanged in
-what it claims; the ids, counts and section headings it claims it about are
-the signed-off ones. The three AC whose subject moved carry the reason at
-their own section heading: AC5 (§6 titles are provenance, not names), AC8
-(the rung-less entries are the two ``proposed`` modes, not the single mode
-10) and AC10 (the corrected label-sequence sentence is mode 6's).
+Re-pointed at the signed-off catalogue (item 150, 2026-09-14, revised
+2026-09-15), which re-organised the taxonomy under this item's tests:
+sixteen modes in a one-tier hierarchy plus one ``ConditionSpec`` (FOV
+truncation), ids re-assigned, and vision.md §6's list demoted from "the
+names" to provenance (``VISION_SEED_DISPOSITION``). Every AC below is
+unchanged in what it claims; the ids, counts and section headings it claims
+it about are the signed-off ones. The three AC whose subject moved carry the
+reason at their own section heading: AC5 (§6 titles are provenance, not
+names), AC8 (the rung-less entries are the six ``proposed`` modes, not the
+single mode 10) and AC10 (the corrected label-sequence sentence is mode
+9's).
 
 AC -> test map (house style, items 144-146):
 
@@ -366,11 +367,11 @@ def test_ac3_mode_anchor_paths_stays_under_its_own_metric_label(matrix):
     import segfacet.feature_docs as feature_docs_module
     import segfacet.traceability as traceability
 
-    # The signed-off key set (item 150): the Stage-18 metric anchors now
-    # cover modes 1, 3, 4, 5, 6 and 9 -- mode 3 carries two paths, and the
-    # FOV-truncation anchor moved to `CONDITION_ANCHOR_PATHS` when mode 6
-    # became a condition.
-    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == {1, 3, 4, 5, 6, 9}
+    # The signed-off key set (item 150, 2026-09-15 revision): the Stage-18
+    # metric anchors cover modes 1, 4, 6, 8, 9 and 15 -- mode 1 carries two
+    # paths (offset and fragmentation index), and the FOV-truncation anchor
+    # lives in `CONDITION_ANCHOR_PATHS` since that mode became a condition.
+    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == {1, 4, 6, 8, 9, 15}
     assert set(feature_docs_module.MODE_ANCHOR_PATHS) <= set(fm.SPECIFICATION)
     assert set(feature_docs_module.CONDITION_ANCHOR_PATHS) <= set(fm.CONDITIONS)
 
@@ -592,9 +593,12 @@ def test_ac7_mode_rungs_are_derived_from_the_specification(matrix):
 # =========================================================================== #
 # AC8: a mode with no edges renders its absent rung explicitly
 #
-# The catalogue's rung-less entries are its `proposed` ones: modes 7
-# (shifted label sequence) and 8 (collapsed or duplicated label set) since
-# the item-150 sign-off. AC8 was written when that was the single mode 10.
+# The catalogue's rung-less entries are its `proposed` ones: modes 5
+# (holes), 7 (hallucinated vertebra), 10 (skipped level label), 11
+# (unprompted numbering variant), 12 (shifted label sequence), 13 (collapsed
+# labels) and 14 (duplicated label) since the item-150 sign-off's 2026-09-15
+# revision, which narrowed mode 10 to the label alone. AC8 was written when
+# that was the single mode 10.
 # =========================================================================== #
 
 
@@ -603,7 +607,9 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     import segfacet.traceability as traceability
 
     edgeless = [mode for mode in fm.SPECIFICATION.values() if not mode.intended_rules]
-    assert {mode.id for mode in edgeless} == {7, 8}, [mode.id for mode in edgeless]
+    assert {mode.id for mode in edgeless} == {5, 7, 10, 11, 12, 13, 14}, [
+        mode.id for mode in edgeless
+    ]
 
     records_by_mode = {m.mode: m for m in matrix.modes}
     d = traceability.matrix_to_dict(matrix)
@@ -632,7 +638,7 @@ def _token_in_mechanism(token: str, mechanism: str) -> bool:
     return re.search(r"\b" + re.escape(token) + r"\b", mechanism) is not None
 
 
-@pytest.mark.parametrize("mode_id", range(1, 11))
+@pytest.mark.parametrize("mode_id", range(1, 17))
 def test_ac9_every_mechanism_names_a_token_that_resolves_live(mode_id):
     import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs_module
@@ -665,7 +671,9 @@ def test_ac9_every_mechanism_names_a_token_that_resolves_live(mode_id):
 #
 # Item 147 settled the correction on the then-mode 7 ("non-continuous label
 # sequence"); the item-150 sign-off re-homed that mode as mode 6
-# ("Implausible label sequence"), carrying the sentence with it. The claim
+# ("Implausible label sequence"), and its 2026-09-15 revision split that into
+# three, the sequence rule and `mode7_sequence_break` landing on mode 9
+# ("Out-of-order label sequence"), carrying the sentence with it. The claim
 # is unchanged: `rank(v) == v - 1` is false, and the sentence that replaced
 # it must name what makes it false.
 # =========================================================================== #
@@ -706,8 +714,8 @@ def test_ac10_label_sequence_corrected_sentence_is_measured():
     ]
     assert offending == [], offending
 
-    mechanism = fm.SPECIFICATION[6].mechanism
-    assert mechanism, "expected a non-empty mode-6 mechanism sentence"
+    mechanism = fm.SPECIFICATION[9].mechanism
+    assert mechanism, "expected a non-empty mode-9 mechanism sentence"
     for token in ("CANONICAL_ORDER", "T13"):
         assert token in mechanism, (token, mechanism)
     assert "rank(v) == v - 1" not in mechanism, mechanism
@@ -1304,25 +1312,31 @@ def test_ac25_matrix_note_names_the_specification_not_a_retired_constant(matrix)
 
 
 #: The lifecycle status every catalogue entry derives from live state as
-#: signed off (item 150, 2026-09-14). Authored status is "specified" or
-#: "proposed"; everything here is computed from the rule registry and the
-#: committed corpora on every read, so a rule that stops firing, a corpus
-#: case whose measurement moves, or a declaration that is dropped moves one
-#: of these values and fails this test. "implemented" (not "validated") is
-#: the honest value for a mode whose only corpus evidence is a co-detection
-#: by a rule the mode does not own, or a case recording "not detected today"
-#: with an empty expected set.
+#: signed off (item 150, 2026-09-14, revised 2026-09-15). Authored status is
+#: "specified" or "proposed"; everything here is computed from the rule
+#: registry and the committed corpora on every read, so a rule that stops
+#: firing, a corpus case whose measurement moves, or a declaration that is
+#: dropped moves one of these values and fails this test. "implemented" (not
+#: "validated") is the honest value for a mode whose only corpus evidence is
+#: a co-detection by a rule the mode does not own, a case recording "not
+#: detected today" with an empty expected set, or no corpus case at all.
 _EXPECTED_DERIVED_STATUS = {
-    1: "implemented",   # mode1_displace is a co-detection (mode-less offset detector)
+    1: "validated",     # mode2_fragment fires fragmentation's Fragmentation: detector
     2: "implemented",   # fuse_adjacent fires coverage/fragmentation, neither mode 2's own
-    3: "validated",
-    4: "implemented",   # remove_level_relabel expects {} -- not detected today
-    5: "implemented",   # no corpus case
-    6: "validated",
+    3: "implemented",   # no corpus case
+    4: "validated",
+    5: "proposed",
+    6: "validated",     # mode5_remove_level fires coverage (remove_level_relabel expects {})
     7: "proposed",
-    8: "proposed",
+    8: "implemented",   # no corpus case
     9: "validated",
-    10: "validated",
+    10: "proposed",      # skipped level label: no rule, no case
+    11: "proposed",
+    12: "proposed",
+    13: "proposed",
+    14: "proposed",
+    15: "validated",
+    16: "validated",
 }
 
 

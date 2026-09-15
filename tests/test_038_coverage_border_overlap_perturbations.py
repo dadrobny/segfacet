@@ -221,11 +221,12 @@ def test_ac5_remove_level_only_fired_rule_is_coverage_and_case_level():
 def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():
     """AC6: Expectation fields are pinned and verdict.overall.label matches.
 
-    Re-pinned for item 150's sign-off (2026-09-14): a missing *interior*
-    level is a label-sequence finding, so ``remove_level`` moved from the
-    old mode 5 to mode 6, "implausible label sequence". Mode 4 ("vertebra
-    not segmented") keeps the case where the labels are renumbered to hide
-    the gap -- ``remove_level_relabel``, Group A2 below."""
+    Re-pinned for item 150's catalogue revision (2026-09-15): a vertebra
+    that was never segmented is mode 6, "vertebra not segmented", whether
+    or not the labels hide the gap -- mode 10 ("skipped level label") is
+    about the label only. ``remove_level`` is mode 6's detectable form (the
+    coverage rule sees the gap); ``remove_level_relabel`` (Group A2 below)
+    is its undetected form."""
     clean = _clean()
     result = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
@@ -277,10 +278,10 @@ def test_ac9_remove_level_rejects_explicit_terminal_target():
 # =========================================================================== #
 # A2. remove_level_relabel (item 150, 2026-09-14)
 #
-# The sign-off split "a vertebra is missing" in two. ``remove_level`` leaves
-# the label sequence discontinuous, which the ``coverage`` rule sees -- that
-# is mode 6 (implausible label sequence), Group A above. Mode 4 ("vertebra
-# not segmented") is the form a real segmenter produces: the vertebra is
+# Both operators are mode 6 ("vertebra not segmented") since item 150's
+# 2026-09-15 revision. ``remove_level`` leaves the label sequence
+# discontinuous, which the ``coverage`` rule sees -- Group A above.
+# ``remove_level_relabel`` is the form a real segmenter produces: the vertebra is
 # gone AND the caudal labels are renumbered, so the sequence stays
 # continuous and no shipped rule sees anything. This group mirrors Group A's
 # claims for that operator, including the honest "nothing fires" expectation.
@@ -340,15 +341,15 @@ def test_remove_level_relabel_leaves_no_missing_level_for_coverage_to_see():
 
 
 def test_remove_level_relabel_expectation_well_formed_and_pipeline_agrees():
-    """Expectation fields are pinned -- mode 4, no designated rule, verdict
+    """Expectation fields are pinned -- mode 6, no designated rule, verdict
     "pass" -- and the pipeline agrees: no finding at all fires."""
     clean = _clean()
     result = RemoveLevelRelabelPerturbation(target_label=22).apply(
         clean.seg_img, seed=0
     )
     exp = result.expectation
-    assert exp.failure_mode == 4
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[4]
+    assert exp.failure_mode == 6
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
     assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset()
     assert exp.expected_labels == frozenset()
@@ -564,10 +565,10 @@ def test_ac21_force_overlap_expectation_well_formed():
         target_label=20, neighbour_label=21, overlap_depth=3
     ).apply(clean.seg_img, seed=0)
     exp = result.expectation
-    # Item 150 (2026-09-14): "overlapping segments" is mode 9 in the
-    # signed-off catalogue (it was 8 under vision.md §6's numbering).
-    assert exp.failure_mode == 9
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[9]
+    # Item 150 (2026-09-15): "overlapping segments" is mode 15 in the
+    # revised catalogue (it was 8 under vision.md §6's numbering).
+    assert exp.failure_mode == 15
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[15]
     assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"overlap"})
     assert exp.expected_labels == frozenset({20, 21})

@@ -162,15 +162,16 @@ def test_ac4_fragment_fires_fragmentation_kind_finding_on_target():
 def test_ac5_fragment_expectation_well_formed_and_pipeline_agrees():
     """AC5: Expectation fields are pinned and verdict.overall.label matches.
 
-    Re-pinned for item 150's sign-off (2026-09-14): a label left in two
-    large pieces is a *connectivity* defect, so ``fragment`` moved from the
-    old mode 2 (over-/under-segmentation) to mode 3, "disconnected
-    components / islands"."""
+    Re-pinned for item 150's catalogue revision (2026-09-15): a label left
+    in two large pieces is carried by mode 1, "segmentation accuracy
+    (over-/under-segmentation)", whose fragmentation ``Fragmentation:``
+    detector it trips; mode 4 ("islands") is reserved for tiny rogue
+    components (``inject_islands``)."""
     clean = _clean()
     result = FragmentPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
-    assert exp.failure_mode == 3
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[3]
+    assert exp.failure_mode == 1
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[1]
     assert exp.condition == ""
     assert exp.expected_rule_ids == frozenset({"fragmentation"})
     assert exp.expected_labels == frozenset({22})
@@ -247,8 +248,8 @@ def test_ac10_fuse_expectation_well_formed_and_pipeline_agrees():
     assert exp.failure_mode == 2
     assert exp.failure_mode_name == FAILURE_MODE_NAMES[2]
     assert exp.condition == ""
-    # Item 150 (2026-09-14): mode 2 is now specifically "fused or split
-    # vertebra segments", and ``fuse``'s expectation names both rules the
+    # Item 150 (2026-09-15): mode 2 is now specifically "fused vertebra
+    # segments" (the split half is mode 3), and ``fuse``'s expectation names both rules the
     # fused map trips -- the survivor's fragmentation-kind finding and the
     # case-level coverage finding for the level the fuse consumed.
     assert exp.expected_rule_ids == frozenset({"coverage", "fragmentation"})
@@ -332,12 +333,15 @@ def test_ac16_inject_islands_fires_island_kind_finding_on_target():
 
 
 def test_ac17_inject_islands_expectation_well_formed_and_pipeline_agrees():
-    """AC17: Expectation fields are pinned and verdict.overall.label matches."""
+    """AC17: Expectation fields are pinned and verdict.overall.label matches.
+
+    Mode 4, "islands (disconnected components)", per item 150's catalogue
+    revision (2026-09-15)."""
     clean = _clean()
     result = InjectIslandsPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
-    assert exp.failure_mode == 3
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[3]
+    assert exp.failure_mode == 4
+    assert exp.failure_mode_name == FAILURE_MODE_NAMES[4]
     assert exp.expected_rule_ids == frozenset({"fragmentation"})
     assert exp.expected_labels == frozenset({22})
     assert exp.expected_verdict == "flagged-for-review"

@@ -136,18 +136,20 @@ class CoverageRule(Rule):
     # (src/segfacet/synth/coverage_border_overlap.py) designates "coverage"
     # for mode 5 via its Expectation(failure_mode=5, expected_rule_ids={"coverage"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(4, 6),
+        modes=(6,),
         evidence=(
             "corpus-manifest",
             "tests/corpus/manifest.json's mode5_remove_level designates "
-            "this rule for mode 6 (implausible label sequence) of the "
-            "catalogue signed off at item 150 (2026-09-14): the corpus "
-            "operator removes an interior level, and the always-active "
-            "detector fires on the resulting gap in "
-            "relationships.missing_levels[] -- a label-sequence finding. "
-            "The two opt-in checks (expected span, expected count) over "
-            "relationships.present_levels[] are mode 4's (vertebra not "
-            "segmented), needs-real-data; the mode-4 fixture "
+            "this rule for mode 6 (vertebra not segmented) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15): the corpus operator deletes an interior vertebra "
+            "without renumbering, and the always-active detector fires on "
+            "the resulting gap in relationships.missing_levels[]. The two "
+            "opt-in checks (expected span, expected count) over "
+            "relationships.present_levels[] serve the same mode, "
+            "needs-real-data. A skipped label on a segmented vertebra "
+            "(mode 10) leaves the same gap, but this rule cannot tell the "
+            "two apart and does not declare mode 10; the other mode-6 fixture "
             "remove_level_relabel renumbers the labels to stay continuous "
             "and fires nothing.",
         ),

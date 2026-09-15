@@ -602,7 +602,8 @@
           "failure_modes": [
             1,
             2,
-            3
+            3,
+            4
           ],
           "measures": "Physical span of the label along image axis x.",
           "mode_evidence": [
@@ -673,7 +674,8 @@
           "failure_modes": [
             1,
             2,
-            3
+            3,
+            4
           ],
           "measures": "Physical span of the label along image axis y.",
           "mode_evidence": [
@@ -744,7 +746,8 @@
           "failure_modes": [
             1,
             2,
-            3
+            3,
+            4
           ],
           "measures": "Physical span of the label along image axis z.",
           "mode_evidence": [
@@ -816,7 +819,8 @@
           "failure_modes": [
             1,
             2,
-            3
+            3,
+            4
           ],
           "measures": "Physical volume of the label.",
           "mode_evidence": [
@@ -1341,8 +1345,9 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Number of distinct connected pieces the label is split into.",
           "mode_evidence": [
@@ -1416,8 +1421,9 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Voxel count of each connected component, largest first.",
           "mode_evidence": [
@@ -1539,8 +1545,9 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Alias of largest_component_fraction, exposed under its item-025 public name.",
           "mode_evidence": [
@@ -1613,8 +1620,9 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Fraction of the label's voxels belonging to its single largest piece.",
           "mode_evidence": [
@@ -1782,8 +1790,9 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Voxel sizes of every non-dominant component.",
           "mode_evidence": [
@@ -2305,7 +2314,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
-            6
+            9
           ],
           "measures": "Whether the levels were labelled in a head-to-tail-consistent order.",
           "mode_evidence": [
@@ -2363,7 +2372,6 @@
           "documented": true,
           "failure_modes": [
             2,
-            4,
             6
           ],
           "measures": "Canonical levels absent within the observed present-level span.",
@@ -2488,7 +2496,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            6
+            9
           ],
           "measures": "Level names that broke the monotonic canonical-rank check.",
           "mode_evidence": [
@@ -2563,7 +2571,6 @@
           "documented": true,
           "failure_modes": [
             2,
-            4,
             6
           ],
           "measures": "Recognised anatomical levels, in canonical head-to-tail order.",
@@ -2982,7 +2989,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            9
+            15
           ],
           "measures": "Number of voxels claimed by both labels of the pair.",
           "mode_evidence": [
@@ -4387,7 +4394,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
-            5
+            8
           ],
           "measures": "Whether every vertebra's closest-spline-parameter u increases along the anatomical order.",
           "mode_evidence": [
@@ -4442,7 +4449,7 @@
           "documented": true,
           "failure_modes": [
             1,
-            6
+            9
           ],
           "measures": "Level-name pairs whose spline parameter does not advance.",
           "mode_evidence": [
@@ -5815,7 +5822,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            10
+            16
           ],
           "measures": "Median scan intensity under the label mask.",
           "mode_evidence": [
@@ -6243,7 +6250,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            10
+            16
           ],
           "measures": "Spread of scan intensity under the label mask.",
           "mode_evidence": [
@@ -7047,7 +7054,8 @@
             1,
             2,
             3,
-            5
+            4,
+            8
           ],
           "measures": "Per-label aggregate anomaly score against the reference.",
           "mode_evidence": [
@@ -7236,7 +7244,8 @@
             1,
             2,
             3,
-            5
+            4,
+            8
           ],
           "measures": "Outlier-resistant z-score against the reference.",
           "mode_evidence": [
@@ -7541,7 +7550,8 @@
             1,
             2,
             3,
-            5
+            4,
+            8
           ],
           "measures": "Feature names whose case value falls outside the reference's percentile band.",
           "mode_evidence": [

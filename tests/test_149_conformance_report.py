@@ -4,14 +4,15 @@ SPECIFICATION`` as its primary source, per corpus case across BOTH committed
 corpora rather than the geometric one alone).
 
 Covers Acceptance Criteria AC1-AC33 per the item spec's Testing Strategy:
-one focused test per AC (several parametrised over the ten catalogued modes
-or the two corpora), plus the listed adversarial/edge cases -- a
+one focused test per AC (several parametrised over the catalogued modes --
+sixteen since the item-150 sign-off's 2026-09-15 revision -- or the two
+corpora), plus the listed adversarial/edge cases -- a
 deliberately altered expected set (AC17, the headline check), an emptied
 ``corpus_cases`` (AC14), a dropped ``ConsumedPath`` (AC12), ``derive_status``/
 ``SPECIFICATION`` patched (AC4/AC30 no-cache proof), a re-narrowed rule
 declaration (AC10/AC19), determinism/immutability (AC20/AC32), degenerate
-rows (modes 7 and 8, AC7; mode 9, AC18), and the guard's non-vacuity
-proof (AC25).
+rows (the seven proposed modes 5, 7, 10-14, AC7; overlap mode 15, AC18), and
+the guard's non-vacuity proof (AC25).
 
 Field-name note (same discipline as ``test_138_traceability_matrix.py``):
 the item spec pins the JSON's *content* precisely per-AC but leaves several
@@ -60,7 +61,8 @@ _GEOMETRIC_MANIFEST_PATH = _REPO_ROOT / "tests" / "corpus" / "manifest.json"
 _INTENSITY_MANIFEST_PATH = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json"
 _TEST_138_PATH = _REPO_ROOT / "tests" / "test_138_traceability_matrix.py"
 
-MODES = tuple(range(1, 11))
+#: The signed-off catalogue's ids (item 150, 2026-09-15 revision: sixteen).
+MODES = tuple(range(1, 17))
 
 #: AC28/AC29: every ``build_matrix()`` call site in this module must sit
 #: lexically inside a function decorated ``@pytest.fixture``, and the
@@ -206,17 +208,17 @@ def matrix(raw_matrix):
 
 
 @pytest.fixture
-def matrix_mode3_expected_firing_altered(monkeypatch):
-    """AC17's headline adversarial fixture: ``mode3_inject_islands`` (one of
-    mode 3's two corpus cases since the item-150 sign-off moved
-    ``mode2_fragment`` onto the same mode) is patched to claim
-    ``("coverage",)`` instead of the live, measured ``("fragmentation",)``.
-    Only that one case is altered -- its sibling is left in place, so the
-    fixture changes an expectation rather than orphaning a manifest case."""
+def matrix_mode4_expected_firing_altered(monkeypatch):
+    """AC17's headline adversarial fixture: ``mode3_inject_islands`` (mode
+    4's -- islands -- corpus case since the item-150 sign-off's 2026-09-15
+    revision) is patched to claim ``("coverage",)`` instead of the live,
+    measured ``("fragmentation",)``. Only that one case's expectation is
+    altered -- the case stays carried by its mode, so the fixture changes an
+    expectation rather than orphaning a manifest case."""
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
-    cases = failure_modes_module.SPECIFICATION[3].corpus_cases
+    cases = failure_modes_module.SPECIFICATION[4].corpus_cases
     original_case = next((c for c in cases if c.case_id == "mode3_inject_islands"), None)
     assert original_case is not None, [c.case_id for c in cases]
     assert original_case.expected_firing == ("fragmentation",), original_case
@@ -224,17 +226,18 @@ def matrix_mode3_expected_firing_altered(monkeypatch):
         dataclasses.replace(c, expected_firing=("coverage",)) if c is original_case else c
         for c in cases
     )
-    _patch_specification_mode(monkeypatch, failure_modes_module, 3, corpus_cases=altered)
+    assert len(altered) == len(cases), "fixture must not orphan a case"
+    _patch_specification_mode(monkeypatch, failure_modes_module, 4, corpus_cases=altered)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
 @pytest.fixture
 def matrix_mode6_corpus_cases_emptied(monkeypatch):
     """AC14: ``mode5_remove_level`` (a real manifest case, carried at
-    ``failure_mode == 6`` since the item-150 sign-off moved the missing
-    interior level onto the label-sequence mode) is orphaned by emptying its
-    mode's own ``corpus_cases`` -- proving the enumeration is
-    manifest-driven, not specification-driven."""
+    ``failure_mode == 6`` -- vertebra not segmented -- since the item-150
+    sign-off's 2026-09-15 revision narrowed mode 10 to a label-only skip) is orphaned by emptying its mode's own
+    ``corpus_cases`` -- proving the enumeration is manifest-driven, not
+    specification-driven."""
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
@@ -486,10 +489,12 @@ def test_adv_ac4_specification_name_patched_changes_the_rendered_title(matrix, m
 
 def test_ac5_derived_and_authored_status_are_two_independent_fields(matrix):
     """Both fields are carried per mode, and they genuinely differ somewhere:
-    mode 1 is authored ``specified`` but derives ``implemented`` (rules
-    declare it), while mode 7 -- one of the two ``proposed`` entries the
-    item-150 sign-off left unimplemented -- derives ``proposed`` too, so the
-    pair agrees there. Agreement on one row is not evidence of one field."""
+    mode 1 is authored ``specified`` but derives ``validated`` (since the
+    2026-09-15 revision its corpus case mode2_fragment fires its own
+    ``fragmentation`` edge), while mode 7 -- one of the seven ``proposed``
+    entries the item-150 sign-off left unimplemented -- derives ``proposed``
+    too, so the pair agrees there. Agreement on one row is not evidence of
+    one field."""
     import segfacet.failure_modes as failure_modes_module
 
     mode1 = _mode_record(matrix, 1)
@@ -499,7 +504,7 @@ def test_ac5_derived_and_authored_status_are_two_independent_fields(matrix):
         assert record["authored_status"] == failure_modes_module.SPECIFICATION[mode].status, mode
 
     assert mode1["authored_status"] == "specified"
-    assert mode1["status"] == "implemented"
+    assert mode1["status"] == "validated"
     assert mode1["status"] != mode1["authored_status"]
 
     assert mode7["authored_status"] == "proposed"
@@ -539,10 +544,11 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
     assert (record["rung"] or "") == expected, mode
 
 
-#: The item-150 sign-off's two ``proposed`` entries: no rules, no corpus
-#: cases, no derived rung. They are the degenerate rows this AC exists for
-#: (mode 10 carried that role before the sign-off re-numbered the catalogue).
-_DEGENERATE_MODES = (7, 8)
+#: The item-150 sign-off's seven ``proposed`` entries (2026-09-15 revision):
+#: no rules, no corpus cases, no derived rung. They are the degenerate rows
+#: this AC exists for (mode 10 carried that role before the sign-off
+#: re-numbered the catalogue, and carries it again as "skipped level label").
+_DEGENERATE_MODES = (5, 7, 10, 11, 12, 13, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)
@@ -588,26 +594,27 @@ def test_ac8_committed_markdown_carries_both_headers_verbatim():
 
 
 # =========================================================================== #
-# AC9: a mode whose two columns differ renders both (modes 5 and 6 since the
-# item-150 sign-off re-numbered the catalogue -- they were 4 and 7)
+# AC9: a mode whose two columns differ renders both (modes 8 and 9 since the
+# item-150 sign-off's 2026-09-15 revision re-numbered the catalogue -- they
+# were 4 and 7 before item 150, 5 and 6 at the 2026-09-14 pass)
 # =========================================================================== #
 
-#: ``(mode, anchor path, a read path that is not the anchor)``. Mode 5
+#: ``(mode, anchor path, a read path that is not the anchor)``. Mode 8
 #: (semantic mislabelling) is anchored by the Stage-18 monotonic-consistency
-#: metric but read through ``reference_delta``'s per-level z-score; mode 6
-#: (implausible label sequence) is anchored by ``relationships.is_continuous``
-#: and read through the three sequence/ordering/gap paths.
+#: metric but read through ``reference_delta``'s per-level z-score; mode 9
+#: (out-of-order label sequence) is anchored by ``relationships.is_continuous``
+#: and read through the sequence/ordering paths.
 _AC9_SPLIT_COLUMN_MODES = (
     (
-        5,
+        8,
         "stage3.monotonic_consistency.is_monotonic",
         "reference_delta.{label}.features.physical_volume_mm3.robust_z",
     ),
-    (6, "relationships.is_continuous", "relationships.out_of_order_labels[]"),
+    (9, "relationships.is_continuous", "relationships.out_of_order_labels[]"),
 )
 
 
-def test_ac9_modes_5_and_6_anchor_and_read_paths_differ(matrix):
+def test_ac9_modes_8_and_9_anchor_and_read_paths_differ(matrix):
     for mode, anchor, read_path in _AC9_SPLIT_COLUMN_MODES:
         record = _mode_record(matrix, mode)
         assert tuple(record["anchor_paths"]) == (anchor,), mode
@@ -637,7 +644,7 @@ def _mode_table(md_text: str):
     return header_cells, rows
 
 
-def test_ac9_committed_markdown_renders_both_cells_for_modes_5_and_6():
+def test_ac9_committed_markdown_renders_both_cells_for_modes_8_and_9():
     header_cells, rows = _mode_table(_COMMITTED_MD.read_text(encoding="utf-8"))
     anchor_col = header_cells.index("Stage-18 metric anchor paths")
     read_col = header_cells.index("Rule signal read paths")
@@ -755,7 +762,8 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     expected_keys = _all_manifest_case_keys()
     assert actual_keys == expected_keys
     # 15 since the item-150 sign-off added the fuse_adjacent (mode 2) and
-    # remove_level_relabel (mode 4) fixtures: 11 geometric + 4 intensity.
+    # remove_level_relabel (mode 6 under the 2026-09-15 ids) fixtures:
+    # 11 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
     assert len(cases) == 15, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
@@ -841,9 +849,9 @@ def test_ac16_committed_tree_agrees_on_every_case_and_is_conformant(matrix):
 
 
 def test_adv_ac17_altered_expected_set_fails_naming_case_expected_and_measured(
-    matrix_mode3_expected_firing_altered,
+    matrix_mode4_expected_firing_altered,
 ):
-    conformance = matrix_mode3_expected_firing_altered["conformance"]
+    conformance = matrix_mode4_expected_firing_altered["conformance"]
     assert conformance["conformant"] is False
     disagreements = conformance["disagreements"]
     assert disagreements, "expected at least one disagreement"
@@ -866,7 +874,7 @@ def test_ac17_committed_tree_conformance_assertion_would_fail_loudly_with_all_th
     whether AC16's own assertion is currently green."""
     import segfacet.failure_modes as fm
 
-    case = next(c for c in fm.SPECIFICATION[3].corpus_cases if c.case_id == "mode3_inject_islands")
+    case = next(c for c in fm.SPECIFICATION[4].corpus_cases if c.case_id == "mode3_inject_islands")
     altered = dataclasses.replace(case, expected_firing=("coverage",))
     measured = fm.measured_firing(case)
     failure_text = (
@@ -883,11 +891,11 @@ def test_ac17_committed_tree_conformance_assertion_would_fail_loudly_with_all_th
 # =========================================================================== #
 
 
-def test_ac18_mode10_cases_and_pipeline_detected_span_both_corpora(matrix):
+def test_ac18_intensity_mode_cases_and_pipeline_detected_span_both_corpora(matrix):
     """The intensity-corpus mode (entered as mode 9 by item 146, re-numbered
-    to 10 at the item-150 sign-off) is the one whose cases come from the
-    second committed manifest."""
-    mode10 = _mode_record(matrix, 10)
+    to 10 at the item-150 sign-off and to 16 at its 2026-09-15 revision) is
+    the one whose cases come from the second committed manifest."""
+    mode10 = _mode_record(matrix, 16)
     assert mode10["pipeline_detected"] is True
     case_ids = {c["case_id"] for c in mode10["cases"]}
     assert case_ids == {"implausible_metal", "implausible_soft_tissue", "degenerate_uniform"}
@@ -895,25 +903,26 @@ def test_ac18_mode10_cases_and_pipeline_detected_span_both_corpora(matrix):
         assert case["detection"] == "intensity_pipeline", case
 
 
-def test_ac18_mode9_pipeline_detected_stays_false(matrix):
-    """Overlapping segments (mode 8 before the sign-off, 9 after): its one
-    case is reconstructed, never pipeline-detected."""
-    mode9 = _mode_record(matrix, 9)
+def test_ac18_overlap_mode_pipeline_detected_stays_false(matrix):
+    """Overlapping segments (mode 8 before the sign-off, 9 at its first
+    pass, 15 since the 2026-09-15 revision): its one case is reconstructed,
+    never pipeline-detected."""
+    mode9 = _mode_record(matrix, 15)
     assert mode9["pipeline_detected"] is False
     detections = {c["detection"] for c in mode9["cases"]}
     assert detections == {"reconstructed_record"}, detections
 
 
 def test_ac18_no_geometric_only_mode_cases_change_from_the_committed_artifact(matrix):
-    """Modes 1-9's own per-mode ``cases``/``pipeline_detected`` are
-    untouched by the two-corpora extension -- only mode 10 (intensity)
-    gains cases. Compared against the committed artifact (the durable
+    """Modes 1-15's own per-mode ``cases``/``pipeline_detected`` are
+    untouched by the two-corpora extension -- only mode 16 (intensity, under
+    the 2026-09-15 ids) gains cases. Compared against the committed artifact (the durable
     "base" once this item's regeneration lands) rather than a git-history
     lookup, matching the AC19 attribution test's own pattern."""
     committed_payload = json.loads(_COMMITTED_JSON.read_text(encoding="utf-8"))
     committed_modes = _mode_records(committed_payload)
     geometric_case_ids = {c["case_id"] for c in _geometric_manifest_cases()}
-    for mode in range(1, 10):
+    for mode in range(1, 16):
         fresh_record = _mode_record(matrix, mode)
         committed_record = committed_modes[mode]
         assert fresh_record["cases"] == committed_record["cases"], mode
@@ -928,16 +937,18 @@ def test_ac18_no_geometric_only_mode_cases_change_from_the_committed_artifact(ma
 # =========================================================================== #
 
 
-def test_ac19_mode10_intensity_attributes_corpus_and_reference_delta_analytic(matrix):
-    mode10 = _mode_record(matrix, 10)
+def test_ac19_intensity_mode_attributes_corpus_and_reference_delta_analytic(matrix):
+    """The intensity mode is 16 under the item-150 2026-09-15 ids."""
+    mode10 = _mode_record(matrix, 16)
     assert mode10["rule_attribution"]["intensity"] == "corpus"
     assert mode10["rule_attribution"]["intensity_reference_delta"] == "analytic"
 
 
-def test_ac19_modes_1_to_9_attribution_matches_the_base_artifact(matrix):
+def test_ac19_geometric_modes_attribution_matches_the_base_artifact(matrix):
+    """Every geometric-corpus mode (1-15 under the item-150 2026-09-15 ids)."""
     committed_payload = json.loads(_COMMITTED_JSON.read_text(encoding="utf-8"))
     committed_modes = _mode_records(committed_payload)
-    for mode in range(1, 10):
+    for mode in range(1, 16):
         fresh_attribution = _mode_record(matrix, mode)["rule_attribution"]
         committed_attribution = committed_modes[mode]["rule_attribution"]
         assert fresh_attribution == committed_attribution, mode
@@ -1224,7 +1235,7 @@ def test_ac30_no_cache_construct_in_the_generator_source():
 @pytest.mark.parametrize(
     "fixture_name",
     [
-        "matrix_mode3_expected_firing_altered",
+        "matrix_mode4_expected_firing_altered",
         "matrix_mode6_corpus_cases_emptied",
         "matrix_consumed_path_dropped",
         "matrix_derive_status_patched",

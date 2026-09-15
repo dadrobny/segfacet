@@ -3,12 +3,13 @@ catalogued failure modes + the clean-control positive control, and its
 manifest.
 
 Re-pinned for item 150's maintainer sign-off (2026-09-14), which re-keyed
-the taxonomy: the corpus's modes are now ids of
-``segfacet.failure_modes.SPECIFICATION`` (overlap is 9, not 8), "partial
+the taxonomy, and again for its catalogue revision (2026-09-15): the
+corpus's modes are now ids of ``segfacet.failure_modes.SPECIFICATION``
+(overlap is 15, not 8), "partial
 vertebra at the FOV border" became the ``fov_truncation`` *condition* (mode
 0 plus a non-empty ``condition``, not a clean control), every manifest case
 gained a ``condition`` key, and two cases joined the corpus --
-``fuse_adjacent`` (mode 2) and ``remove_level_relabel`` (mode 4, expected to
+``fuse_adjacent`` (mode 2) and ``remove_level_relabel`` (mode 6, expected to
 fire nothing). The ``modeN_`` case-id prefixes are historical and no longer
 track mode ids. Group E below covers the new and re-homed cases.
 
@@ -24,7 +25,7 @@ Covers Acceptance Criteria AC1-AC18:
   short_name for a condition case; expected_verdict is a valid Severity
   label.
 - AC7-AC9 (Group B, detection classification): detection is one of
-  {"pipeline", "reconstructed_record"}; the overlap case (mode 9) is
+  {"pipeline", "reconstructed_record"}; the overlap case (mode 15) is
   classified reconstructed_record with the matching reconstruction technique
   (the relabel-swap case moved to pipeline in item 132, 2026-08-31, and the
   displace case in item 120), the rest are pipeline with no
@@ -46,7 +47,8 @@ Covers Acceptance Criteria AC1-AC18:
 
 Adversarial / edge-case scenarios included:
 - The case-level mode5_remove_level case (expected_labels == []) still loads
-  and is schema-valid (mode 6 since the item-150 sign-off).
+  and is schema-valid (mode 6, "vertebra not segmented", since item 150's
+  2026-09-15 catalogue revision).
 - Every seg_fixture path is distinct (no two cases silently share a seg).
 - Every case shares exactly one scan_fixture path (the dedup contract).
 - The shared base scan is byte-identical to a freshly written base
@@ -101,15 +103,17 @@ _VALID_RECONSTRUCTIONS = {
 # _PIPELINE_ONLY_MODES -- the traversal-ordered reference fit surfaces the
 # swap through plain run_qc.
 #
-# Re-keyed for item 150's sign-off (2026-09-14). These are failure-mode ids
-# of ``segfacet.failure_modes.SPECIFICATION``, not vision.md §6's old
-# numbering: "overlapping segments" is now mode 9, and the corpus's
-# remaining cases sit at 0-4 and 6 (mode 0 now covers both the clean control
-# and the FOV-truncation *condition* case, which carries no mode). Together
-# they must still partition every mode the corpus uses -- AC8's ``else``
-# branch is what enforces that.
-_RECONSTRUCTED_MODES = {9}
-_PIPELINE_ONLY_MODES = {0, 1, 2, 3, 4, 6}
+# Re-keyed for item 150's catalogue revision (2026-09-15). These are
+# failure-mode ids of ``segfacet.failure_modes.SPECIFICATION``, not vision.md
+# §6's old numbering: "overlapping segments" is now mode 15, and the corpus's
+# remaining cases sit at 0, 1 (displace and fragment), 2 (fuse), 4 (islands),
+# 6 (remove_level and remove_level_relabel) and 9 (relabel swap and sequence
+# break). Mode 0 covers both the clean control and the
+# FOV-truncation *condition* case, which carries no mode. Together they must
+# still partition every mode the corpus uses -- AC8's ``else`` branch is what
+# enforces that.
+_RECONSTRUCTED_MODES = {15}
+_PIPELINE_ONLY_MODES = {0, 1, 2, 4, 6, 9}
 
 _CASE_ID_RE = re.compile(r"^[a-z0-9_]+$")
 
@@ -196,10 +200,10 @@ def test_ac1_manifest_loads_versioned_and_round_trips():
 
 
 def test_ac2_every_mode_the_specification_gives_this_corpus_is_represented():
-    """AC2 (re-pinned for item 150, 2026-09-14): originally "every §6 mode
-    0-8 appears". The signed-off catalogue has ten modes, four of which
-    (5, 7, 8 and the intensity-only 10) have no geometric corpus case at
-    all, so a literal 0-8 range is no longer the claim. Derive the expected
+    """AC2 (re-pinned for item 150, 2026-09-15): originally "every §6 mode
+    0-8 appears". The revised catalogue has sixteen modes, most of which
+    (3, 5, 7, 8, 10-14 and the intensity-only 16) have no geometric corpus
+    case at all, so a literal 0-8 range is no longer the claim. Derive the expected
     set instead -- every mode ``SPECIFICATION`` records a ``"geometric"``
     corpus case for, plus 0 for the clean control and the condition-only
     case -- so the corpus and the specification cannot drift apart silently
@@ -299,8 +303,8 @@ def test_ac8_modes_4_8_reconstructed_record_rest_pipeline():
     promoted a held-out per-label spline offset into the pipeline itself;
     the relabel-swap case moved into the pipeline set in item 132
     (2026-08-31), which judges monotonicity against a traversal-ordered
-    reference fit. Only the overlap case -- mode 9 since item 150's sign-off
-    (2026-09-14) -- remains reconstructed_record."""
+    reference fit. Only the overlap case -- mode 15 since item 150's
+    catalogue revision (2026-09-15) -- remains reconstructed_record."""
     for case in _cases():
         mode = case["failure_mode"]
         if mode in _RECONSTRUCTED_MODES:
@@ -488,7 +492,7 @@ def test_ac18_the_one_command_regeneration_entry_point_runs(tmp_path):
 
 
 def test_fuse_adjacent_case_records_mode_2_with_both_co_detected_rules():
-    """``fuse_adjacent`` is mode 2's ("fused or split vertebra segments")
+    """``fuse_adjacent`` is mode 2's ("fused vertebra segments")
     fixture, and it names *both* rules the fused map trips: the survivor's
     fragmentation finding and the case-level coverage finding for the level
     the fuse consumed. Both must actually fire."""
@@ -506,15 +510,15 @@ def test_fuse_adjacent_case_records_mode_2_with_both_co_detected_rules():
     assert case_result.verdict.overall.label == case["expected_verdict"]
 
 
-def test_remove_level_relabel_case_records_mode_4_and_honestly_fires_nothing():
-    """``remove_level_relabel`` is mode 4's ("vertebra not segmented")
+def test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing():
+    """``remove_level_relabel`` is mode 6's ("vertebra not segmented")
     fixture and the corpus's first deliberately *undetected* case: the
     caudal labels are renumbered, so no shipped rule sees anything. Its
     expectation records that honestly -- no rule, a "pass" verdict -- and
     the pipeline must agree, which is what makes it a regression guard for
     the day a rule does detect it."""
     case = _case("remove_level_relabel")
-    assert case["failure_mode"] == 4
+    assert case["failure_mode"] == 6
     assert case["condition"] == ""
     assert case["detection"] == "pipeline"
     assert case["expected_rule_ids"] == []
@@ -554,9 +558,10 @@ def test_condition_case_is_not_a_clean_control_despite_failure_mode_zero():
 def test_adv_remove_level_case_level_labels_stay_schema_valid():
     """Adversarial: the case-level ``mode5_remove_level`` case
     (expected_labels == []) still loads without crashing and is
-    schema-valid. Its mode moved from 5 to 6 at item 150's sign-off
-    (2026-09-14) -- a missing interior level is a label-sequence finding --
-    while the case id is historical and deliberately unchanged."""
+    schema-valid. Its mode moved from 5 to 6, "vertebra not segmented", at
+    item 150's catalogue revision (2026-09-15) -- a missed vertebra
+    segmentation is mode 6 whether or not the labels hide the gap -- while
+    the case id is historical and deliberately unchanged."""
     case = _case("mode5_remove_level")
     assert case["expected_labels"] == []
     assert case["failure_mode"] == 6

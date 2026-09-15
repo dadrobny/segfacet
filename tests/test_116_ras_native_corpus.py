@@ -452,9 +452,24 @@ def _build_corpus_cohort():
 
 
 def test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one():
+    """AC8 concerns the ``mode6_crop_at_border`` case (vision.md Sec.6's old
+    mode 6). Since item 150 that case carries ``failure_mode == 0`` plus the
+    ``fov_truncation`` condition, so the eval harness groups it under
+    failure_mode 0 -- where it is the only expected-failure record (the
+    clean control expects "pass"). The per-mode entry is checked there, and
+    the crop case's own outcome is pinned so the bucket cannot be satisfied
+    by some other case."""
+    from segfacet.eval.outcome import Outcome
+
     cohort = evaluate_cohort(_build_corpus_cohort(), bundled_default_config())
+    crop_case = next(c for c in _MANIFEST_CASES if c["case_id"] == "mode6_crop_at_border")
+    assert crop_case["failure_mode"] == 0
+    assert crop_case["condition"] == "fov_truncation"
+    crop_record = next(c for c in cohort.cases if c.case_id == "mode6_crop_at_border")
+    assert crop_record.outcome.outcome is Outcome.TRUE_POSITIVE
+
     metrics = compute_cohort_metrics(cohort, failure_modes=FAILURE_MODE_NAMES)
-    entry = next(m for m in metrics.per_mode if m.failure_mode == 6)
+    entry = next(m for m in metrics.per_mode if m.failure_mode == 0)
     assert entry.n_cases > 0
     assert entry.sensitivity == 1.0
 

@@ -98,6 +98,13 @@ wrong is recorded in `insights.md` and handed back.
 > declarations moved. Still not touched: any rule's `evaluate` body or
 > threshold, `vision.md`, `roadmap.md`. The eval-harness re-key and the
 > vision §6 re-issue are recorded in `insights.md` as follow-ups.
+>
+> **Amended 2026-09-15, same item, same review.** The maintainer split every
+> paired sub-mode into single defects (ten modes became sixteen, ids
+> re-assigned) and the `ModeSpec`/`ConditionSpec` schema gained `scope`
+> (`vertebra` / `spine`). No corpus case or operator was added; case
+> `failure_mode` values and rule declarations moved. Still not touched: any
+> rule's `evaluate` body or threshold, `vision.md`, `roadmap.md`.
 
 **No new rules, and no new corpus cases beyond the ninth mode's.** The one
 corpus change sanctioned here is `tests/corpus/intensity/manifest.json` gaining

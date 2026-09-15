@@ -42,8 +42,8 @@ Covers Acceptance Criteria AC1-AC25:
         no hand-typed rule-id->mode dict literal.
 - AC14: every ``MODE_ANCHOR_PATHS`` path anchors its mode with
         ``"per_mode_metric"`` evidence -- keyed, since item 150's sign-off
-        (2026-09-14), by the anchorable signed-off modes ``{1, 3, 4, 5, 6,
-        9}``; the legacy mode-6 metric now anchors the ``fov_truncation``
+        (revised 2026-09-15), by the anchorable signed-off modes ``{1, 4, 6,
+        8, 9, 15}``; the legacy mode-6 metric now anchors the ``fov_truncation``
         *condition* through ``CONDITION_ANCHOR_PATHS`` instead.
 - AC15: an unmapped-rule-only, non-anchor entry gets an honest empty mode
         list with ``mode_evidence == ("rule_unmapped",)`` -- reconciled for
@@ -568,18 +568,19 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 
 
 #: The corpus-derived rule -> failure-mode map, as the maintainer's item-150
-#: sign-off (2026-09-14) leaves it: the modes ``synth/*.py``'s
+#: sign-off (revised 2026-09-15) leaves it: the modes ``synth/*.py``'s
 #: ``Expectation(...)`` literals attribute to each rule, which is exactly what
 #: ``catalogue._scan_synth_rule_mode_map`` must recover. ``border`` is absent
 #: on purpose -- its corpus case (``mode6_crop_at_border``) now carries
 #: ``failure_mode=0`` plus the ``fov_truncation`` *condition*, so the scan
 #: attributes no mode to it; the mode-less half of AC15 covers it instead.
+#: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
-    "mislabel": (1, 6),
-    "fragmentation": (2, 3),
-    "coverage": (2, 6),
-    "sequence": (6,),
-    "overlap": (9,),
+    "mislabel": (1, 9),  # mode1_displace (1), mode4_relabel_swap (9)
+    "fragmentation": (1, 2, 4),  # mode2_fragment (1), fuse_adjacent (2), islands (4)
+    "coverage": (2, 6),  # fuse_adjacent (2), mode5_remove_level (6)
+    "sequence": (9,),  # mode7_sequence_break
+    "overlap": (15,),  # mode8_force_overlap
 }
 
 
@@ -606,9 +607,10 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     set to this rule's signal-classified paths.
 
     Reconciled again (item 150, 2026-09-14): the sign-off split the corpus
-    map and the rules' own ``RuleModeDeclaration`` apart -- ``coverage``'s
-    corpus modes are ``(2, 6)`` while it declares ``(4, 6)``, and
-    ``mislabel``'s are ``(1, 6)`` against a declared ``(6,)``. An entry's
+    map and the rules' own ``RuleModeDeclaration`` apart -- on the
+    2026-09-15 revision ``coverage``'s corpus modes are ``(2, 6)`` while it
+    declares ``(6,)``, and ``mislabel``'s are ``(1, 9)`` against a
+    declared ``(9,)``. An entry's
     ``failure_modes`` is the *union* of every source that spoke, so the exact
     expected set is derived here from all three live sources (corpus map,
     declaration, mode anchor) and the corpus map's own contribution is
@@ -616,7 +618,7 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     this AC is about, instead of weakening the pin to a subset check.
 
     ``overlap``'s only ``"signal"`` path, ``overlaps[].overlap_voxels``, is
-    also ``MODE_ANCHOR_PATHS[9]``'s sole member, so there is no non-anchor
+    also ``MODE_ANCHOR_PATHS[15]``'s sole member, so there is no non-anchor
     entry to match against. For a rule whose every signal path is an anchor
     path, assert that fact directly (the signal set is a non-empty subset of
     the anchor paths); the per-entry assertions below are the same either
@@ -671,11 +673,14 @@ def test_ac13_no_hand_typed_rule_mode_dict_in_catalogue_source(catalogue_module)
 
 
 #: The signed-off modes item 099's Stage-18 per-mode metrics can anchor
-#: (item 150, 2026-09-14). Four of the ten catalogued modes have no Stage-18
-#: metric (2, 7, 8, 10) and therefore no anchor, and the legacy mode-6
-#: metric (FOV-clipped label count) now anchors the ``fov_truncation``
-#: condition rather than a mode -- see ``feature_docs.CONDITION_ANCHOR_PATHS``.
-_ANCHORED_MODES = {1, 3, 4, 5, 6, 9}
+#: (item 150, revised 2026-09-15). Six of the sixteen catalogued modes carry
+#: an anchor -- 1 (segmentation accuracy), 4 (islands), 6 (vertebra not
+#: segmented), 8 (semantic mislabelling), 9 (out-of-order label sequence),
+#: 15 (overlapping segments); the other ten have no Stage-18 metric. The
+#: legacy mode-6 metric (FOV-clipped label count) anchors the
+#: ``fov_truncation`` condition rather than a mode -- see
+#: ``feature_docs.CONDITION_ANCHOR_PATHS``.
+_ANCHORED_MODES = {1, 4, 6, 8, 9, 15}
 
 
 def test_ac14_mode_anchor_paths_key_set_is_the_anchored_modes(

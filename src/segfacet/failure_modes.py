@@ -18,30 +18,59 @@ both derivation paths end-to-end (item spec A4); item 145 entered vision.md
 ``proposed`` entry; item 147 collapsed the five partial sources onto it.
 Item 150's maintainer sign-off (2026-09-14) then **re-organised the
 catalogue** -- see "Taxonomy as signed off" below -- so :data:`SPECIFICATION`
-now carries ten modes in a one-tier hierarchy plus one :data:`CONDITIONS`
+now carries sixteen modes in a one-tier hierarchy plus one :data:`CONDITIONS`
 entry.
 
-Taxonomy as signed off (item 150, 2026-09-14)
----------------------------------------------
+Taxonomy as signed off (item 150, 2026-09-14, revised 2026-09-15)
+-----------------------------------------------------------------
 Ids are assigned in this module and are stable from the sign-off on; the
 vision.md §6 list is provenance only (:data:`VISION_SEED_DISPOSITION`), so a
 §6 re-issue through the create-vision entry point is owed and does not move
 an id. The tree runs generic to specific, and a case that meets a parent's
-definition but no sub-mode's rule is classified at the parent::
+definition but no sub-mode's rule is classified at the parent. ``scope``
+says whether a mode's finding is about one vertebra or about the labels
+along the spine::
 
-    1  Segmentation accuracy (over-/under-segmentation)   needs-ground-truth
-       2  Fused or split vertebra segments                 single-channel (proxies, to be proven)
-       3  Disconnected components / islands                single-channel
-       4  Vertebra not segmented                           needs-ground-truth
-    5  Semantic mislabelling                               single-channel (proxies)
-       6  Implausible label sequence                       single-channel; severity fail
-       7  Shifted label sequence                           needs-external-classifier; proposed
-       8  Collapsed or duplicated label set                single-channel; proposed
-    9  Overlapping segments                                structurally-unobservable
-    10 Implausible tissue under a label                    needs-paired-scan
-    Condition: FOV truncation (was mode 6)                  border rule records it
+    1  Segmentation accuracy (over-/under-segmentation)  vertebra  needs-ground-truth
+       2  Fused vertebra segments                         vertebra  single-channel (proxies)
+       3  Split vertebra segment                          vertebra  single-channel (proxies)
+       4  Islands (disconnected components)               vertebra  single-channel
+       5  Holes (enclosed background)                     vertebra  single-channel; proposed
+       6  Vertebra not segmented                          spine     needs-ground-truth
+       7  Hallucinated vertebra                           spine     single-channel; proposed
+    8  Semantic mislabelling                              vertebra  single-channel (proxies)
+       9  Out-of-order label sequence                     spine     single-channel; severity fail
+       10 Skipped level label                             spine     single-channel; severity fail; proposed
+       11 Unprompted numbering variant                    spine     single-channel; proposed
+       12 Shifted label sequence                          spine     needs-external-classifier; proposed
+       13 Collapsed labels                                spine     single-channel; proposed
+       14 Duplicated label                                spine     single-channel; proposed
+    15 Overlapping segments                               vertebra  structurally-unobservable
+    16 Implausible tissue under a label                   vertebra  needs-paired-scan
+    Condition: FOV truncation (was mode 6)                vertebra  border rule records it
 
-What moved, and why (the full walkthrough is transcribed in
+The 2026-09-15 revision, continuing the same review: every sub-mode that
+paired two converse defects was split so each names one defect and every
+shipped detector serves at most one mode -- fused (2) / split (3), islands
+(4) / holes (5, new), not segmented (6) / hallucinated (7, new), collapsed
+(13) / duplicated (14) -- and the implausible label sequence became three
+sub-modes, out-of-order (9, severity fail), skipped level label (10,
+severity fail) and unprompted numbering variant (11). A gap in the label
+sequence caused by a vertebra that was not segmented is mode 6's, so
+``coverage``'s interior-gap detector and ``mode5_remove_level`` serve mode
+6; mode 10 is only a skipped label on a segmented vertebra, which no rule
+tells apart from a missed one yet. A duplicated label is the
+same label on non-adjacent vertebrae anywhere in the sequence; adjacent
+vertebrae sharing a label are a fusion. Fused/split are defined by a
+substantial part of a vertebra under a neighbour's label; islands and holes
+by small same-label topology defects. ``mode2_fragment`` (a vertebra cut
+into large same-label pieces by a missing slab of its own body) is neither,
+so it and ``fragmentation``'s Fragmentation: detector sit at the parent,
+mode 1; the Rogue island(s): detector serves mode 4. ``ModeSpec.scope`` and
+:data:`SCOPES` were added (schema 2.1).
+
+What moved at the first pass, and why, under the ids of that pass (the
+full walkthrough is transcribed in
 ``docs/aide/items/150-maintainer-sign-off-of-the-specification.md``):
 
 * The old mode 1 ("label not aligned with the vertebra it names") is
@@ -237,7 +266,7 @@ Public API
 
 Sign-off
 --------
-Signed off: 2026-09-14 -- accepted with changes: the maintainer reviewed all ten entries of the item-149 rendering and re-organised the catalogue (one mode retired, one split, one re-homed as a condition, one added, ids re-assigned in a one-tier hierarchy, two observability classes added); the entry-by-entry walkthrough is transcribed in docs/aide/items/150-maintainer-sign-off-of-the-specification.md.
+Signed off: 2026-09-15 -- accepted with changes: the maintainer reviewed all ten entries of the item-149 rendering on 2026-09-14 and re-organised the catalogue (one mode retired, one split, one re-homed as a condition, one added, ids re-assigned in a one-tier hierarchy, two observability classes added), then on 2026-09-15 split every paired sub-mode into single defects and added a scope field, giving sixteen entries; the entry-by-entry walkthrough is transcribed in docs/aide/items/150-maintainer-sign-off-of-the-specification.md.
 
 The changes are the "Taxonomy as signed off" section above, applied in
 this module, the rule declarations, both committed corpora and
@@ -282,6 +311,7 @@ __all__ = [
     "AUTHORED_STATUSES",
     "OBSERVABILITY",
     "PROVENANCE",
+    "SCOPES",
     "CANDIDATE_ROLES",
     "EVIDENCE_RUNGS",
     "SCHEMA_VERSION",
@@ -289,7 +319,7 @@ __all__ = [
     "MD_PATH",
 ]
 
-SCHEMA_VERSION = "2.0"
+SCHEMA_VERSION = "2.1"
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
@@ -297,7 +327,7 @@ MD_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
 
 _NOTE = (
     "Generated by `python -m segfacet.failure_modes` (item 144; taxonomy "
-    "signed off at item 150, 2026-09-14). Do not "
+    "signed off at item 150, 2026-09-14, revised 2026-09-15). Do not "
     "hand-edit this document -- edit the seed ModeSpec entries in "
     "src/segfacet/failure_modes.py (the authored fields), then regenerate. "
     "`status_authored` is the hand-set proposed/specified value; "
@@ -323,6 +353,11 @@ OBSERVABILITY: Tuple[str, ...] = (
 )
 
 PROVENANCE: Tuple[str, ...] = ("hypothesised", "discovered")
+
+#: What a mode's finding is about (item 150, 2026-09-15): ``"vertebra"`` --
+#: one vertebra or its segment; ``"spine"`` -- the set or sequence of labels
+#: along the spine, decidable only across vertebrae.
+SCOPES: Tuple[str, ...] = ("vertebra", "spine")
 
 CANDIDATE_ROLES: Tuple[str, ...] = ("stage18-metric-anchor", "hypothesised")
 
@@ -418,6 +453,7 @@ class ModeSpec:
     name: str
     short_name: str = ""
     parent: Optional[int] = None
+    scope: str = ""
     definition: str = ""
     discriminator: str = ""
     mechanism: str = ""
@@ -449,6 +485,14 @@ class ModeSpec:
                     f"ModeSpec {self.id}: '{optional_field_name}' must be a str "
                     f"(possibly empty), got {type(optional_value).__name__}."
                 )
+
+        # `scope` (item 150, 2026-09-15) follows the same default-empty
+        # convention; every shipped entry carries one, asserted by the suite.
+        if not isinstance(self.scope, str) or (self.scope and self.scope not in SCOPES):
+            raise ValueError(
+                f"ModeSpec {self.id}: 'scope' {self.scope!r} is not empty or a "
+                f"member of SCOPES {SCOPES}."
+            )
 
         for field_name in (
             "name",
@@ -641,8 +685,14 @@ class ConditionSpec:
     recording_rules: Tuple[str, ...]
     exempting_rules: Tuple[str, ...]
     corpus_cases: Tuple[CorpusCaseExpectation, ...]
+    scope: str = ""
 
     def __post_init__(self) -> None:
+        if not isinstance(self.scope, str) or (self.scope and self.scope not in SCOPES):
+            raise ValueError(
+                f"ConditionSpec {self.id!r}: 'scope' {self.scope!r} is not empty or "
+                f"a member of SCOPES {SCOPES}."
+            )
         for field_name in ("id", "name", "short_name", "definition", "mechanism"):
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value:
@@ -688,56 +738,71 @@ class ConditionSpec:
 
 
 # =========================================================================== #
-# The catalogue as signed off (item 150, 2026-09-14).
+# The catalogue as signed off (item 150, 2026-09-14; revised 2026-09-15).
 #
 # Ids are assigned HERE and are stable from this sign-off on; the vision.md
 # section 6 list is provenance only (see VISION_SEED_DISPOSITION). The tree is
 # generic-to-specific: a case that meets a parent's definition but no
-# sub-mode's rule is classified at the parent. expected_firing values are
-# measured live on the item-150 corpus and recorded literally (a computed
-# value at module level would defeat the no-heavy-import contract).
+# sub-mode's rule is classified at the parent. Each sub-mode names one defect,
+# never a pair of converse defects, so every shipped detector serves at most
+# one mode. expected_firing values are measured live on the item-150 corpus
+# and recorded literally (a computed value at module level would defeat the
+# no-heavy-import contract).
 # =========================================================================== #
 
 _MODE_1 = ModeSpec(
     id=1,
     name="Segmentation accuracy (over-/under-segmentation)",
     short_name="segmentation accuracy (over-/under-segmentation)",
+    scope="vertebra",
     definition=(
         "Relative to ground truth, the predicted segment for a correctly "
         "identified and labelled vertebra misses part of that vertebra "
         "(under-segmentation) or extends beyond it into background or "
-        "adjacent tissue (over-segmentation). The catch-all for accuracy "
-        "defects no more specific sub-mode claims: a case that is inaccurate "
-        "but meets no sub-mode's rule is classified here."
+        "adjacent tissue (over-segmentation). This includes a vertebra cut "
+        "into large same-label pieces by a missing slab of its own body: "
+        "the pieces carry no neighbour's label and are not small islands. "
+        "The catch-all for accuracy defects no more specific sub-mode "
+        "claims: a case that is inaccurate but meets no sub-mode's rule is "
+        "classified here."
     ),
     discriminator=(
-        "Mode 2 when the overreach covers a substantial part of a "
-        "neighbouring vertebra, or the missing part is claimed by another "
-        "label; mode 3 when the surplus is a disconnected component rather "
-        "than contiguous with the body; mode 4 when the whole vertebra is "
-        "absent; the FOV-truncation condition when the missing part lies "
+        "Mode 2 when the overreach covers a substantial part of an adjacent "
+        "vertebra; mode 3 when a substantial part of the vertebra carries a "
+        "neighbour's label; mode 4 when the surplus is a disconnected island "
+        "rather than contiguous with the body; mode 5 when the missing part "
+        "is background enclosed inside the segment; mode 6 when the whole "
+        "vertebra is absent; mode 7 when the segment covers no vertebra at "
+        "all; the FOV-truncation condition when the missing part lies "
         "beyond an image face."
     ),
     mechanism=(
-        "No shipped rule decides this mode: it needs a ground-truth label "
-        "map, which the per-case pipeline never sees. The label-map proxies "
-        "are the bounds rule's per-label volume/extent ranges "
-        "(per_label.{label}.geometry.physical_volume_mm3) and "
+        "No shipped rule decides this mode in general: it needs a "
+        "ground-truth label map, which the per-case pipeline never sees. "
+        "The label-map proxies are the bounds rule's per-label volume/extent "
+        "ranges (per_label.{label}.geometry.physical_volume_mm3) and "
         "reference_delta's cohort z-scores "
         "(reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both declared at needs-real-data. The corpus case mode1_displace "
-        "(a rigidly translated vertebra, which is over-segmentation into "
-        "background plus under-segmentation of the true body) fires "
-        "mislabel's spline-offset detector via "
+        "both declared at needs-real-data. One form is demonstrated "
+        "end-to-end: mode2_fragment cuts a background slab through label 22 "
+        "and fragmentation's Fragmentation: detector fires on the two "
+        "comparably-sized same-label pieces via "
+        "per_label.{label}.components.fragmentation_index. The corpus case "
+        "mode1_displace (a rigidly translated vertebra, which is "
+        "over-segmentation into background plus under-segmentation of the "
+        "true body) fires mislabel's spline-offset detector via "
         "stage3.per_label_offsets[].offset_mm -- a detector that serves no "
         "failure mode (the spline offset is an anatomy-classification "
-        "signal), so the case is recorded as a co-detection and does not "
-        "validate this mode."
+        "signal), so that case is a recorded co-detection."
     ),
     observability="needs-ground-truth",
     candidate_features=(
         CandidateFeature(
             path="stage3.per_label_offsets[].offset_mm",
+            role="stage18-metric-anchor",
+        ),
+        CandidateFeature(
+            path="per_label.{label}.components.fragmentation_index",
             role="stage18-metric-anchor",
         ),
         CandidateFeature(
@@ -771,6 +836,11 @@ _MODE_1 = ModeSpec(
     ),
     intended_rules=(
         IntendedRule(
+            rule_id="fragmentation",
+            detector="Fragmentation:",
+            evidence_rung="synthetic-demonstrable",
+        ),
+        IntendedRule(
             rule_id="bounds",
             detector="",
             evidence_rung="needs-real-data",
@@ -791,9 +861,25 @@ _MODE_1 = ModeSpec(
                 "spline-offset detector fires because label 22 (L3) is "
                 "rigidly translated off the fitted spinal curve, measured "
                 "live via segfacet.synth.regression.pipeline_findings "
-                "(2026-09-14). Neither of this mode's intended rules fires "
-                "without a reference attached, so the case is a recorded "
-                "co-detection and does not validate mode 1."
+                "(2026-09-14). None of this mode's intended rules fires on "
+                "it without a reference attached, so the case is a recorded "
+                "co-detection."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="mode2_fragment",
+            corpus="geometric",
+            expected_firing=("fragmentation",),
+            reason=(
+                "pipeline-detected; fragmentation (Fragmentation: the "
+                "label's fragmentation_index falls below threshold, two "
+                "comparably-sized components) is the sole rule that fires, "
+                "measured live via segfacet.synth.regression."
+                "pipeline_findings (2026-09-15). The operator removes an "
+                "interior slab of label 22's own body, so the pieces carry "
+                "no neighbour's label (not mode 3) and neither is a small "
+                "island (not mode 4): under-segmentation that disconnects, "
+                "classified at this parent at the 2026-09-15 revision."
             ),
         ),
     ),
@@ -805,39 +891,41 @@ _MODE_1 = ModeSpec(
 _MODE_2 = ModeSpec(
     id=2,
     parent=1,
-    name="Fused or split vertebra segments",
-    short_name="fused or split vertebra segments",
+    name="Fused vertebra segments",
+    short_name="fused vertebra segments",
+    scope="vertebra",
     definition=(
-        "Fused: one predicted segment covers a substantial part of more than "
-        "one ground-truth vertebra. Split: one ground-truth vertebra is "
-        "covered by more than one predicted segment, such that merging them "
-        "gives a better prediction. Typically a mostly correct vertebra that "
-        "misses a part or extends partly onto a neighbour; both can occur at "
-        "once. Sub-type: transitional lumbosacral anatomy (sacralised L5, "
-        "lumbarised S1) causing a fusion or split at the junction; a "
+        "One predicted segment covers a substantial part of two or more "
+        "adjacent ground-truth vertebrae: a vertebra's label extends across "
+        "the intervertebral space onto its neighbour, or absorbs the "
+        "neighbour whole. Sub-type: transitional lumbosacral anatomy "
+        "(sacralised L5) fused with the sacrum at the junction; a "
         "hypothesised extra signal is disc labels lying inside the sacrum "
-        "label, which needs an intervertebral-disc channel the current label "
-        "convention does not carry."
+        "label, which needs an intervertebral-disc channel the current "
+        "label convention does not carry."
     ),
     discriminator=(
-        "Mode 1 when the error stays within one vertebra and its "
-        "background; mode 3 when the pieces carry the same label rather "
-        "than a neighbour's; mode 4 when the missing vertebra's voxels are "
-        "unclaimed rather than absorbed by a neighbour; mode 8 when two "
-        "whole vertebrae share one label a full spacing apart."
+        "Mode 3 is the converse -- one vertebra covered by more than one "
+        "label -- and the two co-occur whenever a neighbour's overreach "
+        "takes part of a vertebra rather than all of it; mode 1 when the "
+        "overreach stays in background or soft tissue; mode 4 when the "
+        "surplus is a small disconnected island rather than a substantial "
+        "part of a neighbour; mode 6 when the absent vertebra's voxels are "
+        "left unclaimed rather than absorbed; mode 14 when the vertebrae "
+        "sharing the label are not adjacent."
     ),
     mechanism=(
         "Observable from the label map via proxies, still to be proven: a "
-        "fused pair reads over the level's volume/extent range and a split "
-        "part reads under it (bounds, "
+        "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
         "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
         "both edges needs-real-data. The corpus case fuse_adjacent absorbs "
         "label 23 (L4) into 22 (L3) unbridged, so what fires today is "
-        "fragmentation's component detector "
+        "fragmentation's Fragmentation: detector "
         "(per_label.{label}.components.fragmentation_index) and coverage's "
-        "interior-gap detector (relationships.missing_levels[]) -- mode 3's "
-        "and mode 6's detectors co-detecting, recorded, not this mode's own."
+        "interior-gap detector (relationships.missing_levels[]) -- mode 1's "
+        "and mode 6's detectors co-detecting, recorded, not this mode's "
+        "own."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -854,10 +942,6 @@ _MODE_2 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.per_label_offsets[].offset_mm",
-            role="hypothesised",
-        ),
-        CandidateFeature(
             path="spline_leave_one_out_shape_change",
             role="hypothesised",
         ),
@@ -866,7 +950,7 @@ _MODE_2 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="metric_change_under_split_or_merge_candidate",
+            path="metric_change_under_split_candidate",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -895,11 +979,11 @@ _MODE_2 = ModeSpec(
                 "pipeline-detected by co-detections only, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-14): "
                 "the fused label 22 spans two disconnected bodies "
-                "(fragmentation, Fragmentation:) and the absorbed level L4 "
-                "is missing from the interior of the span (coverage, "
-                "Missing interior level(s):). Neither of this mode's own "
-                "intended rules fires without a reference, so the case does "
-                "not validate mode 2."
+                "(fragmentation, Fragmentation:, mode 1's detector) and the "
+                "absorbed level L4 is missing from the interior of the span "
+                "(coverage, Missing interior level(s):, mode 6's detector). "
+                "Neither of this mode's own intended rules fires without a "
+                "reference, so the case does not validate mode 2."
             ),
         ),
     ),
@@ -911,39 +995,112 @@ _MODE_2 = ModeSpec(
 _MODE_3 = ModeSpec(
     id=3,
     parent=1,
-    name="Disconnected components / islands",
-    short_name="disconnected components / islands",
+    name="Split vertebra segment",
+    short_name="split vertebra segment",
+    scope="vertebra",
     definition=(
-        "A label's foreground voxels form more than one connected component, "
-        "of any size ratio. Islands tend to be small fractions of the label, "
-        "may cover background (non-vertebra) voxels, and may lie far from "
-        "the main component, for example noise at the scan border."
+        "A substantial part of one ground-truth vertebra is covered by the "
+        "label of a neighbouring vertebra, such that giving that part the "
+        "vertebra's own label gives a better prediction. Typically a mostly "
+        "correct vertebra that loses a part to an adjacent segment. "
+        "Sub-type: transitional lumbosacral anatomy (lumbarised S1) split "
+        "from the sacrum at the junction."
     ),
     discriminator=(
-        "Mode 1 when the surplus is contiguous with the body; mode 2 when "
-        "the pieces carry different labels; mode 8 when the components are "
-        "two whole vertebrae one spacing apart. The size ratio and the "
-        "island's distance from the main body grade the finding rather than "
-        "bound the mode: the further an island lies from the label's "
-        "centroid, the larger it may be and still count as an island."
+        "Mode 2 is the converse -- one label covering more than one "
+        "vertebra -- and the two co-occur when the label that takes the part "
+        "also keeps its own vertebra; mode 1 when the missing part is left "
+        "as background rather than claimed by another label; mode 4 when "
+        "the pieces are small islands of the vertebra's own label; mode 13 "
+        "when neither label keeps a vertebra of its own and both sit on one; "
+        "mode 8 when a whole vertebra carries a wrong label rather than a "
+        "part of it."
     ),
     mechanism=(
-        "Both fragmentation detectors serve this mode end-to-end on the "
-        "committed corpus: mode2_fragment splits label 22 into two "
-        "comparably-sized components and drives the Fragmentation: "
-        "detector via per_label.{label}.components.fragmentation_index; "
-        "mode3_inject_islands adds tiny rogue blocks and drives the Rogue "
-        "island(s): detector via "
+        "No corpus case and no detector of its own: the label-map proxy is "
+        "the split vertebra reading under its level's volume/extent range "
+        "(bounds, per_label.{label}.geometry.physical_volume_mm3; "
+        "reference_delta, "
+        "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
+        "both needs-real-data. The neighbour that takes the part reads over "
+        "its range, which is mode 2's proxy, so on a real case the two "
+        "modes' proxy signals co-occur. A split fixture (part of one label "
+        "reassigned to its neighbour) is not yet authored."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="per_label.{label}.geometry.physical_volume_mm3",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="neighbour_label_contact_area_mm2",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="spline_leave_one_out_shape_change",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="metric_change_under_merge_candidate",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(
+        IntendedRule(
+            rule_id="bounds",
+            detector="",
+            evidence_rung="needs-real-data",
+        ),
+        IntendedRule(
+            rule_id="reference_delta",
+            detector="",
+            evidence_rung="needs-real-data",
+        ),
+    ),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="specified",
+    provenance="hypothesised",
+)
+
+_MODE_4 = ModeSpec(
+    id=4,
+    parent=1,
+    name="Islands (disconnected components)",
+    short_name="islands (disconnected components)",
+    scope="vertebra",
+    definition=(
+        "A label's foreground includes components disconnected from its "
+        "main body. Typically small islands close to the vertebra (image "
+        "noise); rarely larger blobs further away (background structures, "
+        "devices). An island may cover non-vertebra voxels."
+    ),
+    discriminator=(
+        "Mode 5 is the topological converse (background enclosed inside the "
+        "label rather than label outside its body); mode 1 when the surplus "
+        "is contiguous with the body, or when the vertebra itself is cut "
+        "into large same-label pieces; modes 2 and 3 when the extra region "
+        "is a substantial part of a neighbouring vertebra; mode 14 when the "
+        "components are two whole vertebrae. The island's size and distance "
+        "from the main body grade the finding rather than bound the mode: "
+        "the further an island lies from the label's centroid, the larger "
+        "it may be and still count as an island."
+    ),
+    mechanism=(
+        "fragmentation's Rogue island(s): detector serves this mode "
+        "end-to-end on the committed corpus: mode3_inject_islands adds tiny "
+        "rogue blocks beside label 22 and the detector fires via "
         "per_label.{label}.components.stray_component_sizes[]. bounds and "
         "reference_delta stay needs-real-data: a stray island shifts volume "
         "only marginally."
     ),
     observability="single-channel-observable",
     candidate_features=(
-        CandidateFeature(
-            path="per_label.{label}.components.fragmentation_index",
-            role="stage18-metric-anchor",
-        ),
         CandidateFeature(
             path="per_label.{label}.components.stray_component_sizes[]",
             role="stage18-metric-anchor",
@@ -960,7 +1117,7 @@ _MODE_3 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="fragmentation",
-            detector="Fragmentation: / Rogue island(s):",
+            detector="Rogue island(s):",
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
@@ -975,21 +1132,6 @@ _MODE_3 = ModeSpec(
         ),
     ),
     corpus_cases=(
-        CorpusCaseExpectation(
-            case_id="mode2_fragment",
-            corpus="geometric",
-            expected_firing=("fragmentation",),
-            reason=(
-                "pipeline-detected; fragmentation (Fragmentation: the "
-                "label's fragmentation_index falls below threshold, two "
-                "comparably-sized components) is the sole rule that fires, "
-                "measured live via segfacet.synth.regression."
-                "pipeline_findings (2026-09-14). Re-homed from the retired "
-                "over-/under-segmentation mode at the item-150 sign-off: a "
-                "label in two large pieces is a connectivity defect, not a "
-                "label-to-vertebra correspondence defect."
-            ),
-        ),
         CorpusCaseExpectation(
             case_id="mode3_inject_islands",
             corpus="geometric",
@@ -1007,39 +1149,97 @@ _MODE_3 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_4 = ModeSpec(
-    id=4,
+_MODE_5 = ModeSpec(
+    id=5,
+    parent=1,
+    name="Holes (enclosed background)",
+    short_name="holes (enclosed background)",
+    scope="vertebra",
+    definition=(
+        "Background voxels enclosed by a label's foreground where the "
+        "vertebra is bone: a cavity inside the segment, or a tunnel through "
+        "it beyond the anatomy's own (the vertebral foramen is a natural "
+        "tunnel of a vertebra segmented with its posterior elements). "
+        "Typically small and caused by image noise or low-contrast "
+        "trabecular bone."
+    ),
+    discriminator=(
+        "Mode 4 is the topological converse (label outside the main body "
+        "rather than background inside it); mode 1 when the missing region "
+        "reaches the segment's outer surface (a dent, not a hole); mode 3 "
+        "when the missing region carries a neighbour's label."
+    ),
+    mechanism=(
+        "No rule, no corpus case and no extracted feature: listed as "
+        "proposed. The candidate inputs are a per-label count and volume of "
+        "enclosed background components (enclosed_cavity_count, "
+        "enclosed_cavity_volume_mm3), and the label's euler_characteristic "
+        "compared against the genus its level is expected to have; the "
+        "feature layer extracts neither."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="enclosed_cavity_count",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="enclosed_cavity_volume_mm3",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="euler_characteristic",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="proposed",
+    provenance="hypothesised",
+)
+
+_MODE_6 = ModeSpec(
+    id=6,
     parent=1,
     name="Vertebra not segmented",
     short_name="vertebra not segmented",
+    scope="spine",
     definition=(
         "One or more vertebrae in the scan are not segmented: a "
         "ground-truth vertebra is (mostly) not covered by any predicted "
-        "segment. Usually the level's label is also absent, but the labels "
-        "of the remaining vertebrae may have been renumbered so that the "
-        "label sequence stays continuous over a spatial gap."
+        "segment. The remaining vertebrae may keep their correct labels, "
+        "leaving the missed level's label absent from inside the span, or "
+        "their labels may have been renumbered so that the label sequence "
+        "stays continuous over a spatial gap."
     ),
     discriminator=(
-        "Mode 2 when the missing vertebra's voxels are absorbed by a "
-        "neighbouring label rather than left unclaimed; modes 5 and 6 when "
-        "the expected label is present but used elsewhere on the wrong "
-        "vertebra; mode 6 when the only evidence is a missing label in an "
-        "otherwise complete span (that finding is mode 6's, and the "
-        "unsegmented vertebra it implies is this mode's)."
+        "Mode 7 is the converse (a segment where no vertebra exists); mode "
+        "2 when the missing vertebra's voxels are absorbed by a neighbouring "
+        "label rather than left unclaimed; mode 10 when every vertebra is "
+        "segmented and only a label is skipped (a label gap with no spatial "
+        "gap); mode 8 when the expected label is present but on the wrong "
+        "vertebra; the FOV-truncation condition when the vertebra lies "
+        "mostly outside the field of view."
     ),
     mechanism=(
         "Defined against ground truth (the Stage-18 metric counts GT levels "
-        "with no candidate voxels). From the label map alone the shipped "
-        "signals are indirect: coverage's opt-in expected-span and "
-        "expected-count checks over relationships.present_levels[] (both "
-        "ship disabled, needs-real-data), and the hypothesised spacing-gap "
-        "signal -- the corpus case remove_level_relabel deletes L3 and "
-        "renumbers L4/L5 to L3/L4, leaving a continuous label sequence with "
-        "a double inter-centroid spacing that no shipped rule reads, so its "
-        "expected firing set is empty and the mode does not validate. Two "
-        "further hypothesised signals cover a missing vertebra at the FOV "
-        "end: extrapolating the centroid sequence toward the image face, "
-        "and checking that no label touches a scan boundary that lacks a "
+        "with no candidate voxels). From the label map alone: coverage's "
+        "always-active interior-gap detector fires on "
+        "relationships.missing_levels[] when the remaining labels are kept "
+        "-- mode5_remove_level deletes L3 without renumbering and drives it "
+        "end-to-end -- although the same gap is what a skipped label (mode "
+        "10) leaves, which centroid spacing would separate and no rule "
+        "reads. coverage's opt-in expected-span and expected-count checks "
+        "over relationships.present_levels[] ship disabled "
+        "(needs-real-data). The renumbered form is not detected: "
+        "remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, "
+        "leaving a continuous label sequence with a double inter-centroid "
+        "spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped "
+        "rule reads, so its expected firing set is empty. Two further "
+        "hypothesised signals cover a missing vertebra at the FOV end: "
+        "extrapolating the centroid sequence toward the image face, and "
+        "checking that no label touches a scan boundary that lacks a "
         "terminal label."
     ),
     observability="needs-ground-truth",
@@ -1050,6 +1250,10 @@ _MODE_4 = ModeSpec(
         ),
         CandidateFeature(
             path="stage3.spacing_consistency.spacings_mm[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="relationships.missing_levels[]",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1068,11 +1272,27 @@ _MODE_4 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="coverage",
-            detector="Incomplete coverage (span): / Below expected count:",
-            evidence_rung="needs-real-data",
+            detector=(
+                "Missing interior level(s): / Incomplete coverage (span): / "
+                "Below expected count:"
+            ),
+            evidence_rung="synthetic-demonstrable",
         ),
     ),
     corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="mode5_remove_level",
+            corpus="geometric",
+            expected_firing=("coverage",),
+            reason=(
+                "pipeline-detected; coverage (Missing interior level(s): L3 "
+                "absent within the observed present-level span) is the sole "
+                "rule that fires, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-15). "
+                "The vertebra is deleted and the remaining labels are kept, "
+                "so this is a missed vertebra, not a skipped label (mode 10)."
+            ),
+        ),
         CorpusCaseExpectation(
             case_id="remove_level_relabel",
             corpus="geometric",
@@ -1095,10 +1315,69 @@ _MODE_4 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_5 = ModeSpec(
-    id=5,
+_MODE_7 = ModeSpec(
+    id=7,
+    parent=1,
+    name="Hallucinated vertebra",
+    short_name="hallucinated vertebra",
+    scope="spine",
+    definition=(
+        "A predicted segment carrying a vertebra label of its own covers a "
+        "region where no ground-truth vertebra exists -- a rib, the ilium, a "
+        "device, or background -- so the segmentation holds one vertebra "
+        "more than the scan does. The labels of the real vertebrae may have "
+        "been renumbered around it."
+    ),
+    discriminator=(
+        "Mode 6 is the converse (a vertebra with no segment); mode 4 when "
+        "the spurious region is a component of an existing label rather "
+        "than a segment of its own; mode 11 when the extra segment is a real "
+        "transitional vertebra (T13, L6) under a numbering variant; mode 14 "
+        "when the extra segment repeats a label already used on a real "
+        "vertebra."
+    ),
+    mechanism=(
+        "No rule and no corpus case: listed as proposed. The hypothesised "
+        "label-map signals are a centroid off the fitted spinal curve "
+        "(stage3.per_label_offsets[].offset_mm, whose shipped detector "
+        "serves no mode), a halved inter-centroid spacing where the extra "
+        "segment sits (stage3.spacing_consistency.spacings_mm[]), a "
+        "volume out of range for the level it is named "
+        "(per_label.{label}.geometry.physical_volume_mm3), and a present "
+        "level count above the expected count -- coverage's count check "
+        "tests only a shortfall."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="stage3.per_label_offsets[].offset_mm",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.spacing_consistency.spacings_mm[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="per_label.{label}.geometry.physical_volume_mm3",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="relationships.present_levels[]",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="proposed",
+    provenance="hypothesised",
+)
+
+_MODE_8 = ModeSpec(
+    id=8,
     name="Semantic mislabelling (wrong vertebra identification)",
     short_name="semantic mislabelling (wrong level identity)",
+    scope="vertebra",
     definition=(
         "A segmented vertebra carries the label of a different vertebra "
         "level. Any number of vertebrae per scan may be affected, and the "
@@ -1107,12 +1386,14 @@ _MODE_5 = ModeSpec(
         "sub-mode claims."
     ),
     discriminator=(
-        "Mode 6 when the wrong identities make the label sequence "
-        "implausible (every mode-6 case contains at least one mislabelled "
-        "vertebra); mode 7 when every label is offset by the same number of "
-        "levels; mode 8 when two labels collapse onto one centroid or one "
-        "label covers two vertebrae. The label sits on a real vertebra, "
-        "which separates it from mode 1's voxel-level inaccuracy."
+        "Mode 9 when the wrong identities put levels out of cranio-caudal "
+        "order; mode 10 when the labels skip a level; mode "
+        "11 when a numbering variant is used unprompted; mode 12 when every "
+        "label is offset by the same number of levels; mode 13 when two "
+        "labels collapse onto one vertebra; mode 14 when one label is "
+        "repeated on non-adjacent vertebrae. The label sits on a real "
+        "vertebra, which separates this mode from modes 1-7's voxel-level "
+        "and correspondence defects."
     ),
     mechanism=(
         "Single-channel-observable only where the mislabelled vertebra's "
@@ -1120,9 +1401,9 @@ _MODE_5 = ModeSpec(
         "per-level cohort z-scores "
         "(reference_delta.{label}.features.physical_volume_mm3.robust_z) "
         "are the shipped proxy, needs-real-data. The whole-sequence shift "
-        "is mode 7 and needs an external vertebra classifier. The corpus "
-        "swap case (mode4_relabel_swap) is a mode-6 case: a swap breaks the "
-        "sequence, which is the observable form."
+        "is mode 12 and needs an external vertebra classifier. The corpus "
+        "swap case (mode4_relabel_swap) is a mode-9 case: a swap breaks the "
+        "order of the sequence, which is the observable form."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1156,47 +1437,41 @@ _MODE_5 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_6 = ModeSpec(
-    id=6,
-    parent=5,
-    name="Implausible label sequence",
-    short_name="implausible label sequence",
+_MODE_9 = ModeSpec(
+    id=9,
+    parent=8,
+    name="Out-of-order label sequence",
+    short_name="out-of-order label sequence",
+    scope="spine",
     definition=(
-        "The sequence of labelled vertebra levels is not one a spine can "
-        "carry: a level appears out of cranio-caudal order relative to its "
-        "neighbours, a level is missing from the interior of an otherwise "
-        "present span, or a valid but unprompted numbering variant is used "
-        "(a transitional label such as T13 or L6 in a scan not configured "
-        "for it, where the default numbering is expected). A valid sequence "
-        "is a contiguous run in canonical order, with transitional labels "
-        "admitted only when configured or prompted, and accommodates a "
-        "varying field of view."
+        "A labelled level appears out of cranio-caudal order relative to "
+        "its neighbours along the spine -- two levels swapped, or a level "
+        "ranked above its cranial neighbour (L1 → T12 → L2). At least one "
+        "label is certainly wrong. A valid sequence is a contiguous run in "
+        "canonical order and accommodates a varying field of view."
     ),
     discriminator=(
-        "Always contains at least one mode-5 mislabelling, not the "
-        "converse: mode 5 alone when the sequence stays valid. Mode 7 when "
-        "the whole sequence is offset but internally valid. Mode 4 owns the "
-        "unsegmented vertebra a missing interior label implies; this mode "
-        "owns the label-sequence finding itself. An out-of-order sequence "
-        "means at least one label is certainly wrong and should fail the "
-        "case; an unprompted variant is plausible anatomy off the default "
-        "numbering and is flagged."
+        "Always contains at least one mode-8 mislabelling, not the "
+        "converse: mode 8 alone when the wrong labels keep the sequence in "
+        "order. Mode 10 when the labels present are in order but skip a "
+        "level; mode 6 when the label gap is a vertebra that was not "
+        "segmented; mode 11 when the order is canonical but "
+        "uses an unprompted numbering variant; mode 12 when the whole "
+        "sequence is offset but internally valid; mode 14 owns a repeated "
+        "label, even where the repetition also disorders its neighbours. "
+        "Severity fail: a label is certainly wrong."
     ),
     mechanism=(
-        "Three detectors serve this mode: sequence fires on "
+        "Two detectors serve this mode: sequence fires on "
         "relationships.out_of_order_labels[] (mode7_sequence_break relabels "
         "the tail to T13 -- one rank descent, since "
         "segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); "
         "mislabel's ordering detector fires on "
         "stage3.monotonic_consistency.non_monotonic_pairs[] "
-        "(mode4_relabel_swap exchanges L2 and L3); coverage's interior-gap "
-        "detector fires on relationships.missing_levels[] "
-        "(mode5_remove_level deletes L3 without renumbering). The "
-        "unprompted-variant detector does not exist yet: it is a candidate "
-        "over relationships.present_levels[] plus a configuration flag. A "
-        "multi-relabel scramble is not expressible by the fixture "
-        "generator, which is why the sequence edge stays needs-real-data "
-        "although its case is pipeline-detected."
+        "(mode4_relabel_swap exchanges L2 and L3). A multi-relabel scramble "
+        "is not expressible by the fixture generator, which is why the "
+        "sequence edge stays needs-real-data although its case is "
+        "pipeline-detected."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1212,18 +1487,6 @@ _MODE_6 = ModeSpec(
             path="stage3.monotonic_consistency.non_monotonic_pairs[]",
             role="hypothesised",
         ),
-        CandidateFeature(
-            path="relationships.missing_levels[]",
-            role="hypothesised",
-        ),
-        CandidateFeature(
-            path="relationships.present_levels[]",
-            role="hypothesised",
-        ),
-        CandidateFeature(
-            path="unprompted_transitional_label",
-            role="hypothesised",
-        ),
     ),
     intended_rules=(
         IntendedRule(
@@ -1234,11 +1497,6 @@ _MODE_6 = ModeSpec(
         IntendedRule(
             rule_id="mislabel",
             detector="Vertebra ordering inconsistent with label:",
-            evidence_rung="synthetic-demonstrable",
-        ),
-        IntendedRule(
-            rule_id="coverage",
-            detector="Missing interior level(s):",
             evidence_rung="synthetic-demonstrable",
         ),
     ),
@@ -1252,23 +1510,8 @@ _MODE_6 = ModeSpec(
                 "sole rule that fires, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-14): "
                 "labels 21 (L2) and 22 (L3) are out of expected order along "
-                "the spline. Re-homed from semantic mislabelling at the "
-                "item-150 sign-off: a swap is the sequence-breaking form of "
+                "the spline. A swap is the order-breaking form of "
                 "mislabelling."
-            ),
-        ),
-        CorpusCaseExpectation(
-            case_id="mode5_remove_level",
-            corpus="geometric",
-            expected_firing=("coverage",),
-            reason=(
-                "pipeline-detected; coverage (Missing interior level(s): L3 "
-                "absent within the observed present-level span) is the sole "
-                "rule that fires, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-14). "
-                "Re-homed from vertebra-not-segmented at the item-150 "
-                "sign-off: the finding is about the label sequence; the "
-                "unsegmented vertebra it implies is mode 4's."
             ),
         ),
         CorpusCaseExpectation(
@@ -1290,11 +1533,107 @@ _MODE_6 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_7 = ModeSpec(
-    id=7,
-    parent=5,
+_MODE_10 = ModeSpec(
+    id=10,
+    parent=8,
+    name="Skipped level label",
+    short_name="skipped level label",
+    scope="spine",
+    definition=(
+        "Every vertebra is segmented, but the labels skip a level: the "
+        "segment after the gap carries the label of the level beyond the "
+        "one it is (L1, L2, L4 on three consecutive vertebrae), so the "
+        "levels present are in canonical order but not contiguous, and "
+        "every label past the skip is wrong. The finding is about the "
+        "labels; there is no spatial gap between the vertebrae."
+    ),
+    discriminator=(
+        "Mode 6 when the label gap comes from a vertebra that was not "
+        "segmented (a spatial gap, the remaining labels right), including "
+        "its renumbered form; mode 9 when the levels present are out of "
+        "order; mode 12 when every label is offset with no gap; mode 2 when "
+        "the skipped level's vertebra was absorbed by a neighbour's label. "
+        "Always contains at least one mode-8 mislabelling, so it fails like "
+        "mode 9."
+    ),
+    mechanism=(
+        "No rule decides this mode and no corpus case exercises it: listed "
+        "as proposed. coverage's interior-gap detector fires on the label "
+        "gap it leaves (relationships.missing_levels[]) but cannot tell it "
+        "from a missed vertebra, so that detector serves mode 6. The "
+        "separating signal is an ordinary inter-centroid spacing across the "
+        "label gap (stage3.spacing_consistency.spacings_mm[]), which no "
+        "rule reads, and a skip-relabel fixture (renumber the labels caudal "
+        "to a level down by one without deleting a vertebra) is not yet "
+        "authored."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="relationships.missing_levels[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.spacing_consistency.spacings_mm[]",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="fail",
+    status="proposed",
+    provenance="hypothesised",
+)
+
+_MODE_11 = ModeSpec(
+    id=11,
+    parent=8,
+    name="Unprompted numbering variant",
+    short_name="unprompted numbering variant",
+    scope="spine",
+    definition=(
+        "The label sequence is in canonical order but uses a transitional "
+        "numbering variant -- a label such as T13 or L6 -- in a scan not "
+        "configured or prompted for it, where the default numbering is "
+        "expected. The anatomy is plausible, off the default numbering."
+    ),
+    discriminator=(
+        "Mode 9 when the variant label breaks canonical order (a T13 below "
+        "an L-level is out of order, not a variant); mode 7 when the extra "
+        "segment covers no real vertebra; mode 12 when every label is "
+        "shifted by one level rather than one variant level inserted. "
+        "Flagged, not failed: the variant may be the true anatomy."
+    ),
+    mechanism=(
+        "No rule and no corpus case: listed as proposed. The candidate "
+        "detector reads relationships.present_levels[] for a transitional "
+        "label and a configuration flag saying whether variants are "
+        "admitted; neither the flag nor the detector exists."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
+        CandidateFeature(
+            path="relationships.present_levels[]",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="unprompted_transitional_label",
+            role="hypothesised",
+        ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="proposed",
+    provenance="hypothesised",
+)
+
+_MODE_12 = ModeSpec(
+    id=12,
+    parent=8,
     name="Shifted label sequence",
     short_name="shifted label sequence",
+    scope="spine",
     definition=(
         "Every label in the scan is offset from its true level by the same "
         "number of levels, so the sequence is internally valid and no "
@@ -1304,10 +1643,10 @@ _MODE_7 = ModeSpec(
         "the sacrum -- or ground truth."
     ),
     discriminator=(
-        "Mode 6 when the sequence itself is implausible; mode 5 when only "
-        "some labels are wrong. The whole-sequence offset with a valid "
-        "sequence is what makes this a separate mode: a rule reading the "
-        "label map alone cannot fire on it."
+        "Modes 9, 10 and 11 when the sequence itself is implausible; mode 8 "
+        "when only some labels are wrong. The whole-sequence offset with a "
+        "valid sequence is what makes this a separate mode: a rule reading "
+        "the label map alone cannot fire on it."
     ),
     mechanism=(
         "No shipped rule, no candidate feature in the record, no corpus "
@@ -1333,36 +1672,33 @@ _MODE_7 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_8 = ModeSpec(
-    id=8,
-    parent=5,
-    name="Collapsed or duplicated label set",
-    short_name="collapsed or duplicated label set",
+_MODE_13 = ModeSpec(
+    id=13,
+    parent=8,
+    name="Collapsed labels",
+    short_name="collapsed labels",
+    scope="spine",
     definition=(
-        "Decidable on centroids alone. Collapsed: two or more labels' "
-        "centroids lie closer together than a fraction of the expected "
-        "inter-vertebral spacing. Duplicated: one label value carries two "
-        "centroids -- in segmentation terms, two whole vertebrae roughly a "
-        "vertebral spacing apart share a label. When centroids coincide "
-        "exactly the Stage 3 spline fit cannot be computed, the record "
-        "carries a stage3_unavailable reason instead of a stage3 block, "
-        "every stage3-reading rule short-circuits and no finding of any "
-        "kind is raised: the case passes silently (carried defect, item "
-        "129, 2026-08-31)."
+        "Decidable on centroids alone: two or more labels' centroids lie "
+        "closer together than a fraction of the expected inter-vertebral "
+        "spacing, so distinct levels are placed on (nearly) the same "
+        "vertebra. When centroids coincide exactly the Stage 3 spline fit "
+        "cannot be computed, the record carries a stage3_unavailable reason "
+        "instead of a stage3 block, every stage3-reading rule "
+        "short-circuits and no finding of any kind is raised: the case "
+        "passes silently (carried defect, item 129, 2026-08-31)."
     ),
     discriminator=(
-        "Mode 3 when the components under one label are a vertebra in "
-        "pieces (an island is smaller than a body); mode 2 when the shared "
-        "label is a fusion (the bodies are adjacent, not a spacing apart); "
-        "mode 9 (overlapping segments) needs a shared voxel, which a "
-        "collapsed pair of disjoint labels never has."
+        "Mode 14 is the converse (one label on two vertebrae rather than two "
+        "labels on one); mode 3 when one of the labels still covers its own "
+        "vertebra and takes only part of the other; mode 15 needs a shared "
+        "voxel, which a collapsed pair of disjoint labels never has."
     ),
     mechanism=(
         "No rule exists for this mode yet, which is what proposed means. "
-        "The candidate inputs are per-component centroids and volumes "
-        "(not extracted today), the minimum inter-label centroid distance "
+        "The candidate inputs are the minimum inter-label centroid distance "
         "relative to the expected spacing "
-        "(stage3.spacing_consistency.spacings_mm[]), and the "
+        "(stage3.spacing_consistency.spacings_mm[]) and the "
         "stage3_unavailable.reason field the degenerate case populates "
         "(item 129), which no rule reads."
     ),
@@ -1376,8 +1712,56 @@ _MODE_8 = ModeSpec(
             path="stage3.spacing_consistency.spacings_mm[]",
             role="hypothesised",
         ),
+    ),
+    intended_rules=(),
+    corpus_cases=(),
+    severity="flagged-for-review",
+    status="proposed",
+    provenance="hypothesised",
+)
+
+_MODE_14 = ModeSpec(
+    id=14,
+    parent=8,
+    name="Duplicated label",
+    short_name="duplicated label",
+    scope="spine",
+    definition=(
+        "One label value is used on two or more whole vertebrae that are not "
+        "adjacent -- anywhere in the sequence, typically more than one "
+        "vertebral spacing apart -- so the label carries two centroids. The "
+        "vertebrae between them carry other labels or none."
+    ),
+    discriminator=(
+        "Mode 2 when the vertebrae sharing the label are adjacent (a "
+        "fusion, even where the intervertebral gap keeps the two bodies "
+        "disconnected); mode 4 when the extra component under the label is "
+        "an island, smaller than a vertebral body; mode 13 is the converse "
+        "(two labels on one vertebra); mode 9 records any disorder the "
+        "repetition causes among the other labels as a co-detection, while "
+        "this mode owns the repetition itself."
+    ),
+    mechanism=(
+        "No rule exists for this mode yet, which is what proposed means. "
+        "The candidate inputs are per-component centroids and volumes (not "
+        "extracted today): two components under one label, each of "
+        "vertebral-body size and separated by more than an inter-vertebral "
+        "spacing. fragmentation's Fragmentation: detector (mode 1's) would "
+        "co-detect on two comparably-sized components "
+        "(per_label.{label}.components.fragmentation_index)."
+    ),
+    observability="single-channel-observable",
+    candidate_features=(
         CandidateFeature(
             path="per_component_centroids",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="per_label.{label}.components.fragmentation_index",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="stage3.spacing_consistency.spacings_mm[]",
             role="hypothesised",
         ),
     ),
@@ -1388,10 +1772,11 @@ _MODE_8 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_9 = ModeSpec(
-    id=9,
+_MODE_15 = ModeSpec(
+    id=15,
     name="Overlapping segments",
     short_name="overlapping segments",
+    scope="vertebra",
     definition=(
         "Two labels' foreground voxel sets intersect -- the same voxel is "
         "claimed by more than one label, a condition impossible in a valid "
@@ -1400,9 +1785,9 @@ _MODE_9 = ModeSpec(
     discriminator=(
         "Distinguishes from every other mode by requiring a second label's "
         "mask: it is unobservable from any single label's geometry alone, "
-        "and from a single-channel label map at all, unlike modes 1-8, "
+        "and from a single-channel label map at all, unlike modes 1-14, "
         "which are decidable from one label's geometry, the label map's "
-        "per-label statistics, or an external input."
+        "per-label statistics, ground truth or an external input."
     ),
     mechanism=(
         "A single-channel integer label map cannot assign two labels to one "
@@ -1448,10 +1833,11 @@ _MODE_9 = ModeSpec(
     provenance="hypothesised",
 )
 
-_MODE_10 = ModeSpec(
-    id=10,
+_MODE_16 = ModeSpec(
+    id=16,
     name="Implausible tissue under a label",
     short_name="implausible tissue under a label",
+    scope="vertebra",
     definition=(
         "On CT, the voxels a vertebra label claims do not carry "
         "bone-plausible Hounsfield-unit statistics: the label's median HU "
@@ -1463,7 +1849,7 @@ _MODE_10 = ModeSpec(
         "is not the tissue the label names."
     ),
     discriminator=(
-        "Distinguishes from modes 1-9 by requiring the paired intensity "
+        "Distinguishes from modes 1-15 by requiring the paired intensity "
         "scan: every one of those is decidable from the label map, ground "
         "truth or an external classifier, whereas this mode is invisible "
         "without the scan (observability = needs-paired-scan). A label may "
@@ -1614,6 +2000,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "stage3.per_label_offsets[].is_terminal",
         "fraction_of_expected_volume_present",
     ),
+    scope="vertebra",
     recording_rules=("border",),
     exempting_rules=("mislabel", "coverage"),
     corpus_cases=(
@@ -1646,14 +2033,14 @@ VISION_SEED_DISPOSITION: Mapping[str, str] = MappingProxyType(
     {
         "Label not aligned with the anatomical vertebra it names": "retired",
         "Over-/under-segmentation — fused or fragmented vertebra segments": "mode:1",
-        "Disconnected components / islands, especially tiny rogue segments": "mode:3",
-        "Semantic mislabelling (wrong vertebra identification)": "mode:5",
-        "Not all vertebrae in the image are segmented": "mode:4",
+        "Disconnected components / islands, especially tiny rogue segments": "mode:4",
+        "Semantic mislabelling (wrong vertebra identification)": "mode:8",
+        "Not all vertebrae in the image are segmented": "mode:6",
         "Partial vertebra at the image border whose appearance changes": (
             "condition:fov_truncation"
         ),
-        "Non-continuous label sequence (e.g. L1 → T12 → L2 → L5)": "mode:6",
-        "Overlapping segments": "mode:9",
+        "Non-continuous label sequence (e.g. L1 → T12 → L2 → L5)": "mode:9",
+        "Overlapping segments": "mode:15",
     }
 )
 
@@ -1715,6 +2102,12 @@ SPECIFICATION: Mapping[int, ModeSpec] = _build_specification(
         _MODE_8,
         _MODE_9,
         _MODE_10,
+        _MODE_11,
+        _MODE_12,
+        _MODE_13,
+        _MODE_14,
+        _MODE_15,
+        _MODE_16,
     )
 )
 
@@ -2296,6 +2689,7 @@ def specification_to_dict() -> dict:
                 "id": mode.id,
                 "parent": mode.parent,
                 "path": mode_path(mode),
+                "scope": mode.scope,
                 "name": mode.name,
                 "short_name": mode.short_name,
                 "definition": mode.definition,
@@ -2336,6 +2730,7 @@ def specification_to_dict() -> dict:
         conditions.append(
             {
                 "id": condition.id,
+                "scope": condition.scope,
                 "name": condition.name,
                 "short_name": condition.short_name,
                 "definition": condition.definition,
@@ -2401,6 +2796,7 @@ def render_markdown() -> str:
         lines.append(f"- Short name (corpus manifests): {mode['short_name'] or '(none)'}")
         parent = mode["parent"] if mode["parent"] is not None else "(none, top-level)"
         lines.append(f"- Parent: {parent}")
+        lines.append(f"- Scope: {mode['scope'] or '(none)'}")
         lines.append(f"- Definition: {_md_escape(mode['definition'])}")
         lines.append(f"- Discriminator: {_md_escape(mode['discriminator'])}")
         lines.append(f"- Observability: {mode['observability']}")
@@ -2458,6 +2854,7 @@ def render_markdown() -> str:
         lines.append(f"## Condition {condition['id']}: {condition['name']}")
         lines.append("")
         lines.append(f"- Short name (corpus manifests): {condition['short_name']}")
+        lines.append(f"- Scope: {condition['scope'] or '(none)'}")
         lines.append(f"- Definition: {_md_escape(condition['definition'])}")
         lines.append(
             f"- Recording rules: {', '.join(condition['recording_rules'])}"
