@@ -906,8 +906,9 @@ in-tree determinism under the committed-artifact guard. Repeating it here would
 either add a guard allowlist entry this item may not make, or duplicate those
 tests.
 
-**D12 — observations noted while specifying, for the validator to confirm and
-log if they hold, not to act on.**
+**D12 — observations noted while specifying, not acted on.** The first two are
+captured in `insights.md` at spec time (item 151, 2026-09-15), so the validator
+does not re-log them.
 - The open `insights.md` gap entry dated 2026-09-04 (item 148) says the matrix's
   rule-attribution column renders mode 9's (now mode 16's) `intensity` edge
   `analytic`. The committed matrix at `7e4bb5c` renders
@@ -915,11 +916,11 @@ log if they hold, not to act on.**
   Decision D2 re-derived attribution from the specification's corpus cases.
   Roadmap v3.1's Stage 31 D4 still lists the defect. AC14 measures the current
   state, and the entry itself is left for the queue boundary to triage.
-- Mode 2's `fuse_adjacent` reason and the sign-off transcript's Mode 2 line
-  attribute the `coverage` co-detection to "mode 10's detector". After the
-  2026-09-15 revision that detector serves mode 6, and the mode-2 `mechanism`
-  field already says mode 6. This is a wording drift in an authored string, not
-  a conformance failure.
+- The sign-off transcript's entry-by-entry Mode 2 line attributes
+  `fuse_adjacent`'s `coverage` co-detection to "10's detectors". After the
+  2026-09-15 revision that detector serves mode 6, and both the mode-2
+  `mechanism` and the `fuse_adjacent` reason already say mode 6. The transcript
+  line is the only stale copy.
 - `src/segfacet/failure_modes.py`'s docstring section "Becoming the record (item
   147)" still says "the one kept conformance check in that direction is that
   modes 1-8's `name` fields still equal §6's list". That is superseded by
