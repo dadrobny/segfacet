@@ -704,6 +704,7 @@ def test_ac13_intended_rule_whose_rule_declares_no_such_mode_is_reported(monkeyp
 def test_ac14_corpus_case_the_specification_does_not_carry_is_reported(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.corpus as corpus_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE
 
     baseline = fm.specification_conflicts()
 
@@ -714,6 +715,8 @@ def test_ac14_corpus_case_the_specification_does_not_carry_is_reported(monkeypat
     # Point the case at a mode whose corpus_cases do not carry this case_id.
     other_mode = next(m for m in fm.SPECIFICATION if m != original_mode and m != 0)
     target["failure_mode"] = other_mode
+    target["condition"] = ""
+    target["kind"] = CASE_KIND_FAILURE
 
     monkeypatch.setattr(corpus_module, "load_manifest", lambda *a, **k: manifest)
 

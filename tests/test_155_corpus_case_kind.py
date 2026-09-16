@@ -329,13 +329,14 @@ def test_ac13_scan_detects_each_forbidden_shape(snippet, expected_count):
 def test_ac13_scan_exempts_case_kind_body_in_perturbation_module():
     # The one place the comparison is required: case_kind's own body,
     # identified by file path + function name, not merely by name alone.
+    # Dict-style access, since that is the only shape _is_failure_mode_access
+    # recognises (A6) -- a bare scalar comparison is never tracked, exempt or
+    # not, so it cannot demonstrate the exemption.
     snippet = (
-        "def case_kind(failure_mode, condition):\n"
-        "    if failure_mode != 0 and condition:\n"
+        "def case_kind(case):\n"
+        "    if case['failure_mode'] != 0:\n"
         "        raise ValueError('no')\n"
-        "    if failure_mode == 0:\n"
-        "        return 'clean_control' if not condition else 'condition'\n"
-        "    return 'failure'\n"
+        "    return 'clean_control'\n"
     )
     assert _zero_comparisons(snippet, _EXEMPT_FILE) == []
     # The exemption is keyed on the file path: the identical body elsewhere
@@ -374,6 +375,23 @@ def _ac15_no_kind_probe() -> dict:
 
 def test_ac14_verify_case_classifies_condition_case_by_kind():
     probe = _ac14_condition_probe()
+    assert verify_case(probe) is False
+
+
+def test_ac14_verify_case_follows_kind_over_raw_fields():
+    # Decisions log: verify_case dispatches on corpus_case_kind(case) -- the
+    # recorded "kind" field, read verbatim -- as the first thing it does with
+    # the case, never re-derived from failure_mode/condition. A probe that
+    # lies about kind while leaving the real injected defect (failure_mode,
+    # expected_rule_ids, expected_verdict) untouched shows the dispatch
+    # follows the lie: labelled "clean_control", it expects no findings from
+    # a case that genuinely carries a designated, firing rule, so it fails.
+    manifest = corpus_module.load_manifest()
+    failure_cases = [c for c in manifest["cases"] if c["kind"] == CASE_KIND_FAILURE]
+    assert failure_cases, "expected at least one failure case in the geometric manifest"
+    probe = copy.deepcopy(failure_cases[0])
+    assert probe["kind"] != CASE_KIND_CLEAN_CONTROL
+    probe["kind"] = CASE_KIND_CLEAN_CONTROL
     assert verify_case(probe) is False
 
 
