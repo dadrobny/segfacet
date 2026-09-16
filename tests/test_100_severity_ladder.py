@@ -353,7 +353,7 @@ def test_ac2_ladder_operator_field_matches_its_key(operator):
     """Item 153: the registry is keyed by operator, not the retired legacy
     mode id -- every key indexes the entry naming itself (AC17)."""
     sl = _sl()
-    assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[operator]].operator == operator
+    assert sl.SEVERITY_LADDERS[operator].operator == operator
 
 
 @pytest.mark.parametrize("operator", _LADDER_OPERATORS)
@@ -365,7 +365,7 @@ def test_ac2_ladder_failure_mode_name_comes_from_the_specification(operator):
     import segfacet.failure_modes as fm
 
     sl = _sl()
-    spec = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[operator]]
+    spec = sl.SEVERITY_LADDERS[operator]
     if spec.failure_mode is None:
         assert spec.failure_mode_name is None
     else:
@@ -381,7 +381,7 @@ def test_ac2_ladder_failure_mode_name_comes_from_the_specification(operator):
 def test_ac3_every_step_names_a_registered_operator_and_is_constructible(operator):
     sl = _sl()
     names = set(perturbation_names())
-    spec = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[operator]]
+    spec = sl.SEVERITY_LADDERS[operator]
     for rung in spec.rungs:
         for op_name, kwargs in rung.steps:
             assert op_name in names, (operator, rung.index, op_name)
@@ -590,7 +590,7 @@ def test_ac12_mode_seven_rationale_names_the_transitional_label_cap():
 @pytest.mark.parametrize("operator", _LADDER_OPERATORS)
 def test_ac12_degenerate_iff_sequence_break_and_iff_two_rungs(operator):
     sl = _sl()
-    spec = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[operator]]
+    spec = sl.SEVERITY_LADDERS[operator]
     is_degenerate_kind = spec.severity_kind == "degenerate"
     is_degenerate_operator = operator in sl.DEGENERATE_LADDERS
     has_two_rungs = len(spec.rungs) == 2

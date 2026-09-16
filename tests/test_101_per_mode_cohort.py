@@ -678,25 +678,27 @@ def _fake_cohort_metrics(per_mode_entries) -> CohortMetrics:
 
 def test_ac8_detection_rate_and_n_detection_cases_match_per_mode_sensitivity_verbatim():
     pmc = _pmc()
-    sens3 = PerModeSensitivity(
-        failure_mode=3, failure_mode_name="rogue islands", n_cases=5,
+    rogue_metric = PER_MODE_METRIC_SPECS["rogue_island_count"]
+    missing_metric = PER_MODE_METRIC_SPECS["missing_level_count"]
+    sens_rogue = PerModeSensitivity(
+        failure_mode=rogue_metric.failure_mode, failure_mode_name="rogue islands", n_cases=5,
         n_caught=4, n_caught_by_designated_rule=3, sensitivity=0.6, caught_rate=0.8,
     )
-    sens5 = PerModeSensitivity(
-        failure_mode=5, failure_mode_name="missing level", n_cases=2,
+    sens_missing = PerModeSensitivity(
+        failure_mode=missing_metric.failure_mode, failure_mode_name="missing level", n_cases=2,
         n_caught=2, n_caught_by_designated_rule=2, sensitivity=1.0, caught_rate=1.0,
     )
-    metrics = _fake_cohort_metrics([sens3, sens5])
+    metrics = _fake_cohort_metrics([sens_rogue, sens_missing])
     cohort = _FakeCohort(cases=(_fake_case("a", _full(0.0)),))
     summary = pmc.summarise_run_per_mode(cohort, run_id="r", metrics=metrics)
 
-    agg3 = summary.by_metric(_LEGACY_TO_METRIC_NAME[3])
-    assert agg3.detection_rate == 0.6
-    assert agg3.n_detection_cases == 5
+    agg_rogue = summary.by_metric("rogue_island_count")
+    assert agg_rogue.detection_rate == 0.6
+    assert agg_rogue.n_detection_cases == 5
 
-    agg5 = summary.by_metric(_LEGACY_TO_METRIC_NAME[5])
-    assert agg5.detection_rate == 1.0
-    assert agg5.n_detection_cases == 2
+    agg_missing = summary.by_metric("missing_level_count")
+    assert agg_missing.detection_rate == 1.0
+    assert agg_missing.n_detection_cases == 2
 
 
 def test_ac8_modes_absent_from_metrics_are_none_and_zero():
@@ -957,6 +959,7 @@ def test_ac13_exact_tie_breaks_to_lowest_mode():
     d2 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[2])
     assert abs(d1.normalised_delta) == pytest.approx(abs(d2.normalised_delta))
     assert cmp.attributed_mode == 1
+    assert cmp.attributed_metric_name == "unanchored_foreground_fraction"
 
 
 def test_ac13_all_zero_or_none_normalised_deltas_yield_no_attribution():
@@ -994,13 +997,16 @@ def test_ac14_self_comparison_is_all_zero():
     pmc = _pmc()
     s = _summary("r", ("c1", "c2"), {1: 0.3, 2: 0.7, 3: 4.0, 4: 0.1, 5: 2.0, 6: 1.0, 7: 3.0, 8: 500.0}, mean_dice=0.9, volume_weighted_dice=0.85)
     cmp = pmc.compare_runs(s, s)
+    bounded_fraction_metrics = {
+        "unanchored_foreground_fraction", "min_dominant_component_fraction", "mislabelled_volume_fraction",
+    }
     for d in cmp.per_mode:
-        assert d.delta == 0.0, d.failure_mode
-        if d.failure_mode in (1, 2, 4):
-            assert d.normalised_delta == 0.0, d.failure_mode
+        assert d.delta == 0.0, d.metric_name
+        if d.metric_name in bounded_fraction_metrics:
+            assert d.normalised_delta == 0.0, d.metric_name
         else:
-            assert d.normalised_delta is None, d.failure_mode
-        assert d.worsened is False, d.failure_mode
+            assert d.normalised_delta is None, d.metric_name
+        assert d.worsened is False, d.metric_name
     assert cmp.mean_dice_delta == 0.0
     assert cmp.volume_weighted_dice_delta == 0.0
     assert cmp.attributed_mode is None
@@ -1327,10 +1333,10 @@ def _comparison_schema() -> dict:
     return json.loads(ref.read_text(encoding="utf-8"))
 
 
-def test_ac20_schema_version_constant_is_01():
+def test_ac20_schema_version_constant_is_02():
     import segfacet.eval.report as report_mod
 
-    assert report_mod.PER_MODE_COMPARISON_SCHEMA_VERSION == "0.1"
+    assert report_mod.PER_MODE_COMPARISON_SCHEMA_VERSION == "0.2"
 
 
 def test_ac20_schema_root_shape():
@@ -1361,7 +1367,7 @@ def test_ac20_build_run_comparison_report_validates(real_cohort):
 
     jsonschema.validate(report, _comparison_schema())
     assert set(report.keys()) <= {"schema_version", "run_a", "run_b", "comparison"}
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == "0.2"
 
 
 def test_ac20_deleting_a_required_key_fails_validation(real_cohort):

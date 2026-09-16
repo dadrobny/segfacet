@@ -449,6 +449,7 @@ def test_ac10_exact_tie_breaks_to_the_lowest_mode():
     d2 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[2])
     assert abs(d1.normalised_delta) == pytest.approx(abs(d2.normalised_delta))
     assert cmp.attributed_mode == 1
+    assert cmp.attributed_metric_name == "unanchored_foreground_fraction"
 
 
 def test_ac10_ac7_scenario_does_not_reach_the_tie_break():
