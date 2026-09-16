@@ -1,5 +1,5 @@
 ---
-description: Drive the AIDE roadmap across MULTIPLE queues — generate a queue, run it to completion (via /aide-run-queue), then generate the next — until the roadmap is exhausted. Each new queue lands via a human-reviewed PR (the batch checkpoint).
+description: Drive the AIDE roadmap across MULTIPLE queues — author a queue, run it to completion (via /aide-run-queue), author the one after — pausing at every queue PR for a human to review the batch.
 ---
 
 # Run the AIDE roadmap (loop over queues)
@@ -18,7 +18,7 @@ current queue by loading `/aide-run-queue` **inline as a skill in this same
 session** (which in turn loads `/aide-run-item` inline), and delegates only the
 *leaf* work — item spec/tests/build/validate and queue *authoring* — to
 **`Task` subagents** (`spec-author`, `test-writer`, `builder`, `validator`,
-`queue-planner`). There is **no headless nesting**: the orchestrator never spawns
+`queue-planner`, and `reviewer` where `loop.review` turns it on). There is **no headless nesting**: the orchestrator never spawns
 `claude -p` child processes. Each new queue is a natural session boundary — the
 loop pauses at the queue PR, and the human re-invokes for the next queue, giving a
 fresh session per batch.
@@ -78,8 +78,8 @@ isolation).
 |---|---|
 | **Roadmap exhausted** — every stage ✅ / deferred / excluded | Report done. Stop. |
 | **An open `aide/queue-NNN` PR is awaiting merge** | Tell the user to review/merge it; **stop**. Re-invoke after merge. |
-| **Latest queue merged to `main` but has 📋 items left** | Run that queue → go to **Run a queue**. |
-| **Latest queue fully exhausted, roadmap has more stages** | Generate the next queue → go to **Generate the next queue**. |
+| **A merged queue still has 📋 items left** | Run the live queue — the lowest-numbered open one, which is the maintenance queue when one was split off → go to **Run a queue**. |
+| **Every queue exhausted, roadmap has more stages** | Generate the next queue → go to **Generate the next queue**. |
 | **No queue exists yet** | Generate the first queue → go to **Generate the next queue**. |
 
 ## Generate the next queue
@@ -92,19 +92,29 @@ on whatever branch it's on, then returns a one-line summary. **You** (orchestrat
 prepare the branch and handle push/PR around it.
 
 - **Triage the insight inbox first** — if `docs/aide/insights.md` has unchecked
-  entries, run `/aide-feedback-loop` §0 (triage) before planning. `defect`,
-  `gap` and `automation` entries stay **open** through triage on purpose: the
-  open inbox is an input to queue authoring, so the planner reads them with
+  entries, run `/aide-review-insights` before planning. `defect`, `gap` and
+  `automation` entries stay **open** through triage on purpose: the open inbox
+  is an input to queue authoring, so the planner reads them with
   `insights list --open` and ticks the ones it queues. The queue PR is where the
   human reviews both those and the ones it passed over.
+- **Expect up to two queues from one create call.** When open `defect`, `gap` or
+  `automation` entries exist, the planner writes a **maintenance queue** from
+  those entries and the **stage queue** after it (`.aide/conventions.md`
+  §1 → `insights-maintenance-queue.md`), numbered in that order. That is not two live queues: the live
+  queue is the lowest-numbered open one, so the maintenance queue is executed
+  and merged first and the stage queue starts when it empties. Its summary says
+  which queues it wrote; branch and PR on the **lower** number, and carry both
+  queue files in the one PR — the split decision (what went to maintenance and
+  what went to the stage) is only reviewable with both in front of the human.
 - **Create the queue branch with the CLI**, off an up-to-date `main`
   (`git pull --rebase`): `python .aide/scripts/aide.py queue start NNN`. It
   builds the name, records the base, and pushes it. Typing the name by hand
   risks a shape `aide claim` does not recognise, which silently retargets
   every item's merge at `main` instead of the queue branch.
 - **Spawn `queue-planner`**: "Generate queue NNN on branch `aide/queue-NNN`;
-  tidy the previous queue; commit both; consider the triaged insight candidates;
-  do not push or PR." Wait for its summary.
+  tidy the previous queue; commit both; consider the triaged insight candidates,
+  splitting off a maintenance queue ahead of the stage queue if they warrant
+  one; do not push or PR." Wait for its summary.
 - `git push` the planner's commits — `queue start` pushed the branch when it
   was empty and set its upstream, so a bare `git push` is enough and no
   branch name is typed. Do this **before** `gh pr create`: with commits
@@ -112,7 +122,9 @@ prepare the branch and handle push/PR around it.
   run rather than failing loudly. Then open a **PR**:
   `gh pr create` titled `docs(aide): work queue NNN`, body summarising the batch
   — including the inbox entries it absorbed and the ones it passed over, which
-  the planner's summary names.
+  the planner's summary names. If it wrote two queues, the title names the pair
+  (`work queues NNN-NNN+1`) and the body says which is the maintenance queue and
+  which the stage queue.
 - **STOP and tell the user**: review/edit/merge the queue PR, then re-invoke
   `/aide-run-roadmap` (or `/aide-run-queue NNN`) to execute it. A queue PR is
   the right place to reshape the plan before any code is built against it.
@@ -125,18 +137,15 @@ PRs + stops again — the human re-invokes, giving a fresh session per queue).
 
 ## Tidy the previous queue
 
-Whenever you generate queue NNN, first tidy the now-superseded queue NNN-1 so the
-queue history stays legible and it's obvious which batch is live:
+Tidying the now-superseded queue NNN-1 is the planner's step, not yours: it
+runs `python .aide/scripts/aide.py queue tidy <NNN-1>`, which writes the
+completion note, then reflects each item's final `progress.md` state so a stale
+📋 list isn't left implying open work, and commits that alongside the new queue
+on the `aide/queue-NNN` branch.
 
-- Add/update a status line at its top, e.g.
-  `> **Status:** ✅ Completed — superseded by queue-NNN (YYYY-MM-DD).`
-- Mark each of its items with its final `progress.md` state (✅ done, or ⏸️/❌ if
-  carried/dropped) so a stale 📋 list isn't left implying open work.
-- Commit that tidy-up alongside the new queue, on the `aide/queue-NNN` branch.
-
-Queue state itself is **derived** (a queue is open while any of its items is
-📋/🚧 in `progress.md`), so the tidy stamp is decorative — it keeps the queue
-history legible to humans; nothing parses it.
+The shape of the stamp is `.aide/conventions.md` §1 → `queue-NNN.md`'s, and the
+planner has that section preloaded — so the verb writes it and nobody types
+one by hand. Ask for a tidy that did not happen; never for different wording.
 
 ## Working in parallel (optional worktree isolation)
 

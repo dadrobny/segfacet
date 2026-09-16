@@ -1,5 +1,9 @@
 ### Status icons (the only six)
 
+Governs the vocabulary every status cell, stage header and deliverable bullet
+carries, and how the parsers rank and read it. Every role that writes a status
+document uses it; ✅ is the CLI's to write.
+
 | Icon | Meaning | Rank |
 |------|---------|------|
 | 📋 | Planned | 0 |
@@ -14,22 +18,15 @@ status wins.
 
 **✅ means merged — in every `git.mode`.** It is written by `aide merge` when
 the merge actually happens, not by an agent ahead of one. 🔍 is the state
-between: the work is pushed and awaiting a human's merge. It exists because ✅
-used to mean two different things depending on the mode — merged under
-`auto-merge`, *pushed and awaiting review* under `pr` — while everything
-downstream read it as "done", including `aide gc`, whose default ground is "the
-item is ✅" and whose action is `git branch -D` plus a remote delete. The
-exhaustion sweep therefore offered to delete the head branch of an open PR, and
-the line a human was asked to approve read like confirmation. A run must be
-stable under either mode, so the mode no longer changes what a status asserts.
+between: the work is pushed and awaiting a human's merge. The mode never
+changes what a status asserts.
 
 A 🔍 item **holds its stage at 🚧** (an open PR has not shipped) and **holds its
-queue open**. `aide check` does not call its claim branch stale, and `aide
-status` reports it as awaiting review rather than recommending `gc`. Because in
-`pr` mode nothing inside the loop ever observes the merge, `aide sync` and `aide
-status` name any 🔍 item whose work has since landed in the base and print the
-`aide progress set NNN done` that closes it — the same content check `gc` uses,
-so it needs no forge call that could silently degrade to "no open PRs found".
+queue open**, and its claim branch is live, not stale. Because in `pr` mode
+nothing inside the loop ever observes the merge, `aide sync` and `aide status`
+name any 🔍 item whose work has since landed in the base and print the `aide
+progress set NNN done` that closes it — **that command is what closes a 🔍
+item**, never an agent reading the merge off the forge.
 
 **Structural positions only.** The parsers read icons *only* at structural
 positions: a table row's **Status (last) cell**, a stage header's **trailing**
@@ -39,3 +36,17 @@ so authors need not avoid the icon vocabulary in free text. `aide check` still
 *warns* on such stray icons in the status-bearing documents (`progress.md`,
 queue files) so they stay unambiguous for human readers; other documents are
 not scanned.
+
+#### Rationale
+
+- **Why ✅ is mode-independent.** It used to mean two different things depending
+  on the mode — merged under `auto-merge`, *pushed and awaiting review* under
+  `pr` — while everything downstream read it as "done", including `aide gc`,
+  whose default ground is "the item is ✅" and whose action is `git branch -D`
+  plus a remote delete. The exhaustion sweep therefore offered to delete the
+  head branch of an open PR, and the line a human was asked to approve read
+  like confirmation. A run must be stable under either mode, so 🔍 was added
+  and ✅ narrowed to the merge itself.
+- **Why the landed-🔍 check is a content check.** `sync` and `status` use the
+  same merge-tree comparison `gc` uses, so closing a 🔍 item needs no forge
+  call that could silently degrade to "no open PRs found".

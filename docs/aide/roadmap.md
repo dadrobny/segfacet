@@ -1,3 +1,4 @@
+<!-- aide-template: roadmap 1 -->
 # FACET — Development Roadmap
 
 > **Status:** v3.1 (approved 2026-09-15: Stages 31–32 added, Stages 20 and 30 annotated after

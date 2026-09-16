@@ -86,12 +86,3 @@ merge still local and the item still 🔍; `pr` pushes and stops for a human PR;
 
 If you hit unclear requirements or a blocker: document it in the work item and
 run `/aide-feedback-loop` to adjust the process.
-
-## Hand-off
-
-Close your turn by telling the user, in chat, where the loop stands:
-
-- **More items in queue?** New chat → `/aide-create-item` then
-  `/aide-execute-item` (or let `/aide-run-queue` drive them).
-- **Queue exhausted?** New chat → `/aide-create-queue` for the next batch.
-- **All stages complete?** The project is done!

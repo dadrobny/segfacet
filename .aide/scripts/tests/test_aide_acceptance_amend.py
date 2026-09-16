@@ -196,7 +196,7 @@ def test_reword_refuses_text_carrying_a_line_break():
 
 
 # --------------------------------------------------------------------------- #
-# the roadmap mirror — both documents or neither
+# the roadmap mirror — both documents or neither, where there is one
 # --------------------------------------------------------------------------- #
 def test_roadmap_acceptance_bullets_skip_a_target_bullet():
     """A measured outcome is not a box, so it must not consume an index."""

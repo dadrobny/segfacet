@@ -1083,7 +1083,10 @@ _ENV_TABLE_STATUS_SNAPSHOT = (
     ("Real VerSe GT reference distributions", "✅"),
     ("Radiomics feature extraction", "✅"),
     ("Containerised pipeline (Docker build + run)", "✅"),
-    ("XNAT Container Service command on a real server", "⏸"),
+    # Re-pinned 2026-09-16 (engine 1.52.1): engine 1.51.0 accepts only
+    # "✅ Verified" / "❓ Unverified" in the Status cell, so the row that read
+    # "⏸️ Out of scope" now reads "❓ Unverified (out of scope since 2026-07-25)".
+    ("XNAT Container Service command on a real server", "❓"),
     ("Real automatic-segmentation failure corpus", "❓"),
     ("GPU-accelerated feature extraction", "✅"),
     ("Real SPINEPS-output label-convention round-trip", "❓"),

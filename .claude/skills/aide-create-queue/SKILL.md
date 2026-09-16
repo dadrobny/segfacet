@@ -23,8 +23,8 @@ Read vision, roadmap, and progress, then write the queue from the template
 ### Read the open insight inbox first
 
 **The open inbox is an input to queue authoring, not only an output of triage**
-(`.aide/conventions.md` §1 → `insights.md`). Read it with the verb, never by
-opening the file — the file interleaves closed and open entries:
+(`.aide/conventions.md` §1 → `insights-maintenance-queue.md`). Read it with the
+verb, never by opening the file — the file interleaves closed and open entries:
 
 ```
 python .aide/scripts/aide.py insights list --open
@@ -36,7 +36,49 @@ to "a candidate item" has been waiting for this run. Every open one is
 **considered, and either queued or explicitly passed over — never silently
 dropped**: an entry you queue becomes an item like any other and is ticked with
 the item number it became (below), and one you pass over stays open — still a
-candidate for the next queue — and is named, with why, in the hand-off.
+candidate for the next queue — and is named, with why, at the end of your turn.
+
+**Triage routes each unchecked entry by its type, and this table is the whole
+rule** (§1 → `insights-triage.md`, where it is written once so that this skill
+and `/aide-review-insights` cannot hold different copies of it):
+
+| Type | Where it goes | Who ticks the entry |
+|---|---|---|
+| `knowledge` | the owning document — the smallest edit that preserves the fact | the triaging role, on the fold |
+| `defect` | a candidate item on the **maintenance queue** | the queue that absorbs it |
+| `gap` | a candidate item — maintenance queue, or the stage queue when the stage was going to fill it anyway | the queue that absorbs it |
+| `automation` | a candidate item adding the script/CLI verb **and** the prose that mandates it | the queue that absorbs it |
+| `framework` | an issue on `[framework] repo` from `aide.toml`; unset or offline, it stays pending | the filing role, on the hand-over |
+
+Only the three middle rows are yours: a `knowledge` or `framework` entry still
+open here was not triaged, so route it through `/aide-review-insights` rather
+than folding or filing it mid-batch.
+
+### Emit a maintenance queue first when there are fixes to batch
+
+**When open `defect`, `gap` or `automation` entries exist at a queue boundary
+they are batched into a maintenance queue, authored and merged before the stage
+queue** (§1 → `insights-maintenance-queue.md`) — so one create call writes
+**two** queue files:
+
+1. `queue-NNN.md`, the **maintenance queue**, from those entries only.
+2. `queue-(NNN+1).md`, the **stage queue**, from the roadmap as usual.
+
+The maintenance queue is a normal queue in every respect — its own number, its
+own items, ticking the entries it absorbs with the item numbers they became —
+and it is not a second live queue: **the live queue is the lowest-numbered open
+one**, so the maintenance queue is served first and the stage queue starts when
+it empties. How the pair reaches a human is the caller's, below: push and PR are
+never this step's. Number the items sequentially across both,
+maintenance queue first, and wire every one of them into `progress.md`
+(requirement 8) exactly as for a single queue.
+
+Write only the stage queue when there is nothing to batch: no open `defect`,
+`gap` or `automation` entry, or none that warrants a queue of its own. That
+second judgement is yours — too small to be worth a branch, blocked on something
+unbuilt, out of scope — and it is stated, never silent. A `gap` the upcoming
+stage was going to fill anyway belongs in the stage queue, with that stage named
+as the reason.
 
 ### Requirements
 
@@ -72,8 +114,8 @@ candidate for the next queue — and is named, with why, in the hand-off.
    `Validate stage N: <stage title>`: replay the stage's use cases end-to-end
    (not just the unit suite), and flip any Environment-Gated Capability
    Verification rows the stage introduced to `✅ Verified` where the
-   environment allows (`aide env --profile <name>`), else record why they stay
-   `❓ Unverified`. Validation is planned, numbered work — never an implicit
+   environment allows (`aide env --profile <name>`), else record in the row's
+   Notes cell why it stays `❓ Unverified`. Validation is planned, numbered work — never an implicit
    hope.
 6. **Consistent format** (parsed by `aide claim` / `aide check`):
    ```
@@ -119,25 +161,37 @@ state (✅ done, ⏸️/❌ if carried or dropped). Skip if this is the first qu
 
 ### Output
 
-Save to `docs/aide/queue/queue-NNN.md` (next sequential number).
+Save to `docs/aide/queue/queue-NNN.md` (next sequential number) — and, when this
+run split off a maintenance queue, `queue-(NNN+1).md` for the stage batch
+alongside it.
 
-### Commit the queue immediately (do not leave it untracked)
+### Commit the queues immediately (do not leave them untracked)
 
-The queue is a shared project document; `aide claim` reads the committed file.
-Commit the new queue, the `progress.md` item-reference back-fill (requirement 8),
-and the tidy-up on the current branch, each a separate Bash call:
+A queue is a shared project document; `aide claim` reads the committed file.
+Commit the new queue (or both), the `progress.md` item-reference back-fill
+(requirement 8), and the tidy-up on the current branch, each a separate Bash
+call:
 
 ```
 git add docs/aide/queue/queue-NNN.md docs/aide/queue/queue-<NNN-1>.md docs/aide/progress.md
 git commit -m "docs(aide): add work queue NNN"
 ```
 
+**Wrote two queues? Stage both**, in that one command —
+`docs/aide/queue/queue-NNN.md` *and* `docs/aide/queue/queue-<NNN+1>.md` — and
+commit them together, titled `docs(aide): add work queues NNN-<NNN+1>`. One
+commit, not two: `progress.md` carries the item references for both queues and
+cannot be split between them, so a first commit staging only the maintenance
+queue would reference items no committed queue declares. The pair lands in one
+PR anyway.
+
 **Push/PR is the caller's job, not this step's:**
 
 - **Run standalone (manual)** — also `git pull --rebase` then `git push`.
 - **Invoked as the `queue-planner` subagent inside `/aide-run-roadmap`** — commit
   only; the orchestrator pushes the `aide/queue-NNN` branch and opens the
-  human-reviewed queue PR.
+  human-reviewed queue PR. Say in your summary that you wrote two queues, so it
+  knows there is a second batch behind the one it is about to open a PR for.
 
 ### Tick every inbox entry you queued
 
@@ -152,15 +206,14 @@ Never flip the checkbox or reword the line by hand: **the claim is immutable and
 ticking the checkbox is the one in-place edit**. An entry passed over is left
 exactly as it stands.
 
-## Hand-off
+## Absorbed and passed-over entries
 
-Close your turn by naming the inbox entries this queue absorbed (with the item
-numbers they became) and the ones you passed over with why — a pass-over is
-stated where the queue is reviewed, not left for the next reader to re-derive —
-then both ways to proceed, in chat and in the queue-PR body if one is opened:
+Close your turn by naming, in chat and in the queue-PR body if one is opened:
 
-- **Spec the whole queue now** — run `/aide-spec-queue NNN` in one interactive
-  sitting (clarify questions answered while a human is present), then let
-  execution run unattended.
-- **Spec per-item during execution** — run `/aide-run-queue NNN`, or manually
-  `/aide-create-item` then `/aide-execute-item` per item in fresh chats.
+- the queues you wrote — the maintenance queue and the stage queue, or just the
+  stage queue and why there was nothing to batch;
+- the inbox entries each queue absorbed, with the item numbers they became;
+- the ones you passed over, with why — **a pass-over leaves the entry open and
+  is stated where the queue is reviewed**, rather than left for the next reader
+  to re-derive. That is what makes leaving an entry unchecked an honest routing
+  rather than a hope.

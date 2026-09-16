@@ -9,133 +9,125 @@ paths:
   - "**/tests/**/*.py"
 ---
 
-<!-- reach: test-writer
-     Literal, not measured: this body is preloaded into exactly the agent
-     specs whose `skills:` frontmatter names `aide-test-hygiene`, at spawn,
-     before the role has opened anything — so a repo with no test to read
-     still delivers it. The `paths:` above inject nothing on a read (issue
-     #85, measured): the description sits in every interactive session's skill
-     listing regardless, and the globs only narrow when the runtime
-     auto-invokes the skill on its own. `builder` and `validator` open test
-     files but write none, and are deliberately not listed.
-     `tests/test_structural_budget.py` compares this line to the `skills:`
-     lists. -->
+<!-- generated-from: .aide/conventions/6-test-hygiene.md
+     Everything below the note is that file, down to its `Rationale` heading,
+     written here by `install.py` at install time (issue #109). There is no
+     hand-written copy of §6 to drift, so this file declares no `pins`
+     block: that mechanism guards a restatement, and this is not one. Edit
+     the section. -->
 
-<!-- triggers: test-writer
-     The interactive half, declared so the glob evaluator stays on an
-     assertion path: the roles whose named reads match the `paths:` above.
-     Only `test-writer` names a test file (`conftest.py`); the others reach
-     `project.tests_dir` without naming a file in it. -->
+**Delivery, not a second source of truth.** What follows is
+`.aide/conventions.md` §6 — `.aide/conventions/6-test-hygiene.md`, down to its
+`Rationale` heading — rendered here verbatim at install time, so it cannot say
+anything the engine does not. The defect each rule was earned by is in the
+section below that heading; `.aide/conventions.md` resolves any `§N`.
 
-<!-- pins: .aide/conventions/6-test-hygiene.md
-     Quoted from that section; `test_rule_pins.py` fails if either copy moves
-     alone.
-     - in one place, on one platform, against one checkout, so a defect
-       invisible under those conditions is invisible to the entire loop
-     - A test must be deterministic and pass on Windows, macOS and Linux, with
-       no network access
-     - Never write the repo's own working-directory path literally into a test
-     - Any `Path` entering a hash, comparison, or match must be `.as_posix()`
-     - an identical tree hashes differently on Windows
-     - A committed byte-exact fixture needs a `.gitattributes` `text eol=lf` pin
-     - Treat a warning as authoritative and its silence as partial
-     - the lint decides a *read shape*, not whether a file needs a pin
-     - The immunity is a property of the reader, not of parsing
-     - never write "the eol-pin lint passes" as an acceptance criterion
-     - `binary` and `-text` count as pins alongside `eol=lf`
-     - A test that captures subprocess output as text must pass
-       `encoding="utf-8"`
-     - It sees only direct calls: a suite that wraps its subprocess calls in a
-       helper shows this lint one call site and hides the rest
-     - The codec is the producing side's job too
-     - a script that writes non-ASCII to stdout or stderr inherits the console
-       codepage on Windows, so it must reconfigure its own streams
-     - Prefer calling the function over shelling out to the command that calls
-       it
-     - a test asserting on `aide check`'s own output should call `run_checks`
-       in-process
-     - Never pin an exact warning or error count from a module that itself
-       trips the lint being counted
-     - a measurement that includes the measurer
-     - Assert a derived value is recognisable *before* asserting anything about
-       it
-     - A scope claim about a diff belongs on the branch, not in the suite
-     - Deriving the base from `aide scope` is not the repair
--->
-
-# Test hygiene
-
-`.aide/conventions.md` §6 is the source of truth, including the defect each rule
-was earned by. This file is how §6 reaches a role about to write a test: it is
-preloaded into `test-writer` at spawn, so it is in that context before the
-first test is opened or created, and an interactive session sees
-its description in the skill listing, with the `paths:` above keeping the
-runtime's own invocation of it to work on a test file. It is **delivery, not a
-second source of truth**.
-
-The globs match by filename rather than by `project.tests_dir`, so they hold
-whatever a consumer configured: the default pytest naming plus any
+The `paths:` above match by filename rather than by `project.tests_dir`, so they
+hold whatever a consumer configured: the default pytest naming plus any
 directory named `tests`. A project that overrides pytest's `python_files`, or
-keeps tests in `spec/`, needs the globs widened to match.
+keeps tests in `spec/`, needs them widened to match.
 
-**The gap these close.** Every gate in this loop runs in one place, on one
-platform, against one checkout, so a defect invisible under those conditions is
-invisible to the entire loop. Each rule below is a class that reached `main`
-regardless.
+## 6. Test hygiene (portability, and tests that can actually fail)
+
+Runtime-general, like §3. An adapter **delivers** this section to a role about
+to write a test rather than pointing at it.
+
+**Every rule below was earned by a defect that passed every gate this loop runs
+and reached `main` anyway.** That is the structural point: spec → tests → build
+→ validate → merge all execute in one place, on one platform, against one
+checkout, so a defect invisible under those conditions is invisible to the
+entire loop, indefinitely.
+
+**Portability.**
 
 - **A test must be deterministic and pass on Windows, macOS and Linux, with no
-  network access.** The rules below are the specific ways that is lost, and
-  this general statement binds a case none of them names.
+  network access.** The rules below are the specific ways that is lost; this is
+  the general statement they serve, and it binds a case none of them names.
 - **Never write the repo's own working-directory path literally into a test.**
-  Resolve from the test file: `Path(__file__).resolve().parents[N]`. `aide
-  check` warns on this.
+  Resolve from the test file (`Path(__file__).resolve().parents[N]`).
 - **Any `Path` entering a hash, comparison, or match must be `.as_posix()`.**
-  `str(Path)` renders the OS-native separator — including a `Path` interpolated
-  into an f-string, which calls `str()` — so an identical tree hashes
+  `str(Path)` — including a `Path` interpolated into an f-string, which calls
+  `str()` — renders the OS-native separator, so an identical tree hashes
   differently on Windows.
-- **A committed byte-exact fixture needs a `.gitattributes` `text eol=lf` pin**,
-  or `core.autocrlf` rewrites it on checkout and every byte comparison fails on
-  Windows only. `aide check` warns on the cases it can decide. Treat a warning
-  as authoritative and its silence as partial. The lint decides a *read shape*,
-  not whether a file needs a pin: `read_text()` applies universal-newline
-  translation, so an artifact read that way and parsed draws no warning whether
-  or not it is pinned, while **any** `read_bytes()` on a committed path is
-  reported. The immunity is a property of the reader, not of parsing. So never
-  write "the eol-pin lint passes" as an acceptance criterion: assert the pin
-  itself. `binary` and `-text` count as pins alongside `eol=lf`.
+- **A committed byte-exact fixture needs a `.gitattributes` `text eol=lf` pin.**
+  Without it `core.autocrlf` rewrites the file on checkout and every byte
+  comparison against it fails on Windows only. `aide check` warns on the cases
+  it can decide: a path built from literals, compared with `==` or fed to a
+  hash, resolving to a file that exists in the checkout and is covered by no
+  `eol=lf` pattern. It reports **only what it can resolve** — a fixture reached
+  through a `tmp_path`, a function argument, or a constant imported from
+  another package is skipped in silence rather than guessed at. Treat a
+  warning as authoritative and its silence as partial: the pin is still your
+  responsibility on a path the check cannot see. **Silence has a second cause,
+  and it is the one that misleads:** the lint decides a *read shape*, not
+  whether a file needs a pin. `read_text()` applies universal-newline
+  translation, so a committed artifact its tests read that way and then parse —
+  `json.loads`, a Markdown table walked cell by cell — is immune to the rewrite
+  and draws no warning whether or not it is pinned. `read_bytes()` has no such
+  immunity, so **any** use of it on a committed path is reported. The immunity
+  is a property of the reader, not of parsing. And a `read_text()` parse may
+  still need the pin for a byte-reproducibility claim made where the lint
+  cannot look, so never write
+  "the eol-pin lint passes" as an acceptance criterion: assert the pin itself.
+  `binary` and `-text` count as pins alongside `eol=lf` — all three stop the
+  conversion — while a bare `text` enables it.
 - **A test that captures subprocess output as text must pass
-  `encoding="utf-8"`.** `text=True` names no codec, so Python decodes with the
-  platform's locale codec — UTF-8 on a Linux runner, cp1252 on a Windows one.
-  `aide check` warns on this. It sees only direct calls: a suite that wraps its
-  subprocess calls in a helper shows this lint one call site and hides the
-  rest. The codec is the producing side's job too: a script that writes
-  non-ASCII to stdout or stderr inherits the console codepage on Windows, so it
-  must reconfigure its own streams. When the reader and the writer disagree the
-  read comes back **`None`** rather than raising — the decode runs in
-  `subprocess.run`'s reader thread — so assert the value is there before
-  asserting anything about it.
+  `encoding="utf-8"`.** `text=True` (and its older spelling
+  `universal_newlines=True`) names no codec, so Python decodes with
+  `locale.getpreferredencoding()` — UTF-8 on a Linux runner, **cp1252** on a
+  Windows one — and the same bytes become different strings on the two legs of
+  one CI run. `aide check` warns on a `run`/`Popen`/`check_output` call
+  carrying `text=` or `universal_newlines=` and no `encoding=`. It sees only
+  direct calls: a suite that wraps its subprocess calls in a helper shows this
+  lint one call site and hides the rest. **The codec is the producing side's
+  job too**, and both ends must agree: a script that writes non-ASCII to
+  stdout or stderr inherits the console codepage on Windows, so it must
+  reconfigure its own streams — `aide.py`'s `main()` and the command-hygiene
+  hook both do. A codec disagreement surfaces as a **missing value rather than
+  an error** — the decode runs in `subprocess.run`'s reader thread, where a
+  `UnicodeDecodeError` never reaches the caller, so `stdout` comes back
+  `None`. So name the codec on the read, fix the writer if you own it, and
+  pass `errors="replace"` when you do not — then assert the value is there
+  before asserting anything about it.
+
+**Tests that can actually fail.**
+
 - **Prefer calling the function over shelling out to the command that calls
   it.** The CLI's logic is importable and returns structured data; a subprocess
   boundary adds stdout encoding, platform quirks, and a re-parse of what was
-  structured a moment earlier. A test asserting on `aide check`'s own output
-  should call `run_checks` in-process, which returns `(errors, warnings)` as
-  structured data.
+  structured a moment earlier. **A test asserting on `aide check`'s own
+  output should call `run_checks` in-process**, which returns
+  `(errors, warnings)` as structured data, rather than replaying the CLI's
+  stdout.
 - **Never pin an exact warning or error count from a module that itself trips
   the lint being counted.** The module raises the count by one the moment it is
-  committed — a measurement that includes the measurer. Assert on the warning
+  committed, so a baseline recorded before it existed is falsified by the act of
+  adding it — a measurement that includes the measurer. Assert on the warning
   you mean by matching it, not on how many there are.
-- **A scope claim about a diff belongs on the branch, not in the suite.** "This
-  item did not touch X" is decided by `aide scope` against the item's declared
-  paths (§1 → authorised paths); written as a test it asserts something that
-  stops being true the moment the item merges — and on a stacked queue, where
-  the item's base is the queue branch and not `main`, it reports every sibling
-  item's legitimate change as this item's violation. **Deriving the base from
-  `aide scope` is not the repair**: the verb reads the *current* branch's
-  recorded base, and `aide merge` re-runs the suite from the merge target. Nor
-  is a skip guard, which leaves the test permanently skipped once the claim
-  branch is deleted. `aide check` warns on both literal shapes.
+- **A scope claim about a diff belongs on the branch, not in the suite.**
+  "This item did not touch X" is decided by `aide scope` against the item's
+  declared paths (§1 → authorised paths), proved as §1 → authorised-paths-proof
+  rules; written as a test it asserts
+  something that stops being true the moment the item merges — on a stacked
+  queue, where the item's base is the queue branch and not `main`, it reports
+  every sibling item's legitimate change as this item's violation. **Deriving
+  the base from `aide scope` is not the repair**: the verb reads the *current*
+  branch's recorded base, and `aide merge` re-runs the suite from the merge
+  target, so the test then fails by construction inside the loop's own
+  post-merge run. Nor is a skip guard, which leaves the test permanently
+  skipped once the claim branch is deleted. `aide check` warns on both literal
+  shapes; a test that computes its base (`git merge-base HEAD origin/main`) is
+  a claim about the branch rather than about an item and is deliberately not
+  reported.
 - **Assert a derived value is recognisable *before* asserting anything about
   it.** A glob that matched nothing, a capture that came back empty, a slice
   taken from a failed `find()` — each yields a value that flows into the
-  assertion and passes while checking nothing at all. A test that cannot fail is
-  worse than no test.
+  assertion and passes while checking nothing.
+
+`aide check` decides the ones a script can, six of them: the repository's own
+absolute path written into a test file, a `str()` around a `relative_to(...)`,
+a shell-out to the CLI whose function was importable, a text capture that names
+no codec, a byte-compared fixture no `eol=lf` pattern covers, and a diff-time
+scope claim written as a suite assertion. The rest of this section binds
+identically and is checked by nobody, so read a warning as authoritative and
+silence as partial throughout — not only on the pin.

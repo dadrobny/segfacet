@@ -419,6 +419,27 @@ def test_a_completed_item_cannot_break_a_live_pin(tmp_path: Path):
     assert findings == []
 
 
+def test_a_spent_item_is_discounted_on_both_sides_of_every_comparison(
+        tmp_path: Path):
+    """The sentence `aide check -h` states, exercised as one claim.
+
+    Its two halves have a test each above — a spent item's pin is retired, and
+    a spent item cannot break a live pin. Neither alone says "both sides", and
+    "both sides" is what the help promises, so one item here is simultaneously
+    the changer of what a live sibling pins and the pinner of what that sibling
+    changes. Run for \u2705 and \u274c alike, because the help names both as spent.
+    """
+    for name, icon in (("merged", "\u2705"), ("excluded", "\u274c")):
+        progress = PROGRESS.replace("- \U0001f4cb A. *(Item 027)*",
+                                    f"- {icon} A. *(Item 027)*")
+        repo = _make_repo(tmp_path / name, {
+            27: _spec_text(27, may=["src/cli.py"], asserts=["src/rules.py"]),
+            28: _spec_text(28, may=["src/rules.py"], asserts=["src/cli.py"]),
+        }, progress=progress)
+        findings, _ = _findings(repo)
+        assert findings == [], (name, findings)
+
+
 def test_conflicts_between_live_items_survive_the_discount(tmp_path: Path):
     repo = _make_repo(tmp_path, {
         27: _spec_text(27, may=["src/done.py"]),

@@ -1,3 +1,4 @@
+<!-- aide-template: vision 1 -->
 # FACET — Project Vision
 
 > **Status:** v3 (approved 2026-09-03) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-03

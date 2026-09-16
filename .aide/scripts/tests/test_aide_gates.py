@@ -412,16 +412,57 @@ def test_a_note_containing_a_pipe_is_refused():
         aide.set_gate_status(_progress(AWAITING), 1, "approved", "a | b")
 
 
-def test_a_malformed_row_warns_instead_of_vanishing():
+MALFORMED = "| G | 028 | ⏳ Awaiting | note with | a pipe |"
+
+
+def test_a_malformed_row_is_an_error_instead_of_vanishing():
     """The most dangerous failure this feature can have is a gate that stops
-    being read: "a person must decide" silently becomes "nothing is blocking"."""
-    rows = "| G | 028 | ⏳ Awaiting | note with | a pipe |"
-    w = aide.gate_warnings(_lines(rows))
-    assert any("being SKIPPED" in x for x in w)
+    being read: "a person must decide" silently becomes "nothing is blocking".
+    Issue #202: the same rule as every other read table — an error, since the
+    row's cells cannot be trusted to say what it blocked."""
+    lines = _lines(MALFORMED)
+    lineno = lines.index(MALFORMED) + 1
+    errors = aide.unreadable_row_errors(lines)
+    assert len(errors) == 1
+    assert errors[0].startswith(
+        f"progress.md:{lineno}: human-gate row has 5 cells, not 4")
+    assert "holds every item" in errors[0]
+    assert not any("cells, not 4" in w for w in aide.gate_warnings(lines))
 
 
-def test_a_well_formed_table_produces_no_arity_warning():
-    assert not any("columns, not 4" in w for w in aide.gate_warnings(_lines(AWAITING)))
+def test_a_well_formed_table_produces_no_arity_error():
+    assert aide.unreadable_row_errors(_lines(AWAITING)) == []
+
+
+def test_claim_holds_every_item_behind_an_unreadable_gate_row(tmp_path: Path, capsys):
+    """Fail closed, like an unrecognised status: what the row blocks is
+    unknown, so any item released could be the one it was written to hold. A
+    defect rather than a normal hold, so the exit is 1 and the row is named."""
+    repo = _repo(tmp_path, MALFORMED)
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 1
+    out = capsys.readouterr().out
+    assert "item 027" not in out
+    assert "human-gate row aide cannot read" in out
+    assert "has 5 cells, not 4" in out
+
+
+def test_an_unreadable_gate_row_holds_everything_beside_a_readable_gate(
+        tmp_path: Path, capsys):
+    """A readable gate holding only 028 must not let 027 through while another
+    row in the table is unreadable — that row could be the one naming 027."""
+    repo = _repo(tmp_path, f"{AWAITING}\n{MALFORMED}")
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 1
+    assert "item 027" not in capsys.readouterr().out
+
+
+def test_gate_list_names_an_unreadable_row_instead_of_reporting_no_table(
+        tmp_path: Path, capsys):
+    repo = _repo(tmp_path, MALFORMED)
+    assert aide.main(["--repo", str(repo), "gate", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "nothing gated" not in out
+    assert "has 5 cells, not 4" in out
+    assert "0 gate(s), 0 still blocking, 1 unreadable row(s)" in out
 
 
 def test_a_note_with_a_line_break_is_refused():
@@ -509,12 +550,12 @@ def test_stage_section_separates_absent_from_empty():
     assert aide.stage_section(lines, "99") is None
 
 
-def test_a_malformed_row_with_an_empty_first_cell_still_warns():
+def test_a_malformed_row_with_an_empty_first_cell_is_still_reported():
     """`set("") <= set("-: ")` is true, so an empty first cell used to read as a
     separator row and the malformed-row warning never fired — the vanishing
-    gate the warning exists to catch, hiding inside the warning itself."""
+    gate the report exists to catch, hiding inside the report itself."""
     rows = "| | 028 | ⏳ Awaiting | note with | a pipe |"
-    assert any("being SKIPPED" in w for w in aide.gate_warnings(_lines(rows)))
+    assert any("cells, not 4" in e for e in aide.unreadable_row_errors(_lines(rows)))
 
 
 def test_an_unnamed_but_well_formed_gate_still_blocks():
@@ -526,7 +567,7 @@ def test_an_unnamed_but_well_formed_gate_still_blocks():
 
 
 def test_the_real_separator_row_is_still_ignored():
-    assert aide.gate_warnings(_lines(AWAITING)) == aide.gate_warnings(_lines(AWAITING))
+    assert aide.unreadable_row_errors(_lines(AWAITING)) == []
     assert len(aide.human_gates(_lines(AWAITING))) == 1
 
 

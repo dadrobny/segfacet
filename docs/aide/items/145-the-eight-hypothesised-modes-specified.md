@@ -225,7 +225,7 @@ ninth mode and both corpora; item 151 attests them, naming the checks.
 Clarify mode is `assume` (`aide.toml`), so each ambiguity below is resolved to
 the most defensible default and recorded here for audit at the queue boundary.
 
-- **A1 (engine 1.37.0): `derive_status` must derive `implemented` on "a
+- **A1 (engine 1.37.0, re-checked 1.52.1): `derive_status` must derive `implemented` on "a
   registered rule whose `modes` *contains* the id", and item 144 shipped a
   narrower reading.** [`vision.md`](../vision.md) §6 and
   [`../queue/queue-020.md`](../queue/queue-020.md) both define `implemented` as
@@ -245,7 +245,7 @@ the most defensible default and recorded here for audit at the queue boundary.
   test in place of the equality test — and nothing else in that function.
   Either way the observable contract this item pins is AC22's, not a particular
   diff.
-- **A2 (engine 1.37.0): item 144's committed AC9 test must be reconciled with
+- **A2 (engine 1.37.0, re-checked 1.52.1): item 144's committed AC9 test must be reconciled with
   A1, in the same edit.**
   `tests/test_144_failure_mode_specification.py::test_ac9_derive_status_implemented_iff_a_registered_rule_declares_the_mode`
   builds a **mode-3** probe with `corpus_cases=()` and asserts `"specified"`

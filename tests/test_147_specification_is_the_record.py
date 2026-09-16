@@ -84,8 +84,6 @@ _COMMITTED_TRACE_MD = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.genera
 _COMMITTED_CAT_JSON = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.json"
 _COMMITTED_CAT_MD = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.md"
 
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
-
 
 # =========================================================================== #
 # House fixtures / helpers
@@ -258,15 +256,6 @@ def _references_vision_md(tree: ast.AST) -> bool:
         ):
             return True
     return False
-
-
-def _aide_module():
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("_aide_cli_147", _AIDE_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
 
 
 # =========================================================================== #
@@ -1366,46 +1355,11 @@ def test_ac26_every_corpus_case_agrees_and_status_derives_correctly(measured):
 
 
 # =========================================================================== #
-# AC27: aide check stays clean, warning-class-checked (no count pin)
+# AC27's `aide check` warning-baseline test was retired on 2026-09-16: it
+# pinned the loop's own `aide check` warning set in the standing suite, a
+# diff-time claim that belongs on the branch, not here
+# (.aide/conventions/6-test-hygiene.md §6). The error half now lives in
+# tests/test_aide_check_no_errors.py; the `.gitattributes`-warning guard it
+# also carried is covered by
+# tests/test_128_relocation_checks.py::test_ac23_aide_check_emits_no_gitattributes_lint_warning.
 # =========================================================================== #
-
-
-_BASELINE_WARNING_CLASSES = (
-    "assumptions-block",
-    "awaiting-a-decision",
-    "branch-state",
-    "retracted-criterion",
-)
-_BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
-
-
-def _classify_warning(message: str) -> str:
-    if message.startswith(_BRANCH_STATE_WARNING_PREFIXES):
-        return "branch-state"
-    if re.search(r"criterion \d+ was retracted on \d{4}-\d{2}-\d{2}", message):
-        return "retracted-criterion"
-    if "assumptions" in message.lower():
-        return "assumptions-block"
-    if "awaiting a decision" in message.lower():
-        return "awaiting-a-decision"
-    return "unclassified"
-
-
-def test_ac27_aide_check_reports_no_error_and_no_new_warning_class():
-    aide = _aide_module()
-    errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    assert errors == [], errors
-    assert warnings, "run_checks returned no warnings at all -- expected the baseline"
-
-    classes = {_classify_warning(warning) for warning in warnings}
-    assert classes <= set(_BASELINE_WARNING_CLASSES), (
-        f"aide check reports a warning class outside the recorded baseline: "
-        f"{classes - set(_BASELINE_WARNING_CLASSES)}"
-    )
-
-    for warning in warnings:
-        assert ".gitattributes" not in warning, warning
-
-
-def test_adv_ac27_unclassified_warning_would_be_caught():
-    assert _classify_warning("a brand new kind of warning nobody has seen") == "unclassified"

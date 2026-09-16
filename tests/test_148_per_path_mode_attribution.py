@@ -83,8 +83,6 @@ from pathlib import Path
 
 import pytest
 
-from run_process import run_utf8
-
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _COMMITTED_CATALOGUE_JSON = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.json"
@@ -92,7 +90,6 @@ _COMMITTED_CATALOGUE_MD = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.gene
 _COMMITTED_TRACEABILITY_JSON = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
 _COMMITTED_TRACEABILITY_MD = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.md"
 _INTENSITY_MANIFEST_PATH = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json"
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _ASR_MODULE_PATH = _REPO_ROOT / "scripts" / "aide_status_report.py"
 _TEST_104_PATH = _REPO_ROOT / "tests" / "test_104_feature_catalogue_drift.py"
 
@@ -168,15 +165,6 @@ def _test104_module():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("_test_104_for_148", _TEST_104_PATH)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
-
-
-def _aide_module():
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("_aide_cli_148", _AIDE_SCRIPT)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)  # type: ignore[union-attr]
     return module
@@ -1108,81 +1096,12 @@ def test_ac20_both_conformance_checkers_stay_clean():
 
 
 # =========================================================================== #
-# AC21: the loop's own lint is unmoved
+# AC21's `aide check` warning-baseline tests were retired on 2026-09-16: they
+# pinned the loop's own `aide check` warning set (and a subprocess replay of
+# the same claim) in the standing suite, a diff-time claim that belongs on
+# the branch, not here (.aide/conventions/6-test-hygiene.md §6). The error
+# half now lives in tests/test_aide_check_no_errors.py.
 # =========================================================================== #
-
-_BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
-
-_BASELINE_WARNING_CLASSES = (
-    "assumptions-block",
-    "awaiting-a-decision",
-    "branch-state",
-    "retracted-criterion",
-)
-
-
-def _classify_warning(message: str) -> str:
-    import re
-
-    if message.startswith(_BRANCH_STATE_WARNING_PREFIXES):
-        return "branch-state"
-    if re.search(r"criterion \d+ was retracted on \d{4}-\d{2}-\d{2}", message):
-        return "retracted-criterion"
-    if "assumptions" in message.lower():
-        return "assumptions-block"
-    if "awaiting a decision" in message.lower():
-        return "awaiting-a-decision"
-    return "unclassified"
-
-
-_WRITTEN_PATHS = (
-    "src/segfacet/heuristics/rule.py",
-    "src/segfacet/heuristics/__init__.py",
-    "src/segfacet/heuristics/border.py",
-    "src/segfacet/heuristics/bounds.py",
-    "src/segfacet/heuristics/coverage.py",
-    "src/segfacet/heuristics/fragmentation.py",
-    "src/segfacet/heuristics/intensity.py",
-    "src/segfacet/heuristics/intensity_reference_delta.py",
-    "src/segfacet/heuristics/mislabel.py",
-    "src/segfacet/heuristics/overlap.py",
-    "src/segfacet/heuristics/reference_delta.py",
-    "src/segfacet/heuristics/sequence.py",
-    "src/segfacet/catalogue.py",
-    "scripts/aide_status_report.py",
-    "docs/aide/feature_catalogue.generated.json",
-    "docs/aide/feature_catalogue.generated.md",
-)
-
-
-def test_ac21_aide_check_reports_no_error_and_no_new_warning_class():
-    aide = _aide_module()
-    errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    assert errors == [], errors
-    assert warnings, "run_checks returned no warnings at all -- expected the baseline"
-
-    classes = {_classify_warning(w) for w in warnings}
-    assert classes <= set(_BASELINE_WARNING_CLASSES), (
-        f"aide check reports a warning class outside the recorded baseline: "
-        f"{classes - set(_BASELINE_WARNING_CLASSES)}"
-    )
-
-    for warning in warnings:
-        assert "insights.md" not in warning, warning
-        assert ".gitattributes" not in warning, warning
-        for written_path in _WRITTEN_PATHS:
-            assert written_path not in warning, (written_path, warning)
-
-
-def test_ac21_aide_check_exits_zero():
-    result = run_utf8([sys.executable, str(_AIDE_SCRIPT), "check"], cwd=_REPO_ROOT, timeout=180)
-    assert result.returncode == 0, result.stderr
-
-
-def test_adv_unclassified_warning_would_be_caught():
-    """The classifier must be able to detect a new class -- otherwise the
-    AC21 check above passes on anything."""
-    assert _classify_warning("a brand new kind of warning nobody has seen") == "unclassified"
 
 
 # =========================================================================== #

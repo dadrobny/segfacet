@@ -295,6 +295,40 @@ def test_scope_uses_an_explicit_base_verbatim(tmp_path: Path, capsys):
     assert "vs main" in capsys.readouterr().out
 
 
+def test_a_derived_base_prefers_its_origin_counterpart(tmp_path: Path):
+    """The other half of the sentence above it, and of `aide scope -h`.
+
+    An explicit `--base` is the caller's word and is used verbatim; the two
+    *derived* answers — the recorded base, and `main_branch` — are nobody's
+    word, so they resolve to `origin/<base>` when that ref exists. The footgun
+    is a local `main` sitting behind the work: the merge-base with it is it,
+    and every file the earlier items touched is then reported against this
+    item's spec.
+    """
+    repo = _init_repo(tmp_path / "repo")
+    cfg = aide.load_config(repo)
+    assert aide._scope_base_ref(repo, cfg, None) == "main"
+
+    # A remote pointing at the repository itself: no network, and the
+    # remote-tracking ref is what the preference actually looks for.
+    _run(["git", "remote", "add", "origin", str(repo)], repo)
+    _run(["git", "update-ref", "refs/remotes/origin/main", "main"], repo)
+    assert aide._scope_base_ref(repo, cfg, None) == "origin/main"
+    assert aide._scope_base_ref(repo, cfg, "main") == "main"
+
+    # BOTH derived answers, not just `main_branch`: on stacked work the base
+    # is the queue branch a claim recorded, and that is the answer the footgun
+    # actually bites — a local queue branch behind its origin copy makes every
+    # sibling item already merged into it read as this item's own change.
+    _run(["git", "switch", "-c", "aide/queue-003"], repo)
+    _run(["git", "switch", "-c", "aide/027-bounds-rules"], repo)
+    aide._record_branch_base(repo, "aide/027-bounds-rules", "aide/queue-003")
+    assert aide._scope_base_ref(repo, cfg, None) == "aide/queue-003"
+    _run(["git", "update-ref", "refs/remotes/origin/aide/queue-003", "main"], repo)
+    assert aide._scope_base_ref(repo, cfg, None) == "origin/aide/queue-003"
+    assert aide._scope_base_ref(repo, cfg, "aide/queue-003") == "aide/queue-003"
+
+
 # --------------------------------------------------------------------------- #
 # the base reaches the other verbs
 # --------------------------------------------------------------------------- #

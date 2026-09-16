@@ -1121,9 +1121,16 @@ def test_ac14_every_item_150_insight_is_well_formed_and_honestly_dated():
         )
         day = datetime.date.fromisoformat(match.group(1))
         assert day <= today, f"{name}: item-150 insight dated in the future ({day})"
-        assert match.group(2) == engine, (
-            f"{name}: insight records engine {match.group(2)}, .aide/VERSION "
-            f"says {engine}"
+        # An entry records the engine it was observed under and is immutable
+        # (§1 → insights.md), so after an engine update it legitimately names
+        # an older version. Re-pinned 2026-09-16 (1.37.0 → 1.52.1): the
+        # recorded engine must not be newer than the installed one; equality
+        # was the original pin and held only until the first update.
+        recorded = tuple(int(part) for part in match.group(2).split("."))
+        installed = tuple(int(part) for part in engine.split("."))
+        assert recorded <= installed, (
+            f"{name}: insight records engine {match.group(2)}, newer than "
+            f".aide/VERSION's {engine}"
         )
 
 

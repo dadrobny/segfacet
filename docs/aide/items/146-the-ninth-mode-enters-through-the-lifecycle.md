@@ -403,7 +403,7 @@ temporary state.
   Item 149 re-points `build_matrix` and is the first consumer of the new
   harness.
 
-- **A10 (engine 1.37.0):** `python .aide/scripts/aide.py check` on this branch
+- **A10 (engine 1.37.0, re-checked 1.52.1):** `python .aide/scripts/aide.py check` on this branch
   reports **OK with 7 warnings**: 32 legacy specs without an `## Assumptions`
   block; human gates 1 and 2 awaiting a decision; and the four Stage-20
   criterion retraction notices (criteria 1, 3, 4, 5). AC36's baseline is that

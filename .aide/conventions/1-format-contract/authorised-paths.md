@@ -1,10 +1,11 @@
 ### `## Authorised paths` — an item's scope, declared
 
-An item spec declares the files it may change. Writing it down is what turns
-"did this item stay in its lane" from a judgement call into a diff against a
-list — and it is the only thing that lets two specs authored in the same batch
-(`/aide-spec-queue` authors N before any is built) be checked against each other
-while changing either is still cheap.
+An item spec declares the files it may change, and `aide scope` proves the
+declaration by the diff. This section is the **declaration**, and `spec-author`
+writes it; how it is proved — `aide scope` on the branch, `check --queue`
+across a batch, and what a test may never assert about a diff — is
+§1 → `authorised-paths-proof.md`, for the validator, the spec-reviewer and the
+role writing the test.
 
 The section is **expected but not required**: it ships in the item template, so
 every new spec carries one, and a spec written before this convention stays
@@ -33,9 +34,7 @@ with a short reason:
 that position is dropped, and so is a path list that wraps onto a continuation
 line. The reason — everything after the ` — ` — is free prose, so quoting an
 identifier, a config key or a sibling item's file there costs nothing. Splitting
-the bullet is the whole fix, and `aide check` warns at spec time, naming the
-dropped spans, rather than letting the narrowing surface later as an
-`aide scope` FAIL against a path the spec's own prose authorised.
+the bullet is the whole fix, and `aide check` warns at spec time.
 
 - **May change** — every path this item is authorised to modify. Three forms are
   recognised: an exact path, `dir/**` (the whole subtree), and a single-star
@@ -43,157 +42,56 @@ dropped spans, rather than letting the narrowing surface later as an
   covers the work; a subtree wildcard over a directory a sibling item also
   touches is the shape that collides.
 - **Asserts against** — files or derived artifacts this item's tests read and
-  **pin** without changing. A later item authorised to change one of these
-  breaks the assertion, and that collision is findable only if the dependency
-  was written down. Include derived artifacts recomputed live, not just files
-  compared byte-for-byte: a live recomputation is *more* coupled to the
+  **pin** without changing. Include derived artifacts recomputed live, not just
+  files compared byte-for-byte: a live recomputation is *more* coupled to the
   underlying state, not less.
-
-**Scope is proved by the diff, not by a hash.** The mechanism is this
-declaration checked against the branch's changed files, which is what
-`aide scope` does:
-
-```
-python .aide/scripts/aide.py scope [NNN] [--base <ref>]
-```
-
-With no argument it reads the item number from the current claim branch; a
-queue branch resolves to no item and is skipped, since per-item scope is checked
-on each claim branch as it merges and a queue branch legitimately aggregates
-many items' lists. Whether that per-item check is ever reachable from CI — as
-opposed to only from the validator, in-loop — depends on `git.mode`, which
-decides whether a claim branch is pushed and whether it ever carries a PR
-context; see §4. It diffs against the **merge-base with the item's base** — `--base` if
-given, else the branch's recorded base, else `main_branch`, resolved exactly as
-§4 describes. The two *derived* answers prefer the `origin/` counterpart over
-the local ref, whose merge-base on a checkout sitting behind the work is itself,
-so every file the earlier items touched would be reported against this item's
-spec. On stacked work the base is the **queue branch**, not `main`: an item
-claimed from one has diverged from that, and diffing against `main` would report
-every sibling item already merged into the queue.
-
-Exit `0` in scope · `1` something changed outside it · `2` could not check. That third code is the "reported, never silently passed" rule with
-teeth: a spec with no section cannot be read as an unconstrained one.
 
 Three paths are authorised for every item without being listed — `progress.md`
 and `insights.md`, which the CLI and the roles are mandated to write on any
-item, and the item's own spec, where the builder records decisions. A path
-declared under **Asserts against** and then changed is reported separately from
-an unauthorised one: it means an assertion in this very item now pins state the
-item moved.
+item, and the item's own spec, where the builder records decisions.
 
-For the same reason, never list an always-authorised path under **Asserts
-against**: the loop itself edits those files on every item — the mandatory
-status flip alone touches `progress.md` — so the pin can never hold, and
-`aide scope` reports the routine bookkeeping as a contradiction on every run.
-A read-only content check against one of them (a human-gate row's `Blocks`
-cell, say) belongs in an acceptance criterion's test, not in the path lists.
-`aide check` warns when a spec writes one.
+**Never list an always-authorised path under Asserts against.** A read-only
+content check against one of them (a human-gate row's `Blocks` cell, say)
+belongs in an acceptance criterion's test, not in the path lists. `aide check`
+warns when a spec writes one.
 
 **Asserts against means pinned-not-changed**, so never list the same path under
-both **May change** and **Asserts against**. The moment the item uses its
-authorisation, `aide scope` reports the change as a contradiction — correctly,
-by the pin's meaning — and no spec-side fix is visible at validation time.
-An item whose tests assert against the *final* state of a file the item itself
-writes lists the path only under **May change** and states the assertion
-behaviour in prose. `aide check` warns on the exact double-listing at spec
-time, where the author can still act; a literal pin under a May-change glob is
-different — that is the deliberate carve-out "I may edit this tree but not this
-file" — and stays for `aide scope` to judge.
+both **May change** and **Asserts against**. An item whose tests assert against
+the *final* state of a file the item itself writes lists the path only under
+**May change** and states the assertion behaviour in prose. `aide check` warns
+on the exact double-listing at spec time; a literal pin under a May-change glob
+is different — that is the deliberate carve-out "I may edit this tree but not
+this file" — and stays for `aide scope` to judge.
 
-A test that hashes some
-*other* file's bytes against a hardcoded literal to prove this item did not
-touch it — a **scope fence** — is a fallback for cases with no diff to check
-against, not the norm, and it carries four failure modes that have each cost a
-real CI break:
+**Where two specs in one batch collide, the ordering is declared, not left
+implicit.** `aide check --queue` reads a queue's declarations against each other
+before any item is built and errors when one item changes what another pins; a
+declared dependency that already orders the pair discounts it. **A pair with no
+declared dependency keeps the error, and saying so under `## Dependencies` is
+the third remedy the message offers** — the other two being to widen the pin
+or narrow the edit.
 
-- It **inverts on the next legitimate edit.** The moment a later item is
-  authorised to touch the pinned file, the earlier item's test goes red for
-  doing exactly what the loop asked. Declare the file under **Asserts against**
-  instead, so the conflict surfaces at spec time rather than at first pytest.
-- **Never fence a whole tree.** A digest over `src/**` collides with any future
-  edit anywhere beneath it. Fence per file, or exclude the paths later items
-  name.
-- **Never walk untracked or ignored paths.** A tree walk that picks up
-  `__pycache__/*.pyc` hashes bytes that embed source mtimes: the "pin" is not
-  reproducible even against an unchanged tree.
-- **It is platform-fragile in two specific ways.** Any path component entering a
-  hash, comparison or match must be `Path.as_posix()` — `str(Path)` renders the
-  OS-native separator, so an identical tree hashes differently on Windows. And a
-  byte-exact committed fixture needs a `text eol=lf` pin in `.gitattributes`, or
-  `core.autocrlf` rewrites it on checkout and the pin never matches.
+#### Rationale
 
-**Re-pinning.** When a later item is deliberately authorised to change a file an
-earlier item pinned, update the earlier constant in the same commit, with a
-comment naming the authorising item — do not delete the assertion silently and
-do not leave it red. Distinguish the two things a pin can mean: a *diff-time
-scope claim* ("item N did not touch X") belongs in **Asserts against** and
-should be retired when its item merges, while an *artifact-integrity invariant*
-("this released artifact must never change silently") is legitimate and durable
-— but then it belongs in a test named for the artifact, living beside it, not
-inside an unrelated item's regression module under a `_PRE_NNN_` name.
-
-**A diff-time scope claim is never a suite assertion.** It is decided on the
-branch, by `aide scope`, against this declaration — that is the whole reason the
-verb exists. Two shapes get written instead, and `aide check` warns on both:
-
-- **A hardcoded range in a test**, `git diff main...HEAD`. On a stacked queue
-  the item's base is the *queue branch*, so `main` is stale by the whole queue
-  and every sibling item's legitimate change is reported as this item's
-  violation.
-- **A shell-out to `aide scope` from the suite.** The verb resolves its base
-  from the **current** branch's recorded base, not from the item number, and
-  `aide merge` re-runs the suite from the merge target — so the assertion holds
-  only on the item's own claim branch and fails by construction inside the
-  loop's own post-merge run.
-
-Skip-guarding rescues neither: a guard leaves the test permanently skipped once
-the claim branch is deleted, which §6 forbids. Both were written by two
-independent authors in one consumer, which is the signature of a missing rule
-rather than a careless author. A test that *computes* its base — `git merge-base
-HEAD origin/main`, then a diff — is a claim about the branch rather than about
-an item's scope, and is deliberately not reported; the rule still binds where
-the lint cannot look.
-
-**One queue's specs are checked against each other before any is built**, in the
-window `/aide-spec-queue` creates — N specs on one branch, every cross-item
-conflict still cheap to fix:
-
-```
-python .aide/scripts/aide.py check --queue NNN [--report <path>]
-```
-
-It reports two items claiming the same path under **May change** (warning), one
-item changing what another pins under **Asserts against** (error), and a
-dependency cycle or a dependency on an item that exists nowhere. Spent items —
-✅ merged or ❌ excluded in `progress.md` — are discounted on both sides of
-every comparison: a merged item's claim can neither be harmed by a later
-writer nor harm one, an excluded item is never offered, and a finding against
-either is an error no later item can clear. A declared
-dependency is discounted too, in one direction: when the pinning item names the
-changing one under `## Dependencies` — directly, or through a chain of items on
-the same queue — it is built against a tree that already holds that edit, so the
-edit landing cannot break its pin. Only links that still order count: a
-dependency `aide claim` no longer waits for (✅ merged, ❌ excluded, ⏸️
-deferred) leaves the dependent claimable today, so it earns no exemption — a
-deferred blocker's edit is dormant, not spent, and it is still ahead of the
-pin. That applies wherever the failing link sits: a chain whose middle item no
-longer blocks orders nothing either. That is the whole shape of a stage-validation item, which exists
-to pin what its stage produced; a pair with **no** declared dependency keeps the
-error, since an undeclared ordering is exactly what the check is for, and saying
-so under `## Dependencies` is the third remedy the message offers.
-The cycle check goes further and
-keeps only items whose status still blocks a claim (⏸️ deferred drops out too,
-since a deferred dependency does not block), because a cycle whose members all
-merged proved its order satisfiable. Deferred items stay in the path
-comparisons: their claims are dormant, not dead, and a conflict with one is
-worth surfacing while re-planning is cheap. `--report`
-writes the findings as JSON for a reviewer pass to pick up. The invariant is
-worth stating plainly, because a spec-by-spec reading does not give it:
-*predicting the one collision a spec happens to name is not the same as proving
-no sibling assertion depends on state this item's authorised edit changes.*
-
-**Auditing fences goes by shape, not by name.** The distinguishing feature is a
-digest compared against a **hardcoded literal**; a digest compared against a
-value computed in the same run is a determinism check and must stay. A sweep for
-constants named after item numbers misses every fence named anything else.
+- **Why declare at all.** Writing the scope down is what turns "did this item
+  stay in its lane" from a judgement call into a diff against a list — and it
+  is the only thing that lets two specs authored in the same batch
+  (`/aide-spec-queue` authors N before any is built) be checked against each
+  other while changing either is still cheap. The invariant a spec-by-spec
+  reading does not give: *predicting the one collision a spec happens to name
+  is not the same as proving no sibling assertion depends on state this item's
+  authorised edit changes.*
+- **Why the narrowing warns at spec time.** Left to surface later, it arrives
+  as an `aide scope` FAIL against a path the spec's own prose authorised.
+- **Why an always-authorised path cannot be pinned.** The loop itself edits
+  those files on every item — the mandatory status flip alone touches
+  `progress.md` — so the pin can never hold, and `aide scope` would report the
+  routine bookkeeping as a contradiction on every run.
+- **Why a path is never double-listed.** The moment the item uses its
+  authorisation, `aide scope` reports the change as a contradiction — correctly,
+  by the pin's meaning — and no spec-side fix is visible at validation time.
+- **Why the declaration is its own section.** One role writes this list and
+  three others prove, check or read it, so a single section delivered to the
+  author carried three other roles' rules into the one context that never acts
+  on them (issue #191). The split is by reader, not by subject: the two halves
+  are one contract, and each names the other.

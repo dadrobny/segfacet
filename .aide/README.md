@@ -76,7 +76,10 @@ spawns a sub-agent per leaf task and gates approvals.
 
 - **`/aide-run-item NNN`** — one already-claimed item end-to-end: spec-author →
   test-writer → builder → validator+merge, with a bounded build↔validate cycle
-  (`loop.validation_rounds`).
+  (`loop.validation_rounds`). Under `loop.review = "background"` a reviewer runs
+  concurrently with the validator and the merge waits for both. A builder that
+  finds the spec and the tests in contradiction hands the item back to
+  spec-author rather than picking a side (§5).
 - **`/aide-run-queue [NNN]`** — claims each item (`aide claim`) then runs it via
   `/aide-run-item`, until the queue empties. Does **not** create the next queue.
 - **`/aide-run-roadmap`** — loops over queues: generate a queue → run it → generate
@@ -89,9 +92,9 @@ order.
 
 ## Model routing by role (capability tiers)
 
-Five sub-agents split work by role. The engine's contract names **capability
-tiers**, not model names — the adapter binds each tier to its own runtime's
-models (as high as necessary, as low as adequate). Deterministic recon/claim is
+Five sub-agents split work by role, plus one optional sixth. The engine's
+contract names **capability tiers**, not model names — the adapter binds each
+tier to its own runtime's models (as high as necessary, as low as adequate). Deterministic recon/claim is
 **not** an agent — orchestrators call `aide claim`.
 
 | Role | Tier | Does |
@@ -101,8 +104,15 @@ models (as high as necessary, as low as adequate). Deterministic recon/claim is
 | `test-writer` | **T2** (mid) | writes acceptance-criteria + adversarial tests |
 | `builder` | **T2** (→T3 late retry) | implements the source dir to satisfy every AC |
 | `validator` | **T2** | quality gate: tests, AC coverage, scope, vision fit; reconciles + merges |
+| `reviewer` | **T2** | *optional, `loop.review`* — adversarial read of the item's diff, concurrent with the validator; produces findings, merges nothing |
 
 No agent signs off its own work; every role gets a fresh instance per item.
+
+**`validator` and `reviewer` are two different reads of one diff** (§9).
+Validation is spec-relative and gates the merge; review is adversarial and
+produces findings. A green validator is not a review, and a clean review does
+not discharge validation. The reviewer is off unless `aide.toml` sets
+`loop.review = "background"`, and where it runs, the merge waits for both.
 
 **Deterministic work is scripted, not delegated** — recon/claim, progress
 reconciliation, queue tidy, merge+cleanup, venv check, the consistency check,

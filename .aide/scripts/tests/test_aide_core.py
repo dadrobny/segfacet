@@ -6,6 +6,7 @@ plus a couple of end-to-end CLI invocations over a temp docs tree.
 """
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -132,8 +133,76 @@ def test_rollup_status():
     assert aide.rollup_status(["complete", "complete"]) == "complete"
     assert aide.rollup_status(["complete", "planned"]) == "in-progress"
     assert aide.rollup_status(["planned", "planned"]) == "planned"
-    assert aide.rollup_status(["complete", "deferred"]) == "complete"
+    assert aide.rollup_status(["complete", "excluded"]) == "complete"
     assert aide.rollup_status([]) is None
+
+
+def test_progress_help_states_the_rollup_the_code_applies():
+    """The rollup rule lives in `aide progress -h` and nowhere else (issue #192).
+
+    §1 → progress.md used to carry the derivation and drifted: it still said "a
+    stage is ✅ if *every* Deliverables bullet is ✅" two releases after #173
+    made ⏸ non-terminal and ❌ count toward ✅. The pass that moved mechanism
+    into `-h` then wrote a *fresh* inaccuracy into the replacement — that a
+    stage holding a ⏸ bullet is 🚧, which is true of 🔍 and false of ⏸.
+
+    A prose rule the sections no longer restate has no pin holding it to the
+    code, so this test is the pin: it reads the help text argparse actually
+    renders and checks every claim in it against `rollup_status` over the whole
+    input space. Reword the help freely; change what the rollup *does* and this
+    fails until the sentence is rewritten with it.
+    """
+    from itertools import combinations_with_replacement
+
+    parser = aide.build_parser()
+    help_text = next(
+        action.choices["progress"].format_help()
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction))
+
+    # The sentence under test, transcribed as a predicate. Kept in the order
+    # the English states it, which is also the order the code branches in.
+    def as_stated(statuses):
+        if (all(s in ("complete", "excluded") for s in statuses)
+                and any(s == "complete" for s in statuses)):
+            return "complete"
+        if any(s in ("complete", "in-progress", "in-review") for s in statuses):
+            return "in-progress"
+        return "planned"
+
+    every = ("complete", "excluded", "in-progress", "in-review",
+             "deferred", "planned")
+    for size in (1, 2, 3, 4):
+        for combo in combinations_with_replacement(every, size):
+            assert aide.rollup_status(list(combo)) == as_stated(list(combo)), (
+                f"`aide progress -h` states a rollup the code does not apply, "
+                f"for {list(combo)}")
+
+    # And the help still makes the two claims that predicate encodes, so a
+    # rewording that silently drops one is caught as well as a behaviour change.
+    for claim in ("\u2705 or \u274c and at least one is \u2705",
+                  "a stage holding one is always \U0001f6a7",
+                  "\u23f8\ufe0f, \U0001f4cb and \u274c reads \U0001f4cb"):
+        assert claim in help_text, f"`aide progress -h` no longer states: {claim}"
+
+
+def test_a_deferred_deliverable_keeps_its_stage_open():
+    """Issue #173, and the assertion this file used to make the other way round.
+
+    A \u23f8 deliverable is work postponed, not work done, so a stage still
+    holding one is \U0001f6a7 — which is what `scope` has always meant by the same
+    icon (its spent set is `{complete, excluded}`). ❌ stays terminal: an
+    excluded deliverable is a decision *not* to do the work, and a stage waits
+    for nothing on its account.
+    """
+    assert aide.rollup_status(["complete", "deferred"]) == "in-progress"
+    assert aide.rollup_status(["complete", "deferred", "excluded"]) == "in-progress"
+    assert aide.rollup_status(["complete", "excluded"]) == "complete"
+    # Unchanged, and deliberately so: with no ✅ among them there is no work to
+    # report as shipped, so an all-⏸ stage is still `planned` rather than a
+    # rollup state of its own.
+    assert aide.rollup_status(["deferred"]) == "planned"
+    assert aide.rollup_status(["deferred", "excluded"]) == "planned"
 
 
 def test_stage_sections_bounds():
@@ -1270,3 +1339,78 @@ def test_cli_queue_tidy_edits_file(tmp_path: Path):
     assert rc == 0
     text = (root / "docs" / "aide" / "queue" / "queue-001.md").read_text(encoding="utf-8")
     assert "Completed — superseded by queue-002 (2026-07-02)" in text
+
+
+# --------------------------------------------------------------------------- #
+# the split reports its copies, and check sees them until reworded (issue #169)
+# --------------------------------------------------------------------------- #
+def test_the_split_records_every_copy_it_wrote():
+    """A consumer's ✅ line for item 045 described items 046/047's still-open
+    work, because the split writes the shared prose N times and nothing said
+    so. The record is what lets a caller say so."""
+    splits = []
+    out = aide.set_item_status(MULTI, 16, "complete", splits)
+    assert [s.marker for s in splits] == ["*(Items 016, 017)*"]
+    lines = out.splitlines()
+    assert [(n, lines[ln - 1]) for n, ln in splits[0].copies] == [
+        (16, "- ✅ Adapters for two datasets. *(Item 016)*"),
+        (17, "- 📋 Adapters for two datasets. *(Item 017)*")]
+
+
+def test_a_flip_that_splits_nothing_records_nothing():
+    splits = []
+    aide.set_item_status(MULTI, 18, "complete", splits)
+    assert splits == []
+
+
+def test_split_line_numbers_survive_a_second_split_above_them():
+    """Spans are split bottom-up, so the lower bullet's copies are recorded
+    before the upper split grows the file above them."""
+    text = ("## Stage 2 — X — 📋\n**Deliverables.**\n"
+            "- 📋 First pair. *(Items 001, 002)*\n"
+            "- 📋 Second trio that wraps onto a\n"
+            "  second line. *(Items 001, 003, 004)*\n")
+    splits = []
+    out = aide.set_item_status(text, 1, "in-progress", splits)
+    assert sorted(splits, key=lambda s: s.copies[0][1]) == [
+        aide.BulletSplit("*(Items 001, 002)*", [(1, 3), (2, 4)]),
+        aide.BulletSplit("*(Items 001, 003, 004)*", [(1, 5), (3, 7), (4, 9)])]
+    lines = out.splitlines()
+    for split in splits:
+        for n, ln in split.copies:
+            assert aide._BULLET_RE.match(lines[ln - 1])
+            span = next((s, l) for s, l in aide._deliverable_bullet_spans(lines) if s == ln - 1)
+            assert aide._bullet_marker_item_numbers(lines[span[1]]) == [n]
+
+
+def test_check_reports_split_copies_until_they_are_reworded():
+    out = aide.set_item_status(MULTI, 16, "complete")
+    warnings = aide.identical_deliverable_warnings(out.splitlines())
+    assert len(warnings) == 1
+    assert "016, 017" in warnings[0] and warnings[0].startswith("progress.md:4:")
+    reworded = out.replace("- 📋 Adapters for two datasets. *(Item 017)*",
+                           "- 📋 The second dataset's adapter. *(Item 017)*")
+    assert aide.identical_deliverable_warnings(reworded.splitlines()) == []
+
+
+def test_an_unsplit_shared_marker_is_not_an_identical_copy():
+    """The shared bullet is one cell, not two copies — #131's desugar is what
+    makes the copies, and only they are the repair that did not happen."""
+    assert aide.identical_deliverable_warnings(MULTI.splitlines()) == []
+
+
+def test_identical_prose_in_different_stages_is_not_reported():
+    text = ("## Stage 1 — A — 📋\n**Deliverables.**\n- 📋 Same words. *(Item 001)*\n\n"
+            "## Stage 2 — B — 📋\n**Deliverables.**\n- 📋 Same words. *(Item 002)*\n")
+    assert aide.identical_deliverable_warnings(text.splitlines()) == []
+
+
+def test_a_wrapped_copy_compares_by_its_whole_prose():
+    text = ("## Stage 2 — X — 📋\n**Deliverables.**\n"
+            "- 📋 A deliverable whose text wraps onto a\n"
+            "  second line. *(Items 016, 017)*\n"
+            "- 📋 A deliverable whose text wraps onto a\n"
+            "  different second line. *(Item 018)*\n")
+    out = aide.set_item_status(text, 17, "complete")
+    warnings = aide.identical_deliverable_warnings(out.splitlines())
+    assert len(warnings) == 1 and "016, 017" in warnings[0] and "018" not in warnings[0]

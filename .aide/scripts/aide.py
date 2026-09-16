@@ -14,7 +14,7 @@ Subcommands::
     python .aide/scripts/aide.py gate list|approve|decline [N]  # human gates in progress.md
     python .aide/scripts/aide.py queue start NNN       # create the queue branch (--specs for specs-)
     python .aide/scripts/aide.py queue tidy NNN        # mark a superseded queue as completed
-    python .aide/scripts/aide.py insights list|tick|archive     # the insight inbox
+    python .aide/scripts/aide.py insights list|tick|archive|resolve  # the insight inbox
     python .aide/scripts/aide.py claim [--queue NNN]   # pick + claim the next 📋 item
     python .aide/scripts/aide.py merge NNN [--base R]  # merge a validated item per git.mode
     python .aide/scripts/aide.py env                   # venv existence / import check + bootstrap
@@ -29,14 +29,17 @@ from __future__ import annotations
 
 import argparse
 import ast
+import contextlib
 import fnmatch
 import json
 import os
 import re
+import shlex
+import signal
 import subprocess
 import sys
-from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Set, Tuple
+from pathlib import Path, PurePath
+from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 
 # --------------------------------------------------------------------------- #
 # Status icons (the format contract — see .aide/conventions.md)
@@ -231,11 +234,25 @@ def _deliverable_bullet_spans(lines: List[str]) -> List[Tuple[int, int]]:
 # --------------------------------------------------------------------------- #
 DEFAULT_CONFIG: Dict[str, Dict[str, object]] = {
     "project": {"name": "project", "source_dir": "src", "tests_dir": "tests", "docs_dir": "docs/aide"},
+    # `interpreter` names what `env --bootstrap` builds the venv from — a
+    # command on PATH ("python3.12", "py -3.12") or an absolute path. Empty
+    # means the Python running the CLI, which is whatever launched it: a
+    # consumer whose dependency closure only resolves on 3.12 got a 3.14 venv
+    # from an ambient conda, a source build that failed on cmake, and an
+    # `env` that still said OK (issue #166).
     "python": {"venv": ".venv", "bootstrap": "pip install -e .[dev]",
-               "test_command": "python -m pytest", "import_check": ""},
+               "test_command": "python -m pytest", "import_check": "",
+               "interpreter": ""},
     "git": {"mode": "auto-merge", "main_branch": "main", "branch_prefix": "aide/"},
+    # `review` names whether the item loop runs an adversarial read of the diff
+    # alongside the spec-relative one (conventions.md §9). Prose-consumed by the
+    # orchestrator, the way `clarify` is: "off" (default) runs the validator
+    # alone; "background" also dispatches a reviewer concurrently with it, and
+    # the merge waits for both. Off by default because a review round costs
+    # tokens on every item, and a consumer with CI and hosted reviewers may
+    # reasonably decline it (issue #151).
     "loop": {"queue_cap": 10, "validation_rounds": 3, "clarify": "assume",
-             "claim_scope": "live-queue"},
+             "claim_scope": "live-queue", "review": "off"},
     "framework": {"repo": ""},
     # [validation] — named environment profiles for stage-validation items:
     # <name> = <python expression>, true iff the environment provides the
@@ -503,7 +520,7 @@ def rollup_status(statuses: List[str]) -> Optional[str]:
     """Derive a stage status from its deliverable statuses (None if no bullets)."""
     if not statuses:
         return None
-    if all(s in ("complete", "deferred", "excluded") for s in statuses) and any(
+    if all(s in ("complete", "excluded") for s in statuses) and any(
         s == "complete" for s in statuses
     ):
         return "complete"
@@ -511,6 +528,15 @@ def rollup_status(statuses: List[str]) -> Optional[str]:
     # not landed, so a stage holding one is 🚧, never ✅. That is the whole point
     # of the state — a `pr`-mode run must not roll a stage up to "shipped" on
     # work that is still an open PR.
+    #
+    # ⏸ is absent for the stronger version of the same reason (issue #173): a
+    # deferred deliverable has landed even less than a reviewed one — it is a
+    # decision to do the work *later*, so a stage still holding one has not
+    # shipped. ❌ stays terminal because an excluded deliverable is a decision
+    # not to do the work at all, and there is nothing left to wait for. This is
+    # the distinction `scope` already draws one layer down, where the spent set
+    # is `{complete, excluded}` and the comment says ⏸ claims are "dormant, not
+    # dead"; the two read the same icon the same way now.
     if any(s in ("complete", "in-progress", "in-review") for s in statuses):
         return "in-progress"
     return "planned"
@@ -530,6 +556,34 @@ class OutcomeTarget(NamedTuple):
     text: str                # the Target cell
     objectives: List[str]    # G-codes named in the Objective cell
     kind: Optional[str]      # "met" | "not-met" | "unverified" | None (unrecognised)
+
+
+#: The optional Environment-Gated Capability Verification table (§1 →
+#: environment-gated capabilities). Outside the rollup like Outcome targets,
+#: but gating nothing at all: its reader surfaces state, and warns.
+_CAPABILITIES_HEADING_RE = re.compile(
+    r"^#{1,2}\s+Environment-Gated Capability Verification\b", re.IGNORECASE)
+_CAPABILITY_STATUS_KIND = {"✅": "verified", "❓": "unverified"}
+#: A row's link to the `[validation]` profile that would verify it, written in
+#: its Package / Tool cell as `` `gpu` profile `` or `` profile `gpu` ``.
+_PROFILE_LINK_RE = re.compile(
+    r"`([A-Za-z0-9_-]+)`\s+profile\b|\bprofile\s+`([A-Za-z0-9_-]+)`", re.IGNORECASE)
+#: The introducing stage(s): the first `Stage N` / `Stages N, M` / `Stage 3 / 4`
+#: / `Stages 5–7` run in the Introduced by cell. A later "closed by Stage 12"
+#: names a different stage, which is why only the first run counts.
+_INTRODUCED_BY_RE = re.compile(
+    r"\bStages?\s+(\d+(?:\s*(?:,|/|&|\band\b|[-–])\s*\d+)*)", re.IGNORECASE)
+#: A Notes cell holding only a dash records nothing.
+_EMPTY_CELL = {"", "-", "—", "–"}
+
+
+class GatedCapability(NamedTuple):
+    lineno: int              # 1-based line number in progress.md
+    text: str                # the Capability cell
+    profiles: List[str]      # [validation] profiles the Package / Tool cell names
+    stages: List[int]        # the stage(s) the Introduced by cell names first
+    kind: Optional[str]      # "verified" | "unverified" | None (unrecognised)
+    noted: bool              # the Notes cell records something
 
 
 #: The optional `## Human gates` table — a decision only a person can make,
@@ -615,6 +669,224 @@ def _blocked_item_numbers(cell: str) -> List[int]:
     return _referenced_item_numbers(text)
 
 
+# --------------------------------------------------------------------------- #
+# progress.md tables — the rows a reader can use, and the rows it cannot
+# --------------------------------------------------------------------------- #
+_SUMMARY_HEADING_RE = re.compile(r"^#{1,2}\s+Stage summary\b", re.IGNORECASE)
+_OBJECTIVES_HEADING_RE = re.compile(r"^#{1,2}\s+Objective coverage\b", re.IGNORECASE)
+
+
+class _ProgressTable(NamedTuple):
+    """One of the five ``progress.md`` tables the engine reads."""
+    name: str                # how a finding names the table
+    heading: "re.Pattern"    # the section the template puts the table under
+    width: int               # cells in a data row
+    header: str              # the header row's first cell, lower-cased
+    #: Why a row of the right width is still unusable, or None.
+    cell_problem: Callable[[List[str]], Optional[str]]
+    #: What stops being checked while such a row is dropped.
+    loses: str
+    #: True for a table whose reader takes rows by shape from anywhere in the
+    #: document rather than from under its heading — see ``_table_rows``.
+    anywhere: bool = False
+    #: False for a table no other check gates on, whose unusable row is
+    #: therefore a warning: dropping it takes no error with it (issue #207).
+    error: bool = True
+
+
+def _summary_row_problem(cells: List[str]) -> Optional[str]:
+    if not re.fullmatch(r"\d+", cells[0]):
+        return "has a Stage cell that is not an integer"
+    if not _icon_status(cells[3]):
+        return "has no status icon in its Status cell"
+    return None
+
+
+def _objective_row_problem(cells: List[str]) -> Optional[str]:
+    if not re.match(r"G\d+", cells[0]):
+        return "has an Objective cell that does not start with a G<n> code"
+    if not _icon_status(cells[2]):
+        return "has no status icon in its Status cell"
+    return None
+
+
+def _target_row_problem(cells: List[str]) -> Optional[str]:
+    """An Objective cell naming no ``G<n>`` is read: such a target gates no
+    objective, which a measured cost or runtime target may mean to (`—`)."""
+    return None if cells[0] else "has an empty Target cell"
+
+
+_STAGE_SUMMARY = _ProgressTable(
+    "stage summary", _SUMMARY_HEADING_RE, 4, "stage", _summary_row_problem,
+    "its stage's ✅ is never checked against the deliverables under it",
+    anywhere=True)
+_OBJECTIVE_COVERAGE = _ProgressTable(
+    "objective coverage", _OBJECTIVES_HEADING_RE, 3, "objective",
+    _objective_row_problem,
+    "its objective's ✅ is never checked against its Outcome targets",
+    anywhere=True)
+_OUTCOME_TARGETS = _ProgressTable(
+    "Outcome targets", _TARGETS_HEADING_RE, 5, "target", _target_row_problem,
+    "no objective is checked against it")
+#: An unrecognised Status is read, and blocks — a typo in the mark must not
+#: open a gate — so width is the only thing that makes a gate row unusable.
+_HUMAN_GATES = _ProgressTable(
+    "human-gate", _GATES_HEADING_RE, 4, "gate", lambda cells: None,
+    "what it blocks is unknown, and `aide claim` holds every item until it "
+    "is fixed")
+_CAPABILITIES = _ProgressTable(
+    "capability", _CAPABILITIES_HEADING_RE, 5, "capability",
+    lambda cells: None if cells[0] else "has an empty Capability cell",
+    "`aide status` never lists it and no closed stage is checked against it",
+    error=False)
+_PROGRESS_TABLES = (_STAGE_SUMMARY, _OBJECTIVE_COVERAGE, _OUTCOME_TARGETS,
+                    _HUMAN_GATES, _CAPABILITIES)
+
+
+def _reads(table: _ProgressTable, cells: List[str]) -> bool:
+    """Whether *table*'s reader can use a row — the one test every reader of
+    these tables applies, and the one the check reports the failures of."""
+    return len(cells) == table.width and table.cell_problem(cells) is None
+
+
+def _is_separator_row(cells: List[str]) -> bool:
+    """The ``|---|:---:|`` row: every non-empty cell a delimiter, and one at least.
+
+    Every cell, not the first: a gate titled ``-`` is data. And a NON-EMPTY
+    one: `set("") <= set("-: ")` is true, so an empty first cell used to read
+    as a separator, and a mis-shaped row like `| | 028 | ⏳ Awaiting | a | pipe |`
+    was skipped without a word.
+    """
+    return (any(cells)
+            and all(re.fullmatch(r":?-+:?", c) for c in cells if c))
+
+
+def _is_table_furniture(cells: List[str], header: str) -> bool:
+    """True for a table's header or separator row — never for data.
+
+    A header is recognised by its first cell alone. Markdown's own rule — the
+    row above the separator — would read the only row of a table written
+    without a header as its header, and drop it unreported: an ``all`` gate
+    raised by hand in a project whose optional section was deleted would
+    then hold nothing.
+    """
+    return _is_separator_row(cells) or bool(cells) and cells[0].lower() == header
+
+
+def _pipe_blocks(lines: List[str]) -> List[List[int]]:
+    """Indices of each run of consecutive ``|`` lines — each markdown table."""
+    blocks: List[List[int]] = []
+    for i, line in enumerate(lines):
+        if not line.strip().startswith("|"):
+            continue
+        if blocks and blocks[-1][-1] == i - 1:
+            blocks[-1].append(i)
+        else:
+            blocks.append([i])
+    return blocks
+
+
+def _table_rows(lines: List[str], table: _ProgressTable
+                ) -> Iterator[Tuple[int, List[str], Optional[str]]]:
+    """``(index, cells, problem)`` for each data row of *table* in *lines*.
+
+    *problem* is None for a row the table's reader can use (``_reads``), and
+    otherwise says why it cannot. The rows are every ``|`` line in the section
+    under the table's template heading — a second table there is read as part
+    of this one, and fails closed. An ``anywhere`` table whose section holds
+    no readable row — the heading missing, or the table under another one,
+    where its reader still finds it by shape — also takes in every markdown
+    table the reader takes a row from, so it is checked row by row all the
+    same. (Not always: with a readable table under the heading, a table of the
+    author's own elsewhere that happens to hold one summary-shaped row would
+    have its every other row reported.) "Skipped" and "reported" are thereby
+    one decision rather than two that can drift: issue #202 found three
+    behaviours for the one situation, and the rows silently dropped were the
+    ones taking an error with them.
+    """
+    scope: List[int] = []
+    in_section = False
+    for i, line in enumerate(lines):
+        if table.heading.match(line):
+            in_section = True
+        elif in_section and _ANY_HEADER_RE.match(line):
+            break  # next section — the table is over
+        elif in_section and line.strip().startswith("|"):
+            scope.append(i)
+    if table.anywhere and not any(_reads(table, _split_row(lines[i])) for i in scope):
+        scope = sorted(set(scope).union(
+            i for block in _pipe_blocks(lines)
+            if any(_reads(table, _split_row(lines[j])) for j in block)
+            for i in block))
+    for i in scope:
+        cells = _split_row(lines[i])
+        if _is_table_furniture(cells, table.header):
+            continue
+        yield i, cells, (f"has {len(cells)} cells, not {table.width}"
+                         if len(cells) != table.width else table.cell_problem(cells))
+
+
+def unreadable_row_errors(lines: List[str]) -> List[str]:
+    """One error per row of a read table that its reader cannot use.
+
+    An error, not a warning, because the row's cells cannot be trusted to be in
+    position — the usual cause is a `|` that shifted them — so there is no
+    telling whether it was a ✅ a check exists to catch. The check it would
+    have fed cannot run, so the check fails on the row instead: the only
+    reading of an unreadable row that cannot pass an over-claim.
+
+    A table no check gates on (``error=False``) is the exception, reported by
+    ``unreadable_row_warnings``: its dropped row carries no over-claim away.
+    """
+    return _unreadable_row_findings(lines, error=True)
+
+
+def unreadable_row_warnings(lines: List[str]) -> List[str]:
+    """``unreadable_row_errors``'s findings for the tables that gate nothing."""
+    return _unreadable_row_findings(lines, error=False)
+
+
+def _unreadable_row_findings(lines: List[str], error: bool) -> List[str]:
+    out: List[str] = []
+    for table, i, cells, problem in _unreadable_rows(lines):
+        if table.error is not error:
+            continue
+        below = lines[i + 1] if i + 1 < len(lines) else ""
+        if below.strip().startswith("|") and _is_separator_row(_split_row(below)):
+            # Header position: most likely a retitled header, possibly the
+            # only row of a table written without one. Say both.
+            out.append(
+                f"progress.md:{i + 1}: {table.name} row {problem}, above the "
+                f"separator — a header row's first cell reads "
+                f"'{table.header.capitalize()}'; as data, it is not read, so "
+                f"{table.loses}.")
+            continue
+        hint = (" A '|' inside a cell is the usual cause."
+                if len(cells) != table.width else "")
+        out.append(f"progress.md:{i + 1}: {table.name} row {problem} — it "
+                   f"is not read, so {table.loses}.{hint}")
+    return out
+
+
+def _unreadable_rows(lines: List[str]
+                     ) -> List[Tuple[_ProgressTable, int, List[str], str]]:
+    """``(table, index, cells, problem)`` for every row no reader can use."""
+    return [(table, i, cells, problem) for table in _PROGRESS_TABLES
+            for i, cells, problem in _table_rows(lines, table)
+            if problem is not None]
+
+
+def unreadable_gate_rows(lines: List[str]) -> List[Tuple[int, str]]:
+    """``(line number, problem)`` for each ``## Human gates`` row no reader can use.
+
+    ``aide claim`` holds every item while one exists: what the row blocks is
+    unknown, so any item released could be one it was written to hold — the
+    same fail-closed reading that makes an unrecognised Status block.
+    """
+    return [(i + 1, problem) for i, _, problem in _table_rows(lines, _HUMAN_GATES)
+            if problem is not None]
+
+
 def human_gates(lines: List[str]) -> List[HumanGate]:
     """Rows of the optional ``## Human gates`` table in progress.md.
 
@@ -627,21 +899,13 @@ def human_gates(lines: List[str]) -> List[HumanGate]:
     ``Blocks`` accepts the item-reference forms of §1 (``106``, ``106, 107``,
     ``106–108``), ``stage N`` for every item that stage's deliverables
     reference, or ``all`` for a programme-level stop.
+
+    A row of the wrong width is not a gate; ``unreadable_gate_rows`` reports
+    it, and ``aide claim`` holds everything while it stands.
     """
     out: List[HumanGate] = []
-    in_section = False
-    for i, line in enumerate(lines):
-        if _GATES_HEADING_RE.match(line):
-            in_section = True
-            continue
-        if not in_section:
-            continue
-        if _ANY_HEADER_RE.match(line):
-            break  # next section — the table is over
-        if not line.strip().startswith("|"):
-            continue
-        cells = _split_row(line)
-        if _is_gate_table_furniture(cells) or len(cells) != 4:
+    for i, cells, problem in _table_rows(lines, _HUMAN_GATES):
+        if problem is not None:
             continue
         kind = next((k for icon, k in _GATE_STATUS_KIND.items()
                      if cells[2].startswith(icon)), None)
@@ -697,27 +961,83 @@ def outcome_targets(lines: List[str]) -> List[OutcomeTarget]:
     "the planned work shipped", and goal truth lives here, gating the
     OBJECTIVE rows instead (an objective linked to a target that is not
     ``✅ Met`` cannot roll up to ✅).
+
+    A row of the wrong width, or with an empty Target cell, is not read;
+    ``unreadable_row_errors`` reports it.
     """
     out: List[OutcomeTarget] = []
-    in_section = False
-    for i, line in enumerate(lines):
-        if _TARGETS_HEADING_RE.match(line):
-            in_section = True
-            continue
-        if not in_section:
-            continue
-        if _ANY_HEADER_RE.match(line):
-            break  # next section — the table is over
-        if not line.strip().startswith("|"):
-            continue
-        cells = _split_row(line)
-        # Skip anything but a data row: wrong arity, the header row, the
-        # separator row (only -/:), or an empty Target cell.
-        if len(cells) != 5 or cells[0].lower() == "target" or set(cells[0]) <= set("-: "):
+    for i, cells, problem in _table_rows(lines, _OUTCOME_TARGETS):
+        if problem is not None:
             continue
         kind = next((k for icon, k in _TARGET_STATUS_KIND.items()
                      if cells[3].startswith(icon)), None)
         out.append(OutcomeTarget(i + 1, cells[0], re.findall(r"G\d+", cells[1]), kind))
+    return out
+
+
+def _introducing_stages(cell: str) -> List[int]:
+    """Stage numbers in the first ``Stage N`` run of an Introduced by cell."""
+    m = _INTRODUCED_BY_RE.search(cell)
+    if not m:
+        return []
+    stages: List[int] = []
+    for part in re.split(r"\s*(?:,|/|&|\band\b)\s*", m.group(1), flags=re.IGNORECASE):
+        bounds = re.split(r"\s*[-–]\s*", part)
+        lo, hi = int(bounds[0]), int(bounds[-1])
+        stages.extend(range(lo, hi + 1) if lo <= hi else [lo, hi])
+    return stages
+
+
+def gated_capabilities(lines: List[str]) -> List[GatedCapability]:
+    """Rows of the optional Environment-Gated Capability Verification table.
+
+    A row records whether a capability only some environments can exercise has
+    had its gated path run for real — which a skip-clean suite and a ✅ stage
+    never show. The table gates no stage, objective or claim, so every finding
+    about it is a warning (issue #207).
+
+    A row of the wrong width, or with an empty Capability cell, is not read;
+    ``unreadable_row_warnings`` reports it.
+    """
+    out: List[GatedCapability] = []
+    for i, cells, problem in _table_rows(lines, _CAPABILITIES):
+        if problem is not None:
+            continue
+        kind = next((k for icon, k in _CAPABILITY_STATUS_KIND.items()
+                     if cells[3].startswith(icon)), None)
+        profiles = [a or b for a, b in _PROFILE_LINK_RE.findall(cells[1])]
+        out.append(GatedCapability(
+            i + 1, cells[0], list(dict.fromkeys(profiles)),
+            _introducing_stages(cells[2]), kind,
+            cells[4].strip() not in _EMPTY_CELL))
+    return out
+
+
+def capability_warnings(lines: List[str], profiles: Dict[str, object]) -> List[str]:
+    """``aide check``'s findings over the capability table — warnings, all.
+
+    *profiles* is ``[validation]`` from aide.toml: a row linking to a profile
+    that is not there cannot be evaluated by ``aide status --profiles``.
+    """
+    summary: Dict[int, Optional[str]] = {}
+    for line in lines:
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if cells and _reads(_STAGE_SUMMARY, cells):
+            summary[int(cells[0])] = _icon_status(cells[3])
+    out = unreadable_row_warnings(lines)
+    for c in gated_capabilities(lines):
+        where = f"progress.md:{c.lineno}: capability '{c.text}'"
+        if c.kind is None:
+            out.append(f"{where} has an unrecognised Status (expected "
+                       f"'✅ Verified' or '❓ Unverified')")
+        for name in c.profiles:
+            if name not in profiles:
+                out.append(f"{where} names profile '{name}', which [validation] "
+                           f"in aide.toml does not define")
+        closed = [s for s in c.stages if summary.get(s) == "complete"]
+        if c.kind == "unverified" and closed and not c.noted:
+            out.append(f"{where} is still ❓ Unverified under stage {closed[0]}, "
+                       f"which is ✅, and its Notes cell records no reason")
     return out
 
 
@@ -1216,7 +1536,23 @@ def insert_item_reference(text: str, number: int, stage: str, title: str) -> Opt
     return None
 
 
-def _split_multi_item_bullets(lines: List[str], num: int, status: str) -> List[str]:
+class BulletSplit(NamedTuple):
+    """One shared-marker bullet ``_split_multi_item_bullets`` desugared.
+
+    ``marker`` is the marker the bullet carried (``*(Items 044, 045)*``);
+    ``copies`` is one ``(item number, 1-based line)`` per bullet it became,
+    the line being the copy's first line in the text the split produced. The
+    copies all carry the prose the shared bullet had, which described N items
+    at once and now stands under each of them alone — the caller's job is to
+    say so, since the file cannot (issue #169).
+    """
+
+    marker: str
+    copies: List[Tuple[int, int]]
+
+
+def _split_multi_item_bullets(lines: List[str], num: int, status: str,
+                              splits: Optional[List[BulletSplit]] = None) -> List[str]:
     """One bullet, one item: desugar a bullet that owns ``num`` *and* siblings.
 
     A trailing marker may name several items — ``*(Items 016, 017)*``, the form
@@ -1238,6 +1574,16 @@ def _split_multi_item_bullets(lines: List[str], num: int, status: str) -> List[s
     Only a flip that would ADVANCE the bullet splits it. A `progress set` that
     changes nothing must rewrite nothing: re-running one, or setting a status
     the bullet already holds, is not a reason to reshape a consumer's file.
+
+    What the split writes is the shared prose, verbatim, N times. It cannot be
+    otherwise — the bullet had one sentence for N items, and the engine has no
+    other — but that leaves N−1 copies whose text describes work that is not
+    the item named on them, and once one is ticked the file states something
+    undone as done (issue #169: a consumer's ✅ line for item 045 described
+    items 046/047's still-open work). So every split is *recorded* in
+    ``splits``, and the callers print the copies as a chore that the author
+    now owes; ``identical_deliverable_warnings`` keeps reporting them from
+    `aide check` until each copy's prose is its own.
     """
     for start, last in reversed(_deliverable_bullet_spans(lines)):
         marker = _BULLET_MARKER_RE.search(lines[last])
@@ -1270,15 +1616,27 @@ def _split_multi_item_bullets(lines: List[str], num: int, status: str) -> List[s
         matched = marker.group(0)
         tail = matched[len(matched.rstrip(" \t.")):]
         block: List[str] = []
+        copies: List[Tuple[int, int]] = []
+        span = last + 1 - start
         for n in nums:
             copy = lines[start:last + 1]
             copy[-1] = f"{head}*(Item {n:03d})*{tail}"
+            copies.append((n, start + len(block) + 1))
             block.extend(copy)
         lines[start:last + 1] = block
+        if splits is not None:
+            # Spans are walked from the bottom, so a split here shifts every
+            # copy already recorded below it by the lines this one grew.
+            grown = len(block) - span
+            splits[:] = [BulletSplit(s.marker, [(n, ln + grown if ln > start else ln)
+                                                for n, ln in s.copies])
+                         for s in splits]
+            splits.append(BulletSplit(matched.rstrip(" \t."), copies))
     return lines
 
 
-def set_item_status(text: str, num: int, status: str) -> str:
+def set_item_status(text: str, num: int, status: str,
+                    splits: Optional[List[BulletSplit]] = None) -> str:
     """Flip item NNN's deliverable bullet(s) to ``status`` and roll stages up.
 
     ``status`` is ``in-progress``, ``in-review`` or ``complete``. Updates summary/header/
@@ -1288,13 +1646,15 @@ def set_item_status(text: str, num: int, status: str) -> str:
 
     A bullet whose marker names several items is split into one bullet per item
     first (see ``_split_multi_item_bullets``), so no sibling is carried along by
-    a flip it did not earn.
+    a flip it did not earn. Each such split is appended to ``splits`` when the
+    caller passes a list: the copies carry prose written for all the items at
+    once, and the caller is the one who can say so (issue #169).
     """
     lines = text.splitlines()
     # A marker naming several items is one status cell for all of them, so the
     # bullet is desugared into one bullet per item BEFORE anything flips
     # (issue #131). After this the flip below can only move `num`.
-    lines = _split_multi_item_bullets(lines, num, status)
+    lines = _split_multi_item_bullets(lines, num, status, splits)
     # Flip the icon of every bullet whose trailing marker names this item —
     # the same ownership rule `_parse_item_status` reads by (issue #99), so a
     # bullet that merely mentions the item in prose is never flipped.
@@ -1395,7 +1755,40 @@ def item_spec_paths(idir: Path, number: int) -> List[Path]:
     """
     if not idir.is_dir():
         return []
-    return sorted(idir.glob(f"{number:03d}-*.md"))
+    return sorted(idir.glob(_item_spec_glob(number)))
+
+
+def _item_spec_glob(number: int) -> str:
+    return f"{number:03d}-*.md"
+
+
+def item_spec_number(path: Path) -> Optional[int]:
+    """The item number whose `item_spec_paths` lookup returns *path*, or None.
+
+    A file under ``items/`` is a spec only if a lookup can find it, so the
+    number is read off the filename's leading digits and then **confirmed
+    against the lookup's own glob**, never a second pattern: ``12-foo.md`` and
+    ``0012-foo.md`` both read as 12 and neither answers ``012-*.md``, so both
+    are None, exactly as ``notes.md`` is (issue #228). `PurePath.match` applies
+    the platform's case rule, as the glob does.
+    """
+    m = re.match(r"\d+", path.name)
+    if not m:
+        return None
+    number = int(m.group(0))
+    return number if PurePath(path.name).match(_item_spec_glob(number)) else None
+
+
+def _unfindable_spec_warning(path: Path) -> str:
+    """`aide check`'s warning for a file under ``items/`` no lookup returns."""
+    m = re.match(r"(\d+)[-_ ]*(.*)$", path.name)
+    if m and m.group(2).lower() not in ("", ".md"):
+        fix = f"rename it to {int(m.group(1)):03d}-{m.group(2)}"
+    else:
+        fix = "rename it NNN-<slug>.md, NNN its item number zero-padded to three digits"
+    return (f"items/{path.name}: not named NNN-<slug>.md, so `aide scope`, "
+            f"`aide claim` and `aide check --queue` never find it and no other "
+            f"spec lint reads it — {fix}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1596,6 +1989,54 @@ def insight_warnings(ddir: Path) -> List[str]:
                 f"*(<where it came from>, YYYY-MM-DD, engine X.Y.Z)*' — the "
                 f"provenance and the trailing engine version are free-form "
                 f"and may be omitted; the ISO date may not"
+            )
+    return out
+
+
+#: The three git conflict markers that can never be legitimate markdown at the
+#: start of a line, and so are safe to lint on. ``=======`` is deliberately
+#: **not** among them: it is also a setext heading underline, and a lint that
+#: fires on a heading is a lint a reader learns to skim. A real conflict always
+#: carries an opener and a closer, so nothing is missed by leaving it out.
+_CONFLICT_OPEN_RE = re.compile(r"^<{7}(?: |$)")
+_CONFLICT_BASE_RE = re.compile(r"^\|{7}(?: |$)")
+_CONFLICT_SEP_RE = re.compile(r"^={7}$")
+_CONFLICT_CLOSE_RE = re.compile(r"^>{7}(?: |$)")
+_CONFLICT_LINT_RES = (_CONFLICT_OPEN_RE, _CONFLICT_BASE_RE, _CONFLICT_CLOSE_RE)
+
+
+def conflict_marker_errors(ddir: Path) -> List[str]:
+    """Flag git conflict markers committed into ``insights.md`` — an error.
+
+    The inbox is append-only by contract (conventions.md §1 → ``insights.md``),
+    so two branches that each captured an insight conflict on every merge, and
+    the conflict is always the same trivial shape. That makes a *committed*
+    marker a format-contract error rather than the usual warning. `parse_insights`
+    skips the marker lines themselves — they do not start with ``- `` — which
+    is worse than misreading them: **both sides' entries land in one numbered
+    list**, so ``list`` numbers straight across the halves and the ``N`` a
+    reader takes from it points ``tick`` at a different claim than the one they
+    read. ``archive`` will happily move an entry out from between the markers
+    and leave them behind.
+
+    An error, unlike the shape warnings above, because it is always fixable —
+    ``aide insights resolve`` is the fix, and the message says so. The live
+    file only, for the reason ``insight_warnings`` gives: the resolver works on
+    the file the loop appends to, and an archive is frozen.
+    """
+    path = ddir / "insights.md"
+    if not path.is_file():
+        return []
+    out: List[str] = []
+    for lineno, line in enumerate(path.read_text(encoding=_ENCODING).splitlines(), start=1):
+        if any(rx.match(line) for rx in _CONFLICT_LINT_RES):
+            out.append(
+                f"insights.md:{lineno}: an unresolved git conflict marker "
+                f"({line.split(' ')[0]}) — the inbox is append-only, so this "
+                f"merge is a union of entries; resolve it with "
+                f"`python .aide/scripts/aide.py insights resolve` (add "
+                f"--dry-run to see it first) rather than by hand, which is "
+                f"where a captured claim gets reworded"
             )
     return out
 
@@ -1846,6 +2287,372 @@ def _collapse_blank_runs(lines: List[str], trailing_newline: bool) -> str:
     return "\n".join(out) + ("\n" if trailing_newline else "")
 
 
+# --------------------------------------------------------------------------- #
+# insights resolve — an entry-level union of a conflicted inbox
+# --------------------------------------------------------------------------- #
+#: A checkbox left at the front of a line too malformed to parse as an entry.
+#: Stripped before an identity is taken, so a tick on such a line does not make
+#: it look like a *different* claim and get appended twice.
+_CONFLICT_CHECKBOX_RE = re.compile(r"^\[[ xX]\]\s*")
+#: The date a trail line carries, written by `tick` as ``- **YYYY-MM-DD** → …``.
+_TRAIL_DATE_RE = re.compile(r"\*\*(\d{4}-\d{2}-\d{2})\*\*")
+
+
+def split_conflict_sides(text: str) -> Tuple[str, str, int]:
+    """Split a conflicted file into its two whole documents.
+
+    Returns ``(ours, theirs, blocks)`` — each side reconstructed as a complete
+    file (the common regions plus that side's half of every conflict block),
+    and how many blocks there were. Whole documents rather than the hunks
+    alone, because the entry numbering that gives an inbox entry its identity
+    is positional: a hunk read on its own has no idea which entry it starts at.
+
+    ``diff3``/``zdiff3`` conflict style is understood and its ``|||||||`` base
+    section discarded — it belongs to neither side, and appending it to both
+    would duplicate every entry the merge base already had.
+
+    Raises ``ValueError`` on a malformed block (nested, unterminated, or a
+    closer with no opener). That is a refusal, not a repair: a file whose
+    markers do not nest is not a file this verb can reason about.
+    """
+    ours: List[str] = []
+    theirs: List[str] = []
+    state = "common"
+    blocks = 0
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if state == "common":
+            if _CONFLICT_OPEN_RE.match(line):
+                state = "ours"
+            elif _CONFLICT_CLOSE_RE.match(line) or _CONFLICT_BASE_RE.match(line):
+                raise ValueError(
+                    f"insights.md:{lineno}: {line.split(' ')[0]} outside a "
+                    f"conflict block — the markers do not nest")
+            else:
+                ours.append(line)
+                theirs.append(line)
+        elif state == "ours":
+            if _CONFLICT_BASE_RE.match(line):
+                state = "base"
+            elif _CONFLICT_SEP_RE.match(line):
+                state = "theirs"
+            elif _CONFLICT_OPEN_RE.match(line) or _CONFLICT_CLOSE_RE.match(line):
+                raise ValueError(
+                    f"insights.md:{lineno}: {line.split(' ')[0]} inside an "
+                    f"open conflict block — the markers do not nest")
+            else:
+                ours.append(line)
+        elif state == "base":
+            if _CONFLICT_SEP_RE.match(line):
+                state = "theirs"
+            elif (_CONFLICT_OPEN_RE.match(line) or _CONFLICT_CLOSE_RE.match(line)
+                    or _CONFLICT_BASE_RE.match(line)):
+                raise ValueError(
+                    f"insights.md:{lineno}: {line.split(' ')[0]} inside the "
+                    f"merge-base section of a conflict block")
+            # else: the base's own lines, which belong to neither side.
+        else:  # theirs
+            if _CONFLICT_CLOSE_RE.match(line):
+                state = "common"
+                blocks += 1
+            elif (_CONFLICT_OPEN_RE.match(line) or _CONFLICT_BASE_RE.match(line)
+                    or _CONFLICT_SEP_RE.match(line)):
+                raise ValueError(
+                    f"insights.md:{lineno}: {line.split(' ')[0]} inside the "
+                    f"second half of a conflict block — the markers do not nest")
+            else:
+                theirs.append(line)
+    if state != "common":
+        raise ValueError("the last conflict block is never closed — no "
+                         "'>>>>>>>' line, so half the file has no second side")
+    end = "\n" if text.endswith("\n") else ""
+    return ("\n".join(ours) + (end if ours else ""),
+            "\n".join(theirs) + (end if theirs else ""), blocks)
+
+
+def insight_identity(entry: InsightEntry) -> Tuple[str, ...]:
+    """What makes two entries the *same* captured claim across two branches.
+
+    The immutable half of an entry and nothing else (conventions.md §1 →
+    ``insights.md``): its type, claim text, date and provenance. The checkbox,
+    the ``→`` pointer and the status trail are bookkeeping, so an entry ticked
+    on one branch and untouched on the other is one entry here — which is what
+    lets the tick be merged instead of the claim being appended twice.
+
+    A line too malformed to parse has only itself, minus any checkbox.
+    """
+    if entry.type is None:
+        return ("", _CONFLICT_CHECKBOX_RE.sub("", entry.text).strip())
+    return (entry.type, entry.text, entry.date or "", entry.source or "",
+            entry.note or "")
+
+
+def _entry_blocks(text: str) -> Tuple[List[str], List[Tuple[InsightEntry, List[str]]],
+                                     List[str]]:
+    """``(head, [(entry, its lines)], tail)`` — the file cut at entry boundaries.
+
+    An entry's block runs from its own line to just before the next entry's, so
+    whatever sits between two entries (the blank line an archive can leave)
+    travels with the entry above it and no line is dropped by a rebuild.
+    """
+    lines = text.splitlines()
+    entries = parse_insights(text)
+    if not entries:
+        return lines, [], []
+    head = lines[:entries[0].lineno - 1]
+    blocks: List[Tuple[InsightEntry, List[str]]] = []
+    for i, e in enumerate(entries):
+        stop = (entries[i + 1].lineno - 1) if i + 1 < len(entries) else e.end_lineno
+        blocks.append((e, lines[e.lineno - 1:stop]))
+    return head, blocks, lines[entries[-1].end_lineno:]
+
+
+def _strip_trailing_blanks(lines: List[str]) -> List[str]:
+    out = list(lines)
+    while out and not out[-1].strip():
+        out.pop()
+    return out
+
+
+def _merge_trail(ours: List[str], theirs: List[str]) -> List[str]:
+    """Both sides' trail lines, deduplicated, in date order (§1 — newest last).
+
+    The sort is stable and an undated line inherits the date of the line above
+    it, so a hand-written continuation stays under the line it continues
+    instead of being hoisted to the top of the trail.
+    """
+    seen = set()
+    merged: List[str] = []
+    for line in list(ours) + list(theirs):
+        key = line.strip()
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(line)
+    keys: List[str] = []
+    last = ""
+    for line in merged:
+        m = _TRAIL_DATE_RE.search(line)
+        if m:
+            last = m.group(1)
+        keys.append(last)
+    return [line for _, line in sorted(zip(keys, merged), key=lambda p: p[0])]
+
+
+def _merge_entry_block(ours: InsightEntry, ours_lines: List[str],
+                       theirs: InsightEntry, theirs_lines: List[str],
+                       date: str) -> Tuple[List[str], Optional[str]]:
+    """Merge one entry both sides hold. Returns ``(lines, flag)``.
+
+    The claim line is taken whole from the side that ticked it, never rebuilt —
+    that is how the immutability rule survives a merge. Trails are unioned.
+    Two ticks with two different pointers is the one case a machine may not
+    decide: both are kept, the second as a dated trail line, and the flag says
+    a human must pick.
+    """
+    if ours_lines == theirs_lines:
+        return ours_lines, None
+    # Which side's claim line survives, in the order that loses least: the side
+    # that ticked, then — when both did — the side carrying a routing pointer.
+    # Preferring ours unconditionally dropped `theirs`' pointer whenever ours
+    # was ticked without one, and a routing record is the whole reason a tick
+    # is worth merging.
+    if ours.ticked != theirs.ticked:
+        kept, other = (ours, theirs) if ours.ticked else (theirs, ours)
+    elif ours.pointer or not theirs.pointer:
+        kept, other = ours, theirs
+    else:
+        kept, other = theirs, ours
+    flag = None
+    extra: List[str] = []
+    if other.pointer and other.pointer != kept.pointer:
+        # Two pointers, one per side: the one case a machine may not decide, so
+        # it decides nothing and keeps both. Not conditioned on the other side
+        # having *ticked* — a pointer written by hand before a tick is a
+        # routing record like any other, and dropping it is the silent loss
+        # this whole branch exists to prevent.
+        extra.append(f"  - **{date}** {_INSIGHT_POINTER.strip()} {other.pointer} "
+                     f"(second pointer, from the other side of the merge)")
+        flag = (f"entry {ours.ordinal} carries a different pointer on each side "
+                f"of the merge ({kept.pointer!r} and {other.pointer!r}); both "
+                f"are kept — the entry line carries the first and the second is "
+                f"a trail line, so a human must decide which is true")
+    trail = _merge_trail(ours.trail, theirs.trail) + extra
+    # Anything the block held that is neither the claim nor a trail line, from
+    # BOTH sides — ours first. Taking it from ours alone dropped whatever sat
+    # under the entry on the other side and still called the merge clean.
+    # Blank separators are not among them: the caller strips those and puts
+    # each entry's own back.
+    rest = [ln for ln in ours_lines[1:] if ln not in ours.trail]
+    rest += [ln for ln in theirs_lines[1:]
+             if ln not in theirs.trail and ln not in rest]
+    return [kept.raw] + trail + rest, flag
+
+
+def resolve_insights_text(text: str, date: str,
+                          base_text: Optional[str] = None,
+                          ) -> Tuple[str, List[str], List[str]]:
+    """Union the two sides of a conflicted inbox. ``(merged, notes, refusals)``.
+
+    Non-empty ``refusals`` means nothing was merged and the caller must not
+    write: the conflict is not the append shape this verb exists for, and the
+    only safe thing to do with a claim this code cannot align is leave it in
+    front of a human.
+
+    **What "pure append" means here.** Both sides must start with the same
+    entries, in the same order, differing only in bookkeeping; everything past
+    that point is new on one side or the other and is concatenated, ours then
+    theirs. Positional ordinals need no renumbering because nothing moves.
+
+    *base_text* — the merge base, which a conflicted index can supply — makes
+    that check exact rather than inferred: the shared history is the base, so a
+    rewritten prefix is caught even when the rewrite is at the tail, where the
+    two sides alone cannot tell a reworded claim from a second capture. Without
+    it the check falls back to the longest common prefix of the two sides,
+    which still catches every reorder, deletion and archive: an archive cuts
+    closed entries out of the middle, so entries survive on both sides *past*
+    the common prefix, and that overlap is a refusal.
+    """
+    refusals: List[str] = []
+    try:
+        ours_text, theirs_text, blocks = split_conflict_sides(text)
+    except ValueError as exc:
+        return text, [], [str(exc)]
+    if not blocks:
+        return text, [], []
+
+    head_o, blocks_o, tail_o = _entry_blocks(ours_text)
+    head_t, blocks_t, tail_t = _entry_blocks(theirs_text)
+    if _strip_trailing_blanks(head_o) != _strip_trailing_blanks(head_t):
+        refusals.append(
+            "the two sides differ above the first entry — the conflict reaches "
+            "the file's header, which is not an append; resolve it by hand")
+    if _strip_trailing_blanks(tail_o) != _strip_trailing_blanks(tail_t):
+        refusals.append(
+            "the two sides differ below the last entry — the conflict reaches "
+            "past the entry list, which is not an append; resolve it by hand")
+    if refusals:
+        return text, [], refusals
+
+    ids_o = [insight_identity(e) for e, _ in blocks_o]
+    ids_t = [insight_identity(e) for e, _ in blocks_t]
+    if base_text is not None:
+        ids_b = [insight_identity(e) for e in parse_insights(base_text)]
+        n = len(ids_b)
+        rewritten = [side for side, ids in (("HEAD", ids_o), ("the other side", ids_t))
+                     if ids[:n] != ids_b]
+        if rewritten:
+            return text, [], [
+                f"{' and '.join(rewritten)} rewrote the {n} entr"
+                f"{'y' if n == 1 else 'ies'} the two branches share — a claim "
+                f"was reworded, reordered, deleted or archived, and §1 makes "
+                f"every one of those something a human must see. Resolve this "
+                f"one by hand."]
+        common = n
+    else:
+        common = 0
+        while (common < len(ids_o) and common < len(ids_t)
+               and ids_o[common] == ids_t[common]):
+            common += 1
+
+    overlap = set(ids_o[common:]) & set(ids_t[common:])
+    if overlap:
+        return text, [], [
+            f"{len(overlap)} entr{'y' if len(overlap) == 1 else 'ies'} appear"
+            f"{'s' if len(overlap) == 1 else ''} on both sides after the "
+            f"history they share — the file was reordered or an archive cut "
+            f"entries out of the middle of it, so the two sides are not one "
+            f"append on top of a common prefix. Resolve this one by hand "
+            f"(first: {' | '.join(x[1] for x in sorted(overlap))[:120]})"]
+
+    # A blank line between two entries belongs to neither entry, and only a
+    # *last* entry can lack one — its blanks went to the file's tail instead.
+    # So the two sides can disagree about an entry neither of them touched,
+    # purely by where it sits. Each entry is therefore split into its own lines
+    # and its own trailing blanks: the lines are merged, and the blanks are
+    # carried through untouched, so an entry nobody edited is re-emitted with
+    # exactly the spacing it had. Only a *join* the append newly created — an
+    # entry that was last on its side and now has one behind it — needs a
+    # separator supplied, and the one it had is the one its own side's tail is
+    # still holding.
+    strip = _strip_trailing_blanks
+
+    def own(block: List[str]) -> List[str]:
+        return block[len(strip(block)):]
+
+    def leading_blanks(lines: List[str]) -> List[str]:
+        out: List[str] = []
+        for line in lines:
+            if line.strip():
+                break
+            out.append(line)
+        return out
+
+    last_o = len(blocks_o) - 1
+    last_t = len(blocks_t) - 1
+    # What each side's final entry would have been followed by, had anything
+    # followed it. Empty for a file whose entries sit on consecutive lines.
+    end_o = leading_blanks(tail_o)
+    end_t = leading_blanks(tail_t)
+
+    def spacing(*candidates: List[str]) -> List[str]:
+        for c in candidates:
+            if c:
+                return c
+        return []
+
+    # (block, what followed it, whether it ended its side). A block that ended
+    # its side and was followed by nothing has no observed spacing at all —
+    # that is the join the append newly created, and the only place a
+    # separator may be *invented*. Everywhere else an empty `after` is a fact
+    # about the file, and re-spacing entries neither side touched on the
+    # strength of a blank line somewhere else in the file is a reformat.
+    merged_blocks: List[Tuple[List[str], List[str], bool]] = []
+    flags: List[str] = []
+    ticks = 0
+    for i, ((eo, lo), (et, lt)) in enumerate(
+            zip(blocks_o[:common], blocks_t[:common])):
+        block, flag = _merge_entry_block(eo, strip(lo), et, strip(lt), date)
+        if strip(lo) != strip(lt):
+            # A shared claim whose bookkeeping the two sides disagreed on —
+            # counted whichever side won, since the decision is the news.
+            ticks += 1
+        if flag:
+            flags.append(flag)
+        merged_blocks.append((block, spacing(
+            own(lo), own(lt),
+            end_o if i == last_o else [], end_t if i == last_t else []),
+            i == last_o or i == last_t))
+    for i, (_, blk) in enumerate(blocks_o[common:], start=common):
+        merged_blocks.append((strip(blk),
+                              spacing(own(blk), end_o if i == last_o else []),
+                              i == last_o))
+    for i, (_, blk) in enumerate(blocks_t[common:], start=common):
+        merged_blocks.append((strip(blk),
+                              spacing(own(blk), end_t if i == last_t else []),
+                              i == last_t))
+
+    out: List[str] = list(head_o)
+    previous: List[str] = []
+    for i, (block, after, ended_a_side) in enumerate(merged_blocks):
+        out.extend(block)
+        if i == len(merged_blocks) - 1:     # the last entry's blanks are the tail's
+            break
+        # Inherit from the entry above only where there is nothing to inherit
+        # *from* the entry itself, which is exactly the newly created join.
+        after = after or (previous if ended_a_side else [])
+        out.extend(after)
+        previous = after
+    out.extend(tail_o)
+
+    notes = [f"{common} entr{'y' if common == 1 else 'ies'} shared, "
+             f"{len(blocks_o) - common} added on HEAD, "
+             f"{len(blocks_t) - common} added on the other side, "
+             f"{ticks} merged in place"]
+    notes.extend(flags)
+    merged_text = "\n".join(out) + ("\n" if text.endswith("\n") else "")
+    return merged_text, notes, []
+
+
 def absolute_path_test_warnings(repo_root: Path,
                                 config: Dict[str, Dict[str, object]]) -> List[str]:
     """Warn on a test file containing the repository's own absolute path.
@@ -1897,52 +2704,6 @@ def absolute_path_test_warnings(repo_root: Path,
     return out
 
 
-def _is_gate_table_furniture(cells: List[str]) -> bool:
-    """True for the gates table's header or separator row — never for data.
-
-    The separator test requires a NON-EMPTY cell. `set("") <= set("-: ")` is
-    true, so an empty first cell used to read as a separator: a malformed row
-    like `| | 028 | ⏳ Awaiting | a | pipe |` was skipped *silently*, which is
-    precisely the vanishing-gate failure the warning below exists to catch.
-    """
-    if not cells:
-        return True
-    first = cells[0]
-    return first.lower() == "gate" or bool(first.strip()) and set(first) <= set("-: ")
-
-
-def _malformed_gate_row_warnings(lines: List[str]) -> List[str]:
-    """Rows inside the gates table the parser had to skip.
-
-    A gate is only useful if it is read, so a row with the wrong column count
-    must not vanish in silence — that turns "a person must decide this" into
-    "nothing is blocking", which is the most dangerous way this feature can
-    fail. The CLI refuses to write a `|` into a cell; this catches the rest
-    (a hand edit, a paste).
-    """
-    out: List[str] = []
-    in_section = False
-    for i, line in enumerate(lines):
-        if _GATES_HEADING_RE.match(line):
-            in_section = True
-            continue
-        if not in_section:
-            continue
-        if _ANY_HEADER_RE.match(line):
-            break
-        stripped = line.strip()
-        if not stripped.startswith("|"):
-            continue
-        cells = _split_row(line)
-        if _is_gate_table_furniture(cells) or len(cells) == 4:
-            continue
-        out.append(
-            f"progress.md:{i + 1}: human-gate row has {len(cells)} columns, not 4 — "
-            f"it is being SKIPPED, so whatever it was meant to block is not "
-            f"blocked. A '|' inside a cell is the usual cause.")
-    return out
-
-
 def _reach_with_breadth(lines: List[str], g: HumanGate) -> str:
     """*g*'s reach with the held items resolved and counted.
 
@@ -1974,14 +2735,15 @@ def _reach_with_breadth(lines: List[str], g: HumanGate) -> str:
 
 
 def gate_warnings(lines: List[str]) -> List[str]:
-    """One warning per unresolved human gate, plus one per unreadable row.
+    """One warning per unresolved human gate.
 
     A warning, never an error: an outstanding gate is a normal state — work is
     waiting on a person, which is what it is for. The point is that the state
-    is *visible* rather than buried in an item spec's prose.
+    is *visible* rather than buried in an item spec's prose. A row too
+    mis-shaped to be a gate is not a state but a defect, and is an error in
+    ``unreadable_row_errors``.
     """
     out: List[str] = []
-    out.extend(_malformed_gate_row_warnings(lines))
     for n, g in enumerate(human_gates(lines), start=1):
         if g.kind == "approved":
             continue
@@ -2195,10 +2957,10 @@ def scope_claim_test_warnings(repo_root: Path,
                               config: Dict[str, Dict[str, object]]) -> List[str]:
     """Diff-time scope claims written as suite assertions.
 
-    §1 → authorised-paths says a *diff-time scope claim* — "item N did not touch
-    X" — belongs under **Asserts against** and is retired when its item merges,
-    and `cmd_scope` exists precisely so the claim is not "enshrined as a suite
-    assertion that outlives its truth". Both statements were already written
+    §1 → authorised-paths-proof says a *diff-time scope claim* — "item N did
+    not touch X" — belongs under **Asserts against** and is retired when its
+    item merges, and `cmd_scope` exists precisely so the claim is not
+    "enshrined as a suite assertion that outlives its truth". Both statements were already written
     down, and reached neither the spec-author writing the criterion nor the
     test-writer implementing it: two independent items in one consumer wrote the
     same `git diff main...HEAD` guard (issue #132), which is the signature of a
@@ -2249,7 +3011,7 @@ def scope_claim_test_warnings(repo_root: Path,
                 f"a stacked queue where the real base is the queue branch. "
                 f"Declare the pinned file under '## Asserts against' in the item "
                 f"spec and let 'aide scope' decide it on the claim branch "
-                f"(conventions.md §1 → authorised-paths, §6)")
+                f"(conventions.md §1 → authorised-paths-proof, §6)")
             continue
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
@@ -2274,7 +3036,7 @@ def scope_claim_test_warnings(repo_root: Path,
                 f"Scope is "
                 f"checked on the branch, not asserted in the suite: declare the "
                 f"pinned file under '## Asserts against' instead "
-                f"(conventions.md §1 → authorised-paths, §6)")
+                f"(conventions.md §1 → authorised-paths-proof, §6)")
             break
     return out
 
@@ -2834,6 +3596,60 @@ def nested_deliverable_warnings(lines: List[str]) -> List[str]:
     return out
 
 
+def _bullet_prose(lines: List[str], start: int, last: int) -> str:
+    """A deliverable bullet's text with its icon and trailing marker removed,
+    whitespace-normalised — the part an author wrote about the work."""
+    body = lines[start:last + 1]
+    # Tail first, then head: on a one-line bullet both cuts land on the same
+    # string, and the marker's offset is only right before the icon is gone.
+    marker = _BULLET_MARKER_RE.search(body[-1])
+    if marker is not None:
+        body[-1] = body[-1][:marker.start()]
+    first = _BULLET_RE.match(lines[start])
+    if first:
+        body[0] = body[0][first.end():]
+    return " ".join(part.strip() for part in body).strip()
+
+
+def identical_deliverable_warnings(lines: List[str]) -> List[str]:
+    """Single-item deliverable bullets in one stage with the same prose.
+
+    That shape is what `_split_multi_item_bullets` leaves behind: a shared
+    ``*(Items …)*`` marker desugared into one bullet per item, every copy
+    carrying the sentence written for all of them. It is correct the moment
+    it is written and wrong the moment one copy is ticked — the ✅ then
+    describes the siblings' work as done — and rewording is invisible to every
+    other check, so an un-reworded copy simply stood (issue #169). Reported
+    per stage and per prose, naming the items, until each copy says what its
+    own item delivers. A consumer that genuinely ships two identical
+    deliverables in one stage sees the same warning; the remedy is the same
+    sentence either way.
+    """
+    out: List[str] = []
+    for start, end, num in stage_sections(lines):
+        groups: Dict[str, List[Tuple[int, int]]] = {}
+        for s, last in _deliverable_bullet_spans(lines[start:end]):
+            s, last = s + start, last + start
+            items = _bullet_marker_item_numbers(lines[last])
+            if len(items) != 1:
+                continue
+            prose = _bullet_prose(lines, s, last)
+            if prose:
+                groups.setdefault(prose, []).append((items[0], s + 1))
+        for prose, hits in groups.items():
+            if len(hits) < 2:
+                continue
+            listed = ", ".join(f"{n:03d}" for n, _ in hits)
+            out.append(
+                f"progress.md:{hits[0][1]}: stage {num} has {len(hits)} "
+                f"deliverable bullets with identical prose, attributed to "
+                f"items {listed} — the shape a split of a shared *(Items …)* "
+                f"marker leaves behind, so a ✅ on one describes the others' "
+                f"work too. Reword each copy to say what its own item "
+                f"delivers.")
+    return out
+
+
 def unattributed_reference_warnings(lines: List[str]) -> List[str]:
     """Deliverable bullets that reference items but attribute none of them.
 
@@ -2996,6 +3812,132 @@ def root_document_warnings(ddir: Path) -> List[str]:
     return out
 
 
+#: The line every template carries after its header comment, and every document
+#: created from one keeps: ``<!-- aide-template: progress 1 -->``. The name is
+#: the template's file stem and the number its own integer version, which moves
+#: only when the template changes in a way a document built from the old one
+#: would want to follow — independent of ``VERSION`` (issue #164).
+_TEMPLATE_MARKER_RE = re.compile(
+    r"^<!--\s*aide-template:\s*(?P<name>[a-z][a-z0-9-]*)\s+(?P<version>\d+)\s*-->\s*$",
+    re.MULTILINE)
+#: A line that opens like the marker, so one the regex above rejects is reported
+#: rather than taken for a document with no marker at all.
+_TEMPLATE_MARKER_OPENER_RE = re.compile(r"^<!--\s*aide-template:", re.MULTILINE)
+
+
+def _above_title(text: str) -> str:
+    """The part of *text* before its first heading line — where the marker lives.
+
+    Every template puts the line between its header comment and its title, and a
+    document whose header comment was deleted keeps it above the title. Reading
+    only that far means a marker quoted in a document's body — an example in an
+    item spec, a note about a template change — is never taken for the
+    document's own.
+    """
+    m = re.search(r"^#", text, re.MULTILINE)
+    return text[:m.start()] if m else text
+
+
+def template_marker(text: str) -> Optional[Tuple[str, int]]:
+    """``(name, version)`` from the marker line above *text*'s title, or ``None``."""
+    m = _TEMPLATE_MARKER_RE.search(_above_title(text))
+    return (m.group("name"), int(m.group("version"))) if m else None
+
+
+def installed_template_versions() -> Dict[str, int]:
+    """``name -> version`` for every template installed beside this script.
+
+    A template without a readable marker is left out, so a document naming it
+    is reported as naming a template this engine does not ship — the truthful
+    reading of an install that lost the line.
+    """
+    versions: Dict[str, int] = {}
+    if not _TEMPLATES_DIR.is_dir():
+        return versions
+    for path in sorted(_TEMPLATES_DIR.glob("*.md")):
+        marker = template_marker(path.read_text(encoding=_ENCODING))
+        if marker and marker[0] == path.stem:
+            versions[marker[0]] = marker[1]
+    return versions
+
+
+def template_drift_warnings(ddir: Path, item_status: Dict[int, str],
+                            installed: Optional[Dict[str, int]] = None) -> List[str]:
+    """Documents whose template marker disagrees with the installed template.
+
+    Rung 4 of the copies rule (``ADAPTER-SPEC.md``, *Copies of engine text*):
+    ``docs/aide/**`` is the project's, so the engine *reports* a document that
+    predates its template and never fails a run over one. A template gaining a
+    section reaches the next document created from it and no earlier one;
+    before the marker, nothing recorded which template a document was built
+    from, and the only signal was a changelog entry nobody was pointed at.
+
+    Which documents are read, and why:
+
+    * ``vision.md``, ``roadmap.md``, ``progress.md`` and ``insights.md`` —
+      long-lived, edited for the life of the project, so a newer template is
+      something their author may still act on.
+    * A queue while it is open, and an item spec while its item is not ✅ or
+      ❌ — the same measure ``--queue`` uses for "spent". A finished item's
+      spec is a record, and a warning on every one of them each time a template
+      moves is permanent noise over files nobody should edit.
+
+    Only the marker above the title counts (``_above_title``). A document
+    **without** one is silent. Every document written before
+    the marker existed has none, and the engine cannot say which template it
+    came from; a warning that asks the author to guess a version names no
+    action, and repeating it on every run is how a real warning gets tuned out.
+    A line that opens like the marker but does not parse is reported, since
+    that one the author wrote and can fix.
+    """
+    if installed is None:
+        installed = installed_template_versions()
+    targets = [ddir / name for name in
+               ("vision.md", "roadmap.md", "progress.md", "insights.md")]
+    qdir = ddir / "queue"
+    if qdir.is_dir():
+        for qpath in iter_queue_paths(qdir):
+            if queue_is_open(qpath.read_text(encoding=_ENCODING), item_status):
+                targets.append(qpath)
+    idir = ddir / "items"
+    if idir.is_dir():
+        for ipath in sorted(idir.glob("*.md")):
+            n = item_spec_number(ipath)
+            if n is not None and item_status.get(n, "planned") in (
+                    "complete", "excluded"):
+                continue
+            targets.append(ipath)
+
+    out: List[str] = []
+    for path in targets:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding=_ENCODING)
+        rel = path.relative_to(ddir).as_posix()
+        marker = template_marker(text)
+        if marker is None:
+            if _TEMPLATE_MARKER_OPENER_RE.search(_above_title(text)):
+                out.append(f"{rel}: unreadable aide-template line — expected "
+                           f"'<!-- aide-template: <name> <N> -->'")
+            continue
+        name, version = marker
+        current = installed.get(name)
+        if current is None:
+            out.append(f"{rel}: names template '{name}', which this engine "
+                       f"does not ship")
+        elif version < current:
+            out.append(f"{rel}: created from {name} template {version}; the "
+                       f"installed template is {current} — the framework "
+                       f"CHANGELOG entry naming '{name} template {current}' "
+                       f"says what changed and what, if anything, to edit; "
+                       f"then set the line to {current}")
+        elif version > current:
+            out.append(f"{rel}: created from {name} template {version}, newer "
+                       f"than the installed {current} — this checkout runs an "
+                       f"older engine than the document was written under")
+    return out
+
+
 #: An assumption bullet that names the engine it was true for — the §1 marker
 #: ``- **A8 (engine 1.28.1):** …``. The engine version goes in the bold label,
 #: beside the assumption's own code, because that is where a reader looking for
@@ -3146,6 +4088,11 @@ def item_spec_warnings(ddir: Path, ddir_rel: str = "docs/aide",
     engine it was true for — `- **A8 (engine 1.28.1):** …` — whose engine
     predates the installed one. See `_stale_assumption_pins`.
 
+    None of them reads a file that no lookup finds: one whose name
+    `item_spec_number` rejects gets a single warning naming the rename instead
+    (issue #228), since every verb that reads a spec treats its item as having
+    none, and a number printed off the filename would disagree with them.
+
     *ddir_rel* is the docs dir as specs spell it in their repo-relative paths;
     `run_checks` passes the configured value, and the default matches the
     scaffolded `aide.toml`. *engine* is the installed engine version, as
@@ -3165,10 +4112,10 @@ def item_spec_warnings(ddir: Path, ddir_rel: str = "docs/aide",
     missing_assumptions: List[str] = []
     stale_pins: List[str] = []
     for path in sorted(idir.glob("*.md")):
-        m = re.match(r"0*(\d+)", path.name)
-        if not m:
+        num = item_spec_number(path)
+        if num is None:
+            out.append(_unfindable_spec_warning(path))
             continue
-        num = int(m.group(1))
         text = path.read_text(encoding=_ENCODING)
         if not re.search(rf"^#\s+Item\s+0*{num}\s*[—–-]\s*\S", text, re.MULTILINE):
             out.append(f"items/{path.name}: no '# Item {num:03d} — Title' heading "
@@ -3312,13 +4259,13 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
                branches: Optional[List[str]] = None) -> Tuple[List[str], List[str]]:
     """Return ``(errors, warnings)``. Empty errors == pass.
 
-    The first twelve checks all run before, and survive, the two early returns
+    The first thirteen checks all run before, and survive, the two early returns
     below, but for two different reasons. Six of them —
     `absolute_path_test_warnings`, `separator_dependent_test_warnings`,
     `cli_subprocess_test_warnings`, `subprocess_encoding_test_warnings`,
     `gitattributes_eol_pin_warnings`, `scope_claim_test_warnings` — read
     `tests_dir` and never touch `docs_dir`, so they are the ones that make this
-    function worth calling in a repo with no document set. The other six *are* document checks; they
+    function worth calling in a repo with no document set. The other seven *are* document checks; they
     simply find nothing to say when `docs_dir` is absent, so keeping them costs
     nothing and they still report on a `docs_dir` that exists but has no
     `progress.md`.
@@ -3335,6 +4282,7 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     progress_path = ddir / "progress.md"
 
     errors.extend(template_residue_errors(ddir))
+    errors.extend(conflict_marker_errors(ddir))
     warnings.extend(stray_icon_warnings(ddir))
     warnings.extend(insight_warnings(ddir))
     warnings.extend(absolute_path_test_warnings(repo_root, config))
@@ -3378,7 +4326,11 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     # One read, reused: two reads can disagree if the file changes between them.
     text = progress_path.read_text(encoding=_ENCODING)
     lines = text.splitlines()
+    # Before anything reads the tables: a row no reader can use is dropped by
+    # every check below, including the ones that would have errored on it.
+    errors.extend(unreadable_row_errors(lines))
     warnings.extend(gate_warnings(lines))
+    warnings.extend(capability_warnings(lines, config.get("validation") or {}))
     # A withdrawn attestation is normal, not a defect — the point is that it
     # stays visible. Retracting is append-only, so without a surfacing rule the
     # withdrawal would live only in one commit's diff, which is exactly the
@@ -3389,16 +4341,23 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
             f"{cdate} ({creason}) — the box is open again, and the original "
             f"attestation is kept above the correction")
     warnings.extend(nested_deliverable_warnings(lines))
+    warnings.extend(identical_deliverable_warnings(lines))
     warnings.extend(unattributed_reference_warnings(lines))
     warnings.extend(acceptance_drift_warnings(ddir, lines))
+    warnings.extend(template_drift_warnings(ddir, _parse_item_status(lines)[2]))
 
-    # Mandatory sections.
-    has_stage_table = any(
-        len(_split_row(l)) == 4 and re.fullmatch(r"\d+", _split_row(l)[0]) for l in lines
-    )
-    has_obj_table = any(
-        len(_split_row(l)) == 3 and re.match(r"G\d+", _split_row(l)[0]) for l in lines
-    )
+    # Mandatory sections. Rows are taken by shape from anywhere in the file,
+    # with the one test `unreadable_row_errors` reports the failures of.
+    # A table whose every row is unreadable is present, and already reported
+    # row by row; "missing" on top of that would send the author looking for
+    # a table that is there. One written without leading `|` is missing: no
+    # reader or writer here has ever taken a row from it.
+    table_rows = [_split_row(l) for l in lines if l.strip().startswith("|")]
+    reported = {t.name for t, *_ in _unreadable_rows(lines)}
+    has_stage_table = (any(_reads(_STAGE_SUMMARY, c) for c in table_rows)
+                       or _STAGE_SUMMARY.name in reported)
+    has_obj_table = (any(_reads(_OBJECTIVE_COVERAGE, c) for c in table_rows)
+                     or _OBJECTIVE_COVERAGE.name in reported)
     sections = stage_sections(lines)
     if not has_stage_table:
         errors.append("progress.md: missing Stage summary table")
@@ -3409,9 +4368,8 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
 
     # Summary row status vs. section header + rollup consistency.
     summary_status: Dict[str, str] = {}
-    for l in lines:
-        cells = _split_row(l) if l.strip().startswith("|") else []
-        if len(cells) == 4 and re.fullmatch(r"\d+", cells[0]) and _icon_status(cells[3]):
+    for cells in table_rows:
+        if _reads(_STAGE_SUMMARY, cells):
             summary_status[cells[0]] = _icon_status(cells[3])
 
     section_nums = set()
@@ -3442,9 +4400,8 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     # table exists to prevent (issue #14) — the mirror of the deliverable-level
     # error above.
     obj_status: Dict[str, str] = {}
-    for l in lines:
-        cells = _split_row(l) if l.strip().startswith("|") else []
-        if len(cells) == 3 and re.match(r"G\d+", cells[0]) and _icon_status(cells[2]):
+    for cells in table_rows:
+        if _reads(_OBJECTIVE_COVERAGE, cells):
             obj_status[re.match(r"G\d+", cells[0]).group(0)] = _icon_status(cells[2])
     for t in outcome_targets(lines):
         if t.kind is None:
@@ -3495,10 +4452,9 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     if idir.is_dir():
         spec_nums: Dict[int, str] = {}
         for ipath in sorted(idir.glob("*.md")):
-            m = re.match(r"0*(\d+)", ipath.name)
-            if not m:
-                continue
-            n = int(m.group(1))
+            n = item_spec_number(ipath)
+            if n is None:
+                continue  # item_spec_warnings names it
             if n in spec_nums:
                 errors.append(f"duplicate item spec number {n:03d}: {spec_nums[n]} and {ipath.name}")
             spec_nums[n] = ipath.name
@@ -4025,8 +4981,9 @@ def set_gate_status(text: str, index: int, kind: str,
     if note and ("|" in note or "\n" in note or "\r" in note):
         raise ValueError(
             "the note may not contain '|' or a line break — either breaks the "
-            "row's shape, and a row the parser cannot read is skipped, making a "
-            "still-blocking gate silently disappear")
+            "row's shape, and a gate row the parser cannot read stops being a "
+            "gate: `aide check` fails and `aide claim` holds every item until "
+            "someone repairs it")
     icon = {"approved": "✅ Approved", "declined": "❌ Declined"}[kind]
     import datetime as _dt
     stamp = today or _dt.date.today().isoformat()
@@ -4055,17 +5012,25 @@ def cmd_gate(args: argparse.Namespace) -> int:
         return 2
     text = ppath.read_text(encoding=_ENCODING)
     gates = human_gates(text.splitlines())
+    unreadable = unreadable_gate_rows(text.splitlines())
 
     if args.action == "list":
-        if not gates:
+        if not gates and not unreadable:
             print("aide gate: no '## Human gates' table (nothing gated)")
             return 0
         for n, g in enumerate(gates, start=1):
             reach = g.reach
             mark = {"approved": "✅", "declined": "❌", "awaiting": "⏳"}.get(g.kind, "⚠")
             print(f"  {n}. {mark} {g.text} — blocks {reach}")
+        # Unnumbered: `approve <n>` counts readable gates only, and a row the
+        # parser cannot read is not one a verb should write into.
+        for lineno, problem in unreadable:
+            print(f"  ⚠ progress.md:{lineno}: a row that {problem} — not a "
+                  f"gate, and holds every item until it is fixed")
         outstanding = len(blocking_gates(text.splitlines()))
-        print(f"aide gate: {len(gates)} gate(s), {outstanding} still blocking")
+        print(f"aide gate: {len(gates)} gate(s), {outstanding} still blocking"
+              + (f", {len(unreadable)} unreadable row(s) holding everything"
+                 if unreadable else ""))
         return 0
 
     if args.number is None:
@@ -4096,6 +5061,26 @@ def cmd_gate(args: argparse.Namespace) -> int:
 #: runbook use it — and `in-review` is additive.
 _SET_STATUS_MAP = {"in-progress": "in-progress", "in-review": "in-review",
                    "done": "complete"}
+
+
+def _report_bullet_splits(number: int, lines: List[str],
+                          splits: List[BulletSplit]) -> None:
+    """Print the copies a flip's split wrote, as the chore they are.
+
+    The split is the engine's edit, made with no author present, and it
+    produces N bullets carrying one bullet's prose — text that described the
+    shared deliverable and now stands, unchanged, under each item alone. The
+    engine cannot write the right words; it can refuse to be silent about the
+    wrong ones (issue #169). ``lines`` is the text *after* the flip, so the
+    copies print with the icons they ended up with.
+    """
+    for split in sorted(splits, key=lambda s: s.copies[0][1]):
+        print(f"item {number:03d}: split the shared bullet {split.marker} into "
+              f"one bullet per item. Every copy still carries the SHARED "
+              f"prose — reword each to describe its own item's work, or "
+              f"`aide check` keeps reporting them as identical:")
+        for _, lineno in split.copies:
+            print(f"  progress.md:{lineno}: {lines[lineno - 1].strip()}")
 
 
 def cmd_progress(args: argparse.Namespace) -> int:
@@ -4157,7 +5142,8 @@ def cmd_progress(args: argparse.Namespace) -> int:
         healed_note = (f"item {args.number:03d}: back-filled missing "
                        f"deliverable reference under Stage {stage} "
                        f"(from the item spec)")
-    updated = set_item_status(text, args.number, status_map[args.status])
+    splits: List[BulletSplit] = []
+    updated = set_item_status(text, args.number, status_map[args.status], splits)
     if args.number not in _parse_item_status(updated.splitlines())[2]:
         # Belt to the heal's braces: if the back-fill (or anything else) left
         # no bullet whose trailing marker names this item, the set recorded
@@ -4179,6 +5165,7 @@ def cmd_progress(args: argparse.Namespace) -> int:
     else:
         progress_path.write_text(updated, encoding="utf-8")
         print(f"item {args.number:03d}: set to {args.status}")
+        _report_bullet_splits(args.number, updated.splitlines(), splits)
     if not args.no_commit and (repo_root / ".git").exists():
         _commit_progress(repo_root, config, args.number, args.status)
     return 0
@@ -4345,6 +5332,16 @@ def _cmd_progress_retract(args: argparse.Namespace) -> int:
     rel_insights, note = _route_retraction_to_insights(
         repo_root, config, str(args.number), args.criterion, reason, date)
     print(note)
+    # The retraction warning `aide check` now emits is permanent by design, and
+    # a consumer that pins the tolerated warning set discovers that at its
+    # merge gate rather than here — a suite reddened by honest self-correction,
+    # with nothing at retraction time having said so (issue #152). Say it here,
+    # so the widening lands in the same change as the retraction.
+    print(f"notice: `aide check` will warn about this retraction from now on — "
+          f"the record is permanent, not a defect to clear. A test that pins "
+          f"the tolerated warning set needs widening for stage {args.number} "
+          f"criterion {args.criterion}; do it in this change, not at the merge "
+          f"gate")
     if not args.no_commit and (repo_root / ".git").exists():
         rels = [str(config["project"].get("docs_dir", "docs/aide")) + "/progress.md"]
         if rel_insights:
@@ -4359,9 +5356,12 @@ def _cmd_progress_retract(args: argparse.Namespace) -> int:
 def _cmd_progress_reword(args: argparse.Namespace) -> int:
     """``aide progress reword STAGE --criterion N --text TEXT``.
 
-    Both files or neither. The roadmap mirrors the criteria, so a rewording
-    that lands in one document is the drift the verb exists to remove; when the
-    two cannot be lined up, nothing is written and the message says so.
+    Both files or neither wherever the roadmap mirrors the stage. The roadmap
+    mirrors the criteria, so a rewording that lands in one document is the
+    drift the verb exists to remove; when the two cannot be lined up, nothing is
+    written and the message says so. A stage with no roadmap acceptance block —
+    or no roadmap.md at all — has no mirror to drift from, so progress.md alone
+    is written and the message says that too (issue #216).
     """
     if args.all_criteria:
         print("aide progress reword: --all is not offered — criteria are "
@@ -4457,13 +5457,19 @@ def _commit_docs_files(repo_root: Path, config, message: str,
                        rels: List[str], pull: bool = True) -> Optional[str]:
     """Commit exactly *rels* — repo-relative paths — with *message*.
 
-    Returns ``None`` when every named path is in the new commit, otherwise a
-    one-line reason it is not — so a caller that announces a commit announces
-    what happened, not what it intended. "Exactly" is enforced by pathspec:
-    ``git commit -- <rels>`` commits the named paths and nothing else, so a
-    builder's staged work sitting in the index stays staged and out of the
-    bookkeeping commit; a bare ``git commit`` would have swept it in, which is
-    why ``git add <rel>`` alone was never enough.
+    Returns ``None`` when every named path is in a new commit on this
+    branch, otherwise a one-line reason — so a caller that announces a commit
+    announces what happened, not what it intended. Two things are reasons:
+    the commit did not happen (a refused tree, a failed ``git commit``, a
+    path the commit left out), and the commit happened but replaying it onto
+    the upstream stopped mid-rebase, since the branch no longer carries it
+    until that rebase is finished. A rebase that was skipped or never started
+    is **not** a reason: the commit is complete and local, and that case is a
+    printed notice, never a return. "Exactly" is enforced by pathspec: ``git commit -- <rels>``
+    commits the named paths and nothing else, so a builder's staged work
+    sitting in the index stays staged and out of the bookkeeping commit; a
+    bare ``git commit`` would have swept it in, which is why ``git add <rel>``
+    alone was never enough.
 
     A commit that fails — no ``user.name`` on a fresh clone, a hook, a path
     ``.gitignore`` reaches — leaves *rels* unstaged again, so the tree degrades
@@ -4472,14 +5478,48 @@ def _commit_docs_files(repo_root: Path, config, message: str,
     at all is a reason, not a traceback; ``check`` in particular must keep
     passing in a repo whose ``git`` is off PATH, as it did before 1.26.0.
 
-    *pull* rebases onto the upstream first, which is right for an edit to a
-    file other machines also edit (a tick, an archive) and wrong for a file
-    that did not exist a moment ago — ``ensure_insights_inbox`` passes
-    ``False`` so that ``check``, a gate, never fetches on the caller's behalf.
+    *pull* rebases the new commit onto the upstream **afterwards**, which is
+    right for an edit to a file other machines also edit (a tick, an archive)
+    and wrong for a file that did not exist a moment ago —
+    ``ensure_insights_inbox`` passes ``False`` so that ``check``, a gate,
+    never fetches on the caller's behalf. The order is the whole point: every
+    caller has already written its edit to the worktree, and ``git pull
+    --rebase`` refuses over an unstaged change before it starts, so a pull
+    *ahead* of the commit never ran in the ordinary path and two machines
+    ticking the same inbox diverged until push time (issue #180). Committing
+    first leaves a clean tree in the common case, the rebase is real, and a
+    conflict then stops **inside** a rebase — a state with a marker, which
+    `_stalled_pull` names and routes the same way `aide merge` does.
+
+    A tree already stopped in an earlier operation is refused *before* the
+    commit, and for every caller, *pull* or not — git lets a commit through
+    once the conflicts are staged, and a bookkeeping commit in the middle of
+    someone's rebase is the state this exists to prevent (issue #178); the
+    guard reads the git directory and fetches nothing, so ``check`` stays a
+    gate. Two shapes the pull itself deliberately does not touch. Under
+    ``git.mode = "local"``, or with no ``origin``, there is nothing to rebase
+    onto and the other sites skip it too. And a ``HEAD`` carrying a merge
+    commit origin has not seen is never rebased by a bookkeeping verb: the
+    rebase drops the merge and replays both parents, bringing back every
+    conflict resolved inside it (issue #133) — and `aide merge` reaches here
+    with exactly that commit on ``HEAD``, having integrated origin itself a
+    moment earlier, so the skip is silent there by design.
     """
+    joined = ", ".join(rels)
     try:
-        if pull:
-            git(["pull", "--rebase"], repo_root, check=False)
+        what = _interrupted_op(repo_root)
+        if what is not None:
+            # Refused, and refused HERE rather than left to `git commit`: with
+            # the conflicts staged git accepts a commit mid-rebase, and the
+            # callers that reach this discard the reason, so a verb would
+            # print its success line over a tick sitting in the middle of an
+            # unfinished operation. Unconditional on `pull`: the one caller
+            # that passes False (`ensure_insights_inbox`) is creating a file,
+            # and a new file committed mid-rebase is the same misplaced commit.
+            reason = (f"the repository is stopped in an earlier operation "
+                      f"— {_stopped_state(repo_root, config, what)}")
+            print(f"aide: could not commit {joined} — {reason}", file=sys.stderr)
+            return reason
         for rel in rels:
             git(["add", "--", rel], repo_root, check=False)
         res = git(["commit", "-m", message, "--", *rels], repo_root, check=False)
@@ -4490,8 +5530,7 @@ def _commit_docs_files(repo_root: Path, config, message: str,
                 return "nothing to commit"
             first = next((l.strip() for l in text.splitlines() if l.strip()),
                          "git commit failed")
-            print(f"aide: could not commit {', '.join(rels)} — {first}",
-                  file=sys.stderr)
+            print(f"aide: could not commit {joined} — {first}", file=sys.stderr)
             return first
         # One path per line, never whitespace-split: a `docs_dir` with a space
         # in it must match its own entry. `core.quotepath=false` keeps a
@@ -4499,19 +5538,51 @@ def _commit_docs_files(repo_root: Path, config, message: str,
         out = git(["-c", "core.quotepath=false", "show", "--name-only",
                    "--format=", "HEAD"], repo_root, check=False).stdout
         shown = [line.strip() for line in out.splitlines() if line.strip()]
+        missing = [r for r in rels if r not in shown]
+        if missing:
+            # `add` was refused (an ignored path, say) and `commit -- <path>`
+            # then committed the rest of the list: a commit happened, the file
+            # is not in it, and "committed" would be a lie about the one path
+            # that matters. Printed as well as returned, like every other
+            # arm: the callers discard the return, and `insights archive`
+            # reaches this with the archive file it just created.
+            reason = f"{', '.join(missing)} is not in the commit (ignored by .gitignore?)"
+            print(f"aide: {reason}", file=sys.stderr)
+            return reason
+        mode = str(config["git"].get("mode", "auto-merge"))
+        if not pull or mode == "local" or not _has_origin(repo_root):
+            return None
+        if _has_unpushed_merge(repo_root):
+            return None
+        pulled = git(["pull", "--rebase"], repo_root, check=False)
     except (OSError, subprocess.SubprocessError) as exc:
         # Loud here, not only in the return: three callers (`progress set`,
         # `tick`, `archive`) discard the reason, and a verb that prints its
         # success line over an uncommitted edit is the failure this names.
         why = f"git could not be run ({exc.__class__.__name__}: {exc})"
-        print(f"aide: could not commit {', '.join(rels)} — {why}", file=sys.stderr)
+        print(f"aide: could not commit {joined} — {why}", file=sys.stderr)
         return why
-    missing = [r for r in rels if r not in shown]
-    if missing:
-        # `add` was refused (an ignored path, say) and `commit -- <path>` then
-        # committed the rest of the list: a commit happened, the file is not in
-        # it, and "committed" would be a lie about the one path that matters.
-        return f"{', '.join(missing)} is not in the commit (ignored by .gitignore?)"
+    stalled = _stalled_pull(repo_root, config, pulled)
+    if stalled is not None:
+        # The commit exists and is being replayed; the tree is now mid-rebase
+        # and the next verb will meet it. Said in full, because the callers
+        # discard the return and the one verb that ends the usual case
+        # (`insights resolve`) is named inside `stalled`.
+        print(f"aide: {joined} is committed here, but replaying that commit "
+              f"onto origin stopped: {stalled}", file=sys.stderr)
+        return stalled
+    if pulled.returncode != 0:
+        # Non-zero with the tree untouched: unstaged changes beside the tick
+        # (git refuses to start over ANY of them), an origin that cannot be
+        # reached, a branch with no upstream. The commit is complete and
+        # local, so this is a notice rather than a reason — but a silent one
+        # would have the docstring promising a convergence that did not
+        # happen, which is the state issue #180 was filed on.
+        why = next((l.strip() for l in (pulled.stderr + pulled.stdout).splitlines()
+                    if l.strip()), "git gave no reason")
+        print(f"aide: {joined} is committed here but NOT rebased onto origin — "
+              f"{why}. The commit is in this repository only until a later "
+              f"pull or push settles it.", file=sys.stderr)
     return None
 
 
@@ -4629,8 +5700,10 @@ def cmd_insights(args: argparse.Namespace) -> int:
     each triage pass an agent reading and hand-parsing the whole file, which is
     the cost that kept triage getting deferred. ``list`` answers "what is
     outstanding" without loading the archive with it, ``tick`` performs the one
-    in-place edit the immutability rule permits, and ``archive`` keeps the live
-    file the size of its working set.
+    in-place edit the immutability rule permits, ``archive`` keeps the live
+    file the size of its working set, and ``resolve`` merges the file's one
+    recurring conflict — two branches that each appended — without a hand ever
+    retyping a claim.
     """
     import datetime as _dt
     repo_root = find_repo_root(args.repo)
@@ -4662,6 +5735,9 @@ def cmd_insights(args: argparse.Namespace) -> int:
     if args.action == "tick":
         return _cmd_insights_tick(path, text, ddir_rel, repo_root, config, args,
                                   _dt.date.today().isoformat())
+    if args.action == "resolve":
+        return _cmd_insights_resolve(path, text, ddir_rel, repo_root, args,
+                                     _dt.date.today().isoformat())
     return _cmd_insights_archive(path, text, ddir, ddir_rel, repo_root, config, args)
 
 
@@ -4784,6 +5860,113 @@ def _cmd_insights_archive(path: Path, text: str, ddir: Path, ddir_rel: str,
     return 0
 
 
+def _is_unmerged(repo_root: Path, rel: str) -> bool:
+    """Does git hold *rel* unmerged in the index — i.e. is it still conflicted?
+
+    Kept apart from `_merge_base_text` because the two questions have different
+    answers on an **add/add** conflict, where both branches created the file:
+    the index then holds stages 2 and 3 and **no stage 1**, so the merge base
+    is genuinely absent while the path is very much unmerged. That shape is
+    routine here — `check`, `claim` and `queue start` each create the inbox
+    from the template when it is missing — and conflating the two made the
+    verb decline to stage exactly the conflict a consumer hits first.
+    """
+    if not (repo_root / ".git").exists():
+        return False
+    try:
+        out = git(["ls-files", "-u", "--", rel], repo_root, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return out.returncode == 0 and bool(out.stdout.strip())
+
+
+def _merge_base_text(repo_root: Path, rel: str) -> Optional[str]:
+    """Stage 1 of *rel* — the merge base of a stalled merge or rebase, or None.
+
+    What turns the resolver's append check from an inference into a fact.
+    ``None`` covers every way it can be absent: no repository, no conflict, an
+    add/add conflict that has no base at all, or git off PATH. The resolver
+    falls back to comparing the two sides alone.
+    """
+    if not _is_unmerged(repo_root, rel):
+        return None
+    try:
+        out = git(["show", f":1:{rel}"], repo_root, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout if out.returncode == 0 else None
+
+
+def _cmd_insights_resolve(path: Path, text: str, ddir_rel: str, repo_root: Path,
+                          args: argparse.Namespace, today: str) -> int:
+    """Resolve a conflicted inbox as the union of both sides' entries.
+
+    The verb exists because the alternative is an agent retyping the block, and
+    that is exactly where conventions.md §1's "never reword a captured claim"
+    gets broken — the merge conflict is the one moment the whole file is in
+    front of something willing to rewrite it.
+    """
+    rel = f"{ddir_rel}/insights.md"
+    if not any(rx.match(line) for line in text.splitlines()
+               for rx in _CONFLICT_LINT_RES):
+        if not _is_unmerged(repo_root, rel):
+            print(f"aide insights resolve: no conflict markers in {rel} — "
+                  f"nothing to resolve")
+            return 0
+        # Markers gone but the path still unmerged: someone resolved the file
+        # by hand and stopped short of staging it. Finishing that is the same
+        # end state this verb reaches on its own, and leaving it undone is how
+        # an unattended run stalls on `git commit` with nothing in the message
+        # naming the cause.
+        add = git(["add", "--", rel], repo_root, check=False)
+        if add.returncode != 0:
+            print(f"aide insights resolve: {rel} has no conflict markers but "
+                  f"git still holds it unmerged, and staging it failed "
+                  f"({add.stderr.strip()}) — `git add {rel}` before continuing",
+                  file=sys.stderr)
+            return 1
+        print(f"aide insights resolve: no conflict markers in {rel}, but git "
+              f"still held it unmerged — staged it as it stands, so the merge "
+              f"or rebase can continue. Nothing was rewritten; if a claim was "
+              f"reworded resolving it by hand, §1 says that is the thing to "
+              f"look at.")
+        return 0
+    base = _merge_base_text(repo_root, rel)
+    merged, notes, refusals = resolve_insights_text(text, args.date or today, base)
+    if refusals:
+        for why in refusals:
+            print(f"aide insights resolve: {why}", file=sys.stderr)
+        print(f"aide insights resolve: {rel} left exactly as it is — the "
+              f"markers are still in place and the claims are still both "
+              f"there", file=sys.stderr)
+        return 1
+    for note in notes:
+        print(f"  {note}")
+    if args.dry_run:
+        # The union itself, not just the counts: reviewing the merge before it
+        # is written is the whole of what --dry-run is for, and every place
+        # that documents the flag says it prints what would be written.
+        print(f"--- {rel} would become ---")
+        print(merged, end="" if merged.endswith("\n") else "\n")
+        print(f"aide insights resolve: dry run — {rel} not written")
+        return 0
+    path.write_text(merged, encoding="utf-8")
+    staged = ""
+    # Asked again rather than inferred from `base`: an add/add conflict has no
+    # merge base and is still unmerged, and writing the file does not touch the
+    # index, so this is the same answer it would have given a moment ago.
+    if _is_unmerged(repo_root, rel):
+        add = git(["add", "--", rel], repo_root, check=False)
+        staged = (" and staged it, so the conflict is marked resolved; finish "
+                  "the merge or rebase as usual"
+                  if add.returncode == 0 else
+                  f" but could NOT stage it ({add.stderr.strip()}) — `git add "
+                  f"{rel}` before continuing")
+    print(f"aide insights resolve: wrote {rel} as the union of both sides"
+          f"{staged}")
+    return 0
+
+
 def cmd_queue(args: argparse.Namespace) -> int:
     if args.action == "start":
         return _queue_start(args)
@@ -4902,17 +6085,175 @@ def resolve_test_command(repo_root: Path, config: Dict[str, Dict[str, object]]) 
     return raw
 
 
+#: Written beside the venv's own files by `env --bootstrap`, read by
+#: `env_report`: the exit status of the install that populated the venv. A
+#: `pip install -e .[dev]` that aborts partway leaves the editable project
+#: importable and the dependency closure unfinished, so an import check alone
+#: reads a half-install as healthy (issue #166). The record is the one thing
+#: that distinguishes them.
+_BOOTSTRAP_RECORD = "aide-bootstrap.json"
+
+
+def _venv_dir(repo_root: Path, config: Dict[str, Dict[str, object]]) -> Path:
+    return repo_root / str(config["python"].get("venv", ".venv"))
+
+
+def _configured_interpreter(config: Dict[str, Dict[str, object]]) -> List[str]:
+    """The command `--bootstrap` builds the venv with, else the Python running
+    this CLI.
+
+    `[python] interpreter` is either a path or a command line. A value that
+    names an existing file is the whole command, spaces and all — Windows's
+    own default install lives under `Program Files`, and splitting that is
+    what turned a valid key into "cannot be run". Anything else is a command
+    line (`py -3.12`, `"C:\\Some Dir\\python.exe" -X utf8`), split the way
+    the platform's shell would: shlex on POSIX; on Windows in non-POSIX mode,
+    which keeps backslashes and leaves the quotes on a quoted token for this
+    to strip.
+    """
+    raw = str(config["python"].get("interpreter", "") or "").strip()
+    if not raw:
+        return [sys.executable]
+    if Path(raw).is_file():
+        return [raw]
+    if os.name == "nt":
+        return [token.strip('"') for token in shlex.split(raw, posix=False)]
+    return shlex.split(raw)
+
+
+def _test_runner_module(config: Dict[str, Dict[str, object]]) -> Optional[str]:
+    """The module `test_command` runs with ``python -m``, if that is its shape.
+
+    Only that shape is answerable from inside the venv: `resolve_test_command`
+    binds a leading `python` to the venv, so `python -m pytest` runs *the
+    venv's* pytest and its absence is the venv's fault. A bare `pytest` or a
+    `make test` resolves on PATH, and whether PATH has it is not a property
+    of the venv this reports on.
+    """
+    raw = str(config["python"].get("test_command", "python -m pytest")).split()
+    if len(raw) >= 3 and raw[0] == "python" and raw[1] == "-m":
+        return raw[2]
+    return None
+
+
+def _python_version(command: List[str], cwd: Path) -> Optional[str]:
+    """``major.minor`` of the interpreter *command* starts, or None when it
+    cannot be run at all."""
+    try:
+        res = subprocess.run(
+            [*command, "-c", "import sys; print('%d.%d' % sys.version_info[:2])"],
+            cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    if res.returncode != 0:
+        return None
+    return res.stdout.strip() or None
+
+
+def _read_bootstrap_record(venv: Path) -> Optional[Dict[str, object]]:
+    path = venv / _BOOTSTRAP_RECORD
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def env_report(repo_root: Path, config: Dict[str, Dict[str, object]]) -> Tuple[str, str]:
+    """``(status, detail)`` for the project venv: 'ok', 'missing' or 'stale'.
+
+    'ok' is a claim the loop acts on — the validator reads it and runs the
+    suite — so it is only made when every question this can ask of the venv
+    is answered: the venv exists; the last `--bootstrap` that built it
+    finished; it is the Python `[python] interpreter` names, where that is
+    set and runnable; `import_check` imports; and the module `test_command`
+    runs with `-m` imports too. A venv with no `pytest` cannot report OK
+    (issue #166). The detail is one sentence for the report line.
+    """
+    vpy = venv_python(repo_root, config)
+    venv = _venv_dir(repo_root, config)
+    if not vpy.exists():
+        return "missing", f"no venv at {venv}"
+    record = _read_bootstrap_record(venv)
+    if record is not None and record.get("exit") not in (0, None):
+        return "stale", (f"the last `env --bootstrap` exited "
+                         f"{record.get('exit')}, so its install did not finish")
+    facts: List[str] = []
+    actual = _python_version([str(vpy)], repo_root)
+    if actual is None:
+        return "stale", f"{vpy} cannot be run"
+    facts.append(f"venv is Python {actual}")
+    configured = str(config["python"].get("interpreter", "") or "").strip()
+    if configured:
+        wanted = _python_version(_configured_interpreter(config), repo_root)
+        if wanted is None:
+            facts.append(f"[python] interpreter '{configured}' cannot be run "
+                         f"on this machine, so the venv was judged on its own")
+        elif wanted != actual:
+            return "stale", (f"venv is Python {actual} but [python] interpreter "
+                             f"'{configured}' is {wanted} — rebuild it")
+        else:
+            facts[-1] += f" ({configured})"
+    for what, module in (("import_check", str(config["python"].get("import_check", "") or "").strip()),
+                         ("test_command", _test_runner_module(config))):
+        if not module:
+            continue
+        res = subprocess.run([str(vpy), "-c", f"import {module}"], cwd=str(repo_root),
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            why = ("its test runner is not installed, so `python -m "
+                   f"{module}` cannot run" if what == "test_command"
+                   else f"`import {module}` fails")
+            return "stale", why
+        facts.append(f"`import {module}` succeeds")
+    return "ok", "; ".join(facts)
+
+
 def env_status(repo_root: Path, config: Dict[str, Dict[str, object]]) -> str:
     """Return 'ok', 'missing', or 'stale' for the project venv."""
+    return env_report(repo_root, config)[0]
+
+
+#: Seconds a ``[validation]`` expression may run. Generous — importing a GPU
+#: stack and initialising its driver takes seconds — but finite: a profile is
+#: evaluated inside unattended runs, where a hang stalls the loop silently.
+PROFILE_TIMEOUT = 120
+
+
+def evaluate_profile(repo_root: Path, config: Dict[str, Dict[str, object]],
+                     expr: str, timeout: float = PROFILE_TIMEOUT
+                     ) -> Tuple[bool, str]:
+    """``(satisfied, detail)`` for a ``[validation]`` expression, evaluated in
+    the project venv (this interpreter when there is none).
+
+    It evaluates the expression and nothing else: whether this machine
+    provides the capability, never whether the gated path works. *detail* is
+    the last stderr line, or why the expression could not be evaluated.
+
+    An expression that times out, or an interpreter that cannot be started, is
+    **not satisfied**: the reading under which validation records
+    ``❓ Unverified`` rather than passing. The one evaluation
+    ``aide env --profile`` and ``aide status --profiles`` share, so the two can
+    never disagree about whether this machine has a capability.
+    """
     vpy = venv_python(repo_root, config)
-    if not vpy.exists():
-        return "missing"
-    module = str(config["python"].get("import_check", "") or "").strip()
-    if not module:
-        return "ok"
-    res = subprocess.run([str(vpy), "-c", f"import {module}"],
-                         cwd=str(repo_root), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return "ok" if res.returncode == 0 else "stale"
+    interpreter = str(vpy) if vpy.exists() else sys.executable
+    code = f"import sys\nsys.exit(0 if ({expr}) else 1)"
+    try:
+        # §6: name the codec — a traceback carrying a non-ASCII path decodes
+        # differently under a Windows locale, and this text is reported to a user.
+        res = subprocess.run([interpreter, "-c", code], cwd=str(repo_root),
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             encoding="utf-8", errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, f"timed out after {timeout:g}s"
+    except OSError as exc:
+        return False, f"interpreter '{interpreter}' cannot be run: {exc}"
+    detail = (res.stderr or "").strip().splitlines()
+    return res.returncode == 0, detail[-1] if detail else ""
 
 
 def cmd_env(args: argparse.Namespace) -> int:
@@ -4928,39 +6269,61 @@ def cmd_env(args: argparse.Namespace) -> int:
             print(f"aide env: unknown profile '{args.profile}' — [validation] defines: {known}",
                   file=sys.stderr)
             return 2
-        vpy = venv_python(repo_root, config)
-        interpreter = str(vpy) if vpy.exists() else sys.executable
-        code = f"import sys\nsys.exit(0 if ({expr}) else 1)"
-        # §6: name the codec — a traceback carrying a non-ASCII path decodes
-        # differently under a Windows locale, and this text is reported to a user.
-        res = subprocess.run([interpreter, "-c", code], cwd=str(repo_root),
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             encoding="utf-8", errors="replace")
-        if res.returncode == 0:
+        satisfied, detail = evaluate_profile(repo_root, config, expr)
+        if satisfied:
             print(f"aide env: profile '{args.profile}' satisfied")
             return 0
-        detail = (res.stderr or "").strip().splitlines()
-        suffix = f" ({detail[-1]})" if detail else ""
+        suffix = f" ({detail})" if detail else ""
         print(f"aide env: profile '{args.profile}' NOT satisfied{suffix} — "
               f"validation gated on it must record '❓ Unverified', never a silent pass")
         return 1
 
-    status = env_status(repo_root, config)
+    status, detail = env_report(repo_root, config)
     if status == "ok":
-        print("aide env: OK (venv present, import succeeds)")
+        print(f"aide env: OK ({detail})")
         return 0
     if not args.bootstrap:
-        print(f"aide env: {status} — run 'python .aide/scripts/aide.py env --bootstrap' to build it")
+        print(f"aide env: {status} — {detail}; run "
+              f"'python .aide/scripts/aide.py env --bootstrap' to build it")
         return 1
-    venv = repo_root / str(config["python"].get("venv", ".venv"))
+    venv = _venv_dir(repo_root, config)
     bootstrap = str(config["python"].get("bootstrap", "pip install -e .[dev]")).split()
-    print(f"aide env: bootstrapping {venv} …")
-    subprocess.run([sys.executable, "-m", "venv", str(venv)], cwd=str(repo_root), check=True)
+    interpreter = _configured_interpreter(config)
+    # A stale venv is rebuilt from nothing: `-m venv` over an existing tree
+    # re-points the scripts and pyvenv.cfg at the new interpreter and keeps
+    # the old site-packages beside them, which is neither venv.
+    venv_args = ["-m", "venv", *(["--clear"] if venv.exists() else []), str(venv)]
+    print(f"aide env: bootstrapping {venv} with {' '.join(interpreter)} …")
+    try:
+        made = subprocess.run([*interpreter, *venv_args], cwd=str(repo_root), check=False)
+    except OSError as exc:
+        print(f"aide env: [python] interpreter '{' '.join(interpreter)}' cannot "
+              f"be run ({exc}) — nothing was built. Install it, or name one "
+              f"this machine has in aide.toml.", file=sys.stderr)
+        return 1
+    if made.returncode != 0:
+        print(f"aide env: '{' '.join(interpreter)} -m venv' exited "
+              f"{made.returncode} — nothing was built.", file=sys.stderr)
+        return 1
     vpy = venv_python(repo_root, config)
     cmd = [str(vpy), "-m", *bootstrap] if bootstrap and bootstrap[0] == "pip" else [str(vpy), *bootstrap]
-    subprocess.run(cmd, cwd=str(repo_root), check=True)
-    final = env_status(repo_root, config)
-    print(f"aide env: bootstrap done ({final})")
+    installed = subprocess.run(cmd, cwd=str(repo_root), check=False)
+    # The record is what lets a later `env` tell a finished install from one
+    # that aborted after the editable project landed (issue #166). Written
+    # on both outcomes, so a completed rebuild clears an earlier failure.
+    (venv / _BOOTSTRAP_RECORD).write_text(json.dumps({
+        "exit": installed.returncode, "command": cmd,
+        "interpreter": interpreter,
+        "python": _python_version([str(vpy)], repo_root)}, indent=2) + "\n",
+        encoding="utf-8")
+    if installed.returncode != 0:
+        print(f"aide env: bootstrap FAILED — '{' '.join(cmd)}' exited "
+              f"{installed.returncode}. The venv exists but its install did "
+              f"not finish, and `env` reports it stale until a bootstrap "
+              f"completes.", file=sys.stderr)
+        return 1
+    final, detail = env_report(repo_root, config)
+    print(f"aide env: bootstrap done ({final}: {detail})")
     return 0 if final == "ok" else 1
 
 
@@ -5042,13 +6405,14 @@ def _pick_item(repo_root: Path, config, queue_text: str,
     gate naming items (directly, or via `stage N`) skips just those, so the
     queue keeps producing other work; an `all` gate stops everything, which is
     the point of declaring one — a pending decision that could invalidate what
-    comes next must not have the loop racing ahead of it.
+    comes next must not have the loop racing ahead of it. A gates row too
+    mis-shaped to read stops everything too, since what it holds is unknown.
     """
     ppath = docs_dir(repo_root, config) / "progress.md"
     plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
     _, _, item_status = _parse_item_status(plines) if plines else ([], [], {})
     gate_blocked, block_everything = gate_blocked_items(plines)
-    if block_everything:
+    if block_everything or unreadable_gate_rows(plines):
         return None
     # Anchored resolution, like every other branch->item call site since 1.5.0.
     # The old unanchored search read `aide/queue-016` as item 016 and
@@ -5128,11 +6492,23 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     Two of the reasons are ordinary — a claim in flight, a dependency not
     landed — and keep exit 0. An **unpublished** claim is not: it is a `claim`
     whose push failed, holding an item on evidence no other checkout can see,
-    so it exits 1 and says how to finish or release it.
+    so it exits 1 and says how to finish or release it. Nor is an
+    **unreadable gate row**, which holds every item on a gate nobody can read:
+    exit 1, naming the row.
     """
     ppath = docs_dir(repo_root, config) / "progress.md"
     plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
     _, _, item_status = _parse_item_status(plines) if plines else ([], [], {})
+
+    unreadable = unreadable_gate_rows(plines)
+    if unreadable:
+        print("none left — every item is held by a human-gate row aide cannot "
+              "read, since what it blocks is unknown:")
+        for lineno, problem in unreadable:
+            print(f"  progress.md:{lineno}: a row that {problem}")
+        print("  Repair the row — a '|' inside a cell is the usual cause — and "
+              "claim again. `aide check` names it too.")
+        return 1
     # Queue scan order, not numeric order: `_pick_item` walks the candidate
     # queues in order and each queue in its own order, so a report that
     # renumbered the items it rejected would not be describing the same walk.
@@ -5342,6 +6718,156 @@ _INTERRUPTED_OPS: Tuple[Tuple[str, str], ...] = (
 )
 
 
+def _unmerged_paths(repo_root: Path) -> List[str]:
+    """Every path git currently holds unmerged, repo-relative, sorted."""
+    try:
+        out = git(["diff", "--name-only", "--diff-filter=U"], repo_root, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    return sorted({line.strip() for line in out.stdout.splitlines() if line.strip()})
+
+
+def _interrupted_op(repo_root: Path) -> Optional[str]:
+    """The in-progress git operation this tree is stopped in, or ``None``.
+
+    One reading of `_INTERRUPTED_OPS`, shared by the callers that ask the
+    question for different reasons: `_unsafe_tree_state` asks it *before*
+    acting, `_stalled_pull` asks it *after* a `pull --rebase` came back
+    non-zero. The second is what tells a failed pull that stopped on a
+    conflict apart from one that never started — no upstream configured, an
+    unreachable origin — since only the former leaves a marker behind.
+    """
+    gdir = _git_dir(repo_root)
+    for marker, what in _INTERRUPTED_OPS:
+        if (gdir / marker).exists():
+            return what
+    return None
+
+
+def _continue_command(repo_root: Path) -> str:
+    """What finishes the operation this tree is stopped in, once staged."""
+    gdir = _git_dir(repo_root)
+    if (gdir / "rebase-merge").exists() or (gdir / "rebase-apply").exists():
+        return "git rebase --continue"
+    if (gdir / "CHERRY_PICK_HEAD").exists():
+        return "git cherry-pick --continue"
+    if (gdir / "REVERT_HEAD").exists():
+        return "git revert --continue"
+    return "git commit --no-edit"
+
+
+def _abort_command(repo_root: Path) -> str:
+    """What throws away the operation this tree is stopped in.
+
+    The mirror of `_continue_command`, and derived the same way rather than
+    written as a fixed pair: `_stalled_pull` reaches this with a cherry-pick or
+    a revert marker whenever the pull refused because one was *already* in
+    progress, and `git rebase --abort` is not merely unhelpful there — it fails.
+    """
+    gdir = _git_dir(repo_root)
+    if (gdir / "rebase-merge").exists() or (gdir / "rebase-apply").exists():
+        return "git rebase --abort"
+    if (gdir / "CHERRY_PICK_HEAD").exists():
+        return "git cherry-pick --abort"
+    if (gdir / "REVERT_HEAD").exists():
+        return "git revert --abort"
+    return "git merge --abort"
+
+
+def _inbox_conflict_hint(repo_root: Path,
+                         config: Dict[str, Dict[str, object]]) -> Optional[str]:
+    """Name `insights resolve` when the stalled operation is stuck on the inbox.
+
+    The verb is useless to the role that needs it unless the thing that stalls
+    says so. `insights.md` is append-only and every role captures into it
+    (`_ALWAYS_AUTHORISED`), so two open branches conflict here as a matter of
+    course — while the agent that runs `aide merge` is the `validator`, which
+    preloads a different skill and has read nothing about the inbox. A message
+    at the point of the stall reaches every role, every runtime, and a human,
+    without any of them having had to read anything first.
+
+    It also says whether the inbox is the *only* unmerged path, because that
+    decides whether the verb finishes the job or is merely one of the steps.
+    """
+    ddir = docs_dir(repo_root, config)
+    try:
+        rel = (ddir / "insights.md").relative_to(repo_root).as_posix()
+    except ValueError:          # a docs_dir outside the repo: no relative name
+        return None
+    unmerged = _unmerged_paths(repo_root)
+    if rel not in unmerged:
+        return None
+    verb = "python .aide/scripts/aide.py insights resolve"
+    warn = (f"Do NOT resolve {rel} by hand — it is append-only, so the "
+            f"conflict is a union of entries, and retyping the block is where "
+            f"a captured claim gets reworded (conventions.md §1).")
+    others = [p for p in unmerged if p != rel]
+    if not others:
+        return (f"{rel} is the ONLY unmerged path. {warn} `{verb}` writes the "
+                f"union and stages it (add --dry-run to read it first), then "
+                f"`{_continue_command(repo_root)}` finishes this.")
+    return (f"{rel} is one of {len(unmerged)} unmerged paths. {warn} `{verb}` "
+            f"settles that one; the rest are yours: {', '.join(others)}.")
+
+
+def _stalled_pull(repo_root: Path, config: Dict[str, Dict[str, object]],
+                  res: "subprocess.CompletedProcess") -> Optional[str]:
+    """One line for a ``pull --rebase`` that stopped mid-way, else ``None``.
+
+    ``git pull --rebase`` comes back non-zero for two unrelated reasons and
+    only one of them is a state the caller must not act on. A pull that never
+    started — no upstream for this branch, an origin that cannot be reached, a
+    refused fetch — leaves the repository byte-for-byte as it was, and every
+    call site below has always continued past it into a local operation that
+    is still correct; making that a refusal would stall an unattended run over
+    a missing remote. A pull that stopped **inside** the rebase leaves
+    conflicts in the index and a marker in the git directory, and there the
+    next `merge`, `commit` or `switch` cannot run at all — git refuses, naming
+    that second operation rather than the rebase that caused it, so the
+    operator reads a failure of something they did not ask for while the tree
+    sits in a state neither message describes (issue #178).
+
+    So the discriminator is the marker, not the exit code — and the message
+    names the operation git reports rather than assuming a rebase, since a
+    pull that refused because a cherry-pick or a merge was already under way
+    lands here with that marker and no rebase of its own. The message names
+    `insights resolve` when the inbox is what stopped it: `insights.md` is
+    append-only and every role captures into it, which makes it the conflict
+    this loop produces as a matter of course, and none of the three roles that
+    reach these call sites has read anything about it.
+    """
+    if res.returncode == 0:
+        return None
+    what = _interrupted_op(repo_root)
+    if what is None:
+        return None
+    return f"git pull --rebase could not complete — {_stopped_state(repo_root, config, what)}"
+
+
+def _stopped_state(repo_root: Path, config: Dict[str, Dict[str, object]],
+                   what: str) -> str:
+    """*what* is in progress, and the two ways out of it — one sentence.
+
+    Shared by `_stalled_pull` (a pull that stopped, or refused because *what*
+    was already under way) and the guard `_commit_docs_files` runs before it
+    commits, so both name the same state the same way. Never "the rebase
+    stopped": *what* is whichever of `_INTERRUPTED_OPS` is in progress, and a
+    cherry-pick ALREADY under way is the reachable case at the committer.
+    Naming the operation git reports, and the abort that matches it, is the
+    whole point — a message that guessed `git rebase --abort` there would hand
+    the reader a command that fails. `insights resolve` is named when the
+    inbox is what stopped it.
+    """
+    hint = _inbox_conflict_hint(repo_root, config)
+    return (f"{what}."
+            + (f" {hint}" if hint else "")
+            + f" Finish that state — resolve and stage, then "
+              f"`{_continue_command(repo_root)}` — or abort it "
+              f"(`{_abort_command(repo_root)}`), then re-run.")
+
+
 def _dirty_paths(repo_root: Path) -> List[str]:
     """Tracked paths carrying uncommitted changes, as git reports them.
 
@@ -5388,10 +6914,9 @@ def _unsafe_tree_state(repo_root: Path,
     genuinely collides with one aborts with git's own message through the merge
     path below. Refusing on them would block the common case to catch nothing.
     """
-    gdir = _git_dir(repo_root)
-    for marker, what in _INTERRUPTED_OPS:
-        if (gdir / marker).exists():
-            return what
+    interrupted = _interrupted_op(repo_root)
+    if interrupted:
+        return interrupted
     paths = _dirty_paths(repo_root)
     if not paths:
         return None
@@ -5432,7 +6957,59 @@ def _has_unpushed_merge(repo_root: Path) -> bool:
     return res.returncode == 0 and bool(res.stdout.strip())
 
 
-def _restore_claim_branch(repo_root: Path, branch: str, tip: str) -> None:
+class _Terminated(BaseException):
+    """Raised in place of a terminating signal, so a `finally` can run.
+
+    Deliberately a `BaseException`: it is not an error the surrounding code
+    should ever catch and continue past, exactly like the `KeyboardInterrupt`
+    it stands beside.
+    """
+
+
+@contextlib.contextmanager
+def _restore_on_signal(signals: Tuple[str, ...] = ("SIGTERM", "SIGHUP")):
+    """Context manager: turn terminating signals into `_Terminated` inside it.
+
+    `KeyboardInterrupt` already unwinds the stack, so a `try` arm covers Ctrl-C
+    for free. `SIGTERM` does not — Python's default handler ends the process
+    where it stands, no `finally`, no `except` — and SIGTERM is exactly how the
+    unattended cases in issue #174 arrive: a CI job's timeout, a runner's wall
+    clock, a supervisor tearing down a stuck step. Without this, the crash-safe
+    restore below would cover only the case a human is present to watch.
+
+    `SIGKILL` and a hard OOM kill remain uncoverable by construction, which is
+    why the refusal in `cmd_merge` (issue #174, half 2) exists as well: this
+    makes the interrupted run tidy up, that makes the *next* run safe whether
+    or not it did.
+
+    Best effort about where it can be installed: `signal.signal` is main-thread
+    only and not every name exists on every platform (Windows has no SIGHUP).
+    A signal it cannot claim is simply left alone.
+    """
+    def _raise(signum, _frame):
+        raise _Terminated(signum)
+
+    previous = []
+    for name in signals:
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            previous.append((sig, signal.signal(sig, _raise)))
+        except (ValueError, OSError, RuntimeError):
+            continue
+    try:
+        yield
+    finally:
+        for sig, old in previous:
+            try:
+                signal.signal(sig, old)
+            except (ValueError, OSError, RuntimeError):
+                pass
+
+
+def _restore_claim_branch(repo_root: Path, branch: str, tip: str,
+                          base: Optional[str] = None) -> None:
     """Put back a claim branch deleted ahead of a step that then failed.
 
     `merge` deletes the claim branch BEFORE the post-merge test run (so the run
@@ -5441,9 +7018,25 @@ def _restore_claim_branch(repo_root: Path, branch: str, tip: str) -> None:
     nothing and the retry dies at "no claim branch found" — with the work
     merged, un-ticked and unpushed, which is the state a human least wants to
     meet a refusal in.
+
+    Re-runnable means *against the same base*, not merely runnable. `git
+    branch -d` takes the branch's config section with the ref, and
+    `branch.<claim>.aide-base` is the only input `resolve_base` has beyond
+    `--base` — so a retry that found the ref put back resolved its base to
+    `main_branch` and said nothing. A consumer's invited re-run fast-forwarded
+    a whole queue branch onto `main` and pushed it, past its
+    one-reviewed-PR-per-queue gate, with nothing in the output naming `main`
+    (issue #167). *base* is the base THIS run resolved to and merged into —
+    not what the branch recorded beforehand: a run given `--base` landed
+    somewhere the record did not say, and a retry must land there again. It
+    is written unconditionally, so a `branch -d` that refused (record intact,
+    and possibly stale against `--base`) is corrected the same way as one
+    that succeeded.
     """
     if tip and branch not in _local_branches(repo_root):
         git(["branch", branch, tip], repo_root, check=False)
+    if base:
+        _record_branch_base(repo_root, branch, base)
 
 
 def _promote_item_to_complete(repo_root: Path, config, number: int,
@@ -5462,11 +7055,13 @@ def _promote_item_to_complete(repo_root: Path, config, number: int,
               f"not found, so its status was NOT recorded", file=sys.stderr)
         return
     text = progress_path.read_text(encoding=_ENCODING)
-    updated = set_item_status(text, number, "complete")
+    splits: List[BulletSplit] = []
+    updated = set_item_status(text, number, "complete", splits)
     if updated == text:
         return
     progress_path.write_text(updated, encoding="utf-8")
     print(f"item {number:03d}: set to done (merged)")
+    _report_bullet_splits(number, updated.splitlines(), splits)
     if not no_commit and (repo_root / ".git").exists():
         _commit_progress(repo_root, config, number, "done")
 
@@ -5486,7 +7081,41 @@ def cmd_merge(args: argparse.Namespace) -> int:
     # queue by hand — the queue file, a roadmap deliverable and nine item specs
     # lived only on the queue branch and had to land as one reviewed PR, so each
     # item needed to merge *back into* that branch.
+    recorded_base = _recorded_branch_base(repo_root, branch)
     main = resolve_base(repo_root, config, args.base, branch)
+    # Named on every run, whatever chose it. The fallback to main_branch is
+    # right for a branch this machine never claimed, and it is exactly the
+    # case a retargeted merge hides in: the one run that quietly landed a
+    # queue on `main` reported nothing a transcript could catch (issue #167).
+    if args.base:
+        chosen = "from --base"
+    elif recorded_base:
+        chosen = f"recorded for {branch} at claim, or by an earlier merge run"
+    else:
+        # Refused, not defaulted (issue #174). `claim` records a base for every
+        # branch it creates, so a claim branch with none is a branch whose
+        # record was LOST — most often with the ref itself, by the `branch -d`
+        # below in a run that was then killed before it could put either back.
+        # `resolve_base` cannot tell that apart from "this machine never
+        # claimed it"; `merge` can, because it is the verb that does the
+        # deleting, and the two readings differ by a force-push: a consumer's
+        # re-run took the silent `main_branch` fallback and fast-forwarded a
+        # whole queue branch onto `main`, past its one-reviewed-PR-per-queue
+        # gate, with nothing in the output naming `main`.
+        #
+        # A first merge onto `main` from a hand-made branch is the legitimate
+        # shape this refuses, and `--base` is what it passes — one word, said
+        # once, in exchange for the fallback never being taken by accident.
+        print(f"aide merge: no base is recorded for {branch}, so this run "
+              f"cannot tell where item {args.number:03d} is meant to land. "
+              f"Guessing would mean the [git] main_branch default "
+              f"('{main}'), and a claim branch reaches this state by losing "
+              f"its record — typically to an interrupted earlier merge — so "
+              f"the guess is exactly as likely to be a queue branch's work "
+              f"pushed onto {main}. Re-run with the base named: "
+              f"'merge {args.number:03d} --base <branch>'.", file=sys.stderr)
+        return 1
+    print(f"aide merge: item {args.number:03d} lands on {main} ({chosen})")
     if not _local_branch_exists(repo_root, main):
         detail = ("it resolves, but not to a local branch — `git switch` would "
                   "detach HEAD, and a merge into a detached HEAD updates no "
@@ -5514,11 +7143,20 @@ def cmd_merge(args: argparse.Namespace) -> int:
 
     unsafe = _unsafe_tree_state(repo_root, docs_dir(repo_root, config) / "progress.md")
     if unsafe:
+        # Resolution before abortion, and only when there is something to
+        # resolve: an agent that reads "abort" literally aborts, re-runs, and
+        # meets the identical conflict — a loop, and one this verb can end.
+        hint = _inbox_conflict_hint(repo_root, config)
         print(f"aide merge: refusing to merge item {args.number:03d} — {unsafe}. "
               f"`git switch` and `git pull --rebase` from here rewrite or "
-              f"discard work this process did not create. Finish or abort that "
-              f"state first (`git rebase --abort` / `git merge --abort`, or "
-              f"commit the changes), then re-run.", file=sys.stderr)
+              f"discard work this process did not create."
+              + (f"\naide merge: {hint}" if hint else "")
+              + f"\naide merge: finish that state — resolve and stage, then "
+                f"`{_continue_command(repo_root)}` — or abort it "
+                f"(`git rebase --abort` / `git merge --abort`, or commit the "
+                f"changes), then re-run. Aborting a conflict you have not "
+                f"resolved brings it back on the next attempt.",
+              file=sys.stderr)
         return 1
 
     git(["switch", main], repo_root)
@@ -5552,10 +7190,30 @@ def cmd_merge(args: argparse.Namespace) -> int:
                           f"re-run.\n{ff.stdout}{ff.stderr}", file=sys.stderr)
                     return 1
             else:
-                git(["pull", "--rebase"], repo_root, check=False)
+                pulled = git(["pull", "--rebase"], repo_root, check=False)
+                stalled = _stalled_pull(repo_root, config, pulled)
+                if stalled is not None:
+                    # The sharpest of the three: `git merge` refuses outright
+                    # while a rebase is in progress, so without this the
+                    # operator reads the MERGE's failure for a stall the pull
+                    # caused, on a base branch that is now mid-rebase.
+                    print(f"aide merge: {stalled}\n"
+                          f"aide merge: nothing was merged and item "
+                          f"{args.number:03d} is NOT ticked — the work is "
+                          f"intact on {branch}. Re-run once {main} is settled.",
+                          file=sys.stderr)
+                    return 1
         merge_res = git(["merge", "--no-edit", branch], repo_root, check=False)
         if merge_res.returncode != 0:
-            print(f"aide merge: merge of {branch} failed:\n{merge_res.stdout}{merge_res.stderr}", file=sys.stderr)
+            # The one conflict this loop produces as a matter of course gets
+            # named here rather than left in git's output, because this is
+            # where it lands and the role standing here has read nothing about
+            # the inbox.
+            hint = _inbox_conflict_hint(repo_root, config)
+            print(f"aide merge: merge of {branch} failed:\n"
+                  f"{merge_res.stdout}{merge_res.stderr}"
+                  + (f"\naide merge: {hint}\n" if hint else ""),
+                  file=sys.stderr)
             return 1
 
     # The claim branch goes BEFORE the test run, so the run sees the refs a
@@ -5563,8 +7221,11 @@ def cmd_merge(args: argparse.Namespace) -> int:
     # test command includes `aide check` got "stale claim branch … item NNN is
     # already ✅" — a failure class the item's acceptance baseline had never
     # seen, produced by nothing but this ordering. Its tip is remembered so any
-    # later exit can put the branch back exactly as it was.
+    # later exit can put the branch back exactly as it was — with the base
+    # this run merged into as its record, since `branch -d` discards the old
+    # one with the ref and a retry must land where this run did (issue #167).
     branch_tip = git(["rev-parse", branch], repo_root, check=False).stdout.strip()
+    branch_base = main
     # `-d` can refuse even though the work landed (e.g. `pull --rebase` rewrote
     # main so the branch tip is no longer an ancestor); this process just
     # established that the branch is merged, so escalating to -D is safe. VERIFY
@@ -5574,52 +7235,92 @@ def cmd_merge(args: argparse.Namespace) -> int:
         del_res = git(["branch", "-D", branch], repo_root, check=False)
     local_gone = branch not in _local_branches(repo_root)
 
-    if not args.no_test:
-        cmd = resolve_test_command(repo_root, config)
-        test_res = subprocess.run(cmd, cwd=str(repo_root))
-        if test_res.returncode != 0:
-            _restore_claim_branch(repo_root, branch, branch_tip)
-            print(f"aide merge: the post-merge test run FAILED, so item "
-                  f"{args.number:03d} is NOT ✅ and nothing was pushed — the "
-                  f"tick and the push are what this run refuses, not the merge "
-                  f"itself. {branch} is merged into {main} in THIS repository "
-                  f"only, and the claim branch is back. Fix the failures on "
-                  f"{main}, commit, then re-run 'merge {args.number:03d}': the "
-                  f"merge is already an ancestor, so the retry only re-tests, "
-                  f"ticks and pushes.", file=sys.stderr)
-            return 1
-
-    # ✅ is set HERE, by the process that just did the merge, so it always means
-    # "merged" — not "an agent said so before attempting one". The validator
-    # marks the item 🔍 before this call; whether it becomes ✅ is a fact about
-    # git, and in `pr` mode the return above leaves it 🔍 for the human's merge.
+    # Every exit from here to the push must put the branch back, not just the
+    # two this function writes out longhand: the window covers a whole test
+    # suite, and a run killed inside it (Ctrl-C, a CI timeout, an unattended
+    # runner's wall clock) left the item merged into its base with the claim
+    # branch gone and nothing to say where it had been. The next run's
+    # `resolve_base` then fell back to `main_branch` and a consumer's queue was
+    # fast-forwarded onto `main` and pushed, past its one-reviewed-PR-per-queue
+    # gate (issue #174). The `except` arm is what covers the killed run; the
+    # two explicit calls inside stay, because each carries a message about the
+    # specific failure it is reporting.
     #
-    # It must precede the push: the tick is a commit like any other, and the
-    # single `git push` below is the only one that carries `main` to origin.
-    # Recording it afterwards stranded it locally, so origin's progress.md
-    # under-reported — and on a queue's last item nothing would ever push it.
-    _promote_item_to_complete(repo_root, config, args.number,
-                              getattr(args, "no_commit", False))
-    remote_gone = True
-    if mode != "local":
-        push_res = git(["push"], repo_root, check=False)
-        if push_res.returncode != 0:
-            # Reported, not swallowed: a silent failure here leaves ✅ on a
-            # merge origin never received, which is the same class of lie as
-            # ticking an item whose tests fail. The remote claim branch is
-            # deliberately NOT deleted, so the work still exists somewhere
-            # other than this checkout.
-            _restore_claim_branch(repo_root, branch, branch_tip)
-            print(f"aide merge: item {args.number:03d} is merged and ✅ here, "
-                  f"but pushing {main} to origin FAILED, so neither the merge "
-                  f"nor the tick has left this repository and the claim branch "
-                  f"is kept. Resolve the push, then re-run "
-                  f"'merge {args.number:03d}'.\n"
-                  f"{push_res.stdout}{push_res.stderr}", file=sys.stderr)
-            return 1
-        del_remote = git(["push", "origin", "--delete", branch], repo_root, check=False)
-        remote_gone = (del_remote.returncode == 0
-                       or "remote ref does not exist" in (del_remote.stderr or ""))
+    # It ends at the push on purpose. Past that the merge has left this
+    # repository and the retry has nothing left to do, so putting the branch
+    # back would leave a stale claim branch behind a ✅ item — the very state
+    # deleting it before the tests avoids.
+    with _restore_on_signal():
+        try:
+            if not args.no_test:
+                cmd = resolve_test_command(repo_root, config)
+                test_res = subprocess.run(cmd, cwd=str(repo_root))
+                if test_res.returncode != 0:
+                    _restore_claim_branch(repo_root, branch, branch_tip, branch_base)
+                    print(f"aide merge: the post-merge test run FAILED, so item "
+                          f"{args.number:03d} is NOT ✅ and nothing was pushed — the "
+                          f"tick and the push are what this run refuses, not the merge "
+                          f"itself. {branch} is merged into {main} in THIS repository "
+                          f"only, and the claim branch is back with its base. Fix the "
+                          f"failures on {main}, commit, then re-run "
+                          f"'merge {args.number:03d} --base {main}': the merge is "
+                          f"already an ancestor, so the retry only re-tests, ticks and "
+                          f"pushes.", file=sys.stderr)
+                    return 1
+
+            # ✅ is set HERE, by the process that just did the merge, so it always means
+            # "merged" — not "an agent said so before attempting one". The validator
+            # marks the item 🔍 before this call; whether it becomes ✅ is a fact about
+            # git, and in `pr` mode the return above leaves it 🔍 for the human's merge.
+            #
+            # It must precede the push: the tick is a commit like any other, and the
+            # single `git push` below is the only one that carries `main` to origin.
+            # Recording it afterwards stranded it locally, so origin's progress.md
+            # under-reported — and on a queue's last item nothing would ever push it.
+            _promote_item_to_complete(repo_root, config, args.number,
+                                      getattr(args, "no_commit", False))
+            remote_gone = True
+            if mode != "local":
+                push_res = git(["push"], repo_root, check=False)
+                if push_res.returncode != 0:
+                    # Reported, not swallowed: a silent failure here leaves ✅ on a
+                    # merge origin never received, which is the same class of lie as
+                    # ticking an item whose tests fail. The remote claim branch is
+                    # deliberately NOT deleted, so the work still exists somewhere
+                    # other than this checkout.
+                    _restore_claim_branch(repo_root, branch, branch_tip, branch_base)
+                    print(f"aide merge: item {args.number:03d} is merged and ✅ here, "
+                          f"but pushing {main} to origin FAILED, so neither the merge "
+                          f"nor the tick has left this repository and the claim branch "
+                          f"is kept, with its base. Resolve the push, then re-run "
+                          f"'merge {args.number:03d} --base {main}'.\n"
+                          f"{push_res.stdout}{push_res.stderr}", file=sys.stderr)
+                    return 1
+                del_remote = git(["push", "origin", "--delete", branch], repo_root, check=False)
+                remote_gone = (del_remote.returncode == 0
+                               or "remote ref does not exist" in (del_remote.stderr or ""))
+        except BaseException as exc:
+            # BaseException, so `KeyboardInterrupt` and `_Terminated` are caught
+            # alongside an ordinary bug. Nothing is swallowed: the restore is a
+            # side effect on the way out and the original exception continues to
+            # unwind, so an interrupted run still exits as interrupted.
+            #
+            # The restore is owed either way; the WORDING is not. A test
+            # command that is not on PATH raises `FileNotFoundError` here, and
+            # a run that reported itself "interrupted" would send a human
+            # hunting for a signal nobody sent — the same failure the
+            # `--no-commit` message was fixed for in issue #133. So the cause
+            # is named, and the traceback that follows says the rest.
+            _restore_claim_branch(repo_root, branch, branch_tip, branch_base)
+            cause = ("interrupted"
+                     if isinstance(exc, (KeyboardInterrupt, _Terminated))
+                     else f"failed with {type(exc).__name__}")
+            print(f"aide merge: {cause} after {main} took the merge of "
+                  f"{branch} but before it was pushed, so {branch} has been "
+                  f"put back with {main} recorded as its base. The merge is "
+                  f"in THIS repository only. Re-run "
+                  f"'merge {args.number:03d} --base {main}'.", file=sys.stderr)
+            raise
 
     if local_gone and remote_gone:
         print(f"aide merge: item {args.number:03d} merged to {main} and claim branch {branch} deleted")
@@ -6250,8 +7951,21 @@ def cmd_scope(args: argparse.Namespace) -> int:
 
 
 def _landed_review_items(repo_root: Path, config, prefix: str,
-                         base: str) -> List[str]:
-    """Lines naming every 🔍 item whose branch has since landed in *base*.
+                         explicit: Optional[str] = None) -> List[str]:
+    """Lines naming every 🔍 item whose branch has since landed in its base.
+
+    Each claim is measured against its own base, resolved the way every other
+    verb resolves one — *explicit* (``--base``) > the base that claim recorded >
+    ``main_branch`` (issue #213). Measuring every claim against ``main_branch``
+    meant stacked work never came home: an item merged into its queue branch is
+    not in main until the queue lands, so it stayed 🔍 with nothing saying why.
+
+    ``main_branch`` is still measured when that base does not report the work
+    landed. A queue branch is deleted once it lands (`gc --merged` collects it),
+    and `merge-tree` against a ref that no longer exists exits 1 exactly as a
+    conflict does — so without the second measurement a 🔍 item whose queue
+    had landed *and been cleaned up* was never reported again, though its work
+    was in main. Work in main has landed wherever it was first merged.
 
     In `pr` mode nothing inside the loop ever observes the merge — the human
     does it on the forge, hours or days later — so 🔍 needs a way home or it is
@@ -6268,12 +7982,19 @@ def _landed_review_items(repo_root: Path, config, prefix: str,
     if not reviewing or not _has_merge_tree(repo_root):
         return []
     local = _local_branches(repo_root)
+    main = str(config["git"].get("main_branch", "main"))
     lines: List[str] = []
     for br in sorted(_list_claim_branches(repo_root, prefix)):
         num = _branch_item_number(br, prefix)
         if num not in reviewing:
             continue
-        if _branch_content_landed(repo_root, base, _gc_ref(br, local)) is True:
+        ref = _gc_ref(br, local)
+        base = resolve_base(repo_root, config, explicit, br)
+        candidates = [base] if base == main else [base, main]
+        landed = next((b for b in candidates
+                       if _branch_content_landed(repo_root, b, ref) is True), None)
+        if landed is not None:
+            base = landed
             lines.append(f"aide sync: item {num:03d} is 🔍 but its work is now in "
                          f"{base} — run 'python .aide/scripts/aide.py progress "
                          f"set {num:03d} done'")
@@ -6334,9 +8055,27 @@ def cmd_sync(args: argparse.Namespace) -> int:
                 return 1
             branch = claim
         if mode != "local" and _has_origin(repo_root) and claim in _remote_branches(repo_root):
-            git(["pull", "--rebase", "origin", claim], repo_root, check=False)
+            pulled = git(["pull", "--rebase", "origin", claim], repo_root, check=False)
+            stalled = _stalled_pull(repo_root, config, pulled)
+            if stalled is not None:
+                print(f"aide sync: {stalled}\n"
+                      f"aide sync: this verb exists to say the start point is "
+                      f"safe, and it is not — work must not start here.",
+                      file=sys.stderr)
+                return 1
+            if pulled.returncode != 0:
+                # Non-zero, but the tree is untouched: origin unreachable, the
+                # ref gone. Not a reason to refuse — the branch is checked out
+                # and clean, which is what this verb promises — but the success
+                # line below says "remotes fetched", and that would overclaim.
+                why = next((l.strip() for l in
+                            (pulled.stderr + pulled.stdout).splitlines()
+                            if l.strip()), "git gave no reason")
+                print(f"aide sync: {claim} was NOT refreshed from origin — "
+                      f"{why}. The branch is clean and work can start; it may "
+                      f"be behind origin.", file=sys.stderr)
 
-    for line in _landed_review_items(repo_root, config, prefix, main):
+    for line in _landed_review_items(repo_root, config, prefix):
         print(line)
 
     print(f"aide sync: OK — on '{branch}', tree clean"
@@ -6404,6 +8143,13 @@ def cmd_status(args: argparse.Namespace) -> int:
             label = {"declined": "❌ declined", "awaiting": "⏳ awaiting a decision"}.get(
                 g.kind, "⚠ unrecognised status")
             print(f"  gate {n}: {g.text} [blocks {reach}] — {label}")
+        # Every table, not only gates: a row no reader can use is missing
+        # from the lines above, and would otherwise be missing from here.
+        for table, i, _, problem in _unreadable_rows(plines):
+            held = (" — holding every item until it is fixed"
+                    if table is _HUMAN_GATES else "")
+            print(f"  unreadable: progress.md:{i + 1}: {table.name} row "
+                  f"{problem}{held}")
         for t in outcome_targets(plines):
             if t.kind == "met":
                 continue
@@ -6411,6 +8157,33 @@ def cmd_status(args: argparse.Namespace) -> int:
                 t.kind, "⚠ unrecognised status")
             objs = f" [{', '.join(t.objectives)}]" if t.objectives else ""
             print(f"  target: {t.text}{objs} — {label}")
+        # Capabilities not yet ✅ Verified (issue #207). Profiles run only on
+        # request, and only for a ❓ Unverified row: an expression is project
+        # code that may import a GPU stack, and a row with any other Status —
+        # `⏸️ Out of scope` — is not one to be told it can be verified now.
+        profiles = {k: str(v) for k, v in (config.get("validation") or {}).items()}
+        verdicts: Dict[str, Tuple[bool, str]] = {}
+        for c in gated_capabilities(plines):
+            if c.kind == "verified":
+                continue
+            label = "❓ unverified" if c.kind == "unverified" else "⚠ unrecognised status"
+            for name in c.profiles:
+                if name not in profiles:
+                    label += f"; profile '{name}' is not defined in [validation]"
+                    continue
+                if not (args.profiles and c.kind == "unverified"):
+                    label += f"; profile '{name}'"
+                    continue
+                if name not in verdicts:
+                    verdicts[name] = evaluate_profile(repo_root, config, profiles[name])
+                satisfied, detail = verdicts[name]
+                label += (f"; profile '{name}' is satisfied here — the gated path "
+                          f"can be run and the row verified" if satisfied
+                          else f"; profile '{name}' is not satisfied here"
+                          + (f" ({detail})" if detail else ""))
+            stages = (f" [stage {', '.join(map(str, c.stages))}]"
+                      if c.stages else "")
+            print(f"  capability: {c.text}{stages} — {label}")
         for stg, cn, cdate, creason in retracted_criteria(plines):
             print(f"  retracted: stage {stg} criterion {cn} ({cdate}) — {creason}")
 
@@ -6447,8 +8220,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     else:
         print("  claims: none")
 
-    for line in _landed_review_items(repo_root, config, prefix,
-                                     str(config["git"].get("main_branch", "main"))):
+    for line in _landed_review_items(repo_root, config, prefix, args.base):
         print("  " + line.replace("aide sync: ", ""))
 
     # Open PRs, best effort — informative only, silently skipped without `gh`.
@@ -6789,9 +8561,90 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo", type=Path, default=None, help="repo root (default: search up for aide.toml)")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_check = sub.add_parser("check", help="consistency gate over docs/aide "
-                             "(writes only a missing insights.md, from the "
-                             "template, and the file --report names)")
+    p_check = sub.add_parser(
+        "check", help="consistency gate over docs/aide, "
+        "plus the test-hygiene lints over tests_dir, which "
+        "run with a notice even in a repo with no docs_dir "
+        "(writes only a missing insights.md, from the "
+        "template, and the file --report names)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "--queue NNN checks one queue's specs against each other: two items "
+            "claiming one path under May change (warning), one item changing a "
+            "path another pins under Asserts against (error), a dependency "
+            "cycle, and a dependency on an item that exists nowhere.\n"
+            "\n"
+            "Three discounts apply. Spent items (\u2705 merged or \u274c excluded in "
+            "progress.md) are discounted on both sides of every comparison, and "
+            "a finding against one is an error no later item can clear. A "
+            "declared dependency is discounted in one direction: when the "
+            "pinning item names the changing one under ## Dependencies, "
+            "directly or through a chain of items on the same queue, the edit "
+            "landing cannot break its pin. Only links that still order count: a "
+            "dependency claim no longer waits for (\u2705, \u274c, \u23f8\ufe0f) earns no "
+            "exemption, and neither does a chain whose middle item no longer "
+            "blocks. The cycle check keeps only items whose status still blocks "
+            "a claim; deferred items stay in the path comparisons.\n"
+            "\n"
+            "Over progress.md's tables, ERRORS: a missing stage summary "
+            "table, objective coverage table or stage section; a stage "
+            "summary row marked \u2705 over a stage whose deliverables do not "
+            "roll up to \u2705 (`aide progress -h` states the rollup); an "
+            "objective marked \u2705 over an "
+            "Outcome target that is \u274c Not met \u2014 the goal-level "
+            "mirror of that over-claim; and a row of the stage summary, "
+            "objective coverage, Outcome targets or Human gates table that "
+            "its reader cannot use \u2014 the wrong cell count (a '|' inside "
+            "a cell, usually), a Stage cell that is not an integer, an "
+            "objective coverage row not starting G<n>, an empty Target cell, "
+            "a summary or objective Status cell with no "
+            "icon \u2014 since the row is dropped from every check it would "
+            "have fed. Each table is read under its template heading, or, "
+            "for a summary or objective table without one, wherever its rows "
+            "are found. Warnings, and a warning never moves the exit "
+            "code \u2014 only an error does: a stage whose deliverables roll "
+            "up to \u2705 under a summary row that is not, a stage header "
+            "disagreeing with its summary row, a summary row with no stage "
+            "section, an objective marked \u2705 over a target not yet \u2705 "
+            "Met, an Outcome target or human gate whose Status is not one of "
+            "its table's marks, and every human gate still blocking \u2014 a "
+            "normal state rather than a defect. A summary row marked "
+            "\u23f8\ufe0f or \u274c is left out of all three stage comparisons "
+            "above, deliverables and header alike: the stage is deferred or "
+            "dropped, so its bullets no longer speak for it.\n"
+            "\n"
+            "Over the Environment-Gated Capability Verification table, "
+            "warnings only, since no other check gates on it: a row its "
+            "reader cannot use (the wrong cell count, or an empty Capability "
+            "cell); a Status that is neither \u2705 Verified nor \u2753 "
+            "Unverified; a profile named in the Package / Tool cell that "
+            "[validation] does not define; and a row still \u2753 Unverified "
+            "with an empty or dash-only Notes cell whose introducing stage "
+            "\u2014 the first `Stage N` run in its Introduced by cell \u2014 "
+            "is \u2705 in the stage summary.\n"
+            "\n"
+            "Among the other lints over docs/aide, these are warnings: a "
+            "file under items/ not named NNN-<slug>.md, which `aide scope`, "
+            "`aide claim` and `aide check --queue` never find, reported in "
+            "place of every other spec lint; an Authorised paths bullet whose "
+            "second backtick span or continuation line is silently dropped, "
+            "named span by span; one path listed under both May change and "
+            "Asserts against (the exact double-listing only \u2014 a literal "
+            "pin under a May-change glob is the legitimate carve-out, left "
+            "for `aide scope` to judge); an always-authorised path pinned "
+            "under Asserts against; a marked assumption pinning an engine "
+            "whose feature line predates the installed one; every "
+            "retracted acceptance criterion, a normal state rather than a "
+            "defect; and an insights entry whose shape is off \u2014 loose "
+            "either side of the date, strict about the date, and never "
+            "applied to an archived entry; and a document whose aide-template "
+            "line above its title records a version other than the installed template's, "
+            "names a template this engine does not ship, or cannot be read "
+            "\u2014 read on vision.md, roadmap.md, progress.md and "
+            "insights.md, on a queue while it is open and on an item spec "
+            "until its item is \u2705 or \u274c, and never on a document with "
+            "no such line. A \U0001f50d item's claim branch "
+            "is not reported stale."))
     p_check.add_argument("--queue", type=int, default=None,
                          help="also check this queue's specs against each other "
                               "(scope overlaps, pinned state, dependency graph)")
@@ -6799,7 +8652,50 @@ def build_parser() -> argparse.ArgumentParser:
                          help="with --queue: write the findings as JSON to this path")
     p_check.set_defaults(func=cmd_check)
 
-    p_prog = sub.add_parser("progress", help="edit progress.md status / acceptance")
+    p_prog = sub.add_parser(
+        "progress", help="edit progress.md status / acceptance",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "set:     flip an item's deliverable bullet and roll its stage "
+            "up; a marker naming several items is desugared into one bullet "
+            "per item first, and only the named item moves \u2014 the others "
+            "keep the status they had\n"
+            "accept:  tick one acceptance criterion (--criterion N) or every "
+            "one in the stage (--all), with --evidence\n"
+            "amend:   append a dated correction under a ticked box; the tick "
+            "stands (--evidence required)\n"
+            "retract: untick a box, keep the original attestation visible, "
+            "and capture a `gap` insight (--reason required)\n"
+            "reword:  change a criterion's text in progress.md and roadmap.md, "
+            "or in neither; where roadmap.md has no acceptance block for the "
+            "stage, in progress.md alone; refuses over a ticked, annotated or "
+            "corrected box\n"
+            "\n"
+            "The rollup, applied by set and read by `aide check`: a stage is "
+            "\u2705 when every deliverable bullet in it is \u2705 or \u274c "
+            "and at least one is \u2705; \U0001f6a7 when any bullet is "
+            "\u2705, \U0001f6a7 or \U0001f50d; otherwise \U0001f4cb. "
+            "\U0001f50d and \u23f8\ufe0f are both kept out of the \u2705 "
+            "rule \u2014 an item awaiting review or deferred has not shipped. "
+            "They differ below it: \U0001f50d also satisfies the \U0001f6a7 "
+            "rule, so a stage holding one is always \U0001f6a7, while "
+            "\u23f8\ufe0f does not \u2014 a stage whose bullets are only "
+            "\u23f8\ufe0f, \U0001f4cb and \u274c reads \U0001f4cb. "
+            "The stage header, its summary-table "
+            "row, and any Objective row delivered solely by \u2705 stages "
+            "follow; an objective linked to an Outcome target that is not "
+            "\u2705 Met never rolls up. A status is never downgraded, and no "
+            "rollup ever ticks an acceptance box.\n"
+            "\n"
+            "reword matches the Nth box to the Nth non-`Target:` bullet of the "
+            "roadmap stage's Validation / acceptance block; if the two cannot "
+            "be lined up, nothing is written and the message says which counts "
+            "disagreed.\n"
+            "\n"
+            "Neither amend nor retract takes --all: each attestation was made "
+            "separately and is corrected or withdrawn separately. Both refuse "
+            "without a stated reason. `aide check` warns on every retracted "
+            "criterion and `aide status` prints it."))
     p_prog.add_argument("action",
                         choices=["set", "accept", "amend", "retract", "reword"])
     p_prog.add_argument("number", type=int,
@@ -6845,8 +8741,33 @@ def build_parser() -> argparse.ArgumentParser:
     p_queue.add_argument("--date", default=None, help="tidy: override the supersede date (YYYY-MM-DD)")
     p_queue.set_defaults(func=cmd_queue)
 
-    p_ins = sub.add_parser("insights", help="list / tick / archive the insight inbox")
-    p_ins.add_argument("action", choices=["list", "tick", "archive"])
+    p_ins = sub.add_parser(
+        "insights", help="list / tick / archive / resolve the insight inbox",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "list:    number the entries by position and print them all, "
+            "ticked ones included; --open narrows to the untriaged, and an "
+            "archived entry is in neither\n"
+            "tick:    the one in-place edit — tick entry N with --pointer; on "
+            "an entry already ticked, append a dated trail line instead\n"
+            "archive: move closed entries older than --before into "
+            "insights/archive-YYYY-QN.md, each with its trail, line for line; "
+            "an entry it cannot date is named and left behind; the archive is "
+            "frozen and no longer shape-checked; what remains is renumbered, "
+            "so re-run list\n"
+            "resolve: write the union of a conflicted inbox — the shared "
+            "history, then each side's new entries in capture order; a tick "
+            "on either side stands and keeps its pointer, trail lines merge "
+            "in date order, and two ticks with different pointers keep both "
+            "and say so. Refuses, writing nothing, anything that is not a "
+            "pure append: a claim reworded, reordered or deleted on one side, "
+            "or a side that archived.\n"
+            "\n"
+            "A missing insights.md is created from .aide/templates/insights.md "
+            "by list (and by check, claim and queue start) and committed when "
+            "git can — on a branch, with an identity; otherwise it is left "
+            "untracked and the notice says why."))
+    p_ins.add_argument("action", choices=["list", "tick", "archive", "resolve"])
     p_ins.add_argument("number", type=int, nargs="?", default=None,
                        help="tick: the entry number from `insights list`")
     p_ins.add_argument("--open", action="store_true", dest="open_only",
@@ -6860,7 +8781,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ins.add_argument("--before", default=None,
                        help="archive: move entries closed before this date (YYYY-MM-DD)")
     p_ins.add_argument("--date", default=None,
-                       help="tick: override the trail-line date (default: today)")
+                       help="tick, resolve: override the trail-line date "
+                            "(default: today)")
+    p_ins.add_argument("--dry-run", action="store_true",
+                       help="resolve: print what the union would be, write nothing")
     p_ins.add_argument("--yes", action="store_true",
                        help="archive: actually move (default: dry run)")
     p_ins.add_argument("--no-commit", action="store_true", help="edit only, do not git commit")
@@ -6872,7 +8796,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def register_git_subcommands(sub) -> None:
     """Attach the claim / merge / env subparsers (git layer)."""
-    p_claim = sub.add_parser("claim", help="pick + claim the next unclaimed 📋 item")
+    p_claim = sub.add_parser(
+        "claim", help="pick + claim the next unclaimed 📋 item",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Picks the first 📋 item the queue lists \u2014 its own "
+            "order, not the item numbers \u2014 whose dependencies have all "
+            "left the way (\u2705, \u274c or "
+            "\u23f8\ufe0f) and that no unresolved human gate reaches. It "
+            "will not offer a blocked item: where a gate holds the pick, the "
+            "report names that gate, what it blocks and who may resolve it, "
+            "rather than an unexplained \"none left\". A human-gates row it "
+            "cannot read holds every item, since what it blocks is unknown: "
+            "the report names the row and exits 1. A missing insights.md "
+            "is created from the template on the way through."))
     p_claim.add_argument("--queue", type=int, default=None,
                          help="queue number (default: the lowest-numbered open queue)")
     p_claim.add_argument("--base", default=None,
@@ -6893,10 +8830,15 @@ def register_git_subcommands(sub) -> None:
                          help="do not commit the progress.md status the merge records")
     p_merge.set_defaults(func=cmd_merge)
 
-    p_env = sub.add_parser("env", help="venv existence / import check + bootstrap")
-    p_env.add_argument("--bootstrap", action="store_true", help="create + populate the venv if missing/stale")
+    p_env = sub.add_parser("env", help="venv health (exists, bootstrap finished, "
+                                        "interpreter matches, imports, test runner) + bootstrap")
+    p_env.add_argument("--bootstrap", action="store_true",
+                       help="create + populate the venv if missing/stale, from "
+                            "[python] interpreter when set")
     p_env.add_argument("--profile", default=None,
-                       help="evaluate a named [validation] environment profile (exit 0 iff satisfied)")
+                       help="evaluate a named [validation] environment profile "
+                            "(exit 0 iff satisfied; one that runs past "
+                            f"{PROFILE_TIMEOUT}s or cannot start is not satisfied)")
     p_env.set_defaults(func=cmd_env)
 
     p_sync = sub.add_parser("sync", help="preflight: fetch, verify clean tree, land on the right branch")
@@ -6904,7 +8846,25 @@ def register_git_subcommands(sub) -> None:
                         help="verify/switch to this item's claim branch")
     p_sync.set_defaults(func=cmd_sync)
 
-    p_gc = sub.add_parser("gc", help="delete claim branches whose work has landed (dry-run by default)")
+    p_gc = sub.add_parser(
+        "gc", help="delete claim branches whose work has landed (dry-run by default)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Deletes claim branches, local and remote, whose item is \u2705 in "
+            "progress.md, and with --merged also branches already merged into "
+            "the base. On the \u2705 ground a branch goes only when "
+            "`git merge-tree --write-tree` says merging it into the base would "
+            "change nothing; a branch that still carries unlanded content is "
+            "skipped with the base named, unless --abandon. merge-tree "
+            "--write-tree needs git >= 2.38: on older git the \u2705 ground "
+            "refuses rather than falling back to a weaker test.\n"
+            "\n"
+            "Every skip \u2014 checked out, unlanded, unmeasurable (a ref the "
+            "oracle could not read), git too old \u2014 is decided "
+            "before anything is printed and shown as `skipping <branch> "
+            "(local | remote | local+remote): <reason>` on both paths, so the "
+            "dry run is exactly the set --yes "
+            "deletes."))
     p_gc.add_argument("--merged", action="store_true",
                       help="also delete claim branches already merged into the base")
     p_gc.add_argument("--base", default=None,
@@ -6916,15 +8876,64 @@ def register_git_subcommands(sub) -> None:
     p_gc.add_argument("--yes", action="store_true", help="actually delete (default: dry run)")
     p_gc.set_defaults(func=cmd_gc)
 
-    p_status = sub.add_parser("status", help="one-call roadmap-state report (branch, queues, claims, PRs)")
+    p_status = sub.add_parser(
+        "status", help="one-call roadmap-state report (branch, queues, "
+        "claims, PRs, open gates, unmet targets, unverified capabilities, "
+        "retracted criteria)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "A \U0001f50d item's claim branch is reported as awaiting review, "
+            "never as stale and never with a `gc` recommendation \u2014 that "
+            "would be recommending the deletion of an open PR's head branch. "
+            "Because in `pr` mode nothing inside the loop observes the merge, "
+            "status (like `aide sync`) also names any \U0001f50d item whose "
+            "work has since landed in the base that claim recorded (or "
+            "`--base`), or in main_branch, by the same merge-tree "
+            "comparison `gc` uses, and prints the `aide progress set NNN done` "
+            "that closes it. Those bases are the local branches, never "
+            "origin/<base>: a merge made on the forge is seen once that branch "
+            "is pulled, not by the fetch alone. Every human gate still "
+            "blocking, every Outcome "
+            "target not yet \u2705 Met, every retracted acceptance "
+            "criterion and every progress.md table row no reader can use is "
+            "printed too, so none of them lives only in one commit's diff. "
+            "So is every environment-gated capability not yet ✅ "
+            "Verified, with the [validation] profile its Package / Tool cell "
+            "names. With --profiles, each profile a ❓ Unverified row names "
+            "is evaluated once, as `aide env --profile` evaluates it (the "
+            "expression only, never the gated tests), and reported satisfied "
+            "or not; one that times out or cannot start is not satisfied — "
+            "a satisfied profile under an unverified row is a row this "
+            "machine can verify now."))
     p_status.add_argument("--no-fetch", action="store_true", help="skip the fetch --all --prune preflight")
+    p_status.add_argument("--profiles", action="store_true",
+                          help="evaluate the [validation] profile each "
+                               "❓ Unverified capability row names (each "
+                               f"bounded by {PROFILE_TIMEOUT}s)")
     p_status.add_argument("--base", default=None,
-                          help="ref to report ahead/behind against (default: the "
-                               "current branch's recorded base, else main_branch)")
+                          help="ref to report ahead/behind against, and to "
+                               "measure every \U0001f50d claim's landed work "
+                               "against before main_branch (default: the current "
+                               "branch's recorded base for ahead/behind, each "
+                               "claim's own for landed work; else main_branch)")
     p_status.set_defaults(func=cmd_status)
 
-    p_scope = sub.add_parser("scope",
-                             help="check this branch's diff against the item's authorised paths")
+    p_scope = sub.add_parser(
+        "scope", help="check this branch's diff against the item's authorised paths",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Diffs the branch against the merge-base with the item's base and "
+            "reports every changed path outside the spec's ## Authorised paths; "
+            "a path listed under Asserts against and then changed is reported "
+            "separately. With no number the item is read from the current "
+            "claim branch, and a queue branch resolves to no item and is "
+            "skipped. The base is --base if given, else the branch's recorded "
+            "base, else main_branch; the two derived answers prefer "
+            "origin/<base> over the local ref.\n"
+            "\n"
+            "Exit 0: in scope, or nothing to check (a queue branch). 1: "
+            "something changed outside it. 2: could not check (no spec, no "
+            "section, or no base to diff against)."))
     p_scope.add_argument("number", type=int, nargs="?", default=None,
                          help="item number (default: read from the current claim branch)")
     p_scope.add_argument("--base", default=None,

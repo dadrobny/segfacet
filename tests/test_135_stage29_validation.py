@@ -96,7 +96,6 @@ from __future__ import annotations
 
 import dataclasses
 import importlib.metadata
-import importlib.util
 import re
 import subprocess
 
@@ -123,7 +122,6 @@ _REPO_ROOT = _TESTS_DIR.parent
 _DOCS_AIDE_DIR = _REPO_ROOT / "docs" / "aide"
 _PROGRESS_PATH = _DOCS_AIDE_DIR / "progress.md"
 _INSIGHTS_PATH = _DOCS_AIDE_DIR / "insights.md"
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _GOLDEN_DIR = _TESTS_DIR / "golden"
 
 #: queue-018's first commit -- the item spec's AC4 range start.
@@ -132,13 +130,6 @@ _QUEUE018_FIRST_COMMIT = "69e5cf5"
 
 def _read_progress() -> str:
     return _PROGRESS_PATH.read_text(encoding="utf-8")
-
-
-def _aide_module():
-    spec = importlib.util.spec_from_file_location("_aide_cli_135", _AIDE_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
 
 
 def _manifest_case(case_id: str) -> dict:
@@ -821,114 +812,12 @@ def test_ac25_progress_names_seven_of_eight_and_eleven_to_zero():
 
 
 # =========================================================================== #
-# AC27: `aide check` reports no error and no warning class outside the
-# recorded baseline (missing '## Assumptions', a gate awaiting a decision,
-# or a transient branch-state warning -- see below).
+# AC27's `aide check` warning-baseline test was retired on 2026-09-16: it
+# pinned the loop's own `aide check` warning set in the standing suite, a
+# diff-time claim that belongs on the branch, not here
+# (.aide/conventions/6-test-hygiene.md §6). The error half now lives in
+# tests/test_aide_check_no_errors.py.
 # =========================================================================== #
-
-# Measured 2026-09-01 during `aide merge 135`'s own post-merge re-test: `aide
-# merge` deletes an item's claim branch only AFTER that re-test runs, so
-# `aide check` transiently warned "stale claim branch aide/135-validate-
-# stage-29-golden-retirement: item 135 is already ✅" -- a class this
-# classifier had never seen -- and the gate went red on the item's own merge
-# (the merge itself still completed; the branch has since been swept and the
-# warning is gone). `test_114_documentation_corrections.py`'s
-# `_BRANCH_STATE_WARNING_PREFIXES` (line ~534) already solved this generically
-# for its own warning check by excluding any warning starting with "stale
-# claim branch" or "unrecognised branch" by prefix -- both name a branch
-# left behind mid-merge rather than a defect in the document being checked.
-# Applying the same prefix tolerance here keeps AC27 from failing on a
-# merge-order artifact of the loop's own bookkeeping while leaving every
-# other warning class exactly as strict as before.
-_BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
-
-# Engine 1.28.1 (installed 2026-09-01, up from 1.21.0) added three advisory
-# warning classes that fired on pre-existing document states rather than on
-# anything this item changed: a spec pinning an always-authorised path under
-# Asserts against (engine 1.23.0; merged items 126 and 132), a deliverable
-# bullet whose item references all sat mid-prose with no trailing *(Item NNN)*
-# marker (engine 1.24.0), and a queue marked completed while progress.md still
-# held an untracked item for it. All three states were repaired at the
-# 2026-09-01 feedback loop (framework-update PR #59), so the classifier names
-# them -- a recurrence reads as its class, not as 'unclassified' -- but none is
-# a tolerated baseline class: the baseline is the assumptions backlog, the two
-# human gates, and transient branch state, exactly as before the update.
-#
-# "retracted-criterion" added 2026-09-02: during item 137's validation, a
-# validator ticked all five Stage 20 acceptance criteria and then correctly
-# retracted criteria 1, 3, 4 and 5 as mis-mapped attestations. By the
-# engine's deliberate design (`.aide/scripts/aide.py`, "A withdrawn
-# attestation is normal, not a defect ... the point is that it stays
-# visible"), each retraction leaves a permanent `progress.md` warning naming
-# the criterion and the retraction reason -- unlike the transient
-# human-gate and branch-state classes above, this one does not clear on its
-# own; a genuinely new retraction later still classifies here rather than as
-# 'unclassified', which is the point of classifying by shape (the
-# "criterion N was retracted on" phrase) rather than pinning the four exact
-# messages.
-_BASELINE_WARNING_CLASSES = (
-    "assumptions-block",
-    "awaiting-a-decision",
-    "branch-state",
-    "retracted-criterion",
-)
-
-
-def _classify_warning(message: str) -> str:
-    if message.startswith(_BRANCH_STATE_WARNING_PREFIXES):
-        return "branch-state"
-    if "pinned under Asserts against" in message:
-        return "always-authorised-pin"
-    if "ends with no *(Item NNN)* marker" in message:
-        return "untracked-bullet-marker"
-    if "marked completed but still has open items" in message:
-        return "queue-completed-open-items"
-    if re.search(r"criterion \d+ was retracted on \d{4}-\d{2}-\d{2}", message):
-        return "retracted-criterion"
-    if "assumptions" in message.lower():
-        return "assumptions-block"
-    if "awaiting a decision" in message.lower():
-        return "awaiting-a-decision"
-    return "unclassified"
-
-
-def test_ac27_aide_check_reports_no_error_and_only_baseline_warning_classes():
-    aide = _aide_module()
-    config = aide.load_config(_REPO_ROOT)
-    errors, warnings = aide.run_checks(_REPO_ROOT, config)
-    assert errors == [], errors
-    classes = {_classify_warning(w) for w in warnings}
-    assert classes <= set(_BASELINE_WARNING_CLASSES), (
-        f"aide check reports a warning class outside the recorded baseline: "
-        f"{classes - set(_BASELINE_WARNING_CLASSES)}"
-    )
-
-
-def test_adv_unclassified_warning_would_be_caught():
-    """Adversarial: a warning message matching neither recorded baseline
-    class must classify as 'unclassified', which the AC27 check above
-    rejects -- proving the classifier can actually detect a new class."""
-    assert _classify_warning("a brand new kind of warning nobody has seen before") == (
-        "unclassified"
-    )
-
-
-def test_adv_stale_claim_branch_warning_classifies_as_branch_state():
-    """A stale-claim-branch warning for an unrelated item (999, which does
-    not exist in this repo) must classify as 'branch-state', not
-    'unclassified' -- the transient merge-order artifact this test module
-    measured 2026-09-01 (aide merge 135's own post-merge re-test), tolerated
-    the same way test_114_documentation_corrections.py already tolerates it
-    via its own `_BRANCH_STATE_WARNING_PREFIXES`."""
-    warning = "stale claim branch aide/999-x: item 999 is already ✅"
-    assert _classify_warning(warning) == "branch-state"
-
-
-def test_adv_unrecognised_branch_warning_classifies_as_branch_state():
-    """The sibling branch-state prefix ('unrecognised branch') must also
-    classify as 'branch-state', not 'unclassified'."""
-    warning = "unrecognised branch aide/does-not-exist"
-    assert _classify_warning(warning) == "branch-state"
 
 
 # =========================================================================== #

@@ -1,31 +1,28 @@
 <!--
-  AIDE work-item template. Step 5. A complete, testable spec — the single source
-  of truth for test-writer, builder, and validator. STATIC: it carries NO status
-  field (status lives only in progress.md; a header status would just drift).
-  Mandatory core (downstream consumers in brackets):
-    - Header (Created + pointer to progress.md, Stage, Queue, Objectives, branch)
+  AIDE work-item template. Step 5. One spec per item — what test-writer,
+  builder and validator build against. It carries NO status field: status
+  lives in progress.md. Sections, in order (who reads each in brackets):
+    - Header: Created + pointer to progress.md, Stage, Queue, Objectives, branch
     - Description                     [builder, test-writer]
-    - Acceptance Criteria — atomic, one testable statement each  [test-writer, validator]
-    - Assumptions                     [validator surfaces these at the queue boundary]
+    - Acceptance Criteria             [test-writer, validator]
+    - Assumptions                     [validator, at the queue boundary]
     - Implementation Steps            [builder]
-    - Authorised paths — what this item may change, and what it pins  [builder, validator]
+    - Authorised paths                [builder, validator, aide scope]
     - Testing Strategy                [test-writer]
-    - Dependencies                    [orchestrator ordering]
-    - Decisions & Trade-offs          [builder records as it goes]
-  No Docker/services "Testing Prerequisites" boilerplate in the core — enable a
-  project-specific block via aide.toml only if the project actually needs it.
-
-  Optional "Environment / Hardware Dependencies" section: include it ONLY when
-  this item introduces a capability gated behind an optional package or
-  external tool (GPU library, Docker, a large/optional pip extra, ...). Its
-  point is to make the eventual real-dependency verification trackable in
-  progress.md rather than silently inferred from a green (skip-clean) test
-  run — see conventions.md §1 → Environment-gated capabilities.
-  Omit the section entirely for items with no such capability.
+    - Dependencies                    [aide claim]
+    - Decisions & Trade-offs          [builder, as it goes]
+  Optional: Validation (how to observe the work beyond the tests; the
+  validator executes it when present), and Environment / Hardware
+  Dependencies (only for an item introducing an environment-gated capability
+  — conventions.md §1 → Environment-gated capabilities). What each section
+  must hold is conventions.md §1 → items and §1 → Authorised paths; for the
+  two optional ones, §1 → Environment-gated capabilities, which names both.
 
   Fill-in conventions: `{{slot}}` = literal value; _italic line_ = guidance to
-  read then replace. Delete this comment in the generated file.
+  read then replace. Delete this comment in the generated file,
+  and keep the aide-template line below it.
 -->
+<!-- aide-template: item 1 -->
 # Item {{nnn}} — {{title}}
 
 > **Created:** {{yyyy-mm-dd}} · status tracked in [`progress.md`](../progress.md)
@@ -46,6 +43,15 @@ what it is NOT (to fence scope)._
 _Each criterion atomic, observable, and directly testable — one test per AC,
 no guessing. Split any compound "and/or" criterion._
 
+_A criterion about live state is worded as an equality its test can recompute
+from the primary source — the shapes that fail that bar, and why, are
+conventions.md §1 → items._
+
+_An AC that closes one of this stage's acceptance criteria says so by
+appending `*(closes Stage 20 criterion 3)*` to the criterion line. Most ACs
+close none, and one without the annotation closes nothing; when the
+annotation is earned is conventions.md §1 → items._
+
 - [ ] **AC1: {{short name}}.** {{observable statement}}
 
 ## Assumptions  <!-- MANDATORY: what was assumed when the queued one-liner was ambiguous -->
@@ -55,12 +61,10 @@ validator surfaces them for audit). A spec written before a dependency is
 *implemented* pins that interface here as an assumption; the builder/validator
 hand back if reality diverged. Write "None." if the item was fully specified._
 
-_An assumption that pins **engine** behaviour — what `aide check` warns about,
-what a verb does — names the engine it was true for, in the bold label:
-`- **A3 (engine 1.28.1):** ...`. This spec outlives its branch and the engine
-moves under it, and `aide check` then says so. Append the outcome of a
-re-check to the marker (`(engine 1.28.1, re-checked 1.36.0)`); never rewrite
-the assumption to agree with a later engine — a merged spec is a record._
+_Name, in the bold label, the engine an assumption about **engine** behaviour
+was true for: `- **A3 (engine 1.28.1):** ...`. A merged spec is a record: a
+later re-check is appended to that marker, never written over the assumption
+— conventions.md §1 → items states the form._
 
 - {{assumption, and the interface/behaviour it pins}}
 
@@ -82,15 +86,12 @@ list, not by hashing another file's bytes._
 
 **Asserts against:**
 
-_Files or derived artifacts this item's tests read and pin without changing —
-including anything recomputed live from committed state. Write "None." if the
-item pins nothing outside what it changes. Never pin `progress.md` or another
-always-authorised path: the loop edits those on every item, so the pin cannot
-hold — a read-only check of their content belongs in an AC's test. And never
-re-list a path already under May change: a pin means pinned-NOT-changed, so
-`aide scope` reports the item's own authorised edit as a contradiction — tests
-that assert against the final state of a file this item writes need only the
-May change entry, with the assertion behaviour stated in prose._
+_Paths this item's tests pin — read, never changed — including a derived
+artifact recomputed live. Write "None." if the item pins nothing outside what
+it changes. Two things never go here, an always-authorised path and the same
+path listed again under May change; conventions.md §1 → Authorised paths says
+why, where each belongs instead, and why pinning one file inside a May-change
+glob is the carve-out rather than a double-listing._
 
 - `{{path}}` — {{which AC pins it, and how}}
 
@@ -138,21 +139,19 @@ nothing._
 
 ## Environment / Hardware Dependencies  <!-- OPTIONAL: delete if not applicable -->
 
-_Only for an item that introduces a capability gated behind an optional
-package or external tool (GPU library, Docker, a large/optional pip extra,
-...). One row per capability:_
+_Only for an item introducing an environment-gated capability
+(conventions.md §1 → Environment-gated capabilities). One row per
+capability:_
 
 - **{{package/tool name}}** — declared via {{pyproject optional-dependencies
   extra name, or "external tool (not a pip dependency)"}}. Required fallback:
   {{what happens when absent — must degrade gracefully, e.g. skip cleanly,
   never fail, never silently no-op as if the path were exercised}}.
   **Full-capability verification:** not yet exercised with the dependency
-  present. Tracked in `progress.md`'s Environment-Gated Capability
-  Verification table as `❓ Unverified` until a human or a CI runner with the
-  dependency actually runs the gated path — a green skip-clean suite does
-  **not** count as verification, and a stage-closing item must add/update
-  this table's row for any capability it introduces (conventions.md §1 →
-  Environment-gated capabilities).
+  present; tracked as `❓ Unverified` in `progress.md`'s Environment-Gated
+  Capability Verification table until the gated path runs for real —
+  conventions.md §1 → Environment-gated capabilities says what counts, and
+  which item keeps the row.
 
 ## Decisions & Trade-offs
 
