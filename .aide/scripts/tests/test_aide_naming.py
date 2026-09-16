@@ -155,6 +155,21 @@ def test_item_spec_paths_does_not_match_a_longer_number(tmp_path: Path):
     assert aide.item_spec_paths(idir, 16) == []
 
 
+def test_item_spec_number_agrees_with_the_lookup(tmp_path: Path):
+    """Issue #228: the number `aide check` reads off a filename is the one a
+    lookup would find it under, or None — never a number no lookup answers."""
+    names = ["016-add-the-thing.md", "000-zero.md", "1000-big.md",
+             "12-unpadded.md", "0012-overpadded.md", "012notdash.md",
+             "notes.md", "queue-016.md"]
+    idir = _touch(tmp_path / "items", *names)
+    for name in names:
+        n = aide.item_spec_number(idir / name)
+        found = [] if n is None else [p.name for p in aide.item_spec_paths(idir, n)]
+        assert (name in found) == (n is not None), (name, n, found)
+    assert [aide.item_spec_number(idir / n) for n in names] == [
+        16, 0, 1000, None, None, None, None, None]
+
+
 def test_item_spec_paths_returns_duplicates_sorted_rather_than_raising(tmp_path: Path):
     """The convention permits one spec per number; the filesystem does not.
     Callers take [0], so the order must be deterministic."""

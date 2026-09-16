@@ -1,37 +1,30 @@
 <!--
-  AIDE progress template. Step 3. THE single source of truth for implementation
-  status (item specs carry no status field). Parsed by aide.py (check, progress
-  set) and scripts/aide_status_report.py — follow the shapes EXACTLY:
+  AIDE progress template. Step 3. THE single source of truth for status (item
+  specs carry none). Parsed by aide.py and the status report — follow the
+  shapes EXACTLY:
     - Stage summary table  | Stage | Title | Objectives | Status |  (Stage = int, Status = one icon)
     - Objective coverage   | Objective | Delivered by | Status |    (Objective starts with G<n>)
     - One "## Stage N — <title> — <icon>" section per stage, each with:
         Deliverables = FLAT bullets "- <icon> <text>. *(Item NNN)*"  (no nested status bullets)
         Acceptance   = "- [ ]" / "- [x]" checkboxes
-  Rollup (aide progress + aide check enforce it): a stage is ✅ iff every
-  Deliverables bullet is ✅ -> then its Acceptance boxes are [x] and its summary
-  row / header / delivered objectives read ✅. Mixed -> 🚧. None started -> 📋.
-  🔍 = pushed, awaiting a human's merge; it holds a stage at 🚧 and its queue
-  open. ✅ means MERGED and is written by `aide merge`, never claimed ahead of
-  one -- under git.mode = "pr" the item stays 🔍 until the PR lands.
-  Update INCREMENTALLY; never reset a non-planned status back to 📋.
-  Stage ✅ means "the planned work shipped", nothing more; a MEASURED goal the
-  work cannot guarantee (an error-rate target, a benchmark) belongs in the
-  optional "Outcome targets" table, which gates the Objective rows instead
-  (an objective linked to a target that is not ✅ Met cannot roll up to ✅).
-
-  Optional "Environment-Gated Capability Verification" section: include it
-  ONLY if the project has ANY stage introducing a capability gated behind an
-  optional package or external tool (GPU library, Docker, an optional pip
-  extra, ...). It is deliberately OUTSIDE the stage-summary rollup above — a
-  stage's ✅ still only requires its fallback/skip-clean path to pass; this
-  table is a separate, additive visibility mechanism so a green suite is never
-  mistaken for "the optional dependency was actually exercised." See
-  conventions.md §1 → Environment-gated capabilities; omit this
-  whole section if the project has no such capability.
+  A stage's icon and the Status cell of its summary row are DERIVED from the
+  Deliverables bullets, and each Objective row's Status cell follows the
+  stages that deliver it, subject to the Outcome targets gate — none of them
+  is typed; the rows themselves — which objectives exist, which stages
+  deliver each — are yours to write. The derivation is stated in
+  `python .aide/scripts/aide.py progress -h`; what a stage's ✅ means and how
+  the Outcome targets table gates the Objective rows are conventions.md §1 →
+  progress.md; what each icon asserts is §1 → Status icons; the two other
+  optional tables are §1 → Human gates and §1 → Environment-gated
+  capabilities. Read them there; nothing here restates them.
+  Optional sections, each deleted if the project has no use for it:
+  Environment-Gated Capability Verification, Outcome targets, Human gates.
 
   Fill-in conventions: `{{slot}}` = literal value; _italic line_ = guidance to
-  read then replace. Delete this comment in the generated file.
+  read then replace. Delete this comment in the generated file,
+  and keep the aide-template line below it.
 -->
+<!-- aide-template: progress 1 -->
 # {{project-name}} — Progress Tracker
 
 > **Status:** Draft v1 · **Created:** {{yyyy-mm-dd}}
@@ -68,25 +61,23 @@ _One row per vision objective._
 
 ## Environment-Gated Capability Verification  <!-- OPTIONAL: delete if not applicable -->
 
-_One row per capability gated behind an optional package or external tool.
-Status is `❓ Unverified` until a human or CI runner with the dependency
-present actually exercises the gated path (not inferred from a skip-clean
-pytest run), then `✅ Verified (YYYY-MM-DD, host/CI description)`._
+_One row per environment-gated capability (conventions.md §1 →
+Environment-gated capabilities says which, and what counts as verified).
+Status is `❓ Unverified` until the gated path has run with the dependency
+present, then `✅ Verified (YYYY-MM-DD, host/CI description)`. Keep the
+`` (`name` profile) `` part only when a `[validation]` profile checks for
+the dependency._
 
 | Capability | Package / Tool | Introduced by | Status | Notes |
 |------------|-----------------|----------------|--------|-------|
-| {{capability}} | {{package or tool name}} | Stage {{n}} *(Item {{nnn}})* | ❓ Unverified | {{notes}} |
+| {{capability}} | {{package or tool name}} (`{{profile}}` profile) | Stage {{n}} *(Item {{nnn}})* | ❓ Unverified | {{notes}} |
 
 ## Outcome targets  <!-- OPTIONAL: delete if no roadmap stage commits to a measured result -->
 
-_One row per measured outcome the roadmap commits to (an empirical result —
-an error rate, a benchmark — that shipped work enables but cannot guarantee).
-Status is `❓ Unverified` until measured, then `✅ Met (YYYY-MM-DD,
-evidence)` or `❌ Not met (measured result → follow-up)`. A target
-never holds its stage open — stages track shipped work — but an objective
-linked to a target that is not ✅ Met cannot roll up to ✅. When marking a
-target ❌ Not met, append a `- [ ] gap — …` insight in the same edit so the
-feedback loop plans the follow-on work._
+_One row per measured outcome the roadmap commits to. Status is
+`❓ Unverified` until measured, then `✅ Met (YYYY-MM-DD, evidence)` or
+`❌ Not met (measured result → follow-up)`. What a target gates, and what a
+`❌ Not met` obliges, is conventions.md §1 → progress.md._
 
 | Target | Objective | Attempted by | Status | Evidence / follow-up |
 |--------|-----------|--------------|--------|----------------------|
@@ -96,29 +87,12 @@ feedback loop plans the follow-on work._
 
 ## Human gates  <!-- OPTIONAL: delete if no work waits on a person's decision -->
 
-_One row per decision only a person can make, blocking work until they make it
-— a steering review before dependent work proceeds, sign-off on an
-irreversible change, or an out-of-band prerequisite (data access, credentials,
-an expensive run authorised). Not an acceptance box: those are observable
-checks of the built thing, which a decision is not._
-
-_**Blocks** names item numbers (`106`, `110, 111`, `106–108`) to hold just
-those, `stage N` to hold every item that stage's deliverables reference, or
-`all` for a programme-level stop. Never a queue: a queue is an incidental batch
-boundary, so it names different work week to week while the decision has not
-changed. Reach `stage N` when the pending decision could **invalidate** that
-stage's work; otherwise racing ahead is waste to throw away._
-
-_Status is `⏳ Awaiting`, then `✅ Approved (YYYY-MM-DD)` or `❌ Declined
-(YYYY-MM-DD)` — and a decline **keeps blocking**, since releasing the work
-would run exactly what was refused; re-plan instead._
-
-_Raised wherever noticed — a roadmap stage for a known prerequisite, an item
-spec for one found while specifying — but the row here is authoritative: a gate
-that exists only as prose blocks nothing. Any role may raise one._
-
-_Resolved only by a person, only via `aide gate approve <n> --evidence "…"`
-(or `gate decline`). No agent may resolve one._
+_One row per decision only a person can make. **Blocks** is `stage N`, `all`,
+or item numbers (`106`, `110, 111`, `106–108`); **Status** is `⏳ Awaiting`,
+then `✅ Approved (YYYY-MM-DD)` or `❌ Declined (YYYY-MM-DD)`.
+What each reach holds and why a queue is never one, who may raise and resolve
+a gate and how, and why a decline keeps blocking: conventions.md §1 → Human
+gates._
 
 | Gate | Blocks | Status | Decision / evidence |
 |------|--------|--------|---------------------|
@@ -139,10 +113,10 @@ _Flat bullets only — one per deliverable, each with its item reference. See
 
 **Acceptance.**
 
-_One checkbox per acceptance criterion from the matching roadmap stage. Ticked
-only by `aide progress accept <stage> --criterion N`, by whoever verified it —
-never derived from the rollup. A stage may be ✅ with a box left unticked; when
-it is, annotate the box with why._
+_One checkbox per acceptance criterion of the matching roadmap stage, ticked
+only via `python .aide/scripts/aide.py progress accept` — never by the rollup.
+The verbs that correct a box, and why a stage may be ✅ over an unticked one,
+are `progress -h` and conventions.md §1 → progress.md._
 
 - [ ] {{acceptance check}}
 

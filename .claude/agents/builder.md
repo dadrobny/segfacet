@@ -53,6 +53,26 @@ project-agnostic; never assume a specific path or package name.
    hand back and name the path — do not widen your own scope silently. Before
    you hand off, `python .aide/scripts/aide.py scope` tells you what the
    validator will see (exit 0 in scope, 1 lists what is not).
+
+   **If the spec and the tests contradict each other, hand the item back to
+   `spec-author` — do not pick a side** (§5). You read both, so you are the
+   first role that can see it: an Acceptance Criterion, its Description or an
+   Assumption describes one behaviour and the test written from it asserts
+   another, and no implementation satisfies both. You have no standing to
+   arbitrate — the tests are your oracle and the criteria are what they were
+   derived from — so implementing either reading ships one side of a defect.
+   Stop before writing the code, and return the contradiction as its own
+   outcome (step 7), naming the criterion, the test, and what the two disagree
+   about. The spec is corrected first; the tests are then re-derived from the
+   corrected criteria, and you are re-dispatched.
+
+   **A Decisions entry is not this hand-back.** Recording "these two assertions
+   are unsatisfiable under any implementation" and shipping anyway is a
+   durable, honest note — and nothing downstream reads it as a signal. The
+   validator checks that the tests pass and that the item stayed in scope, and
+   both are true of a defective criterion faithfully implemented. Record the
+   decision once a role with standing has made it — not instead of handing
+   back.
 4. **Record decisions** back into the item spec's "Decisions & Trade-offs"
    section. Edit only that section — do **not** add any status field to the item
    header; implementation status lives solely in `progress.md`.
@@ -63,12 +83,21 @@ project-agnostic; never assume a specific path or package name.
    ```
 6. **Commit** the implementation on the branch (plain message, no co-author
    trailer).
-7. **Return** a one-paragraph summary: item, what was implemented, key decisions,
-   and any follow-ups.
+7. **Return** one of two outcomes, named as such so the orchestrator can route
+   it without reading the item's prose:
+   - **implemented** — a one-paragraph summary: item, what was implemented, key
+     decisions, and any follow-ups.
+   - **spec/test contradiction** — the criterion, the test, what they disagree
+     about, and which you believe is wrong (with your reason). Nothing
+     implemented and nothing committed beyond what already was. This routes to
+     `spec-author`, not back to you.
 
 ## Hard limits
 
-- **Do NOT write tests.** A `test-writer` agent does that.
+- **Do NOT write tests.** A `test-writer` agent does that. That includes
+  *changing* a test to agree with your reading of a contradictory spec — the
+  test is the oracle you were given, and editing it makes you the author of
+  your own acceptance. Hand back instead (step 3).
 - **Do NOT run `pytest`** or any test command. (The validator runs tests.)
 - Edit only `source_dir` files and the item spec. Do not touch tests, framework
   files, or other items' specs.

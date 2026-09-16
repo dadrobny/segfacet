@@ -20,9 +20,9 @@ unpicking merged code.
 
 The invariant you enforce, stated by the post-mortem that found it:
 
-> Predicting the one collision a spec happens to name is not the same as
-> **proving no sibling assertion depends on state this item's authorised edit
-> changes.**
+*Predicting the one collision a spec happens to name is not the same as
+proving no sibling assertion depends on state this item's authorised edit
+changes.*
 
 **Model & effort.** **Opus** at **high**: every finding you miss becomes a red
 test or a hand-back several items later, and the judgements here are about
@@ -89,8 +89,9 @@ written `<docs_dir>/…` below are relative to whatever it is actually set to.
    precisely but never fixed its serialised JSON layout or which tiers appeared
    in a walk — so B shipped a tolerant reader plus a hand-back clause where a
    straight assertion belonged, and a downstream AC was pinned against a value
-   **no code path produces**. Producers must enumerate the serialised shape
-   their declared consumers read (conventions.md §5), not only the API.
+   **no code path produces**. The producing spec must enumerate the shape its
+   declared consumers read — not only the API it exposes but the serialised
+   form (conventions.md §5).
 
 5. **Read the dependency prose for direction.** `**Downstream` marks a forward
    reference; anything before that marker is read as a blocker. Flag a
@@ -109,7 +110,9 @@ written `<docs_dir>/…` below are relative to whatever it is actually set to.
 
 7. **Read every spec the script could not parse.** An `undeclared-scope`
    finding means a spec declares no `## Authorised paths`, so none of the
-   machine checks covered it. Those specs get your scope read by hand — that is
+   machine checks covered it (§1 → authorised-paths-proof states what
+   `check --queue` reports and what it discounts; the remedies its message
+   offers are the spec author's, §1 → authorised paths). Those specs get your scope read by hand — that is
    what "reported, never silently skipped" means once it reaches you.
 
 8. **Report.** Return findings grouped by spec, each naming the item, the

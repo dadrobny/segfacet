@@ -1,20 +1,20 @@
 <!--
   AIDE vision template. Step 1 of the loop. The single source of truth the
   roadmap, progress tracker, and every work item derive from.
-  Mandatory core (agents/scripts depend on these — do not drop):
-    - Guiding principles / constraints  -> validator checks "vision fit" here
-    - Out of scope                      -> validator flags scope creep against this
-    - Success criteria                  -> roadmap stages must trace back to these
-  Everything else is project narrative: keep it concise and specific, no filler.
+  Mandatory core: the four sections marked MANDATORY below. What each is read
+  for is `.aide/conventions.md` §1 → vision.md. Everything else is project
+  narrative: keep it concise and specific, no filler.
 
   Two fill-in conventions (both keep the rendered file readable AND let
   `aide check` catch anything left unfilled):
     - `{{slot}}`     — a literal value to substitute (title, date, a number).
     - _italic line_  — authoring guidance to read, then replace with real prose.
-  Delete this comment block in the generated file; the inline MANDATORY
-  annotations further down are for framework maintainers and agents, not
-  readers of the finished vision — leave those in place.
+  Delete this comment block in the generated file, and keep the
+  aide-template line below it; the inline MANDATORY annotations further down
+  are for framework maintainers and agents, not readers of the finished
+  vision — leave those in place.
 -->
+<!-- aide-template: vision 1 -->
 # {{project-name}} — Project Vision
 
 > **Status:** Draft v1 · **Created:** {{yyyy-mm-dd}}

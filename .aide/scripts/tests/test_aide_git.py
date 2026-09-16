@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -215,6 +216,35 @@ def test_pick_item_not_blocked_once_every_multi_item_dependency_is_done(tmp_path
     assert pick is not None and pick[0] == 28  # 027 is still blocked by open 028
 
 
+def test_pick_item_waits_only_for_a_dependency_that_still_blocks(tmp_path: Path):
+    """The parenthetical in `aide claim -h`: \u2705, \u274c or \u23f8\ufe0f have all left the way.
+
+    `_pick_item` asks whether any dependency is in `BLOCKING_STATUSES`
+    (planned, in-progress, in-review), so the three terminal-or-dormant icons
+    are the complement of that set rather than a list kept in step with it by
+    hand. \u23f8\ufe0f is the one worth exercising: it is not spent, and it still does
+    not hold a dependent back \u2014 skipping the deferred item while blocking
+    everything behind it is how a queue stops producing work.
+    """
+    root = _init_repo(tmp_path / "r")
+    (root / "docs" / "aide" / "items" / "027-bounds.md").write_text(
+        "# Item 027 \u2014 Bounds\n\n## Dependencies\n- Item 028 provides X.\n\n## End\n",
+        encoding="utf-8")
+    cfg = aide.load_config(root)
+    ppath = root / "docs" / "aide" / "progress.md"
+
+    ppath.write_text(PROGRESS, encoding="utf-8")
+    assert aide._pick_item(root, cfg, QUEUE, claim_branches=[])[0] == 28
+
+    for icon in ("\u2705", "\u274c", "\u23f8\ufe0f"):
+        ppath.write_text(
+            PROGRESS.replace("- \U0001f4cb Coverage. *(Item 028)*",
+                             f"- {icon} Coverage. *(Item 028)*"),
+            encoding="utf-8")
+        pick = aide._pick_item(root, cfg, QUEUE, claim_branches=[])
+        assert pick is not None and pick[0] == 27, (icon, pick)
+
+
 def test_item_dependencies_is_case_insensitive(tmp_path: Path):
     root = _init_repo(tmp_path / "r")
     (root / "docs" / "aide" / "items" / "027-bounds.md").write_text(
@@ -274,12 +304,24 @@ def test_claim_dry_run_does_not_switch(tmp_path: Path):
 # --------------------------------------------------------------------------- #
 # merge
 # --------------------------------------------------------------------------- #
-def _make_item_branch(root: Path, branch: str, filename: str) -> None:
+def _make_item_branch(root: Path, branch: str, filename: str,
+                      base: Optional[str] = "main") -> None:
+    """A claim branch as `aide claim` would leave it — base recorded and all.
+
+    Recording the base is not decoration: since issue #174 `merge` refuses a
+    claim branch that has none, because `claim` writes one for every branch it
+    creates, so a missing record means the record was LOST. A fixture that
+    skipped it would be testing the refusal in every merge test rather than
+    the merge. Pass ``base=None`` for a branch that genuinely has no record —
+    as does an empty string, since a base recorded as "" is not a base.
+    """
     _run(["git", "switch", "-c", branch], root)
     (root / filename).write_text("work\n", encoding="utf-8")
     _run(["git", "add", "-A"], root)
     _run(["git", "commit", "-m", f"work on {branch}"], root)
     _run(["git", "switch", "main"], root)
+    if base:
+        aide._record_branch_base(root, branch, base)
 
 
 def test_merge_local_merges_to_main(tmp_path: Path):
@@ -351,6 +393,24 @@ def _add_next_queue_and_claim_all(root: Path) -> None:
     # Claim branches exist for every open item of queue-003.
     _run(["git", "branch", "aide/027-bounds-rules"], root)
     _run(["git", "branch", "aide/028-coverage-rules"], root)
+
+
+def test_claim_creates_the_missing_inbox_on_the_way_through(tmp_path: Path,
+                                                           capsys):
+    """`aide claim -h`'s last sentence \u2014 the \u00a71 guarantee, kept on this path too.
+
+    `/aide-run-queue` reaches its roles through `sync` and `claim`, never
+    through `check`, so a loop that never ran `check` would otherwise have the
+    roles copying the template by hand. The creation happens on the new branch,
+    after the switch, so the inbox lands with the item rather than on its base.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    inbox = root / "docs" / "aide" / "insights.md"
+    assert not inbox.exists()
+
+    assert aide.main(["--repo", str(root), "claim"]) == 0
+    assert inbox.is_file()
+    assert "created docs/aide/insights.md" in capsys.readouterr().out
 
 
 def test_claim_default_scope_stops_at_live_queue(tmp_path: Path, capsys):
@@ -566,6 +626,53 @@ def test_gc_preview_and_yes_report_the_same_set(tmp_path: Path, capsys):
     previewed = _gc_lines(capsys)
     aide.main(["--repo", str(root), "gc", "--yes"])
     assert _gc_lines(capsys) == previewed
+
+
+def test_a_gc_skip_names_the_branch_where_it_lives_and_why(tmp_path: Path,
+                                                          capsys):
+    """The literal `aide gc -h` quotes, on both paths.
+
+    A skip is the only thing a reader has instead of a deletion, so it has to
+    say which branch, whether the local or the remote copy is meant, and what
+    stopped it. The help quoted the line without `(local/remote)` until 1.49.4.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/026-rule-engine-core", "core.txt")
+
+    for extra in ([], ["--yes"]):
+        capsys.readouterr()
+        assert aide.main(["--repo", str(root), "gc", *extra]) == 0
+        skips = [l for l in capsys.readouterr().out.splitlines()
+                 if l.startswith("skipping ")]
+        assert skips == ["skipping aide/026-rule-engine-core (local): item 026 "
+                         "is \u2705 but the branch has content not in main; "
+                         "re-check it, or pass --abandon to delete it anyway"], skips
+
+
+def test_a_gc_skip_says_so_when_the_landing_could_not_be_measured(
+        tmp_path: Path, capsys, monkeypatch):
+    """The fourth reason `aide gc -h` enumerates, and the one easiest to lose.
+
+    "Could not be determined" and "has content not in main" are different
+    statements, and this is the one destructive verb: saying the second about a
+    ref the run never read would be a claim it cannot support. The oracle's own
+    half is exercised unmocked; `cmd_gc`'s rendering of that answer needs the
+    oracle forced, since a listed branch whose ref does not resolve is not a
+    state git will let a fixture build.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/026-rule-engine-core", "core.txt")
+    # Unmocked: a ref it cannot read is unmeasurable, never False.
+    assert aide._branch_content_landed(root, "main", "origin/nope") is None
+
+    monkeypatch.setattr(aide, "_branch_content_landed", lambda *a, **k: None)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "gc", "--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "skipping aide/026-rule-engine-core (local):" in out
+    assert "could not be determined" in out
+    assert "has content not in" not in out
+    assert "aide/026-rule-engine-core" in _run(["git", "branch"], root).stdout
 
 
 def test_gc_preview_does_not_promise_to_delete_the_checked_out_branch(
@@ -1009,6 +1116,145 @@ def test_sync_is_silent_about_a_review_item_still_awaiting_its_merge(
     assert "is 🔍 but its work is now in" not in capsys.readouterr().out
 
 
+def test_status_names_a_review_item_whose_work_has_landed(tmp_path: Path, capsys):
+    """`aide status -h` promises this of `status`, not only of `sync`.
+
+    The sentence names both verbs, and the two call `_landed_review_items`
+    from different places: `status` prints it near the end of its report, with
+    the `aide sync: ` prefix stripped, so a regression in that one line would
+    leave the sync test green and the help wrong.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
+    assert aide.main(["--repo", str(root), "progress", "set", "27",
+                      "in-review"]) == 0
+    _squash_merge(root, "aide/027-bounds-rules", "squash 027")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert "item 027 is \U0001f50d but its work is now in main" in out
+    assert "progress set 027 done" in out
+
+
+def _stacked_review_item_landed_in_its_queue(
+        root: Path, recorded: Optional[str] = "aide/queue-003") -> None:
+    """Item 027 claimed off `aide/queue-003`, 🔍, its PR merged into the queue.
+
+    The work is in the queue branch and not in main — the shape stacked work
+    has between an item's merge and its queue's (issue #213). Status is set on
+    main, where the loop records it, and HEAD is left on main. *recorded* is
+    the base the claim remembers; ``None`` is a checkout that never ran the
+    `claim`, so has no record at all.
+    """
+    _run(["git", "branch", "aide/queue-003"], root)
+    aide._record_branch_base(root, "aide/queue-003", "main")
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt",
+                      base=recorded)
+    assert aide.main(["--repo", str(root), "progress", "set", "27",
+                      "in-review"]) == 0
+    _run(["git", "switch", "aide/queue-003"], root)
+    _run(["git", "merge", "--squash", "aide/027-bounds-rules"], root)
+    _run(["git", "commit", "-m", "squash 027 into the queue"], root)
+    _run(["git", "switch", "main"], root)
+
+
+def test_status_names_stacked_review_work_landed_in_its_recorded_base(
+        tmp_path: Path, capsys):
+    """Measured against `main_branch`, stacked work was never reported landed.
+
+    Run from main, so the current branch's base is main too: the claim's own
+    record is the only thing that can name the queue branch.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _stacked_review_item_landed_in_its_queue(root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert ("item 027 is \U0001f50d but its work is now in aide/queue-003"
+            in out)
+    assert "progress set 027 done" in out
+
+
+def test_status_measures_landed_work_against_an_explicit_base(
+        tmp_path: Path, capsys):
+    """`--base` reaches the landed line, not only the ahead/behind one.
+
+    One command, one resolution. A checkout that never ran the `claim` has no
+    record to find the queue branch by, and `--base` is the way to name it.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _stacked_review_item_landed_in_its_queue(root, recorded=None)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    assert "is \U0001f50d but its work is now in" not in capsys.readouterr().out
+    assert aide.main(["--repo", str(root), "status", "--no-fetch",
+                      "--base", "aide/queue-003"]) == 0
+    assert ("item 027 is \U0001f50d but its work is now in aide/queue-003"
+            in capsys.readouterr().out)
+
+
+def test_status_still_reports_stacked_work_once_its_queue_landed_and_went(
+        tmp_path: Path, capsys):
+    """The recorded base can be deleted; main is still measured then.
+
+    A landed queue branch is a `gc --merged` target. Measured only against its
+    record, a 🔍 item of that queue compared with a ref that no longer exists
+    — which `merge-tree` answers as it answers a conflict — and was never
+    reported again, though its work was in main.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _stacked_review_item_landed_in_its_queue(root)
+    _squash_merge(root, "aide/queue-003", "squash queue 003")
+    _run(["git", "branch", "-D", "aide/queue-003"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    assert ("item 027 is \U0001f50d but its work is now in main"
+            in capsys.readouterr().out)
+
+
+def test_status_sees_a_forge_merge_only_once_the_base_is_pulled(
+        tmp_path: Path, capsys):
+    """`status -h` says the landed line reads local bases, not origin/<base>.
+
+    A squash merge on the forge reaches this checkout as `origin/main` after a
+    fetch; local main does not move until it is pulled, and until then the
+    item is not reported — documented, deliberately not changed.
+    """
+    remote = _mkbare(tmp_path / "remote.git")
+    root = _init_repo(tmp_path / "r", mode="local")
+    _run(["git", "remote", "add", "origin", str(remote)], root)
+    _run(["git", "push", "-u", "origin", "main"], root)
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
+    assert aide.main(["--repo", str(root), "progress", "set", "27",
+                      "in-review"]) == 0
+    # The forge's merge: a squash on a throwaway branch, pushed to origin/main.
+    _run(["git", "switch", "-c", "forge"], root)
+    _run(["git", "merge", "--squash", "aide/027-bounds-rules"], root)
+    _run(["git", "commit", "-m", "squash 027 on the forge"], root)
+    _run(["git", "push", "origin", "forge:main"], root)
+    _run(["git", "switch", "main"], root)
+    _run(["git", "branch", "-D", "forge"], root)
+    _run(["git", "fetch", "origin"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    assert "is \U0001f50d but its work is now in" not in capsys.readouterr().out
+    _run(["git", "merge", "--ff-only", "origin/main"], root)
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    assert ("item 027 is \U0001f50d but its work is now in main"
+            in capsys.readouterr().out)
+
+
+def test_sync_reports_stacked_review_work_landed_in_its_recorded_base(
+        tmp_path: Path, capsys):
+    root = _init_repo(tmp_path / "r", mode="local")
+    _stacked_review_item_landed_in_its_queue(root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "sync"]) == 0
+    out = capsys.readouterr().out
+    assert "item 027 is \U0001f50d but its work is now in aide/queue-003" in out
+    assert "progress set 027 done" in out
+
+
 # --------------------------------------------------------------------------- #
 # The tick reaches origin — regression: it was committed after the only push
 # --------------------------------------------------------------------------- #
@@ -1058,6 +1304,9 @@ def test_merge_after_a_no_commit_run_names_the_tick_it_is_blocked_on(
     _run(["git", "add", "feature2.txt"], root)
     _run(["git", "commit", "-m", "work on 028"], root)
     _run(["git", "switch", "main"], root)
+    # As `claim` would have left it — otherwise the base refusal (issue #174)
+    # answers first and this test stops being about the dirty tree.
+    aide._record_branch_base(root, "aide/028-coverage-rules", "main")
     capsys.readouterr()
     assert aide.main(["--repo", str(root), "merge", "28", "--no-test"]) == 1
     err = capsys.readouterr().err
@@ -1352,6 +1601,27 @@ def test_check_is_silent_about_claim_branches_in_local_mode(tmp_path: Path, caps
     assert "unpublished branch" not in capsys.readouterr().out
 
 
+def test_claim_offers_the_first_planned_item_the_queue_lists(tmp_path: Path,
+                                                            capsys):
+    """`aide claim -h` says "the first \U0001f4cb item the queue lists", and means it.
+
+    `_pick_item` walks `queue_item_numbers`, which is document order — a queue
+    is free to list its items out of numeric order, and the pick follows the
+    list rather than sorting it. The help said "lowest-numbered" until 1.49.4,
+    which is what this fixture falsifies.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    (root / "docs" / "aide" / "queue" / "queue-003.md").write_text(
+        "# Demo — Work Queue 003\n\n"
+        "> **Status:** Live · **Created:** 2026-07-01\n\n"
+        "### Item 028: Coverage rules\nCoverage.\n\n"
+        "### Item 027: Bounds rules\nBounds.\n",
+        encoding="utf-8")
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    first = capsys.readouterr().out.splitlines()[0]
+    assert first.startswith("would claim item 028"), first
+
+
 def test_none_left_reports_in_the_queues_own_order(tmp_path: Path, capsys):
     """The report follows `_pick_item`'s walk, not the item numbers.
 
@@ -1376,3 +1646,315 @@ def test_none_left_reports_in_the_queues_own_order(tmp_path: Path, capsys):
     reported = [line.split()[0] for line in capsys.readouterr().out.splitlines()
                 if line.startswith("  0")]
     assert reported == ["028", "027"]
+
+
+# --------------------------------------------------------------------------- #
+# a merge retry resolves to the base the first run had (issue #167)
+# --------------------------------------------------------------------------- #
+def test_restore_puts_back_the_recorded_base_with_the_ref(tmp_path: Path):
+    """`git branch -d` takes `branch.<claim>.aide-base` with the ref. Restoring
+    the ref alone made the retry *run*; it made it run against main_branch."""
+    root = _init_repo(tmp_path / "r", mode="local")
+    assert aide.main(["--repo", str(root), "queue", "start", "3"]) == 0
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3"]) == 0
+    branch = _current_branch(root)
+    tip = _run(["git", "rev-parse", branch], root).stdout.strip()
+    base = aide._recorded_branch_base(root, branch)
+    assert base == "aide/queue-003"
+    _run(["git", "switch", "aide/queue-003"], root)
+    _run(["git", "branch", "-D", branch], root)
+    assert aide._recorded_branch_base(root, branch) is None
+
+    aide._restore_claim_branch(root, branch, tip, base)
+    assert branch in aide._local_branches(root)
+    assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
+    assert aide.resolve_base(root, aide.load_config(root), None, branch) == "aide/queue-003"
+
+
+def test_merge_refuses_a_claim_branch_with_no_recorded_base(tmp_path: Path, capsys):
+    """Issue #174, half 2 — and the assertion this file used to make the other
+    way round (it pinned the fallback being *named*, which was not enough).
+
+    `claim` records a base for every branch it makes, so a claim branch with
+    none has lost its record — the way an interrupted merge loses it, with the
+    ref. `resolve_base` cannot tell that from a branch this machine never
+    claimed; `merge` can, so it stops instead of resolving to `main_branch` and
+    fast-forwarding a queue's work onto main.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt", base=None)
+    assert aide._recorded_branch_base(root, "aide/027-bounds-rules") is None
+
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 1
+    captured = capsys.readouterr()
+    assert "no base is recorded" in captured.err
+    assert "--base" in captured.err
+    # Refused means refused: nothing merged, and the branch is untouched.
+    assert not (root / "feature.txt").is_file()
+    assert "aide/027-bounds-rules" in aide._local_branches(root)
+
+
+def test_merge_names_an_explicit_base_and_proceeds_without_a_record(tmp_path: Path,
+                                                                   capsys):
+    """`--base` is the override the refusal points at, so the legitimate
+    first-merge-onto-main shape still lands — it just says where."""
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt", base=None)
+    assert aide.main(["--repo", str(root), "merge", "27", "--base", "main",
+                      "--no-test"]) == 0
+    out = capsys.readouterr().out
+    assert "item 027 lands on main (from --base)" in out
+    assert (root / "feature.txt").is_file()
+
+
+def test_merge_names_a_recorded_base_as_recorded(tmp_path: Path, capsys):
+    root = _init_repo(tmp_path / "r", mode="local")
+    assert aide.main(["--repo", str(root), "queue", "start", "3"]) == 0
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3"]) == 0
+    (root / "work.txt").write_text("work\n", encoding="utf-8")
+    _run(["git", "add", "-A"], root)
+    _run(["git", "commit", "-m", "work"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 0
+    out = capsys.readouterr().out
+    assert "item 027 lands on aide/queue-003 (recorded for" in out
+    assert _current_branch(root) == "aide/queue-003"
+
+
+# --------------------------------------------------------------------------- #
+# env: an interpreter to build from, and an OK that means it (issue #166)
+# --------------------------------------------------------------------------- #
+def _env_toml(test_command: str, import_check: str = "", interpreter: str = "") -> str:
+    return (f'[python]\nvenv = ".venv"\ntest_command = "{test_command}"\n'
+            f'import_check = "{import_check}"\ninterpreter = "{interpreter}"\n')
+
+
+def _toml_path(path: str) -> str:
+    return path.replace("\\", "\\\\")
+
+
+@pytest.fixture(scope="module")
+def bare_venv(tmp_path_factory) -> Path:
+    """A real venv with nothing in it — the shape a bootstrap leaves when its
+    `pip install` aborts after the editable project and before the closure.
+    `--without-pip` so the fixture costs one interpreter start, not ensurepip."""
+    root = tmp_path_factory.mktemp("venv-repo")
+    subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(root / ".venv")],
+                   check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return root
+
+
+def test_the_test_runner_module_is_read_only_from_the_python_m_shape():
+    assert aide._test_runner_module({"python": {"test_command": "python -m pytest -q"}}) == "pytest"
+    assert aide._test_runner_module({"python": {"test_command": "pytest -q"}}) is None
+    assert aide._test_runner_module({"python": {"test_command": "make test"}}) is None
+    assert aide._test_runner_module({"python": {}}) == "pytest"
+
+
+def test_a_venv_with_no_test_runner_cannot_report_ok(bare_venv: Path, capsys):
+    """The observed false green: `import spinelab` succeeded, `pytest` was not
+    installed, and the validator trusting OK failed on the environment with
+    the failure attributed to its item."""
+    (bare_venv / "aide.toml").write_text(_env_toml("python -m pytest"), encoding="utf-8")
+    status, detail = aide.env_report(bare_venv, aide.load_config(bare_venv))
+    assert status == "stale" and "pytest" in detail
+    assert aide.main(["--repo", str(bare_venv), "env"]) == 1
+    assert "pytest" in capsys.readouterr().out
+
+
+def test_a_stdlib_runner_in_a_bare_venv_is_ok(bare_venv: Path, capsys):
+    (bare_venv / "aide.toml").write_text(_env_toml("python -m unittest"), encoding="utf-8")
+    assert aide.env_status(bare_venv, aide.load_config(bare_venv)) == "ok"
+    assert aide.main(["--repo", str(bare_venv), "env"]) == 0
+    assert "venv is Python" in capsys.readouterr().out
+
+
+def test_a_failed_bootstrap_record_makes_the_venv_stale(bare_venv: Path):
+    (bare_venv / "aide.toml").write_text(_env_toml("python -m unittest"), encoding="utf-8")
+    record = bare_venv / ".venv" / aide._BOOTSTRAP_RECORD
+    record.write_text('{"exit": 1}', encoding="utf-8")
+    try:
+        status, detail = aide.env_report(bare_venv, aide.load_config(bare_venv))
+    finally:
+        record.unlink()
+    assert status == "stale" and "did not finish" in detail
+
+
+def test_the_configured_interpreter_is_compared_with_the_venvs_version(
+        bare_venv: Path, tmp_path: Path):
+    same = _toml_path(sys.executable)
+    (bare_venv / "aide.toml").write_text(
+        _env_toml("python -m unittest", interpreter=same), encoding="utf-8")
+    status, detail = aide.env_report(bare_venv, aide.load_config(bare_venv))
+    assert status == "ok" and sys.executable in detail
+
+    # An "interpreter" that answers with a version no venv has — a command
+    # line, so the two paths must survive a split.
+    if " " in sys.executable or " " in str(tmp_path):
+        pytest.skip("a command-line interpreter value splits on whitespace")
+    other = tmp_path / "other.py"
+    other.write_text("print('9.9')\n", encoding="utf-8")
+    (bare_venv / "aide.toml").write_text(
+        _env_toml("python -m unittest", interpreter=f"{same} {_toml_path(str(other))}"),
+        encoding="utf-8")
+    status, detail = aide.env_report(bare_venv, aide.load_config(bare_venv))
+    assert status == "stale" and "9.9" in detail and "rebuild" in detail
+
+
+def test_an_interpreter_this_machine_cannot_run_is_reported_not_fatal(bare_venv: Path):
+    (bare_venv / "aide.toml").write_text(
+        _env_toml("python -m unittest", interpreter="no-such-python-zz"), encoding="utf-8")
+    status, detail = aide.env_report(bare_venv, aide.load_config(bare_venv))
+    assert status == "ok" and "no-such-python-zz" in detail
+
+
+def test_bootstrap_with_an_interpreter_this_machine_lacks_is_a_sentence(tmp_path: Path, capsys):
+    (tmp_path / "aide.toml").write_text(
+        _env_toml("python -m unittest", interpreter="no-such-python-zz"), encoding="utf-8")
+    assert aide.main(["--repo", str(tmp_path), "env", "--bootstrap"]) == 1
+    err = capsys.readouterr().err
+    assert "no-such-python-zz" in err and "Traceback" not in err
+    assert not (tmp_path / ".venv").exists()
+
+
+def test_an_interpreter_path_with_a_space_is_one_command(tmp_path: Path):
+    """Windows's default install is under `Program Files`; a split there made
+    a valid key "cannot be run". A value naming an existing file is the whole
+    command; anything else is a command line."""
+    home = tmp_path / "My Python"
+    home.mkdir()
+    exe = home / ("python.exe" if os.name == "nt" else "python3")
+    exe.write_text("", encoding="utf-8")
+    assert aide._configured_interpreter({"python": {"interpreter": str(exe)}}) == [str(exe)]
+    assert aide._configured_interpreter({"python": {"interpreter": "py -3.12"}}) == ["py", "-3.12"]
+    quoted = f'"{exe}" -X utf8'
+    assert aide._configured_interpreter({"python": {"interpreter": quoted}}) == [str(exe), "-X", "utf8"]
+    assert aide._configured_interpreter({"python": {"interpreter": ""}}) == [sys.executable]
+
+
+def test_a_merge_killed_mid_suite_puts_the_branch_and_its_base_back(
+        tmp_path: Path, monkeypatch, capsys):
+    """Issue #174, half 1 — the exit #167 could not see.
+
+    `_restore_claim_branch` was called from exactly the two clean failure
+    returns, so a run KILLED between the branch delete and the push restored
+    nothing: the item was merged into its base, the branch was gone, and the
+    next run's `resolve_base` fell back to main_branch. The post-merge suite is
+    the long pole in that window, which is where Ctrl-C, a CI timeout and a
+    runner's wall clock all land.
+
+    The interrupt is aimed at the test command alone — `git` goes through the
+    same `subprocess.run`, and stubbing it wholesale would kill the run before
+    it ever deleted the branch, which is the state this is about.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    assert aide.main(["--repo", str(root), "queue", "start", "3"]) == 0
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3"]) == 0
+    branch = _current_branch(root)
+    (root / "work.txt").write_text("work\n", encoding="utf-8")
+    _run(["git", "add", "-A"], root)
+    _run(["git", "commit", "-m", "work"], root)
+    _run(["git", "switch", "aide/queue-003"], root)
+    assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
+
+    real_run = aide.subprocess.run
+    test_cmd = aide.resolve_test_command(root, aide.load_config(root))
+
+    def _killed_mid_suite(cmd, *a, **kw):
+        if list(cmd) == list(test_cmd):
+            raise KeyboardInterrupt
+        return real_run(cmd, *a, **kw)
+
+    monkeypatch.setattr(aide.subprocess, "run", _killed_mid_suite)
+    with pytest.raises(KeyboardInterrupt):
+        aide.main(["--repo", str(root), "merge", "27"])
+
+    assert branch in aide._local_branches(root)
+    assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
+    # The whole point of recording it: the re-run lands where this run did.
+    assert aide.resolve_base(root, aide.load_config(root), None, branch) == "aide/queue-003"
+    assert "interrupted" in capsys.readouterr().err
+
+
+def test_a_failure_in_the_window_restores_but_is_not_called_an_interrupt(
+        tmp_path: Path, monkeypatch, capsys):
+    """The restore is owed to any exception; the word "interrupted" is not.
+
+    A test command that is not on PATH raises `FileNotFoundError` right here.
+    Reporting that as an interrupt would send a human hunting for a signal
+    nobody sent — the failure class the `--no-commit` message was fixed for in
+    issue #133.
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    assert aide.main(["--repo", str(root), "queue", "start", "3"]) == 0
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3"]) == 0
+    branch = _current_branch(root)
+    (root / "work.txt").write_text("work\n", encoding="utf-8")
+    _run(["git", "add", "-A"], root)
+    _run(["git", "commit", "-m", "work"], root)
+    _run(["git", "switch", "aide/queue-003"], root)
+
+    real_run = aide.subprocess.run
+    test_cmd = aide.resolve_test_command(root, aide.load_config(root))
+
+    def _no_such_command(cmd, *a, **kw):
+        if list(cmd) == list(test_cmd):
+            raise FileNotFoundError(2, "No such file or directory", cmd[0])
+        return real_run(cmd, *a, **kw)
+
+    monkeypatch.setattr(aide.subprocess, "run", _no_such_command)
+    with pytest.raises(FileNotFoundError):
+        aide.main(["--repo", str(root), "merge", "27"])
+
+    assert branch in aide._local_branches(root)
+    assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
+    err = capsys.readouterr().err
+    assert "FileNotFoundError" in err and "interrupted" not in err
+
+
+def test_the_restore_window_ends_at_the_push_not_at_the_return(tmp_path: Path):
+    """A merge that got all the way through must NOT get its branch back.
+
+    The `except` arm covers the window; putting the branch back after the work
+    has left the repository would leave a stale claim branch behind a ✅ item —
+    the state deleting it before the tests exists to avoid (issue #125).
+    """
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 0
+    assert "aide/027-bounds-rules" not in aide._local_branches(root)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX signal delivery")
+def test_a_terminating_signal_unwinds_instead_of_ending_the_process(tmp_path: Path):
+    """SIGTERM is how the unattended cases in #174 arrive, and Python's default
+    handler ends the process where it stands — no `finally`, no `except`. The
+    context manager is what gives the restore above a stack to unwind."""
+    import signal
+
+    original = signal.getsignal(signal.SIGTERM)
+    with aide._restore_on_signal():
+        # Asserted BEFORE the signal is sent, deliberately: were the handler
+        # not installed, the SIGTERM below would end the pytest process rather
+        # than fail this test.
+        assert signal.getsignal(signal.SIGTERM) is not original
+        with pytest.raises(aide._Terminated):
+            os.kill(os.getpid(), signal.SIGTERM)
+    # And handed back, so nothing outside the merge window inherits it.
+    assert signal.getsignal(signal.SIGTERM) is original
+
+
+def test_restore_records_the_base_the_run_merged_into_not_the_old_record(tmp_path: Path):
+    """A run given `--base` landed where the record did not say; its retry
+    must land there again, and a `branch -d` that refused leaves the stale
+    record in place to be corrected, not kept."""
+    root = _init_repo(tmp_path / "r", mode="local")
+    assert aide.main(["--repo", str(root), "queue", "start", "3"]) == 0
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3"]) == 0
+    branch = _current_branch(root)
+    tip = _run(["git", "rev-parse", branch], root).stdout.strip()
+    assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
+
+    aide._restore_claim_branch(root, branch, tip, "main")      # branch still exists
+    assert aide._recorded_branch_base(root, branch) == "main"
+    assert aide.resolve_base(root, aide.load_config(root), None, branch) == "main"

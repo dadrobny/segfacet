@@ -245,4 +245,5 @@ out/
 docs/aide/status/
 docs/aide/permissions/*.jsonl
 docs/aide/instructions/*.jsonl
+.claude/worktrees/
 # --- end AIDE ---

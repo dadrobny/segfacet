@@ -29,12 +29,14 @@ rather than assuming, and present the result as a draft for review.
 
 ### Updating an existing roadmap
 
-1. **Read `docs/aide/progress.md` first** to see which stages are completed or in
-   progress.
-2. **Completed and in-progress stages are immutable** — never modify their goals,
-   deliverables, dependencies, or acceptance criteria.
+Which stages may change, and how, is `.aide/conventions.md` §1 → roadmap.md —
+read it before editing. In practice:
+
+1. **Read `docs/aide/progress.md` first** to see which stages have started.
+2. **Edit only the stages §1 → roadmap.md leaves open**; for a criterion of a
+   started stage, run `python .aide/scripts/aide.py progress reword`, whose
+   flags are `progress -h`.
 3. **Add new stages** at the end to cover new or changed vision features.
-4. **Only planned stages may be edited.**
 
 ### Requirements
 
@@ -55,10 +57,3 @@ rather than assuming, and present the result as a draft for review.
 
 Save to `docs/aide/roadmap.md`. Roadmap changes are framework-level: reviewed PR,
 never a direct merge.
-
-## Hand-off
-
-Close your turn by telling the user, in chat:
-
-> Review `docs/aide/roadmap.md` — it is a draft until you have read it — then
-> start a **fresh chat session** and run `/aide-create-progress`.

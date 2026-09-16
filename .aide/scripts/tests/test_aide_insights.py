@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "aide.py"
 _spec = importlib.util.spec_from_file_location("aide_cli_insights", _MODULE_PATH)
 aide = importlib.util.module_from_spec(_spec)
@@ -1050,3 +1052,288 @@ def test_the_shared_committer_is_loud_when_git_cannot_run(
     assert "- [x] defect" in _inbox(repo)  # the edit landed ...
     assert " M docs/aide/insights.md" in _status(repo)  # ... and is uncommitted
     assert _staged(repo) == []
+
+
+# --------------------------------------------------------------------------- #
+# insights resolve — the parser, the union, and the refusals
+# --------------------------------------------------------------------------- #
+_HEAD = "# Insight Inbox\n\n_Entries below, newest last._\n\n"
+_A = "- [ ] framework — a is a *(item 1, 2026-01-01)*"
+_B = "- [ ] defect — b is b *(2026-01-02)*"
+_C = "- [ ] gap — c from ours *(2026-02-01)*"
+_D = "- [ ] knowledge — d from theirs *(2026-02-02)*"
+_SHARED = _HEAD + _A + "\n" + _B + "\n"
+
+
+def _conflicted(ours: str, theirs: str, common: str = _SHARED) -> str:
+    return (f"{common}<<<<<<< HEAD\n{ours}=======\n{theirs}"
+            f">>>>>>> other-branch\n")
+
+
+def _resolve(text, base=None, date="2026-03-01"):
+    return aide.resolve_insights_text(text, date, base)
+
+
+def test_split_reconstructs_each_side_as_a_whole_document():
+    """Positional ordinals are the identity every insight verb takes, so a side
+    read as a hunk alone has no idea which entry it starts at."""
+    ours, theirs, blocks = aide.split_conflict_sides(
+        _conflicted(_C + "\n", _D + "\n"))
+    assert blocks == 1
+    assert ours == _SHARED + _C + "\n"
+    assert theirs == _SHARED + _D + "\n"
+
+
+def test_split_discards_the_diff3_merge_base_section():
+    """Under `merge.conflictStyle = diff3` the base belongs to neither side;
+    appending it to both would duplicate every entry the merge base had."""
+    text = (f"{_SHARED}<<<<<<< HEAD\n{_C}\n||||||| merged common ancestors\n"
+            f"{_A}\n=======\n{_D}\n>>>>>>> other-branch\n")
+    ours, theirs, _ = aide.split_conflict_sides(text)
+    assert ours == _SHARED + _C + "\n"
+    assert theirs == _SHARED + _D + "\n"
+
+
+def test_split_handles_more_than_one_conflict_block():
+    text = (f"{_HEAD}<<<<<<< HEAD\n{_A}\n=======\n{_B}\n>>>>>>> o\n"
+            f"<<<<<<< HEAD\n{_C}\n=======\n{_D}\n>>>>>>> o\n")
+    ours, theirs, blocks = aide.split_conflict_sides(text)
+    assert blocks == 2
+    assert ours == _HEAD + _A + "\n" + _C + "\n"
+    assert theirs == _HEAD + _B + "\n" + _D + "\n"
+
+
+@pytest.mark.parametrize("text, needle", [
+    (f"{_SHARED}<<<<<<< HEAD\n{_C}\n", "never closed"),
+    (f"{_SHARED}<<<<<<< HEAD\n<<<<<<< HEAD\n{_C}\n=======\n{_D}\n>>>>>>> o\n",
+     "do not nest"),
+    (f"{_SHARED}{_C}\n>>>>>>> other\n", "outside a conflict block"),
+])
+def test_a_malformed_block_is_a_refusal_not_a_repair(text, needle):
+    """A file whose markers do not nest is not one this verb can reason about."""
+    merged, _, refusals = _resolve(text)
+    assert merged == text
+    assert len(refusals) == 1 and needle in refusals[0]
+
+
+def test_a_file_with_no_markers_is_returned_untouched():
+    merged, notes, refusals = _resolve(_SHARED)
+    assert (merged, notes, refusals) == (_SHARED, [], [])
+
+
+def test_the_union_appends_each_sides_new_entries_after_the_shared_history():
+    merged, notes, refusals = _resolve(_conflicted(_C + "\n", _D + "\n"))
+    assert refusals == []
+    assert merged == _SHARED + _C + "\n" + _D + "\n"
+    assert "1 added on HEAD, 1 added on the other side" in notes[0]
+
+
+def test_the_union_never_rewrites_a_claim_and_never_renumbers():
+    """§1's immutability rule, through a merge: every claim line survives
+    byte-for-byte and positional ordinals stay what each side captured."""
+    merged, _, _ = _resolve(_conflicted(_C + "\n", _D + "\n"))
+    entries = aide.parse_insights(merged)
+    assert [e.raw for e in entries] == [_A, _B, _C, _D]
+    assert [e.ordinal for e in entries] == [1, 2, 3, 4]
+
+
+def test_a_tick_on_one_side_survives_and_the_other_sides_entry_is_not_appended():
+    ticked = _A.replace("- [ ]", "- [x]") + " → item 007"
+    merged, notes, refusals = _resolve(_conflicted(
+        f"{ticked}\n{_B}\n{_C}\n", f"{_A}\n{_B}\n{_D}\n", _HEAD))
+    assert refusals == []
+    assert merged == _HEAD + ticked + "\n" + _B + "\n" + _C + "\n" + _D + "\n"
+    assert "1 merged in place" in notes[0]
+
+
+def test_both_sides_trail_lines_are_kept_in_date_order():
+    ticked = _A.replace("- [ ]", "- [x]") + " → item 007"
+    merged, _, _ = _resolve(_conflicted(
+        f"{ticked}\n  - **2026-02-09** → ours\n{_B}\n",
+        f"{ticked}\n  - **2026-01-09** → theirs\n{_B}\n", _HEAD))
+    assert merged.splitlines()[4:7] == [
+        ticked, "  - **2026-01-09** → theirs", "  - **2026-02-09** → ours"]
+
+
+def test_two_ticks_with_two_pointers_keep_both_and_flag_it_for_a_human():
+    """The one case a machine may not decide, so it decides nothing: the claim
+    line keeps the first pointer and the second becomes a dated trail line."""
+    ours = _A.replace("- [ ]", "- [x]") + " → item 007"
+    theirs = _A.replace("- [ ]", "- [x]") + " → aide-loop #52"
+    merged, notes, refusals = _resolve(
+        _conflicted(f"{ours}\n{_B}\n", f"{theirs}\n{_B}\n", _HEAD))
+    assert refusals == []          # it still resolves ...
+    assert merged.splitlines()[4] == ours
+    assert merged.splitlines()[5] == (
+        "  - **2026-03-01** → aide-loop #52 "
+        "(second pointer, from the other side of the merge)")
+    assert any("a different pointer on each side" in n
+               and "a human must decide" in n
+               for n in notes)    # ... and says a human must look
+
+
+def test_an_archive_on_one_side_is_refused_by_the_prefix_check_alone():
+    """The open point issue #158 left: an archive cuts closed entries out of
+    the middle and renumbers what remains, so the two sides share no prefix."""
+    merged, _, refusals = _resolve(_conflicted(
+        f"{_B}\n{_C}\n", f"{_A}\n{_B}\n{_D}\n", _HEAD))
+    assert merged == _conflicted(f"{_B}\n{_C}\n", f"{_A}\n{_B}\n{_D}\n", _HEAD)
+    assert len(refusals) == 1
+    assert "reordered or an archive cut entries out" in refusals[0]
+
+
+def test_a_reworded_claim_at_the_tail_is_refused_only_against_the_merge_base():
+    """Two sides alone cannot tell a rewording from a second capture — both are
+    "one new line each". The base can, and a stalled merge has one."""
+    reworded = "- [ ] framework — a is A *(item 1, 2026-01-01)*"
+    text = _conflicted(f"{_A}\n", f"{reworded}\n", _HEAD)
+    assert _resolve(text)[2] == []                      # no base: indistinguishable
+    merged, _, refusals = _resolve(text, base=_HEAD + _A + "\n")
+    assert merged == text
+    assert len(refusals) == 1 and "reworded" in refusals[0]
+
+
+def test_the_merge_base_names_the_side_that_rewrote_the_shared_history():
+    text = _conflicted(f"{_B}\n{_C}\n", f"{_A}\n{_B}\n{_D}\n", _HEAD)
+    refusal = _resolve(text, base=_HEAD + _A + "\n" + _B + "\n")[2][0]
+    assert refusal.startswith("HEAD rewrote the 2 entries")
+
+
+def test_a_conflict_reaching_the_header_is_refused():
+    """Not an append: the two sides disagree above the first entry."""
+    text = ("# Insight Inbox\n<<<<<<< HEAD\n_Ours._\n=======\n_Theirs._\n"
+            f">>>>>>> o\n\n{_A}\n")
+    merged, _, refusals = _resolve(text)
+    assert merged == text
+    assert len(refusals) == 1 and "above the first entry" in refusals[0]
+
+
+def test_a_blank_separated_file_keeps_its_separator_across_the_join():
+    merged, _, refusals = _resolve(_conflicted(
+        f"{_C}\n", f"{_D}\n", _HEAD + _A + "\n\n" + _B + "\n\n"))
+    assert refusals == []
+    assert merged == _HEAD + f"{_A}\n\n{_B}\n\n{_C}\n\n{_D}\n"
+
+
+# --------------------------------------------------------------------------- #
+# conflict_marker_errors — the `aide check` lint
+# --------------------------------------------------------------------------- #
+def test_check_reports_a_conflict_marker_as_an_error_naming_the_verb(tmp_path: Path):
+    ddir = tmp_path / "docs" / "aide"
+    ddir.mkdir(parents=True)
+    (ddir / "insights.md").write_text(_conflicted(_C + "\n", _D + "\n"),
+                                      encoding="utf-8")
+    errors = aide.conflict_marker_errors(ddir)
+    assert len(errors) == 2                     # <<<<<<< and >>>>>>>, not =======
+    assert errors[0].startswith("insights.md:7:")
+    assert all("insights resolve" in e for e in errors)
+
+
+def test_the_lint_does_not_fire_on_a_setext_heading_underline(tmp_path: Path):
+    """`=======` is a heading underline as often as it is a conflict marker, and
+    a lint that fires on a heading is one a reader learns to skim."""
+    ddir = tmp_path / "docs" / "aide"
+    ddir.mkdir(parents=True)
+    (ddir / "insights.md").write_text("Insight Inbox\n=======\n\n" + _A + "\n",
+                                      encoding="utf-8")
+    assert aide.conflict_marker_errors(ddir) == []
+
+
+def test_run_checks_fails_on_a_committed_conflict_marker(tmp_path: Path):
+    """An error, not a warning: every ordinal below the marker is wrong, so
+    `list`, `tick` and `archive` are all reading a file that lies."""
+    repo = _repo(tmp_path, _conflicted(_C + "\n", _D + "\n"))
+    (repo / "docs" / "aide" / "progress.md").write_text(_PROGRESS, encoding="utf-8")
+    errors, _ = aide.run_checks(repo, aide.load_config(repo))
+    assert [e for e in errors if "conflict marker" in e]
+    assert aide.main(["--repo", str(repo), "check"]) == 1
+
+
+# --------------------------------------------------------------------------- #
+# the command layer
+# --------------------------------------------------------------------------- #
+def test_resolve_says_so_and_exits_clean_when_there_is_nothing_to_resolve(
+        tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    assert aide.main(["--repo", str(repo), "insights", "resolve"]) == 0
+    assert "no conflict markers" in capsys.readouterr().out
+    assert _inbox(repo) == INBOX
+
+
+def test_dry_run_prints_the_union_and_writes_nothing(tmp_path: Path, capsys):
+    text = _conflicted(_C + "\n", _D + "\n")
+    repo = _repo(tmp_path, text)
+    assert aide.main(["--repo", str(repo), "insights", "resolve", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "1 added on HEAD, 1 added on the other side" in out and "dry run" in out
+    assert _inbox(repo) == text
+
+
+def test_a_refusal_leaves_the_markers_exactly_where_they_were(tmp_path: Path, capsys):
+    """Nothing partially written: the only safe thing to do with a claim the
+    code cannot align is leave it in front of a human."""
+    text = _conflicted(f"{_B}\n{_C}\n", f"{_A}\n{_B}\n{_D}\n", _HEAD)
+    repo = _repo(tmp_path, text)
+    assert aide.main(["--repo", str(repo), "insights", "resolve"]) == 1
+    assert _inbox(repo) == text
+    err = capsys.readouterr().err
+    assert "archive cut entries out" in err and "left exactly as it is" in err
+
+
+def test_a_pointer_is_never_dropped_when_only_one_tick_carries_one():
+    """A hand-flipped `[x]` with no pointer met a `tick`-written one on the
+    other side. Preferring our side unconditionally threw the routing record
+    away — and the routing record is the whole reason a tick is worth merging."""
+    bare = _A.replace("- [ ]", "- [x]")                  # ticked, no pointer
+    routed = bare + " → item 007"
+    merged, notes, refusals = _resolve(
+        _conflicted(f"{bare}\n{_B}\n", f"{routed}\n{_B}\n", _HEAD))
+    assert refusals == []
+    assert merged.splitlines()[4] == routed
+    # One tick, one pointer — nothing for a human to arbitrate.
+    assert not any("different pointers" in n for n in notes)
+
+
+def test_a_shared_entry_neither_side_touched_is_not_counted_as_merged():
+    """Only a *last* entry lacks a trailing blank, so in a blank-separated file
+    the two sides disagree about an untouched entry purely by where it sits."""
+    ours = f"{_A}\n\n{_B}\n"
+    theirs = f"{_A}\n\n{_B}\n\n{_D}\n"
+    merged, notes, refusals = _resolve(_conflicted(ours, theirs, _HEAD))
+    assert refusals == []
+    assert "0 merged in place" in notes[0]
+    # And the separator survives the join rather than being eaten with it.
+    assert merged == _HEAD + f"{_A}\n\n{_B}\n\n{_D}\n"
+
+
+def test_a_pointer_on_an_unticked_side_is_kept_too():
+    """A hand-written routing note is a routing record like any other. Guarding
+    the second-pointer branch on the other side having *ticked* dropped it."""
+    ours = _A + " → see issue #12"                    # unticked, hand pointer
+    theirs = _A.replace("- [ ]", "- [x]") + " → item 007"
+    merged, notes, refusals = _resolve(
+        _conflicted(f"{ours}\n{_B}\n", f"{theirs}\n{_B}\n", _HEAD))
+    assert refusals == []
+    assert merged.splitlines()[4] == theirs            # the tick wins the line
+    assert "see issue #12" in merged                   # ... and nothing is lost
+    assert any("a different pointer on each side" in n for n in notes)
+
+
+def test_a_line_under_a_shared_entry_on_the_other_side_is_not_discarded():
+    """`rest` came from our side alone, so anything sitting under the entry on
+    the other side vanished — and the run still reported a clean merge."""
+    stray = "  (a note that is neither a claim nor a trail line)"
+    merged, _, refusals = _resolve(_conflicted(
+        f"{_A}\n{_B}\n{_C}\n", f"{_A}\n{stray}\n{_B}\n{_D}\n", _HEAD))
+    assert refusals == []
+    assert stray in merged.splitlines()
+
+
+def test_one_stray_blank_does_not_re_space_every_other_entry():
+    """The separator is each entry's own. A whole-file "this file uses blanks"
+    boolean reformatted entries neither side had touched."""
+    ours = f"{_A}\n{_B}\n\n{_C}\n"        # one blank, after B only
+    theirs = f"{_A}\n{_B}\n\n{_D}\n"
+    merged, _, refusals = _resolve(_conflicted(ours, theirs, _HEAD))
+    assert refusals == []
+    assert merged == _HEAD + f"{_A}\n{_B}\n\n{_C}\n\n{_D}\n"

@@ -21,20 +21,20 @@ from the template **`.aide/templates/progress.md`**.
 ### Format contract (machine-parsed — follow exactly)
 
 `progress.md` is parsed and edited by `python .aide/scripts/aide.py`
-(`check`, `progress set`) and the status report. The shapes in
-`.aide/conventions.md` §1 are mandatory:
+(`check`, `progress set`) and the status report. **`.aide/templates/progress.md`
+is the model** — its header comment states the shapes (the two tables, the stage
+sections, the flat deliverable bullets and their `*(Item NNN)*` markers, the
+acceptance checkboxes) and its `## Status legend` table carries the status
+vocabulary. Copy them from the open template rather than retyping them from
+memory; `.aide/conventions.md` §1 → `progress.md` and §1 → status icons fix what
+the cells may hold. **Re-read the template on an incremental update too** — that
+path does not otherwise open it.
 
-- Stage summary table `| Stage | Title | Objectives | Status |`;
-- Objective coverage table `| Objective | Delivered by | Status |`;
-- one `## Stage N — <title> — <icon>` section per stage, with **flat**
-  deliverable bullets `- <icon> <text>. *(Item NNN)*` and `- [ ]` acceptance
-  checkboxes;
-- status icons only from the five-icon legend (📋 🚧 ✅ ⏸️ ❌);
-- if any roadmap stage carries a `Target:` bullet (a measured outcome the work
-  cannot guarantee — an error rate, a benchmark), mirror it as a row of the
-  optional `## Outcome targets` table (template shows the shape), NOT as an
-  acceptance checkbox — targets gate objectives, never stages
-  (`.aide/conventions.md` §1 "Outcome targets").
+One rule the shape cannot carry, so it is stated here: if any roadmap stage
+carries a `Target:` bullet (a measured outcome the work cannot guarantee — an
+error rate, a benchmark), mirror it as a row of the optional
+`## Outcome targets` table, **not** as an acceptance checkbox — targets gate
+objectives, never stages (`.aide/conventions.md` §1 → `progress.md`).
 
 Run `python .aide/scripts/aide.py check` after writing — it must pass.
 
@@ -49,10 +49,3 @@ Run `python .aide/scripts/aide.py check` after writing — it must pass.
 ### Output
 
 Save to `docs/aide/progress.md`.
-
-## Hand-off
-
-Close your turn by telling the user, in chat:
-
-> Review `docs/aide/progress.md`, then start a **fresh chat session** and run
-> `/aide-create-queue` to generate the first batch of work items.

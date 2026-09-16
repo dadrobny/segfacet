@@ -311,6 +311,40 @@ def test_pinning_an_insight_archive_matches_through_the_glob(tmp_path: Path):
     assert len(w) == 1 and "can never hold" in w[0]
 
 
+def test_a_spec_no_lookup_finds_is_one_warning_and_nothing_else(tmp_path: Path):
+    """Issue #228: `12-foo.md` read as item 12 and was linted as `012`, while
+    `aide scope` and `check --queue` found no spec for 012; `notes.md` was
+    skipped in silence. Each now gets one warning naming the rename, and none
+    of the spec lints that would print a number the lookup disagrees with."""
+    repo = _repo(tmp_path)
+    _spec_file(repo, "12-foo.md", "# Item 12 — Foo\n\n> x\n")  # no Assumptions
+    _spec_file(repo, "0027-bounds.md", GOOD_SPEC)
+    _spec_file(repo, "notes.md", "# Notes\n")
+    w = aide.item_spec_warnings(repo / "docs" / "aide")
+    assert w == [
+        "items/0027-bounds.md: not named NNN-<slug>.md, so `aide scope`, "
+        "`aide claim` and `aide check --queue` never find it and no other spec "
+        "lint reads it — rename it to 027-bounds.md",
+        "items/12-foo.md: not named NNN-<slug>.md, so `aide scope`, `aide claim` "
+        "and `aide check --queue` never find it and no other spec lint reads it "
+        "— rename it to 012-foo.md",
+        "items/notes.md: not named NNN-<slug>.md, so `aide scope`, `aide claim` "
+        "and `aide check --queue` never find it and no other spec lint reads it "
+        "— rename it NNN-<slug>.md, NNN its item number zero-padded to three digits",
+    ]
+
+
+def test_an_unfindable_spec_is_not_a_duplicate_of_the_findable_one(tmp_path: Path):
+    """The duplicate-number error counts what the lookup finds: `12-foo.md`
+    beside `012-foo.md` is one spec and one misnamed file, not two specs."""
+    repo = _repo(tmp_path)
+    _spec_file(repo, "012-foo.md", GOOD_SPEC.replace("027", "012"))
+    _spec_file(repo, "12-foo.md", GOOD_SPEC.replace("027", "012"))
+    errors, warnings = aide.run_checks(repo, _cfg(repo), branches=[])
+    assert not any("duplicate item spec" in e for e in errors)
+    assert any(w.startswith("items/12-foo.md: not named") for w in warnings)
+
+
 def test_an_ordinary_pin_is_silent(tmp_path: Path):
     repo = _repo(tmp_path)
     _spec_file(repo, "027-bounds.md", _with_paths("src/untouched.py"))
