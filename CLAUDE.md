@@ -71,7 +71,11 @@ python -m venv .venv
 Invoke Python/pytest via the venv in the relative form —
 `.venv/Scripts/python -m pytest` (Windows) or `.venv/bin/python -m pytest`
 (macOS/Linux). The `aide` CLI itself is stdlib-only and runs on **any** Python
-3.11+ via `python .aide/scripts/aide.py …` (it must work before the venv exists).
+3.11+ via `python .aide/scripts/aide.py …` (it must work before the venv exists);
+on a host with no `python` on PATH, `python3 .aide/scripts/aide.py …`.
+`[python] interpreter` in `aide.toml` (engine 1.39.0, issue #166) names what
+`env --bootstrap` builds the venv from — unset here, so the bootstrap uses
+whichever Python launched the CLI.
 
 ## Common commands
 
@@ -190,7 +194,9 @@ already written down there rather than in `docs/aide/`.
 
 - **Loop & agents** — see [`.aide/README.md`](.aide/README.md).
 - **The contract** — [`.aide/conventions.md`](.aide/conventions.md), an index:
-  `§N` resolves to a file under [`.aide/conventions/`](.aide/conventions/). The
+  `§N` resolves to one of the nine files under
+  [`.aide/conventions/`](.aide/conventions/), and `§1` is itself a directory —
+  a pointer of the form `§1 → <name>` resolves inside it. The
   CLI verbs, command hygiene, and the insight-inbox protocol are delivered into
   every session by `.aide/AGENT-CONTEXT.md` (imported below) and
   `.claude/rules/aide-command-hygiene.md` — this file does not restate them.
@@ -199,8 +205,15 @@ already written down there rather than in `docs/aide/`.
   [`.github/workflows/ci.yml`](.github/workflows/ci.yml) invokes it directly —
   see "Branching" below for why it is currently no signal.
 - **Skills / commands** — `/aide-*` (create-vision … feedback-loop, spec-queue),
-  the `/aide-run-{item,queue,roadmap}` orchestrators, and the
-  `/aide-review-{permissions,instructions}` boundary reviews.
+  the `/aide-run-{item,queue,roadmap}` orchestrators, the
+  `/aide-review-{permissions,instructions}` boundary reviews, and
+  `/aide-review-insights` (engine 1.42.0), the inbox-triage pass spun out of
+  `/aide-feedback-loop` and called by `/aide-run-roadmap` at a queue boundary.
+  `.claude/skills/` also holds **section skills** — `aide-document-format`,
+  `aide-human-gates`, `aide-item-specs`, `aide-off-platform-verification`,
+  `aide-progress-file`, `aide-queue-and-inbox`, `aide-review-and-validation`,
+  `aide-test-hygiene` (engine 1.46.0/1.47.0) — which are not commands: an agent
+  spec's `skills:` frontmatter preloads them, and nobody invokes them.
 
 ## Updating the framework (the `aide-loop` repo)
 
@@ -223,10 +236,25 @@ writes nothing and exits non-zero when behind:
 python "$AIDE_LOOP/install.py" --into . --check
 ```
 
+Its exit codes: **1** = behind, or adapter files are due for retirement (it
+names each); **2** = a previous install did not finish (`.aide/VERSION` is
+written last, issue #80); **4** = the framework checkout contradicts itself
+(engine 1.47.0 — a delivered file naming a section that moved). `--check` also
+prints an **advisory** report (issue #96) naming passages of *this* file that
+restate contract text the framework already ships; it sits outside every exit
+code, and the repair is to prune the restatement down to a pointer, or to move
+upstream a rule the shipped contract turns out to lack.
+
 `.aide/VERSION` records the installed engine; `aide-loop`'s `CHANGELOG.md` says
 what each version changed. The framework bumps its version on every commit that
 touches what a consumer installs, so a matching version now genuinely means
-up to date.
+up to date. Every template ships an `<!-- aide-template: <name> <N> -->` marker
+(engine 1.52.0, issue #164) and `aide check` warns when a living document's
+marker is behind the installed template; a document carrying no marker is never
+reported. This repo's `vision.md`, `roadmap.md`, `progress.md` and `insights.md`
+carry the marker at version 1 from engine 1.52.1 on, and a new queue or item
+spec inherits one from its template. A `CHANGELOG.md` entry that bumps
+`<name> template <N>` is the one that names what a consumer edits.
 
 **Read `$AIDE_LOOP/CLAUDE.md` before changing anything there — it is not in
 context.** An agent's instruction files are loaded for the *working directory's*
@@ -245,24 +273,52 @@ command shapes, and the `sibling_instructions.py` reminder hook are all §8
 (`.aide/conventions/8-sibling-repos.md`).
 
 Clean workflow to change the framework (no push required — the installer copies
-from the local working tree):
+from a local checkout):
 
 1. **Edit + test in `aide-loop`.** Change `core/…` or `adapters/claude/…`; run its
    suite (`python -m pytest`, stdlib-only core + pytest). Bump `core/VERSION` for
    an engine change. Commit on a branch there.
-2. **Reinstall into this repo** from the local checkout:
+2. **Reinstall into this repo from a detached worktree of `aide-loop`'s
+   `main`**, never from that repo's own working tree: the installer copies
+   whatever is checked out at the path it is given, and that checkout is
+   routinely mid-feature.
    ```bash
-   python "$AIDE_LOOP/install.py" --adapter claude --into . --update
+   git -C "$AIDE_LOOP" worktree add <scratch> origin/main --detach
+   python "<scratch>/install.py" --adapter claude --into . --update
+   git -C "$AIDE_LOOP" worktree remove <scratch>
    ```
-   `--update` re-copies the engine + adapter but **never touches `aide.toml` or
-   `docs/aide/`** (project-owned). Because this repo has adopted
+   `--update` re-copies the engine + adapter, **never touches `aide.toml` or
+   `docs/aide/`** (project-owned), and **deletes adapter files the framework has
+   retired** — tracked in `.aide/adapter-manifest.txt` (issue #85), which records
+   only files the installer itself wrote, so a file of this repo's own under
+   `.claude/` is never a candidate; `--check` previews such deletions by name.
+   Because this repo has adopted
    `.claude/settings.overlay.json`, `settings.json` is **regenerated** from
    framework-base + overlay on every run — so it needs no reconciliation and no
    `.aide-merge` is emitted; put project-specific permission rules in the
    overlay.
 3. **Review the `git diff`** — it should be exactly the intended change (most
-   copied files are byte-identical no-ops git shows nothing for). Run the suite.
-4. **Land via a reviewed PR** (framework/process files are PR-gated — see
+   copied files are byte-identical no-ops git shows nothing for). That last
+   holds only from engine **1.49.3** on: an update crossing 1.47.0/1.49.3 shows
+   a large but benign `.claude/` diff, because four delivered files became
+   generated from their conventions section and `pins:`/`reach:`/`triggers:`
+   declaration blocks are now stripped at install.
+4. **Run the engine's own suite where it landed** —
+   `.venv/bin/python -m pytest .aide/scripts/tests` (already in this repo's
+   pytest `testpaths`, so the full suite covers it too) — and
+   `python .aide/scripts/aide.py check`. **Clear a warning the new engine
+   raises rather than re-pinning the tests that hold the baseline**
+   (`tests/test_114_documentation_corrections.py`,
+   `tests/test_135_stage29_validation.py`,
+   `tests/test_147_specification_is_the_record.py`,
+   `tests/test_148_per_path_mode_attribution.py`); engine 1.38.0's
+   `aide progress retract` output says the same thing from the other side —
+   widen a pin in the same change as the retraction. Also re-check each marked
+   assumption in the item specs (`**A<n> (engine X.Y.Z)`, engine 1.36.0): an
+   engine that has moved past the marker is reported, and clearing it is an
+   **append** — `, re-checked <new>` inside the marker, never a rewrite of the
+   assumption.
+5. **Land via a reviewed PR** (framework/process files are PR-gated — see
    "Branching, and what it means for the scope check" below). Pushing the
    change to `aide-loop`'s own remote is a
    separate, optional step for sharing the framework itself.
@@ -296,6 +352,16 @@ from the local working tree):
   AC4 tests are the worked example; pinning the live inbox alone turns an
   archive sweep into a red suite. Same defect class as pinning a warning's line
   number: asserting what the loop's own verbs are built to move.
+- **An `insights.md` merge conflict is resolved with `aide insights resolve`**
+  (engine 1.43.0), never by hand — the hand resolution is where a captured
+  claim gets retyped, and a committed conflict marker in the inbox is an `aide
+  check` **error** (`aide insights -h` states what the verb writes and what it
+  refuses).
+- **The Environment-Gated Capability Verification table's Status cell must be
+  `✅ Verified` or `❓ Unverified`** (engine 1.51.0, issue #207): `aide status
+  --profiles` evaluates the profile of `❓ Unverified` rows only, and `aide
+  check` warns on any other mark. The XNAT row that read `⏸️ Out of scope` is
+  now `❓ Unverified (out of scope since 2026-07-25)`.
 - **`segfacet run` with no reference flag runs against the real-VerSe19
   reference by default** (item 090), which is not calibrated for the tiny
   synthetic corpus fixtures — a bare CLI run on `clean_control_seg.nii.gz`
@@ -344,6 +410,14 @@ Inference is narrow by design: only a recognised `aide/queue-NNN` /
 `aide/specs-queue-NNN` branch is inferred as a base, never an arbitrary
 checked-out branch.
 
+Since engine 1.41.0 (issue #174) `aide merge` **refuses** a claim branch with no
+recorded base rather than falling back to `main` — so a claim branch recreated
+by hand needs `--base <queue branch>` on its first merge. A merge interrupted
+mid-suite now restores the claim branch and its recorded base itself (1.41.0;
+1.39.0, issue #167). And `aide status` / `aide sync` measure a 🔍 claim against
+its own recorded base (1.49.7), so a stacked item merged into `aide/queue-NNN`
+is reported as landed instead of sitting 🔍 until the queue reaches `main`.
+
 **2. Whether a PR is opened per item (`[git] mode` in `aide.toml`).** Currently
 **`auto-merge`**. What each mode does — and what ✅ versus 🔍 mean — is §4
 (`.aide/conventions/4-git-modes.md`) and §1 → status-icons; this file only
@@ -388,14 +462,27 @@ queue of code is too much to review as first contact, so the review runs
   before the PR is marked ready — so marking it ready is a seam check, not a
   first read of ten items at once.
 
-The review contract — unit of review, severity, what to check, what never to
-flag — is [`REVIEW.md`](REVIEW.md), the single source. Copilot code review
+The review contract has two owners. §9
+([`.aide/conventions/9-review-and-validation.md`](.aide/conventions/9-review-and-validation.md),
+engine 1.40.0) owns the validation-versus-review split and where a finding goes
+(in scope → a fix on the item branch; out of scope → one `insights.md` line).
+[`REVIEW.md`](REVIEW.md) owns this project's severity tiers, what to check and
+what never to flag. Copilot code review
 and Claude Code Review read it (and this file) from the head branch natively;
 Codex — cloud and CLI — applies it through the Code Review Rules section of
 [`AGENTS.md`](AGENTS.md); a **local** `/code-review` subagent reads only
 CLAUDE.md, so hand it `REVIEW.md` in the prompt. Keep the three files from
 drifting: `AGENTS.md` restates only `REVIEW.md` highlights, and nothing here
 restates either.
+
+The framework ships a fourth reviewer the table below does not cover: the
+`reviewer` agent ([`.claude/agents/reviewer.md`](.claude/agents/reviewer.md),
+engine 1.40.0, issue #151), which runs inside the item loop concurrently with
+the validator on Sonnet at high effort, preloads §9 and reads `REVIEW.md` when
+the prompt hands it over. It is off unless `aide.toml` sets
+`[loop] review = "background"`, under which the validator holds the merge until
+the findings are triaged. **This repo has not enabled it** — `aide.toml` sets
+`review = "off"` explicitly — and whether to is the maintainer's call.
 
 **Reviewer capacity is the binding constraint, so this table offers tools
 rather than prescribing a routine.** Both hosted reviewers run on quotas a
@@ -416,6 +503,8 @@ first:
 only — never launched by an agent on its own. The `codex` CLI is a
 per-machine prerequisite (install + ChatGPT login), like `gh` — see "What is
 committed vs. per-machine"; on a machine without it that row is simply
-unavailable.
+unavailable. `/code-review` leaves a scratch checkout under
+`.claude/worktrees/`, which `aide sync` would refuse as an untracked path; the
+managed `.gitignore` block now ignores it (installer, issue #165).
 
 @.aide/AGENT-CONTEXT.md
