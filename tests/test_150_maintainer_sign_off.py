@@ -1066,9 +1066,16 @@ def test_ac13_the_four_held_stage_20_items_are_still_deferred(item):
 _INSIGHT_LINE_RE = re.compile(r"^- \[[ xX]\] ")
 
 #: The §1 grammar, anchored, for a line whose provenance names item 150.
+# 2026-09-16: `aide insights tick` appends a ` → <pointer>` routing suffix
+# after the provenance parenthetical when an entry is ticked closed (§1 →
+# insights.md) -- a ticked line legitimately ends that way, so the grammar
+# must tolerate it rather than pinning the un-ticked shape (a test must not
+# pin text the loop's own verbs are built to move; REVIEW.md, CLAUDE.md
+# gotchas).
 _ITEM_150_GRAMMAR_RE = re.compile(
     r"^- \[[ xX]\] (?:knowledge|defect|gap|automation|framework) — .+ "
-    r"\*\(item 150, (\d{4}-\d{2}-\d{2}), engine (\d+\.\d+\.\d+)\)\*$"
+    r"\*\(item 150, (\d{4}-\d{2}-\d{2}), engine (\d+\.\d+\.\d+)\)\*"
+    r"(?: → .+)?$"
 )
 
 #: Any line claiming item-150 provenance, well-formed or not -- so a malformed
@@ -1173,6 +1180,15 @@ def test_adv_ac14_a_malformed_item_150_line_is_caught():
     assert _ITEM_150_GRAMMAR_RE.match(good) is not None, (
         "the grammar must accept a well-formed line, or the rejections above "
         "prove nothing"
+    )
+
+    good_ticked_with_pointer = (
+        "- [x] gap — a well-formed, ticked observation "
+        "*(item 150, 2026-09-14, engine 1.37.0)* → item 153"
+    )
+    assert _ITEM_150_GRAMMAR_RE.match(good_ticked_with_pointer) is not None, (
+        "the grammar must accept a ticked line carrying the routing pointer "
+        "`aide insights tick` appends"
     )
 
 
