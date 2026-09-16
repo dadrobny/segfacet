@@ -876,6 +876,7 @@ def test_ac20_mode16_cases_measure_to_expected_sets(measured):
 def test_ac21_geometric_dispatch_is_unchanged_for_geometric_cases():
     import segfacet.failure_modes as fm
     from segfacet.synth.corpus import load_manifest
+    from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, corpus_case_kind
 
     owners = [(f"mode {mode.id}", mode.corpus_cases) for mode in fm.iter_modes()]
     owners += [
@@ -899,13 +900,14 @@ def test_ac21_geometric_dispatch_is_unchanged_for_geometric_cases():
 
     # Every committed geometric case that is not a bare clean control (a
     # case with a `condition` is the condition's fixture, not a control)
-    # must be one of the cases just measured.
+    # must be one of the cases just measured. Item 155: the discriminator is
+    # the recorded `kind`, not a `failure_mode`/`condition` hand-rolled check.
     manifest_cases = load_manifest()["cases"]
     assert manifest_cases, "expected a non-empty geometric manifest"
     expected_case_ids = {
         case["case_id"]
         for case in manifest_cases
-        if case.get("failure_mode") != 0 or case.get("condition")
+        if corpus_case_kind(case) != CASE_KIND_CLEAN_CONTROL
     }
     assert expected_case_ids, "expected >=1 non-control case in the geometric manifest"
     assert set(measured_case_ids) == expected_case_ids, (

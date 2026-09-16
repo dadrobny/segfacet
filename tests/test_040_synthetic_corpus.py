@@ -124,6 +124,9 @@ _SCHEMA_KEYS_TYPES = {
     # Item 150 (2026-09-14): the id of the failure_modes.CONDITIONS entry the
     # case exhibits, "" for a case that exhibits none.
     "condition": str,
+    # Item 155 (2026-09-16): the derived clean_control/condition/failure
+    # discriminator -- see segfacet.synth.perturbation.CASE_KINDS.
+    "kind": str,
     "detection": str,
     "perturbation": str,
     "perturbation_params": dict,
@@ -446,8 +449,12 @@ def test_ac17_manifest_expectations_equal_operators_expectation():
     # != 0" -- the FOV-truncation case carries mode 0 plus a condition and
     # is emphatically not a clean control. Every case built by an operator
     # other than the identity is rebuilt here, the condition case included.
+    # Item 155: the recorded `kind` is the discriminator, not a hand-rolled
+    # failure_mode/condition check.
+    from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, corpus_case_kind
+
     non_clean = [
-        c for c in _cases() if c["failure_mode"] != 0 or c["condition"]
+        c for c in _cases() if corpus_case_kind(c) != CASE_KIND_CLEAN_CONTROL
     ]
     assert non_clean  # sanity
     assert {c["case_id"] for c in _cases()} - {c["case_id"] for c in non_clean} == {

@@ -109,6 +109,7 @@ from segfacet.config import bundled_default_config
 from segfacet.features.spline_offset import compute_leave_one_out_spline_offsets
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.corpus import CORPUS_DIR, load_manifest
+from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 from segfacet.synth.regression import loaded_seg_image
 
 import committed_artifact_guard as guard
@@ -756,7 +757,7 @@ def _pipeline_detected_modes_excluding_clean_control() -> set:
     return {
         c["failure_mode"]
         for c in manifest["cases"]
-        if c["detection"] == "pipeline" and c["failure_mode"] != 0
+        if c["detection"] == "pipeline" and corpus_case_kind(c) == CASE_KIND_FAILURE
     }
 
 

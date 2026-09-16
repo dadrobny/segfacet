@@ -729,12 +729,13 @@ def test_ac14_corpus_case_the_specification_does_not_carry_is_reported(monkeypat
 def test_ac14_intensity_manifest_is_covered_by_the_same_check(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.intensity as intensity_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     baseline = fm.specification_conflicts()
 
     manifest = copy.deepcopy(intensity_module.load_intensity_manifest())
     assert manifest["cases"], "expected a non-empty intensity manifest"
-    target = next(c for c in manifest["cases"] if c["failure_mode"] != 0)
+    target = next(c for c in manifest["cases"] if corpus_case_kind(c) == CASE_KIND_FAILURE)
     original_mode = target["failure_mode"]
     other_mode = next(
         m for m in fm.SPECIFICATION if m not in (0, original_mode)
@@ -757,12 +758,15 @@ def test_ac14_intensity_manifest_is_covered_by_the_same_check(monkeypatch):
 def test_ac15_geometric_case_expectation_disagreement_is_reported(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.corpus as corpus_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     baseline = fm.specification_conflicts()
 
     manifest = copy.deepcopy(corpus_module.load_manifest())
     target = next(
-        c for c in manifest["cases"] if c["failure_mode"] != 0 and c.get("expected_rule_ids")
+        c
+        for c in manifest["cases"]
+        if corpus_case_kind(c) == CASE_KIND_FAILURE and c.get("expected_rule_ids")
     )
     target["expected_rule_ids"] = list(target["expected_rule_ids"]) + [
         "__item147_extra_rule_id__"
@@ -783,11 +787,12 @@ def test_ac15_geometric_case_expectation_disagreement_is_reported(monkeypatch):
 def test_ac15_intensity_case_expectation_disagreement_is_reported(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.intensity as intensity_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     baseline = fm.specification_conflicts()
 
     manifest = copy.deepcopy(intensity_module.load_intensity_manifest())
-    target = next(c for c in manifest["cases"] if c["failure_mode"] != 0)
+    target = next(c for c in manifest["cases"] if corpus_case_kind(c) == CASE_KIND_FAILURE)
     target["expected_firing"] = list(target["expected_firing"]) + [
         "__item147_extra_rule_id__"
     ]

@@ -79,6 +79,7 @@ from segfacet.features.spline import fit_centroid_spline
 from segfacet.io import load_case
 from segfacet.pipeline import run_qc
 from segfacet.synth.corpus import CORPUS_DIR, load_manifest
+from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
 _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
@@ -434,7 +435,7 @@ def _pipeline_detected_modes_excluding_clean_control() -> set:
     return {
         c["failure_mode"]
         for c in manifest["cases"]
-        if c["detection"] == "pipeline" and c["failure_mode"] != 0
+        if c["detection"] == "pipeline" and corpus_case_kind(c) == CASE_KIND_FAILURE
     }
 
 

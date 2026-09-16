@@ -45,6 +45,7 @@ import pytest
 
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
 from segfacet.synth.corpus import load_manifest
+from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, CASE_KIND_FAILURE, corpus_case_kind
 from segfacet.synth.regression import (
     RECONSTRUCTIONS,
     designated_rule_fired,
@@ -68,14 +69,15 @@ _PIPELINE_CASES = [c for c in _CASES if c["detection"] == "pipeline"]
 # Item 150: a failure-mode case may designate NO rule ("not detected today",
 # e.g. remove_level_relabel), and a failure_mode-0 case may carry a condition
 # (mode6_crop_at_border) and designate one -- the designation, not the mode
-# id, decides which check applies.
+# id, decides which check applies. Item 155: the recorded `kind` replaces the
+# hand-rolled failure_mode/condition check.
 _NON_CLEAN_PIPELINE_CASES = [
     c
     for c in _PIPELINE_CASES
-    if (c["failure_mode"] != 0 or c.get("condition")) and c["expected_rule_ids"]
+    if corpus_case_kind(c) != CASE_KIND_CLEAN_CONTROL and c["expected_rule_ids"]
 ]
 _UNDETECTED_PIPELINE_CASES = [
-    c for c in _PIPELINE_CASES if c["failure_mode"] != 0 and not c["expected_rule_ids"]
+    c for c in _PIPELINE_CASES if corpus_case_kind(c) == CASE_KIND_FAILURE and not c["expected_rule_ids"]
 ]
 _RECONSTRUCTED_CASES = [c for c in _CASES if c["detection"] == "reconstructed_record"]
 
