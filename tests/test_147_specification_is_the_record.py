@@ -23,8 +23,9 @@ AC -> test map (house style, items 144-146):
         test_adv_ac3_walker_flags_a_planted_real_reference
 - AC4:  test_ac4_vision_parse_has_one_home,
         test_adv_ac4_walker_flags_a_planted_real_read
-- AC5:  test_ac5_every_vision_seed_title_disposes_and_resolves,
-        test_adv_ac5_unresolvable_disposition_is_reported
+- AC5:  retired (item 152, 2026-09-16) with `vision_seed_conflicts()` --
+        vision.md v4 carries no numbered §6 list left to parse. See
+        `tests/test_152_retire_vision_seed.py`
 - AC6:  test_ac6_matrix_titles_come_from_the_specification
 - AC7:  test_ac7_mode_rungs_are_derived_from_the_specification
 - AC8:  test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode
@@ -423,16 +424,17 @@ def test_adv_ac3_walker_flags_a_planted_real_reference(tmp_path):
 
 
 def test_ac4_vision_parse_has_one_home():
-    import segfacet.failure_modes as fm
-
-    assert callable(fm.vision_seed_titles)
-    titles = fm.vision_seed_titles()
-    assert titles, "expected >=1 title parsed from vision.md §6"
-
+    """Re-pointed (item 152, 2026-09-16): vision.md v4's §6 carries no
+    numbered list, and ``vision_seed_titles()`` is retired along with it --
+    there is no longer a parse for any module to hold a monopoly on. What
+    survives of AC4's claim is the tree-wide half: no module under
+    ``src/segfacet/`` (``failure_modes.py`` included -- it read the document
+    itself, but reads nothing now) holds a non-docstring string constant
+    naming ``vision.md``. This duplicates
+    ``tests/test_152_retire_vision_seed.py::test_ac3_no_production_module_reads_vision_md``;
+    kept here as well because AC4 is this module's own acceptance criterion."""
     offenders = []
     for path in _all_src_py_files():
-        if path.name == "failure_modes.py":
-            continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         if _references_vision_md(tree):
             offenders.append(_rel(path))
@@ -484,68 +486,15 @@ def test_adv_ac4_walker_flags_a_planted_real_read(tmp_path):
 # =========================================================================== #
 
 
-def test_ac5_every_vision_seed_title_disposes_and_resolves():
-    import segfacet.failure_modes as fm
-
-    titles = fm.vision_seed_titles()
-    assert titles, "expected >=1 title parsed from vision.md §6"
-    assert set(titles) == set(range(1, len(titles) + 1)), sorted(titles)
-
-    assert fm.vision_seed_conflicts() == ()
-    assert set(fm.VISION_SEED_DISPOSITION) == set(titles.values()), (
-        set(fm.VISION_SEED_DISPOSITION) ^ set(titles.values())
-    )
-
-    resolved = 0
-    for title, disposition in fm.VISION_SEED_DISPOSITION.items():
-        assert title in set(titles.values()), title
-        if disposition == "retired":
-            resolved += 1
-            continue
-        kind, _sep, target = disposition.partition(":")
-        if kind == "mode":
-            assert target.isdigit() and int(target) in fm.SPECIFICATION, disposition
-        elif kind == "condition":
-            assert target in fm.CONDITIONS, disposition
-        else:
-            raise AssertionError(f"unresolvable disposition {disposition!r} for {title!r}")
-        resolved += 1
-    assert resolved == len(fm.VISION_SEED_DISPOSITION), resolved
-
-    # The seed titles are no longer the mode names, by design -- so the
-    # retired claim must not have quietly survived as an accident.
-    assert set(titles.values()) != {mode.name for mode in fm.SPECIFICATION.values()}
-
-
-def test_adv_ac5_unresolvable_disposition_is_reported(monkeypatch):
-    """Positive control for the check above: `vision_seed_conflicts()` must
-    be able to fail, in each of its three directions."""
-    import segfacet.failure_modes as fm
-
-    baseline = dict(fm.VISION_SEED_DISPOSITION)
-    assert baseline, "expected a non-empty disposition map"
-
-    dropped_title = sorted(baseline)[0]
-
-    missing_entry = {k: v for k, v in baseline.items() if k != dropped_title}
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", missing_entry)
-    conflicts = fm.vision_seed_conflicts()
-    assert any(dropped_title in msg for msg in conflicts), conflicts
-
-    unknown_title = dict(baseline)
-    unknown_title["__item150_no_such_vision_title__"] = "retired"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", unknown_title)
-    conflicts = fm.vision_seed_conflicts()
-    assert any("__item150_no_such_vision_title__" in msg for msg in conflicts), conflicts
-
-    unresolvable = dict(baseline)
-    unresolvable[dropped_title] = "mode:9999"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", unresolvable)
-    conflicts = fm.vision_seed_conflicts()
-    assert any("mode:9999" in msg for msg in conflicts), conflicts
-
-    monkeypatch.undo()
-    assert fm.vision_seed_conflicts() == ()
+# test_ac5_every_vision_seed_title_disposes_and_resolves and
+# test_adv_ac5_unresolvable_disposition_is_reported retired (item 152,
+# 2026-09-16), with `vision_seed_conflicts()`/`vision_seed_titles()`:
+# vision.md v4's §6 carries no numbered list left to parse, so there is no
+# live title set for a disposition to resolve against. The frozen-provenance
+# and every-disposition-resolves claims they made, positive control
+# included, are
+# `tests/test_152_retire_vision_seed.py::test_ac6_provenance_map_is_frozen_at_its_v3_value`
+# and its AC7 pair.
 
 
 # =========================================================================== #

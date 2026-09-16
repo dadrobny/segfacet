@@ -842,19 +842,15 @@ def test_ac26_traceability_has_no_mode_rungs_attribute():
 # =========================================================================== #
 # AC27: every vision.md §6 seed title resolves through
 # VISION_SEED_DISPOSITION.
+#
+# test_ac27_vision_seed_conflicts_is_empty and
+# test_adv_ac27_unresolvable_disposition_is_flagged retired (item 152,
+# 2026-09-16), with `vision_seed_conflicts()`: vision.md v4's §6 carries no
+# numbered list left to parse. AC27's every-disposition-resolves claim, and
+# the positive control that it can fail, are
+# `tests/test_152_retire_vision_seed.py::test_ac7_every_disposition_resolves`
+# and its adversarial pair.
 # =========================================================================== #
-
-
-def test_ac27_vision_seed_conflicts_is_empty():
-    assert fm.vision_seed_conflicts() == ()
-
-
-def test_adv_ac27_unresolvable_disposition_is_flagged(monkeypatch):
-    bad_disposition = dict(fm.VISION_SEED_DISPOSITION)
-    some_title = next(iter(bad_disposition))
-    bad_disposition[some_title] = "mode:9999"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", bad_disposition)
-    assert fm.vision_seed_conflicts() != ()
 
 
 # =========================================================================== #

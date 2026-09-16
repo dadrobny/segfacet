@@ -857,16 +857,17 @@ def test_ac9_mode_titles_match_the_hand_transcribed_vision_literals(matrix):
 
 
 def test_ac9_vision_section_six_titles_are_dispositioned_provenance(matrix):
-    """Complementary derived check, re-targeted (item 150, 2026-09-14). It
-    used to assert that every §6 title *was* the corresponding mode's title,
-    which was true only while §6's list doubled as the id-bearing catalogue.
-    The sign-off severed the two: §6 is provenance, and each of its titles is
-    dispositioned in ``failure_modes.VISION_SEED_DISPOSITION`` to a mode, to
-    the ``fov_truncation`` condition, or to ``retired``. The live-document
-    guard survives in that form -- edit §6 without dispositioning the change
-    and this fails loudly -- and it still reads the one public parse
-    (``failure_modes.vision_seed_titles()``, item 147 AC4) rather than
-    re-parsing ``vision.md`` here.
+    """Complementary derived check, re-targeted twice: first at the item-150
+    sign-off (2026-09-14, §6 severed from the id-bearing catalogue), then at
+    item 152 (2026-09-16), which retired ``failure_modes.vision_seed_titles()``
+    and ``vision_seed_conflicts()`` -- vision.md v4 re-issues §6 as principles
+    plus a pointer, with no numbered list left to parse. The live-document
+    guard this test carries now compares two independent transcriptions of
+    v3's §6 instead of a live parse: ``VISION_SECTION_SIX_MODE_TITLES`` above
+    (this module's own hand transcription) against
+    ``failure_modes.VISION_SEED_DISPOSITION`` (the frozen provenance map),
+    and recomputes disposition resolution itself rather than calling the
+    retired ``vision_seed_conflicts()``.
 
     The mode-title ground truth this test used to carry is
     ``SIGNED_OFF_MODE_TITLES`` above, asserted by
@@ -875,18 +876,15 @@ def test_ac9_vision_section_six_titles_are_dispositioned_provenance(matrix):
 
     d = matrix
     modes = _mode_records(d)
-    vision_titles = failure_modes_module.vision_seed_titles()
-    assert modes and vision_titles
-
-    # The hand-transcribed §6 literals and the live parse must still agree --
-    # this is the half that fails when §6's wording is edited.
-    assert vision_titles == VISION_SECTION_SIX_MODE_TITLES
-
-    assert failure_modes_module.vision_seed_conflicts() == ()
+    assert modes
 
     dispositions = failure_modes_module.VISION_SEED_DISPOSITION
+    assert set(dispositions) == set(VISION_SECTION_SIX_MODE_TITLES.values()), (
+        set(dispositions) ^ set(VISION_SECTION_SIX_MODE_TITLES.values())
+    )
+
     seen = {"mode": 0, "condition": 0, "retired": 0}
-    for seed_id, title in sorted(vision_titles.items()):
+    for seed_id, title in sorted(VISION_SECTION_SIX_MODE_TITLES.items()):
         assert title in dispositions, (seed_id, title)
         disposition = dispositions[title]
         kind, _sep, target = disposition.partition(":")
@@ -894,6 +892,7 @@ def test_ac9_vision_section_six_titles_are_dispositioned_provenance(matrix):
             seen["retired"] += 1
             continue
         if kind == "mode":
+            assert target.isdigit() and int(target) in modes, (seed_id, disposition)
             assert modes[int(target)]["title"], (seed_id, disposition)
             seen["mode"] += 1
         elif kind == "condition":
