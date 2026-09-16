@@ -1,3 +1,4 @@
+<!-- aide-template: progress 1 -->
 # FACET — Progress Tracker
 
 > **Status:** v3.1 · **Created:** 2026-06-24 · **Re-issued:** 2026-09-15 against
@@ -46,7 +47,7 @@
 | 17    | Foreign-Convention Interop & Orientation-Safe Image Layer               | G2, G6          | ✅     |
 | 18    | Failure-Mode-Specific Metric Surface                                    | G2, G7          | ✅     |
 | 19    | Generated Feature & Rule Catalogue + Steering Review                    | G7, G8          | ✅     |
-| 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | ✅     |
+| 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | 🚧     |
 | 21    | Real-GT Perturbation Corpus                                             | G3, G7          | 📋     |
 | 22    | *(placeholder)* Unified `(scan, seg)` Extraction                    | —              | 📋     |
 | 23    | *(placeholder)* Multivariate Normative Model                          | G3              | 📋     |
@@ -190,7 +191,7 @@ item, or doc where the detail already lives, not a prose copy of it._
 | Real VerSe GT reference distributions           | VerSe ground-truth cohort (external dataset)                                             | Stage 6*(Items 044, 045)*; closed by Stage 12 *(Item 084)* + Stage 13 adapter; recalibration by Stage 14 *(Items 089–092)* | ✅ Verified (2026-07-19, real VerSe19 via`segqc.datasets` adapter, no manual staging)      | 80 real VerSe19 training subjects →`src/segqc/reference/reference_verse_v1.json`. This row attests only that the real cohort **ran** end-to-end; the measured FPR/sensitivity **outcome** (❌ Not met) and the deferred `reference_delta` rework live in [Outcome targets](#outcome-targets) and the Stage 14 section. |
 | Radiomics feature extraction                    | `pyradiomics` (extra: `segqc[radiomics]`)                                            | Stage 8*(Item 060)*                                                                                                             | ✅ Verified (2026-07-14, GitHub Actions CI)                                                  | CI`verify-environment-gated` (`ci.yml`) installs the extra and runs the radiomics tests, failing on any skip (`assert_no_skips.py`). First real run found + fixed a degenerate-mask bug (item 076); green since PR #33.                                                                                                          |
 | Containerised pipeline (Docker build + run)     | Docker (external tool, no pip dependency)                                                | Stage 9*(Items 066, 069, 070)*                                                                                                  | ✅ Verified (2026-07-14, GitHub Actions CI)                                                  | Same CI job does a real`docker build` + `docker run` smoke test (`test_066/069/070`); item 080 gated it to a Linux daemon (skip, not error, on Windows-container hosts).                                                                                                                                                         |
-| XNAT Container Service command on a real server | XNAT server + Container Service (external environment)                                   | Stage 9*(Items 067, 068, 070)*; **Stage 15 ❌ Excluded**                                                                  | ⏸️ Out of scope (2026-07-25)                                                               | The container itself is verified (Docker row). Installing`command.json` on a real XNAT server never happened and now never will *here*: deployment left scope in [`vision.md`](vision.md) §0 and G5 was removed. Row retained so the artefacts' unverified status stays on the record rather than vanishing with the stage.      |
+| XNAT Container Service command on a real server | XNAT server + Container Service (external environment)                                   | Stage 9*(Items 067, 068, 070)*; **Stage 15 ❌ Excluded**                                                                  | ❓ Unverified (out of scope since 2026-07-25)                                                | The container itself is verified (Docker row). Installing`command.json` on a real XNAT server never happened and now never will *here*: deployment left scope in [`vision.md`](vision.md) §0 and G5 was removed. Row retained so the artefacts' unverified status stays on the record rather than vanishing with the stage.      |
 | Real automatic-segmentation failure corpus      | **SPINEPS** (primary) / TotalSegmentator outputs on real CT (external tool + data) | Stages 5, 7*(Items 041, 053, 057)*; to be closed by Stage 16                                                                    | ❓ Unverified                                                                                | §6 modes are detected only on synthetically perturbed GT; no real-failure output has run, so item 057's per-mode sensitivities are synthetic-only. Curated challenging cases ([`vision.md`](vision.md) §8) unbuilt. → Stage 16 (rung 3), which now depends on Stage 21 (rung 2).                                                   |
 | GPU-accelerated feature extraction              | `cupy` (extra: `segqc[gpu]`)                                                         | Stage 10*(Items 071–075)*; closed by *(Item 085)*                                                                            | ✅ Verified (2026-07-16, Quadro P6000 sm_61, CuPy`cupy-cuda12x` 14.1.1, driver 580.159.04) | Verified on a Pascal sm_61 workstation (2× P6000) with the CPU/GPU equivalence tests executing; first CuPy run found + fixed a NEP-50 regression (item 085). Install`cupy-cuda12x` (**not** `cupy-cuda13x` — drops Pascal). No CI GPU coverage — see [`docs/gpu-verification.md`](../gpu-verification.md).               |
 | Real SPINEPS-output label-convention round-trip | Real SPINEPS-produced label map (external tool + data), via `SEGFACET_SPINEPS_FIXTURE` | Stage 17 (Item 097)                                                                                                                | ❓ Unverified                                                                                | No committed real-SPINEPS fixture; requires `SEGFACET_SPINEPS_FIXTURE` pointing at a directory of real SPINEPS output. Narrower than the "Real automatic-segmentation failure corpus" row above (Stage 16 sensitivity/DICE scope) — this row is level-**naming** correctness only. Mechanics unconditionally covered by a committed synthetic TPTBox-labeled fixture (`tests/test_097_stage17_validation.py::test_ac4_*`); the real-data path (`test_ac6_real_spineps_fixture_level_names_correct`) is a genuine, cleanly-skipping `skipif` not yet exercised for real. |
@@ -948,7 +949,7 @@ verifies they agree, and no document records which failure mode each feature ser
 
 ---
 
-## Stage 20 — Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness (G2, G7) — ✅
+## Stage 20 — Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness (G2, G7) — 🚧
 
 **Goal.** Close the gap between "the suite is green" and "the rules are specific".
 Measured 2026-07-25 on the committed corpus: **10 rules registered and enabled, 4 ever
@@ -1038,6 +1039,12 @@ rule(s) and any features they need; features may be added alone, modes and rules
 > (`insights.md`, queue-020, 2026-09-03) for hand-over to `aide-loop`; it is
 > part of the warning baseline from this date, not a new finding for an item to
 > chase.
+>
+> **2026-09-16, engine 1.52.1** — the `rollup_status` defect was fixed upstream in
+> engine 1.41.0 (aide-loop#173): a ⏸️ deliverable no longer rolls its stage up. The
+> summary row and this section's heading, which `aide progress set 143` had flipped
+> to ✅ on 2026-09-03, are restored to 🚧 (Stage 31 D0), and the warning above is no
+> longer part of the baseline — under the new engine that mis-shape is an error.
 
 > **Where the four held items go after Stage 30's sign-off** *(roadmap v3.1,
 > 2026-09-15)*. Stage 20's remainder is not re-queued as a stage of its own:
@@ -1558,15 +1565,10 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
 - ✅ **D4** The five partial sources collapsed onto the specification; `Expectation` and
   `RuleModeDeclaration` checked against it in both directions; the three declaration-seam
   defects (the `"corpus"` tag membership test, the untyped `evidence`/`modes`, the
-  corpus-to-declaration blindness; `insights.md`, spec 136) closed by replacement, and
-  the rule-granular attribution (`insights.md`, spec 138) given a per-detector or
-  per-path form the catalogue renders. *(Item 147)*
-- ✅ **D4** The five partial sources collapsed onto the specification; `Expectation` and
-  `RuleModeDeclaration` checked against it in both directions; the three declaration-seam
-  defects (the `"corpus"` tag membership test, the untyped `evidence`/`modes`, the
-  corpus-to-declaration blindness; `insights.md`, spec 136) closed by replacement, and
-  the rule-granular attribution (`insights.md`, spec 138) given a per-detector or
-  per-path form the catalogue renders. *(Item 148)*
+  corpus-to-declaration blindness; `insights.md`, spec 136) closed by replacement. *(Item 147)*
+- ✅ **D4** The rule-granular attribution (`insights.md`, spec 138) given a per-path form
+  the catalogue renders, so a rule's bookkeeping read paths are no longer painted with the
+  mode its signal paths serve. *(Item 148)*
 - ✅ **D5** The traceability `build_matrix` (spec 138) re-pointed at the specification as primary: derived
   status, per-edge rungs, expected beside measured firing per corpus case with agreement
   scored, metric anchor path and rule read paths as two labelled columns; the

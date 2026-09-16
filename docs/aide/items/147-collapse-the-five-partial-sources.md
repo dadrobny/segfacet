@@ -249,7 +249,7 @@ rebase cleanly onto it.
   manifests still measures the firing set the specification authors
   (`failure_modes.case_agrees` true for all ten modes' cases), modes 1–9 derive
   `validated` and mode 10 derives `proposed`, all recomputed live.
-- [ ] **AC27 (engine 1.37.0): `aide check` stays at 7 warnings.**
+- [ ] **AC27 (engine 1.37.0, re-checked 1.52.1): `aide check` stays at 7 warnings.**
   `python .aide/scripts/aide.py check` reports exactly 7 warnings, none of them a
   `.gitattributes` lint (this item adds no committed fixture path).
 
@@ -330,7 +330,7 @@ each defensible default taken is recorded here for the queue-boundary audit.
   edited from inside an item (queue-020 scope fence); one line is appended to
   `docs/aide/insights.md` instead, and the specification's corrected sentence
   states the measurement rather than repeating §6's parenthetical.
-- **A14 (engine 1.37.0) — the `aide check` baseline is 7 warnings** on this
+- **A14 (engine 1.37.0, re-checked 1.52.1) — the `aide check` baseline is 7 warnings** on this
   branch's base (measured 2026-09-04): 1 missing-Assumptions roll-up, 2 pending
   human gates, 4 Stage-20 retraction notices. AC27 pins that number under this
   engine.

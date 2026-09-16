@@ -30,6 +30,7 @@ queue_cap = 10               # ~max items a queue-planner batch may hold
 validation_rounds = 3        # build<->validate cap before escalating/pausing
 clarify = "assume"           # interactive | assume — see .aide/conventions.md > Clarify mode
 claim_scope = "live-queue"   # live-queue | all-open — one queue at a time keeps the human checkpoint
+review = "off"               # off | background — engine 1.40.0's in-loop `reviewer` agent (§9); not adopted yet, see CLAUDE.md "Code review"
 
 [framework]
 # Where `framework`-typed insights are handed over (gh issue target). The AIDE

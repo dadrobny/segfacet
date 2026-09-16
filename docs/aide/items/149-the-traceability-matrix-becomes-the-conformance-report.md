@@ -314,7 +314,7 @@ for the maintainer reading the rendering at item 150 (**A9**).
   assertion in the reason string.** The allowlist reason *names* the discharging
   test; the guard itself performs no float walk (it is a static AST classifier).
   This mirrors how `emission-clamped` names the clamp rather than checking it.
-- **A7 (engine 1.37.0) — `aide check`'s `.gitattributes` lint is silent for
+- **A7 (engine 1.37.0, re-checked 1.52.1) — `aide check`'s `.gitattributes` lint is silent for
   both artifacts today and must stay silent.** All four generated paths are
   already pinned `text eol=lf`; the lint reports nothing for a fixture read with
   `read_text()` + `json.loads` (§6's immune shape), so a clean `aide check` is a
