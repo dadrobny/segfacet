@@ -1655,7 +1655,7 @@ changes here.**
   (`regression.verify_case`, `failure_modes._corpus_case_conflicts`,
   `traceability._build_conformance`) moves onto it — an AST scan confirms no comparison
   against zero is left. *(Item 155)*
-- 📋 **D4** Three unclosed conformance seams in the specification checks: a rule
+- 🚧 **D4** Three unclosed conformance seams in the specification checks: a rule
   declaring a known mode with no mirroring `IntendedRule` edge and no corpus case
   passes every check unreported, `catalogue.scan_synth_rule_mode_map` stays blind
   to the intensity corpus, and the retired "mode → rule complete, always" claim is
