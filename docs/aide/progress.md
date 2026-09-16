@@ -1655,14 +1655,16 @@ changes here.**
   (`regression.verify_case`, `failure_modes._corpus_case_conflicts`,
   `traceability._build_conformance`) moves onto it — an AST scan confirms no comparison
   against zero is left. *(Item 155)*
-- 📋 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
-  meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
-  the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
-  stale `modeN_` corpus case-id prefixes. *(Item 156)*
-- 📋 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
-  meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
-  the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
-  stale `modeN_` corpus case-id prefixes. *(Item 157)*
+- 📋 **D4** Three unclosed conformance seams in the specification checks: a rule
+  declaring a known mode with no mirroring `IntendedRule` edge and no corpus case
+  passes every check unreported, `catalogue.scan_synth_rule_mode_map` stays blind
+  to the intensity corpus, and the retired "mode → rule complete, always" claim is
+  handed back to the next roadmap revision with the measurement that refutes it.
+  *(Item 156)*
+- 📋 **D4** Drops the stale `modeN_` corpus case-id prefixes that no longer name
+  the mode they carry after the item-150 re-keying, renaming the eight affected
+  geometric case ids and updating every pin (manifests, generator, rule/synth/
+  eval modules, both conformance artifacts) to match. *(Item 157)*
 - 📋 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
   `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
   `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries

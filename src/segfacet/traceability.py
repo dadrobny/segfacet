@@ -329,6 +329,7 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
     ):
         for manifest_case in manifest_cases:
             case_id = manifest_case.get("case_id")
+            kind = corpus_case_kind(manifest_case)
             mode_id = manifest_case.get("failure_mode")
             key = (corpus_name, case_id)
 
@@ -337,7 +338,6 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
             )
             measured = failure_modes_module.measured_firing(probe)
 
-            kind = corpus_case_kind(manifest_case)
             condition_id = manifest_case.get("condition") or ""
             if kind == CASE_KIND_CONDITION:
                 # Item 150: a condition-only case (kind == "condition") is

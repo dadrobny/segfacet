@@ -398,3 +398,10 @@ edits `test_146` and `test_147` in different tests.
   Implementation Steps; verified manually that a case missing `kind`
   (constructed by deleting the key from the committed clean-control case)
   raises `ValueError` naming that case's id.
+- 2026-09-16: validation round 1 found `_build_conformance`
+  (`traceability.py`) called `corpus_case_kind(manifest_case)` after
+  `measured_firing(probe)` instead of before it, contradicting the entry
+  above. Moved the `corpus_case_kind` call to immediately after `case_id` is
+  read, ahead of the `probe`/`measured_firing` call, matching
+  `_corpus_case_conflicts` (`failure_modes.py`) and the entry's original
+  claim.
