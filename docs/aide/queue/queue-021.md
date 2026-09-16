@@ -44,7 +44,8 @@ roadmap's prose:
   gate-approved draft. §6 now carries principles plus a pointer to
   `segfacet.failure_modes.SPECIFICATION` and **no numbered mode list**, the five
   observability classes, the FOV-truncation condition as a first-class concept,
-  and the corrected single-rank-descent evidence-rungs example. That PR merges
+  and no worked examples (the mis-stated "two-descent" one is removed, not
+  corrected). That PR merges
   back to back with this queue; item 152 is the code-side half of it and is the
   only item that depends on the new §6 text.
 
@@ -104,9 +105,10 @@ pin is not optional and `aide check`'s `.gitattributes` lint must stay clean.
 **Human gates.** Gate 6 (the v4 §6 re-issue) is approved and its Blocks cell is
 narrowed to item **152**, the only item that reads the new text. Gates 1 and 2
 (real segmenter output; access to the curated challenging-case data) block Stage
-16 only, and no Stage 16 work is in this queue. **Item 157 carries a decision
-that is the maintainer's, not an item's** — see its entry: it is raised at this
-queue's review, not inside the item.
+16 only, and no Stage 16 work is in this queue. **Item 157's decision — the
+roadmap's "maintainer decides at the queue's planning" — was taken at this
+queue's review on 2026-09-16: drop the `modeN_` prefixes.** Its entry records
+the reasoning; no gate row is needed.
 
 **Prioritisation.** Item **152** lands first: it is the only item gated on PR #77
 and it removes a seed-conformance surface three later items would otherwise have
@@ -284,31 +286,34 @@ it cannot see and a test reads that qualifier; no module or generated artifact
 under `src/segfacet/` or `docs/aide/*.generated.*` asserts either direction is
 complete-always; the regenerated matrix's diff is exactly these changes.
 
-### Item 157: The `modeN_` corpus case-id prefixes — rename, or record the decision
+### Item 157: Drop the `modeN_` corpus case-id prefixes
 
-The geometric corpus case ids keep historical `modeN_` prefixes that no longer
-name the mode they carry: after the item-150 re-keying `mode2_fragment` is mode
-1, `mode5_remove_level` is mode 6, `mode8_force_overlap` is mode 15, and
-`mode6_crop_at_border` carries no mode at all (it is the FOV-truncation
-condition). The manifest's `failure_mode` field is the authority and the prefix
-is now actively misleading to a reader — and to any test that keys off it. The
-roadmap puts two options and says **the maintainer decides at the queue's
-planning**: rename them to mode-neutral ids in one corpus-value change with
-every pin updated (43 test modules name them), or keep them with the reason
-recorded where a reader meets the ids. **This queue could not ask, so the
-decision is raised at the queue's review and belongs to the maintainer, not to
-the item.** Absent a decision by the time the item is specced, the item takes the
-record-the-decision branch and states that default in its Decisions log: a
-rename across 43 modules is a large, low-reversibility change, while a recorded
-decision can be revisited in any later queue at no cost. Either way the outcome
-is a written disposition, in the manifest's own documentation and beside the
-case ids, not a silent status quo. *Testable:* under the rename branch, no id
-under `tests/corpus/` carries a `modeN_` prefix, every pin resolves, both
-manifests regenerate byte-identically and the full suite is green; under the
-record branch, a test asserts that each surviving prefixed id is accompanied by
-its recorded disposition and that nothing in `src/` or `tests/` derives a mode
-from the prefix — the prefix-to-mode inference is what the item forbids in both
-branches.
+The geometric corpus case ids keep historical `modeN_` prefixes from the Stage 5
+catalogue that no longer name the mode they carry: after the item-150 re-keying
+`mode2_fragment` is mode 1, `mode5_remove_level` is mode 6, `mode8_force_overlap`
+is mode 15, and `mode6_crop_at_border` carries no mode at all (it is the
+FOV-truncation condition). The manifest's `failure_mode` field is the authority,
+and the prefix is a second copy of it that lies whenever a case moves — which
+the sign-off did once and Stage 32 will do again. **Decided by the maintainer at
+the queue's review (2026-09-16): rename, dropping the prefix.** Re-prefixing with
+the signed-off ids was considered and declined: the ids are stable now, but a
+prefix would still duplicate the manifest field, is not unique (two cases each
+carry modes 1, 6 and 9), and has no form for the condition case. The eight
+become `displace`, `fragment`, `inject_islands`, `relabel_swap`, `remove_level`,
+`crop_at_border`, `sequence_break`, `force_overlap`, matching the six
+mode-neutral ids the corpus already has (`fuse_adjacent`, `remove_level_relabel`,
+`clean_hu`, `implausible_metal`, `implausible_soft_tissue`, `degenerate_uniform`).
+One corpus-value change: the manifest, the generator, every pin (79 files outside
+item specs name the ids: 43 test modules, seven rule modules, the synth and eval
+modules, both generated conformance artifacts), and the byte-identity fixtures
+regenerated. Immutable records — merged item specs, `insights.md`, `roadmap.md`,
+`progress.md` — keep the old names as history and are not edited; the item leaves
+an old-to-new mapping where a reader meets them, in the manifest's own
+documentation and as one `knowledge` insight line. *Testable:* no id under
+`tests/corpus/` carries a `modeN_` prefix; every pin resolves; both manifests
+and both conformance artifacts regenerate byte-identically from a clean tree;
+nothing in `src/` or `tests/` derives a mode from a case id; the full suite is
+green.
 
 ### Item 158: The committed-artifact guard's two blind spots
 
