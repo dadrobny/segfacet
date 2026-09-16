@@ -1637,7 +1637,7 @@ changes here.**
   item): principles plus a pointer to the specification, no numbered mode list, the new
   observability classes and the FOV-truncation condition named, the "two-descent" wording
   corrected.
-- 🚧 **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
+- 🔍 **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
   `vision_seed_conflicts`) re-pointed or retired to follow the re-issue. *(Item 152)*
 - 📋 **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
   `per_mode_cohort`, schemas, pins) re-keyed to the specification's ids with
