@@ -64,7 +64,6 @@ those ids; each test keeps its claim.
 from __future__ import annotations
 
 import dataclasses
-import importlib.util
 import json
 import re
 from pathlib import Path
@@ -75,7 +74,6 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 _COMMITTED_JSON = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
 _COMMITTED_MD = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
 _MANIFEST_PATH = _REPO_ROOT / "tests" / "corpus" / "manifest.json"
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 
 #: Every mode id the item-150 sign-off assigned, ascending. Pinned literally:
 #: these tests are what assert *which* entries the catalogue carries, so
@@ -1425,105 +1423,12 @@ def test_ac23_fresh_matches_committed_structurally_and_carries_every_signed_off_
 
 
 # =========================================================================== #
-# AC24: `aide check` introduces no new warning
-#
-# AC24 is worded as "OK reporting **7** warnings", and the count was 7 when
-# this item merged. The count itself is not what the AC is about, and pinning
-# it is the repo's number-one recurring defect class (`REVIEW.md`, "What
-# Important means here": *a test asserting state the loop's own verbs are
-# built to move ... `aide check`'s warning set*). Two of those seven are
-# `progress.md:NNN: human gate N (...) is awaiting a decision`, which
-# `aide gate approve` clears the moment a person decides -- so approving a
-# gate would turn this test red for a correct action, and item 150 raising
-# its sign-off gate would turn it red for an eighth warning that is the
-# stage working as designed. Branch-state warnings ("stale claim branch",
-# emitted transiently *during* `aide merge`'s own post-merge re-test, see
-# `test_135_stage29_validation.py`'s AC27 note) move it in the other
-# direction on any developer clone.
-#
-# What AC24 actually claims -- that this item introduced no new warning --
-# is preserved by classifying each warning by shape and rejecting any class
-# outside the recorded baseline, the mechanism
-# `test_135_stage29_validation.py::test_ac27_...` already uses, plus the two
-# item-specific negatives AC24 names (no `.gitattributes` warning for the
-# two regenerated artifacts, no `insights.md` entry-shape warning). The
-# whole-repo `(path, text)` multiset baseline stays where it was built:
-# `test_114_documentation_corrections.py::test_ac8_no_new_aide_check_warning_beyond_pinned_baseline`.
-#
-# `run_checks` is called in-process rather than through a subprocess for the
-# reason `test_114`'s `_aide_check_warnings` records: the subprocess form
-# returned `proc.stdout is None` on the Windows CI runner despite
-# `capture_output=True`, and structured `(errors, warnings)` needs no stdout,
-# no encoding and no re-parse.
+# AC24's `aide check` warning-baseline tests were retired on 2026-09-16: they
+# pinned the loop's own `aide check` warning set in the standing suite, a
+# diff-time claim that belongs on the branch, not here
+# (.aide/conventions/6-test-hygiene.md §6). The error half now lives in
+# tests/test_aide_check_no_errors.py.
 # =========================================================================== #
-
-_BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
-
-_BASELINE_WARNING_CLASSES = (
-    "assumptions-block",
-    "awaiting-a-decision",
-    "branch-state",
-    "retracted-criterion",
-)
-
-
-def _aide_module():
-    spec = importlib.util.spec_from_file_location("_aide_cli_145", _AIDE_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
-
-
-def _classify_warning(message: str) -> str:
-    """Classify by *shape*, so a genuinely new instance of a tolerated class
-    still classifies as that class while an unseen shape reports
-    ``"unclassified"`` and fails the check."""
-    if message.startswith(_BRANCH_STATE_WARNING_PREFIXES):
-        return "branch-state"
-    if re.search(r"criterion \d+ was retracted on \d{4}-\d{2}-\d{2}", message):
-        return "retracted-criterion"
-    if "assumptions" in message.lower():
-        return "assumptions-block"
-    if "awaiting a decision" in message.lower():
-        return "awaiting-a-decision"
-    return "unclassified"
-
-
-def test_ac24_aide_check_reports_no_error_and_no_new_warning_class():
-    aide = _aide_module()
-    errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    assert errors == [], errors
-    # A plumbing failure must fail loudly, not pass an empty loop vacuously:
-    # this repo always reports the baseline warnings.
-    assert warnings, "run_checks returned no warnings at all -- expected the baseline"
-
-    classes = {_classify_warning(warning) for warning in warnings}
-    assert classes <= set(_BASELINE_WARNING_CLASSES), (
-        f"aide check reports a warning class outside the recorded baseline: "
-        f"{classes - set(_BASELINE_WARNING_CLASSES)}"
-    )
-
-
-def test_ac24_no_gitattributes_or_insights_warning_from_this_item():
-    """The two negatives AC24 names by hand: the item regenerated two
-    committed text artifacts (already pinned `text eol=lf`) and added no
-    `insights.md` entry, so neither lint may fire."""
-    aide = _aide_module()
-    _errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    for warning in warnings:
-        assert ".gitattributes" not in warning, warning
-        assert "insights.md" not in warning, warning
-
-
-def test_adv_unclassified_warning_would_be_caught():
-    """The classifier must be able to detect a new class -- otherwise the
-    AC24 check above passes on anything."""
-    assert _classify_warning("a brand new kind of warning nobody has seen") == (
-        "unclassified"
-    )
-    assert _classify_warning("progress.md:9: human gate 3 (x) is awaiting a decision") == (
-        "awaiting-a-decision"
-    )
 
 
 # =========================================================================== #

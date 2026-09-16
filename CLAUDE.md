@@ -307,13 +307,12 @@ from a local checkout):
    `.venv/bin/python -m pytest .aide/scripts/tests` (already in this repo's
    pytest `testpaths`, so the full suite covers it too) — and
    `python .aide/scripts/aide.py check`. **Clear a warning the new engine
-   raises rather than re-pinning the tests that hold the baseline**
-   (`tests/test_114_documentation_corrections.py`,
-   `tests/test_135_stage29_validation.py`,
-   `tests/test_147_specification_is_the_record.py`,
-   `tests/test_148_per_path_mode_attribution.py`); engine 1.38.0's
-   `aide progress retract` output says the same thing from the other side —
-   widen a pin in the same change as the retraction. Also re-check each marked
+   raises; never pin the warning set in the suite.** The only standing test
+   over `aide check` is `tests/test_aide_check_no_errors.py`, which asserts
+   `run_checks` returns no *errors* and nothing about warnings — five per-item
+   "no new warning" AC tests were retired on 2026-09-16 for pinning the loop's
+   own document state (§6: a diff-time claim belongs on the branch, and a
+   warning count is never pinned). Also re-check each marked
    assumption in the item specs (`**A<n> (engine X.Y.Z)`, engine 1.36.0): an
    engine that has moved past the marker is reported, and clearing it is an
    **append** — `, re-checked <new>` inside the marker, never a rewrite of the
