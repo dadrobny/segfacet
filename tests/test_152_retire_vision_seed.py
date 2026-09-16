@@ -14,9 +14,9 @@ AC -> test map:
 
 - AC1:  test_ac1_section_six_carries_no_numbered_list
 - AC2:  test_ac2_section_six_names_the_specification
-- AC3:  test_ac3_no_production_module_reads_vision_md,
-        test_adv_ac3_walker_flags_a_planted_real_read,
-        test_adv_ac3_walker_ignores_docstring_and_comment_mentions
+- AC3:  test_ac3_no_production_module_names_vision_md_as_a_path,
+        test_ac3_adv_flagged_planted_paths (parametrized),
+        test_ac3_adv_not_flagged_planted_constants (parametrized)
 - AC4:  test_ac4_retired_functions_are_gone_from_the_module,
         test_adv_ac4_walker_flags_a_stand_in_with_the_attributes
 - AC5:  test_ac5_no_source_text_names_a_retired_function
@@ -129,8 +129,12 @@ def _docstring_constant_ids(tree: ast.AST) -> set:
 
 def _non_docstring_str_constant_contains(tree: ast.AST, needle: str) -> bool:
     """True if *tree* holds a non-docstring string constant containing
-    *needle* -- the shared AST-walk shape AC3/AC16 both use, matching
-    ``test_147_specification_is_the_record._references_vision_md``."""
+    *needle* -- the shared AST-walk shape AC16 uses, matching
+    ``test_147_specification_is_the_record._references_vision_md``.
+
+    AC3 no longer uses this substring shape (corrected 2026-09-16): see
+    ``_names_vision_md_as_a_path`` below.
+    """
     docstring_ids = _docstring_constant_ids(tree)
     for node in ast.walk(tree):
         if (
@@ -138,6 +142,31 @@ def _non_docstring_str_constant_contains(tree: ast.AST, needle: str) -> bool:
             and isinstance(node.value, str)
             and id(node) not in docstring_ids
             and needle in node.value
+        ):
+            return True
+    return False
+
+
+# Corrected AC3 predicate (2026-09-16): a *path-shaped* constant, not any
+# substring mention. Matches the whole constant "vision.md" or a constant
+# ending in "/vision.md" or "\vision.md" -- case-sensitive, no stripping,
+# applied to each Constant node's exact value (including the literal parts
+# of an f-string's ``JoinedStr``, which ``ast.walk`` yields as ordinary
+# ``Constant`` nodes).
+_VISION_MD_PATH_RE = re.compile(r"(?:^|[/\\])vision\.md$")
+
+
+def _names_vision_md_as_a_path(tree: ast.AST) -> bool:
+    """True if *tree* holds a non-docstring string constant matching the
+    corrected AC3 predicate: the constant names ``vision.md`` as a path,
+    rather than merely mentioning it in prose."""
+    docstring_ids = _docstring_constant_ids(tree)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstring_ids
+            and _VISION_MD_PATH_RE.search(node.value)
         ):
             return True
     return False
@@ -169,45 +198,75 @@ def test_ac2_section_six_names_the_specification():
 
 
 # =========================================================================== #
-# AC3: no production module reads vision.md
+# AC3 (corrected 2026-09-16): no production module names vision.md as a path
 # =========================================================================== #
 
 
-def test_ac3_no_production_module_reads_vision_md():
+def test_ac3_no_production_module_names_vision_md_as_a_path():
     offenders = set()
     for path in _all_src_py_files():
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        if _non_docstring_str_constant_contains(tree, "vision.md"):
+        if _names_vision_md_as_a_path(tree):
             offenders.add(_rel(path))
     assert offenders == set(), offenders
 
 
-def test_adv_ac3_walker_flags_a_planted_real_read(tmp_path):
-    planted = tmp_path / "planted_real_read.py"
-    planted.write_text(
-        'text = open("docs/aide/vision.md").read()\n',
-        encoding="utf-8",
-    )
+# Positive controls: every "flagged" case from the correction's own control
+# list must trip the predicate, so a clean result on the real tree is not
+# vacuous. Each is a distinct path-shaped spelling of a vision.md read.
+_AC3_FLAGGED_SOURCES = {
+    "open_call": 'text = open("docs/aide/vision.md").read()\n',
+    "pathlib_join": (
+        'from pathlib import Path\n'
+        'p = Path(root) / "docs" / "aide" / "vision.md"\n'
+    ),
+    "os_path_join": 'import os\np = os.path.join(root, "vision.md")\n',
+    "fstring_join": 'p = f"{root}/vision.md"\n',
+    "windows_separator": 'p = "docs\\\\aide\\\\vision.md"\n',
+}
+
+
+@pytest.mark.parametrize(
+    "source", _AC3_FLAGGED_SOURCES.values(), ids=_AC3_FLAGGED_SOURCES.keys()
+)
+def test_ac3_adv_flagged_planted_paths(tmp_path, source):
+    planted = tmp_path / "planted_flagged.py"
+    planted.write_text(source, encoding="utf-8")
     tree = ast.parse(planted.read_text(encoding="utf-8"))
-    assert _non_docstring_str_constant_contains(tree, "vision.md")
+    assert _names_vision_md_as_a_path(tree), source
 
 
-def test_adv_ac3_walker_ignores_docstring_and_comment_mentions(tmp_path):
-    planted_docstring = tmp_path / "planted_docstring_mention.py"
-    planted_docstring.write_text(
-        '"""See docs/aide/vision.md for background."""\nx = 1\n',
-        encoding="utf-8",
-    )
-    tree_docstring = ast.parse(planted_docstring.read_text(encoding="utf-8"))
-    assert not _non_docstring_str_constant_contains(tree_docstring, "vision.md")
+# Negative controls: prose *about* vision.md, including the exact AC10/AC11
+# literals authored into failure_modes.py by this item, must not trip the
+# predicate -- these are the shapes AC3's original substring form would have
+# wrongly flagged (the contradiction this correction resolves).
+_AC3_NOT_FLAGGED_SOURCES = {
+    "ac10_heading_literal": (
+        'HEADING = "## Provenance: vision.md v3 section 6 seed titles"\n'
+    ),
+    "ac11_sentence_literal": (
+        "SENTENCE = (\n"
+        '    "vision.md section 6 states the catalogue\'s principles and "\n'
+        '    "points at this specification; the numbered list its v3 carried "\n'
+        '    "seeded the catalogue, and what became of each title is "\n'
+        '    "recorded below."\n'
+        ")\n"
+    ),
+    "docstring_only_mention": '"""See docs/aide/vision.md."""\nx = 1\n',
+    "comment_only_mention": "# see docs/aide/vision.md\ny = 1\n",
+}
 
-    planted_comment = tmp_path / "planted_comment_mention.py"
-    planted_comment.write_text(
-        "# see docs/aide/vision.md for background\ny = 1\n",
-        encoding="utf-8",
-    )
-    tree_comment = ast.parse(planted_comment.read_text(encoding="utf-8"))
-    assert not _non_docstring_str_constant_contains(tree_comment, "vision.md")
+
+@pytest.mark.parametrize(
+    "source",
+    _AC3_NOT_FLAGGED_SOURCES.values(),
+    ids=_AC3_NOT_FLAGGED_SOURCES.keys(),
+)
+def test_ac3_adv_not_flagged_planted_constants(tmp_path, source):
+    planted = tmp_path / "planted_not_flagged.py"
+    planted.write_text(source, encoding="utf-8")
+    tree = ast.parse(planted.read_text(encoding="utf-8"))
+    assert not _names_vision_md_as_a_path(tree), source
 
 
 # =========================================================================== #

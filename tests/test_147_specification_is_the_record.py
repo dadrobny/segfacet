@@ -21,8 +21,9 @@ AC -> test map (house style, items 144-146):
         test_adv_ac2_walker_flags_a_planted_mode_rungs_shaped_dict
 - AC3:  test_ac3_mode_anchor_paths_stays_under_its_own_metric_label,
         test_adv_ac3_walker_flags_a_planted_real_reference
-- AC4:  test_ac4_vision_parse_has_one_home,
-        test_adv_ac4_walker_flags_a_planted_real_read
+- AC4:  retired (item 152, 2026-09-16 correction) -- duplicated item 152's
+        AC3 under stale substring semantics that the correction narrowed
+        away from. See `tests/test_152_retire_vision_seed.py`
 - AC5:  retired (item 152, 2026-09-16) with `vision_seed_conflicts()` --
         vision.md v4 carries no numbered §6 list left to parse. See
         `tests/test_152_retire_vision_seed.py`
@@ -242,23 +243,6 @@ def _docstring_constant_ids(tree: ast.AST) -> set:
     return ids
 
 
-def _references_vision_md(tree: ast.AST) -> bool:
-    """True if *tree* contains a non-docstring string constant naming
-    ``vision.md`` -- a docstring or comment mentioning the file's name,
-    without reading it, does not count (comments are not part of the AST at
-    all; a docstring is excluded explicitly)."""
-    docstring_ids = _docstring_constant_ids(tree)
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Constant)
-            and isinstance(node.value, str)
-            and id(node) not in docstring_ids
-            and "vision.md" in node.value
-        ):
-            return True
-    return False
-
-
 # =========================================================================== #
 # AC1: one source for mode names in production code
 # =========================================================================== #
@@ -420,57 +404,21 @@ def test_adv_ac3_walker_flags_a_planted_real_reference(tmp_path):
 
 # =========================================================================== #
 # AC4: the vision §6 parse has one home
+#
+# Retired (item 152, 2026-09-16 correction), not re-pointed: AC4's surviving
+# claim ("no module under src/segfacet/ holds a non-docstring string constant
+# naming vision.md") is exactly item 152's AC3, and the item-152 correction
+# narrowed that predicate from a substring match to a path-shaped match
+# (`test_152_retire_vision_seed.py::_names_vision_md_as_a_path`) precisely
+# because the substring form this test used (`_references_vision_md`) trips
+# on the AC10/AC11 provenance literals `failure_modes.py` is required to
+# carry (e.g. "## Provenance: vision.md v3 section 6 seed titles"). Keeping
+# a second copy here under the old substring semantics would make this test
+# red the moment item 152 lands, over text the correction explicitly
+# exempts. See
+# `tests/test_152_retire_vision_seed.py::test_ac3_no_production_module_names_vision_md_as_a_path`
+# for the one surviving copy of this check.
 # =========================================================================== #
-
-
-def test_ac4_vision_parse_has_one_home():
-    """Re-pointed (item 152, 2026-09-16): vision.md v4's §6 carries no
-    numbered list, and ``vision_seed_titles()`` is retired along with it --
-    there is no longer a parse for any module to hold a monopoly on. What
-    survives of AC4's claim is the tree-wide half: no module under
-    ``src/segfacet/`` (``failure_modes.py`` included -- it read the document
-    itself, but reads nothing now) holds a non-docstring string constant
-    naming ``vision.md``. This duplicates
-    ``tests/test_152_retire_vision_seed.py::test_ac3_no_production_module_reads_vision_md``;
-    kept here as well because AC4 is this module's own acceptance criterion."""
-    offenders = []
-    for path in _all_src_py_files():
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        if _references_vision_md(tree):
-            offenders.append(_rel(path))
-    assert offenders == [], offenders
-
-
-def test_adv_ac4_walker_flags_a_planted_real_read(tmp_path):
-    """Positive control: the same walker must flag a planted real read (a
-    non-docstring string constant naming vision.md), so a clean AC4 result
-    is not vacuous -- and must not flag a planted docstring/comment-only
-    mention."""
-    planted_real = tmp_path / "planted_real_read.py"
-    planted_real.write_text(
-        'text = open("docs/aide/vision.md").read()\n',
-        encoding="utf-8",
-    )
-    tree = ast.parse(planted_real.read_text(encoding="utf-8"))
-    assert _references_vision_md(tree)
-
-    planted_docstring = tmp_path / "planted_docstring_mention.py"
-    planted_docstring.write_text(
-        '"""See docs/aide/vision.md for background."""\n'
-        "x = 1\n",
-        encoding="utf-8",
-    )
-    tree_docstring = ast.parse(planted_docstring.read_text(encoding="utf-8"))
-    assert not _references_vision_md(tree_docstring)
-
-    planted_comment = tmp_path / "planted_comment_mention.py"
-    planted_comment.write_text(
-        "# see docs/aide/vision.md for background\n"
-        "y = 1\n",
-        encoding="utf-8",
-    )
-    tree_comment = ast.parse(planted_comment.read_text(encoding="utf-8"))
-    assert not _references_vision_md(tree_comment)
 
 
 # =========================================================================== #
