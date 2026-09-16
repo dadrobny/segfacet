@@ -36,7 +36,6 @@ from run_process import run_utf8
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _COMMITTED_JSON = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
 _COMMITTED_MD = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
-_VISION_PATH = _REPO_ROOT / "docs" / "aide" / "vision.md"
 _MANIFEST_PATH = _REPO_ROOT / "tests" / "corpus" / "manifest.json"
 _FAILURE_MODES_SOURCE = _REPO_ROOT / "src" / "segfacet" / "failure_modes.py"
 
@@ -192,27 +191,11 @@ def _manifest_case(case_id: str) -> dict:
     raise AssertionError(f"case_id {case_id!r} not found in the committed manifest")
 
 
-def _vision_mode_titles() -> dict:
-    """Parse vision.md §6's numbered list live -- A10 keeps this parse in the
-    test, not in the production module."""
-    text = _VISION_PATH.read_text(encoding="utf-8")
-    section_match = re.search(
-        r"^## 6\. Segmentation Failure Modes[^\n]*\n(.*?)(?=^## \d|\Z)",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    assert section_match is not None, "expected a '## 6. Segmentation Failure Modes' section"
-    section_text = section_match.group(1)
-    items = re.findall(r"^\d+\.\s+(.+)$", section_text, flags=re.MULTILINE)
-    assert items, "expected numbered §6 items"
-    titles = {}
-    for index, raw in enumerate(items, start=1):
-        title = raw.strip()
-        if title.endswith("."):
-            title = title[:-1]
-        title = re.sub(r"\s+", " ", title).strip()
-        titles[index] = title
-    return titles
+# _vision_mode_titles()/_VISION_PATH retired (item 152, 2026-09-16): both
+# were used only by the two AC16 tests below, which are themselves retired
+# because vision.md v4 carries no numbered §6 list left to parse. AC6/AC7 of
+# `tests/test_152_retire_vision_seed.py` carry the frozen-provenance and
+# every-disposition-resolves claims those tests made.
 
 
 # =========================================================================== #
@@ -1306,60 +1289,15 @@ def test_ac16_stage18_anchors_and_mode_anchor_paths_agree_exactly():
             assert path in feature_docs.MODE_ANCHOR_PATHS[mode_id], (mode_id, path)
 
 
-def test_ac16_vision_section_six_seed_titles_all_have_a_resolving_disposition():
-    """Re-targeted at the item-150 sign-off: mode ``name`` fields no longer
-    equal vision.md §6's titles, by design -- §6 is the **seed** the
-    catalogue started from, and ``VISION_SEED_DISPOSITION`` records what
-    became of each of its titles (``mode:<id>``, ``condition:<id>`` or
-    ``retired``).
-
-    The §6 parse here is the test's own (``_vision_mode_titles``, A10), so
-    the two sides are independent: a title added to or dropped from §6
-    without a matching disposition fails here even if the module's own
-    parse and its mapping were changed together.
-    """
-    import segfacet.failure_modes as fm
-
-    titles = _vision_mode_titles()
-    assert titles
-    assert set(titles.values()) == set(fm.VISION_SEED_DISPOSITION), (
-        sorted(set(titles.values()) - set(fm.VISION_SEED_DISPOSITION)),
-        sorted(set(fm.VISION_SEED_DISPOSITION) - set(titles.values())),
-    )
-
-    resolved = 0
-    for title, disposition in sorted(fm.VISION_SEED_DISPOSITION.items()):
-        kind, _sep, target = disposition.partition(":")
-        if disposition == "retired":
-            resolved += 1
-        elif kind == "mode":
-            assert target.isdigit(), (title, disposition)
-            assert int(target) in fm.SPECIFICATION, (title, disposition)
-            resolved += 1
-        elif kind == "condition":
-            assert target in fm.CONDITIONS, (title, disposition)
-            resolved += 1
-        else:
-            raise AssertionError(f"unrecognised disposition {disposition!r} for {title!r}")
-    assert resolved == len(titles)
-
-    assert fm.vision_seed_conflicts() == ()
-
-
-def test_ac16_vision_seed_conflicts_reports_an_unresolvable_disposition(monkeypatch):
-    """The conformance check must be able to fail: a disposition naming a
-    mode id the specification does not carry is reported, naming it."""
-    import segfacet.failure_modes as fm
-
-    titles = _vision_mode_titles()
-    assert titles
-    victim = titles[1]
-    broken = dict(fm.VISION_SEED_DISPOSITION)
-    broken[victim] = "mode:9999"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", broken)
-
-    conflicts = fm.vision_seed_conflicts()
-    assert any("mode:9999" in c for c in conflicts), conflicts
+# test_ac16_vision_section_six_seed_titles_all_have_a_resolving_disposition
+# and test_ac16_vision_seed_conflicts_reports_an_unresolvable_disposition
+# retired (item 152, 2026-09-16): both called `fm.vision_seed_conflicts()`,
+# retired with `vision_seed_titles()` because vision.md v4's §6 carries no
+# numbered list left to parse. The frozen-provenance and
+# every-disposition-resolves claims they made are
+# `tests/test_152_retire_vision_seed.py::test_ac6_provenance_map_is_frozen_at_its_v3_value`
+# and its AC7 pair (including the positive control for an unresolvable
+# disposition).
 
 
 # =========================================================================== #

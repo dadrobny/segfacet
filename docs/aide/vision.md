@@ -1,13 +1,26 @@
 <!-- aide-template: vision 1 -->
 # FACET — Project Vision
 
-> **Status:** v3 (approved 2026-09-03) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-03
+> **Status:** v4 (draft 2026-09-16) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-16
 > Step 1 of the AIDE loop · the root document: [`roadmap.md`](roadmap.md),
 > [`progress.md`](progress.md), every queue and every work item derive from this.
 > Its guiding principles, out-of-scope list and success criteria are the mandatory
 > core the validator checks implementations against.
 
-> **Revision note.** v2 (2026-07-02) described `Seg-QC-xnat`, an XNAT-deployed QC
+> **Revision note (v4).** v3's §6 carried a numbered eight-item list as the
+> interim record of the failure-mode catalogue. Stage 30's sign-off (item 150,
+> 2026-09-15) made `segfacet.failure_modes.SPECIFICATION` the catalogue — ids
+> assigned there, one seed title retired, one re-homed as a condition, entries
+> split, two observability classes added — so the list no longer matched the
+> record it seeded. v4 re-issues **§6 only**: principles plus a pointer to the
+> specification, no numbered list, the five observability classes, the
+> FOV-truncation **condition** as a first-class concept, the `validated` rung as
+> the sign-off defined it, and the mis-stated "two-descent"
+> evidence-rungs example removed (`insights.md`, item 147,
+> 2026-09-04; item 150, 2026-09-14). Every other section, every G-code and the
+> mandatory core are unchanged from v3. Roadmap Stage 31 D1.
+>
+> **Revision note (v3).** v2 (2026-07-02) described `Seg-QC-xnat`, an XNAT-deployed QC
 > gate, and carried a supersession note (2026-07-25) that retyped the project as
 > FACET while leaving the body as history. v3 rewrites the body to describe FACET
 > directly and retires the note. v2 is in git history up to commit `c519608`;
@@ -272,101 +285,106 @@ measured on.
 
 The catalogue of failure modes is the organising object of FACET: a mode is what
 a rule targets, what a corpus case demonstrates, what a cohort characterisation
-counts. This section states the **principles** the catalogue obeys. The catalogue
-itself — one entry per mode with its full definition — is an **authored
-specification** in the codebase, owned by roadmap Stage 30, from which every
-generated artifact is a conformance report. Until that specification lands, the
-eight-item list at the end of this section is the interim record and the seed
-the specification starts from.
+counts. The catalogue is the **authored specification**
+`segfacet.failure_modes.SPECIFICATION` (modes) and `CONDITIONS` (conditions) in
+[`src/segfacet/failure_modes.py`](../../src/segfacet/failure_modes.py), rendered
+as [`failure_modes.generated.md`](failure_modes.generated.md); every generated
+artifact is a conformance report against it. This section states the
+**principles** the catalogue obeys and carries no list of modes, no ids and no
+count — a mode restated here would be a transcription, and transcriptions drift.
 
 **Each mode is specified, not described.** An entry carries: a stable `id` and
-`name`; a `definition` in clinical/geometric terms; a `discriminator` — what
-separates the mode from its nearest neighbours (mode 6 has a border-touching
-face, mode 1 has none; modes 2 and 3 differ in whether the dominant body is
-intact); its `observability` class; `candidate_features` — feature paths
-hypothesised to evidence it, distinct from the paths a rule is measured to
-consume; `intended_rules`, naming the detector where a rule has several;
-`corpus_cases`, each with its **expected** firing set (the measured set is never
-authored, only compared); a `severity` — what a detection should mean for the
-verdict; a lifecycle `status`; and a `provenance`. The Stage-18 per-mode
-*metric*'s anchor path and the rule's read path are carried as two separately
-labelled columns, never conflated.
+`name`, assigned in the specification and never renumbered; a `scope` — one
+vertebra, or the set and sequence of labels along the spine; an optional
+`parent`, placing the mode in a one-tier generic-to-specific hierarchy; a
+`definition` in clinical/geometric terms; a `discriminator` — what separates the
+mode from its nearest neighbours; its `observability` class;
+`candidate_features` — feature paths hypothesised to evidence it, distinct from
+the paths a rule is measured to consume; `intended_rules`, naming the detector
+where a rule has several; `corpus_cases`, each with its **expected** firing set
+(the measured set is never authored, only compared); a `severity` — what a
+detection should mean for the verdict; a lifecycle `status`; and a
+`provenance`. The Stage-18 per-mode *metric*'s anchor path and the rule's read
+path are two separately labelled columns, never conflated.
 
-**Observability classes.** *Single-channel-observable* (the label map alone
-carries the evidence); *needs the paired scan* (intensity-based); *structurally
-unobservable in the supported input* — mode 8, overlapping segments, cannot
-occur in a single-channel integer label map, where a voxel holds exactly one
-label, and is detectable only on a record deliberately corrupted to violate that
-invariant.
+**One defect per mode.** A sub-mode names one defect, never a pair of converse
+defects, so every shipped detector serves at most one mode. A case that meets a
+parent's definition but no sub-mode's rule is classified at the parent.
+
+**Observability classes.** *Single-channel-observable* — the label map alone
+carries the evidence. *Needs the paired scan* — intensity-based. *Needs ground
+truth* — the defect is defined relative to a ground-truth label map the per-case
+pipeline never sees, so what a rule reads on the label map alone is a proxy, and
+each proxy edge is recorded as such. *Needs an external classifier* — the label
+map is internally valid and no label-map feature distinguishes the failure from
+a correct labelling, so only an external vertebra-level identifier or ground
+truth decides it. *Structurally unobservable in the supported input* — the
+defect cannot occur in a single-channel integer label map, where a voxel holds
+exactly one label, and is detectable only on a record deliberately corrupted to
+violate that invariant.
+
+**Conditions are not failure modes.** A **condition** is a state of the case
+that gates the rules, not a defect of the segmentation; a rule may legitimately
+decline to judge a vertebra under it. A condition carries the rule(s) that
+*record* it, the rule(s) that *exempt* under it, and its own corpus case(s) with
+an expected firing set, so a condition case is never a silent hole in the
+conformance report. A recording rule declares no failure mode. A clean control
+and a condition-only case are two different kinds of non-failure case; no
+consumer may tell them apart by the absence of a failure-mode id alone.
 
 **Evidence rungs.** "A rule covers this mode" and "we have demonstrated it
 end-to-end" are different claims. Each mode ↔ rule **edge** carries an authored
 rung — *synthetic-demonstrable* (a rung-1 fixture drives the rule end-to-end
 today), *needs-real-data* (the rule exists but hand-crafted geometry cannot
-express the input; mode 7's two-descent `L1 → T12 → L2 → L5` example is one), or
-*structurally-unobservable* — and a mode's rung is derived as the strongest of
-its edges, so an analytic-only edge is visibly weaker than a demonstrated one.
-A mode recorded at *needs-real-data* or *structurally-unobservable* is an
-acceptable state. A mode that is **silent** is not.
+express the input), or *structurally-unobservable* — and a mode's rung is
+derived as the strongest of its edges, so an analytic-only edge is visibly
+weaker than a demonstrated one. A mode recorded at *needs-real-data* or
+*structurally-unobservable* is an acceptable state. A mode that is **silent** is
+not.
 
-**Lifecycle.** A mode is listed long before it is built. Its `status` says how
-far it has got — set by hand for the first two states, derived from live state
-for the last two:
+**Lifecycle.** A mode is listed before it is built. Its `status` says how far it
+has got — set by hand for the first two states, derived from live state for the
+last two, and the ladder is cumulative:
 
-- `proposed` — named and defined; no features, rules or corpus yet. Appears in
-  the catalogue and every conformance report as unimplemented.
+- `proposed` — named and defined; no features, rules or corpus yet. Reported as
+  unimplemented: an expected hole, not a defect.
 - `specified` — definition, discriminator, observability and candidate features
   settled; rules named but not written.
 - `implemented` — at least one registered rule declares the mode.
-- `validated` — a corpus case demonstrates detection end-to-end and its measured
-  firing set equals its expected firing set.
+- `validated` — `implemented`, and demonstrated end-to-end: every corpus case's
+  measured firing set equals its expected set, and at least one expected set
+  names one of the mode's **own** intended rules. A case detected only by
+  another mode's rule or by a mode-less detector is a recorded co-detection and
+  validates nothing; an empty expected set records "not detected today" and
+  never validates.
 
 The evidence rung is orthogonal to the lifecycle: a mode can be `validated` at
 rung *needs-real-data*.
 
 **Growth contract.** The catalogue is open. A mode is **claimed as covered** only
 together with the rule(s) that detect it, plus any new feature(s) those rules
-need when the existing pool does not already carry them. Listing a mode as
-`proposed` is not a claim of coverage and does not breach this. What must hold
-at all times is coverage in two directions — every mode at `implemented` or
-above has a rule, every rule names a mode or records why it names none — which
-the traceability matrix makes visible and enforceable. The third direction,
-feature → rule, is **deliberately incomplete**: features may be added alone and
-sit unwired until a rule draws on them.
+need. Listing a mode as `proposed` is not a claim of coverage. Two directions
+hold at all times — every mode at `implemented` or above has a rule, every rule
+names a mode or records why it names none — and the traceability matrix makes
+both visible and enforceable; the mode → rule direction is **scored**, not
+asserted complete. The third direction, feature → rule, is **deliberately
+incomplete**: features may be added alone and sit unwired until a rule draws on
+them.
 
 **Provenance.** A mode is either *hypothesised* — written in advance from
-literature and experience, with features and rules nominated by hand, as the
-eight below were — or *discovered* by clustering the feature space (Stage 24).
-The field keeps the two distinguishable, so a discovered mode is never silently
-merged into a hypothesised one, and a hypothesised mode that clustering fails to
-corroborate is visibly still hypothesised.
+literature and experience, with features and rules nominated by hand — or
+*discovered* by clustering the feature space (Stage 24). The field keeps the two
+distinguishable: a discovered mode is never silently merged into a hypothesised
+one, and a hypothesised mode that clustering fails to corroborate is visibly
+still hypothesised. A mode enters through the specification's schema; nothing
+else has to be rebuilt for it.
 
 **Co-detection is recorded, not suppressed.** Where a corpus case for one mode
-legitimately fires a second mode's rule — cropping a vertebra at the border
-displaces its centroid off the curve, so the border case also fires the
-misalignment detector — the specification records both in the case's expected
-firing set with the reason, and the discriminator says which mode explains the
-other. Whether a later rule lets one mode explain the other away is a rule
-change, decided on its own evidence.
-
-**The eight hypothesised modes** (the interim record; the seed of the
-specification):
-
-1. Label not aligned with the anatomical vertebra it names.
-2. Over-/under-segmentation — fused or fragmented vertebra segments.
-3. Disconnected components / islands, especially tiny rogue segments.
-4. Semantic mislabelling (wrong vertebra identification).
-5. Not all vertebrae in the image are segmented.
-6. Partial vertebra at the image border whose appearance changes.
-7. Non-continuous label sequence (e.g. L1 → T12 → L2 → L5).
-8. Overlapping segments.
-
-All eight are geometric, topological or semantic. A ninth — **implausible tissue
-under a label** (soft tissue or air, metal or implant, a degenerate uniform
-region), the mode the tissue-plausibility rules and the four-case intensity corpus
-already serve — is the first mode expected to enter through the lifecycle rather
-than through this list, and the test of the lifecycle's claim that a mode can be
-added without everything being rebuilt.
+legitimately fires a second mode's rule, or a mode-less detector, the
+specification records both in the case's expected firing set with the reason,
+and the discriminator says which mode explains the other. Whether a later rule
+lets one mode explain the other away is a rule change, decided on its own
+evidence.
 
 ---
 

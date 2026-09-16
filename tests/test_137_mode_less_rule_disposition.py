@@ -863,21 +863,12 @@ def test_ac16_catalogue_gap_finding_captured_in_inbox_or_archive():
 # AC17: §6 was recorded against, not grown
 # =========================================================================== #
 
-
-def test_ac17_vision_section_six_still_has_exactly_eight_modes():
-    vision_path = _REPO_ROOT / "docs" / "aide" / "vision.md"
-    text = vision_path.read_text(encoding="utf-8")
-
-    section_match = re.search(
-        r"^## 6\. Segmentation Failure Modes[^\n]*\n(.*?)(?=^## \d|\Z)",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    assert section_match is not None, "expected a '## 6. Segmentation Failure Modes' section"
-    section_text = section_match.group(1)
-
-    numbered_headings = re.findall(r"^\d+\.\s+\S", section_text, flags=re.MULTILINE)
-    assert len(numbered_headings) == 8, numbered_headings
+# test_ac17_vision_section_six_still_has_exactly_eight_modes retired (item
+# 152, A5): vision.md v4 (PR #77, gate 6, 2026-09-16) re-issues §6 as
+# principles plus a pointer to `segfacet.failure_modes.SPECIFICATION`, with
+# no numbered list at all, so "§6 was recorded against, not grown" is false
+# by design under v4. The v4 claim (§6 carries no numbered list) is
+# `tests/test_152_retire_vision_seed.py::test_ac1_section_six_carries_no_numbered_list`.
 
 
 def test_ac17_mode_anchor_paths_keys_are_signed_off_mode_ids():

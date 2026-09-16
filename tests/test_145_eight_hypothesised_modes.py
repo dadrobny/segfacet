@@ -383,48 +383,13 @@ def test_ac2_condition_fields_are_populated():
 # =========================================================================== #
 
 
-def test_ac3_every_vision_seed_title_has_a_resolving_disposition():
-    """Re-targeted at the item-150 sign-off. "The eight seed modes' names
-    equal §6's list" is **false by design** now: ids are assigned in
-    ``failure_modes.py`` from the sign-off on, and §6's numbered list is
-    provenance. What replaced the claim is ``VISION_SEED_DISPOSITION`` --
-    every seed title maps to ``mode:<id>``, ``condition:<id>`` or
-    ``retired`` -- and ``vision_seed_conflicts()``, which reports any title
-    that does not.
-
-    The parse still comes from ``failure_modes.vision_seed_titles()``, its
-    one public home (item 147 AC4).
-    """
-    import segfacet.failure_modes as fm
-
-    titles = fm.vision_seed_titles()
-    assert titles, "expected >=1 title parsed from vision.md section 6"
-    assert set(titles.values()) == set(fm.VISION_SEED_DISPOSITION), (
-        sorted(set(titles.values()) - set(fm.VISION_SEED_DISPOSITION)),
-        sorted(set(fm.VISION_SEED_DISPOSITION) - set(titles.values())),
-    )
-
-    kinds = set()
-    for title, disposition in sorted(fm.VISION_SEED_DISPOSITION.items()):
-        kind, _sep, target = disposition.partition(":")
-        if disposition == "retired":
-            kinds.add("retired")
-        elif kind == "mode":
-            assert target.isdigit() and int(target) in fm.SPECIFICATION, (
-                title,
-                disposition,
-            )
-            kinds.add("mode")
-        elif kind == "condition":
-            assert target in fm.CONDITIONS, (title, disposition)
-            kinds.add("condition")
-        else:
-            raise AssertionError(f"unrecognised disposition {disposition!r} for {title!r}")
-
-    # All three dispositions are exercised by the sign-off -- one title
-    # retired outright, one re-homed as a condition, the rest onto modes.
-    assert kinds == {"retired", "mode", "condition"}, kinds
-    assert fm.vision_seed_conflicts() == ()
+# test_ac3_every_vision_seed_title_has_a_resolving_disposition retired (item
+# 152, 2026-09-16): it called `fm.vision_seed_titles()` and
+# `fm.vision_seed_conflicts()`, both retired because vision.md v4's §6
+# carries no numbered list left to parse. The frozen-provenance and
+# every-disposition-resolves claims it made are
+# `tests/test_152_retire_vision_seed.py::test_ac6_provenance_map_is_frozen_at_its_v3_value`
+# and its AC7 pair.
 
 
 def test_ac3_retired_seed_title_is_carried_by_no_mode():
