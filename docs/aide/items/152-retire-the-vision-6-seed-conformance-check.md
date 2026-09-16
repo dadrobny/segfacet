@@ -129,6 +129,56 @@ with `## 6.`. §6 is the text from that line up to the next line that starts wit
   non-docstring `str` constant containing `Segmentation Failure Modes` is empty.
   The check is an AST walk, so comments do not count.
 
+**Correction (2026-09-16, builder hand-back) — AC3 is contradicted by AC10/AC11;
+AC3 was wrong, and it is narrowed to path-shaped constants.** AC3 as written
+flags any non-docstring `str` constant *containing* `vision.md` anywhere under
+`src/segfacet/`, `failure_modes.py` included. AC10 and AC11 (pinned by A3) require
+`render_markdown()` to emit a heading and a sentence that both contain `vision.md`.
+With the live read retired, `render_markdown()` can only produce them from string
+literals in `failure_modes.py`, so no implementation satisfies all three.
+AC10/AC11 are the side that holds: they pin authored provenance text the item
+exists to write. AC3 is the side that over-reached. Its claim is "no production
+module **reads** `vision.md`", and a substring match is a proxy for that claim
+which also matches prose *about* the document. Splitting the literal to dodge the
+substring would pass the test while defeating it, so the predicate changes, not
+the literal. What a read needs is a constant that *names the file as a path*:
+measured 2026-09-16 on this branch, the one live read (`failure_modes.py:2167`,
+`(_REPO_ROOT / "docs" / "aide" / "vision.md")`) holds the constant `"vision.md"`,
+and every other `vision.md`-bearing non-docstring constant in `src/segfacet/` is
+prose in which `vision.md` is followed by more text. AC3 is read as follows from
+this date on; the original text above is the record of what the tests were first
+written from.
+
+- [ ] **AC3 (corrected 2026-09-16): no production module names `vision.md` as a
+  path.** The set of `.py` files under `src/segfacet/`, `failure_modes.py`
+  included and enumerated with `rglob` (never hand-listed), that hold a
+  non-docstring `str` constant whose value matches
+  `re.search(r"(?:^|[/\\])vision\.md$", value)` is empty. Docstring position is
+  the same as in the committed `_docstring_constant_ids` helper (the first
+  statement of a module, class or function body). The match is case-sensitive,
+  is applied to the constant's exact value with no stripping, and visits the
+  `Constant` parts of f-strings as `ast.walk` yields them. *(closes Stage 31
+  criterion 2)*
+
+The corrected AC3's controls, each a planted temp `.py` file fed to the same
+predicate:
+
+- **Flagged:** `open("docs/aide/vision.md")`; `Path(root) / "docs" / "aide" /
+  "vision.md"`; `os.path.join(root, "vision.md")`; `f"{root}/vision.md"`; a
+  Windows-separator constant `"docs\\aide\\vision.md"`.
+- **Not flagged:** the AC10 heading literal
+  `"## Provenance: vision.md v3 section 6 seed titles"`; the AC11 sentence
+  literal; a docstring-only mention `"""See docs/aide/vision.md."""`; a comment
+  `# see docs/aide/vision.md`.
+
+Two consequences for the Testing Strategy, also corrected 2026-09-16. The
+AC3/AC16 bullet's "same AST walker" now holds only for AC16: AC16 keeps its
+substring needle `Segmentation Failure Modes`, and AC3 uses the path predicate
+above. And reconcile entry 6 (`test_147::test_ac4_vision_parse_has_one_home`),
+if re-pointed rather than retired, must use the corrected AC3 predicate and not
+`test_147._references_vision_md`'s substring semantics, which the AC10/AC11
+literals in `failure_modes.py` would trip. See A8.
+
 ## Assumptions
 
 - **A1: retire the two functions, keep the map.** The queue allows either
@@ -179,6 +229,20 @@ with `## 6.`. §6 is the text from that line up to the next line that starts wit
   is in git history before `7d800a2`.
 - **A7: `specification_to_dict()` needs no argument change.** Only the `note`
   string inside it changes, plus the Markdown section in `render_markdown()`.
+- **A8 (added 2026-09-16, correction to AC3, `loop.clarify = "assume"`): a read
+  is detected by a path-shaped constant.** A module that reads `vision.md` has
+  to spell the file name as a path: either the whole constant `vision.md` or a
+  constant ending in `/vision.md` or `\vision.md`. That shape is the narrowest
+  predicate that still flags the retired read and every ordinary path spelling
+  (`open`, `pathlib` joins, `os.path.join`, f-strings), while leaving authored
+  prose that names the document alone. A deliberately obfuscated read
+  (`"vision" + ".md"` built at runtime) is not caught. The original substring
+  check did not catch it either, so the correction loses nothing. Rejected
+  alternatives: (i) exempting `failure_modes.py`, which reopens the one file
+  that held the read; (ii) exempting the two A3 literals by value, which pins
+  the check to wording that A3 already pins elsewhere and flags the next
+  provenance sentence anyone writes; (iii) splitting the literals, which leaves
+  a check that passes on text written to evade it.
 
 ## Implementation Steps
 
