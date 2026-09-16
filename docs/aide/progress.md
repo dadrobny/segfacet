@@ -1648,10 +1648,18 @@ changes here.**
   Stage 20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored;
   the false `rank(v) == v - 1` claim in `severity_ladder.py` corrected; resolves the four
   recorded-not-resolved disagreements from item 153's Description. *(Item 154)*
+- 🚧 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
+  meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
+  the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
+  stale `modeN_` corpus case-id prefixes. *(Item 155)*
 - 📋 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
   meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
   the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
-  stale `modeN_` corpus case-id prefixes. *(Items 155, 156, 157)*
+  stale `modeN_` corpus case-id prefixes. *(Item 156)*
+- 📋 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
+  meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
+  the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
+  stale `modeN_` corpus case-id prefixes. *(Item 157)*
 - 📋 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
   `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
   `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries
