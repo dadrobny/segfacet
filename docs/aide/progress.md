@@ -1644,7 +1644,7 @@ changes here.**
   map onto its own metric/operator names, with the specification's mode ids carried in a
   nullable `failure_mode` field derived live from `SPECIFICATION`/`CONDITIONS`; every
   ladder constant, baseline and coupling value carried over unchanged. *(Item 153)*
-- 🔍 **D3** Re-measures the cross-mode constants item 153 carried over unchanged; absorbs
+- ✅ **D3** Re-measures the cross-mode constants item 153 carried over unchanged; absorbs
   Stage 20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored;
   the false `rank(v) == v - 1` claim in `severity_ladder.py` corrected; resolves the four
   recorded-not-resolved disagreements from item 153's Description. *(Item 154)*
