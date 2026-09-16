@@ -348,17 +348,34 @@ def matrix_overlap_mode_rung_synthetic(monkeypatch):
 
 @pytest.fixture
 def matrix_unregistered_designated_rule(monkeypatch):
-    import segfacet.catalogue as catalogue_module
+    """Reconciled (item 156, 2026-09-16): after item 156's Step 3,
+    ``build_matrix()`` no longer reads ``scan_synth_rule_mode_map()`` for
+    ``corpus_designated_unregistered_rule_ids`` -- it derives that field from
+    the two committed manifests directly. Patching the scan here would leave
+    this fixture silently inert. Re-pointed to
+    ``segfacet.synth.corpus.load_manifest``: a deep copy that appends
+    ``"boundary"`` to one failure case's ``expected_rule_ids``, picked by
+    ``synth.perturbation.corpus_case_kind`` (item 155) rather than by case id,
+    since item 157 renames corpus case ids."""
+    import copy
+
+    import segfacet.synth.corpus as corpus_module
+    import segfacet.synth.perturbation as perturbation_module
     import segfacet.traceability as traceability
 
-    real_map = catalogue_module.scan_synth_rule_mode_map()
+    real_manifest = corpus_module.load_manifest()
+    patched = copy.deepcopy(real_manifest)
+    for case in patched.get("cases", []):
+        if perturbation_module.corpus_case_kind(case) == perturbation_module.CASE_KIND_FAILURE:
+            case["expected_rule_ids"].append("boundary")
+            break
+    else:
+        raise AssertionError(
+            "matrix_unregistered_designated_rule: no failure case found in the "
+            "geometric manifest to append 'boundary' to."
+        )
 
-    def _patched():
-        mapping = dict(real_map)
-        mapping["boundary"] = (6,)
-        return mapping
-
-    monkeypatch.setattr(catalogue_module, "scan_synth_rule_mode_map", _patched)
+    monkeypatch.setattr(corpus_module, "load_manifest", lambda *a, **k: patched)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
