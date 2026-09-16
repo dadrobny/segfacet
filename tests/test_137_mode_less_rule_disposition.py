@@ -99,8 +99,6 @@ import segfacet.heuristics.rule as rule_mod
 from segfacet.heuristics.rule import Rule, _RULES, iter_rules, register_rule
 from segfacet.heuristics.runner import run_rules
 from segfacet.config import bundled_default_config
-from segfacet.pipeline import extract_feature_record
-from segfacet.synth.clean_gt import build_clean_spine
 
 
 def _catalogue():
@@ -176,10 +174,42 @@ def isolated_registry():
     _RULES.update(snapshot)
 
 
-def _fixed_record():
+#: The intensity-corpus case AC18 evaluates on. Against the bundled reference
+#: every one of the four dispositioned rules fires on it (measured 2026-09-16:
+#: intensity_reference_delta 40, reference_delta 9, bounds 6, intensity 1).
+_AC18_CASE_ID = "implausible_metal"
+
+
+def _firing_record():
+    """The transient rule-evaluation record ``run_qc_with_intensity`` feeds to
+    ``run_rules`` for :data:`_AC18_CASE_ID` with the bundled reference,
+    recomposed from the pieces it returns.
+
+    Replaces a clean-spine ``extract_feature_record`` record on which
+    ``run_rules`` returned zero findings, so AC18's ``after == before`` was
+    ``[] == []`` and could not fail (``docs/aide/insights.md``, item 146,
+    2026-09-04)."""
+    from segfacet.pipeline import run_qc_with_intensity
+    from segfacet.reference.artifact import bundled_default_reference
+    from segfacet.synth.corpus import load_manifest
+    from segfacet.synth.regression import INTENSITY_CORPUS_DIR, loaded_intensity_case
+
     config = bundled_default_config()
-    clean = build_clean_spine()
-    return extract_feature_record(clean.seg_img, config), config
+    reference = bundled_default_reference()
+    manifest = load_manifest(INTENSITY_CORPUS_DIR / "manifest.json")
+    (case,) = [c for c in manifest["cases"] if c["case_id"] == _AC18_CASE_ID]
+    seg_img, scan_img = loaded_intensity_case(case)
+    _result, features_block, image_features, delta, intensity_delta = run_qc_with_intensity(
+        seg_img, scan_img, config, reference=reference, enable_pyradiomics=False
+    )
+    record = {
+        **features_block,
+        "image_features": image_features,
+        "reference": reference,
+        "reference_delta": delta,
+        "intensity_reference_delta": intensity_delta,
+    }
+    return record, config
 
 
 # =========================================================================== #
@@ -883,9 +913,12 @@ def test_ac17_mode_anchor_paths_keys_are_signed_off_mode_ids():
 def test_ac18_replacing_a_dispositioned_rules_declaration_leaves_run_rules_unchanged(
     rule_id, monkeypatch
 ):
-    record, config = _fixed_record()
+    record, config = _firing_record()
     before = run_rules(record, config)
     assert isinstance(before, list)
+    assert any(f.rule_id == rule_id for f in before), (
+        f"precondition: {rule_id} must fire on {_AC18_CASE_ID}, or the invariance is vacuous"
+    )
 
     rule = _RULES[rule_id]
     replacement = rule_mod.RuleModeDeclaration(
@@ -900,8 +933,12 @@ def test_ac18_replacing_a_dispositioned_rules_declaration_leaves_run_rules_uncha
 def test_ac18_replacing_all_four_dispositioned_declarations_leaves_run_rules_unchanged(
     monkeypatch,
 ):
-    record, config = _fixed_record()
+    record, config = _firing_record()
     before = run_rules(record, config)
+    fired = {f.rule_id for f in before}
+    assert set(_DISPOSITIONED) <= fired, (
+        f"precondition: all four must fire on {_AC18_CASE_ID}, got {sorted(fired)}"
+    )
 
     for rule_id in _DISPOSITIONED:
         monkeypatch.setattr(

@@ -224,8 +224,9 @@ def _intensity_manifest_case(case_id: str) -> dict:
 
 
 def _fixed_record():
-    """A fixed, real feature record + config pair -- mirrors
-    ``test_137_mode_less_rule_disposition.py``'s ``_fixed_record()``."""
+    """A fixed, real feature record + config pair -- the clean-spine record
+    ``test_137_mode_less_rule_disposition.py``'s AC18 used until 2026-09-16,
+    when it moved to ``_firing_record()`` because no rule fires on this one."""
     from segfacet.config import bundled_default_config
     from segfacet.pipeline import extract_feature_record
     from segfacet.synth.clean_gt import build_clean_spine
