@@ -190,8 +190,9 @@ authored:
   does not declare; a committed corpus case the specification does not
   carry, or whose manifest expectation disagrees with it).
 
-Mode 7's rung rationale is settled here as one measured sentence
-(:data:`SPECIFICATION`\\ ``[7].mechanism``), correcting the ``rank(v) ==
+The sequence case's rung rationale is settled here as one measured sentence
+(:data:`SPECIFICATION`\\ ``[9].mechanism`` -- mode 7 before item 150's
+renumbering), correcting the ``rank(v) ==
 v - 1`` claim item 145 transcribed from ``MODE_RUNGS``: see that field.
 
 Lifecycle status

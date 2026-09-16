@@ -1,8 +1,11 @@
 """Committed synthetic fixture corpus spanning every §6 failure mode plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
-Materialises the **nine canonical cases** (one per §6 failure mode 1-8, plus
-the mode-0 clean control) documented in the item 040 spec's case table, using
+Materialises the **eleven canonical cases** -- item 040's original nine (the
+clean control plus one per pre-renumbering §6 mode 1-8, whose ``modeN_``
+case ids are kept as stable identifiers) and the ``fuse_adjacent`` and
+``remove_level_relabel`` cases item 150 added; each manifest entry's
+``failure_mode`` field carries the current mode number -- using
 the merged Stage 5 generators (items 036-039): :func:`build_clean_spine`
 (item 036) as the shared base, and the registered operators from item 037
 (``fragment``), item 038 (``remove_level``, ``crop_at_border``,
@@ -18,7 +21,7 @@ Two public surfaces:
   (:func:`main`), regenerating the committed corpus under
   ``tests/corpus/`` by default.
 
-One of the nine cases (mode 8 -- ``force_overlap``) is documented by item 038
+One of the eleven cases (mode 15 -- ``force_overlap``) is documented by item 038
 as **structurally invisible** to the plain ``run_qc`` pipeline (a
 single-integer label map cannot encode an overlap). This module faithfully
 represents that fact: its manifest entry carries
@@ -26,11 +29,11 @@ represents that fact: its manifest entry carries
 key, rather than pretending ``run_qc`` would catch it. Mode 1 (``displace``)
 was reconstructed_record before item 120 promoted a held-out per-label
 spline offset into the pipeline itself; it is now ``detection == "pipeline"``.
-Mode 4 (``relabel_swap``) was reconstructed_record before item 132 (2026-08-31)
+The mode-9 ``relabel_swap`` case was reconstructed_record before item 132 (2026-08-31)
 made ``compute_monotonic_consistency`` judge against a curve fitted in
 geometric traversal order rather than the ordering under test, so the swap
 now reads out of order through plain ``run_qc``; it is now
-``detection == "pipeline"`` like the other seven modes. See the item 040
+``detection == "pipeline"`` like every case but the overlap one. See the item 040
 spec's Assumptions for the full rationale.
 """
 
@@ -99,7 +102,7 @@ _DEFAULT_BASE_PARAMS: Dict[str, Any] = {
 
 
 # --------------------------------------------------------------------------- #
-# The recipe -- the single declarative source of the nine canonical cases
+# The recipe -- the single declarative source of the canonical cases
 # --------------------------------------------------------------------------- #
 
 
@@ -116,7 +119,8 @@ class _RecipeEntry:
     reconstruction: Optional[str] = None
 
 
-#: The nine canonical cases (item 040 spec's case table), in table order.
+#: The eleven canonical cases (item 040 spec's case table, then item 150's
+#: two), in table order.
 CASE_RECIPE: List[_RecipeEntry] = [
     _RecipeEntry(
         case_id="clean_control",

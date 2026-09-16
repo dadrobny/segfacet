@@ -11,8 +11,10 @@ predicates that dispatch on the case's ``detection`` discriminator (item 040):
   the plain pipeline; assert straight against ``run_qc``'s output.
 * ``detection == "reconstructed_record"`` -- the failure mode is structurally
   invisible to plain ``run_qc`` (item 040's documented limitation, now
-  modes 4/8 only -- item 120 promoted mode 1's held-out spline offset into
-  the pipeline itself, retiring its reconstruction technique); assert
+  mode 15's overlap case only -- item 120 promoted the displace case's
+  held-out spline offset into the pipeline itself, retiring its
+  reconstruction technique, and item 132 did the same for the mode-9
+  relabel-swap case); assert
   instead via the same reconstruction technique items 038/039 used in their
   own tests, feeding a reconstructed feature record directly to the
   designated rule (:class:`~segfacet.heuristics.mislabel.MislabelRule` /

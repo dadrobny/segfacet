@@ -290,7 +290,7 @@ def _normalise_evidence(evidence) -> Tuple[str, ...]:
 
 #: Manifest ``detection`` values that mean "produced by a real (or intensity)
 #: pipeline run", as opposed to a deliberately-reconstructed record
-#: (``"reconstructed_record"``, mode 8's overlap case -- structurally
+#: (``"reconstructed_record"``, mode 15's overlap case -- structurally
 #: impossible for any real segmenter output, so it never counts as
 #: pipeline-detected).
 _PIPELINE_DETECTIONS = frozenset({"pipeline", "intensity_pipeline"})
@@ -416,7 +416,7 @@ def build_matrix() -> TraceabilityMatrix:
     mode_anchor_paths = feature_docs_module.MODE_ANCHOR_PATHS
     # The matrix's known-mode source is the authored specification (item
     # 144), not feature_docs.MODE_ANCHOR_PATHS's key set. A mode with no
-    # MODE_ANCHOR_PATHS entry (mode 9, 10) still gets a full mode row; its
+    # MODE_ANCHOR_PATHS entry (mode 16, for one) still gets a full mode row; its
     # anchor_paths render empty via mode_anchor_paths.get(mode, ()).
     known_modes = set(failure_modes_module.SPECIFICATION.keys())
 

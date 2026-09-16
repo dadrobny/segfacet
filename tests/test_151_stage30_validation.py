@@ -70,6 +70,7 @@ import inspect
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1340,15 +1341,12 @@ def test_adv_ac39_entry_lookup_searches_archives_too(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    def _find_in_fake():
-        candidates = [fake_docs_dir / "insights.md"] + sorted(fake_archive_dir.glob("archive-*.md"))
-        for path in candidates:
-            for line in path.read_text(encoding="utf-8").splitlines():
-                if _AC39_ENTRY_SUBSTRING in line:
-                    return path, line
-        return None, None
+    # Drive the real helper against the fake tree, so the test fails if
+    # _find_ac39_entry ever stops searching the archive directory.
+    monkeypatch.setattr(sys.modules[__name__], "_INSIGHTS_PATH", fake_docs_dir / "insights.md")
+    monkeypatch.setattr(sys.modules[__name__], "_INSIGHTS_ARCHIVE_DIR", fake_archive_dir)
 
-    path, line = _find_in_fake()
+    path, line = _find_ac39_entry()
     assert path == fake_archive_dir / "archive-2026-Q3.md"
     assert line.strip().startswith("- [x]")
 
