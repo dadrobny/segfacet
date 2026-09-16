@@ -260,27 +260,12 @@ def test_ac1_one_source_for_mode_names_in_production_code(src_literals_by_file):
     assert offenders == {
         "src/segfacet/failure_modes.py",
         "src/segfacet/synth/intensity.py",
-        # `eval/per_mode.py::LEGACY_STAGE18_MODE_NAMES` (item 150): the
-        # deliberately frozen pre-sign-off name map the Stage-18/29 eval
-        # harness is still keyed by, documented as such at its definition.
-        # Re-keying that harness needs re-measured ladder constants and is a
-        # separate item, so this is a named exception, not a second source.
-        "src/segfacet/eval/per_mode.py",
+        # Item 153 re-keyed the Stage-18/29 eval harness off the frozen
+        # pre-sign-off name map onto metric/operator names, with the
+        # specification's mode ids carried in a nullable field derived from
+        # SPECIFICATION/CONDITIONS -- so `eval/per_mode.py` is no longer a
+        # second source of mode-name literals and drops out of this set.
     }, offenders
-
-    # ... and the exception is exactly that map: the only mode-name literals
-    # `per_mode.py` carries are its values, so the allowance cannot quietly
-    # cover a freshly hand-typed name.
-    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
-
-    per_mode_literals = next(
-        literals
-        for path, literals in src_literals_by_file.items()
-        if _rel(path) == "src/segfacet/eval/per_mode.py"
-    )
-    assert (per_mode_literals & needles) <= set(LEGACY_STAGE18_MODE_NAMES.values()), (
-        per_mode_literals & needles
-    )
 
 
 def test_adv_ac1_walker_flags_a_planted_mode_name_literal(tmp_path):

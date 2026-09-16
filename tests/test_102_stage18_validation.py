@@ -397,18 +397,20 @@ def block_c(tmp_path_factory):
     }
 
 
-def _per_mode_by_mode(comparison_doc, mode):
+def _per_mode_by_metric(comparison_doc, metric_name):
     for entry in comparison_doc["comparison"]["per_mode"]:
-        if entry["failure_mode"] == mode:
+        if entry["metric_name"] == metric_name:
             return entry
-    raise KeyError(mode)
+    raise KeyError(metric_name)
 
 
 def test_ac7_two_per_mode_runs_each_write_eight_entry_block(block_c):
+    import segfacet.eval.per_mode as per_mode
+
     for report in (block_c["report_a"], block_c["report_b"]):
         block = report["per_mode_magnitude"]
-        modes = [entry["failure_mode"] for entry in block["per_mode"]]
-        assert modes == list(range(1, 9))
+        names = [entry["metric_name"] for entry in block["per_mode"]]
+        assert names == list(per_mode.PER_MODE_METRIC_SPECS)
         for entry in block["per_mode"]:
             assert entry["mean"] is not None
     assert block_c["report_a"]["per_mode_magnitude"]["run_id"] == "runA"
@@ -446,7 +448,7 @@ def test_ac9_attribution_lands_on_mode_1(block_c):
     assert comparison["attributed_mode"] == 1
     assert comparison["attributed_metric_name"] == "unanchored_foreground_fraction"
 
-    mode1 = _per_mode_by_mode(block_c["comparison_doc"], 1)
+    mode1 = _per_mode_by_metric(block_c["comparison_doc"], "unanchored_foreground_fraction")
     assert mode1["value_a"] == pytest.approx(0.079264)
     assert mode1["value_b"] == pytest.approx(0.0784)
     assert mode1["delta"] == pytest.approx(-0.000864, abs=1e-6)
@@ -460,21 +462,26 @@ def test_ac10_no_untouched_mode_is_implicated(block_c):
     # Mode 4 (mislabelled_volume_fraction) is bounded and genuinely
     # untouched by either run -- its normalised_delta is a real 0.0, not a
     # saturated fallback.
-    mode4 = _per_mode_by_mode(doc, 4)
+    mode4 = _per_mode_by_metric(doc, "mislabelled_volume_fraction")
     assert mode4["delta"] == 0.0
     assert mode4["normalised_delta"] == 0.0
 
-    # Modes 5-8 are unbounded counts (item 109 AC2): raw delta 0.0, and no
-    # fabricated normalised_delta for an untouched mode.
-    for mode in (5, 6, 7, 8):
-        entry = _per_mode_by_mode(doc, mode)
+    # The other four unbounded-count metrics: raw delta 0.0, and no
+    # fabricated normalised_delta for an untouched metric.
+    for metric_name in (
+        "missing_level_count",
+        "fov_clipped_label_count",
+        "out_of_order_label_count",
+        "overlapping_voxel_count",
+    ):
+        entry = _per_mode_by_metric(doc, metric_name)
         assert entry["delta"] == 0.0
         assert entry["normalised_delta"] is None
 
     # Reconciled for item 109: mode 1's normalised_delta under the fixed
     # full_swing scale (see test_ac9) is the real -0.000864, not the old
     # adaptive-scale artefact -0.0109 (delta / max(|value_a|, |value_b|)).
-    mode1 = _per_mode_by_mode(doc, 1)
+    mode1 = _per_mode_by_metric(doc, "unanchored_foreground_fraction")
     assert abs(mode1["normalised_delta"]) < 0.05
     assert math.isclose(mode1["normalised_delta"], -0.000864, abs_tol=1e-4)
 
@@ -484,35 +491,39 @@ def test_ac11_aggregate_dice_does_not_attribute_what_per_mode_does(block_c):
     assert abs(comparison["mean_dice_delta"]) < 0.01
     assert math.isclose(comparison["mean_dice_delta"], 0.00043, abs_tol=1e-4)
 
-    # Reconciled for item 109: mode 3 (rogue_island_count) carries the real
-    # injected signal -- 3 islands added in run A, stripped in run B -- but
-    # is unbounded under item 109's rules (AC2), so it never carries a
+    # Reconciled for item 109: rogue_island_count carries the real injected
+    # signal -- 3 islands added in run A, stripped in run B -- but is
+    # unbounded under item 109's rules (AC2), so it never carries a
     # normalised_delta and cannot win attribution even though its raw
     # movement (3 -> 0) dwarfs aggregate Dice's near-zero delta. Its raw
     # delta stays visible on the record (AC2) and it is named in
-    # excluded_modes (AC8b) rather than silently dropped.
-    mode3 = _per_mode_by_mode(block_c["comparison_doc"], 3)
+    # excluded_metric_names (item 153 AC29, was excluded_modes / AC8b)
+    # rather than silently dropped.
+    mode3 = _per_mode_by_metric(block_c["comparison_doc"], "rogue_island_count")
     assert mode3["normalised_delta"] is None
     assert mode3["delta"] == -3.0
-    assert 3 in comparison["excluded_modes"]
+    assert "rogue_island_count" in comparison["excluded_metric_names"]
 
 
 def test_ac12_rendered_txt_names_the_implicated_mode_in_words(block_c):
-    # Item 150: the Stage-18 surface still renders the pre-sign-off names,
-    # frozen in LEGACY_STAGE18_MODE_NAMES.
-    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+    # Item 153: the per-mode text now names the specification's mode names
+    # (looked up live from SPECIFICATION), not a frozen pre-sign-off map.
+    import segfacet.failure_modes as fm
+    import segfacet.eval.per_mode as per_mode
 
     txt = block_c["txt"]
-    assert LEGACY_STAGE18_MODE_NAMES[1] in txt
+    assert fm.SPECIFICATION[1].name in txt
     assert "unanchored_foreground_fraction" in txt
-    for mode in range(1, 9):
-        assert LEGACY_STAGE18_MODE_NAMES[mode] in txt
+    for spec in per_mode.PER_MODE_METRIC_SPECS.values():
+        assert spec.metric_name in txt
+        if spec.failure_mode is not None:
+            assert fm.SPECIFICATION[spec.failure_mode].name in txt
 
 
 def test_ac13_confounding_modes_are_off_baseline(block_c):
     doc = block_c["comparison_doc"]
-    mode1 = _per_mode_by_mode(doc, 1)
-    mode2 = _per_mode_by_mode(doc, 2)
+    mode1 = _per_mode_by_metric(doc, "unanchored_foreground_fraction")
+    mode2 = _per_mode_by_metric(doc, "min_dominant_component_fraction")
     for entry in (mode1, mode2):
         assert entry["value_a"] != entry["baseline"]
         assert entry["value_b"] != entry["baseline"]
@@ -529,7 +540,7 @@ def test_ac13_confounding_modes_are_off_baseline(block_c):
         if entry["normalised_delta"] is not None and abs(entry["normalised_delta"]) == 1.0
     ]
     assert saturated == []
-    assert 3 in doc["comparison"]["excluded_modes"]
+    assert "rogue_island_count" in doc["comparison"]["excluded_metric_names"]
 
 
 # --- Adversarial (Block C): swapped runs, self-comparison, mismatched
@@ -558,7 +569,7 @@ def test_adv_swapped_runs_flip_sign_still_attributes_to_mode_1(block_c, tmp_path
     assert exit_code == 0
     doc = json.loads((out_compare / "per_mode_comparison.json").read_text(encoding="utf-8"))
     assert doc["comparison"]["attributed_mode"] == 1
-    mode1 = _per_mode_by_mode(doc, 1)
+    mode1 = _per_mode_by_metric(doc, "unanchored_foreground_fraction")
     assert mode1["normalised_delta"] == pytest.approx(0.000864, abs=1e-6)
     assert mode1["worsened"] is True
 
@@ -737,43 +748,56 @@ def block_d():
     return verdict
 
 
-_EXPECTED_RUNG_COUNTS = {1: 5, 2: 5, 3: 5, 4: 3, 5: 4, 6: 4, 7: 2, 8: 5}
-_EXPECTED_SEVERITY_KINDS = {
-    1: "continuous",
-    2: "continuous",
-    3: "continuous",
-    4: "affected-label-count",
-    5: "affected-label-count",
-    6: "affected-label-count",
-    7: "degenerate",
-    8: "continuous",
-}
-_EXPECTED_MARGINS = {
-    1: math.inf,
-    2: math.inf,
-    3: 112.037,
-    4: math.inf,
-    5: math.inf,
-    6: 0.3585,
-    7: math.inf,
-    8: 1.0386,
-}
+# Item 153: keyed by operator (the ladder registry key), not the retired
+# legacy mode int -- same eight ladders, same order, values unchanged.
+_LADDER_OPERATORS = (
+    "displace",
+    "fragment",
+    "inject_islands",
+    "relabel_swap",
+    "remove_level",
+    "crop_at_border",
+    "sequence_break",
+    "force_overlap",
+)
+_EXPECTED_RUNG_COUNTS = dict(zip(_LADDER_OPERATORS, (5, 5, 5, 3, 4, 4, 2, 5)))
+_EXPECTED_SEVERITY_KINDS = dict(
+    zip(
+        _LADDER_OPERATORS,
+        (
+            "continuous",
+            "continuous",
+            "continuous",
+            "affected-label-count",
+            "affected-label-count",
+            "affected-label-count",
+            "degenerate",
+            "continuous",
+        ),
+    )
+)
+_EXPECTED_MARGINS = dict(
+    zip(
+        _LADDER_OPERATORS,
+        (math.inf, math.inf, 112.037, math.inf, math.inf, 0.3585, math.inf, 1.0386),
+    )
+)
 
 
 def test_ac14_harness_passes_monotone_strictly_changing_for_all_eight_modes(block_d):
     assert block_d.passed is True
-    for mode in range(1, 9):
-        lv = block_d.per_ladder[mode]
-        assert lv.monotone is True, mode
-        assert lv.strictly_changed is True, mode
-        assert lv.failures == (), mode
+    for operator in _LADDER_OPERATORS:
+        lv = block_d.per_ladder[operator]
+        assert lv.monotone is True, operator
+        assert lv.strictly_changed is True, operator
+        assert lv.failures == (), operator
 
 
 def test_ac15_observed_ladder_shapes_match_recorded(block_d):
     from segfacet.eval.severity_ladder import SEVERITY_LADDERS
 
-    rung_counts = {m: len(SEVERITY_LADDERS[m].rungs) for m in range(1, 9)}
-    severity_kinds = {m: SEVERITY_LADDERS[m].severity_kind for m in range(1, 9)}
+    rung_counts = {op: len(SEVERITY_LADDERS[op].rungs) for op in _LADDER_OPERATORS}
+    severity_kinds = {op: SEVERITY_LADDERS[op].severity_kind for op in _LADDER_OPERATORS}
     assert rung_counts == _EXPECTED_RUNG_COUNTS
     assert severity_kinds == _EXPECTED_SEVERITY_KINDS
 
@@ -781,42 +805,49 @@ def test_ac15_observed_ladder_shapes_match_recorded(block_d):
 def test_ac16_every_mode_margin_satisfies_the_frozen_ratchet(block_d):
     from segfacet.eval.severity_ladder import RECORDED_MARGINS
 
-    for mode in range(1, 9):
-        lv = block_d.per_ladder[mode]
-        recorded = RECORDED_MARGINS[mode]
+    for operator in _LADDER_OPERATORS:
+        lv = block_d.per_ladder[operator]
+        recorded = RECORDED_MARGINS[operator]
         if recorded == math.inf:
-            assert lv.margin == math.inf, mode
+            assert lv.margin == math.inf, operator
         else:
-            assert lv.margin >= recorded * 0.95, mode
+            assert lv.margin >= recorded * 0.95, operator
 
     # Record the observed values verbatim (Decisions log cross-check).
-    for mode in range(1, 9):
-        lv = block_d.per_ladder[mode]
-        expected = _EXPECTED_MARGINS[mode]
+    for operator in _LADDER_OPERATORS:
+        lv = block_d.per_ladder[operator]
+        expected = _EXPECTED_MARGINS[operator]
         if expected == math.inf:
-            assert lv.margin == math.inf, mode
+            assert lv.margin == math.inf, operator
         else:
-            assert math.isclose(lv.margin, expected, abs_tol=2e-3), (mode, lv.margin)
+            assert math.isclose(lv.margin, expected, abs_tol=2e-3), (operator, lv.margin)
 
 
 def test_ac17_the_two_shortfall_modes_are_asserted_as_such(block_d):
     from segfacet.eval.severity_ladder import SEVERITY_LADDERS
 
-    lv6 = block_d.per_ladder[6]
+    lv6 = block_d.per_ladder["crop_at_border"]
     assert lv6.status == "coupled"
-    assert lv6.coupled_modes == (1,)
+    assert lv6.coupled_metrics == ("unanchored_foreground_fraction",)
     assert lv6.margin < 1.0
 
-    lv8 = block_d.per_ladder[8]
+    lv8 = block_d.per_ladder["force_overlap"]
     assert lv8.status == "coupled"
-    assert lv8.coupled_modes == (1,)
+    assert lv8.coupled_metrics == ("unanchored_foreground_fraction",)
     assert lv8.margin > 1.0
 
-    for mode in (1, 2, 3, 4, 5, 7):
-        assert block_d.per_ladder[mode].status == "strict", mode
+    for operator in (
+        "displace",
+        "fragment",
+        "inject_islands",
+        "relabel_swap",
+        "remove_level",
+        "sequence_break",
+    ):
+        assert block_d.per_ladder[operator].status == "strict", operator
 
-    assert SEVERITY_LADDERS[7].severity_kind == "degenerate"
-    assert SEVERITY_LADDERS[7].rationale != ""
+    assert SEVERITY_LADDERS["sequence_break"].severity_kind == "degenerate"
+    assert SEVERITY_LADDERS["sequence_break"].rationale != ""
 
 
 def test_adv_two_harness_runs_yield_equal_to_dict(block_d):

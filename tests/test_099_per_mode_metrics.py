@@ -154,10 +154,13 @@ _MODE8_RECORD = _mode8_record_with_overlaps()
 
 
 def _value(result, failure_mode: int):
-    """Fetch a result's entry for *failure_mode* by AC4's guaranteed
-    ascending-mode-order tuple layout (``per_mode[failure_mode - 1]``)."""
+    """Fetch a result's entry for the metric the retired legacy mode id
+    *failure_mode* named, by the registry's guaranteed ascending order
+    (item 153 keeps the legacy order -- ``per_mode[failure_mode - 1]``;
+    ``entry.failure_mode`` is now a specification id, not this position, so
+    identity is checked via ``metric_name`` instead)."""
     entry = result.per_mode[failure_mode - 1]
-    assert entry.failure_mode == failure_mode
+    assert entry.metric_name == _LEGACY_TO_METRIC_NAME[failure_mode]
     return entry.value
 
 
@@ -289,49 +292,20 @@ def test_ac1_permodemetrics_is_frozen_dataclass():
 def test_ac1_metricspec_is_frozen_dataclass():
     pm = _per_mode()
     assert dataclasses.is_dataclass(pm.MetricSpec)
-    spec = pm.PER_MODE_METRIC_SPECS[1]
+    spec = pm.PER_MODE_METRIC_SPECS["unanchored_foreground_fraction"]
     with pytest.raises(dataclasses.FrozenInstanceError):
         spec.baseline = 999.0  # type: ignore[misc]
 
 
 # =========================================================================== #
-# AC2: the spec registry covers exactly modes 1-8
+# AC2: the spec registry covers exactly the eight metric names (item 153:
+# re-keyed off the retired legacy mode-id map onto metric names)
 # =========================================================================== #
 
-
-def test_ac2_key_set_is_exactly_one_through_eight():
-    pm = _per_mode()
-    assert set(pm.PER_MODE_METRIC_SPECS.keys()) == {1, 2, 3, 4, 5, 6, 7, 8}
-
-
-def test_ac2_clean_control_mode_zero_is_not_a_key():
-    pm = _per_mode()
-    assert 0 not in pm.PER_MODE_METRIC_SPECS
-
-
-@pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 7, 8])
-def test_ac2_spec_failure_mode_field_matches_its_key(mode):
-    pm = _per_mode()
-    assert pm.PER_MODE_METRIC_SPECS[mode].failure_mode == mode
-
-
-@pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 7, 8])
-def test_ac2_spec_failure_mode_name_matches_legacy_stage18_names(mode):
-    """Item 150: the Stage-18 surface is still keyed by the pre-sign-off
-    numbering, frozen in ``LEGACY_STAGE18_MODE_NAMES``; ``FAILURE_MODE_NAMES``
-    now carries the signed-off catalogue and must NOT be what this reads."""
-    pm = _per_mode()
-    spec = pm.PER_MODE_METRIC_SPECS[mode]
-    assert spec.failure_mode_name == pm.LEGACY_STAGE18_MODE_NAMES[mode]
-    if mode != 8:
-        assert spec.failure_mode_name != FAILURE_MODE_NAMES[mode]
-
-
-# =========================================================================== #
-# AC3: metric names unique, unit-suffixed; direction/source vocabularies
-# =========================================================================== #
-
-_EXPECTED_METRIC_NAMES = {
+# Legacy mode id -> metric name, in the order the legacy numbering used
+# (item 153 keeps this order as the registry's own -- see AC7 in
+# tests/test_153_eval_harness_rekey.py).
+_LEGACY_TO_METRIC_NAME = {
     1: "unanchored_foreground_fraction",
     2: "min_dominant_component_fraction",
     3: "rogue_island_count",
@@ -341,33 +315,78 @@ _EXPECTED_METRIC_NAMES = {
     7: "out_of_order_label_count",
     8: "overlapping_voxel_count",
 }
+
+
+def test_ac2_key_set_is_exactly_the_eight_metric_names():
+    pm = _per_mode()
+    assert set(pm.PER_MODE_METRIC_SPECS.keys()) == set(_LEGACY_TO_METRIC_NAME.values())
+
+
+def test_ac2_clean_control_mode_zero_is_not_a_key():
+    pm = _per_mode()
+    assert 0 not in pm.PER_MODE_METRIC_SPECS
+
+
+@pytest.mark.parametrize("key", list(_LEGACY_TO_METRIC_NAME.values()))
+def test_ac2_spec_metric_name_field_matches_its_key(key):
+    """Item 153: the registry is keyed by metric name, not the retired
+    legacy mode id -- every key indexes the entry naming itself."""
+    pm = _per_mode()
+    assert pm.PER_MODE_METRIC_SPECS[key].metric_name == key
+
+
+@pytest.mark.parametrize(
+    "metric_name", list(_LEGACY_TO_METRIC_NAME.values())
+)
+def test_ac2_spec_failure_mode_name_comes_from_the_specification(metric_name):
+    """Item 153: the retired legacy pre-sign-off name map is gone;
+    ``failure_mode_name`` is looked up live from
+    ``segfacet.failure_modes.SPECIFICATION`` (``None`` for the one metric
+    that measures no failure mode)."""
+    import segfacet.failure_modes as fm
+
+    pm = _per_mode()
+    spec = pm.PER_MODE_METRIC_SPECS[metric_name]
+    if spec.failure_mode is None:
+        assert spec.failure_mode_name is None
+    else:
+        assert spec.failure_mode_name == fm.SPECIFICATION[spec.failure_mode].name
+
+
+# =========================================================================== #
+# AC3: metric names unique, unit-suffixed; direction/source vocabularies
+# =========================================================================== #
+
 _EXPECTED_DIRECTIONS = {
-    1: "increases",
-    2: "decreases",
-    3: "increases",
-    4: "increases",
-    5: "increases",
-    6: "increases",
-    7: "increases",
-    8: "increases",
+    "unanchored_foreground_fraction": "increases",
+    "min_dominant_component_fraction": "decreases",
+    "rogue_island_count": "increases",
+    "mislabelled_volume_fraction": "increases",
+    "missing_level_count": "increases",
+    "fov_clipped_label_count": "increases",
+    "out_of_order_label_count": "increases",
+    "overlapping_voxel_count": "increases",
 }
 _EXPECTED_SOURCES = {
-    1: "candidate_vs_gt",
-    2: "record",
-    3: "record",
-    4: "candidate_vs_gt",
-    5: "candidate_vs_gt",
-    6: "record",
-    7: "record",
-    8: "record",
+    "unanchored_foreground_fraction": "candidate_vs_gt",
+    "min_dominant_component_fraction": "record",
+    "rogue_island_count": "record",
+    "mislabelled_volume_fraction": "candidate_vs_gt",
+    "missing_level_count": "candidate_vs_gt",
+    "fov_clipped_label_count": "record",
+    "out_of_order_label_count": "record",
+    "overlapping_voxel_count": "record",
 }
-_EXPECTED_BASELINES = {m: (1.0 if m == 2 else 0.0) for m in range(1, 9)}
+_EXPECTED_BASELINES = {
+    name: (1.0 if name == "min_dominant_component_fraction" else 0.0)
+    for name in _LEGACY_TO_METRIC_NAME.values()
+}
 
 
 def test_ac3_metric_names_match_the_spec_table():
     pm = _per_mode()
-    for mode, name in _EXPECTED_METRIC_NAMES.items():
-        assert pm.PER_MODE_METRIC_SPECS[mode].metric_name == name
+    for name in _LEGACY_TO_METRIC_NAME.values():
+        assert pm.PER_MODE_METRIC_SPECS[name].metric_name == name
 
 
 def test_ac3_metric_names_are_pairwise_distinct():
@@ -385,14 +404,14 @@ def test_ac3_every_metric_name_ends_in_fraction_or_count():
 
 def test_ac3_direction_values_match_the_spec_table():
     pm = _per_mode()
-    for mode, direction in _EXPECTED_DIRECTIONS.items():
-        assert pm.PER_MODE_METRIC_SPECS[mode].direction == direction
+    for name, direction in _EXPECTED_DIRECTIONS.items():
+        assert pm.PER_MODE_METRIC_SPECS[name].direction == direction
 
 
 def test_ac3_source_values_match_the_spec_table():
     pm = _per_mode()
-    for mode, source in _EXPECTED_SOURCES.items():
-        assert pm.PER_MODE_METRIC_SPECS[mode].source == source
+    for name, source in _EXPECTED_SOURCES.items():
+        assert pm.PER_MODE_METRIC_SPECS[name].source == source
 
 
 def test_ac3_every_direction_is_one_of_the_two_valid_values():
@@ -416,7 +435,9 @@ def test_ac4_empty_record_no_candidate_gt_yields_eight_entries_in_order():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics({})
     assert len(result.per_mode) == 8
-    assert tuple(e.failure_mode for e in result.per_mode) == (1, 2, 3, 4, 5, 6, 7, 8)
+    assert tuple(e.metric_name for e in result.per_mode) == tuple(
+        _LEGACY_TO_METRIC_NAME.values()
+    )
 
 
 def test_ac4_real_record_with_candidate_and_gt_yields_eight_entries_in_order():
@@ -425,7 +446,9 @@ def test_ac4_real_record_with_candidate_and_gt_yields_eight_entries_in_order():
         _RECORDS["clean_control"], candidate=_GT_ARRAY, gt=_GT_ARRAY
     )
     assert len(result.per_mode) == 8
-    assert tuple(e.failure_mode for e in result.per_mode) == (1, 2, 3, 4, 5, 6, 7, 8)
+    assert tuple(e.metric_name for e in result.per_mode) == tuple(
+        _LEGACY_TO_METRIC_NAME.values()
+    )
     assert result.per_mode is not None
     # never dropped, reordered, or replaced by None
     assert all(e is not None for e in result.per_mode)
@@ -845,22 +868,23 @@ def test_ac14_mode8_present_but_empty_list_is_zero():
 # =========================================================================== #
 
 _OWN_CASE = {
-    1: "mode1_displace",
-    2: "mode2_fragment",
-    3: "mode3_inject_islands",
-    4: "mode4_relabel_swap",
-    5: "mode5_remove_level",
-    6: "mode6_crop_at_border",
-    7: "mode7_sequence_break",
-    8: "mode8_force_overlap",
+    "unanchored_foreground_fraction": "mode1_displace",
+    "min_dominant_component_fraction": "mode2_fragment",
+    "rogue_island_count": "mode3_inject_islands",
+    "mislabelled_volume_fraction": "mode4_relabel_swap",
+    "missing_level_count": "mode5_remove_level",
+    "fov_clipped_label_count": "mode6_crop_at_border",
+    "out_of_order_label_count": "mode7_sequence_break",
+    "overlapping_voxel_count": "mode8_force_overlap",
 }
 
-# Frozen literal table -- one row per mode, one column per corpus case.
-# Values independently verified against the already-shipped primitives each
-# metric is built from (extract_feature_record / compute_overlap / BorderRule)
-# before this test file was written.
+# Frozen literal table -- one row per metric (item 153: keyed by metric
+# name, not the retired legacy mode id), one column per corpus case. Values
+# independently verified against the already-shipped primitives each metric
+# is built from (extract_feature_record / compute_overlap / BorderRule)
+# before this test file was written -- unchanged by the re-key (A5).
 _EXPECTED_ISOLATION_MATRIX = {
-    1: {
+    "unanchored_foreground_fraction": {
         "clean_control": 0.0,
         "mode1_displace": 0.1456,
         "mode2_fragment": 0.0,
@@ -871,7 +895,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 0.0,
         "mode8_force_overlap": 0.1232,
     },
-    2: {
+    "min_dominant_component_fraction": {
         "clean_control": 1.0,
         "mode1_displace": 1.0,
         "mode2_fragment": 0.5,
@@ -882,7 +906,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 1.0,
         "mode8_force_overlap": 1.0,
     },
-    3: {
+    "rogue_island_count": {
         "clean_control": 0.0,
         "mode1_displace": 0.0,
         "mode2_fragment": 0.0,
@@ -893,7 +917,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 0.0,
         "mode8_force_overlap": 0.0,
     },
-    4: {
+    "mislabelled_volume_fraction": {
         "clean_control": 0.0,
         "mode1_displace": 0.0,
         "mode2_fragment": 0.0,
@@ -904,7 +928,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 0.0,
         "mode8_force_overlap": 0.0208,
     },
-    5: {
+    "missing_level_count": {
         "clean_control": 0.0,
         "mode1_displace": 0.0,
         "mode2_fragment": 0.0,
@@ -915,7 +939,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 0.0,
         "mode8_force_overlap": 0.0,
     },
-    6: {
+    "fov_clipped_label_count": {
         "clean_control": 0.0,
         "mode1_displace": 0.0,
         "mode2_fragment": 0.0,
@@ -926,7 +950,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 0.0,
         "mode8_force_overlap": 0.0,
     },
-    7: {
+    "out_of_order_label_count": {
         "clean_control": 0.0,
         "mode1_displace": 0.0,
         "mode2_fragment": 0.0,
@@ -937,7 +961,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "mode7_sequence_break": 1.0,
         "mode8_force_overlap": 0.0,
     },
-    8: {
+    "overlapping_voxel_count": {
         "clean_control": 0.0,
         "mode1_displace": 0.0,
         "mode2_fragment": 0.0,
@@ -975,7 +999,7 @@ _LEGACY_CASE_IDS = sorted({"clean_control", *_OWN_CASE.values()})
 
 
 def _build_actual_matrix(pm, island_size_ratio: float = 0.10):
-    matrix = {m: {} for m in range(1, 9)}
+    matrix = {name: {} for name in _LEGACY_TO_METRIC_NAME.values()}
     for cid in _LEGACY_CASE_IDS:
         result = pm.compute_per_mode_metrics(
             _record_for(cid),
@@ -984,7 +1008,7 @@ def _build_actual_matrix(pm, island_size_ratio: float = 0.10):
             island_size_ratio=island_size_ratio,
         )
         for entry in result.per_mode:
-            matrix[entry.failure_mode][cid] = entry.value
+            matrix[entry.metric_name][cid] = entry.value
     return matrix
 
 
@@ -1014,7 +1038,7 @@ def test_ac15_negative_control_swapping_mode3_row_into_mode2_breaks_dominance():
     between several cases rather than a strict peak on mode2_fragment,
     proving the dominance assertion can actually fail."""
     corrupted = copy.deepcopy(_EXPECTED_ISOLATION_MATRIX)
-    corrupted[2] = dict(corrupted[3])
+    corrupted["min_dominant_component_fraction"] = dict(corrupted["rogue_island_count"])
     assert not _is_diagonal_dominant(corrupted, _EXPECTED_BASELINES, _OWN_CASE)
 
 
@@ -1030,7 +1054,7 @@ def test_ac16_clean_control_all_eight_at_baseline_and_not_none():
     )
     for entry in result.per_mode:
         assert entry.value is not None
-        expected_baseline = 1.0 if entry.failure_mode == 2 else 0.0
+        expected_baseline = 1.0 if entry.metric_name == "min_dominant_component_fraction" else 0.0
         assert entry.value == pytest.approx(expected_baseline, abs=1e-9)
         assert entry.baseline == pytest.approx(expected_baseline, abs=1e-9)
 

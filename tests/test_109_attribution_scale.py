@@ -88,6 +88,23 @@ def _pmc():
 BOUNDED_MODES = (1, 2, 4)
 UNBOUNDED_MODES = (3, 5, 6, 7, 8)
 
+# Item 153: PER_MODE_METRIC_SPECS and MODE_SCALE_SPECS are re-keyed off the
+# retired legacy mode id onto metric name. Every helper below keeps working
+# in the old legacy-int space internally and translates only at the point of
+# touching the re-keyed production API -- same eight metrics, same order,
+# same values (A5).
+_LEGACY_TO_METRIC_NAME = {
+    1: "unanchored_foreground_fraction",
+    2: "min_dominant_component_fraction",
+    3: "rogue_island_count",
+    4: "mislabelled_volume_fraction",
+    5: "missing_level_count",
+    6: "fov_clipped_label_count",
+    7: "out_of_order_label_count",
+    8: "overlapping_voxel_count",
+}
+UNBOUNDED_METRIC_NAMES = tuple(_LEGACY_TO_METRIC_NAME[m] for m in UNBOUNDED_MODES)
+
 
 # --------------------------------------------------------------------------- #
 # Fixture helpers (duplicated from test_101_per_mode_cohort.py's own
@@ -104,7 +121,7 @@ def _summary(run_id, case_ids, means: dict):
     pmc = _pmc()
     per_mode = []
     for mode in range(1, 9):
-        spec = PER_MODE_METRIC_SPECS[mode]
+        spec = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
         mean = means.get(mode)
         per_mode.append(
             pmc.ModeAggregate(
@@ -113,6 +130,8 @@ def _summary(run_id, case_ids, means: dict):
                 metric_name=spec.metric_name,
                 direction=spec.direction,
                 baseline=spec.baseline,
+                mode_disposition=spec.mode_disposition,
+                condition=spec.condition,
                 n_cases=len(case_ids),
                 n_with_value=len(case_ids),
                 mean=mean,
@@ -149,8 +168,8 @@ def _cmp(a_values: dict, b_values: dict):
 @pytest.mark.parametrize("mode", BOUNDED_MODES)
 def test_ac1_bounded_metric_scale_is_the_declared_full_swing(mode):
     pmc = _pmc()
-    spec = PER_MODE_METRIC_SPECS[mode]
-    scale_spec = pmc.MODE_SCALE_SPECS[mode]
+    spec = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
+    scale_spec = pmc.MODE_SCALE_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
     assert scale_spec.full_swing is not None, mode
 
     # value_a/value_b are deliberately generic (neither on baseline nor at
@@ -160,7 +179,7 @@ def test_ac1_bounded_metric_scale_is_the_declared_full_swing(mode):
     a_values = {**_full(baseline), mode: baseline + 0.3 * (far - baseline)}
     b_values = {**_full(baseline), mode: baseline + 0.6 * (far - baseline)}
     cmp = _cmp(a_values, b_values)
-    d = cmp.by_mode(mode)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode])
     assert d.scale == pytest.approx(scale_spec.full_swing)
 
 
@@ -172,7 +191,7 @@ def test_ac1_bounded_metric_scale_is_data_independent_not_adaptive(mode):
     the actual values (while staying off baseline and off the far bound)
     must not move it."""
     pmc = _pmc()
-    spec = PER_MODE_METRIC_SPECS[mode]
+    spec = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
     baseline = spec.baseline
     far = 1.0 - baseline  # baseline is 0.0 or 1.0 for every bounded metric
     mid = baseline + 0.5 * (far - baseline)
@@ -185,14 +204,14 @@ def test_ac1_bounded_metric_scale_is_data_independent_not_adaptive(mode):
     scale_small = pmc.compare_runs(
         _summary("a", ("c1",), _values(near_baseline)),
         _summary("b", ("c1",), _values(mid)),
-    ).by_mode(mode).scale
+    ).by_metric(_LEGACY_TO_METRIC_NAME[mode]).scale
     scale_large = pmc.compare_runs(
         _summary("a", ("c1",), _values(near_far)),
         _summary("b", ("c1",), _values(mid)),
-    ).by_mode(mode).scale
+    ).by_metric(_LEGACY_TO_METRIC_NAME[mode]).scale
 
     assert scale_small == pytest.approx(scale_large)
-    assert scale_small == pytest.approx(pmc.MODE_SCALE_SPECS[mode].full_swing)
+    assert scale_small == pytest.approx(pmc.MODE_SCALE_SPECS[_LEGACY_TO_METRIC_NAME[mode]].full_swing)
 
 
 # =========================================================================== #
@@ -207,7 +226,7 @@ def test_ac1b_bounded_metric_divisor_unchanged_across_wildly_different_value_pai
     channel through which a different GT could reach this module is a
     different pair of aggregated values for the same metric. The divisor
     (``scale``) must be identical across both."""
-    spec = PER_MODE_METRIC_SPECS[mode]
+    spec = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
     baseline = spec.baseline
     far = 1.0 - baseline
 
@@ -219,7 +238,7 @@ def test_ac1b_bounded_metric_divisor_unchanged_across_wildly_different_value_pai
         {**_full(baseline), mode: baseline + 0.60 * (far - baseline)},
         {**_full(baseline), mode: baseline + 0.99 * (far - baseline)},
     )
-    assert scenario_1.by_mode(mode).scale == pytest.approx(scenario_2.by_mode(mode).scale)
+    assert scenario_1.by_metric(_LEGACY_TO_METRIC_NAME[mode]).scale == pytest.approx(scenario_2.by_metric(_LEGACY_TO_METRIC_NAME[mode]).scale)
 
 
 @pytest.mark.parametrize("mode", (1, 4, 5))  # source == "candidate_vs_gt"
@@ -231,7 +250,7 @@ def test_ac1b_candidate_vs_gt_sourced_metrics_scale_ignores_the_actual_values(mo
     pairs standing in for two different GT inputs."""
     scenario_1 = _cmp({**_full(0.0), mode: 0.01}, {**_full(0.0), mode: 0.02})
     scenario_2 = _cmp({**_full(0.0), mode: 0.9}, {**_full(0.0), mode: 0.99})
-    assert scenario_1.by_mode(mode).scale == scenario_2.by_mode(mode).scale
+    assert scenario_1.by_metric(_LEGACY_TO_METRIC_NAME[mode]).scale == scenario_2.by_metric(_LEGACY_TO_METRIC_NAME[mode]).scale
 
 
 # =========================================================================== #
@@ -242,7 +261,7 @@ def test_ac1b_candidate_vs_gt_sourced_metrics_scale_ignores_the_actual_values(mo
 @pytest.mark.parametrize("mode", UNBOUNDED_MODES)
 def test_ac2_unbounded_metric_normalised_delta_is_none_raw_delta_available(mode):
     cmp = _cmp({**_full(0.0), mode: 2.0}, {**_full(0.0), mode: 7.0})
-    d = cmp.by_mode(mode)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode])
     assert d.normalised_delta is None
     assert d.scale is None
     assert d.delta == pytest.approx(5.0)
@@ -253,7 +272,7 @@ def test_ac2_unbounded_metric_normalised_delta_is_none_raw_delta_available(mode)
 @pytest.mark.parametrize("mode", UNBOUNDED_MODES)
 def test_ac2_unbounded_mode_scale_spec_has_no_full_swing(mode):
     pmc = _pmc()
-    assert pmc.MODE_SCALE_SPECS[mode].full_swing is None
+    assert pmc.MODE_SCALE_SPECS[_LEGACY_TO_METRIC_NAME[mode]].full_swing is None
 
 
 # =========================================================================== #
@@ -264,7 +283,7 @@ def test_ac2_unbounded_mode_scale_spec_has_no_full_swing(mode):
 def test_ac3_mode_scale_spec_carries_a_reference_excursion_field():
     pmc = _pmc()
     for mode in range(1, 9):
-        assert hasattr(pmc.MODE_SCALE_SPECS[mode], "reference_excursion"), mode
+        assert hasattr(pmc.MODE_SCALE_SPECS[_LEGACY_TO_METRIC_NAME[mode]], "reference_excursion"), mode
 
 
 def test_ac3_reference_excursion_docstring_states_it_is_a_human_review_decision():
@@ -278,14 +297,14 @@ def test_ac3_setting_reference_excursion_scales_that_metric(monkeypatch):
     """When a mode's ``reference_excursion`` is set, ``compare_runs`` scales
     by it instead of leaving the metric raw."""
     pmc = _pmc()
-    original = pmc.MODE_SCALE_SPECS[3]
+    original = pmc.MODE_SCALE_SPECS[_LEGACY_TO_METRIC_NAME[3]]
     patched_spec = dataclasses.replace(original, reference_excursion=5.0)
     patched_table = dict(pmc.MODE_SCALE_SPECS)
-    patched_table[3] = patched_spec
+    patched_table[_LEGACY_TO_METRIC_NAME[3]] = patched_spec
     monkeypatch.setattr(pmc, "MODE_SCALE_SPECS", patched_table)
 
     cmp = _cmp({**_full(0.0), 3: 0.0}, {**_full(0.0), 3: 5.0})
-    d = cmp.by_mode(3)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[3])
     assert d.scale == pytest.approx(5.0)
     assert d.normalised_delta == pytest.approx(1.0)
 
@@ -293,7 +312,7 @@ def test_ac3_setting_reference_excursion_scales_that_metric(monkeypatch):
 def test_ac4_every_shipped_mode_scale_spec_leaves_reference_excursion_unset():
     pmc = _pmc()
     for mode in range(1, 9):
-        assert pmc.MODE_SCALE_SPECS[mode].reference_excursion is None, mode
+        assert pmc.MODE_SCALE_SPECS[_LEGACY_TO_METRIC_NAME[mode]].reference_excursion is None, mode
 
 
 # =========================================================================== #
@@ -303,7 +322,11 @@ def test_ac4_every_shipped_mode_scale_spec_leaves_reference_excursion_unset():
 
 def test_ac5_larger_mover_wins_when_it_is_the_higher_numbered_mode():
     cmp = _cmp({**_full(0.0), 1: 0.0, 4: 0.0}, {**_full(0.0), 1: 0.2, 4: 0.8})
-    assert cmp.attributed_mode == 4
+    # Item 153: attribution is by metric (AC28); mislabelled_volume_fraction
+    # (the legacy mode 4 slot) is the winner here, whose specification
+    # failure_mode is now 8, not 4.
+    assert cmp.attributed_metric_name == "mislabelled_volume_fraction"
+    assert cmp.attributed_mode == PER_MODE_METRIC_SPECS["mislabelled_volume_fraction"].failure_mode
 
 
 def test_ac5_larger_mover_wins_when_it_is_the_lower_numbered_mode():
@@ -318,14 +341,14 @@ def test_ac5_larger_mover_wins_when_it_is_the_lower_numbered_mode():
 
 def test_ac6_one_run_on_baseline_other_short_of_far_end_stays_below_one():
     cmp = _cmp({**_full(0.0), 1: 0.0}, {**_full(0.0), 1: 0.5})
-    d = cmp.by_mode(1)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert abs(d.normalised_delta) < 1.0
     assert d.normalised_delta == pytest.approx(0.5)
 
 
 def test_ac6_one_run_on_baseline_other_at_far_end_is_exactly_one_the_sanctioned_exception():
     cmp = _cmp({**_full(0.0), 1: 0.0}, {**_full(0.0), 1: 1.0})
-    d = cmp.by_mode(1)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert abs(d.normalised_delta) == pytest.approx(1.0)
 
 
@@ -336,13 +359,14 @@ def test_ac6_one_run_on_baseline_other_at_far_end_is_exactly_one_the_sanctioned_
 
 def test_ac7_point_one_vs_point_nine_from_shared_baseline_attributes_to_the_larger_move():
     cmp = _cmp({**_full(0.0), 1: 0.0, 4: 0.0}, {**_full(0.0), 1: 0.1, 4: 0.9})
-    d1 = cmp.by_mode(1)
-    d4 = cmp.by_mode(4)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
+    d4 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[4])
     assert d1.normalised_delta == pytest.approx(0.1)
     assert d4.normalised_delta == pytest.approx(0.9)
-    assert cmp.attributed_mode == 4
-    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[4].failure_mode_name
-    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[4].metric_name
+    assert cmp.attributed_metric_name == "mislabelled_volume_fraction"
+    assert cmp.attributed_mode == PER_MODE_METRIC_SPECS["mislabelled_volume_fraction"].failure_mode
+    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[4]].failure_mode_name
+    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[4]].metric_name
 
 
 # =========================================================================== #
@@ -361,12 +385,12 @@ def test_ac8_comparison_over_unbounded_metrics_only_lists_the_excluded_modes():
     cmp = _cmp(a_values, b_values)
 
     for mode in (1, 2, 4):
-        assert cmp.by_mode(mode).delta is None
+        assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode]).delta is None
 
-    assert cmp.excluded_modes == UNBOUNDED_MODES
+    assert cmp.excluded_metric_names == UNBOUNDED_METRIC_NAMES
     for mode in UNBOUNDED_MODES:
-        assert cmp.by_mode(mode).delta is not None
-        assert cmp.by_mode(mode).normalised_delta is None
+        assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode]).delta is not None
+        assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode]).normalised_delta is None
 
 
 def test_ac9_no_metric_normalisable_yields_none_with_a_stated_reason_not_lowest_mode_fallback():
@@ -397,7 +421,8 @@ def test_ac8b_fully_degenerate_comparison_serialises_excluded_modes_and_reason()
     doc = cmp.to_dict()
 
     assert doc["attributed_mode"] is None
-    assert doc["excluded_modes"] == list(UNBOUNDED_MODES)
+    assert "excluded_modes" not in doc
+    assert doc["excluded_metric_names"] == list(UNBOUNDED_METRIC_NAMES)
     assert isinstance(doc["unattributable_reason"], str) and doc["unattributable_reason"]
     assert "not normalisable" in doc["unattributable_reason"].lower()
 
@@ -420,20 +445,22 @@ def test_ac10_exact_tie_breaks_to_the_lowest_mode():
     # saturation bug): mode 1 goes baseline(0.0) -> far end(1.0), mode 2 goes
     # far end(0.0) -> baseline(1.0). abs(normalised_delta) == 1.0 for both.
     cmp = _cmp({**_full(0.0), 1: 0.0, 2: 0.0}, {**_full(0.0), 1: 1.0, 2: 1.0})
-    d1 = cmp.by_mode(1)
-    d2 = cmp.by_mode(2)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
+    d2 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[2])
     assert abs(d1.normalised_delta) == pytest.approx(abs(d2.normalised_delta))
     assert cmp.attributed_mode == 1
 
 
 def test_ac10_ac7_scenario_does_not_reach_the_tie_break():
     cmp = _cmp({**_full(0.0), 1: 0.0, 4: 0.0}, {**_full(0.0), 1: 0.1, 4: 0.9})
-    d1 = cmp.by_mode(1)
-    d4 = cmp.by_mode(4)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
+    d4 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[4])
     assert abs(d1.normalised_delta) != pytest.approx(abs(d4.normalised_delta))
     # attribution must be decided by magnitude comparison, not by falling
-    # through to "lowest mode" -- mode 4 (not mode 1) wins.
-    assert cmp.attributed_mode == 4
+    # through to "lowest mode" -- mislabelled_volume_fraction (not
+    # unanchored_foreground_fraction) wins.
+    assert cmp.attributed_metric_name == "mislabelled_volume_fraction"
+    assert cmp.attributed_mode == PER_MODE_METRIC_SPECS["mislabelled_volume_fraction"].failure_mode
 
 
 # =========================================================================== #
@@ -467,21 +494,25 @@ def test_ac11_bounded_metrics_and_attributed_mode_unchanged_when_one_side_alread
     b_values = {1: 1.0, 2: 0.0, 3: 1.0, 4: 1.0, 5: 1.0, 6: 1.0, 7: 1.0, 8: 1.0}
     cmp = _cmp(a_values, b_values)
 
-    d1 = cmp.by_mode(1)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert d1.scale == pytest.approx(1.0)
     assert d1.normalised_delta == pytest.approx(0.6)
 
-    d2 = cmp.by_mode(2)
+    d2 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[2])
     assert d2.scale == pytest.approx(1.0)
     assert d2.normalised_delta == pytest.approx(-0.9)
 
-    d4 = cmp.by_mode(4)
+    d4 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[4])
     assert d4.scale == pytest.approx(1.0)
     assert d4.normalised_delta == pytest.approx(0.75)
 
-    assert cmp.attributed_mode == 2
-    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[2].failure_mode_name
-    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[2].metric_name
+    # Item 153: attribution is by metric (AC28); min_dominant_component_fraction
+    # (the legacy mode 2 slot) is the winner here, whose specification
+    # failure_mode is now 1, not 2.
+    assert cmp.attributed_metric_name == "min_dominant_component_fraction"
+    assert cmp.attributed_mode == PER_MODE_METRIC_SPECS["min_dominant_component_fraction"].failure_mode
+    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[2]].failure_mode_name
+    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[2]].metric_name
 
 
 # =========================================================================== #
@@ -526,11 +557,11 @@ def test_adv_both_runs_identical_bounded_zero_unbounded_none_no_fallback_attribu
     values = {1: 0.3, 2: 0.7, 3: 4.0, 4: 0.1, 5: 2.0, 6: 1.0, 7: 3.0, 8: 500.0}
     cmp = _cmp(values, values)
     for mode in BOUNDED_MODES:
-        d = cmp.by_mode(mode)
+        d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode])
         assert d.delta == 0.0
         assert d.normalised_delta == 0.0
     for mode in UNBOUNDED_MODES:
-        d = cmp.by_mode(mode)
+        d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode])
         assert d.delta == 0.0
         assert d.normalised_delta is None
     assert cmp.attributed_mode is None
@@ -541,7 +572,7 @@ def test_adv_metric_value_none_on_one_side_normalised_delta_is_none(mode):
     a_values = {**_full(0.0), mode: None}
     b_values = _full(0.0)
     cmp = _cmp(a_values, b_values)
-    d = cmp.by_mode(mode)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode])
     assert d.value_a is None
     assert d.delta is None
     assert d.normalised_delta is None
@@ -549,9 +580,9 @@ def test_adv_metric_value_none_on_one_side_normalised_delta_is_none(mode):
 
 @pytest.mark.parametrize("mode", BOUNDED_MODES)
 def test_adv_bounded_metric_already_at_far_end_both_runs_is_zero_not_saturated(mode):
-    far = 1.0 - PER_MODE_METRIC_SPECS[mode].baseline
+    far = 1.0 - PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]].baseline
     cmp = _cmp({**_full(0.0), mode: far}, {**_full(0.0), mode: far})
-    d = cmp.by_mode(mode)
+    d = cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode])
     assert d.delta == 0.0
     assert d.normalised_delta == 0.0
 

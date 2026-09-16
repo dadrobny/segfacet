@@ -550,7 +550,7 @@ def test_ac8_evaluate_ladder_default_path_is_unaffected():
     keep producing identical, deterministic output."""
     sl = _severity_ladder_mod()
 
-    spec = sl.SEVERITY_LADDERS[1]
+    spec = sl.SEVERITY_LADDERS["displace"]
     first = sl.evaluate_ladder(spec)
     second = sl.evaluate_ladder(spec)
 
