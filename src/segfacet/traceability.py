@@ -31,9 +31,10 @@ committed corpus manifests (``tests/corpus/manifest.json`` and
 firing set beside the *measured* firing set
 (:func:`segfacet.failure_modes.measured_firing`), scored for agreement. A
 manifest case with no ``ModeSpec.corpus_cases`` entry covering it is a named
-hole (``expected_source == "unspecified"``); the two ``failure_mode == 0``
-clean controls are scored too, labelled ``"manifest-clean-control"`` since §6
-defines no mode 0. This is the check none of queue-019's shape tests could
+hole (``expected_source == "unspecified"``); the clean-control cases (item 155:
+``kind == "clean_control"``) are scored too, labelled
+``"manifest-clean-control"`` since §6 defines no mode 0. This is the check
+none of queue-019's shape tests could
 express: running the case and comparing the sets tests the specification's
 *truth*, not merely its *shape*.
 
@@ -306,6 +307,11 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
     ``SPECIFICATION`` itself."""
     from segfacet.synth import corpus as corpus_module
     from segfacet.synth import intensity as intensity_module
+    from segfacet.synth.perturbation import (
+        CASE_KIND_CLEAN_CONTROL,
+        CASE_KIND_CONDITION,
+        corpus_case_kind,
+    )
 
     specification = failure_modes_module.SPECIFICATION
 
@@ -331,10 +337,11 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
             )
             measured = failure_modes_module.measured_firing(probe)
 
+            kind = corpus_case_kind(manifest_case)
             condition_id = manifest_case.get("condition") or ""
-            if mode_id == 0 and condition_id:
-                # Item 150: a condition-only case (failure_mode 0 plus a
-                # condition) is carried by CONDITIONS, not SPECIFICATION.
+            if kind == CASE_KIND_CONDITION:
+                # Item 150: a condition-only case (kind == "condition") is
+                # carried by CONDITIONS, not SPECIFICATION.
                 condition = failure_modes_module.CONDITIONS.get(condition_id)
                 condition_case = None
                 if condition is not None:
@@ -351,7 +358,7 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
                     expected_firing = tuple(condition_case.expected_firing)
                     expected_source = "specification-condition"
                     agrees = set(measured) == set(expected_firing)
-            elif mode_id == 0:
+            elif kind == CASE_KIND_CLEAN_CONTROL:
                 expected_firing: Tuple[str, ...] = ()
                 expected_source = "manifest-clean-control"
                 agrees = set(measured) == set(expected_firing)

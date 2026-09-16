@@ -5,7 +5,11 @@ Materialises the **eleven canonical cases** -- item 040's original nine (the
 clean control plus one per pre-renumbering §6 mode 1-8, whose ``modeN_``
 case ids are kept as stable identifiers) and the ``fuse_adjacent`` and
 ``remove_level_relabel`` cases item 150 added; each manifest entry's
-``failure_mode`` field carries the current mode number -- using
+``failure_mode`` field carries the current mode number, and (item 155) a
+``kind`` field records which of the three closed values
+(``segfacet.synth.perturbation.CASE_KINDS``: ``"clean_control"``,
+``"condition"``, ``"failure"``) the case is, derived from ``failure_mode``
+and ``condition`` by ``segfacet.synth.perturbation.case_kind`` -- using
 the merged Stage 5 generators (items 036-039): :func:`build_clean_spine`
 (item 036) as the shared base, and the registered operators from item 037
 (``fragment``), item 038 (``remove_level``, ``crop_at_border``,
@@ -326,6 +330,7 @@ def write_corpus(dest: Path) -> Path:
             "failure_mode": expectation_dict["failure_mode"],
             "failure_mode_name": expectation_dict["failure_mode_name"],
             "condition": expectation_dict["condition"],
+            "kind": expectation_dict["kind"],
             "detection": case.detection,
             "reconstruction": case.reconstruction,
             "perturbation": case.perturbation,

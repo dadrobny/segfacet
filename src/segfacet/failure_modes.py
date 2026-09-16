@@ -2471,13 +2471,20 @@ def _corpus_case_conflicts(modes: Tuple[ModeSpec, ...]) -> Tuple[str, ...]:
     * ``tests/corpus/intensity/manifest.json`` carries ``expected_firing``,
       the full set -- compared by **equality**.
 
-    Cases whose ``failure_mode`` is 0 are the clean controls: not a failure
-    mode, no ``ModeSpec`` entry, skipped. Manifests are read through the
+    A clean-control case (``kind == "clean_control"``) is not a failure mode,
+    has no ``ModeSpec`` entry, and is skipped. Manifests are read through the
     module objects (deferred imports, house style) so a test can substitute
-    one.
+    one. Every case's ``kind`` (item 155) is validated by
+    ``segfacet.synth.perturbation.corpus_case_kind``, which raises
+    ``ValueError`` for a case carrying no recorded kind.
     """
     from segfacet.synth import corpus as corpus_module
     from segfacet.synth import intensity as intensity_module
+    from segfacet.synth.perturbation import (
+        CASE_KIND_CLEAN_CONTROL,
+        CASE_KIND_CONDITION,
+        corpus_case_kind,
+    )
 
     by_id = {mode.id: mode for mode in modes}
     conflicts = []
@@ -2499,14 +2506,16 @@ def _corpus_case_conflicts(modes: Tuple[ModeSpec, ...]) -> Tuple[str, ...]:
         for case in cases:
             mode_id = case.get("failure_mode")
             case_id = case.get("case_id")
-            if mode_id == 0:
+            kind = corpus_case_kind(case)
+            if kind == CASE_KIND_CLEAN_CONTROL:
+                continue
+            if kind == CASE_KIND_CONDITION:
                 condition_id = case.get("condition") or ""
-                if condition_id:
-                    conflicts.extend(
-                        _condition_case_conflicts(
-                            corpus_name, case, condition_id, expectation_key, relation
-                        )
+                conflicts.extend(
+                    _condition_case_conflicts(
+                        corpus_name, case, condition_id, expectation_key, relation
                     )
+                )
                 continue
             mode = by_id.get(mode_id)
             if mode is None:
@@ -2557,9 +2566,9 @@ def _condition_case_conflicts(
     relation: str,
 ) -> Tuple[str, ...]:
     """The condition half of :func:`_corpus_case_conflicts` (item 150): a
-    manifest case carrying ``failure_mode == 0`` **and** a ``condition``
-    must be carried by that :class:`ConditionSpec`'s ``corpus_cases`` with
-    an agreeing expectation, under the same relation as a mode's case."""
+    manifest case whose ``kind`` (item 155) is ``"condition"`` must be
+    carried by that :class:`ConditionSpec`'s ``corpus_cases`` with an
+    agreeing expectation, under the same relation as a mode's case."""
     case_id = case.get("case_id")
     condition = CONDITIONS.get(condition_id)
     if condition is None:

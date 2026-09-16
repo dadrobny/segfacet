@@ -378,4 +378,23 @@ edits `test_146` and `test_147` in different tests.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implemented as specified**, steps 1-9 followed in order; no deviation from
+  the Description's table or the Assumptions.
+- `_corpus_case_conflicts` (`failure_modes.py`) and `_build_conformance`
+  (`traceability.py`) both call `corpus_case_kind(case)` as the very first
+  thing done with a manifest case in the loop body, before any other field is
+  read. That means a case with no recorded `kind` (or an unknown one) raises
+  `ValueError` before `mode_id`/`condition_id` are even inspected -- the
+  natural reading of AC17/AC19 ("refuses a case with no kind"), and it costs
+  nothing since every real manifest case now carries `kind`.
+- Regenerating both manifests (`python -m segfacet.synth.corpus`,
+  `python -m segfacet.synth.intensity`) added exactly one `"kind": ...` line
+  per case -- 11 geometric, 4 intensity -- and changed nothing else,
+  confirmed by `git diff --stat` scoped to `tests/corpus/`. Regenerating the
+  conformance/specification artifacts (`python -m segfacet.traceability`,
+  `python -m segfacet.failure_modes`) produced an empty `git status --short
+  -- docs/aide` diff, confirming A4.
+- `corpus_case_kind`'s error message names `case.get("case_id")` per the
+  Implementation Steps; verified manually that a case missing `kind`
+  (constructed by deleting the key from the committed clean-control case)
+  raises `ValueError` naming that case's id.

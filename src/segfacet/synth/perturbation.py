@@ -41,6 +41,12 @@ from segfacet.failure_modes import failure_mode_names
 __all__ = [
     "CLEAN_CONTROL_MODE",
     "FAILURE_MODE_NAMES",
+    "CASE_KIND_CLEAN_CONTROL",
+    "CASE_KIND_CONDITION",
+    "CASE_KIND_FAILURE",
+    "CASE_KINDS",
+    "case_kind",
+    "corpus_case_kind",
     "Expectation",
     "PerturbationResult",
     "Perturbation",
@@ -80,6 +86,74 @@ FAILURE_MODE_NAMES: Dict[int, str] = dict(failure_mode_names())
 
 
 # --------------------------------------------------------------------------- #
+# Case kind (item 155): the one discriminator between a clean control, a
+# condition-only case and a failure case, replacing every hand-rolled
+# ``failure_mode == 0`` comparison across the tree.
+# --------------------------------------------------------------------------- #
+
+#: A clean control: ``failure_mode == 0`` and no ``condition``.
+CASE_KIND_CLEAN_CONTROL: str = "clean_control"
+#: A condition-only case: ``failure_mode == 0`` plus a non-empty ``condition``.
+CASE_KIND_CONDITION: str = "condition"
+#: A failure case: a specification mode id (``!= 0``) and no ``condition``.
+CASE_KIND_FAILURE: str = "failure"
+
+#: The closed vocabulary of case kinds (AC3).
+CASE_KINDS: FrozenSet[str] = frozenset(
+    {CASE_KIND_CLEAN_CONTROL, CASE_KIND_CONDITION, CASE_KIND_FAILURE}
+)
+
+
+def case_kind(failure_mode: int, condition: str) -> str:
+    """Derive a corpus case's kind from its raw ``failure_mode``/``condition``
+    fields (AC1/AC2). The one place in the tree that compares a failure mode
+    with zero.
+
+    Returns
+    -------
+    str
+        One of :data:`CASE_KINDS`.
+
+    Raises
+    ------
+    ValueError
+        If ``failure_mode != 0`` and ``condition`` is non-empty -- a failure
+        mode combined with a condition is not a case kind this item defines
+        (spec Assumption A2); refused rather than silently mapped.
+    """
+    if failure_mode == 0:
+        return CASE_KIND_CONDITION if condition else CASE_KIND_CLEAN_CONTROL
+    if condition:
+        raise ValueError(
+            f"case_kind: failure_mode={failure_mode!r} together with "
+            f"condition={condition!r} is not a defined case kind -- a "
+            "failure mode and a condition are mutually exclusive."
+        )
+    return CASE_KIND_FAILURE
+
+
+def corpus_case_kind(case) -> str:
+    """Read and validate a manifest case's recorded ``kind`` (AC4-AC6). The
+    one documented answer to "what kind of case is this?" -- every consumer
+    calls this rather than re-deriving the kind or comparing ``failure_mode``
+    with zero itself.
+
+    Raises
+    ------
+    ValueError
+        If ``case`` carries no ``"kind"`` key, or its value is not a member
+        of :data:`CASE_KINDS`. The message names ``case.get("case_id")``.
+    """
+    kind = case.get("kind")
+    if kind not in CASE_KINDS:
+        raise ValueError(
+            f"corpus_case_kind: case {case.get('case_id')!r} carries "
+            f"kind={kind!r}, which is not one of {sorted(CASE_KINDS)!r}."
+        )
+    return kind
+
+
+# --------------------------------------------------------------------------- #
 # Expectation
 # --------------------------------------------------------------------------- #
 
@@ -99,9 +173,10 @@ class Expectation:
         for a condition-only case, the condition's ``short_name``.
     condition:
         The id of the ``segfacet.failure_modes.CONDITIONS`` entry this case
-        exhibits (item 150; e.g. ``"fov_truncation"``), or ``""``. A case
-        with ``failure_mode == 0`` and a non-empty ``condition`` is not a
-        clean control: its designated rule is expected to fire.
+        exhibits (item 150; e.g. ``"fov_truncation"``), or ``""``. Together
+        with ``failure_mode`` this determines the case's ``kind`` (item 155,
+        see :func:`case_kind`) -- a condition-only case is not a clean
+        control: its designated rule is expected to fire.
     expected_rule_ids:
         The Stage 4 ``rule_id`` string(s) expected among the fired findings.
         Empty for the clean control.
@@ -130,6 +205,7 @@ class Expectation:
             "failure_mode": self.failure_mode,
             "failure_mode_name": self.failure_mode_name,
             "condition": self.condition,
+            "kind": case_kind(self.failure_mode, self.condition),
             "expected_rule_ids": sorted(self.expected_rule_ids),
             "expected_labels": sorted(self.expected_labels),
             "expected_verdict": self.expected_verdict,
