@@ -469,10 +469,61 @@ renames corpus case ids, and this item's tests hard-code none.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
 - **2026-09-16 — A6 confirmed by the maintainer.** Asked directly before
   implementation: changing the `role` of `_MODE_1`'s
   `stage3.per_label_offsets[].offset_mm` candidate feature from
   `"stage18-metric-anchor"` to `"hypothesised"` (the path stays listed) is
   allowed. The re-anchor criteria AC19–AC21 therefore stay as written.
+
+- **2026-09-16 — Re-measured from a clean tree (builder).** On the claim
+  branch, tree clean, before any code change:
+  `.venv/bin/python -c "from segfacet.eval.severity_ladder import
+  run_severity_harness, score_harness; v =
+  score_harness(run_severity_harness()); print(v.summary()); print({k:
+  (lv.margin, dict(lv.responses)) for k, lv in v.per_ladder.items()})"`.
+  Printed verdict: `passed=True`. Per-ladder margins (measured, unrounded):
+  `displace=inf`, `fragment=inf`,
+  `inject_islands=112.03703703703704`, `relabel_swap=inf`,
+  `remove_level=inf`, `crop_at_border=0.3585185185185185`,
+  `sequence_break=inf`, `force_overlap=1.03862660944206`. Foreign responses
+  at or above `COUPLING_THRESHOLD=0.25` (excluding each ladder's own
+  designated metric): `crop_at_border -> unanchored_foreground_fraction =
+  2.7892561983471076`; `force_overlap -> unanchored_foreground_fraction =
+  0.9628099173553719`. No other (ladder, foreign metric) pair reached the
+  threshold, so the coupling set is unchanged: exactly these two pairs.
+  Transcribed per the module's rounding rule (responses rounded **up**,
+  margins rounded **down**, both to 4 significant figures): `2.79`
+  (`2.7892...` -> 4 s.f. `2.789`, remainder nonzero -> round up to `2.790`,
+  which equals the stored `2.79`), `0.9629` (`0.96281...` -> `0.9629`),
+  `112.0` (`112.037...` -> truncate to `112.0`), `0.3585`
+  (`0.358518...` -> truncate to `0.3585`), `1.038` (`1.038626...` ->
+  truncate to `1.038`). **Every re-measured value is numerically identical
+  to item 153's carried-over one** — expected per the Description ("the
+  numbers may come out the same as before"); AC9/AC10 verify this is a
+  fresh transcription regardless, via the coupling/margin recomputation the
+  test performs at import, not by trusting this note. `MeasurementProvenance
+  (corpus="geometric", base_params=dict(_BASE_PARAMS), measured_on
+  ="2026-09-16")` is attached to both `KNOWN_CROSS_MODE_COUPLINGS` entries,
+  every `RECORDED_MARGIN_PROVENANCE` value and `MODE_LADDER_DISPOSITIONS[1]`.
+
+- **2026-09-16 — AC17's two-descent finding (builder).** Applying
+  `sequence_break(target_label=24, new_label=28)`, then `(23, 27)`, then
+  `(22, 29)` cumulatively to `build_clean_spine(**_BASE_PARAMS).seg_img`
+  leaves present labels `[20, 21, 27, 28, 29]` with `labels.CANONICAL_ORDER`
+  ranks `[20, 21, 32, 19, 27]` — 2 descents by the independent hand count
+  (running-maximum check), and `compute_per_mode_metrics(...)
+  .by_metric("out_of_order_label_count").value == 2.0` from the live
+  pipeline, matching. Confirms A5's by-hand analysis (`>= 2`, not the old
+  "capped at 1" claim). Captured as a `knowledge` insight
+  (`docs/aide/insights.md`, 2026-09-16) with the relabel sequence and the
+  Stage-32 graded-ladder option, per Implementation Step 9.
+
+- **2026-09-16 — Regenerated artifact diffs (builder).** `git diff
+  aide/queue-021...HEAD -- src/segfacet/failure_modes.py` is exactly the one
+  `_MODE_1` candidate-feature `role="stage18-metric-anchor"` ->
+  `role="hypothesised"` line (A6). The three regenerated artifact pairs
+  (`failure_modes.generated.{json,md}`, `traceability_matrix.generated.
+  {json,md}`, `feature_catalogue.generated.{json,md}`) each diff exactly at
+  mode 1's dropped `stage3.per_label_offsets[].offset_mm` anchor entry and
+  that path's anchor-derived `failure_modes`/`mode_evidence` fields — no
+  other mode, rule, or path changes (A8).

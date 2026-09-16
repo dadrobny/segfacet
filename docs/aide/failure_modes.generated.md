@@ -20,7 +20,7 @@ Schema version: 2.1.
 
 Candidate features:
 
-- Stage-18 metric anchor path (`stage18-metric-anchor`): `stage3.per_label_offsets[].offset_mm`
+- `hypothesised` candidate path: `stage3.per_label_offsets[].offset_mm`
 - Stage-18 metric anchor path (`stage18-metric-anchor`): `per_label.{label}.components.fragmentation_index`
 - `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
 - `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`

@@ -43,7 +43,7 @@
       "candidate_features": [
         {
           "path": "stage3.per_label_offsets[].offset_mm",
-          "role": "stage18-metric-anchor"
+          "role": "hypothesised"
         },
         {
           "path": "per_label.{label}.components.fragmentation_index",

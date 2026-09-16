@@ -361,14 +361,25 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # fov_clipped_label_count -> the fov_truncation CONDITION, carried in
 # CONDITION_ANCHOR_PATHS. Modes 2, 3, 5, 7 and 10-14 and 16 have no Stage-18
 # metric and no anchor.
+#
+# Mode 1's anchor (item 154 re-anchor): the anchor is the record path its
+# fragment metric (min_dominant_component_fraction) reads --
+# ``per_label.{label}.components.fragmentation_index``, which
+# ``heuristics.fragmentation`` consumes as ``signal``, one of mode 1's
+# intended rules. ``unanchored_foreground_fraction`` is computed
+# candidate-vs-GT and reads no record path, so it has no anchor here. The
+# spline-offset path (``stage3.per_label_offsets[].offset_mm``) is dropped:
+# its only consumer, ``mislabel``, was classified at the item-150 sign-off
+# as serving no failure mode (mislabel itself declares that path
+# ``bookkeeping``, not ``signal``), so mode 1's anchor and mode 1's
+# mechanism disagreed. The corresponding candidate-feature role in
+# ``failure_modes._MODE_1`` moved from ``"stage18-metric-anchor"`` to
+# ``"hypothesised"`` to match (the path itself stays listed there).
 # --------------------------------------------------------------------------- #
 
 MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
     {
-        1: (
-            "stage3.per_label_offsets[].offset_mm",
-            "per_label.{label}.components.fragmentation_index",
-        ),
+        1: ("per_label.{label}.components.fragmentation_index",),
         4: ("per_label.{label}.components.stray_component_sizes[]",),
         6: ("relationships.present_levels[]",),
         8: ("stage3.monotonic_consistency.is_monotonic",),

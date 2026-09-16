@@ -57,14 +57,21 @@ get a genuine ladder from the *count of affected labels*; the third cannot:
   is a **count of labels**, invariant to clip depth; ``crop_depth`` is
   therefore pinned at the corpus's ``5`` and the severity axis sweeps the
   *number of clipped labels* (20, then +21, then +22) instead.
-* **``sequence_break``** -- **degenerate**, 2 rungs, not merely
-  inconvenient. Under the default (TPTBox, item 093) convention
-  ``rank(v) == v - 1`` for every value 1-24, so no in-block relabel can
-  produce a rank descent. The one transitional label that can (28 == T13,
-  rank 19) always sorts last, contributing at most one descent.
-  ``out_of_order_label_count`` is capped at ``1.0`` on this base -- a second
-  break cannot add a second out-of-order label. Declared via
-  :data:`DEGENERATE_LADDERS`, never presented as graded.
+* **``sequence_break``** -- **degenerate**, 2 rungs, from its single default
+  step, not from any cap on how many rungs it could have:
+  item 154 corrected the premise the earlier draft rested on (there is no
+  identity between a value and its canonical rank -- ``labels.CANONICAL_ORDER``
+  puts ``T13`` at index 19, so ``L1``-``L5`` (values 20-24, the ladder base)
+  have rank equal to value only by coincidence). Rank *is* strictly increasing over
+  values 1-24, so no relabel confined to that range produces a descent --
+  that part of the old conclusion survives. Once a relabel targets a value
+  past 27, more than one descent is possible: the cumulative relabels
+  24->28, 23->27, 22->29 give ranks 20, 21, 32, 19, 27 -- two descents,
+  not one (measured by item 154, see :data:`SEVERITY_LADDERS`'s
+  ``sequence_break`` rationale). The ladder has 2 rungs because it takes
+  the single default step ``new_label=28``, not because a second rung is
+  impossible. Declared via :data:`DEGENERATE_LADDERS`, never presented as
+  graded.
 
 The specificity bar
 --------------------
@@ -89,6 +96,44 @@ act as a *ratchet*: a future rule retune or feature change that flattens a
 metric, or makes it more responsive to a foreign ladder, must fail
 (``measured_response <= recorded * 1.05``, ``measured_margin >= recorded *
 0.95``) rather than quietly eroding the stage's claim.
+
+Ladder home vs. metric home (item 154, A3)
+--------------------------------------------
+:attr:`LadderSpec.failure_mode` names the specification mode that owns the
+*operator's corpus case* (rule (b)). The mode a ladder's *measured
+response* speaks to is instead its designated metric's home,
+``PER_MODE_METRIC_SPECS[designated_metric].failure_mode`` -- every number
+:func:`score_harness` scores is a metric response, so a claim about live
+state is always read off the metric, never off the ladder. The two differ
+for two ladders (``relabel_swap``: ladder mode 9, metric mode 8; ``fuse``:
+ladder mode 2, metric mode 1); both fields stay as recorded, they simply
+answer different questions.
+
+Foreign metrics (item 154, A2)
+--------------------------------
+"Foreign" means *every metric other than the ladder's designated metric* --
+defined independent of any metric's mode home, so it cannot drift when a
+metric's home moves. One mode can own two metrics' homes (mode 1:
+``unanchored_foreground_fraction``, ``min_dominant_component_fraction``),
+but the margin still isolates the designated metric against the full
+foreign set: excluding same-home metrics from that set changes no measured
+margin on this base (only ``displace`` and ``fragment`` share a home, and
+both already have margin ``inf``). If a future base makes this choice
+matter, the decision is re-opened in a spec, not silently re-defined.
+
+Mode 1's ladders (item 154, A4; absorbs item 141)
+----------------------------------------------------
+Mode 1 (*Segmentation accuracy*) is measured by two ladders -- ``displace``
+(rigid translation) and ``fragment`` (a body cut into same-label pieces) --
+sharing the corpus's default base; :data:`MODE_LADDER_DISPOSITIONS` records
+this. Deferred item 141 asked whether that base should widen so a metric's
+swing is set by the perturbation rather than the fixture's FOV walls. It is
+not widened: the shortfall item 141 aimed at (``crop_at_border`` ->
+``unanchored_foreground_fraction``, see :data:`KNOWN_CROSS_MODE_COUPLINGS`)
+is now a *condition* ladder's coupling, an operator artefact of
+``crop_at_border`` rigidly translating each cropped body, and widening
+``displace``'s base would inflate every response's denominator without
+changing anything ``crop_at_border`` does.
 
 Purity & determinism contract
 ------------------------------
@@ -119,11 +164,12 @@ Public API
 ----------
 ``LadderRungSpec``, ``LadderSpec``, ``LadderPoint``, ``LadderResult``,
 ``HarnessResult``, ``LadderVerdict``, ``HarnessVerdict``,
-``CrossModeCoupling`` (all frozen dataclasses); ``SEVERITY_LADDERS``,
-``SUPPLEMENTARY_LADDERS``, ``DEGENERATE_LADDERS``,
-``KNOWN_CROSS_MODE_COUPLINGS``, ``RECORDED_MARGINS``, ``COUPLING_THRESHOLD``,
-``LADDER_SEED``; ``evaluate_ladder``, ``run_severity_harness``,
-``score_harness``.
+``CrossModeCoupling``, ``MeasurementProvenance``, ``ModeLadderDisposition``
+(all frozen dataclasses); ``SEVERITY_LADDERS``, ``SUPPLEMENTARY_LADDERS``,
+``DEGENERATE_LADDERS``, ``KNOWN_CROSS_MODE_COUPLINGS``, ``RECORDED_MARGINS``,
+``RECORDED_MARGIN_PROVENANCE``, ``MODE_LADDER_DISPOSITIONS``,
+``MODE_LADDER_DISPOSITION_VALUES``, ``COUPLING_THRESHOLD``, ``LADDER_SEED``;
+``evaluate_ladder``, ``run_severity_harness``, ``score_harness``.
 """
 
 from __future__ import annotations
@@ -154,11 +200,16 @@ __all__ = [
     "LadderVerdict",
     "HarnessVerdict",
     "CrossModeCoupling",
+    "MeasurementProvenance",
+    "ModeLadderDisposition",
     "SEVERITY_LADDERS",
     "SUPPLEMENTARY_LADDERS",
     "DEGENERATE_LADDERS",
     "KNOWN_CROSS_MODE_COUPLINGS",
     "RECORDED_MARGINS",
+    "RECORDED_MARGIN_PROVENANCE",
+    "MODE_LADDER_DISPOSITIONS",
+    "MODE_LADDER_DISPOSITION_VALUES",
     "COUPLING_THRESHOLD",
     "LADDER_SEED",
     "evaluate_ladder",
@@ -372,6 +423,33 @@ class HarnessResult:
 
 
 @dataclass(frozen=True)
+class MeasurementProvenance:
+    """Where one re-measured ratchet constant was measured (item 154).
+
+    The harness has no manifest to point at -- every ladder is built in
+    memory from ``build_clean_spine(**_BASE_PARAMS)`` -- so provenance is a
+    structured record of that in-memory fixture, not a file reference.
+
+    Attributes
+    ----------
+    corpus:
+        The corpus id the fixture belongs to. ``"geometric"`` for every
+        measurement in this module, since :data:`_BASE_PARAMS` is that
+        corpus's own default base
+        (:data:`segfacet.synth.corpus._DEFAULT_BASE_PARAMS`).
+    base_params:
+        The :func:`~segfacet.synth.clean_gt.build_clean_spine` keyword
+        arguments the measurement's base was built from.
+    measured_on:
+        ISO date (``YYYY-MM-DD``) the measurement was taken.
+    """
+
+    corpus: str
+    base_params: Mapping[str, Any]
+    measured_on: str
+
+
+@dataclass(frozen=True)
 class CrossModeCoupling:
     """One measured, named, frozen cross-mode coupling entry.
 
@@ -387,12 +465,51 @@ class CrossModeCoupling:
         *up* to 4 significant figures.
     cause:
         Non-empty free-text naming the operator artefact responsible.
+    provenance:
+        :class:`MeasurementProvenance` for the run this value was
+        transcribed from. Required -- a coupling with no provenance cannot
+        be built.
     """
 
     ladder_operator: str
     foreign_metric: str
     recorded_response: float
     cause: str
+    provenance: MeasurementProvenance
+
+
+@dataclass(frozen=True)
+class ModeLadderDisposition:
+    """One mode's recorded decision about which ladders measure it, and how
+    (item 154, absorbing deferred item 141).
+
+    Attributes
+    ----------
+    mode:
+        The specification mode id (:data:`segfacet.failure_modes.SPECIFICATION`
+        key).
+    ladders:
+        The operators (in :data:`SEVERITY_LADDERS` order) whose designated
+        metric is homed on ``mode``.
+    disposition:
+        One of :data:`MODE_LADDER_DISPOSITION_VALUES`.
+    reason:
+        Non-empty free-text explaining the disposition.
+    provenance:
+        :class:`MeasurementProvenance` for the finding backing this record.
+    """
+
+    mode: int
+    ladders: Tuple[str, ...]
+    disposition: str
+    reason: str
+    provenance: MeasurementProvenance
+
+
+#: The two dispositions a mode's ladder record may hold: ``"re-derived"``
+#: (kept, its ladder set derived from the current metric homes) or
+#: ``"no-ladder"`` (no ladder measures this mode).
+MODE_LADDER_DISPOSITION_VALUES: Tuple[str, str] = ("re-derived", "no-ladder")
 
 
 @dataclass(frozen=True)
@@ -741,10 +858,14 @@ def _crop_at_border_ladder() -> LadderSpec:
 
 
 def _sequence_break_ladder() -> LadderSpec:
-    # Degenerate: out_of_order_label_count is capped at 1.0 on this base --
-    # 28 (T13) is the only value whose canonical rank (19) falls below its
-    # integer position, and it always sorts last, contributing at most one
-    # descent. A second break cannot add a second out-of-order label.
+    # Degenerate: 2 rungs, one step (default new_label=28). Not a structural
+    # cap -- see the module docstring's corrected rank-premise section
+    # (item 154). Rank is strictly increasing over values 1-24, so no
+    # relabel confined to that range produces a descent; a relabel past 27
+    # can produce more than one (the cumulative 24->28, 23->27, 22->29
+    # relabels give ranks 20, 21, 32, 19, 27 -- two descents, measured by
+    # item 154). The ladder has 2 rungs because it has one default step,
+    # not because a second rung is impossible.
     rungs = [
         _rung0(),
         _rung(1, 1.0, "sequence_break", [("sequence_break", {})]),
@@ -760,13 +881,13 @@ def _sequence_break_ladder() -> LadderSpec:
         severity_kind="degenerate",
         rungs=tuple(rungs),
         rationale=(
-            "Structurally capped at 1 rung of severity: under the default "
-            "(TPTBox) convention, rank(v) == v - 1 for every value 1-24, so "
-            "no in-block relabel produces a rank descent. The one label "
-            "that can -- 28 (T13), rank 19 -- always sorts last and "
-            "contributes at most one descent, so out_of_order_label_count "
-            "is capped at 1.0 and a second break cannot add a second "
-            "out-of-order label."
+            "2 rungs because the default step is a single relabel "
+            "(new_label=28), not because more rungs are impossible: rank "
+            "is strictly increasing over values 1-24 (no in-block relabel "
+            "produces a descent), but a relabel past 27 can produce more "
+            "than one -- the cumulative 24->28, 23->27, 22->29 relabels "
+            "give ranks 20, 21, 32, 19, 27, i.e. two descents, not the one "
+            "an earlier draft assumed (item 154)."
         ),
         overlap_reconstruction=None,
     )
@@ -1205,9 +1326,22 @@ def score_harness(
 # transcribing the measured values (recorded responses rounded UP, recorded
 # margins rounded DOWN, both to 4 significant figures, so the ratchet has no
 # float-equality knife edge). See the item's Decisions log for the measured
-# run this was transcribed from. Item 153 (A5): every value below moved
-# verbatim to its new key; none was recomputed or changed.
+# run this was transcribed from. Item 154 re-measured every value below from
+# a clean tree on 2026-09-16 (see this module's item 154 provenance entries
+# below) -- every measured value came out identical to item 153's carried-
+# over ones, but each is now a fresh transcription, not a carry-over.
 # --------------------------------------------------------------------------- #
+
+#: The provenance shared by every item-154 re-measurement below: one harness
+#: run, on the geometric corpus's own default base
+#: (:data:`segfacet.synth.corpus._DEFAULT_BASE_PARAMS`), dated the day of
+#: the re-measurement. See the item 154 spec's Decisions section for the
+#: full printed run this was transcribed from.
+_MEASUREMENT_PROVENANCE = MeasurementProvenance(
+    corpus="geometric",
+    base_params=dict(_BASE_PARAMS),
+    measured_on="2026-09-16",
+)
 
 #: Two measured cross-mode couplings. ``crop_at_border`` ->
 #: ``unanchored_foreground_fraction`` was anticipated by item 099 (see the
@@ -1242,6 +1376,7 @@ KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
             "while the displace ladder is capped by the FOV (~19.8mm max "
             "displacement_mm on this base)."
         ),
+        provenance=_MEASUREMENT_PROVENANCE,
     ),
     CrossModeCoupling(
         ladder_operator="force_overlap",
@@ -1255,13 +1390,15 @@ KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
             "largely independent of overlap_depth, nearly matching the "
             "displace ladder's own full swing."
         ),
+        provenance=_MEASUREMENT_PROVENANCE,
     ),
 )
 
 #: Every ladder's measured margin (``1.0 / max_{f != designated} response``),
 #: rounded down to 4 significant figures (``math.inf`` kept as-is where the
-#: measured max foreign response is exactly ``0.0``). Item 153: values moved
-#: verbatim to their new operator key.
+#: measured max foreign response is exactly ``0.0``). Re-measured by item 154
+#: from a clean tree on 2026-09-16 (see :data:`RECORDED_MARGIN_PROVENANCE`);
+#: every value came out identical to item 153's carried-over ones.
 RECORDED_MARGINS: Mapping[str, float] = MappingProxyType(
     {
         "displace": math.inf,
@@ -1272,5 +1409,47 @@ RECORDED_MARGINS: Mapping[str, float] = MappingProxyType(
         "crop_at_border": 0.3585,
         "sequence_break": math.inf,
         "force_overlap": 1.038,
+    }
+)
+
+#: :class:`MeasurementProvenance` for every :data:`RECORDED_MARGINS` entry --
+#: same key set, same run (item 154).
+RECORDED_MARGIN_PROVENANCE: Mapping[str, MeasurementProvenance] = MappingProxyType(
+    {operator: _MEASUREMENT_PROVENANCE for operator in RECORDED_MARGINS}
+)
+
+
+# --------------------------------------------------------------------------- #
+# Mode 1's ladder disposition (item 154, absorbing deferred item 141) -- see
+# the module docstring's "Mode 1's ladders" section and the item spec's
+# Description part 4/Decision A4.
+# --------------------------------------------------------------------------- #
+
+MODE_LADDER_DISPOSITIONS: Mapping[int, ModeLadderDisposition] = MappingProxyType(
+    {
+        1: ModeLadderDisposition(
+            mode=1,
+            ladders=tuple(
+                operator
+                for operator in SEVERITY_LADDERS
+                if PER_MODE_METRIC_SPECS[SEVERITY_LADDERS[operator].designated_metric].failure_mode
+                == 1
+            ),
+            disposition="re-derived",
+            reason=(
+                "Mode 1 keeps both displace and fragment on the shared "
+                "_BASE_PARAMS corpus base; the base is not widened. The "
+                "shortfall deferred item 141 aimed at (crop_at_border -> "
+                "unanchored_foreground_fraction) is now a condition "
+                "ladder's coupling, an operator artefact of crop_at_border "
+                "rigidly translating each cropped body -- unrelated to "
+                "mode 1's own discriminator (the FOV-truncation condition "
+                "vs. mode 1 by the image face). Widening displace's base "
+                "would inflate every response's denominator without "
+                "changing anything crop_at_border does: it would improve a "
+                "ratio without improving a claim."
+            ),
+            provenance=_MEASUREMENT_PROVENANCE,
+        ),
     }
 )

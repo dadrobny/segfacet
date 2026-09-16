@@ -803,7 +803,7 @@ _MODE_1 = ModeSpec(
     candidate_features=(
         CandidateFeature(
             path="stage3.per_label_offsets[].offset_mm",
-            role="stage18-metric-anchor",
+            role="hypothesised",
         ),
         CandidateFeature(
             path="per_label.{label}.components.fragmentation_index",
