@@ -470,3 +470,9 @@ renames corpus case ids, and this item's tests hard-code none.
 ## Decisions & Trade-offs
 
 To be updated during implementation.
+
+- **2026-09-16 — A6 confirmed by the maintainer.** Asked directly before
+  implementation: changing the `role` of `_MODE_1`'s
+  `stage3.per_label_offsets[].offset_mm` candidate feature from
+  `"stage18-metric-anchor"` to `"hypothesised"` (the path stays listed) is
+  allowed. The re-anchor criteria AC19–AC21 therefore stay as written.
