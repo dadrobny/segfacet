@@ -251,11 +251,18 @@ def test_adv_reference_delta_declared_modes_cover_every_tracked_mode_anchor_feat
     vocabulary ``_case_features_for_label`` actually scores), map it onto the
     record leaf path it is read from and, wherever that path is a §6
     mode-anchor path (``feature_docs.MODE_ANCHOR_PATHS``), require the rule's
-    declared modes to include that mode. ``spline_offset_mm`` is read from
-    ``stage3.per_label_offsets[].offset_mm``, exactly mode 1's own anchor
-    path, so this fails the moment ``reference_delta``'s declaration is
-    re-narrowed to ``(2,)`` -- the original, false-premised shape -- even
-    though nothing else in this module or the rule's code changed."""
+    declared modes to include that mode.
+
+    Reconciled for item 154: ``spline_offset_mm`` used to be read from
+    ``stage3.per_label_offsets[].offset_mm``, which was mode 1's own anchor
+    path, so this test used to require mode 1 in the derived set. Item 154
+    drops that path from ``MODE_ANCHOR_PATHS[1]`` (the only consumer,
+    ``mislabel``, declares it ``bookkeeping``, not ``signal`` -- it serves no
+    mode). No tracked feature now maps onto any §6 mode-anchor path at all,
+    so ``reference_delta``'s modes=(1, 2) declaration is no longer justified
+    by an anchor path -- it stands on the corpus-corroborated case alone.
+    The derivation below still runs in full, so a future anchor change that
+    re-populates ``required_modes`` is still caught."""
     import segfacet.feature_docs as feature_docs_module
     import segfacet.reference.delta as delta_module
 
@@ -281,11 +288,10 @@ def test_adv_reference_delta_declared_modes_cover_every_tracked_mode_anchor_feat
     for feature_name in tracked:
         required_modes |= anchor_modes_by_path.get(feature_record_path[feature_name], set())
 
-    assert required_modes, (
-        "expected at least one reference_delta-tracked feature to map onto "
-        "a §6 mode anchor path"
-    )
-    assert 1 in required_modes, required_modes  # spline_offset_mm -> mode 1
+    # Item 154: no tracked feature anchors any mode now that mode 1's
+    # offset_mm anchor is dropped. Asserted as equality (not skipped) so a
+    # later anchor change that re-populates this set is still caught.
+    assert required_modes == set(), required_modes
 
     decl = _RULES["reference_delta"].mode_declaration
     assert required_modes <= set(decl.modes), (required_modes, decl.modes)

@@ -2161,6 +2161,13 @@ def test_adv_rule_declaring_only_an_uncatalogued_mode_makes_rule_to_mode_a_hole(
 
 
 def test_ac32_mode1_rule_list_contains_every_feature_derived_required_rule(matrix):
+    """Reconciled for item 154: mode 1's anchor no longer includes
+    ``stage3.per_label_offsets[].offset_mm`` (only ``mislabel`` consumed it,
+    declared ``bookkeeping``, not ``signal`` -- it serves no mode), so no
+    ``reference_delta``-tracked feature anchors any mode any more and
+    ``required_modes`` is empty. The derivation and the loops over
+    ``required_modes`` stay so a future anchor change is still caught; the
+    loops are vacuously satisfied today."""
     import segfacet.feature_docs as feature_docs_module
     import segfacet.reference.delta as delta_module
 
@@ -2181,8 +2188,10 @@ def test_ac32_mode1_rule_list_contains_every_feature_derived_required_rule(matri
     required_modes: set = set()
     for feature_name in tracked:
         required_modes |= anchor_modes_by_path.get(feature_record_path[feature_name], set())
-    assert required_modes, "expected at least one tracked feature to map onto a mode anchor"
-    assert 1 in required_modes
+    # Item 154: no tracked feature anchors any mode now that mode 1's
+    # offset_mm anchor is dropped. Asserted as equality (not skipped) so a
+    # later anchor change that re-populates this set is still caught.
+    assert required_modes == set(), required_modes
 
     d = matrix
     for mode in required_modes:
