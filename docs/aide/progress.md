@@ -1639,11 +1639,16 @@ changes here.**
   corrected.
 - ✅ **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
   `vision_seed_conflicts`) re-pointed or retired to follow the re-issue. *(Item 152)*
+- 🚧 **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
+  `per_mode_cohort`, schemas, pins) re-keyed to the specification's ids with
+  `LEGACY_STAGE18_MODE_NAMES` retired and cross-mode constants re-measured; absorbs Stage
+  20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored; the false
+  `rank(v) == v - 1` claim in `severity_ladder.py` corrected. *(Item 153)*
 - 📋 **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
   `per_mode_cohort`, schemas, pins) re-keyed to the specification's ids with
   `LEGACY_STAGE18_MODE_NAMES` retired and cross-mode constants re-measured; absorbs Stage
   20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored; the false
-  `rank(v) == v - 1` claim in `severity_ladder.py` corrected. *(Items 153, 154)*
+  `rank(v) == v - 1` claim in `severity_ladder.py` corrected. *(Item 154)*
 - 📋 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
   meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
   the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
