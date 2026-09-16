@@ -147,7 +147,7 @@ def _arr(cid: str) -> np.ndarray:
     return np.asanyarray(loaded_seg_image(_CASES[cid]).dataobj)
 
 
-_FIXTURE_CASE_IDS = ("clean_control", "mode1_displace", "mode3_inject_islands")
+_FIXTURE_CASE_IDS = ("clean_control", "displace", "inject_islands")
 
 
 @pytest.fixture(scope="module")
@@ -376,7 +376,7 @@ def test_ac2_evaluate_cohort_default_omitted_every_record_per_mode_is_none():
             candidate=_arr(cid),
             expected={"expected_verdict": "pass"},
         )
-        for cid in ("clean_control", "mode1_displace")
+        for cid in ("clean_control", "displace")
     ]
     cohort = harness.evaluate_cohort(cases, _CONFIG)
     for record in cohort.cases:
@@ -415,7 +415,7 @@ def test_ac3_hook_matches_independently_computed_compute_per_mode_metrics():
     from segfacet.pipeline import run_qc
 
     harness = _harness_mod()
-    cand_arr = _arr("mode1_displace")
+    cand_arr = _arr("displace")
 
     case = harness.EvaluationCase(
         case_id="c",
@@ -465,7 +465,7 @@ def test_ac4_evaluate_case_calls_run_qc_and_compute_per_mode_metrics_exactly_onc
     case = harness.EvaluationCase(
         case_id="c",
         gt=_GT_ARRAY,
-        candidate=_arr("mode1_displace"),
+        candidate=_arr("displace"),
         expected={"expected_verdict": "pass"},
     )
     harness.evaluate_case(case, _CONFIG, per_mode=True)
@@ -501,7 +501,7 @@ def test_ac4_evaluate_cohort_calls_each_exactly_once_per_case(monkeypatch):
             candidate=_arr(cid),
             expected={"expected_verdict": "pass"},
         )
-        for cid in ("clean_control", "mode1_displace")
+        for cid in ("clean_control", "displace")
     ]
     harness.evaluate_cohort(cases, _CONFIG, per_mode=True)
 
@@ -1076,7 +1076,7 @@ def _strip_stray_islands(arr: np.ndarray) -> np.ndarray:
 def demonstrator_comparison():
     pmc = _pmc()
     harness = _harness_mod()
-    islands_arr = _arr("mode3_inject_islands")
+    islands_arr = _arr("inject_islands")
     stripped_arr = _strip_stray_islands(islands_arr)
 
     def _cases(candidate_islands):

@@ -129,23 +129,23 @@ _GT_ARRAY = _ARRAYS["clean_control"]
 
 
 def _mode8_record_with_overlaps() -> dict:
-    """``mode8_force_overlap``'s record with its ``overlaps`` block replaced
+    """``force_overlap``'s record with its ``overlaps`` block replaced
     by the committed ``overlap_mask_stack`` reconstruction technique
     (mirrors ``synth.regression._recon_overlap_mask_stack``) -- a plain
     single-integer label map cannot encode a genuine overlap (item 040), so
     mode 8's signal must come from this reconstructed block."""
-    case = _CASES["mode8_force_overlap"]
+    case = _CASES["force_overlap"]
     target = case["perturbation_params"]["target_label"]
     neighbour = case["perturbation_params"]["neighbour_label"]
 
     clean = build_clean_spine(**case["base"])
     clean_data = np.asanyarray(clean.seg_img.dataobj)
-    data = _ARRAYS["mode8_force_overlap"]
+    data = _ARRAYS["force_overlap"]
 
     stack = np.stack([data == target, clean_data == neighbour])
     pairs = detect_overlaps(stack, np.array([target, neighbour]))
 
-    record = dict(_RECORDS["mode8_force_overlap"])
+    record = dict(_RECORDS["force_overlap"])
     record["overlaps"] = [overlap_to_dict(p) for p in pairs]
     return record
 
@@ -166,9 +166,9 @@ def _value(result, failure_mode: int):
 
 def _record_for(cid: str) -> dict:
     """The record to feed for the record-sourced metrics of case *cid* --
-    the mode-8 reconstructed record for ``mode8_force_overlap``, the plain
+    the mode-8 reconstructed record for ``force_overlap``, the plain
     corpus record otherwise."""
-    if cid == "mode8_force_overlap":
+    if cid == "force_overlap":
         return _MODE8_RECORD
     return _RECORDS[cid]
 
@@ -462,8 +462,8 @@ def test_ac4_real_record_with_candidate_and_gt_yields_eight_entries_in_order():
 def test_ac5_values_are_float_or_none_never_int_numpy_or_bool():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"],
-        candidate=_ARRAYS["mode1_displace"],
+        _RECORDS["displace"],
+        candidate=_ARRAYS["displace"],
         gt=_GT_ARRAY,
     )
     for entry in result.per_mode:
@@ -473,14 +473,14 @@ def test_ac5_values_are_float_or_none_never_int_numpy_or_bool():
 
 
 def test_ac5_all_eight_are_non_none_floats_on_a_fully_populated_case():
-    """On mode1_displace vs clean_control every one of the eight modes
+    """On displace vs clean_control every one of the eight modes
     resolves (the seven record-sourced modes read a real corpus record, the
     paired routes get real arrays) -- a positive sweep proving AC5 isn't
     vacuously true only for None entries."""
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"],
-        candidate=_ARRAYS["mode1_displace"],
+        _RECORDS["displace"],
+        candidate=_ARRAYS["displace"],
         gt=_GT_ARRAY,
     )
     for entry in result.per_mode:
@@ -494,18 +494,18 @@ def test_ac5_all_eight_are_non_none_floats_on_a_fully_populated_case():
 
 def test_ac6_mode1_matches_hand_formula_on_mode1_displace():
     pm = _per_mode()
-    cand = _ARRAYS["mode1_displace"]
+    cand = _ARRAYS["displace"]
     expected = float(np.count_nonzero((cand != 0) & (_GT_ARRAY == 0))) / float(
         np.count_nonzero(_GT_ARRAY != 0)
     )
-    result = pm.compute_per_mode_metrics(_RECORDS["mode1_displace"], candidate=cand, gt=_GT_ARRAY)
+    result = pm.compute_per_mode_metrics(_RECORDS["displace"], candidate=cand, gt=_GT_ARRAY)
     assert _value(result, 1) == pytest.approx(expected, abs=1e-9)
 
 
 def test_ac6_mode1_own_case_exceeds_014():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     assert _value(result, 1) > 0.14
 
@@ -533,7 +533,7 @@ def test_ac6_mode1_is_none_when_gt_has_no_foreground():
 
 def test_ac7_mode2_matches_min_fragmentation_index_over_per_label():
     pm = _per_mode()
-    record = _RECORDS["mode3_inject_islands"]
+    record = _RECORDS["inject_islands"]
     expected = min(
         entry["components"].get(
             "fragmentation_index", entry["components"]["largest_component_fraction"]
@@ -546,7 +546,7 @@ def test_ac7_mode2_matches_min_fragmentation_index_over_per_label():
 
 def test_ac7_mode2_mode2_fragment_is_half():
     pm = _per_mode()
-    result = pm.compute_per_mode_metrics(_RECORDS["mode2_fragment"])
+    result = pm.compute_per_mode_metrics(_RECORDS["fragment"])
     assert _value(result, 2) == pytest.approx(0.5, abs=1e-9)
 
 
@@ -572,24 +572,24 @@ def test_ac7_mode2_falls_back_to_largest_component_fraction_when_alias_absent():
 
 def test_ac8_mode3_default_ratio_separates_mode3_from_mode2():
     pm = _per_mode()
-    r2 = pm.compute_per_mode_metrics(_RECORDS["mode2_fragment"])
-    r3 = pm.compute_per_mode_metrics(_RECORDS["mode3_inject_islands"])
+    r2 = pm.compute_per_mode_metrics(_RECORDS["fragment"])
+    r3 = pm.compute_per_mode_metrics(_RECORDS["inject_islands"])
     assert _value(r3, 3) == pytest.approx(1.0, abs=1e-9)
     assert _value(r2, 3) == pytest.approx(0.0, abs=1e-9)
 
 
 def test_ac8_mode3_stray_component_count_is_one_for_both_but_ratio_separates():
-    """Both mode2_fragment ([9000, 9000]) and mode3_inject_islands
+    """Both fragment ([9000, 9000]) and inject_islands
     ([18750, 27]) have stray_component_count == 1 -- the size-ratio test,
     not the count, is what separates them (item 098's own limitation)."""
-    r2 = _RECORDS["mode2_fragment"]["per_label"]["22"]["components"]
-    r3 = _RECORDS["mode3_inject_islands"]["per_label"]["22"]["components"]
+    r2 = _RECORDS["fragment"]["per_label"]["22"]["components"]
+    r3 = _RECORDS["inject_islands"]["per_label"]["22"]["components"]
     assert r2["stray_component_count"] == 1
     assert r3["stray_component_count"] == 1
 
 
 def test_ac8_mode3_raising_ratio_to_one_makes_mode2_fragment_flag_too():
-    """A stand-in for ``mode2_fragment``'s shape ([9000, 9000], where stray
+    """A stand-in for ``fragment``'s shape ([9000, 9000], where stray
     equals -- not strictly less than -- dominant, so it can never flip at
     ratio 1.0; see the exact-equality boundary test below) with the stray
     component strictly below the dominant one at ratio 1.0 ([100, 99]):
@@ -650,8 +650,8 @@ def test_ac8_ratio_above_one_counts_every_stray_component():
 def test_ac9_mode4_relabel_swap_is_04():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode4_relabel_swap"],
-        candidate=_ARRAYS["mode4_relabel_swap"],
+        _RECORDS["relabel_swap"],
+        candidate=_ARRAYS["relabel_swap"],
         gt=_GT_ARRAY,
     )
     assert _value(result, 4) == pytest.approx(0.4, abs=1e-9)
@@ -660,8 +660,8 @@ def test_ac9_mode4_relabel_swap_is_04():
 def test_ac9_mode4_sequence_break_is_zero_relabel_target_absent_from_gt():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode7_sequence_break"],
-        candidate=_ARRAYS["mode7_sequence_break"],
+        _RECORDS["sequence_break"],
+        candidate=_ARRAYS["sequence_break"],
         gt=_GT_ARRAY,
     )
     assert _value(result, 4) == 0.0
@@ -669,10 +669,10 @@ def test_ac9_mode4_sequence_break_is_zero_relabel_target_absent_from_gt():
 
 def test_ac9_mode4_unrestricted_variant_would_give_02_on_sequence_break():
     """Adversarial (the mode4/mode7 separator, spelled out): dropping the
-    "candidate label present in GT" clause on mode7_sequence_break's GT-vs-
-    candidate pair gives 0.2 (a direct collision with mode4_relabel_swap's
+    "candidate label present in GT" clause on sequence_break's GT-vs-
+    candidate pair gives 0.2 (a direct collision with relabel_swap's
     0.4) -- proving the restriction is load-bearing, not cosmetic."""
-    cand = _ARRAYS["mode7_sequence_break"]
+    cand = _ARRAYS["sequence_break"]
     gt_fg = _GT_ARRAY != 0
     denom = np.count_nonzero(gt_fg)
     unrestricted_mask = gt_fg & (cand != 0) & (cand != _GT_ARRAY)
@@ -696,8 +696,8 @@ def test_ac9_mode4_clean_control_is_zero():
 def test_ac10_mode5_remove_level_is_one():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode5_remove_level"],
-        candidate=_ARRAYS["mode5_remove_level"],
+        _RECORDS["remove_level"],
+        candidate=_ARRAYS["remove_level"],
         gt=_GT_ARRAY,
     )
     assert _value(result, 5) == 1.0
@@ -706,8 +706,8 @@ def test_ac10_mode5_remove_level_is_one():
 def test_ac10_mode5_sequence_break_is_zero_label_fully_covered():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode7_sequence_break"],
-        candidate=_ARRAYS["mode7_sequence_break"],
+        _RECORDS["sequence_break"],
+        candidate=_ARRAYS["sequence_break"],
         gt=_GT_ARRAY,
     )
     assert _value(result, 5) == 0.0
@@ -715,10 +715,10 @@ def test_ac10_mode5_sequence_break_is_zero_label_fully_covered():
 
 def test_ac10_mode5_sequence_break_naive_unmatched_count_would_have_fired():
     """Adversarial (the mode5/mode7 separator): a bare
-    OverlapResult.n_unmatched count reads 2 on mode7_sequence_break -- a
+    OverlapResult.n_unmatched count reads 2 on sequence_break -- a
     renamed level is n_unmatched too -- so the "majority background" clause
     is what drives mode 5 to 0 there while n_unmatched alone would not."""
-    result = compute_overlap(_ARRAYS["mode7_sequence_break"], _GT_ARRAY, (1.0, 1.0, 1.0))
+    result = compute_overlap(_ARRAYS["sequence_break"], _GT_ARRAY, (1.0, 1.0, 1.0))
     assert result.n_unmatched == 2
 
 
@@ -737,12 +737,12 @@ def test_ac10_mode5_clean_control_is_zero():
 
 def test_ac11_mode6_crop_at_border_is_one():
     pm = _per_mode()
-    result = pm.compute_per_mode_metrics(_RECORDS["mode6_crop_at_border"])
+    result = pm.compute_per_mode_metrics(_RECORDS["crop_at_border"])
     assert _value(result, 6) == 1.0
 
 
 @pytest.mark.parametrize(
-    "cid", [c for c in _CASE_IDS if c != "mode6_crop_at_border"]
+    "cid", [c for c in _CASE_IDS if c != "crop_at_border"]
 )
 def test_ac11_mode6_every_other_corpus_case_is_zero(cid):
     pm = _per_mode()
@@ -797,12 +797,12 @@ def test_ac12_mode6_zero_on_expected_fov_end_touch_real_data_case():
 
 def test_ac13_mode7_sequence_break_is_one():
     pm = _per_mode()
-    result = pm.compute_per_mode_metrics(_RECORDS["mode7_sequence_break"])
+    result = pm.compute_per_mode_metrics(_RECORDS["sequence_break"])
     assert _value(result, 7) == 1.0
 
 
 @pytest.mark.parametrize(
-    "cid", [c for c in _CASE_IDS if c != "mode7_sequence_break"]
+    "cid", [c for c in _CASE_IDS if c != "sequence_break"]
 )
 def test_ac13_mode7_every_other_corpus_case_is_zero(cid):
     pm = _per_mode()
@@ -812,7 +812,7 @@ def test_ac13_mode7_every_other_corpus_case_is_zero(cid):
 
 def test_ac13_mode7_matches_hand_formula():
     pm = _per_mode()
-    record = _RECORDS["mode7_sequence_break"]
+    record = _RECORDS["sequence_break"]
     expected = float(len(record["relationships"]["out_of_order_labels"]))
     result = pm.compute_per_mode_metrics(record)
     assert _value(result, 7) == expected
@@ -868,14 +868,14 @@ def test_ac14_mode8_present_but_empty_list_is_zero():
 # =========================================================================== #
 
 _OWN_CASE = {
-    "unanchored_foreground_fraction": "mode1_displace",
-    "min_dominant_component_fraction": "mode2_fragment",
-    "rogue_island_count": "mode3_inject_islands",
-    "mislabelled_volume_fraction": "mode4_relabel_swap",
-    "missing_level_count": "mode5_remove_level",
-    "fov_clipped_label_count": "mode6_crop_at_border",
-    "out_of_order_label_count": "mode7_sequence_break",
-    "overlapping_voxel_count": "mode8_force_overlap",
+    "unanchored_foreground_fraction": "displace",
+    "min_dominant_component_fraction": "fragment",
+    "rogue_island_count": "inject_islands",
+    "mislabelled_volume_fraction": "relabel_swap",
+    "missing_level_count": "remove_level",
+    "fov_clipped_label_count": "crop_at_border",
+    "out_of_order_label_count": "sequence_break",
+    "overlapping_voxel_count": "force_overlap",
 }
 
 # Frozen literal table -- one row per metric (item 153: keyed by metric
@@ -886,91 +886,91 @@ _OWN_CASE = {
 _EXPECTED_ISOLATION_MATRIX = {
     "unanchored_foreground_fraction": {
         "clean_control": 0.0,
-        "mode1_displace": 0.1456,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 0.000288,
-        "mode4_relabel_swap": 0.0,
-        "mode5_remove_level": 0.0,
-        "mode6_crop_at_border": 0.12,
-        "mode7_sequence_break": 0.0,
-        "mode8_force_overlap": 0.1232,
+        "displace": 0.1456,
+        "fragment": 0.0,
+        "inject_islands": 0.000288,
+        "relabel_swap": 0.0,
+        "remove_level": 0.0,
+        "crop_at_border": 0.12,
+        "sequence_break": 0.0,
+        "force_overlap": 0.1232,
     },
     "min_dominant_component_fraction": {
         "clean_control": 1.0,
-        "mode1_displace": 1.0,
-        "mode2_fragment": 0.5,
-        "mode3_inject_islands": 0.9985620706183096,
-        "mode4_relabel_swap": 1.0,
-        "mode5_remove_level": 1.0,
-        "mode6_crop_at_border": 1.0,
-        "mode7_sequence_break": 1.0,
-        "mode8_force_overlap": 1.0,
+        "displace": 1.0,
+        "fragment": 0.5,
+        "inject_islands": 0.9985620706183096,
+        "relabel_swap": 1.0,
+        "remove_level": 1.0,
+        "crop_at_border": 1.0,
+        "sequence_break": 1.0,
+        "force_overlap": 1.0,
     },
     "rogue_island_count": {
         "clean_control": 0.0,
-        "mode1_displace": 0.0,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 1.0,
-        "mode4_relabel_swap": 0.0,
-        "mode5_remove_level": 0.0,
-        "mode6_crop_at_border": 0.0,
-        "mode7_sequence_break": 0.0,
-        "mode8_force_overlap": 0.0,
+        "displace": 0.0,
+        "fragment": 0.0,
+        "inject_islands": 1.0,
+        "relabel_swap": 0.0,
+        "remove_level": 0.0,
+        "crop_at_border": 0.0,
+        "sequence_break": 0.0,
+        "force_overlap": 0.0,
     },
     "mislabelled_volume_fraction": {
         "clean_control": 0.0,
-        "mode1_displace": 0.0,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 0.0,
-        "mode4_relabel_swap": 0.4,
-        "mode5_remove_level": 0.0,
-        "mode6_crop_at_border": 0.0,
-        "mode7_sequence_break": 0.0,
-        "mode8_force_overlap": 0.0208,
+        "displace": 0.0,
+        "fragment": 0.0,
+        "inject_islands": 0.0,
+        "relabel_swap": 0.4,
+        "remove_level": 0.0,
+        "crop_at_border": 0.0,
+        "sequence_break": 0.0,
+        "force_overlap": 0.0208,
     },
     "missing_level_count": {
         "clean_control": 0.0,
-        "mode1_displace": 0.0,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 0.0,
-        "mode4_relabel_swap": 0.0,
-        "mode5_remove_level": 1.0,
-        "mode6_crop_at_border": 0.0,
-        "mode7_sequence_break": 0.0,
-        "mode8_force_overlap": 0.0,
+        "displace": 0.0,
+        "fragment": 0.0,
+        "inject_islands": 0.0,
+        "relabel_swap": 0.0,
+        "remove_level": 1.0,
+        "crop_at_border": 0.0,
+        "sequence_break": 0.0,
+        "force_overlap": 0.0,
     },
     "fov_clipped_label_count": {
         "clean_control": 0.0,
-        "mode1_displace": 0.0,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 0.0,
-        "mode4_relabel_swap": 0.0,
-        "mode5_remove_level": 0.0,
-        "mode6_crop_at_border": 1.0,
-        "mode7_sequence_break": 0.0,
-        "mode8_force_overlap": 0.0,
+        "displace": 0.0,
+        "fragment": 0.0,
+        "inject_islands": 0.0,
+        "relabel_swap": 0.0,
+        "remove_level": 0.0,
+        "crop_at_border": 1.0,
+        "sequence_break": 0.0,
+        "force_overlap": 0.0,
     },
     "out_of_order_label_count": {
         "clean_control": 0.0,
-        "mode1_displace": 0.0,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 0.0,
-        "mode4_relabel_swap": 0.0,
-        "mode5_remove_level": 0.0,
-        "mode6_crop_at_border": 0.0,
-        "mode7_sequence_break": 1.0,
-        "mode8_force_overlap": 0.0,
+        "displace": 0.0,
+        "fragment": 0.0,
+        "inject_islands": 0.0,
+        "relabel_swap": 0.0,
+        "remove_level": 0.0,
+        "crop_at_border": 0.0,
+        "sequence_break": 1.0,
+        "force_overlap": 0.0,
     },
     "overlapping_voxel_count": {
         "clean_control": 0.0,
-        "mode1_displace": 0.0,
-        "mode2_fragment": 0.0,
-        "mode3_inject_islands": 0.0,
-        "mode4_relabel_swap": 0.0,
-        "mode5_remove_level": 0.0,
-        "mode6_crop_at_border": 0.0,
-        "mode7_sequence_break": 0.0,
-        "mode8_force_overlap": 1950.0,
+        "displace": 0.0,
+        "fragment": 0.0,
+        "inject_islands": 0.0,
+        "relabel_swap": 0.0,
+        "remove_level": 0.0,
+        "crop_at_border": 0.0,
+        "sequence_break": 0.0,
+        "force_overlap": 1950.0,
     },
 }
 
@@ -993,7 +993,7 @@ def _is_diagonal_dominant(matrix, baselines, own_case) -> bool:
 # The legacy Stage-18 designated cases (item 150): the isolation matrix is a
 # claim about the eight pre-sign-off modes' own cases plus the clean control,
 # not about the corpus cases item 150 added (fuse_adjacent ties mode 2's
-# metric with mode2_fragment by construction -- both are one label in two
+# metric with fragment by construction -- both are one label in two
 # comparable components -- and remove_level_relabel ties mode 5's).
 _LEGACY_CASE_IDS = sorted({"clean_control", *_OWN_CASE.values()})
 
@@ -1035,7 +1035,7 @@ def test_ac15_each_metric_peaks_on_its_own_designated_case():
 def test_ac15_negative_control_swapping_mode3_row_into_mode2_breaks_dominance():
     """Negative control: assign mode 3's per-case row (rogue_island_count) to
     mode 2's slot -- against mode 2's baseline (1.0) this produces a tie
-    between several cases rather than a strict peak on mode2_fragment,
+    between several cases rather than a strict peak on fragment,
     proving the dominance assertion can actually fail."""
     corrupted = copy.deepcopy(_EXPECTED_ISOLATION_MATRIX)
     corrupted["min_dominant_component_fraction"] = dict(corrupted["rogue_island_count"])
@@ -1066,9 +1066,9 @@ def test_ac16_clean_control_all_eight_at_baseline_and_not_none():
 
 def test_ac17_aggregate_fields_match_compute_overlap_when_both_given():
     pm = _per_mode()
-    expected = compute_overlap(_ARRAYS["mode1_displace"], _GT_ARRAY, (1.0, 1.0, 1.0))
+    expected = compute_overlap(_ARRAYS["displace"], _GT_ARRAY, (1.0, 1.0, 1.0))
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     assert result.mean_dice == expected.mean_dice
     assert result.volume_weighted_dice == expected.volume_weighted_dice
@@ -1147,7 +1147,7 @@ def _assert_json_native(value):
 def test_ac19_to_dict_round_trips_through_json():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     d = result.to_dict()
     assert json.loads(json.dumps(d)) == d
@@ -1156,7 +1156,7 @@ def test_ac19_to_dict_round_trips_through_json():
 def test_ac19_to_dict_contains_only_json_native_types():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     d = result.to_dict()
     assert type(d) is dict
@@ -1179,21 +1179,21 @@ def test_ac19_to_dict_has_no_tuples():
 
 def test_ac20_record_is_not_mutated():
     pm = _per_mode()
-    record = copy.deepcopy(_RECORDS["mode1_displace"])
+    record = copy.deepcopy(_RECORDS["displace"])
     snapshot = copy.deepcopy(record)
     pm.compute_per_mode_metrics(
-        record, candidate=_ARRAYS["mode1_displace"].copy(), gt=_GT_ARRAY.copy()
+        record, candidate=_ARRAYS["displace"].copy(), gt=_GT_ARRAY.copy()
     )
     assert record == snapshot
 
 
 def test_ac20_candidate_and_gt_arrays_are_not_mutated():
     pm = _per_mode()
-    cand = _ARRAYS["mode1_displace"].copy()
+    cand = _ARRAYS["displace"].copy()
     gt = _GT_ARRAY.copy()
     cand_before = cand.copy()
     gt_before = gt.copy()
-    pm.compute_per_mode_metrics(_RECORDS["mode1_displace"], candidate=cand, gt=gt)
+    pm.compute_per_mode_metrics(_RECORDS["displace"], candidate=cand, gt=gt)
     assert np.array_equal(cand, cand_before)
     assert np.array_equal(gt, gt_before)
 
@@ -1206,10 +1206,10 @@ def test_ac20_candidate_and_gt_arrays_are_not_mutated():
 def test_ac21_two_successive_calls_are_dataclass_equal():
     pm = _per_mode()
     first = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     second = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     assert first == second
 
@@ -1217,10 +1217,10 @@ def test_ac21_two_successive_calls_are_dataclass_equal():
 def test_ac21_two_successive_calls_have_equal_to_dict_output():
     pm = _per_mode()
     first = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     second = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
     assert first.to_dict() == second.to_dict()
 
@@ -1294,7 +1294,7 @@ def test_ac22_malformed_components_as_string_degrades_to_none_not_typeerror():
 
 def test_ac23_missing_candidate_only():
     pm = _per_mode()
-    result = pm.compute_per_mode_metrics(_RECORDS["mode2_fragment"], gt=_GT_ARRAY)
+    result = pm.compute_per_mode_metrics(_RECORDS["fragment"], gt=_GT_ARRAY)
     for mode in (1, 4, 5):
         entry = result.per_mode[mode - 1]
         assert entry.value is None, mode
@@ -1305,7 +1305,7 @@ def test_ac23_missing_candidate_only():
 def test_ac23_missing_gt_only():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode2_fragment"], candidate=_ARRAYS["mode2_fragment"]
+        _RECORDS["fragment"], candidate=_ARRAYS["fragment"]
     )
     for mode in (1, 4, 5):
         entry = result.per_mode[mode - 1]
@@ -1315,7 +1315,7 @@ def test_ac23_missing_gt_only():
 
 def test_ac23_both_missing_five_record_modes_still_resolve():
     pm = _per_mode()
-    result = pm.compute_per_mode_metrics(_RECORDS["mode2_fragment"])
+    result = pm.compute_per_mode_metrics(_RECORDS["fragment"])
     for mode in (1, 4, 5):
         assert result.per_mode[mode - 1].value is None, mode
     for mode in (2, 3, 6, 7, 8):
@@ -1416,14 +1416,14 @@ def test_adv_candidate_is_gt_same_object_every_paired_metric_at_baseline():
 def test_adv_non_isotropic_spacing_seven_voxel_ratio_metrics_are_invariant():
     pm = _per_mode()
     isotropic = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"],
-        candidate=_ARRAYS["mode1_displace"],
+        _RECORDS["displace"],
+        candidate=_ARRAYS["displace"],
         gt=_GT_ARRAY,
         spacing=(1.0, 1.0, 1.0),
     )
     anisotropic = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"],
-        candidate=_ARRAYS["mode1_displace"],
+        _RECORDS["displace"],
+        candidate=_ARRAYS["displace"],
         gt=_GT_ARRAY,
         spacing=(0.5, 1.0, 2.0),
     )
@@ -1436,14 +1436,14 @@ def test_adv_non_isotropic_spacing_seven_voxel_ratio_metrics_are_invariant():
 def test_adv_non_isotropic_spacing_mode5_count_is_spacing_invariant():
     pm = _per_mode()
     isotropic = pm.compute_per_mode_metrics(
-        _RECORDS["mode5_remove_level"],
-        candidate=_ARRAYS["mode5_remove_level"],
+        _RECORDS["remove_level"],
+        candidate=_ARRAYS["remove_level"],
         gt=_GT_ARRAY,
         spacing=(1.0, 1.0, 1.0),
     )
     anisotropic = pm.compute_per_mode_metrics(
-        _RECORDS["mode5_remove_level"],
-        candidate=_ARRAYS["mode5_remove_level"],
+        _RECORDS["remove_level"],
+        candidate=_ARRAYS["remove_level"],
         gt=_GT_ARRAY,
         spacing=(0.5, 1.0, 2.0),
     )
@@ -1453,10 +1453,10 @@ def test_adv_non_isotropic_spacing_mode5_count_is_spacing_invariant():
 def test_adv_non_isotropic_spacing_aggregate_matches_compute_overlap():
     pm = _per_mode()
     spacing = (0.5, 1.0, 2.0)
-    expected = compute_overlap(_ARRAYS["mode1_displace"], _GT_ARRAY, spacing)
+    expected = compute_overlap(_ARRAYS["displace"], _GT_ARRAY, spacing)
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"],
-        candidate=_ARRAYS["mode1_displace"],
+        _RECORDS["displace"],
+        candidate=_ARRAYS["displace"],
         gt=_GT_ARRAY,
         spacing=spacing,
     )
@@ -1467,7 +1467,7 @@ def test_adv_non_isotropic_spacing_aggregate_matches_compute_overlap():
 def test_adv_default_spacing_is_isotropic_when_unspecified():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(
-        _RECORDS["mode1_displace"], candidate=_ARRAYS["mode1_displace"], gt=_GT_ARRAY
+        _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
-    expected = compute_overlap(_ARRAYS["mode1_displace"], _GT_ARRAY, (1.0, 1.0, 1.0))
+    expected = compute_overlap(_ARRAYS["displace"], _GT_ARRAY, (1.0, 1.0, 1.0))
     assert result.mean_dice == expected.mean_dice

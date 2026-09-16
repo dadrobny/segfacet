@@ -645,8 +645,8 @@ def test_adv_explicit_empty_stray_sizes_is_honoured_not_treated_as_absent():
 
 _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
     "clean_control": [],
-    "mode1_displace": [],
-    "mode2_fragment": [
+    "displace": [],
+    "fragment": [
         {
             "rule_id": "fragmentation",
             "severity": "flagged-for-review",
@@ -658,7 +658,7 @@ _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
             ),
         }
     ],
-    "mode3_inject_islands": [
+    "inject_islands": [
         {
             "rule_id": "fragmentation",
             "severity": "flagged-for-review",
@@ -671,11 +671,11 @@ _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
             ),
         }
     ],
-    "mode4_relabel_swap": [],
-    "mode5_remove_level": [],
-    "mode6_crop_at_border": [],
-    "mode7_sequence_break": [],
-    "mode8_force_overlap": [],
+    "relabel_swap": [],
+    "remove_level": [],
+    "crop_at_border": [],
+    "sequence_break": [],
+    "force_overlap": [],
 }
 
 
@@ -833,9 +833,9 @@ def test_ac14_every_golden_still_validates_against_schema():
 # =========================================================================== #
 
 #: Item 120 makes the per-vertebra spline offset a held-out measurement,
-#: which deliberately moves two cases' verdict/findings: ``mode1_displace``
+#: which deliberately moves two cases' verdict/findings: ``displace``
 #: now fires a ``mislabel`` offset finding on label 22 (18.7 mm, AC18) and
-#: ``mode6_crop_at_border`` gains the same finding alongside its pre-existing
+#: ``crop_at_border`` gains the same finding alongside its pre-existing
 #: ``border`` finding (17.5 mm, AC23). Both moves are the pipeline-detection
 #: promotion documented in docs/aide/items/120-per-vertebra-offset-that-
 #: separates.md; every other case's snapshot is still the frozen pre-098 one.
@@ -847,7 +847,7 @@ def test_ac14_every_golden_still_validates_against_schema():
 #: without a second guess at its numeric value.
 _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     "clean_control": {"verdict": "pass", "findings": []},
-    "mode1_displace": {
+    "displace": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -862,7 +862,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             }
         ],
     },
-    "mode2_fragment": {
+    "fragment": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -877,7 +877,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             }
         ],
     },
-    "mode3_inject_islands": {
+    "inject_islands": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -896,7 +896,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     # 2026-08-31 (item 132): the traversal-ordered monotonicity fit now
     # surfaces the swap through plain run_qc's mislabel Detector B, so this
     # entry moved from {"verdict": "pass", "findings": []}.
-    "mode4_relabel_swap": {
+    "relabel_swap": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -911,7 +911,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             }
         ],
     },
-    "mode5_remove_level": {
+    "remove_level": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -925,7 +925,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             }
         ],
     },
-    "mode6_crop_at_border": {
+    "crop_at_border": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -949,7 +949,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             },
         ],
     },
-    "mode7_sequence_break": {
+    "sequence_break": {
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -960,7 +960,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             }
         ],
     },
-    "mode8_force_overlap": {"verdict": "pass", "findings": []},
+    "force_overlap": {"verdict": "pass", "findings": []},
 }
 
 
@@ -974,7 +974,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
 #: assertions in tests/test_108_affine_faces.py and
 #: tests/test_116_ras_native_corpus.py. Every other case's reason text is
 #: unaffected by the item 116 migration and stays pinned exactly.
-_FACE_NAME_SENSITIVE_CASES = frozenset({"mode6_crop_at_border"})
+_FACE_NAME_SENSITIVE_CASES = frozenset({"crop_at_border"})
 
 
 def _finding_summary(f, *, include_reason: bool) -> dict:
@@ -996,7 +996,7 @@ def test_ac15_golden_verdict_and_findings_unchanged(case_id):
     verdict and findings array (length, order, rule_id/severity/labels, and
     -- except for the one face-name-sensitive case, item 116 -- reason) are
     identical to the pre-098 committed golden's, for every case except
-    ``mode1_displace`` and ``mode6_crop_at_border`` -- item 120 deliberately
+    ``displace`` and ``crop_at_border`` -- item 120 deliberately
     fires a ``mislabel`` finding through plain ``run_qc`` for both
     (AC18/AC23), so their entries in ``_PRE_098_GOLDEN_VERDICT_AND_FINDINGS``
     above are the post-120 values, not the frozen pre-098 ones. For every

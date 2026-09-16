@@ -49,7 +49,7 @@
           1.0
         ]
       },
-      "case_id": "mode1_displace",
+      "case_id": "displace",
       "condition": "",
       "detail": "displace: translated label 22 by (13, 13) voxels along (array axis 0, array axis 1) -- the two non-stacking axes -- off the spinal curve defined by the remaining vertebrae. Caught by plain run_qc's held-out per-label spline offset (item 120), which measures the target against a curve it did not shape.",
       "detection": "pipeline",
@@ -70,7 +70,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode1_displace_seg.nii.gz"
+      "seg_fixture": "fixtures/displace_seg.nii.gz"
     },
     {
       "base": {
@@ -88,7 +88,7 @@
           1.0
         ]
       },
-      "case_id": "mode2_fragment",
+      "case_id": "fragment",
       "condition": "",
       "detail": "fragment: split label 22 into 2 pieces via interior slab cut(s) at stacking-axis (array axis 2) index(es) [107].",
       "detection": "pipeline",
@@ -109,7 +109,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode2_fragment_seg.nii.gz"
+      "seg_fixture": "fixtures/fragment_seg.nii.gz"
     },
     {
       "base": {
@@ -127,7 +127,7 @@
           1.0
         ]
       },
-      "case_id": "mode3_inject_islands",
+      "case_id": "inject_islands",
       "condition": "",
       "detail": "inject_islands: added 1 tiny island(s) of 27 voxel(s) each to label 22.",
       "detection": "pipeline",
@@ -148,7 +148,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode3_inject_islands_seg.nii.gz"
+      "seg_fixture": "fixtures/inject_islands_seg.nii.gz"
     },
     {
       "base": {
@@ -166,7 +166,7 @@
           1.0
         ]
       },
-      "case_id": "mode4_relabel_swap",
+      "case_id": "relabel_swap",
       "condition": "",
       "detail": "relabel_swap: exchanged the voxel identities of adjacent labels 21 and 22. Caught by plain run_qc: the monotonicity check judges against a curve fitted in geometric traversal order rather than the ordering under test, so the swap reads out of order and MislabelRule's ordering detector fires directly (item 132).",
       "detection": "pipeline",
@@ -189,7 +189,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode4_relabel_swap_seg.nii.gz"
+      "seg_fixture": "fixtures/relabel_swap_seg.nii.gz"
     },
     {
       "base": {
@@ -207,7 +207,7 @@
           1.0
         ]
       },
-      "case_id": "mode5_remove_level",
+      "case_id": "remove_level",
       "condition": "",
       "detail": "remove_level: deleted interior level L3 (label 22) from the span [20, 21, 22, 23, 24]. Mode 6 (vertebra not segmented) of the catalogue signed off at item 150: the vertebra is missed and every remaining label is right, so the gap in the label sequence is that missed vertebra's signature, not a skipped label (mode 10).",
       "detection": "pipeline",
@@ -226,7 +226,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode5_remove_level_seg.nii.gz"
+      "seg_fixture": "fixtures/remove_level_seg.nii.gz"
     },
     {
       "base": {
@@ -244,7 +244,7 @@
           1.0
         ]
       },
-      "case_id": "mode6_crop_at_border",
+      "case_id": "crop_at_border",
       "condition": "fov_truncation",
       "detail": "crop_at_border: translated label 22 toward the 'anterior' face by 5 voxel(s) beyond touching, clipping the overhang. Exhibits the FOV-truncation CONDITION (item 150: retired failure mode 6), not a failure mode; the border rule records it.",
       "detection": "pipeline",
@@ -266,7 +266,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode6_crop_at_border_seg.nii.gz"
+      "seg_fixture": "fixtures/crop_at_border_seg.nii.gz"
     },
     {
       "base": {
@@ -284,7 +284,7 @@
           1.0
         ]
       },
-      "case_id": "mode7_sequence_break",
+      "case_id": "sequence_break",
       "condition": "",
       "detail": "sequence_break: relabelled 24 to 28 (a transitional label whose canonical rank diverges from its integer value), producing a genuine non-continuous label sequence caught directly by run_qc's sequence rule.",
       "detection": "pipeline",
@@ -303,7 +303,7 @@
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode7_sequence_break_seg.nii.gz"
+      "seg_fixture": "fixtures/sequence_break_seg.nii.gz"
     },
     {
       "base": {
@@ -321,7 +321,7 @@
           1.0
         ]
       },
-      "case_id": "mode8_force_overlap",
+      "case_id": "force_overlap",
       "condition": "",
       "detail": "force_overlap: shifted label 20 by -18 voxel(s) along the stacking axis (array axis 2) toward neighbour label 21, reassigning the contested overhang from 21 to 20.",
       "detection": "reconstructed_record",
@@ -344,7 +344,7 @@
       "reconstruction": "overlap_mask_stack",
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
-      "seg_fixture": "fixtures/mode8_force_overlap_seg.nii.gz"
+      "seg_fixture": "fixtures/force_overlap_seg.nii.gz"
     },
     {
       "base": {

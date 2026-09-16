@@ -15,7 +15,7 @@ test here attempts it).
 
 Adversarial scenarios: two-centroid minimum, fewer-than-two ValueError,
 coincident centroids, degenerate near-zero tangent, a doubling-back sequence
-exercising ``np.unwrap`` (the ``mode4_relabel_swap`` shape), anisotropic
+exercising ``np.unwrap`` (the ``relabel_swap`` shape), anisotropic
 spacing, a cranial-first (caudally-advancing) sequence exercising traversal
 direction normalisation, determinism, immutability, invariance of the
 retained unsigned arrays, and a schema round-trip proving ``required`` is
@@ -136,11 +136,11 @@ def _balanced_s_curve() -> List[LabelCentroid]:
 def _mode4_relabel_swap_shape() -> List[LabelCentroid]:
     """A doubling-back coronal sequence exercising the ``np.unwrap`` branch.
 
-    The real ``mode4_relabel_swap`` corpus case swaps two adjacent labels'
+    The real ``relabel_swap`` corpus case swaps two adjacent labels'
     spatial (S) order, producing a local backward loop in the cranio-caudal
     direction combined with a coronal (R) excursion; the resulting coronal
     tangent-angle sequence sweeps past the +/-180 degree atan2 wrap boundary
-    (measured 355.2389 deg unwrapped, confirmed by the ``mode4_relabel_swap``
+    (measured 355.2389 deg unwrapped, confirmed by the ``relabel_swap``
     corpus-golden snapshot, retired by item 126). This fixture reproduces
     that shape at unit-test scale: an R excursion (out, past the pole, and
     back) combined with a local S-order swap between two adjacent centroids
@@ -706,14 +706,14 @@ def test_adv_near_coincident_1e6mm_perturbation_no_crash_finite():
 
 
 # =========================================================================== #
-# Adversarial: unwrap branch -- doubling-back sequence (mode4_relabel_swap shape)
+# Adversarial: unwrap branch -- doubling-back sequence (relabel_swap shape)
 # =========================================================================== #
 
 
 def test_adv_doubling_back_sequence_unwraps_not_clipped_at_180():
     """The unwrapped coronal sweep is not clipped at 180 degrees; it reflects
     the honest accumulated turning. The fixture reproduces the doubling-back
-    shape of the real ``mode4_relabel_swap`` corpus case (whose committed
+    shape of the real ``relabel_swap`` corpus case (whose committed
     golden measures 355.2389 deg unwrapped) at unit-test scale; an atan2
     implementation that clipped at the wrap boundary instead of unwrapping
     could not exceed 180 degrees here."""

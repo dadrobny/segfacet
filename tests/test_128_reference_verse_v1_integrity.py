@@ -69,7 +69,7 @@ def test_reference_verse_v1_still_loads_and_scores_a_case():
     from segfacet.synth.regression import loaded_seg_image
 
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode6_crop_at_border")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
     seg_img = loaded_seg_image(case)
     reference = bundled_production_reference()
     case_result, _block, _delta = run_qc_with_reference(

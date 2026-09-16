@@ -24,9 +24,9 @@ Covers Acceptance Criteria AC1-AC17:
 - AC12: reference_default.json is byte-untouched; bundled_default_reference()
         still synthetic-verse-cohort, L1-L5 only.
 - AC13: synthetic corpus fragmentation sensitivity holds against the
-        synthetic reference_default.json baseline (mode2_fragment /
-        mode3_inject_islands).
-- AC14: real-grounded bounds still catches mode6_crop_at_border against
+        synthetic reference_default.json baseline (fragment /
+        inject_islands).
+- AC14: real-grounded bounds still catches crop_at_border against
         verse-v1.
 - AC15: the Stage-5 goldens stay byte-identical (golden harness attaches no
         reference; both rules fall back to hand-set there).
@@ -753,7 +753,7 @@ def _manifest_case(case_id):
 
 
 def test_ac13_mode2_fragment_fires_fragmentation_on_label_22():
-    case = _manifest_case("mode2_fragment")
+    case = _manifest_case("fragment")
     seg_img = loaded_seg_image(case)
     reference = bundled_default_reference()
     case_result, _block, _delta = run_qc_with_reference(seg_img, bundled_default_config(), reference)
@@ -762,7 +762,7 @@ def test_ac13_mode2_fragment_fires_fragmentation_on_label_22():
 
 
 def test_ac13_mode3_inject_islands_fires_fragmentation_on_label_22():
-    case = _manifest_case("mode3_inject_islands")
+    case = _manifest_case("inject_islands")
     seg_img = loaded_seg_image(case)
     reference = bundled_default_reference()
     case_result, _block, _delta = run_qc_with_reference(seg_img, bundled_default_config(), reference)
@@ -771,12 +771,12 @@ def test_ac13_mode3_inject_islands_fires_fragmentation_on_label_22():
 
 
 # =========================================================================== #
-# AC14: real-grounded bounds still catches mode6_crop_at_border
+# AC14: real-grounded bounds still catches crop_at_border
 # =========================================================================== #
 
 
 def test_ac14_mode6_crop_at_border_fires_bounds_on_label_22_against_verse_v1():
-    case = _manifest_case("mode6_crop_at_border")
+    case = _manifest_case("crop_at_border")
     seg_img = loaded_seg_image(case)
     reference = bundled_production_reference()
     case_result, _block, _delta = run_qc_with_reference(seg_img, bundled_default_config(), reference)
@@ -810,7 +810,7 @@ def test_ac15_golden_harness_uses_plain_run_qc_no_reference_attached():
     """The golden harness path (build_report_for_case -> run_qc) never
     attaches record["reference"], so both rules fall back to hand-set there
     regardless of the item-090 default-source flip."""
-    case = _manifest_case("mode2_fragment")
+    case = _manifest_case("fragment")
     seg_img = loaded_seg_image(case)
     case_result, features_block = run_qc(seg_img, bundled_default_config())
     assert "reference" not in features_block

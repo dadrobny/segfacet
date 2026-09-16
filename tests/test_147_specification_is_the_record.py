@@ -543,7 +543,7 @@ def test_ac9_every_mechanism_names_a_token_that_resolves_live(mode_id):
 # Item 147 settled the correction on the then-mode 7 ("non-continuous label
 # sequence"); the item-150 sign-off re-homed that mode as mode 6
 # ("Implausible label sequence"), and its 2026-09-15 revision split that into
-# three, the sequence rule and `mode7_sequence_break` landing on mode 9
+# three, the sequence rule and `sequence_break` landing on mode 9
 # ("Out-of-order label sequence"), carrying the sentence with it. The claim
 # is unchanged: `rank(v) == v - 1` is false, and the sentence that replaced
 # it must name what makes it false.
@@ -1028,7 +1028,7 @@ def test_ac22_committed_corpora_agree_with_the_derived_name_map():
     for case in geometric_cases:
         # A case carrying `failure_mode == 0` **and** a `condition` is a
         # condition fixture, not a clean control (item 150:
-        # `mode6_crop_at_border` became the FOV-truncation condition's
+        # `crop_at_border` became the FOV-truncation condition's
         # case). Its `failure_mode_name` is the condition's `short_name`;
         # `failure_mode_names()[0]` -- the clean-control name -- belongs
         # only to a case with no condition.
@@ -1200,12 +1200,12 @@ def test_ac25_matrix_note_names_the_specification_not_a_retired_constant(matrix)
 #: a co-detection by a rule the mode does not own, a case recording "not
 #: detected today" with an empty expected set, or no corpus case at all.
 _EXPECTED_DERIVED_STATUS = {
-    1: "validated",     # mode2_fragment fires fragmentation's Fragmentation: detector
+    1: "validated",     # fragment fires fragmentation's Fragmentation: detector
     2: "implemented",   # fuse_adjacent fires coverage/fragmentation, neither mode 2's own
     3: "implemented",   # no corpus case
     4: "validated",
     5: "proposed",
-    6: "validated",     # mode5_remove_level fires coverage (remove_level_relabel expects {})
+    6: "validated",     # remove_level fires coverage (remove_level_relabel expects {})
     7: "proposed",
     8: "implemented",   # no corpus case
     9: "validated",

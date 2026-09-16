@@ -362,14 +362,26 @@ _COMPANION_PATH = _REPO_ROOT / "docs" / "aide" / "golden_evidence.generated.json
 
 _GOLDEN_CASE_IDS = (
     "clean_control",
-    "mode1_displace",
-    "mode2_fragment",
-    "mode3_inject_islands",
-    "mode4_relabel_swap",
-    "mode5_remove_level",
-    "mode6_crop_at_border",
-    "mode7_sequence_break",
-    "mode8_force_overlap",
+    "displace",
+    "fragment",
+    "inject_islands",
+    "relabel_swap",
+    "remove_level",
+    "crop_at_border",
+    "sequence_break",
+    "force_overlap",
+)
+
+#: AC9 matches retired Section-1 rows by their fixture-path suffix, and those
+#: rows name files deleted (item 126) under their pre-item-157 ids -- so that
+#: match needs the historical id, reached through the mapping rather than a
+#: literal (item 157). ``clean_control`` was never mode-prefixed and is its
+#: own historical id.
+from segfacet.synth.corpus import RENAMED_CASE_IDS as _RENAMED_CASE_IDS  # noqa: E402
+
+_OLD_GOLDEN_CASE_ID = {new: old for old, new in _RENAMED_CASE_IDS.items()}
+_RETIRED_GOLDEN_FIXTURE_IDS = tuple(
+    _OLD_GOLDEN_CASE_ID.get(cid, cid) for cid in _GOLDEN_CASE_IDS
 )
 
 
@@ -419,7 +431,7 @@ def test_ac9_golden_case_evidence_cells_are_identical_pointer_and_digit_free(sec
     matches = [
         r
         for r in section1_rows
-        if any(r["fixture"].endswith(f"/{cid}.json") for cid in _GOLDEN_CASE_IDS)
+        if any(r["fixture"].endswith(f"/{cid}.json") for cid in _RETIRED_GOLDEN_FIXTURE_IDS)
     ]
     assert len(matches) == 9, f"expected nine golden-case Section-1 rows, got {len(matches)}"
     cells = {r["evidence"] for r in matches}

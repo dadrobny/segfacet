@@ -122,7 +122,7 @@ def _measured_expected_firing(case_id: str) -> tuple:
 
 def _mode4_kwargs(**overrides) -> dict:
     """A valid, self-consistent kwargs dict for mode 4 -- islands, the mode
-    the islands operator ``mode3_inject_islands`` and ``fragmentation``'s
+    the islands operator ``inject_islands`` and ``fragmentation``'s
     Rogue island(s): detector serve since the item-150 sign-off
     (2026-09-15 revision) -- grounded in the live ``MODE_ANCHOR_PATHS`` and
     a live measurement of the committed geometric corpus -- not transcribed
@@ -157,8 +157,8 @@ def _mode4_kwargs(**overrides) -> dict:
         # and `specification_conflicts((mode,))`'s corpus-side check reports
         # nothing but the conflict a given test is actually asking about.
         # Derived from the manifest, never transcribed (the item-150
-        # 2026-09-15 revision re-homed `mode2_fragment` onto mode 1 and left
-        # `mode3_inject_islands` alone on mode 4).
+        # 2026-09-15 revision re-homed `fragment` onto mode 1 and left
+        # `inject_islands` alone on mode 4).
         corpus_cases=tuple(
             fm.CorpusCaseExpectation(
                 case_id=case["case_id"],
@@ -588,7 +588,7 @@ def test_ac7_intended_rules_list_rejected():
 def test_ac7_corpus_cases_bare_string_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode4_kwargs(corpus_cases="mode3_inject_islands")
+    kwargs = _mode4_kwargs(corpus_cases="inject_islands")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
@@ -618,7 +618,7 @@ def test_ac7_expected_firing_bare_string_rejected_not_split_character_wise():
     kwargs = _mode4_kwargs(
         corpus_cases=(
             fm.CorpusCaseExpectation(
-                case_id="mode3_inject_islands",
+                case_id="inject_islands",
                 corpus="geometric",
                 expected_firing="border",
                 reason="adversarial: bare string, must not split into 'b','o','r','d','e','r'",
@@ -638,7 +638,7 @@ def test_ac7_expected_firing_list_rejected():
     kwargs = _mode4_kwargs(
         corpus_cases=(
             fm.CorpusCaseExpectation(
-                case_id="mode3_inject_islands",
+                case_id="inject_islands",
                 corpus="geometric",
                 expected_firing=["fragmentation"],
                 reason="adversarial: list, not tuple",
@@ -787,7 +787,7 @@ def test_ac10_wrong_expected_firing_drops_validated_to_implemented():
     import segfacet.failure_modes as fm
 
     wrong_case = fm.CorpusCaseExpectation(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         corpus="geometric",
         expected_firing=("__item144_no_such_rule_ever_fires__",),
         reason="adversarial: deliberately wrong expected_firing",
@@ -807,7 +807,7 @@ def test_adv_expected_firing_empty_on_case_that_fires_something_is_disagreement(
     import segfacet.failure_modes as fm
 
     empty_case = fm.CorpusCaseExpectation(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         corpus="geometric",
         expected_firing=(),
         reason="adversarial: empty expected_firing against a case that fires",
@@ -999,13 +999,13 @@ def test_adv_duplicate_case_id_within_corpus_cases_rejected():
 
     cases = (
         fm.CorpusCaseExpectation(
-            case_id="mode3_inject_islands",
+            case_id="inject_islands",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason="first",
         ),
         fm.CorpusCaseExpectation(
-            case_id="mode3_inject_islands",
+            case_id="inject_islands",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason="duplicate",
@@ -1016,7 +1016,7 @@ def test_adv_duplicate_case_id_within_corpus_cases_rejected():
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
     assert "4" in message
-    assert "mode3_inject_islands" in message
+    assert "inject_islands" in message
 
 
 def test_adv_duplicate_mode_ids_rejected_rather_than_silently_dropped():
@@ -1042,7 +1042,7 @@ def test_adv_case_agrees_rejects_a_bare_string_expected_firing():
     import segfacet.failure_modes as fm
 
     case = fm.CorpusCaseExpectation(
-        case_id="mode8_force_overlap",
+        case_id="force_overlap",
         corpus="geometric",
         expected_firing="overlap",
         reason="adversarial: bare string reaching the public derivation directly",
@@ -1051,7 +1051,7 @@ def test_adv_case_agrees_rejects_a_bare_string_expected_firing():
         fm.case_agrees(case)
     message = str(excinfo.value)
     assert "expected_firing" in message
-    assert "mode8_force_overlap" in message
+    assert "force_overlap" in message
 
 
 # =========================================================================== #
@@ -1638,36 +1638,36 @@ def test_adv_main_called_twice_is_deterministic(tmp_path):
 
 
 def test_adv_islands_corpus_case_is_pipeline_detected_and_measured_live():
-    """``mode3_inject_islands`` keeps its historical ``modeN_`` case id; the
+    """``inject_islands`` keeps its historical ``modeN_`` case id; the
     mode it belongs to is **4** (islands) since the item-150 sign-off -- read
     from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 
-    case = _manifest_case("mode3_inject_islands")
+    case = _manifest_case("inject_islands")
     assert case["detection"] == "pipeline"
     assert case["failure_mode"] == 4
 
     mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
     assert len(mode.corpus_cases) >= 1
-    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "mode3_inject_islands")
+    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "inject_islands")
     measured = fm.measured_firing(case_expectation)
     assert measured, "expected a non-empty measured firing set for a genuinely-firing case"
     assert set(measured) == set(case_expectation.expected_firing)
 
 
 def test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live():
-    """``mode8_force_overlap`` is the case id the corpus has always carried
+    """``force_overlap`` is the case id the corpus has always carried
     (the ``modeN_`` prefixes are historical), but the mode it belongs to is
     **15** since the item-150 sign-off re-assigned ids -- the mode id is read
     from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 
-    case = _manifest_case("mode8_force_overlap")
+    case = _manifest_case("force_overlap")
     assert case["detection"] == "reconstructed_record"
 
     mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
     assert len(mode.corpus_cases) >= 1
-    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "mode8_force_overlap")
+    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "force_overlap")
     measured = fm.measured_firing(case_expectation)
     assert measured, "expected a non-empty measured firing set for a genuinely-firing case"
     assert set(measured) == set(case_expectation.expected_firing)

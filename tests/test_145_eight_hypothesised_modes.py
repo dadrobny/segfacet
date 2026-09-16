@@ -54,8 +54,8 @@ missing interior level (10) and unprompted numbering variant (11); shifted
 label sequence is 12, overlap 15, implausible tissue 16. The maintainer
 then narrowed mode 10 to the label alone ("skipped level label", proposed,
 severity ``fail``, no rule and no case) and widened mode 6 to own a missed
-vertebra, so ``coverage`` and ``mode5_remove_level`` now sit at mode 6,
-which derives ``validated``. ``mode2_fragment``
+vertebra, so ``coverage`` and ``remove_level`` now sit at mode 6,
+which derives ``validated``. ``fragment``
 and ``fragmentation``'s Fragmentation: detector sit at the parent, mode 1,
 which therefore derives ``validated``. The groups below are re-pinned to
 those ids; each test keeps its claim.
@@ -301,7 +301,7 @@ def test_ac1_fov_truncation_is_a_condition_and_not_a_mode():
     assert condition.corpus_cases, "expected the condition to carry its fixture"
     # No mode may claim the condition's own fixture case.
     for mode in fm.iter_modes():
-        assert "mode6_crop_at_border" not in {c.case_id for c in mode.corpus_cases}, mode.id
+        assert "crop_at_border" not in {c.case_id for c in mode.corpus_cases}, mode.id
 
 
 # =========================================================================== #
@@ -658,7 +658,7 @@ def test_ac9_the_three_analytic_only_edges_are_needs_real_data_and_undemonstrate
 def test_ac10a_sequence_edge_is_needs_real_data_while_its_case_measurably_fires(measured):
     """The divergence is a property of the **edge**, and it survives the
     re-homing intact: ``sequence`` sits at ``needs-real-data`` although
-    ``mode7_sequence_break`` demonstrably fires it, because a multi-relabel
+    ``sequence_break`` demonstrably fires it, because a multi-relabel
     scramble is not expressible by the fixture generator.
 
     What no longer follows is the mode-level assertion this test also made:
@@ -675,7 +675,7 @@ def test_ac10a_sequence_edge_is_needs_real_data_while_its_case_measurably_fires(
     assert sequence_edges[0].evidence_rung == "needs-real-data"
     assert fm.derive_mode_rung(mode) == "synthetic-demonstrable"
 
-    case = _case(mode, "mode7_sequence_break")
+    case = _case(mode, "sequence_break")
     assert "sequence" in measured(case)
 
 
@@ -710,7 +710,7 @@ def test_ac10b_sequence_case_records_the_single_rank_descent_correction():
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, 9)
-    case = _case(mode, "mode7_sequence_break")
+    case = _case(mode, "sequence_break")
     assert case.reason.strip()
     assert "rank(v) == v - 1" not in case.reason, case.reason
 
@@ -733,7 +733,7 @@ def test_ac10b_sequence_case_records_the_single_rank_descent_correction():
 # AC11/AC12: the overlapping-segments mode's structural unobservability holds
 # live. Re-numbered from 8 to 9 by the item-150 sign-off and to 15 by its
 # 2026-09-15 revision; the corpus case id
-# `mode8_force_overlap` is unchanged (the `modeN_` prefixes are historical).
+# `force_overlap` is unchanged (the `modeN_` prefixes are historical).
 # =========================================================================== #
 
 
@@ -744,7 +744,7 @@ def test_ac11_overlap_mode_structural_unobservability_holds_live():
     mode = _mode(fm, 15)
     assert fm.derive_mode_rung(mode) == "structurally-unobservable"
 
-    case = _manifest_case("mode8_force_overlap")
+    case = _manifest_case("force_overlap")
     assert case["detection"] == "reconstructed_record"
 
     plain = pipeline_findings(case)
@@ -760,7 +760,7 @@ def test_ac12_overlap_mode_records_the_single_channel_mechanism():
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, 15)
-    case = _case(mode, "mode8_force_overlap")
+    case = _case(mode, "force_overlap")
     assert case.reason.strip()
     lowered = case.reason.lower()
     assert "single" in lowered and "channel" in lowered, case.reason
@@ -823,7 +823,7 @@ def test_ac13_derived_status_is_the_signed_off_ladder():
     naming one of the mode's own intended rules -- which is why fused (2,
     co-detections only) and the proxy-only modes with no case (3, 8) sit at
     ``"implemented"`` while every case they carry agrees perfectly, and why
-    vertebra not segmented (6) validates on ``mode5_remove_level``'s
+    vertebra not segmented (6) validates on ``remove_level``'s
     ``coverage`` finding despite also carrying the empty "not detected today"
     ``remove_level_relabel`` case."""
     import segfacet.failure_modes as fm
@@ -840,7 +840,7 @@ def test_ac13_co_detection_alone_does_not_validate():
     (``fuse_adjacent``) agrees exactly, but everything it fires belongs to
     another mode's detector (mode 1's fragmentation, mode 6's coverage).
     Re-pointed from mode 1, which the 2026-09-15 revision made validated by
-    homing ``mode2_fragment`` there. Asserted through the production
+    homing ``fragment`` there. Asserted through the production
     derivation, with the disjointness recomputed rather than transcribed."""
     import segfacet.failure_modes as fm
 
@@ -855,7 +855,7 @@ def test_ac13_co_detection_alone_does_not_validate():
 
 
 # =========================================================================== #
-# AC14: mode6_crop_at_border expects {border, mislabel} with a reason.
+# AC14: crop_at_border expects {border, mislabel} with a reason.
 # Re-homed by the item-150 sign-off: the case belongs to the fov_truncation
 # CONDITION, not to a failure mode. The expectation itself is unchanged.
 # =========================================================================== #
@@ -865,7 +865,7 @@ def test_ac14_fov_truncation_case_expects_border_and_mislabel_with_reason():
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
-    case = _case(condition, "mode6_crop_at_border")
+    case = _case(condition, "crop_at_border")
     assert case.expected_firing == ("border", "mislabel")
     assert case.reason.strip()
     lowered = case.reason.lower()
@@ -885,19 +885,19 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
     ``ConditionSpec`` instead of treating it as a clean control."""
     import segfacet.failure_modes as fm
 
-    case = _manifest_case("mode6_crop_at_border")
+    case = _manifest_case("crop_at_border")
     assert case["failure_mode"] == 0, case
     assert case["condition"] == _FOV_CONDITION_ID, case
     assert case["expected_rule_ids"], case
 
     condition = _condition(fm, _FOV_CONDITION_ID)
-    expectation = _case(condition, "mode6_crop_at_border")
+    expectation = _case(condition, "crop_at_border")
     assert set(case["expected_rule_ids"]) <= set(expectation.expected_firing)
 
     # Every other manifest case names no condition, so the key is a real
     # discriminator rather than a field that is always set.
     conditioned = [c["case_id"] for c in _manifest_cases() if c.get("condition")]
-    assert conditioned == ["mode6_crop_at_border"], conditioned
+    assert conditioned == ["crop_at_border"], conditioned
 
 
 # =========================================================================== #
@@ -925,12 +925,12 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
-    case = _case(condition, "mode6_crop_at_border")
+    case = _case(condition, "crop_at_border")
     assert set(case.expected_firing) == {"border", "mislabel"}
 
-    _detection, findings, record = corpus("mode6_crop_at_border")
+    _detection, findings, record = corpus("crop_at_border")
     border_findings = [f for f in findings if f.rule_id == "border"]
-    assert border_findings, "expected >=1 border finding on mode6_crop_at_border"
+    assert border_findings, "expected >=1 border finding on crop_at_border"
     labels = set()
     for finding in border_findings:
         labels |= set(finding.labels)
@@ -976,7 +976,7 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
 
 
 def test_ac16_accuracy_vs_fov_truncation_discriminator_holds_on_corpus(corpus):
-    _detection6, _findings6, mode6_record = corpus("mode6_crop_at_border")
+    _detection6, _findings6, mode6_record = corpus("crop_at_border")
     mode6_touches = any(
         entry["geometry"][face]
         for entry in mode6_record["per_label"].values()
@@ -984,7 +984,7 @@ def test_ac16_accuracy_vs_fov_truncation_discriminator_holds_on_corpus(corpus):
     )
     assert mode6_touches is True
 
-    _detection1, _findings1, mode1_record = corpus("mode1_displace")
+    _detection1, _findings1, mode1_record = corpus("displace")
     mode1_touches = any(
         entry["geometry"][face]
         for entry in mode1_record["per_label"].values()
@@ -996,27 +996,27 @@ def test_ac16_accuracy_vs_fov_truncation_discriminator_holds_on_corpus(corpus):
 # =========================================================================== #
 # AC17: the fragment / island discriminator holds on the corpus. Since the
 # 2026-09-15 revision the two fixtures sit in different modes again:
-# `mode2_fragment` (a vertebra cut into large same-label pieces) at the
-# parent, mode 1, and `mode3_inject_islands` at mode 4 (islands) -- mode 4's
+# `fragment` (a vertebra cut into large same-label pieces) at the
+# parent, mode 1, and `inject_islands` at mode 4 (islands) -- mode 4's
 # discriminator sends "the vertebra itself cut into large same-label pieces"
 # to mode 1. The component-fraction split below is what separates them.
 # =========================================================================== #
 
 
 def test_ac17_fragment_vs_island_discriminator_holds_on_corpus(corpus):
-    mode3_case = _manifest_case("mode3_inject_islands")
+    mode3_case = _manifest_case("inject_islands")
     mode3_labels = mode3_case["expected_labels"]
     assert mode3_labels, mode3_case
     mode3_label = str(mode3_labels[0])
-    _detection3, _findings3, mode3_record = corpus("mode3_inject_islands")
+    _detection3, _findings3, mode3_record = corpus("inject_islands")
     fraction3 = mode3_record["per_label"][mode3_label]["components"]["largest_component_fraction"]
     assert fraction3 >= 0.9, fraction3
 
-    mode2_case = _manifest_case("mode2_fragment")
+    mode2_case = _manifest_case("fragment")
     mode2_labels = mode2_case["expected_labels"]
     assert mode2_labels, mode2_case
     mode2_label = str(mode2_labels[0])
-    _detection2, _findings2, mode2_record = corpus("mode2_fragment")
+    _detection2, _findings2, mode2_record = corpus("fragment")
     fraction2 = mode2_record["per_label"][mode2_label]["components"]["largest_component_fraction"]
     assert fraction2 <= 0.6, fraction2
 
@@ -1024,9 +1024,9 @@ def test_ac17_fragment_vs_island_discriminator_holds_on_corpus(corpus):
 # =========================================================================== #
 # AC18: the two `mislabel` detectors are told apart by their leading tag.
 # The sign-off split them across the catalogue: the spline-offset detector
-# (`mode1_displace`) serves NO failure mode -- a spline offset is an
+# (`displace`) serves NO failure mode -- a spline offset is an
 # anatomy-classification signal -- while the ordering detector
-# (`mode4_relabel_swap`) serves mode 9. Distinguishing them therefore matters
+# (`relabel_swap`) serves mode 9. Distinguishing them therefore matters
 # more after the sign-off, not less.
 # =========================================================================== #
 
@@ -1036,13 +1036,13 @@ def test_ac18_mislabel_detector_leading_tags_differ(corpus):
 
     assert _MISALIGN_TAG != _MISLABEL_TAG
 
-    _detection1, findings1, _record1 = corpus("mode1_displace")
+    _detection1, findings1, _record1 = corpus("displace")
     mode1_mislabel = [f for f in findings1 if f.rule_id == "mislabel"]
-    assert mode1_mislabel, "expected mislabel to fire on mode1_displace"
+    assert mode1_mislabel, "expected mislabel to fire on displace"
 
-    _detection4, findings4, _record4 = corpus("mode4_relabel_swap")
+    _detection4, findings4, _record4 = corpus("relabel_swap")
     mode4_mislabel = [f for f in findings4 if f.rule_id == "mislabel"]
-    assert mode4_mislabel, "expected mislabel to fire on mode4_relabel_swap"
+    assert mode4_mislabel, "expected mislabel to fire on relabel_swap"
 
     assert any(f.reason.startswith(_MISALIGN_TAG) for f in mode1_mislabel), [
         f.reason for f in mode1_mislabel
@@ -1413,7 +1413,7 @@ def test_adv_narrowing_an_expected_firing_set_drops_validated_to_implemented(mea
     mode = _mode(fm, 9)
     assert fm.derive_status(mode) == "validated"
 
-    case = _case(mode, "mode4_relabel_swap")
+    case = _case(mode, "relabel_swap")
     fired = set(measured(case))
     assert fired, "adversarial precondition: the case must actually fire something"
 
@@ -1439,9 +1439,9 @@ def test_adv_condition_case_narrowed_expectation_is_a_disagreement(measured):
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
-    case = _case(condition, "mode6_crop_at_border")
+    case = _case(condition, "crop_at_border")
     assert "mislabel" in measured(case), (
-        "adversarial precondition: mode6_crop_at_border must actually fire mislabel too"
+        "adversarial precondition: crop_at_border must actually fire mislabel too"
     )
     assert fm.case_agrees(case) is True
 

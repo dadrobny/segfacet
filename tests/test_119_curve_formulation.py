@@ -633,9 +633,9 @@ def test_ac18_write_goldens_into_two_dirs_is_byte_identical(tmp_path):
 
 #: ``test_ac20_regeneration_moves_no_verdict_or_finding`` pinned a pre-119
 #: (== pre-120) verdict/findings snapshot here and is retired: item 120
-#: deliberately moves ``mode1_displace``'s verdict from ``pass`` to
+#: deliberately moves ``displace``'s verdict from ``pass`` to
 #: ``flagged-for-review`` (AC18/AC20) and adds a ``mislabel`` finding to
-#: ``mode6_crop_at_border`` (AC23) -- the exact thing this test existed to
+#: ``crop_at_border`` (AC23) -- the exact thing this test existed to
 #: forbid. Item 120's own goldens/verdict-movement claim is pinned by
 #: ``test_120_leave_one_out_offset.py::
 #: test_ac26_regeneration_moves_no_verdict_outside_mode1s_own_deliverable``,
@@ -671,7 +671,7 @@ def test_ac18_write_goldens_into_two_dirs_is_byte_identical(tmp_path):
 #: ``test_ac21_no_regenerated_golden_offset_reaches_2mm`` pinned the pre-120
 #: in-sample offset ceiling here and is retired: item 120 makes
 #: ``stage3.per_label_offsets[].offset_mm`` a held-out measurement, and
-#: ``mode1_displace``'s label 22 now deliberately reads 18.719 mm (AC6/AC17)
+#: ``displace``'s label 22 now deliberately reads 18.719 mm (AC6/AC17)
 #: -- item 120's whole point is to reach that region, not stay clear of it.
 #: The post-120 margins (clean-control ceiling 0.674 mm, displaced reading
 #: 18.719 mm) are pinned by

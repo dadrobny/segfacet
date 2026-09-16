@@ -790,7 +790,7 @@ def test_ac19_mode8_overlap_depth_three_rung_reproduces_corpus_1950(harness):
     ladder8 = harness.by_operator(_LEGACY_TO_OPERATOR[8])
     rung3 = next(pt for pt in ladder8.points if pt.severity == 3.0)
     # Cross-referenced against tests/test_099_per_mode_metrics.py's AC14
-    # (mode8_force_overlap's overlapping_voxel_count == 1950.0).
+    # (force_overlap's overlapping_voxel_count == 1950.0).
     assert rung3.metrics.by_metric(_LEGACY_TO_METRIC_NAME[8]).value == pytest.approx(1950.0, abs=1e-9)
 
 

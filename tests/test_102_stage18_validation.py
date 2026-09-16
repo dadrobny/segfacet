@@ -10,7 +10,7 @@ Four blocks, module-scoped fixtures so the expensive artifacts (CLI runs, two
 full cohort evaluations, the ~4.3s severity harness) are built once each and
 shared by every test that needs them:
 
-- **Block A** (AC1-AC4, AC6) -- CLI ``run`` on ``mode3_inject_islands``, both
+- **Block A** (AC1-AC4, AC6) -- CLI ``run`` on ``inject_islands``, both
   ``--no-reference`` and default flags (the "CLI trap": reference mode is ON
   by default since item 090).
 - **Block B** (AC5) -- nine CLI ``run --no-reference`` invocations, one per
@@ -84,7 +84,7 @@ def _comparison_schema() -> dict:
 
 
 # =========================================================================== #
-# Block A (AC1-AC4, AC6): CLI run on mode3_inject_islands, both flag states
+# Block A (AC1-AC4, AC6): CLI run on inject_islands, both flag states
 # =========================================================================== #
 
 
@@ -92,7 +92,7 @@ def _comparison_schema() -> dict:
 def block_a(tmp_path_factory):
     out_noref = tmp_path_factory.mktemp("block_a_noref")
     out_default = tmp_path_factory.mktemp("block_a_default")
-    seg = _seg_fixture("mode3_inject_islands")
+    seg = _seg_fixture("inject_islands")
 
     exit_noref = cli.main(
         [
@@ -129,7 +129,7 @@ def block_a(tmp_path_factory):
 
 def test_ac1_full_run_surfaces_stray_fields_in_every_per_label_entry(block_a):
     per_label = block_a["noref"]["features"]["per_label"]
-    assert per_label, "mode3_inject_islands report has no per_label entries"
+    assert per_label, "inject_islands report has no per_label entries"
     for label_key, entry in per_label.items():
         comp = entry["components"]
         for key in (
@@ -186,7 +186,7 @@ def test_ac6_default_flag_run_does_not_equal_pre_098_snapshot(block_a):
 
     frag = [f for f in findings if f["rule_id"] == "fragmentation"]
     assert len(frag) == 1
-    expected_reason = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["mode3_inject_islands"][
+    expected_reason = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["inject_islands"][
         "findings"
     ][0]["reason"]
     assert frag[0]["reason"] != expected_reason
@@ -228,7 +228,7 @@ def block_b(tmp_path_factory):
 @pytest.mark.parametrize("case_id", sorted(_PRE_098_GOLDEN_VERDICT_AND_FINDINGS.keys()))
 def test_ac5_report_verdict_and_findings_match_pre_098_snapshot(block_b, case_id):
     """AC5. Reason text is compared exactly except for the one
-    face-name-sensitive case (``mode6_crop_at_border``'s ``border`` finding,
+    face-name-sensitive case (``crop_at_border``'s ``border`` finding,
     item 116) -- see ``test_098_stray_components._FACE_NAME_SENSITIVE_CASES``."""
     report = block_b[case_id]
     expected = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS[case_id]

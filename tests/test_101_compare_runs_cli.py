@@ -63,7 +63,7 @@ _COHORT_CASES = [
     {
         "case_id": "cropped",
         "gt": "fixtures/clean_control_seg.nii.gz",
-        "candidate": "fixtures/mode6_crop_at_border_seg.nii.gz",
+        "candidate": "fixtures/crop_at_border_seg.nii.gz",
         "expected": {
             "expected_verdict": "flagged-for-review",
             "expected_rule_ids": ["border"],
@@ -78,7 +78,7 @@ _OTHER_COHORT_CASES = [
     {
         "case_id": "islands",
         "gt": "fixtures/clean_control_seg.nii.gz",
-        "candidate": "fixtures/mode3_inject_islands_seg.nii.gz",
+        "candidate": "fixtures/inject_islands_seg.nii.gz",
         "expected": {
             "expected_verdict": "flagged-for-review",
             "failure_mode": 3,

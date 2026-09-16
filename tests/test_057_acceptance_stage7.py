@@ -19,8 +19,8 @@ The three acceptance criteria this suite asserts on directly:
   is exactly ``0.0``.
 * **G7 -- injected failures caught; flag rate / feature divergence
   correlates with DICE.** AC9: every *pipeline*-detectable Sec.6 failure
-  mode (``mode2_fragment``, ``mode3_inject_islands``, ``mode5_remove_
-  level``, ``mode6_crop_at_border``, ``mode7_sequence_break``) is caught at
+  mode (``fragment``, ``inject_islands``, ``mode5_remove_
+  level``, ``crop_at_border``, ``sequence_break``) is caught at
   per-mode sensitivity ``1.0``. AC10/AC11: over a purpose-built graded-
   quality cohort, DICE-vs-flag correlates negatively and feature-
   divergence-vs-flag correlates positively.
@@ -35,15 +35,15 @@ The three acceptance criteria this suite asserts on directly:
 
 **Reconstructed-record mode 8 is deliberately NOT asserted at sensitivity
 1.0** (mirrors item 049's own acceptance-suite decision): items 040/049
-document ``mode8_force_overlap`` as structurally invisible to the plain
+document ``force_overlap`` as structurally invisible to the plain
 ``run_qc`` pipeline (a single-integer label map cannot encode an overlap).
-``mode1_displace`` moved into the pipeline-detectable set in item 120, which
+``displace`` moved into the pipeline-detectable set in item 120, which
 promoted a held-out per-label spline offset into the pipeline itself, and
-``mode4_relabel_swap`` moved into the pipeline-detectable set in item 132
+``relabel_swap`` moved into the pipeline-detectable set in item 132
 (2026-08-31), which judges monotonicity against a traversal-ordered
 reference fit rather than one fitted through the ordering under test. The
 corpus cohort here runs the plain pipeline on each candidate, so only
-``mode8_force_overlap`` classifies ``FALSE_NEGATIVE`` -- overall cohort
+``force_overlap`` classifies ``FALSE_NEGATIVE`` -- overall cohort
 sensitivity is consequently ``7/8``, not ``1.0``. This is intentional, not a
 bug: over-claiming detection on the reconstructed mode would misrepresent
 the system's real, honest capability.

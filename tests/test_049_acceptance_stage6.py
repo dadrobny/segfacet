@@ -19,14 +19,14 @@ Covers Acceptance Criteria AC10-AC12:
 - AC10: G3 positive control -- clean_control's reference_delta has every
   available label's out_of_range_features == [] and no reference_delta
   finding fires.
-- AC11: G3 detection -- mode3_inject_islands and mode6_crop_at_border (both
+- AC11: G3 detection -- inject_islands and crop_at_border (both
   targeting label 22 = L3) yield a non-empty out_of_range_features for label
   22 and >= 1 reference_delta finding naming label 22.
 - AC12: reference loading is covered end-to-end -- bundled_default_reference()
   and a fresh build_reference() both cover L1-L5.
 
 Adversarial / edge-case scenarios included:
-- Determinism: re-running mode3_inject_islands through run_qc_with_reference
+- Determinism: re-running inject_islands through run_qc_with_reference
   twice yields an equal reference_delta.
 - A level absent from the reference yields available: false, not a crash
   (checked against an intentionally narrow reference).
@@ -157,7 +157,7 @@ def test_ac10_clean_control_yields_no_reference_delta_finding():
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("case_id", ["mode3_inject_islands", "mode6_crop_at_border"])
+@pytest.mark.parametrize("case_id", ["inject_islands", "crop_at_border"])
 def test_ac11_size_distorting_perturbation_flags_label_22_out_of_range(case_id):
     case = _case(case_id)
     seg_img = loaded_seg_image(case)
@@ -171,7 +171,7 @@ def test_ac11_size_distorting_perturbation_flags_label_22_out_of_range(case_id):
     assert entry["out_of_range_features"] != []
 
 
-@pytest.mark.parametrize("case_id", ["mode3_inject_islands", "mode6_crop_at_border"])
+@pytest.mark.parametrize("case_id", ["inject_islands", "crop_at_border"])
 def test_ac11_size_distorting_perturbation_fires_reference_delta_finding_on_label_22(
     case_id,
 ):
@@ -248,7 +248,7 @@ def test_ac12_both_references_are_usable_by_run_qc_with_reference(tmp_path):
 
 
 def test_determinism_mode3_inject_islands_reference_delta_is_repeatable():
-    case = _case("mode3_inject_islands")
+    case = _case("inject_islands")
     seg_img = loaded_seg_image(case)
     reference = bundled_default_reference()
     cfg = bundled_default_config()
@@ -328,7 +328,7 @@ def test_adv_clean_control_does_not_flag_under_a_freshly_built_reference():
 def test_adv_reference_delta_is_json_serialisable_and_non_mutating_for_perturbed_case():
     import json
 
-    case = _case("mode6_crop_at_border")
+    case = _case("crop_at_border")
     seg_img = loaded_seg_image(case)
     reference = bundled_default_reference()
     reference_before = copy.deepcopy(reference)

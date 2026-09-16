@@ -792,7 +792,7 @@ def test_ac19_geometric_corpus_case_dispatches_through_geometric_manifest():
     import segfacet.failure_modes as fm
 
     case = fm.CorpusCaseExpectation(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         corpus="geometric",
         expected_firing=("fragmentation",),
         reason="AC19 dispatch probe",
@@ -1804,7 +1804,7 @@ def test_review_derive_status_requires_a_declaring_rule_for_validated():
     assert fm._registry_declares(undeclared_mode_id) is False, undeclared_mode_id
 
     agreeing_case = fm.CorpusCaseExpectation(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         corpus="geometric",
         expected_firing=("fragmentation",),
         reason="review-fix probe: an agreeing case under an undeclared mode id",

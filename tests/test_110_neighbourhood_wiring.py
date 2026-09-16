@@ -717,7 +717,7 @@ def test_ac11_corpus_verify_case_unchanged():
 def test_ac11_corpus_findings_rule_ids_unchanged():
     """AC11: every pipeline-detectable case's designated rule fires -- a
     superset check, not exact equality. Item 120's AC23 deliberately adds a
-    ``mislabel`` finding to ``mode6_crop_at_border`` (its cropped centroid
+    ``mislabel`` finding to ``crop_at_border`` (its cropped centroid
     genuinely sits 17.507 mm off the fitted curve) while that case's
     ``expected_rule_ids`` in the manifest names only its designated rule,
     ``border``. Exact-equality would fail on that one case for a reason

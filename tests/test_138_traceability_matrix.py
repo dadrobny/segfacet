@@ -140,7 +140,7 @@ _ANCHOR_NOT_CONSUMED_MODE = 8
 
 #: "Overlapping segments" -- mode 15 after the item-150 sign-off's 2026-09-15
 #: revision (it was 8 before item 150, 9 at the 2026-09-14 pass). Its one
-#: corpus case keeps the historical id ``mode8_force_overlap``.
+#: corpus case keeps the historical id ``force_overlap``.
 _OVERLAP_MODE = 15
 RULE_IDS = (
     "border",
@@ -233,7 +233,7 @@ def _manifest_detection_by_case_id() -> dict:
 def _token_in_mechanism(token: str, mechanism: str) -> bool:
     """Whole-token containment: ``token`` must appear in ``mechanism`` at a
     word boundary on both sides, so a one-character-off near-miss (e.g.
-    ``mode8_force_overlaps`` for the real ``mode8_force_overlap``) does not
+    ``force_overlaps`` for the real ``force_overlap``) does not
     count as a match."""
     return re.search(r"\b" + re.escape(token) + r"\b", mechanism) is not None
 
@@ -463,7 +463,7 @@ def matrix_overlap_mode_typo_mechanism(monkeypatch):
     import segfacet.traceability as traceability
 
     typo_mechanism = (
-        "The mechanism names mode8_force_overlaps, one character off the "
+        "The mechanism names force_overlaps, one character off the "
         "real case id, on purpose, for a test."
     )
     _patch_specification_mode(
@@ -1052,14 +1052,14 @@ def test_ac13_overlap_mode_rung_and_mechanism_name_the_single_channel_mechanism(
 # =========================================================================== #
 # AC14: the overlapping-segments mode is not pipeline-detected, from the
 # manifest. Re-pointed (item 150) from mode 8 to mode 15 (2026-09-15
-# revision); the fixture case id (``mode8_force_overlap``) is historical and
+# revision); the fixture case id (``force_overlap``) is historical and
 # unchanged.
 # =========================================================================== #
 
 
 def test_ac14_overlap_mode_not_pipeline_detected_names_reconstructed_case(matrix):
     manifest_detection = _manifest_detection_by_case_id()
-    assert "mode8_force_overlap" in manifest_detection
+    assert "force_overlap" in manifest_detection
 
     mode8 = _mode_record(matrix, _OVERLAP_MODE)
     assert mode8["pipeline_detected"] is False
@@ -1067,9 +1067,9 @@ def test_ac14_overlap_mode_not_pipeline_detected_names_reconstructed_case(matrix
     cases = mode8["cases"]
     assert cases, "expected the overlap mode to name at least one corpus case"
     case_ids = {c["case_id"] for c in cases}
-    assert "mode8_force_overlap" in case_ids
-    named = next(c for c in cases if c["case_id"] == "mode8_force_overlap")
-    assert named["detection"] == manifest_detection["mode8_force_overlap"]
+    assert "force_overlap" in case_ids
+    named = next(c for c in cases if c["case_id"] == "force_overlap")
+    assert named["detection"] == manifest_detection["force_overlap"]
     assert named["detection"] == "reconstructed_record"
 
 
@@ -1103,17 +1103,17 @@ def test_adv_ac15_cross_check_violation_when_overlap_mode_rung_monkeypatched_syn
 # AC16: the two modes the committed geometric corpus demonstrates end-to-end
 # are recorded synthetic-demonstrable. Re-pointed (item 150, 2026-09-14):
 # item 138's pair was modes 1 and 4 under the pre-sign-off ids; the sign-off
-# re-homed both of those cases (mode1_displace is now a mode-1 co-detection
-# that deliberately does NOT validate, and mode4_relabel_swap moved to the
+# re-homed both of those cases (displace is now a mode-1 co-detection
+# that deliberately does NOT validate, and relabel_swap moved to the
 # label-sequence mode), leaving modes 3 and 6 as the two the corpus
 # demonstrates with their own intended rules. Re-pointed again (2026-09-15
-# revision): mode2_fragment and fragmentation's Fragmentation: detector moved
+# revision): fragment and fragmentation's Fragmentation: detector moved
 # to the parent mode 1, and the relabel swap sits under mode 9 (out-of-order
 # label sequence) -- same two cases, same claim.
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode, case_id", [(1, "mode2_fragment"), (9, "mode4_relabel_swap")])
+@pytest.mark.parametrize("mode, case_id", [(1, "fragment"), (9, "relabel_swap")])
 def test_ac16_fragment_and_swap_modes_are_synthetic_demonstrable(mode, case_id, matrix):
     manifest_detection = _manifest_detection_by_case_id()
     assert case_id in manifest_detection
@@ -1142,7 +1142,7 @@ def test_adv_ac16_rung_unmoved_by_weaker_rules_joining_a_modes_rule_list(matrix)
     volume/extent proxies. The mode keeps the strongest edge's rung.
     Re-pointed again (2026-09-15 revision) to mode 4 (islands), which keeps
     that shape: ``fragmentation``'s Rogue island(s): edge is demonstrated on
-    mode3_inject_islands, and ``bounds``/``reference_delta`` sit below it."""
+    inject_islands, and ``bounds``/``reference_delta`` sit below it."""
     import segfacet.failure_modes as failure_modes_module
 
     record = _mode_record(matrix, 4)
@@ -1356,7 +1356,7 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # witness, not a floor a future change must match. The revision split
     # the paired sub-modes and re-assigned the ids: bounds declares 1-4,
     # reference_delta 1-4 and 8. (6, "coverage") is a corpus edge: mode 6
-    # ("vertebra not segmented") carries mode5_remove_level, which expects
+    # ("vertebra not segmented") carries remove_level, which expects
     # coverage to fire, alongside remove_level_relabel, which expects nothing.
     # Mode 10 ("skipped level label") is proposed and declares no rule.
     witness = {
@@ -1383,7 +1383,7 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # declared one analytic and one corpus mode), so the invariant is
     # restated as the per-edge derivation it always was. On the 2026-09-15
     # revision (mode 10 narrowed to a label-only, rule-less proposed mode;
-    # coverage declares only mode 6, which mode5_remove_level designates) no
+    # coverage declares only mode 6, which remove_level designates) no
     # rule is mixed again -- asserted as a dated witness so a rule that
     # becomes mixed is noticed here rather than passing silently.
     by_rule: dict = {}
@@ -1822,13 +1822,13 @@ def test_adv_ac31_stale_mechanism_one_character_off_the_real_case_id_is_detectab
     matrix_overlap_mode_typo_mechanism,
 ):
     """Re-pointed (item 150) from mode 8 to mode 15 (2026-09-15 revision);
-    the corpus case id (``mode8_force_overlap``) is historical and
+    the corpus case id (``force_overlap``) is historical and
     unchanged."""
     case_ids = {
         c["case_id"] for c in _manifest_cases() if c.get("failure_mode") == _OVERLAP_MODE
     }
     assert case_ids, "expected at least one overlap-mode corpus case"
-    assert "mode8_force_overlap" in case_ids
+    assert "force_overlap" in case_ids
 
     record = _mode_record(matrix_overlap_mode_typo_mechanism, _OVERLAP_MODE)
     assert record["rules"], "expected the overlap mode to still declare a rule"
@@ -2108,7 +2108,7 @@ def test_adv_ac31_measured_findings_claim_overclaiming_a_rule_is_detectable(monk
 
     manifest = load_manifest()
     cases_by_id = {c["case_id"]: c for c in manifest.get("cases", [])}
-    case = cases_by_id["mode2_fragment"]
+    case = cases_by_id["fragment"]
     assert case.get("detection") == "pipeline"
 
     actual_rule_ids = {f.rule_id for f in pipeline_findings(case)}
@@ -2117,7 +2117,7 @@ def test_adv_ac31_measured_findings_claim_overclaiming_a_rule_is_detectable(monk
     overclaiming_mechanism = (
         "caught independently by bounds' magnitude thresholds, "
         "fragmentation's component-count checks, and reference_delta's "
-        "cohort-relative scoring on mode2_fragment (measured: findings == "
+        "cohort-relative scoring on fragment (measured: findings == "
         "['bounds', 'fragmentation', 'reference_delta'])."
     )
     claim = _parse_measured_findings_claim(overclaiming_mechanism)

@@ -209,7 +209,7 @@ def matrix(raw_matrix):
 
 @pytest.fixture
 def matrix_mode4_expected_firing_altered(monkeypatch):
-    """AC17's headline adversarial fixture: ``mode3_inject_islands`` (mode
+    """AC17's headline adversarial fixture: ``inject_islands`` (mode
     4's -- islands -- corpus case since the item-150 sign-off's 2026-09-15
     revision) is patched to claim ``("coverage",)`` instead of the live,
     measured ``("fragmentation",)``. Only that one case's expectation is
@@ -219,7 +219,7 @@ def matrix_mode4_expected_firing_altered(monkeypatch):
     import segfacet.traceability as traceability
 
     cases = failure_modes_module.SPECIFICATION[4].corpus_cases
-    original_case = next((c for c in cases if c.case_id == "mode3_inject_islands"), None)
+    original_case = next((c for c in cases if c.case_id == "inject_islands"), None)
     assert original_case is not None, [c.case_id for c in cases]
     assert original_case.expected_firing == ("fragmentation",), original_case
     altered = tuple(
@@ -233,7 +233,7 @@ def matrix_mode4_expected_firing_altered(monkeypatch):
 
 @pytest.fixture
 def matrix_mode6_corpus_cases_emptied(monkeypatch):
-    """AC14: ``mode5_remove_level`` (a real manifest case, carried at
+    """AC14: ``remove_level`` (a real manifest case, carried at
     ``failure_mode == 6`` -- vertebra not segmented -- since the item-150
     sign-off's 2026-09-15 revision narrowed mode 10 to a label-only skip) is orphaned by emptying its mode's own
     ``corpus_cases`` -- proving the enumeration is manifest-driven, not
@@ -242,7 +242,7 @@ def matrix_mode6_corpus_cases_emptied(monkeypatch):
     import segfacet.traceability as traceability
 
     case_ids = {c.case_id for c in failure_modes_module.SPECIFICATION[6].corpus_cases}
-    assert "mode5_remove_level" in case_ids, case_ids
+    assert "remove_level" in case_ids, case_ids
     _patch_specification_mode(monkeypatch, failure_modes_module, 6, corpus_cases=())
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -490,7 +490,7 @@ def test_adv_ac4_specification_name_patched_changes_the_rendered_title(matrix, m
 def test_ac5_derived_and_authored_status_are_two_independent_fields(matrix):
     """Both fields are carried per mode, and they genuinely differ somewhere:
     mode 1 is authored ``specified`` but derives ``validated`` (since the
-    2026-09-15 revision its corpus case mode2_fragment fires its own
+    2026-09-15 revision its corpus case fragment fires its own
     ``fragmentation`` edge), while mode 7 -- one of the seven ``proposed``
     entries the item-150 sign-off left unimplemented -- derives ``proposed``
     too, so the pair agrees there. Agreement on one row is not evidence of
@@ -789,10 +789,10 @@ def test_adv_ac14_emptied_corpus_cases_makes_the_manifest_case_a_named_hole(matr
     conformance = d["conformance"]
     unspecified = conformance["unspecified_cases"]
     assert unspecified, "expected at least one unspecified case"
-    assert any(entry.get("case_id") == "mode5_remove_level" for entry in unspecified), unspecified
+    assert any(entry.get("case_id") == "remove_level" for entry in unspecified), unspecified
 
     cases_by_key = {(c["corpus"], c["case_id"]): c for c in conformance["cases"]}
-    orphaned = cases_by_key[("geometric", "mode5_remove_level")]
+    orphaned = cases_by_key[("geometric", "remove_level")]
     assert orphaned["expected_source"] == "unspecified", orphaned
     assert orphaned["agrees"] is False, orphaned
 
@@ -813,12 +813,12 @@ def test_ac15_clean_controls_labelled_manifest_clean_control(matrix):
 
 
 def test_ac15_condition_case_labelled_specification_condition(matrix):
-    """``mode6_crop_at_border`` is no longer a failure-mode case: the
+    """``crop_at_border`` is no longer a failure-mode case: the
     item-150 sign-off retired mode 6 into the ``fov_truncation`` *condition*,
     whose fixture it is. It is still scored, still expects ``{border,
     mislabel}``, and its source names where that expectation now lives."""
     cases_by_key = {(c["corpus"], c["case_id"]): c for c in matrix["conformance"]["cases"]}
-    key = ("geometric", "mode6_crop_at_border")
+    key = ("geometric", "crop_at_border")
     assert key in cases_by_key, sorted(cases_by_key)
     entry = cases_by_key[key]
     assert entry["expected_source"] == "specification-condition", entry
@@ -856,14 +856,14 @@ def test_adv_ac17_altered_expected_set_fails_naming_case_expected_and_measured(
     disagreements = conformance["disagreements"]
     assert disagreements, "expected at least one disagreement"
 
-    named = [d for d in disagreements if d.get("case_id") == "mode3_inject_islands"]
+    named = [d for d in disagreements if d.get("case_id") == "inject_islands"]
     assert named, disagreements
     entry = named[0]
     assert list(entry["expected_firing"]) == ["coverage"], entry
     assert list(entry["measured_firing"]) == ["fragmentation"], entry
 
     message = repr(disagreements)
-    for token in ("mode3_inject_islands", "coverage", "fragmentation"):
+    for token in ("inject_islands", "coverage", "fragmentation"):
         assert token in message, (token, message)
 
 
@@ -874,14 +874,14 @@ def test_ac17_committed_tree_conformance_assertion_would_fail_loudly_with_all_th
     whether AC16's own assertion is currently green."""
     import segfacet.failure_modes as fm
 
-    case = next(c for c in fm.SPECIFICATION[4].corpus_cases if c.case_id == "mode3_inject_islands")
+    case = next(c for c in fm.SPECIFICATION[4].corpus_cases if c.case_id == "inject_islands")
     altered = dataclasses.replace(case, expected_firing=("coverage",))
     measured = fm.measured_firing(case)
     failure_text = (
         f"disagreement: case={altered.case_id!r} expected={altered.expected_firing!r} "
         f"measured={measured!r}"
     )
-    assert "mode3_inject_islands" in failure_text
+    assert "inject_islands" in failure_text
     assert "coverage" in failure_text
     assert "fragmentation" in failure_text
 

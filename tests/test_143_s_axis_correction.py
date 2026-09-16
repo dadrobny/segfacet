@@ -56,7 +56,7 @@ from segfacet.reference.artifact import build_and_write_default, default_artifac
 from segfacet.synth import clean_gt as clean_gt_module
 from segfacet.synth.axes import si_axis
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import load_manifest, write_corpus
+from segfacet.synth.corpus import RENAMED_CASE_IDS, load_manifest, write_corpus
 from segfacet.synth.golden import assert_matches_committed_artifact, build_report_for_case
 from segfacet.synth.intensity import write_intensity_corpus
 from segfacet.synth.regression import loaded_seg_image
@@ -312,14 +312,14 @@ def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
 
 _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
     "clean_control": 160.0,
-    "mode1_displace": 160.0,
-    "mode2_fragment": 160.0,
-    "mode3_inject_islands": 160.0,
-    "mode4_relabel_swap": 160.0,
-    "mode5_remove_level": 160.0,
-    "mode6_crop_at_border": 160.0,
-    "mode7_sequence_break": 160.0,
-    "mode8_force_overlap": 142.0,
+    "displace": 160.0,
+    "fragment": 160.0,
+    "inject_islands": 160.0,
+    "relabel_swap": 160.0,
+    "remove_level": 160.0,
+    "crop_at_border": 160.0,
+    "sequence_break": 160.0,
+    "force_overlap": 142.0,
 }
 
 
@@ -365,7 +365,7 @@ def test_ac6_single_case_caudal_assertion_would_fail_pre_correction():
 # mode4, which moves only by item 131's measured fit asymmetry
 # =========================================================================== #
 
-_MODE4_CASE_ID = "mode4_relabel_swap"
+_MODE4_CASE_ID = "relabel_swap"
 
 
 def test_ac7_tangent_angles_deg_unmoved_on_the_non_doubling_back_cases():
@@ -391,7 +391,7 @@ def test_ac8_mode4_relabel_swap_tangent_angles_within_loosened_fit_asymmetry_tol
     actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
     expected = _PRE_ITEM_TANGENT_ANGLES_DEG[_MODE4_CASE_ID]
     assert actual == pytest.approx(expected, abs=1e-2), (
-        f"mode4_relabel_swap: tangent_angles_deg {actual} moved by more than "
+        f"relabel_swap: tangent_angles_deg {actual} moved by more than "
         f"abs=1e-2 from {expected} -- item 131 AC3 measured this curve's "
         f"spline-fit-asymmetry residual at 6.563e-03 deg on a reversing "
         f"curve; a larger move is a convention difference, not fit "
@@ -665,6 +665,20 @@ _NON_CORPUS_REQUIRED_ARTIFACTS: Tuple[str, ...] = (
 )
 
 
+def _as_of_record_path(path: str) -> str:
+    """Map a live geometric fixture path back to the id it carried when
+    ``docs/corpus-s-axis-correction.md`` was written (item 143, pre-item-157)
+    -- the record is a dated, verbatim comparison and is never rewritten
+    (spec A4), so the live side is mapped back through
+    ``RENAMED_CASE_IDS`` instead."""
+    for old, new in RENAMED_CASE_IDS.items():
+        if f"/{new}_seg.nii.gz" in path or f"/{new}_scan.nii.gz" in path:
+            return path.replace(f"/{new}_seg.nii.gz", f"/{old}_seg.nii.gz").replace(
+                f"/{new}_scan.nii.gz", f"/{old}_scan.nii.gz"
+            )
+    return path
+
+
 def _required_artifact_paths() -> Set[str]:
     geo_manifest = json.loads((_REPO_ROOT / "tests" / "corpus" / "manifest.json").read_text(encoding="utf-8"))
     intensity_manifest = json.loads(
@@ -672,8 +686,8 @@ def _required_artifact_paths() -> Set[str]:
     )
     paths: Set[str] = {"tests/corpus/manifest.json", "tests/corpus/intensity/manifest.json"}
     for case in geo_manifest["cases"]:
-        paths.add(f"tests/corpus/{case['scan_fixture']}")
-        paths.add(f"tests/corpus/{case['seg_fixture']}")
+        paths.add(_as_of_record_path(f"tests/corpus/{case['scan_fixture']}"))
+        paths.add(_as_of_record_path(f"tests/corpus/{case['seg_fixture']}"))
     for case in intensity_manifest["cases"]:
         paths.add(f"tests/corpus/intensity/{case['scan_fixture']}")
         paths.add(f"tests/corpus/intensity/{case['seg_fixture']}")

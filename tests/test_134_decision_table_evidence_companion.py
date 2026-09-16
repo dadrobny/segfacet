@@ -78,6 +78,8 @@ from pathlib import Path
 
 import pytest
 
+from segfacet.synth.corpus import RENAMED_CASE_IDS
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _TESTS_DIR = Path(__file__).resolve().parent
 _DOC_PATH = _REPO_ROOT / "docs" / "aide" / "golden-decision-table.md"
@@ -85,17 +87,11 @@ _COMPANION_PATH = _REPO_ROOT / "docs" / "aide" / "golden_evidence.generated.json
 _GITATTRIBUTES = _REPO_ROOT / ".gitattributes"
 _AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 
-_GOLDEN_CASE_IDS = (
-    "clean_control",
-    "mode1_displace",
-    "mode2_fragment",
-    "mode3_inject_islands",
-    "mode4_relabel_swap",
-    "mode5_remove_level",
-    "mode6_crop_at_border",
-    "mode7_sequence_break",
-    "mode8_force_overlap",
-)
+#: Only ever used below for a retired-row fixture-path suffix match (files
+#: item 126 deleted under their pre-item-157 names), so this stays the
+#: historical id, reached through the mapping rather than a literal
+#: (item 157). ``clean_control`` was never mode-prefixed.
+_GOLDEN_CASE_IDS = ("clean_control",) + tuple(RENAMED_CASE_IDS.keys())
 
 #: Pinned merge-base commit for AC10 -- deliberately NOT a live `git
 #: merge-base HEAD aide/queue-018`. Per

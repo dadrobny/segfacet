@@ -103,8 +103,8 @@ def _arr(cid: str) -> np.ndarray:
     return np.asanyarray(loaded_seg_image(_CASES[cid]).dataobj)
 
 
-_CAND_ARRAY = _arr("mode1_displace")
-_CAND_RECORD = extract_feature_record(loaded_seg_image(_CASES["mode1_displace"]), _CONFIG)
+_CAND_ARRAY = _arr("displace")
+_CAND_RECORD = extract_feature_record(loaded_seg_image(_CASES["displace"]), _CONFIG)
 
 
 def _spy(calls: dict, key: str, real):
@@ -286,7 +286,7 @@ def test_ac4_evaluate_cohort_calls_compute_overlap_once_per_candidate_case(monke
             candidate=_arr(cid),
             expected={"expected_verdict": "pass"},
         )
-        for cid in ("clean_control", "mode1_displace")
+        for cid in ("clean_control", "displace")
     ]
     # A candidate-less case must not call compute_overlap at all.
     cases.append(
@@ -404,7 +404,7 @@ def test_ac5_evaluate_case_output_matches_slow_path_without_per_mode():
 def test_ac5_evaluate_cohort_output_matches_slow_path_recomputation():
     harness = _harness_mod()
 
-    fixture_ids = ("clean_control", "mode1_displace")
+    fixture_ids = ("clean_control", "displace")
     cases = [
         harness.EvaluationCase(
             case_id=cid,
