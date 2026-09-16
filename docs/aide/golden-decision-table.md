@@ -179,6 +179,8 @@ signed text.
 | tests/corpus/fixtures/mode6_crop_at_border_seg.nii.gz | The mode6_crop_at_border corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/mode7_sequence_break_seg.nii.gz | The mode7_sequence_break corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/mode8_force_overlap_seg.nii.gz | The mode8_force_overlap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice), and is also read by test_094's AC3 loader-invariance snapshot. | tests/test_040_synthetic_corpus.py, tests/test_094_tptbox_image_layer.py | n/a | keep | — |
+| tests/corpus/fixtures/fuse_adjacent_seg.nii.gz | The fuse_adjacent corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/remove_level_relabel_seg.nii.gz | The remove_level_relabel corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/intensity/manifest.json | The Stage-8 intensity corpus index (case ids, scan/seg fixture paths, expected finding metadata) is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
 | tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz | The clean-HU intensity fixture scan is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
 | tests/corpus/intensity/fixtures/clean_spine_seg.nii.gz | The intensity corpus's shared clean spine segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
@@ -287,6 +289,10 @@ with the reason it earns its keep rather than following Group A:
   not a report snapshot.
 - `tests/corpus/fixtures/mode8_force_overlap_seg.nii.gz` — input fixture, not
   a report snapshot; also underlies test_094's loader-invariance snapshot.
+- `tests/corpus/fixtures/fuse_adjacent_seg.nii.gz` — input fixture, not a
+  report snapshot (added by item 150, 2026-09-14).
+- `tests/corpus/fixtures/remove_level_relabel_seg.nii.gz` — input fixture,
+  not a report snapshot (added by item 150, 2026-09-14).
 - `tests/corpus/intensity/manifest.json` — an input index, not a report
   snapshot; generator reproducibility only.
 - `tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz` — input fixture, not

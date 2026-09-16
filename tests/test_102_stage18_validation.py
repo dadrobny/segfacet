@@ -498,11 +498,15 @@ def test_ac11_aggregate_dice_does_not_attribute_what_per_mode_does(block_c):
 
 
 def test_ac12_rendered_txt_names_the_implicated_mode_in_words(block_c):
+    # Item 150: the Stage-18 surface still renders the pre-sign-off names,
+    # frozen in LEGACY_STAGE18_MODE_NAMES.
+    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+
     txt = block_c["txt"]
-    assert FAILURE_MODE_NAMES[1] in txt
+    assert LEGACY_STAGE18_MODE_NAMES[1] in txt
     assert "unanchored_foreground_fraction" in txt
     for mode in range(1, 9):
-        assert FAILURE_MODE_NAMES[mode] in txt
+        assert LEGACY_STAGE18_MODE_NAMES[mode] in txt
 
 
 def test_ac13_confounding_modes_are_off_baseline(block_c):

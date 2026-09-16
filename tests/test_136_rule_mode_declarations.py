@@ -12,14 +12,29 @@ Covers Acceptance Criteria AC1-AC14:
         offending field.
 - AC3:  the seam is total over the shipped registry -- ten rules, every one
         carrying a ``RuleModeDeclaration`` instance.
-- AC4:  the six corroborated rules declare exactly the corpus-designated
-        modes, tagged ``"corpus"``.
+- AC4:  the six corroborated rules declare exactly the modes the sign-off
+        assigns them, with non-empty free-form evidence -- reconciled by item
+        147, which retires the reserved ``"corpus"`` evidence tag (evidence is
+        provenance prose now, not a validated membership test), and again by
+        item 150, whose sign-off (2026-09-14) re-homed five of the six onto
+        new mode ids and made ``border`` mode-less (it records the
+        ``fov_truncation`` **condition**, not a failure mode).
 - AC5:  the four contested rules are declared, not pending -- reconciled by
         item 137, which dispositioned all four (two analytic mode-2, two
         mode-less); see the reconciliation notes on the affected tests below.
-- AC6:  declarations and the corpus-derived map agree on this tree.
-- AC7:  a corpus-designated mode a rule fails to declare is reported.
-- AC8:  a declared mode no corpus case supports is reported.
+- AC6:  declarations and the corpus-derived map agree on this tree --
+        reconciled by item 150, whose ``rule_declaration_conflicts()`` treats
+        a corpus-designated ``(rule, mode)`` pair as agreeing when the
+        specification records that rule in one of the mode's corpus cases'
+        ``expected_firing`` (a recorded co-detection), not only when the
+        rule's own declaration carries the mode.
+- AC7:  a corpus-designated mode a rule fails to declare is reported --
+        reconciled by item 150 onto the two directions that can still fire
+        (see the note on the AC7 tests below).
+- AC8:  a declared mode no corpus case supports is reported -- reconciled by
+        item 147 onto the surviving surplus-mode direction, against
+        ``segfacet.failure_modes.SPECIFICATION``'s key set (the retired
+        ``"corpus"``-tagged declaration -> corpus branch was the old one).
 - AC9:  an undeclared registered rule registers cleanly and is reported.
 - AC10: this item moves no attribution for the six corpus-corroborated rules
         (declared ⊆ corpus-derived) -- reconciled by item 137 to that
@@ -38,9 +53,8 @@ Covers Acceptance Criteria AC1-AC14:
 
 Adversarial / edge-case scenarios included: the full ill-formed-construction
 table (all-empty, multi-state, unordered/duplicate/out-of-range/non-int
-modes, empty/non-string evidence elements); a ``"corpus"``-tagged declaration
-carrying an extra free-form evidence tag still binds the declared->corpus
-direction; an entry with no consuming rules gains no ``"rule_declaration"``
+modes, empty/non-string evidence elements); an entry with no consuming rules
+gains no ``"rule_declaration"``
 tag; an anchor path whose consuming rules declare no modes keeps
 ``("per_mode_metric",)`` unchanged; the expected-artifact-movement counts,
 reconciled for item 137 (0 ``rule_unmapped``, 86 empty); determinism of
@@ -78,13 +92,23 @@ def _catalogue():
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
+# The six rules item 136 dispositioned from committed-corpus corroboration,
+# with the modes each one declares after the item-150 sign-off, as revised
+# 2026-09-15 (sixteen modes: coverage carries 6 "vertebra not segmented" --
+# mode 10 is now "skipped level label", label-only and proposed, with no
+# rule; fragmentation carries 1 "segmentation
+# accuracy" and 4 "islands"; mislabel and sequence carry 9 "out-of-order
+# label sequence"; overlap carries 15 "overlapping segments").
+# `border` is now mode-less on purpose: it records the `fov_truncation`
+# condition (`segfacet.failure_modes.CONDITIONS`), which is not a failure
+# mode, so it maps to the empty tuple here and is asserted mode-less below.
 _CORROBORATED = {
-    "border": (6,),
-    "coverage": (5,),
-    "fragmentation": (2, 3),
-    "mislabel": (1, 4),
-    "overlap": (8,),
-    "sequence": (7,),
+    "border": (),
+    "coverage": (6,),
+    "fragmentation": (1, 4),
+    "mislabel": (9,),
+    "overlap": (15,),
+    "sequence": (9,),
 }
 _CONTESTED = ("bounds", "intensity", "reference_delta", "intensity_reference_delta")
 
@@ -118,8 +142,18 @@ def test_ac1_is_frozen_dataclass():
 
 
 def test_ac1_field_names():
+    """Reconciled (item 148, 2026-09-04): ``RuleModeDeclaration`` gains
+    ``consumed_paths`` (the per-path signal/bookkeeping/not-read
+    classification), additively -- see
+    ``tests/test_148_per_path_mode_attribution.py``'s own AC2."""
     names = {f.name for f in dataclasses.fields(rule_mod.RuleModeDeclaration)}
-    assert names == {"modes", "evidence", "mode_less_reason", "pending_reason"}
+    assert names == {
+        "modes",
+        "evidence",
+        "mode_less_reason",
+        "pending_reason",
+        "consumed_paths",
+    }
 
 
 def test_ac1_unset_fields_default_empty():
@@ -223,24 +257,73 @@ def test_ac3_no_rule_inherits_the_abc_none_default():
 
 
 # =========================================================================== #
-# AC4: the six corroborated rules declare exactly the corpus-designated modes
+# AC4: the six corroborated rules declare exactly the signed-off modes
 # =========================================================================== #
 
 
 @pytest.mark.parametrize("rule_id, modes", sorted(_CORROBORATED.items()))
-def test_ac4_corroborated_rule_declares_corpus_modes(rule_id, modes):
+def test_ac4_corroborated_rule_declares_its_signed_off_modes(rule_id, modes):
+    """Reconciled (item 147, 2026-09-04): the reserved ``"corpus"`` evidence
+    tag is retired -- each corroborated rule's evidence is now free-form
+    provenance naming the manifest/case, asserted here as non-empty rather
+    than matched against the retired literal.
+
+    Reconciled again (item 150, 2026-09-14): the maintainer sign-off
+    re-organised the catalogue, so the modes are the signed-off ids, and
+    ``border`` is dispositioned mode-less (it records the ``fov_truncation``
+    condition). Every non-``border`` rule keeps item 136's shape -- declared
+    modes, non-empty evidence, neither reason set."""
     decl = _RULES[rule_id].mode_declaration
     assert decl.modes == modes
-    assert "corpus" in decl.evidence
-    assert decl.mode_less_reason == ""
     assert decl.pending_reason == ""
+    if modes:
+        assert decl.evidence, (rule_id, decl.evidence)
+        assert decl.mode_less_reason == ""
+    else:
+        assert decl.mode_less_reason, rule_id
+        assert "fov_truncation" in decl.mode_less_reason, decl.mode_less_reason
 
 
-def test_ac4_corroborated_modes_match_measured_corpus_map():
+def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
+    """Reconciled (item 150, 2026-09-14). Item 136's claim was equality --
+    each corroborated rule declares *exactly* the modes the committed corpus
+    designates for it. The sign-off separates the two: a corpus case's
+    ``expected_firing`` now records co-detections as well as the mode's own
+    intended rules, so ``coverage``, ``fragmentation`` and ``mislabel`` are
+    each designated one mode more than they declare. The claim that survives,
+    pair by pair, is that every corpus-designated mode is *accounted for* --
+    declared by the rule, or recorded in the specification as a co-detection
+    on one of that mode's corpus cases -- and that the split is the one the
+    sign-off documents, asserted here as an exact partition so a mode
+    silently moving between the two halves fails."""
+    import segfacet.failure_modes as fm
+
     catalogue = _catalogue()
     corpus_map = catalogue.scan_synth_rule_mode_map()
-    for rule_id, modes in _CORROBORATED.items():
-        assert corpus_map.get(rule_id) == modes, rule_id
+
+    # (rule_id, mode) pairs the corpus designates that the rule does NOT
+    # declare, each one a co-detection the sign-off records deliberately.
+    # Revised 2026-09-15: mode 2 is "fused vertebra segments" (fuse_adjacent),
+    # which neither coverage nor fragmentation declares; mode 1 still carries
+    # mode1_displace, which mislabel detects only as a co-detection
+    # (fragmentation's mode-1 designation is now declared, via mode2_fragment).
+    expected_co_detections = {
+        ("coverage", 2),  # fuse_adjacent fires coverage alongside fragmentation
+        ("fragmentation", 2),  # ... and fragmentation, neither declaring mode 2
+        ("mislabel", 1),  # mode1_displace is detected only as a co-detection
+    }
+
+    measured_co_detections = set()
+    for rule_id, declared in _CORROBORATED.items():
+        designated = set(corpus_map.get(rule_id, ()))
+        for mode in sorted(designated - set(declared)):
+            recorded = any(
+                rule_id in case.expected_firing for case in fm.SPECIFICATION[mode].corpus_cases
+            )
+            assert recorded, (rule_id, mode)
+            measured_co_detections.add((rule_id, mode))
+
+    assert measured_co_detections == expected_co_detections
 
 
 # =========================================================================== #
@@ -276,15 +359,36 @@ def test_ac6_rule_declaration_conflicts_empty_on_this_tree():
     assert catalogue.rule_declaration_conflicts() == ()
 
 
-def test_ac6_every_corpus_designated_mode_is_in_the_declaration():
+def test_ac6_every_corpus_designated_mode_is_declared_or_a_recorded_co_detection():
+    """Reconciled (item 150, 2026-09-14): membership in the rule's own
+    ``modes`` is no longer the only way a corpus-designated mode agrees --
+    ``catalogue.rule_declaration_conflicts()`` also accepts a co-detection the
+    specification records, i.e. the rule appears in one of that mode's corpus
+    cases' ``expected_firing``. Both halves must be non-empty on this tree, so
+    neither branch of the disjunction can rot unnoticed."""
+    import segfacet.failure_modes as fm
+
     catalogue = _catalogue()
     corpus_map = catalogue.scan_synth_rule_mode_map()
     assert corpus_map, "expected a non-empty corpus-derived rule->mode map"
+
+    by_declaration = 0
+    by_co_detection = 0
     for rule_id, modes in corpus_map.items():
         decl = rule_mod.declaration_for(rule_id)
         assert decl is not None, rule_id
         for mode in modes:
-            assert mode in decl.modes, (rule_id, mode)
+            if mode in decl.modes:
+                by_declaration += 1
+                continue
+            assert mode in fm.SPECIFICATION, (rule_id, mode)
+            assert any(
+                rule_id in case.expected_firing for case in fm.SPECIFICATION[mode].corpus_cases
+            ), (rule_id, mode)
+            by_co_detection += 1
+
+    assert by_declaration, "expected at least one mode carried by the declaration itself"
+    assert by_co_detection, "expected at least one mode carried only by a recorded co-detection"
 
 
 # =========================================================================== #
@@ -292,11 +396,45 @@ def test_ac6_every_corpus_designated_mode_is_in_the_declaration():
 # =========================================================================== #
 
 
+def _specification_without_co_detection(rule_id):
+    """A copy of ``SPECIFICATION`` with ``rule_id`` struck from every corpus
+    case's ``expected_firing``, so the item-150 co-detection exemption in
+    ``catalogue.rule_declaration_conflicts()`` cannot absorb the corpus ->
+    declaration direction AC7 exercises. Every mode id is preserved, because
+    the surplus-declared-mode direction (AC8) reads the same key set."""
+    import segfacet.failure_modes as fm
+
+    rebuilt = {}
+    for mode_id, mode in fm.SPECIFICATION.items():
+        cases = tuple(
+            dataclasses.replace(
+                case,
+                expected_firing=tuple(r for r in case.expected_firing if r != rule_id),
+            )
+            for case in mode.corpus_cases
+        )
+        rebuilt[mode_id] = dataclasses.replace(mode, corpus_cases=cases)
+    return rebuilt
+
+
 def test_ac7_dropped_corpus_mode_is_reported_naming_both(monkeypatch):
+    """Reconciled (item 150, 2026-09-14): a corpus-designated ``(rule, mode)``
+    pair the rule does not declare is now exempt when the specification
+    records that rule in one of the mode's corpus cases' ``expected_firing``.
+    Both sides of that comparison are read off the same ``expected_firing``
+    data on the shipped tree, so dropping a live declaration alone no longer
+    produces a conflict (see this module's closing note). The direction is
+    still real, and this test still exercises it: the specification is
+    monkeypatched so the co-detection is *not* recorded, and the conflict
+    must then be reported naming both the rule and the mode."""
+    import segfacet.failure_modes as fm
+
     catalogue = _catalogue()
     corpus_map = catalogue.scan_synth_rule_mode_map()
-    rule_id, modes = next((rid, m) for rid, m in corpus_map.items() if m)
+    rule_id, modes = next((rid, m) for rid, m in sorted(corpus_map.items()) if m)
     dropped_mode = modes[0]
+
+    monkeypatch.setattr(fm, "SPECIFICATION", _specification_without_co_detection(rule_id))
 
     rule = _RULES[rule_id]
     replacement = rule_mod.RuleModeDeclaration(
@@ -309,21 +447,69 @@ def test_ac7_dropped_corpus_mode_is_reported_naming_both(monkeypatch):
     assert any(rule_id in msg and str(dropped_mode) in msg for msg in conflicts), conflicts
 
 
+def test_ac7_corpus_designated_rule_no_rule_registers_is_reported(monkeypatch):
+    """The other half of the corpus -> declaration direction, and the half
+    that still fires against the shipped tree unaided (item 147 rewrote it to
+    iterate the corpus map rather than the registry, precisely so a corpus
+    case naming a rule that does not exist is reported rather than skipped).
+    Added at item 150 because the exemption above now absorbs the sibling
+    half on this tree."""
+    catalogue = _catalogue()
+    corpus_map = catalogue.scan_synth_rule_mode_map()
+    rule_id = next(rid for rid in sorted(corpus_map) if rid in _RULES)
+
+    registry = {rid: r for rid, r in _RULES.items() if rid != rule_id}
+    monkeypatch.setattr(rule_mod, "_RULES", registry)
+
+    conflicts = catalogue.rule_declaration_conflicts()
+    assert conflicts, "expected at least one conflict"
+    assert any(rule_id in msg and "no rule registers" in msg for msg in conflicts), conflicts
+
+
+# Note (item 150, 2026-09-14), recorded where the next reader of AC7 will
+# look: on the shipped tree the co-detection exemption absorbs the corpus ->
+# declaration direction entirely. ``scan_synth_rule_mode_map()`` derives
+# "corpus designates mode M for rule R" from the ``Expectation(...)`` literals
+# in ``src/segfacet/synth/*.py`` -- R appears in the ``expected_rule_ids`` of a
+# case whose ``failure_mode`` is M -- and the exemption derives "recorded
+# co-detection" from R appearing in the ``expected_firing`` of one of mode M's
+# ``SPECIFICATION`` corpus cases. ``specification_conflicts()`` requires those
+# two to agree, so the exemption set is a superset of the designated set for
+# every rule, and no live (rule, mode) pair can be reported. Hence the
+# monkeypatched specification above.
+
+
 # =========================================================================== #
-# AC8: a declared mode no corpus case supports is reported
+# AC8: a declared mode the specification does not list is reported
 # =========================================================================== #
 
 
 def test_ac8_surplus_declared_mode_is_reported_naming_both(monkeypatch):
+    """Reconciled (item 147, 2026-09-04). This test used to add a mode the
+    **corpus map** does not designate and rely on the ``"corpus"``-tagged
+    declaration -> corpus branch of ``rule_declaration_conflicts()`` to
+    report it. Item 147 retires both the reserved tag and that branch (the
+    claim they stood for is data now -- the per-edge ``evidence_rung`` in
+    ``segfacet.failure_modes.SPECIFICATION``), so the surplus-mode direction
+    that survives is against the **specification's key set**: a rule
+    declaring a mode the specification does not list is still reported,
+    naming both the rule_id and the mode. Same force, live source. The
+    complementary "an intended rule declares no such mode" direction is
+    item 147's own
+    ``tests/test_147_specification_is_the_record.py::test_ac13_...``.
+    """
+    import segfacet.failure_modes as fm
+
     catalogue = _catalogue()
-    corpus_map = catalogue.scan_synth_rule_mode_map()
     rule_id = "sequence"
-    corpus_modes = set(corpus_map.get(rule_id, ()))
-    surplus_mode = next(m for m in range(1, 9) if m not in corpus_modes)
-    new_modes = tuple(sorted(corpus_modes | {surplus_mode}))
+    declared_modes = set(_RULES[rule_id].mode_declaration.modes)
+    surplus_mode = next(m for m in range(1, 1000) if m not in set(fm.SPECIFICATION))
+    new_modes = tuple(sorted(declared_modes | {surplus_mode}))
 
     rule = _RULES[rule_id]
-    replacement = rule_mod.RuleModeDeclaration(modes=new_modes, evidence=("corpus",))
+    replacement = rule_mod.RuleModeDeclaration(
+        modes=new_modes, evidence=("test-evidence-item147",)
+    )
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     conflicts = catalogue.rule_declaration_conflicts()
@@ -331,24 +517,17 @@ def test_ac8_surplus_declared_mode_is_reported_naming_both(monkeypatch):
     assert any(rule_id in msg and str(surplus_mode) in msg for msg in conflicts), conflicts
 
 
-def test_adv_corpus_tag_plus_other_tag_still_binds_ac8_direction(monkeypatch):
-    """A2: "corpus" plus another free-form tag still binds the declared ->
-    corpus direction -- the reserved tag need not be the only one."""
-    catalogue = _catalogue()
-    corpus_map = catalogue.scan_synth_rule_mode_map()
-    rule_id = "sequence"
-    corpus_modes = set(corpus_map.get(rule_id, ()))
-    surplus_mode = next(m for m in range(1, 9) if m not in corpus_modes)
-    new_modes = tuple(sorted(corpus_modes | {surplus_mode}))
-
-    rule = _RULES[rule_id]
-    replacement = rule_mod.RuleModeDeclaration(
-        modes=new_modes, evidence=("corpus", "analytic-note")
-    )
-    monkeypatch.setattr(rule, "mode_declaration", replacement)
-
-    conflicts = catalogue.rule_declaration_conflicts()
-    assert any(rule_id in msg and str(surplus_mode) in msg for msg in conflicts), conflicts
+# Reconciled (item 147, 2026-09-04): `test_adv_corpus_tag_plus_other_tag_still_
+# binds_ac8_direction` was removed here. It exercised the declared -> corpus
+# direction gated on `if "corpus" in decl.evidence:` in
+# `catalogue.rule_declaration_conflicts()` -- item 147 step 8 deletes that
+# branch outright (the reserved "corpus" tag is retired, not hardened), so
+# the direction it proved ("corpus" plus another tag still binds) no longer
+# exists to prove. Its force is carried forward by item 147's own
+# `test_ac13_intended_rule_whose_rule_declares_no_such_mode_is_reported`
+# (`tests/test_147_specification_is_the_record.py`), which is the surviving
+# check that an over-claimed mode is still reported, now from the
+# specification side.
 
 
 # =========================================================================== #
@@ -404,21 +583,17 @@ def test_ac9_checker_reports_the_undeclared_rule(isolated_registry):
 # corpus-designated modes -- is containment for declarations tagged
 # ``"corpus"`` specifically. Item 137's own analytic-vs-corpus distinction is
 # tested in ``tests/test_137_mode_less_rule_disposition.py``.
+#
+# Reconciled again for item 147 (2026-09-04): the reserved ``"corpus"``
+# evidence tag itself is retired -- no shipped declaration carries it any
+# more (AC20), so ``test_ac10_corpus_tagged_declared_modes_subset_of_corpus_
+# map``'s ``checked`` guard would find zero corpus-tagged declarations and
+# fail on its own vacuity check, not on a real regression. Removed here;
+# item 146's `_CORROBORATED` containment claim (every corroborated rule
+# declares exactly the corpus-designated modes) is still exercised by
+# ``test_ac4_corroborated_modes_match_measured_corpus_map`` above, which
+# never depended on the tag.
 # =========================================================================== #
-
-
-def test_ac10_corpus_tagged_declared_modes_subset_of_corpus_map():
-    catalogue = _catalogue()
-    corpus_map = catalogue.scan_synth_rule_mode_map()
-    checked = False
-    for rule in iter_rules():
-        decl = rule.mode_declaration
-        if "corpus" not in decl.evidence:
-            continue
-        checked = True
-        allowed = set(corpus_map.get(rule.rule_id, ()))
-        assert set(decl.modes) <= allowed, (rule.rule_id, decl.modes, allowed)
-    assert checked, "expected at least one corpus-tagged declaration"
 
 
 # =========================================================================== #
@@ -427,12 +602,19 @@ def test_ac10_corpus_tagged_declared_modes_subset_of_corpus_map():
 
 
 def test_ac11_rule_declaration_tag_present_iff_declared_modes_contributed():
+    """Reconciled (item 148, 2026-09-04): "contributed" now means "through a
+    ``signal``-classified path" -- a rule declaring modes still leaves no
+    ``rule_declaration`` tag on a path it only reaches ``bookkeeping`` or
+    ``not-read``."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     assert cat.entries, "expected a non-empty catalogue"
     for entry in cat.entries:
+        role_by_rule = dict(entry.mode_roles)
         has_declared_modes = any(
-            (decl := rule_mod.declaration_for(rid)) is not None and decl.modes
+            role_by_rule.get(rid) == "signal"
+            and (decl := rule_mod.declaration_for(rid)) is not None
+            and decl.modes
             for rid in entry.consuming_rules
         )
         assert ("rule_declaration" in entry.mode_evidence) == has_declared_modes, entry.path
@@ -447,10 +629,22 @@ def test_ac11_mode_evidence_is_canonical_order_subsequence():
     disposition, layered on top of any declared-mode attribution). The
     invariant that still holds -- and is the one item 137's own AC11 states
     -- is that mode_evidence is always a subsequence of the canonical
-    four-tag order (per_mode_metric, rule_mode_map, rule_declaration,
-    rule_mode_less), or exactly ("rule_unmapped",)."""
+    tag order (per_mode_metric, rule_mode_map, rule_declaration,
+    rule_mode_less), or exactly ("rule_unmapped",).
+
+    Reconciled again (item 148, 2026-09-04): the canonical order grows two
+    more tags, "rule_bookkeeping" and "rule_not_read", appended last -- the
+    per-path classification's own evidence sources, layered on top of
+    whichever mode-level tags already applied."""
     catalogue = _catalogue()
-    canonical_order = ("per_mode_metric", "rule_mode_map", "rule_declaration", "rule_mode_less")
+    canonical_order = (
+        "per_mode_metric",
+        "rule_mode_map",
+        "rule_declaration",
+        "rule_mode_less",
+        "rule_bookkeeping",
+        "rule_not_read",
+    )
     cat = catalogue.build_catalogue(strict=True)
     tagged = [e for e in cat.entries if "rule_declaration" in e.mode_evidence]
     assert tagged, "expected at least one entry tagged with rule_declaration"
@@ -505,7 +699,13 @@ def test_ac12_failure_modes_recomputed_independently_matches():
     item 137's two analytic declarations (``bounds``, ``reference_delta``)
     contribute mode 2 to ``failure_modes`` with no corpus case behind them
     (A6) -- the two-term recomputation from item 136 under-counts those
-    paths after this item."""
+    paths after this item.
+
+    Reconciled again (item 148, 2026-09-04): a rule's corpus-derived and
+    declared modes now reach ``failure_modes`` only through a path this rule
+    classifies ``"signal"`` (``CatalogueEntry.mode_roles``) -- the per-path
+    role gate this item adds. A ``bookkeeping``/``not-read`` path no longer
+    inherits its consuming rule's whole mode tuple."""
     catalogue = _catalogue()
     import segfacet.feature_docs as feature_docs_module
 
@@ -519,10 +719,13 @@ def test_ac12_failure_modes_recomputed_independently_matches():
 
     assert cat.entries, "expected a non-empty catalogue"
     for entry in cat.entries:
+        role_by_rule = dict(entry.mode_roles)
         anchor_modes = anchor_modes_by_path.get(entry.path, set())
         corpus_rule_modes: set = set()
         declared_rule_modes: set = set()
         for rule_id in entry.consuming_rules:
+            if role_by_rule.get(rule_id) != "signal":
+                continue
             corpus_rule_modes.update(corpus_map.get(rule_id, ()))
             decl = rule_mod.declaration_for(rule_id)
             if decl is not None:
@@ -537,6 +740,8 @@ def test_ac12_failure_modes_recomputed_independently_matches():
 
 
 def test_ac13_catalogue_artifacts_regenerate_byte_identically(tmp_path):
+    """Reconciled (item 148, 2026-09-04): ``schema_version`` moves
+    ``"1.1"`` -> ``"1.2"`` with the ``mode_roles`` shape."""
     catalogue = _catalogue()
     json_dest = tmp_path / "feature_catalogue.generated.json"
     md_dest = tmp_path / "feature_catalogue.generated.md"
@@ -554,7 +759,7 @@ def test_ac13_catalogue_artifacts_regenerate_byte_identically(tmp_path):
     assert fresh_md_bytes == committed_md.read_bytes()
 
     payload = json.loads(fresh_json_bytes)
-    assert payload["schema_version"] == "1.1"
+    assert payload["schema_version"] == "1.2"
 
 
 def test_adv_expected_artifact_movement_counts_from_spec():
@@ -569,7 +774,14 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     0 remain ("rule_unmapped",) (measured 2026-09-02, item 137's "Expected
     artifact movement"). Both measurements are of the same artifact at two
     points in its history; this test now pins item 137's figures, which
-    supersede item 136's above."""
+    supersede item 136's above.
+
+    Reconciled again (item 148, 2026-09-04): the per-path classification
+    moves 25 of 138 entries' ``failure_modes``/``mode_evidence`` (item 148's
+    A5), but neither of the two figures this test still pins: the 86-entry
+    ``()`` bucket and the 0-entry ``("rule_unmapped",)`` bucket are untouched
+    by that movement (measured against item 148's own regenerated artifact) --
+    this test re-verifies both hold, it does not re-measure them."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries

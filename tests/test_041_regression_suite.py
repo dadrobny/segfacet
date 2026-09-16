@@ -65,7 +65,18 @@ _CASES = _MANIFEST["cases"]
 _COMMITTED_CASE_IDS = {c["case_id"] for c in _CASES}
 
 _PIPELINE_CASES = [c for c in _CASES if c["detection"] == "pipeline"]
-_NON_CLEAN_PIPELINE_CASES = [c for c in _PIPELINE_CASES if c["failure_mode"] != 0]
+# Item 150: a failure-mode case may designate NO rule ("not detected today",
+# e.g. remove_level_relabel), and a failure_mode-0 case may carry a condition
+# (mode6_crop_at_border) and designate one -- the designation, not the mode
+# id, decides which check applies.
+_NON_CLEAN_PIPELINE_CASES = [
+    c
+    for c in _PIPELINE_CASES
+    if (c["failure_mode"] != 0 or c.get("condition")) and c["expected_rule_ids"]
+]
+_UNDETECTED_PIPELINE_CASES = [
+    c for c in _PIPELINE_CASES if c["failure_mode"] != 0 and not c["expected_rule_ids"]
+]
 _RECONSTRUCTED_CASES = [c for c in _CASES if c["detection"] == "reconstructed_record"]
 
 _VALID_DETECTIONS = {"pipeline", "reconstructed_record"}
@@ -155,6 +166,16 @@ def test_ac5_designated_heuristic_fires_for_pipeline_cases(case):
     designated_rule_fired(case) is True."""
     assert _NON_CLEAN_PIPELINE_CASES  # sanity: subset is non-trivial
     assert designated_rule_fired(case) is True
+
+
+@pytest.mark.parametrize("case", _UNDETECTED_PIPELINE_CASES, ids=_case_id)
+def test_ac5_undetected_failure_case_fires_nothing_and_verifies(case):
+    """Item 150: a failure-mode case designating no rule is honest only if
+    plain run_qc fires nothing on it; verify_case encodes exactly that."""
+    assert _UNDETECTED_PIPELINE_CASES  # sanity: remove_level_relabel exists
+    assert designated_rule_fired(case) is False
+    assert pipeline_findings(case) == ()
+    assert verify_case(case) is True
 
 
 @pytest.mark.parametrize("case", _NON_CLEAN_PIPELINE_CASES, ids=_case_id)

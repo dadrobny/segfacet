@@ -80,9 +80,17 @@ from segfacet.synth.regression import loaded_seg_image
 #: moved here in item 120, which promoted a held-out per-label spline offset
 #: into the pipeline itself. Mode 4 moved here in item 132 (2026-08-31),
 #: which judges monotonicity against a traversal-ordered reference fit.
-_PIPELINE_DETECTABLE_MODES = (1, 2, 3, 4, 5, 6, 7)
-#: Sec.6 modes documented as structurally invisible to the plain pipeline.
-_RECONSTRUCTED_RECORD_MODES = (8,)
+#: Re-keyed 2026-09-15 (item 150's catalogue revision): modes 1 (displace,
+#: fragment), 2 (fuse), 4 (islands), 6 (remove_level) and 9 (relabel swap,
+#: sequence break) have >=1 corpus case detected by plain run_qc; mode 6's
+#: other case (remove_level_relabel) designates no rule and expects "pass", so
+#: it is not an expected-failure record at all; mode 10 ("skipped level
+#: label") has no corpus case; the crop case files under failure_mode 0 with
+#: the fov_truncation condition.
+_PIPELINE_DETECTABLE_MODES = (1, 2, 4, 6, 9)
+#: Modes documented as structurally invisible to the plain pipeline (overlap,
+#: mode 15 since item 150's 2026-09-15 catalogue revision).
+_RECONSTRUCTED_RECORD_MODES = (15,)
 
 
 # =========================================================================== #
@@ -165,24 +173,27 @@ def test_ac9_pipeline_detectable_mode_sensitivity_is_one(mode):
 @pytest.mark.parametrize("mode", _RECONSTRUCTED_RECORD_MODES)
 def test_reconstructed_record_modes_are_not_over_claimed_as_caught(mode):
     """Documents (does not over-claim) the Assumptions' honesty guarantee:
-    mode 8 is structurally invisible to the plain pipeline, so its
-    designated rule never fires here and per-mode sensitivity is 0.0, not
-    1.0 -- distinct from AC9's positive claim for modes 1/2/3/4/5/6/7."""
+    the overlap mode (15; vision.md Sec.6's mode 8) is structurally
+    invisible to the plain pipeline, so its designated rule never fires here
+    and per-mode sensitivity is 0.0, not 1.0 -- distinct from AC9's positive
+    claim for ``_PIPELINE_DETECTABLE_MODES``."""
     metrics = _corpus_cohort_metrics()
     entry = _per_mode(metrics, mode)
     assert entry.n_cases > 0
     assert entry.sensitivity == 0.0
 
 
-def test_overall_corpus_sensitivity_is_seven_of_eight_not_over_claimed():
-    """Renamed and updated 2026-08-31 (item 132): overall cohort sensitivity
-    (TP / (TP + FN)) is 7/8 -- the seven pipeline-detectable failures caught
-    (item 120 promoted mode 1's held-out per-label spline offset into the
-    pipeline; item 132 judges mode 4's monotonicity against a
-    traversal-ordered reference fit), the one reconstructed-record mode
-    (mode 8) missed -- not 1.0 (Assumptions). Was 6/8 before item 132."""
+def test_overall_corpus_sensitivity_is_eight_of_nine_not_over_claimed():
+    """Updated 2026-09-14 (item 150), unchanged by its 2026-09-15 catalogue
+    revision: overall cohort sensitivity
+    (TP / (TP + FN)) is 8/9 over the re-organised corpus -- nine
+    expected-failure records (the fov_truncation condition case files under
+    failure_mode 0 and still expects a verdict; remove_level_relabel expects
+    "pass" and is not an expected-failure record), eight caught, the one
+    reconstructed-record mode (overlap, mode 15) missed -- not 1.0
+    (Assumptions). Was 7/8 from item 132 to item 150, 6/8 before item 132."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(7.0 / 8.0)
+    assert metrics.sensitivity == pytest.approx(8.0 / 9.0)
 
 
 # =========================================================================== #
@@ -338,10 +349,11 @@ def test_ac12_serialized_report_is_identical_across_two_runs():
 
 def test_ac13_calibration_recovers_a_feasible_best_candidate(tmp_path):
     """Restricts the objective's per-mode floor check to the five
-    pipeline-detectable Sec.6 modes (Assumptions): modes 1/4/8 never meet
-    their designated rule under the plain pipeline regardless of the swept
+    pipeline-detectable modes (Assumptions): the reconstructed-record
+    overlap mode never meets its designated rule under the plain pipeline
+    regardless of the swept
     ``reference_delta`` threshold (a separate rule family entirely), so
-    including them in the floor check would make every grid candidate
+    including it in the floor check would make every grid candidate
     infeasible by construction -- not a meaningful calibration outcome."""
     config = bundled_default_config()
     cases = _build_corpus_cohort()

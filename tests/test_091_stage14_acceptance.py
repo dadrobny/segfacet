@@ -88,18 +88,22 @@ from segfacet.synth.regression import loaded_seg_image
 _LEVELS = ("L1", "L2", "L3", "L4", "L5")
 
 #: item 057's recorded per-mode baseline (Assumptions A3): the five
-#: pipeline-detectable Sec.6 modes at sensitivity 1.0.
-_BASELINE_MODES = (2, 3, 5, 6, 7)
+#: pipeline-detectable operators at sensitivity 1.0. Re-keyed 2026-09-15
+#: (item 150's catalogue revision): those five operators now file under
+#: modes 1 (fragment), 4 (inject_islands), 6 (remove_level), 9
+#: (sequence_break) and the fov_truncation condition (crop_at_border), which
+#: the eval harness groups under failure_mode 0.
+_BASELINE_MODES = (0, 1, 4, 6, 9)
 
 #: One representative pipeline-detectable perturbation operator per baseline
 #: mode (see src/segfacet/synth/{component_shape,coverage_border_overlap,
 #: identity_ordering_alignment}.py's ``failure_mode=`` assignments).
 _PIPELINE_DETECTABLE_OPERATORS = (
-    ("fragment", 2),
-    ("inject_islands", 3),
-    ("remove_level", 5),
-    ("crop_at_border", 6),
-    ("sequence_break", 7),
+    ("fragment", 1),
+    ("inject_islands", 4),
+    ("remove_level", 6),
+    ("crop_at_border", 0),
+    ("sequence_break", 9),
 )
 
 #: The Sec.6-detecting rule families an "over-loosened" config disables to
@@ -213,9 +217,11 @@ def per_mode_sensitivity(cases, config, *, failure_modes) -> "Dict[int, float]":
 
 
 def sensitivity_baseline() -> "Dict[int, float]":
-    """Item 057's recorded baseline: ``{2: 1.0, 3: 1.0, 5: 1.0, 6: 1.0, 7:
-    1.0}`` (the 5 pipeline-detectable Sec.6 modes). Does NOT include modes
-    1/4/8 (structurally invisible -- never claimed)."""
+    """Item 057's recorded baseline -- the five pipeline-detectable operators
+    at sensitivity 1.0 -- re-keyed at item 150's catalogue revision
+    (2026-09-15) to the modes they file under: ``{0: 1.0, 1: 1.0, 4: 1.0,
+    6: 1.0, 9: 1.0}`` (0 is the fov_truncation condition case). Does NOT
+    include the structurally invisible overlap mode (15) -- never claimed."""
     return {mode: 1.0 for mode in _BASELINE_MODES}
 
 
@@ -458,8 +464,8 @@ def test_ac5_clean_held_out_standin_measures_fpr_zero(tmp_path):
 
 def test_ac6_sensitivity_baseline_matches_item_057():
     baseline = sensitivity_baseline()
-    assert baseline == {2: 1.0, 3: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}
-    assert set(baseline).isdisjoint({1, 4, 8})
+    assert baseline == {0: 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}
+    assert set(baseline).isdisjoint({15})
 
 
 # =========================================================================== #
@@ -483,11 +489,11 @@ def test_ac7_shipped_default_reproduces_baseline_on_corpus(mode):
 @pytest.mark.parametrize(
     "achieved, expected",
     [
-        pytest.param({2: 1.0, 3: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}, False, id="exact-match"),
-        pytest.param({2: 0.5, 3: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}, True, id="one-mode-half"),
-        pytest.param({2: 0.0, 3: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}, True, id="one-mode-zero"),
-        pytest.param({3: 1.0, 5: 1.0, 6: 1.0, 7: 1.0}, True, id="one-mode-absent"),
-        pytest.param({2: 1.0, 3: 1.0, 5: 1.0, 6: 1.0, 7: None}, True, id="one-mode-none"),
+        pytest.param({0: 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}, False, id="exact-match"),
+        pytest.param({0: 1.0, 1: 1.0, 4: 0.5, 6: 1.0, 9: 1.0}, True, id="one-mode-half"),
+        pytest.param({0: 1.0, 1: 1.0, 4: 0.0, 6: 1.0, 9: 1.0}, True, id="one-mode-zero"),
+        pytest.param({0: 1.0, 1: 1.0, 6: 1.0, 9: 1.0}, True, id="one-mode-absent"),
+        pytest.param({0: 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: None}, True, id="one-mode-none"),
     ],
 )
 def test_ac8_sensitivity_regressed_truth_table(achieved, expected):
@@ -549,7 +555,7 @@ def test_ac10_per_mode_sensitivity_deterministic_and_non_mutating():
 
 
 def test_ac10_sensitivity_regressed_deterministic_and_non_mutating():
-    achieved = {2: 1.0, 3: 1.0, 5: 0.5, 6: 1.0, 7: 1.0}
+    achieved = {0: 1.0, 1: 1.0, 4: 0.5, 6: 1.0, 9: 1.0}
     baseline = sensitivity_baseline()
     achieved_before = dict(achieved)
     baseline_before = dict(baseline)

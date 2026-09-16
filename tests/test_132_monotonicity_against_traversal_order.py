@@ -190,7 +190,7 @@ _PRE_ITEM_U_VALUES = {
     "mode2_fragment": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
     "mode3_inject_islands": [0.000049227, 0.250369752, 0.500000000, 0.749630248, 0.999950773],
     "mode5_remove_level": [0.000000561, 0.250621894, 0.749378106, 0.999999440],
-    "mode6_crop_at_border": [0.000000561, 0.237035382, 0.500000024, 0.762964618, 0.999999440],
+    "mode6_crop_at_border": [0.000000561, 0.237035382, 0.499999976, 0.762964618, 0.999999440],
     "mode7_sequence_break": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
     "mode8_force_overlap": [0.000061555, 0.165598814, 0.437861146, 0.718006432, 0.999999440],
 }
@@ -206,10 +206,26 @@ def test_ac4_no_clean_case_u_values_move(case_id):
     )
 
 
+#: Corpus cases added *after* this item measured the u-value table above, so
+#: this item never recorded u-values for them. Added by item 150
+#: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
+#: coverage for modes 2 and 4. The table is deliberately not extended with
+#: values item 132 never measured; the uncovered set is pinned exactly
+#: instead, so a *third* uncovered case still fails this test.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel"}
+
+
 def test_ac4_pre_item_table_covers_every_non_mode4_manifest_case():
     manifest = load_manifest()
     case_ids = {c["case_id"] for c in manifest["cases"]} - {"mode4_relabel_swap"}
-    assert set(_PRE_ITEM_U_VALUES) == case_ids
+    uncovered = case_ids - set(_PRE_ITEM_U_VALUES)
+    assert uncovered == _ADDED_AFTER_ITEM, (
+        f"corpus cases with no pre-item u-value measurement: {sorted(uncovered)}"
+    )
+    assert set(_PRE_ITEM_U_VALUES) <= case_ids, (
+        "pre-item u-value table names cases the corpus no longer has: "
+        f"{sorted(set(_PRE_ITEM_U_VALUES) - case_ids)}"
+    )
 
 
 # =========================================================================== #
@@ -477,30 +493,52 @@ def test_ac19_fixtures_regenerate_byte_identically(tmp_path):
 def test_ac20_test_040_detection_partition_reconciled():
     import test_040_synthetic_corpus as t040
 
-    assert t040._RECONSTRUCTED_MODES == {8}
-    assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 3, 4, 5, 6, 7}
+    # Re-keyed 2026-09-15 (item 150's catalogue revision): the modes were
+    # renumbered -- overlap is mode 15, and the pipeline-only set is the
+    # remaining designated modes plus the mode-less clean/condition cases.
+    # Mode 10 (skipped level label) has no corpus case; mode5_remove_level
+    # is mode 6's.
+    assert t040._RECONSTRUCTED_MODES == {15}
+    assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 4, 6, 9}
     t040.test_ac8_modes_4_8_reconstructed_record_rest_pipeline()
 
 
 # =========================================================================== #
-# AC21/AC22: mode 4 claimed caught at full sensitivity; honest overall 7/8
-# (test_057)
+# AC21/AC22: the relabel-swap case is claimed caught at full sensitivity; the
+# overall corpus sensitivity stays honestly below 1.0 (test_057)
 # =========================================================================== #
 
 
-def test_ac21_test_057_mode4_claimed_caught_at_full_sensitivity():
+def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
+    """The swap case's failure-mode id is read from the manifest rather than
+    hard-coded: item 150 renumbered the catalogue, moving
+    ``mode4_relabel_swap`` from mode 4 to mode 6 on 2026-09-14 and then to
+    mode 9 (out-of-order label sequence) on 2026-09-15, and overlap from
+    mode 8 to 9 and then 15. What AC21 pins is that *this case's*
+    mode is claimed pipeline-detectable at sensitivity 1.0, not the number
+    that mode happened to carry in 2026-08-31's numbering."""
     import test_057_acceptance_stage7 as t057
 
-    assert 4 in t057._PIPELINE_DETECTABLE_MODES
-    assert t057._RECONSTRUCTED_RECORD_MODES == (8,)
-    t057.test_ac9_pipeline_detectable_mode_sensitivity_is_one(4)
+    swap_mode = next(
+        c["failure_mode"]
+        for c in load_manifest()["cases"]
+        if c["case_id"] == "mode4_relabel_swap"
+    )
+    assert swap_mode in t057._PIPELINE_DETECTABLE_MODES
+    assert swap_mode not in t057._RECONSTRUCTED_RECORD_MODES
+    t057.test_ac9_pipeline_detectable_mode_sensitivity_is_one(swap_mode)
 
 
-def test_ac22_overall_corpus_sensitivity_is_seven_of_eight():
+def test_ac22_overall_corpus_sensitivity_is_not_over_claimed():
+    """AC22's subject is the honesty of the overall number, not its value:
+    catching the swap case must not be reported as catching everything. The
+    exact fraction is owned by test_057 (8/9 as of item 150, 2026-09-14) and
+    delegated to rather than copied here."""
     import test_057_acceptance_stage7 as t057
 
+    t057.test_overall_corpus_sensitivity_is_eight_of_nine_not_over_claimed()
     metrics = t057._corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(7.0 / 8.0)
+    assert metrics.sensitivity < 1.0
 
 
 # =========================================================================== #
@@ -714,9 +752,7 @@ def test_ac30_golden_decision_table_untouched_vs_base():
     127) flags a raw fresh-vs-committed byte/hash comparison, and this
     document is deliberately excluded from its allowlist (it is read-only
     prose, never regenerated) -- see ``tests/committed_artifact_guard.py``'s
-    module docstring and ``test_126``'s
-    ``test_ac22_guard_module_absent_from_this_items_diff`` for the same
-    idiom.
+    module docstring.
     """
     result = run_utf8(
         [

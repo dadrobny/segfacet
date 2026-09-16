@@ -360,6 +360,16 @@ def _rule_label_pairs(findings) -> list:
 _MANIFEST_CASES = load_manifest()["cases"]
 _REFERENCE_SHA = _reference_sha()
 
+#: Cases item 150 (2026-09-14) added to the corpus; no pre-migration golden
+#: exists for them at ``_REFERENCE_GOLDEN_SHA``, so the identity comparison
+#: below runs over the original nine only. Asserted present so the exclusion
+#: cannot silently widen.
+_ITEM_150_NEW_CASES = frozenset({"fuse_adjacent", "remove_level_relabel"})
+assert _ITEM_150_NEW_CASES <= {c["case_id"] for c in _MANIFEST_CASES}
+_REFERENCE_MANIFEST_CASES = [
+    c for c in _MANIFEST_CASES if c["case_id"] not in _ITEM_150_NEW_CASES
+]
+
 
 #: Item 120 makes the per-vertebra spline offset a held-out measurement,
 #: which deliberately adds a ``mislabel`` finding on label 22 to these two
@@ -383,7 +393,7 @@ _ITEM_132_NEW_MISLABEL_CASES = frozenset({"mode4_relabel_swap"})
     _REFERENCE_SHA is None,
     reason="reference commit aeb2f55 not present in this clone",
 )
-@pytest.mark.parametrize("case", _MANIFEST_CASES, ids=lambda c: c["case_id"])
+@pytest.mark.parametrize("case", _REFERENCE_MANIFEST_CASES, ids=lambda c: c["case_id"])
 def test_ac7_case_identity_preserved_vs_merge_base(case):
     """AC7: the freshly-built report's (rule_id, sorted labels) pairs match
     the pre-migration committed golden's exactly -- numeric feature values may
@@ -442,9 +452,24 @@ def _build_corpus_cohort():
 
 
 def test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one():
+    """AC8 concerns the ``mode6_crop_at_border`` case (vision.md Sec.6's old
+    mode 6). Since item 150 that case carries ``failure_mode == 0`` plus the
+    ``fov_truncation`` condition, so the eval harness groups it under
+    failure_mode 0 -- where it is the only expected-failure record (the
+    clean control expects "pass"). The per-mode entry is checked there, and
+    the crop case's own outcome is pinned so the bucket cannot be satisfied
+    by some other case."""
+    from segfacet.eval.outcome import Outcome
+
     cohort = evaluate_cohort(_build_corpus_cohort(), bundled_default_config())
+    crop_case = next(c for c in _MANIFEST_CASES if c["case_id"] == "mode6_crop_at_border")
+    assert crop_case["failure_mode"] == 0
+    assert crop_case["condition"] == "fov_truncation"
+    crop_record = next(c for c in cohort.cases if c.case_id == "mode6_crop_at_border")
+    assert crop_record.outcome.outcome is Outcome.TRUE_POSITIVE
+
     metrics = compute_cohort_metrics(cohort, failure_modes=FAILURE_MODE_NAMES)
-    entry = next(m for m in metrics.per_mode if m.failure_mode == 6)
+    entry = next(m for m in metrics.per_mode if m.failure_mode == 0)
     assert entry.n_cases > 0
     assert entry.sensitivity == 1.0
 

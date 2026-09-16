@@ -28,8 +28,9 @@ Adversarial / edge cases covered:
 - The format fixture present but drifted by one key fails with a message
   naming the drift.
 - ``write_goldens(tmp)`` into an already-populated directory is still
-  idempotent, and ``main(["--out", tmp])`` still returns 0 and writes nine
-  files -- the harness works, only the committed store is gone.
+  idempotent, and ``main(["--out", tmp])`` still returns 0 and writes one
+  file per corpus case -- the harness works, only the committed store is
+  gone.
 - A regenerated report and the format fixture's hand-built report share no
   float value, so a future edit cannot quietly re-couple the two.
 """
@@ -499,7 +500,7 @@ _RE_POINTED = (
     ("tests/test_120_leave_one_out_offset.py", "test_ac17_threshold_margins_hold_on_corpus"),
     ("tests/test_120_leave_one_out_offset.py", "test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged"),
     ("tests/test_121_tangent_orientation.py", "test_ac10_principal_axis_within_0996_of_left_right_on_every_golden"),
-    ("tests/test_121_tangent_orientation.py", "test_ac10_principal_axis_exactly_left_right_on_seven_of_nine_cases"),
+    ("tests/test_121_tangent_orientation.py", "test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions"),
     ("tests/test_122_signed_curvature.py", "test_ac20_new_curvature_keys_present_in_every_committed_golden"),
     ("tests/test_123_recalibrate_and_regenerate.py", "test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons"),
     ("tests/test_123_recalibrate_and_regenerate.py", "_interior_offset_ceiling_over_corpus"),
@@ -578,14 +579,23 @@ def test_ac15_main_with_no_out_exits_nonzero_and_creates_nothing(tmp_path, monke
     )
 
 
-def test_ac15_main_with_out_still_writes_nine_files(tmp_path):
+def test_ac15_main_with_out_still_writes_one_file_per_corpus_case(tmp_path):
+    """The count is derived from the corpus manifest, not hard-coded: item 150
+    (2026-09-14) added `fuse_adjacent` and `remove_level_relabel`, taking the
+    corpus from nine cases to eleven. What AC15 pins is the one-file-per-case
+    relationship, which a frozen literal only pinned by accident."""
     from segfacet.synth import golden as golden_mod
+
+    expected_stems = {case["case_id"] for case in _run_manifest_cases()}
+    assert len(expected_stems) >= 9, "corpus manifest unexpectedly shrank"
 
     out_dir = tmp_path / "regen"
     returncode = golden_mod.main(["--out", str(out_dir)])
     assert returncode == 0
     written = sorted(out_dir.glob("*.json"))
-    assert len(written) == 9, f"expected 9 regenerated files, got {len(written)}: {written}"
+    assert {p.stem for p in written} == expected_stems, (
+        f"expected one regenerated file per corpus case, got {written}"
+    )
 
 
 # =========================================================================== #
@@ -879,7 +889,26 @@ def test_adv_ac19_section1_row_naming_absent_path_with_no_log_line_fails():
 # =========================================================================== #
 
 
-def test_ac20_test105_inventory_constant_is_20():
+def _on_disk_non_py_fixtures() -> set:
+    """The live non-.py fixture inventory under tests/ -- the same walk
+    test_105's AC3 performs, recomputed here so AC20 pins test_105's constant
+    against reality rather than against a second frozen copy of it. Item 126
+    reconciled that constant to 20 (30 surveyed 2026-08-30, minus the eleven
+    retired snapshots, plus the one new format-contract fixture); item 150
+    (2026-09-14) added the `fuse_adjacent` and `remove_level_relabel` corpus
+    segmentations, taking it to 22."""
+    found = set()
+    for path in _TESTS_DIR.rglob("*"):
+        if not path.is_file() or path.suffix == ".py":
+            continue
+        parts = set(path.relative_to(_TESTS_DIR).parts)
+        if "__pycache__" in parts or ".pytest_cache" in parts:
+            continue
+        found.add(path.relative_to(_REPO_ROOT).as_posix())
+    return found
+
+
+def test_ac20_test105_inventory_constant_is_current():
     module = "tests/test_105_golden_decision_table.py"
     tree = _module_ast(module)
     source = _function_source(tree, "test_ac3_current_tree_has_30_non_py_fixtures", where=module)
@@ -893,9 +922,10 @@ def test_ac20_test105_inventory_constant_is_20():
         f"{module}::test_ac3_current_tree_has_30_non_py_fixtures has no "
         "assert statement to check"
     )
-    assert re.search(r"\b20\b", assertion_lines), (
+    live_count = len(_on_disk_non_py_fixtures())
+    assert re.search(rf"\b{live_count}\b", assertion_lines), (
         f"{module}::test_ac3_current_tree_has_30_non_py_fixtures does not "
-        "reference the post-retirement inventory count of 20"
+        f"reference the current inventory count of {live_count}"
     )
     assert not re.search(r"\b30\b", assertion_lines), (
         f"{module}::test_ac3_current_tree_has_30_non_py_fixtures still "
@@ -904,14 +934,7 @@ def test_ac20_test105_inventory_constant_is_20():
 
 
 def test_ac20_section1_fixtures_and_filesystem_agree_modulo_execution_log():
-    on_disk = set()
-    for path in _TESTS_DIR.rglob("*"):
-        if not path.is_file() or path.suffix == ".py":
-            continue
-        parts = set(path.relative_to(_TESTS_DIR).parts)
-        if "__pycache__" in parts or ".pytest_cache" in parts:
-            continue
-        on_disk.add(path.relative_to(_REPO_ROOT).as_posix())
+    on_disk = _on_disk_non_py_fixtures()
 
     rows = _section1_rows()
     documented = [r["fixture"] for r in rows]
@@ -1114,13 +1137,13 @@ def test_adv_write_goldens_idempotent_over_populated_directory(tmp_path):
         assert p.exists()
 
 
-def test_adv_main_out_flag_returns_zero_and_writes_nine_files(tmp_path):
+def test_adv_main_out_flag_returns_zero_and_writes_one_file_per_corpus_case(tmp_path):
     from segfacet.synth.golden import main
 
     out_dir = tmp_path / "regen2"
     assert main(["--out", str(out_dir)]) == 0
     written = list(out_dir.glob("*.json"))
-    assert len(written) == 9
+    assert len(written) == len(_run_manifest_cases())
 
 
 # =========================================================================== #

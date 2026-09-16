@@ -92,7 +92,12 @@ import math
 from typing import Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.verdict import Severity
 
 __all__ = ["MislabelRule"]
@@ -169,7 +174,101 @@ class MislabelRule(Rule):
     # RelabelSwapPerturbation designates mode 4
     # (src/segfacet/synth/identity_ordering_alignment.py), both via
     # Expectation(..., expected_rule_ids={"mislabel"}).
-    mode_declaration = RuleModeDeclaration(modes=(1, 4), evidence=("corpus",))
+    mode_declaration = RuleModeDeclaration(
+        modes=(9,),
+        evidence=(
+            "corpus-manifest",
+            "tests/corpus/manifest.json's mode4_relabel_swap designates "
+            "this rule for mode 9 (out-of-order label sequence) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15) via Detector B "
+            "(ordering). Detector A (spline offset) serves NO failure mode "
+            "since that sign-off: the offset from the spinal curve is an "
+            "anatomy-classification signal (spondylolisthesis, scoliosis), "
+            "so its firing on mode1_displace and on the FOV-truncation "
+            "condition's fixture mode6_crop_at_border is a recorded "
+            "co-detection, and its read paths are classified bookkeeping "
+            "below rather than attributed to mode 9.",
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: scanned by _label_for_level to resolve a "
+                    "non-monotonic pair's level names back to integer label "
+                    "ids for the finding's labels set; the offsets carry the "
+                    "evidence"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.monotonic_consistency.non_monotonic_pairs[]",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].dx_mm",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation only (the ', predominantly "
+                    "<axis>' clause), and read by Detector A, which serves "
+                    "no failure mode since item 150"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].dy_mm",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation only (the ', predominantly "
+                    "<axis>' clause), and read by Detector A, which serves "
+                    "no failure mode since item 150"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].dz_mm",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation only (the ', predominantly "
+                    "<axis>' clause), and read by Detector A, which serves "
+                    "no failure mode since item 150"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].is_terminal",
+                role="bookkeeping",
+                reason=(
+                    "gate: detector A's terminal exemption, which "
+                    "suppresses a finding rather than evidencing one"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].label",
+                role="bookkeeping",
+                reason=(
+                    "identity: the label id carried into the finding's "
+                    "labels set"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].level_name",
+                role="bookkeeping",
+                reason=(
+                    "identity and message interpolation: names the level "
+                    "in the finding"
+                ),
+            ),
+            ConsumedPath(
+                path="stage3.per_label_offsets[].offset_mm",
+                role="bookkeeping",
+                reason=(
+                    "Detector A's firing signal, and Detector A serves no "
+                    "failure mode since item 150 (the spline offset is an "
+                    "anatomy-classification signal); it cannot evidence "
+                    "mode 6, which Detector B decides on "
+                    "non_monotonic_pairs[]"
+                ),
+            ),
+        ),
+    )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
         """Evaluate mislabel / misalignment signals for *record*.

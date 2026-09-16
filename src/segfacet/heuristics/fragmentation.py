@@ -64,7 +64,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.verdict import Severity
 
 if TYPE_CHECKING:  # pragma: no cover - type-only import, no runtime dependency
@@ -271,7 +276,59 @@ class FragmentationRule(Rule):
     # designate mode 2, InjectIslandsPerturbation designates mode 3
     # (src/segfacet/synth/component_shape.py), all via
     # Expectation(..., expected_rule_ids={"fragmentation"}).
-    mode_declaration = RuleModeDeclaration(modes=(2, 3), evidence=("corpus",))
+    mode_declaration = RuleModeDeclaration(
+        modes=(1, 4),
+        evidence=(
+            "corpus-manifest",
+            "tests/corpus/manifest.json's mode2_fragment designates this "
+            "rule for mode 1 (segmentation accuracy: a vertebra cut into "
+            "large same-label pieces) and mode3_inject_islands for mode 4 "
+            "(islands) of the catalogue signed off at item 150 "
+            "(2026-09-14, revised 2026-09-15) -- the Fragmentation: "
+            "detector for the first, the Rogue island(s): detector for the "
+            "second. The per-mode evidence claims are the per-edge rungs in "
+            "segfacet.failure_modes.SPECIFICATION[1] and [4].",
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: iterated to reach each label's components "
+                    "block"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.components.component_count",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.components.component_sizes[]",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.components.fragmentation_index",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.components.largest_component_fraction",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.components.stray_component_sizes[]",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "identity and message interpolation: names the level "
+                    "in the finding; the components values carry the "
+                    "fragmentation evidence"
+                ),
+            ),
+        ),
+    )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
         """Evaluate fragmentation and island/excess checks for every label in

@@ -43,7 +43,12 @@ from typing import Dict, List
 
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.fov import derive_fov_coverage
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.verdict import Severity
 
 __all__ = ["BorderRule"]
@@ -120,7 +125,95 @@ class BorderRule(Rule):
     # §6 mode 6 (item 136): CropAtBorderPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) designates "border" for
     # mode 6 via its Expectation(failure_mode=6, expected_rule_ids={"border"}).
-    mode_declaration = RuleModeDeclaration(modes=(6,), evidence=("corpus",))
+    mode_declaration = RuleModeDeclaration(
+        mode_less_reason=(
+            "records the FOV-truncation CONDITION, not a failure mode: the "
+            "item-150 sign-off (2026-09-14) retired 'partial vertebra at "
+            "the image border' from the failure catalogue into "
+            "segfacet.failure_modes.CONDITIONS['fov_truncation'], because a "
+            "truncated vertebra is a property of the scan that gates other "
+            "rules, not a defect of the segmentation. "
+            "tests/corpus/manifest.json's mode6_crop_at_border is that "
+            "condition's fixture."
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: iterated to reach each label's geometry "
+                    "block; the container itself carries no border "
+                    "evidence"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_anterior",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_inferior",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_left",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_posterior",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_right",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_superior",
+                role="condition-signal",
+                reason=(
+                    "evidence of the fov_truncation CONDITION this rule "
+                    "records (item 150), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "gate and message interpolation: compared against "
+                    "derive_fov_coverage's end levels to exempt an "
+                    "expected terminal face; never mode-6 evidence itself"
+                ),
+            ),
+            ConsumedPath(
+                path="relationships.present_levels[]",
+                role="bookkeeping",
+                reason=(
+                    "gate: the same FOV-span derivation that decides which "
+                    "terminal face is expected; the touched face is the "
+                    "evidence"
+                ),
+            ),
+        ),
+    )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
         """Evaluate border contact for *record*.

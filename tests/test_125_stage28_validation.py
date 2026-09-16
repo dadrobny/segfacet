@@ -438,7 +438,7 @@ def _pipeline_detected_modes_excluding_clean_control() -> set:
     }
 
 
-def test_ac15_manifest_pipeline_detected_mode_count_is_seven():
+def test_ac15_manifest_pipeline_detected_mode_count_is_five():
     """Pin FLIPPED 2026-08-31 (item 132): mode 4 moved from
     ``reconstructed_record`` to ``pipeline`` detection, so the pipeline-
     detected count (excluding the mode-0 clean control) rises from 6 to 7
@@ -446,9 +446,16 @@ def test_ac15_manifest_pipeline_detected_mode_count_is_seven():
     outside item 132's authorised edit list for this module (only the AC7
     pin and its module-docstring line were authorised there) -- see that
     item's Decisions log, 2026-08-31."""
+    # Re-pinned 2026-09-15 (item 150's catalogue revision): the
+    # pipeline-detection cases now file under modes 1 (displace, fragment),
+    # 2 (fuse), 4 (islands), 6 (remove_level, and remove_level_relabel --
+    # detection="pipeline" but designating no rule) and 9 (relabel swap,
+    # sequence break); mode 10 ("skipped level label") has no corpus case,
+    # the crop case is a failure_mode-0 condition case, and overlap
+    # (reconstructed_record) is mode 15.
     modes = _pipeline_detected_modes_excluding_clean_control()
-    assert len(modes) == 7, modes
-    assert modes == {1, 2, 3, 4, 5, 6, 7}
+    assert len(modes) == 5, modes
+    assert modes == {1, 2, 4, 6, 9}
 
 
 def test_ac15_agrees_with_test_040_mode_sets():
@@ -468,7 +475,11 @@ def test_ac15_agrees_with_test_057_pipeline_detectable_modes():
     import test_057_acceptance_stage7 as t057
 
     manifest_pipeline_modes = _pipeline_detected_modes_excluding_clean_control()
-    assert manifest_pipeline_modes == set(t057._PIPELINE_DETECTABLE_MODES)
+    # test_057's constant names the modes with a DETECTED case (sensitivity
+    # 1.0). Since item 150's 2026-09-15 revision every pipeline-typed mode
+    # has one: mode 6's remove_level_relabel case is undetected, but its
+    # remove_level case is caught.
+    assert set(t057._PIPELINE_DETECTABLE_MODES) == manifest_pipeline_modes
 
 
 # =========================================================================== #

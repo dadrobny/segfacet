@@ -31,7 +31,12 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.verdict import Severity
 
 __all__ = ["SequenceRule"]
@@ -105,7 +110,56 @@ class SequenceRule(Rule):
     # (src/segfacet/synth/identity_ordering_alignment.py) designates
     # "sequence" for mode 7 via its Expectation(failure_mode=7,
     # expected_rule_ids={"sequence"}).
-    mode_declaration = RuleModeDeclaration(modes=(7,), evidence=("corpus",))
+    mode_declaration = RuleModeDeclaration(
+        modes=(9,),
+        evidence=(
+            "corpus-manifest",
+            "tests/corpus/manifest.json's mode7_sequence_break designates "
+            "this rule for mode 9 (out-of-order label sequence) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15): the fixture relabels one vertebra to the "
+            "transitional label T13, and this rule fires on the resulting "
+            "non-monotonic sequence. The mode 9 <-> sequence evidence claim "
+            "is the per-edge rung in segfacet.failure_modes.SPECIFICATION[9].",
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: iterated to resolve level names back to "
+                    "label ids for the finding's labels set"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.label",
+                role="bookkeeping",
+                reason=(
+                    "identity: the label id a resolved level name maps to"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "identity: matched against the out-of-order level "
+                    "names to recover their label ids"
+                ),
+            ),
+            ConsumedPath(
+                path="relationships",
+                role="bookkeeping",
+                reason=(
+                    "container: the block the out-of-order list is read "
+                    "from"
+                ),
+            ),
+            ConsumedPath(
+                path="relationships.out_of_order_labels[]",
+                role="signal",
+            ),
+        ),
+    )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
         """Evaluate sequence continuity for *record*.

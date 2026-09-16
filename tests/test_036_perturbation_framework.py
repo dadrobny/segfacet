@@ -215,6 +215,36 @@ def test_ac14_to_dict_scalar_fields_verbatim():
     assert d["expected_verdict"] == "fail"
 
 
+def test_expectation_condition_defaults_empty_and_round_trips_through_to_dict():
+    """Item 150 (2026-09-14) added the ``condition`` field, which records the
+    ``failure_modes.CONDITIONS`` entry a case exhibits. It defaults to ""
+    (so every pre-existing construction stays a mode-only expectation) and
+    to_dict() carries it, which is what the corpus manifest's own
+    ``condition`` key is written from."""
+    without = Expectation(
+        failure_mode=8,
+        failure_mode_name=FAILURE_MODE_NAMES[8],
+        expected_rule_ids=frozenset({"overlap"}),
+        expected_labels=frozenset({20}),
+        expected_verdict="fail",
+    )
+    assert without.condition == ""
+    assert without.to_dict()["condition"] == ""
+
+    with_condition = Expectation(
+        failure_mode=0,
+        failure_mode_name="FOV truncation",
+        expected_rule_ids=frozenset({"border"}),
+        expected_labels=frozenset({22}),
+        expected_verdict="flagged-for-review",
+        condition="fov_truncation",
+    )
+    assert with_condition.to_dict()["condition"] == "fov_truncation"
+    assert json.loads(json.dumps(with_condition.to_dict()))["condition"] == (
+        "fov_truncation"
+    )
+
+
 def test_ac14_to_dict_is_json_dumpable():
     """AC14: json.dumps accepts the to_dict() output."""
     exp = Expectation(

@@ -725,11 +725,30 @@ _PRE_129_FINDINGS = {
 }
 
 
+#: Corpus cases added *after* this item measured the table above, so this
+#: item never recorded a pre-item finding set for them. Added by item 150
+#: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
+#: coverage for modes 2 and 4. The table is deliberately not extended with
+#: values item 129 never measured; instead the uncovered set is pinned
+#: exactly, so a *third* uncovered case still fails this test.
+_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel"}
+
+
 def test_ac29_no_corpus_case_changes_findings():
     manifest = load_manifest()
-    assert set(_PRE_129_FINDINGS) == {c["case_id"] for c in manifest["cases"]}
+    case_ids = {c["case_id"] for c in manifest["cases"]}
+    assert case_ids - set(_PRE_129_FINDINGS) == _ADDED_AFTER_129, (
+        "corpus cases with no item-129 pre-item finding set: "
+        f"{sorted(case_ids - set(_PRE_129_FINDINGS))}"
+    )
+    assert set(_PRE_129_FINDINGS) <= case_ids, (
+        "item-129 table names cases the corpus no longer has: "
+        f"{sorted(set(_PRE_129_FINDINGS) - case_ids)}"
+    )
 
     for case in manifest["cases"]:
+        if case["case_id"] in _ADDED_AFTER_129:
+            continue
         seg_img = loaded_seg_image(case)
         case_result, _features_block = run_qc(seg_img, bundled_default_config())
         pairs = {(f.rule_id, tuple(sorted(f.labels))) for f in case_result.findings}

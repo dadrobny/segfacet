@@ -734,23 +734,13 @@ def test_ac22_allowlist_still_carries_the_integrity_pin_entry():
     )
 
 
-def test_ac22_guard_module_absent_from_this_items_diff():
-    result = None
-    for base_ref in ("origin/aide/queue-018", "aide/queue-018"):
-        result = run_utf8(
-            ["git", "diff", "--name-only", f"{base_ref}...HEAD", "--"],
-            cwd=_REPO_ROOT,
-            timeout=30,
-        )
-        if result.returncode == 0:
-            break
-    if result is None or result.returncode != 0:
-        pytest.skip(f"git diff against the recorded base is unavailable: {result.stderr if result else 'no ref resolved'}")
-    changed = {line.strip() for line in result.stdout.splitlines() if line.strip()}
-    assert "tests/committed_artifact_guard.py" not in changed, (
-        "tests/committed_artifact_guard.py appears in this item's diff, but "
-        "AC22 requires it stay untouched"
-    )
+# AC22's diff half ("tests/committed_artifact_guard.py is absent from this
+# item's diff") was a git-diff test against the aide/queue-018 base. That
+# branch is gone, so the test had become a permanent skip. It is retired
+# rather than repointed: a claim about one item's diff belongs to the branch
+# (`aide scope` at merge time, recorded in the item 128 spec's Decisions),
+# not the suite (.aide/conventions/6-test-hygiene.md, "A scope claim about a
+# diff"). The allowlist half above still runs.
 
 
 # =========================================================================== #

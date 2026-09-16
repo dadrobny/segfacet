@@ -316,10 +316,15 @@ def test_ac2_spec_failure_mode_field_matches_its_key(mode):
 
 
 @pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 7, 8])
-def test_ac2_spec_failure_mode_name_matches_failure_mode_names(mode):
+def test_ac2_spec_failure_mode_name_matches_legacy_stage18_names(mode):
+    """Item 150: the Stage-18 surface is still keyed by the pre-sign-off
+    numbering, frozen in ``LEGACY_STAGE18_MODE_NAMES``; ``FAILURE_MODE_NAMES``
+    now carries the signed-off catalogue and must NOT be what this reads."""
     pm = _per_mode()
     spec = pm.PER_MODE_METRIC_SPECS[mode]
-    assert spec.failure_mode_name == FAILURE_MODE_NAMES[mode]
+    assert spec.failure_mode_name == pm.LEGACY_STAGE18_MODE_NAMES[mode]
+    if mode != 8:
+        assert spec.failure_mode_name != FAILURE_MODE_NAMES[mode]
 
 
 # =========================================================================== #
@@ -961,9 +966,17 @@ def _is_diagonal_dominant(matrix, baselines, own_case) -> bool:
     return True
 
 
+# The legacy Stage-18 designated cases (item 150): the isolation matrix is a
+# claim about the eight pre-sign-off modes' own cases plus the clean control,
+# not about the corpus cases item 150 added (fuse_adjacent ties mode 2's
+# metric with mode2_fragment by construction -- both are one label in two
+# comparable components -- and remove_level_relabel ties mode 5's).
+_LEGACY_CASE_IDS = sorted({"clean_control", *_OWN_CASE.values()})
+
+
 def _build_actual_matrix(pm, island_size_ratio: float = 0.10):
     matrix = {m: {} for m in range(1, 9)}
-    for cid in _CASE_IDS:
+    for cid in _LEGACY_CASE_IDS:
         result = pm.compute_per_mode_metrics(
             _record_for(cid),
             candidate=_ARRAYS[cid],

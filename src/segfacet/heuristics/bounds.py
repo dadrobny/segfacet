@@ -28,7 +28,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from segfacet.heuristics.finding import Finding
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.labels import CANONICAL_ORDER
 from segfacet.verdict import Severity
 
@@ -299,14 +304,51 @@ class BoundsRule(Rule):
     # (border), and declaring it here would overstate this rule's coverage.
     # See item 137 Assumptions A2.
     mode_declaration = RuleModeDeclaration(
-        modes=(2,),
+        modes=(1, 2, 3, 4),
         evidence=(
             "analytic",
             "per-label physical volume and x/y/z extent are compared against "
-            "level-aware plausible ranges: a fused pair of vertebrae reads "
-            "over the maximum and an under-segmented or partially-labelled "
-            "vertebra reads under the minimum, which is §6 mode 2's own "
-            "definition (over-/under-segmentation).",
+            "level-aware plausible ranges: an over-segmented vertebra or a "
+            "fused pair reads over the maximum, an under-segmented, split or "
+            "island-depleted vertebra reads under the minimum -- the volume "
+            "proxy for modes 1 (segmentation accuracy), 2 (fused), 3 (split) "
+            "and 4 (islands) of the catalogue signed off at item 150 "
+            "(2026-09-14, revised 2026-09-15); every edge needs-real-data.",
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: iterated to reach each label's geometry "
+                    "block"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.extent_x_mm",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.extent_y_mm",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.extent_z_mm",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.physical_volume_mm3",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "gate: selects the level's expected band (or reference "
+                    "stratum); the deviation is carried by the geometry "
+                    "values"
+                ),
+            ),
         ),
     )
 

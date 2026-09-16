@@ -10,6 +10,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding box in mm, x maximum.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -58,6 +59,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding box in mm, x minimum.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -106,6 +108,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding box in mm, y maximum.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -154,6 +157,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding box in mm, y minimum.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -202,6 +206,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding box in mm, z maximum.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -250,6 +255,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding box in mm, z minimum.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -298,6 +304,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding-box maximum voxel index, x.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -346,6 +353,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding-box minimum voxel index, x.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -394,6 +402,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding-box maximum voxel index, y.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -442,6 +451,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding-box minimum voxel index, y.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -490,6 +500,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding-box maximum voxel index, z.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -538,6 +549,7 @@
           "failure_modes": [],
           "measures": "Axis-aligned bounding-box minimum voxel index, z.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -588,11 +600,20 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3,
+            4
           ],
           "measures": "Physical span of the label along image axis x.",
           "mode_evidence": [
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "bounds",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -651,11 +672,20 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3,
+            4
           ],
           "measures": "Physical span of the label along image axis y.",
           "mode_evidence": [
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "bounds",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -714,11 +744,20 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3,
+            4
           ],
           "measures": "Physical span of the label along image axis z.",
           "mode_evidence": [
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "bounds",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -778,11 +817,20 @@
           ],
           "documented": true,
           "failure_modes": [
-            2
+            1,
+            2,
+            3,
+            4
           ],
           "measures": "Physical volume of the label.",
           "mode_evidence": [
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "bounds",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -840,13 +888,17 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the anterior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "condition-signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -902,13 +954,17 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the inferior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "condition-signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -964,14 +1020,17 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the left image face.",
           "mode_evidence": [
-            "per_mode_metric",
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "condition-signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1027,13 +1086,17 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the posterior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "condition-signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1089,13 +1152,17 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the right image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "condition-signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1151,13 +1218,17 @@
             "border"
           ],
           "documented": true,
-          "failure_modes": [
-            6
-          ],
+          "failure_modes": [],
           "measures": "Whether the label touches the superior image face.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "condition-signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1214,6 +1285,7 @@
           "failure_modes": [],
           "measures": "Number of voxels carrying the label value.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -1273,13 +1345,20 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Number of distinct connected pieces the label is split into.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fragmentation",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1342,13 +1421,20 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Voxel count of each connected component, largest first.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fragmentation",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1407,6 +1493,7 @@
           "failure_modes": [],
           "measures": "Physical volume of each connected component.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 26,
@@ -1458,14 +1545,21 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Alias of largest_component_fraction, exposed under its item-025 public name.",
           "mode_evidence": [
             "per_mode_metric",
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fragmentation",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1526,13 +1620,20 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Fraction of the label's voxels belonging to its single largest piece.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fragmentation",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1589,6 +1690,7 @@
           "failure_modes": [],
           "measures": "Sizes of components below the configured noise threshold.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -1637,6 +1739,7 @@
           "failure_modes": [],
           "measures": "Number of non-dominant (item-098 \"stray\") components.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -1687,14 +1790,21 @@
           ],
           "documented": true,
           "failure_modes": [
+            1,
             2,
-            3
+            4
           ],
           "measures": "Voxel sizes of every non-dominant component.",
           "mode_evidence": [
             "per_mode_metric",
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fragmentation",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -1753,6 +1863,7 @@
           "failure_modes": [],
           "measures": "Fraction of the label's total volume that is non-dominant.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -1801,6 +1912,7 @@
           "failure_modes": [],
           "measures": "Total physical volume of every non-dominant component.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 25,
@@ -1859,6 +1971,7 @@
           "failure_modes": [],
           "measures": "Physical-space centroid.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 75,
@@ -1907,6 +2020,7 @@
           "failure_modes": [],
           "measures": "Mean (x, y, z) voxel-index position of the label's voxels.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 75,
@@ -1956,13 +2070,16 @@
             "sequence"
           ],
           "documented": true,
-          "failure_modes": [
-            7
-          ],
+          "failure_modes": [],
           "measures": "The integer vertebra label this per_label entry describes.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "sequence",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2022,16 +2139,29 @@
             "sequence"
           ],
           "documented": true,
-          "failure_modes": [
-            2,
-            3,
-            6,
-            7
-          ],
+          "failure_modes": [],
           "measures": "Anatomical vertebra name, e.g. \"T8\", \"L3\".",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "bookkeeping"
+            ],
+            [
+              "bounds",
+              "bookkeeping"
+            ],
+            [
+              "fragmentation",
+              "bookkeeping"
+            ],
+            [
+              "sequence",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2109,14 +2239,20 @@
             "sequence"
           ],
           "documented": true,
-          "failure_modes": [
-            5,
-            7
-          ],
+          "failure_modes": [],
           "measures": "Case-level spine relationships, or null for a 0-label map.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "coverage",
+              "bookkeeping"
+            ],
+            [
+              "sequence",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2178,12 +2314,13 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
-            7
+            9
           ],
           "measures": "Whether the levels were labelled in a head-to-tail-consistent order.",
           "mode_evidence": [
             "per_mode_metric"
           ],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -2234,12 +2371,19 @@
           ],
           "documented": true,
           "failure_modes": [
-            5
+            2,
+            6
           ],
           "measures": "Canonical levels absent within the observed present-level span.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "coverage",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2300,6 +2444,7 @@
           "failure_modes": [],
           "measures": "Centroid-to-centroid distance between anatomically adjacent levels.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 19,
@@ -2351,12 +2496,18 @@
           ],
           "documented": true,
           "failure_modes": [
-            7
+            9
           ],
           "measures": "Level names that broke the monotonic canonical-rank check.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "sequence",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2419,14 +2570,26 @@
           ],
           "documented": true,
           "failure_modes": [
-            5,
+            2,
             6
           ],
           "measures": "Recognised anatomical levels, in canonical head-to-tail order.",
           "mode_evidence": [
             "per_mode_metric",
             "rule_mode_map",
-            "rule_declaration"
+            "rule_declaration",
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "bookkeeping"
+            ],
+            [
+              "coverage",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2499,13 +2662,16 @@
             "overlap"
           ],
           "documented": true,
-          "failure_modes": [
-            8
-          ],
+          "failure_modes": [],
           "measures": "The list of overlapping label pairs for this case.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "overlap",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2565,13 +2731,16 @@
             "overlap"
           ],
           "documented": true,
-          "failure_modes": [
-            8
-          ],
+          "failure_modes": [],
           "measures": "The lower integer label of an overlapping pair.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "overlap",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2626,13 +2795,16 @@
             "overlap"
           ],
           "documented": true,
-          "failure_modes": [
-            8
-          ],
+          "failure_modes": [],
           "measures": "The higher integer label of an overlapping pair.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "overlap",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2687,13 +2859,16 @@
             "overlap"
           ],
           "documented": true,
-          "failure_modes": [
-            8
-          ],
+          "failure_modes": [],
           "measures": "Anatomical vertebra name for label_a.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "overlap",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2748,13 +2923,16 @@
             "overlap"
           ],
           "documented": true,
-          "failure_modes": [
-            8
-          ],
+          "failure_modes": [],
           "measures": "Anatomical vertebra name for label_b.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "overlap",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2811,13 +2989,19 @@
           ],
           "documented": true,
           "failure_modes": [
-            8
+            15
           ],
           "measures": "Number of voxels claimed by both labels of the pair.",
           "mode_evidence": [
             "per_mode_metric",
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "overlap",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2879,6 +3063,7 @@
           "failure_modes": [],
           "measures": "Spline parameter (0-1) of the point on the curve nearest this vertebra's centroid.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -2925,14 +3110,16 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Signed x-axis displacement from the fitted spline.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -2985,14 +3172,16 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Signed y-axis displacement from the fitted spline.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -3045,14 +3234,16 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Signed z-axis displacement from the fitted spline.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -3105,14 +3296,16 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Whether this entry is the first or last vertebra of the ordered centroid sequence it was measured in (item 123) -- true for a field-of-view / anatomical end, false for an interior vertebra.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -3169,14 +3362,16 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "The integer label this spline-offset entry describes.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -3229,14 +3424,16 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            4
-          ],
+          "failure_modes": [],
           "measures": "Anatomical vertebra name for this spline-offset entry.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -3292,14 +3489,18 @@
           ],
           "documented": true,
           "failure_modes": [
-            1,
-            4
+            1
           ],
           "measures": "Perpendicular distance from the vertebra's centroid to the fitted spline.",
           "mode_evidence": [
             "per_mode_metric",
-            "rule_mode_map",
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -3308,7 +3509,7 @@
               "informative": true,
               "magnitude": 0.673278,
               "maximum": 0.673278,
-              "minimum": 7.67114e-08,
+              "minimum": 7.67113e-08,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3359,6 +3560,7 @@
           "failure_modes": [],
           "measures": "Anisotropic-aware perpendicular offset.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -3366,7 +3568,7 @@
               "informative": true,
               "magnitude": 0.673278,
               "maximum": 0.673278,
-              "minimum": 7.67114e-08,
+              "minimum": 7.67113e-08,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3414,6 +3616,7 @@
           "failure_modes": [],
           "measures": "Coronal-plane (R-S) curvature sweep.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 5,
@@ -3461,6 +3664,7 @@
           "failure_modes": [],
           "measures": "Signed tangent angle in the coronal (R-S) plane at each centroid; positive tilts toward the patient's right as the spine advances cranially.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -3508,6 +3712,7 @@
           "failure_modes": [],
           "measures": "Which anatomical plane (coronal or sagittal) total_curvature_deg came from.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -3555,6 +3760,7 @@
           "failure_modes": [],
           "measures": "Angle between consecutive vertebrae's tangent vectors.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 19,
@@ -3602,6 +3808,7 @@
           "failure_modes": [],
           "measures": "Sagittal-plane (A-S) curvature sweep.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 5,
@@ -3649,6 +3856,7 @@
           "failure_modes": [],
           "measures": "Signed tangent angle in the sagittal (A-S) plane at each centroid; positive tilts anterior.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -3696,6 +3904,7 @@
           "failure_modes": [],
           "measures": "Angle between the spline's local tangent and the superior-inferior axis, per vertebra.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -3743,6 +3952,7 @@
           "failure_modes": [],
           "measures": "Global curvature magnitude: the larger of the coronal and sagittal per-plane sweeps.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 5,
@@ -3792,6 +4002,7 @@
           "failure_modes": [],
           "measures": "Anisotropy of the per-vertebra voxel cloud.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -3841,6 +4052,7 @@
           "failure_modes": [],
           "measures": "The integer label this orientation entry describes.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -3888,6 +4100,7 @@
           "failure_modes": [],
           "measures": "Anatomical vertebra name for this orientation entry.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -3935,6 +4148,7 @@
           "failure_modes": [],
           "measures": "Per-vertebra orientation via PCA of its voxel cloud.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 72,
@@ -3982,6 +4196,7 @@
           "failure_modes": [],
           "measures": "Spline parameter (0-1) of the point on the fitted curve nearest this vertebra's centroid, evaluated against the shared in-sample fit (item 121).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4029,6 +4244,7 @@
           "failure_modes": [],
           "measures": "Unit-normalised tangent of the fitted spinal curve at this vertebra's own closest point on it (item 121) -- an orientation proxy, not a vertebral coordinate system.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 72,
@@ -4076,6 +4292,7 @@
           "failure_modes": [],
           "measures": "Signed coronal (R-S plane) tilt of the fitted spinal curve at this vertebra's own closest point on it -- an orientation proxy, not a vertebral coordinate system. Varies across levels where principal_axis is measured constant on the committed corpus.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4123,6 +4340,7 @@
           "failure_modes": [],
           "measures": "Signed sagittal (A-S plane) tilt of the fitted spinal curve at this vertebra's own closest point on it -- an orientation proxy, not a vertebral coordinate system. Varies across levels where principal_axis is measured constant on the committed corpus.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4176,12 +4394,13 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
-            4
+            8
           ],
           "measures": "Whether every vertebra's closest-spline-parameter u increases along the anatomical order.",
           "mode_evidence": [
             "per_mode_metric"
           ],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -4230,12 +4449,18 @@
           "documented": true,
           "failure_modes": [
             1,
-            4
+            9
           ],
           "measures": "Level-name pairs whose spline parameter does not advance.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "mislabel",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -4293,6 +4518,7 @@
           "failure_modes": [],
           "measures": "Each vertebra's closest-spline-parameter u, in input order.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4340,6 +4566,7 @@
           "failure_modes": [],
           "measures": "Regularity of inter-vertebra spacing.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 5,
@@ -4387,6 +4614,7 @@
           "failure_modes": [],
           "measures": "Per-pair spacing's signed deviation from the mean.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 19,
@@ -4434,6 +4662,7 @@
           "failure_modes": [],
           "measures": "Mean inter-vertebra centroid spacing.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 5,
@@ -4481,6 +4710,7 @@
           "failure_modes": [],
           "measures": "Level-name pairs whose spacing is an outlier.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -4528,6 +4758,7 @@
           "failure_modes": [],
           "measures": "Per-pair inter-vertebra centroid spacing.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 19,
@@ -4583,6 +4814,7 @@
           "failure_modes": [],
           "measures": "How anomalous the focal vertebra's scored features are relative to its sliding-window neighbours.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4630,6 +4862,7 @@
           "failure_modes": [],
           "measures": "Whether the focal vertebra is flagged as a local neighbourhood outlier.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -4677,6 +4910,7 @@
           "failure_modes": [],
           "measures": "Integer label of the focal vertebra in this neighbourhood entry.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4724,6 +4958,7 @@
           "failure_modes": [],
           "measures": "Anatomical level name of the focal vertebra in this neighbourhood entry.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -4771,6 +5006,7 @@
           "failure_modes": [],
           "measures": "Mean spline offset (mm) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4818,6 +5054,7 @@
           "failure_modes": [],
           "measures": "Median spline offset (mm) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4865,6 +5102,7 @@
           "failure_modes": [],
           "measures": "Standard deviation of spline offset (mm) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4912,6 +5150,7 @@
           "failure_modes": [],
           "measures": "The focal vertebra's spline offset expressed as a leave-one-out z-score against its window neighbours.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -4959,6 +5198,7 @@
           "failure_modes": [],
           "measures": "Mean per-element inter-centroid spacing (mm) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5006,6 +5246,7 @@
           "failure_modes": [],
           "measures": "Median per-element inter-centroid spacing (mm) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5053,6 +5294,7 @@
           "failure_modes": [],
           "measures": "Standard deviation of per-element inter-centroid spacing (mm) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5100,6 +5342,7 @@
           "failure_modes": [],
           "measures": "The focal vertebra's per-element spacing expressed as a leave-one-out z-score against its window neighbours. Reported but deliberately unscored by default -- see UNSCORED_RATIONALE in segfacet.features.neighbourhood.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5147,6 +5390,7 @@
           "failure_modes": [],
           "measures": "Mean per-label physical volume (mm3) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5194,6 +5438,7 @@
           "failure_modes": [],
           "measures": "Median per-label physical volume (mm3) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5241,6 +5486,7 @@
           "failure_modes": [],
           "measures": "Standard deviation of per-label physical volume (mm3) over the sliding window (including the focal vertebra).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5288,6 +5534,7 @@
           "failure_modes": [],
           "measures": "The focal vertebra's physical volume expressed as a leave-one-out z-score against its window neighbours.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 24,
@@ -5335,6 +5582,7 @@
           "failure_modes": [],
           "measures": "Integer labels of every vertebra in the focal vertebra's sliding window (including itself).",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 62,
@@ -5390,6 +5638,7 @@
           "failure_modes": [],
           "measures": "Shannon entropy of the intensity distribution.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5435,6 +5684,7 @@
           "failure_modes": [],
           "measures": "Spread summary: interquartile range.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5480,6 +5730,7 @@
           "failure_modes": [],
           "measures": "Maximum scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5525,6 +5776,7 @@
           "failure_modes": [],
           "measures": "Mean scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5569,10 +5821,18 @@
             "intensity"
           ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            16
+          ],
           "measures": "Median scan intensity under the label mask.",
           "mode_evidence": [
-            "rule_mode_less"
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "intensity",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -5624,6 +5884,7 @@
           "failure_modes": [],
           "measures": "Minimum scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5669,6 +5930,7 @@
           "failure_modes": [],
           "measures": "Count of masked voxels dropped for being NaN/+-inf.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5712,6 +5974,7 @@
           "failure_modes": [],
           "measures": "5th percentile of scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5757,6 +6020,7 @@
           "failure_modes": [],
           "measures": "25th percentile of scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5802,6 +6066,7 @@
           "failure_modes": [],
           "measures": "50th percentile of scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5847,6 +6112,7 @@
           "failure_modes": [],
           "measures": "75th percentile of scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5892,6 +6158,7 @@
           "failure_modes": [],
           "measures": "95th percentile of scan intensity under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5937,6 +6204,7 @@
           "failure_modes": [],
           "measures": "Spread summary: max - min.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -5981,10 +6249,18 @@
             "intensity"
           ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            16
+          ],
           "measures": "Spread of scan intensity under the label mask.",
           "mode_evidence": [
-            "rule_mode_less"
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "intensity",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6036,6 +6312,7 @@
           "failure_modes": [],
           "measures": "Number of finite scan voxels sampled under the label mask.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -6087,6 +6364,7 @@
           "failure_modes": [],
           "measures": "PyRadiomics' own GLCM texture and shape feature families.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -6140,7 +6418,13 @@
           "failure_modes": [],
           "measures": "Whether intensity/radiomics features were attempted and succeeded for this case.",
           "mode_evidence": [
-            "rule_mode_less"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "intensity",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6190,6 +6474,7 @@
           "failure_modes": [],
           "measures": "Which backend computed the extended radiomics features.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6233,6 +6518,7 @@
           "failure_modes": [],
           "measures": "Schema-version discriminator for the image_features block.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6278,7 +6564,13 @@
           "failure_modes": [],
           "measures": "The integer label this image_features entry describes.",
           "mode_evidence": [
-            "rule_mode_less"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "intensity",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6328,6 +6620,7 @@
           "failure_modes": [],
           "measures": "Whether the PyRadiomics backend produced any extended features.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6379,14 +6672,21 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "The lower percentile bound defining the reference in-range band.",
           "mode_evidence": [
-            "rule_declaration",
-            "rule_mode_less"
+            "rule_bookkeeping",
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6444,6 +6744,7 @@
           "failure_modes": [],
           "measures": "Schema-version discriminator for the reference_delta block.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6487,6 +6788,7 @@
           "failure_modes": [],
           "measures": "The reference artifact's own schema version, echoed for provenance.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6530,6 +6832,7 @@
           "failure_modes": [],
           "measures": "Provenance string naming the reference cohort/build.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6573,6 +6876,7 @@
           "failure_modes": [],
           "measures": "Which reference stratum this delta was scored against.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6616,14 +6920,21 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "The upper percentile bound defining the reference in-range band.",
           "mode_evidence": [
-            "rule_declaration",
-            "rule_mode_less"
+            "rule_bookkeeping",
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6680,13 +6991,16 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "Whether this label's level (and stratum) is covered by the reference.",
           "mode_evidence": [
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6738,12 +7052,25 @@
           "documented": true,
           "failure_modes": [
             1,
-            2
+            2,
+            3,
+            4,
+            8
           ],
           "measures": "Per-label aggregate anomaly score against the reference.",
           "mode_evidence": [
             "rule_declaration",
-            "rule_mode_less"
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6801,6 +7128,7 @@
           "failure_modes": [],
           "measures": "Whether the value falls outside the configured percentile band.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -6844,14 +7172,21 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
           "mode_evidence": [
-            "rule_declaration",
-            "rule_mode_less"
+            "rule_bookkeeping",
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6907,12 +7242,25 @@
           "documented": true,
           "failure_modes": [
             1,
-            2
+            2,
+            3,
+            4,
+            8
           ],
           "measures": "Outlier-resistant z-score against the reference.",
           "mode_evidence": [
             "rule_declaration",
-            "rule_mode_less"
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -6970,14 +7318,21 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
           "mode_evidence": [
-            "rule_declaration",
-            "rule_mode_less"
+            "rule_bookkeeping",
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -7031,6 +7386,7 @@
           "failure_modes": [],
           "measures": "Standard z-score against the reference.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7073,13 +7429,16 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "The integer label this reference-delta entry describes.",
           "mode_evidence": [
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -7128,13 +7487,16 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2
-          ],
+          "failure_modes": [],
           "measures": "Anatomical vertebra name for this reference-delta entry.",
           "mode_evidence": [
-            "rule_declaration"
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -7186,12 +7548,25 @@
           "documented": true,
           "failure_modes": [
             1,
-            2
+            2,
+            3,
+            4,
+            8
           ],
           "measures": "Feature names whose case value falls outside the reference's percentile band.",
           "mode_evidence": [
             "rule_declaration",
-            "rule_mode_less"
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "reference_delta",
+              "signal"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -7259,6 +7634,7 @@
           "failure_modes": [],
           "measures": "Schema-version discriminator for this features block.",
           "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -7315,20 +7691,50 @@
             "sequence"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7
-          ],
+          "failure_modes": [],
           "measures": "The per-label feature map, keyed by integer label.",
           "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration",
-            "rule_mode_less"
+            "rule_mode_less",
+            "rule_bookkeeping",
+            "rule_not_read"
+          ],
+          "mode_roles": [
+            [
+              "border",
+              "bookkeeping"
+            ],
+            [
+              "bounds",
+              "bookkeeping"
+            ],
+            [
+              "coverage",
+              "bookkeeping"
+            ],
+            [
+              "fragmentation",
+              "bookkeeping"
+            ],
+            [
+              "intensity",
+              "not-read"
+            ],
+            [
+              "intensity_reference_delta",
+              "not-read"
+            ],
+            [
+              "mislabel",
+              "bookkeeping"
+            ],
+            [
+              "reference_delta",
+              "not-read"
+            ],
+            [
+              "sequence",
+              "bookkeeping"
+            ]
           ],
           "observed": {
             "corpus": {
@@ -7418,5 +7824,5 @@
     "unobserved": 0,
     "varies": 83
   },
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

@@ -50,10 +50,13 @@ robust-z), with per-feature findings in ascending feature-name order.
 Reason tags are distinct from item 047's geometric ``"Reference ..."`` tags
 so a reader can tell the two reference-delta families apart.
 
-Mode-less (item 137): the reference-relative form of "intensity"'s tissue-
-plausibility judgement, which §6 names no mode for -- see
-``IntensityReferenceDeltaRule.mode_declaration`` and the catalogue-gap
-finding captured in ``docs/aide/insights.md``.
+§6 mode 9 (item 146): the reference-relative form of "intensity"'s tissue-
+plausibility judgement. Dispositioned mode-less by item 137 because §6's
+eight numbered modes name no such failure; item 146 entered mode 9
+("Implausible tissue under a label") into
+``segfacet.failure_modes.SPECIFICATION`` and moved this declaration onto it
+-- see ``IntensityReferenceDeltaRule.mode_declaration``. No threshold,
+condition, severity or ``evaluate`` line changed with it.
 """
 
 from __future__ import annotations
@@ -61,7 +64,12 @@ from __future__ import annotations
 from typing import Dict, List
 
 from segfacet.heuristics.finding import Finding
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.verdict import Severity
 
 __all__ = ["IntensityReferenceDeltaRule"]
@@ -121,26 +129,104 @@ class IntensityReferenceDeltaRule(Rule):
 
     rule_id = "intensity_reference_delta"
 
-    # §6 disposition (item 137): mode-less, for the same reason as
-    # "intensity" -- it is the reference-relative form of the same tissue-
-    # plausibility judgement, and §6's eight modes are
-    # geometric/topological/semantic and name no such failure. The gap is
-    # captured in docs/aide/insights.md rather than fixed here, because §6
-    # is a root document (vision.md) that changes only through
-    # /aide-create-vision and a reviewed PR.
+    # §6 disposition (item 146, superseding item 137's mode-less
+    # disposition): mode 9, for the same reason as "intensity" -- it is the
+    # reference-relative form of the same tissue-plausibility judgement.
     mode_declaration = RuleModeDeclaration(
-        mode_less_reason=(
+        modes=(16,),
+        evidence=(
+            "intensity-corpus-manifest",
             "This rule is the reference-relative form of the intensity "
             "rule's tissue-plausibility judgement: it thresholds how far a "
             "labelled region's intensity statistics deviate from a "
-            "level-aware VerSe-derived reference distribution, which is "
-            "still a tissue-plausibility claim, not a geometric, "
-            "topological or semantic one. §6's eight modes are "
-            "geometric/topological/semantic and name no tissue-plausibility "
-            "mode, so this rule targets none of them. The catalogue gap is "
-            "recorded in docs/aide/insights.md rather than fixed here, "
-            "because §6 is a root document."
-        )
+            "level-aware VerSe-derived reference distribution, which is the "
+            "same claim mode 16 (implausible tissue under a label; mode 9 "
+            "before the item-150 sign-off) names, "
+            "measured against a cohort instead of against a fixed HU band. "
+            "It shares mode 16's corpus, tests/corpus/intensity/manifest.json, "
+            "but fires on none of its four cases: that corpus is built "
+            "against no reference distribution and the item-146 harness "
+            "attaches none, so this rule's mode-16 edge sits at the "
+            "needs-real-data rung -- the same analytic-only shape item 137 "
+            "recorded for reference_delta."
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: this rule "
+                    "reads record['intensity_reference_delta'], never the "
+                    "top-level record['per_label']"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.lower_pct",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: the rule "
+                    "reads "
+                    "record['intensity_reference_delta']['lower_pct'], a "
+                    "block no driver realises, so it has no catalogued "
+                    "leaf path of its own"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.upper_pct",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: the rule "
+                    "reads "
+                    "record['intensity_reference_delta']['upper_pct'], not "
+                    "record['reference_delta']"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.distribution_distance",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: read from "
+                    "the intensity_reference_delta block, not from "
+                    "reference_delta"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: "
+                    "'percentile_rank' is read under the "
+                    "intensity_reference_delta block's own per-feature "
+                    "entries"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: 'robust_z' "
+                    "is read under the intensity_reference_delta block, "
+                    "never under reference_delta"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.physical_volume_mm3.value",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: 'value' is "
+                    "read under the intensity_reference_delta block"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.out_of_range_features[]",
+                role="not-read",
+                reason=(
+                    "mechanism B last-path-segment match only: read from "
+                    "the intensity_reference_delta block, not from "
+                    "reference_delta"
+                ),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]

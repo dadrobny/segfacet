@@ -54,7 +54,12 @@ from typing import Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.fov import derive_fov_coverage
-from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
+from segfacet.heuristics.rule import (
+    ConsumedPath,
+    Rule,
+    RuleModeDeclaration,
+    register_rule,
+)
 from segfacet.labels import CANONICAL_ORDER
 from segfacet.verdict import Severity
 
@@ -130,7 +135,51 @@ class CoverageRule(Rule):
     # §6 mode 5 (item 136): RemoveLevelPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) designates "coverage"
     # for mode 5 via its Expectation(failure_mode=5, expected_rule_ids={"coverage"}).
-    mode_declaration = RuleModeDeclaration(modes=(5,), evidence=("corpus",))
+    mode_declaration = RuleModeDeclaration(
+        modes=(6,),
+        evidence=(
+            "corpus-manifest",
+            "tests/corpus/manifest.json's mode5_remove_level designates "
+            "this rule for mode 6 (vertebra not segmented) of the "
+            "catalogue signed off at item 150 (2026-09-14, revised "
+            "2026-09-15): the corpus operator deletes an interior vertebra "
+            "without renumbering, and the always-active detector fires on "
+            "the resulting gap in relationships.missing_levels[]. The two "
+            "opt-in checks (expected span, expected count) over "
+            "relationships.present_levels[] serve the same mode, "
+            "needs-real-data. A skipped label on a segmented vertebra "
+            "(mode 10) leaves the same gap, but this rule cannot tell the "
+            "two apart and does not declare mode 10; the other mode-6 fixture "
+            "remove_level_relabel renumbers the labels to stay continuous "
+            "and fires nothing.",
+        ),
+        consumed_paths=(
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: iterated for the border-aware exemption; "
+                    "the missing/present level lists carry the evidence"
+                ),
+            ),
+            ConsumedPath(
+                path="relationships",
+                role="bookkeeping",
+                reason=(
+                    "container: the block the two level lists are read "
+                    "from"
+                ),
+            ),
+            ConsumedPath(
+                path="relationships.missing_levels[]",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="relationships.present_levels[]",
+                role="signal",
+            ),
+        ),
+    )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
         """Evaluate the coverage checks for *record*.

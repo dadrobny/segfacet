@@ -50,8 +50,8 @@ duplicated here):
   naming the case id and both numbers, and the signed document is
   byte-unchanged before and after.
 - AC16: `committed_artifact_guard.iter_violations()` is empty over `tests/`,
-  its five-member `GROUNDS` is unchanged, and its `ALLOWLIST` gains no entry
-  for the companion.
+  its `GROUNDS` (six members as of item 149, 2026-09-04) is otherwise
+  unchanged, and its `ALLOWLIST` gains no entry for the companion.
 - AC17: no numeric leaf in the companion is a `float`, and its text carries
   no date, drive-letter prefix, absolute path or this machine's hostname.
 - AC18: `test_105`'s post-retirement inventory count (20) still holds.
@@ -520,7 +520,11 @@ def test_ac15_stale_companion_fails_drift_naming_case_and_both_numbers():
 # =========================================================================== #
 
 
-def test_ac16_committed_artifact_guard_clean_and_vocabulary_unextended():
+def test_ac16_committed_artifact_guard_clean_and_vocabulary_at_six_members():
+    # Reconciled (item 149, 2026-09-04): GROUNDS gains its sixth member,
+    # "no-float-leaf" -- this item's companion is untouched by that change,
+    # so the guard-clean and no-new-allowlist-entry claims stand unchanged;
+    # only the vocabulary pin moves from five to six.
     import committed_artifact_guard as guard
 
     violations = list(guard.iter_violations(_TESTS_DIR))
@@ -532,9 +536,10 @@ def test_ac16_committed_artifact_guard_clean_and_vocabulary_unextended():
         "hand-written-literals",
         "binary-fixture",
         "integrity-pin",
+        "no-float-leaf",
     }
     assert set(guard.GROUNDS) == expected_grounds
-    assert len(guard.GROUNDS) == 5
+    assert len(guard.GROUNDS) == 6
 
     assert not any(
         entry.path == "docs/aide/golden_evidence.generated.json" for entry in guard.ALLOWLIST
@@ -577,14 +582,42 @@ def test_adv_crlf_bytes_would_fail_ac5_check():
 
 
 # =========================================================================== #
-# AC18: item 126's inventory test stays at 20
+# AC18: this item adds nothing to item 126's tests/ inventory
 # =========================================================================== #
 
+#: The tests/ non-.py fixture inventory as item 126 reconciled it
+#: (2026-08-30). AC18's subject is that *this* item adds nothing to it -- the
+#: evidence companion lives under docs/, not tests/ -- so the count is
+#: expressed as that baseline plus the fixtures later items are known to have
+#: added, never as a bare re-measured number.
+_ITEM_126_INVENTORY_COUNT = 20
 
-def test_ac18_test105_inventory_count_still_20():
+#: Added by item 150 (2026-09-14): corpus segmentations for the signed-off
+#: catalogue's modes 2 and 4. Named rather than counted, so a fixture added
+#: for any *other* reason still fails this test.
+_INVENTORY_ADDED_AFTER_126 = {
+    "tests/corpus/fixtures/fuse_adjacent_seg.nii.gz",
+    "tests/corpus/fixtures/remove_level_relabel_seg.nii.gz",
+}
+
+
+def test_ac18_test105_inventory_unchanged_by_this_item():
     import test_105_golden_decision_table as mod105
 
-    assert len(mod105._walk_tests_non_py_files()) == 20
+    inventory = mod105._walk_tests_non_py_files()
+    assert _INVENTORY_ADDED_AFTER_126 <= inventory, (
+        "expected post-item-126 fixtures are missing from the tests/ tree: "
+        f"{sorted(_INVENTORY_ADDED_AFTER_126 - inventory)}"
+    )
+    assert len(inventory) == _ITEM_126_INVENTORY_COUNT + len(_INVENTORY_ADDED_AFTER_126), (
+        "tests/ inventory moved by something other than the named "
+        f"post-item-126 additions: {sorted(inventory)}"
+    )
+    # The claim this item is actually responsible for: its own artifact is a
+    # docs/ companion and must never appear in the tests/ inventory.
+    assert not [p for p in inventory if p.endswith(_COMPANION_PATH.name)], (
+        f"{_COMPANION_PATH.name} leaked into the tests/ fixture inventory"
+    )
 
 
 # =========================================================================== #

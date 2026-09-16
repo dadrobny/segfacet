@@ -185,8 +185,8 @@ class FragmentPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=2,
-            failure_mode_name=FAILURE_MODE_NAMES[2],
+            failure_mode=1,
+            failure_mode_name=FAILURE_MODE_NAMES[1],
             expected_rule_ids=frozenset({"fragmentation"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
@@ -261,12 +261,18 @@ class FusePerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=2,
             failure_mode_name=FAILURE_MODE_NAMES[2],
-            expected_rule_ids=frozenset({"fragmentation"}),
+            expected_rule_ids=frozenset({"coverage", "fragmentation"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
             detail=(
                 f"fuse: absorbed neighbour label {neighbour} into target "
-                f"label {target}; {neighbour} is no longer present."
+                f"label {target}; {neighbour} is no longer present. Mode 2 "
+                "(fused or split vertebra segments) of the catalogue signed "
+                "off at item 150; what plain run_qc fires on it today are "
+                "co-detections -- fragmentation on the two disconnected "
+                "bodies under one label, coverage on the absorbed level "
+                "missing from the span -- not mode 2's own bounds / "
+                "reference_delta proxies, which need a reference."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
@@ -384,8 +390,8 @@ class InjectIslandsPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=3,
-            failure_mode_name=FAILURE_MODE_NAMES[3],
+            failure_mode=4,
+            failure_mode_name=FAILURE_MODE_NAMES[4],
             expected_rule_ids=frozenset({"fragmentation"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",

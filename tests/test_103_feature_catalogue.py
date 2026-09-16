@@ -40,14 +40,17 @@ Covers Acceptance Criteria AC1-AC25:
 - AC13: the rule->mode map is derived from ``synth/`` (checked via its
         effect on ``failure_modes``) and ``catalogue.py``'s source contains
         no hand-typed rule-id->mode dict literal.
-- AC14: every ``MODE_ANCHOR_PATHS`` path anchors modes 1-8 with
-        ``"per_mode_metric"`` evidence.
+- AC14: every ``MODE_ANCHOR_PATHS`` path anchors its mode with
+        ``"per_mode_metric"`` evidence -- keyed, since item 150's sign-off
+        (revised 2026-09-15), by the anchorable signed-off modes ``{1, 4, 6,
+        8, 9, 15}``; the legacy mode-6 metric now anchors the ``fov_truncation``
+        *condition* through ``CONDITION_ANCHOR_PATHS`` instead.
 - AC15: an unmapped-rule-only, non-anchor entry gets an honest empty mode
         list with ``mode_evidence == ("rule_unmapped",)`` -- reconciled for
-        item 137, whose disposition of the four rules this test originally
-        exercised (``bounds``, ``intensity``, ``reference_delta``,
-        ``intensity_reference_delta``) leaves none of them unmapped; see the
-        reconciled test's own docstring.
+        item 137, then item 146, then item 150: the rule that now declares
+        itself mode-less is ``border`` (FOV truncation became a condition),
+        and its ``touches_*`` paths carry the ``condition-signal`` role; see
+        the reconciled tests' own docstrings.
 - AC16: an undocumented realised path raises ``FeatureDocMissing`` (strict)
         naming the path, and degrades to ``documented=False`` (non-strict).
 - AC17: a stale ``FEATURE_DOCS`` key raises ``CatalogueError`` naming it; on
@@ -149,6 +152,29 @@ def catalogue_module():
 @pytest.fixture(scope="module")
 def feature_docs_module():
     return _feature_docs()
+
+
+@pytest.fixture(scope="module")
+def failure_modes_module():
+    import segfacet.failure_modes as failure_modes
+
+    return failure_modes
+
+
+@pytest.fixture(scope="module")
+def rule_declarations():
+    """``rule_id -> RuleModeDeclaration | None`` for every registered rule,
+    read live from the rules' own class attributes (item 136)."""
+    from segfacet.heuristics.rule import iter_rule_declarations
+
+    return dict(iter_rule_declarations())
+
+
+def _declared_modes(rule_id):
+    from segfacet.heuristics.rule import iter_rule_declarations
+
+    decl = dict(iter_rule_declarations()).get(rule_id)
+    return () if decl is None else tuple(decl.modes)
 
 
 @pytest.fixture(scope="module")
@@ -541,31 +567,86 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 # =========================================================================== #
 
 
+#: The corpus-derived rule -> failure-mode map, as the maintainer's item-150
+#: sign-off (revised 2026-09-15) leaves it: the modes ``synth/*.py``'s
+#: ``Expectation(...)`` literals attribute to each rule, which is exactly what
+#: ``catalogue._scan_synth_rule_mode_map`` must recover. ``border`` is absent
+#: on purpose -- its corpus case (``mode6_crop_at_border``) now carries
+#: ``failure_mode=0`` plus the ``fov_truncation`` *condition*, so the scan
+#: attributes no mode to it; the mode-less half of AC15 covers it instead.
+#: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
-    "mislabel": (1, 4),
-    "fragmentation": (2, 3),
-    "coverage": (5,),
-    "border": (6,),
-    "sequence": (7,),
-    "overlap": (8,),
+    "mislabel": (1, 9),  # mode1_displace (1), mode4_relabel_swap (9)
+    "fragmentation": (1, 2, 4),  # mode2_fragment (1), fuse_adjacent (2), islands (4)
+    "coverage": (2, 6),  # fuse_adjacent (2), mode5_remove_level (6)
+    "sequence": (9,),  # mode7_sequence_break
+    "overlap": (15,),  # mode8_force_overlap
 }
+
+
+def test_ac13_rule_mode_map_matches_the_corpus_scan(catalogue_module):
+    """The hand-typed table above is the *expected output* of the scan, not a
+    second source: pin it against the live scan so a corpus change that moves
+    a rule's modes fails here rather than silently re-basing the tests below.
+    """
+    scanned = {
+        rule_id: tuple(modes)
+        for rule_id, modes in catalogue_module._scan_synth_rule_mode_map().items()
+    }
+    assert scanned == _RULE_MODE_MAP
 
 
 @pytest.mark.parametrize("rule_id, modes", sorted(_RULE_MODE_MAP.items()))
 def test_ac13_rule_mode_map_effect_on_failure_modes(
-    full_catalogue, feature_docs_module, rule_id, modes
+    full_catalogue, feature_docs_module, rule_declarations, rule_id, modes
 ):
-    anchor_paths = {
-        p for paths in feature_docs_module.MODE_ANCHOR_PATHS.values() for p in paths
-    }
-    matches = [
-        e
+    """Reconciled (item 148, 2026-09-04): "an entry consumed only by rule R
+    carries R's corpus modes" now holds only for entries R classifies
+    ``"signal"`` -- e.g. ``per_label.{label}.label``, consumed only by
+    ``sequence``, is ``bookkeeping`` and carries ``()``. Restrict the match
+    set to this rule's signal-classified paths.
+
+    Reconciled again (item 150, 2026-09-14): the sign-off split the corpus
+    map and the rules' own ``RuleModeDeclaration`` apart -- on the
+    2026-09-15 revision ``coverage``'s corpus modes are ``(2, 6)`` while it
+    declares ``(6,)``, and ``mislabel``'s are ``(1, 9)`` against a
+    declared ``(9,)``. An entry's
+    ``failure_modes`` is the *union* of every source that spoke, so the exact
+    expected set is derived here from all three live sources (corpus map,
+    declaration, mode anchor) and the corpus map's own contribution is
+    asserted separately -- which keeps the "derived from ``synth/``" claim
+    this AC is about, instead of weakening the pin to a subset check.
+
+    ``overlap``'s only ``"signal"`` path, ``overlaps[].overlap_voxels``, is
+    also ``MODE_ANCHOR_PATHS[15]``'s sole member, so there is no non-anchor
+    entry to match against. For a rule whose every signal path is an anchor
+    path, assert that fact directly (the signal set is a non-empty subset of
+    the anchor paths); the per-entry assertions below are the same either
+    way, because the anchor's own mode is one of the derived sources."""
+    anchor_modes_by_path = {}
+    for mode, paths in feature_docs_module.MODE_ANCHOR_PATHS.items():
+        for path in paths:
+            anchor_modes_by_path.setdefault(path, set()).add(mode)
+    declaration = rule_declarations[rule_id]
+    declared = set(declaration.modes) if declaration is not None else set()
+
+    signal_paths = {
+        e.path
         for e in full_catalogue.entries
-        if set(e.consuming_rules) == {rule_id} and e.path not in anchor_paths
-    ]
-    assert matches, f"expected a non-anchor entry consumed only by {rule_id!r}"
-    for entry in matches:
-        assert set(entry.failure_modes) == set(modes), entry.path
+        if set(e.consuming_rules) == {rule_id}
+        and dict(e.mode_roles).get(rule_id) == "signal"
+    }
+    assert signal_paths, f"expected at least one signal-classified entry consumed only by {rule_id!r}"
+    if not signal_paths - set(anchor_modes_by_path):
+        assert signal_paths <= set(anchor_modes_by_path), rule_id
+
+    for path in sorted(signal_paths):
+        entry = _entry(full_catalogue, path)
+        expected = set(modes) | declared | anchor_modes_by_path.get(path, set())
+        assert set(entry.failure_modes) == expected, (entry.path, entry.failure_modes)
+        # The corpus map's own contribution, which is what AC13 is about.
+        assert set(modes).issubset(set(entry.failure_modes)), entry.path
+        assert "rule_mode_map" in entry.mode_evidence, (entry.path, entry.mode_evidence)
 
 
 def test_ac13_no_hand_typed_rule_mode_dict_in_catalogue_source(catalogue_module):
@@ -586,14 +667,44 @@ def test_ac13_no_hand_typed_rule_mode_dict_in_catalogue_source(catalogue_module)
 
 
 # =========================================================================== #
-# AC14: item 099's per-mode metrics anchor all eight modes
+# AC14: item 099's per-mode metrics anchor the modes they can reach, and the
+# one metric that anchors a *condition* instead
 # =========================================================================== #
 
 
-def test_ac14_mode_anchor_paths_key_set_is_one_to_eight(feature_docs_module):
-    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == set(range(1, 9))
+#: The signed-off modes item 099's Stage-18 per-mode metrics can anchor
+#: (item 150, revised 2026-09-15). Six of the sixteen catalogued modes carry
+#: an anchor -- 1 (segmentation accuracy), 4 (islands), 6 (vertebra not
+#: segmented), 8 (semantic mislabelling), 9 (out-of-order label sequence),
+#: 15 (overlapping segments); the other ten have no Stage-18 metric. The
+#: legacy mode-6 metric (FOV-clipped label count) anchors the
+#: ``fov_truncation`` condition rather than a mode -- see
+#: ``feature_docs.CONDITION_ANCHOR_PATHS``.
+_ANCHORED_MODES = {1, 4, 6, 8, 9, 15}
+
+
+def test_ac14_mode_anchor_paths_key_set_is_the_anchored_modes(
+    feature_docs_module, failure_modes_module
+):
+    assert set(feature_docs_module.MODE_ANCHOR_PATHS.keys()) == _ANCHORED_MODES
+    # Every anchored mode must be a catalogued mode -- an anchor for an id
+    # the specification does not carry is a dangling key.
+    assert _ANCHORED_MODES <= set(failure_modes_module.SPECIFICATION)
     for mode, paths in feature_docs_module.MODE_ANCHOR_PATHS.items():
         assert len(paths) >= 1, mode
+
+
+def test_ac14_condition_anchor_paths_key_set_is_the_catalogued_conditions(
+    feature_docs_module, failure_modes_module
+):
+    """Item 150 moved the legacy mode-6 metric's anchor out of
+    ``MODE_ANCHOR_PATHS`` and into ``CONDITION_ANCHOR_PATHS``, keyed by
+    condition id. Pin the same two properties there: the keys are catalogued
+    conditions, and each carries at least one path."""
+    condition_anchors = feature_docs_module.CONDITION_ANCHOR_PATHS
+    assert set(condition_anchors) == set(failure_modes_module.CONDITIONS)
+    for condition_id, paths in condition_anchors.items():
+        assert len(paths) >= 1, condition_id
 
 
 def test_ac14_every_anchor_path_present_with_per_mode_metric_evidence(
@@ -606,29 +717,89 @@ def test_ac14_every_anchor_path_present_with_per_mode_metric_evidence(
             assert "per_mode_metric" in entry.mode_evidence, (path, entry.mode_evidence)
 
 
+def test_ac14_every_condition_anchor_path_is_a_condition_signal_entry(
+    full_catalogue, feature_docs_module
+):
+    """A condition anchor names no mode, so it must *not* acquire one; what
+    it must carry is the item-150 ``"rule_condition_signal"`` evidence tag,
+    from the ``border`` rule classifying it ``condition-signal``."""
+    for condition_id, paths in feature_docs_module.CONDITION_ANCHOR_PATHS.items():
+        for path in paths:
+            entry = _entry(full_catalogue, path)
+            assert entry.failure_modes == (), (path, entry.failure_modes)
+            assert "rule_condition_signal" in entry.mode_evidence, (
+                path,
+                entry.mode_evidence,
+            )
+
+
 # =========================================================================== #
 # AC15: an unmapped rule yields an honest empty mode list
 # =========================================================================== #
 
 
 def test_ac15_declared_mode_less_rule_only_entry_is_honestly_mode_less(
+    full_catalogue, rule_declarations
+):
+    """Reconciled for item 137, then item 146, then item 150 (2026-09-14).
+    The rule that ships ``mode_less_reason`` is no longer
+    ``intensity``/``intensity_reference_delta`` (item 146 gave those a mode)
+    but ``border``: the maintainer's sign-off turned "partial vertebra at the
+    FOV border" from a failure mode into the ``fov_truncation`` *condition*,
+    so ``border`` records a condition and declares no mode at all. AC15's
+    claim -- a rule that has *spoken* and said "no mode" is reported
+    honestly, never as ``("rule_unmapped",)`` ("nobody has said") -- is
+    restated against that rule. Its six ``touches_*`` paths carry the new
+    ``condition-signal`` role, so the honest report is an empty
+    ``failure_modes`` tagged ``("rule_mode_less", "rule_condition_signal")``.
+
+    What ``mode_evidence == ("rule_unmapped",)`` means -- a consuming rule
+    with no declaration at all -- is exercised by
+    ``tests/test_137_mode_less_rule_disposition.py``'s adversarial stub-rule
+    test, since no such rule ships on this tree (item 137 AC1)."""
+    mode_less_rules = {
+        rule_id
+        for rule_id, decl in rule_declarations.items()
+        if decl is not None and decl.mode_less_reason
+    }
+    assert mode_less_rules, "expected at least one declared mode-less rule"
+
+    checked = 0
+    for entry in full_catalogue.entries:
+        if not entry.consuming_rules or not set(entry.consuming_rules) <= mode_less_rules:
+            continue
+        assert entry.failure_modes == (), entry.path
+        assert "rule_mode_less" in entry.mode_evidence, (entry.path, entry.mode_evidence)
+        assert "rule_unmapped" not in entry.mode_evidence, entry.path
+        roles = {dict(entry.mode_roles)[rid] for rid in entry.consuming_rules}
+        if roles == {"condition-signal"}:
+            assert entry.mode_evidence == (
+                "rule_mode_less",
+                "rule_condition_signal",
+            ), (entry.path, entry.mode_evidence)
+        checked += 1
+    assert checked, "expected at least one entry consumed only by mode-less rule(s)"
+
+
+def test_ac15_intensity_rule_only_entries_are_honest_by_role(
     full_catalogue, feature_docs_module
 ):
-    """Reconciled for item 137 (Testing Strategy: "existing tests to
-    reconcile"): the four rules this test originally called "unmapped" --
-    ``bounds``, ``intensity``, ``reference_delta``,
-    ``intensity_reference_delta`` -- are item 137's to disposition, and none
-    of them is unmapped on this tree any more. ``bounds`` and
-    ``reference_delta`` now declare §6 mode 2 analytically; ``intensity`` and
-    ``intensity_reference_delta`` now declare themselves mode-less with a
-    recorded reason. An entry consumed only by the mode-less pair is honestly
-    reported as ``("rule_mode_less",)``, not ``("rule_unmapped",)`` -- the
-    AC15 honesty claim survives the disposition, restated for the state that
-    now exists. What ``mode_evidence == ("rule_unmapped",)`` means after
-    item 137 -- a consuming rule with no declaration at all -- is exercised
-    by ``tests/test_137_mode_less_rule_disposition.py``'s adversarial stub
-    -rule test, since no such rule ships on this tree (item 137 AC1)."""
-    mode_less_rules = {"intensity", "intensity_reference_delta"}
+    """The other half of AC15's honesty claim, on the pair item 146 moved off
+    mode-less: an entry either ``intensity`` rule reaches only ``"signal"``
+    (the two ``first_order`` paths) carries their declared mode with
+    ``("rule_declaration",)``; an entry either reaches only ``"bookkeeping"``
+    (e.g. ``image_features.available``,
+    ``image_features.per_label.{label}.label``) is honestly ``()`` with
+    ``("rule_bookkeeping",)``. Both restatements are checked, split by role
+    rather than lumped together. The declared mode is read live -- item 150's
+    sign-off renumbered "implausible tissue under a label" from 9 to 10, and
+    that renumbering is the specification's to pin, not this test's."""
+    intensity_rules = {"intensity", "intensity_reference_delta"}
+    declared = set()
+    for rule_id in sorted(intensity_rules):
+        declared |= set(_declared_modes(rule_id))
+    assert declared, "expected the intensity rules to declare a mode"
+
     anchor_paths = {
         p for paths in feature_docs_module.MODE_ANCHOR_PATHS.values() for p in paths
     }
@@ -636,14 +807,26 @@ def test_ac15_declared_mode_less_rule_only_entry_is_honestly_mode_less(
         e
         for e in full_catalogue.entries
         if e.consuming_rules
-        and set(e.consuming_rules) <= mode_less_rules
+        and set(e.consuming_rules) <= intensity_rules
         and e.path not in anchor_paths
     ]
-    assert candidates, "expected at least one mode-less-rule-only, non-anchor entry"
-    for entry in candidates:
-        assert entry.failure_modes == ()
-        assert entry.mode_evidence == ("rule_mode_less",), entry.path
+    assert candidates, "expected at least one intensity-rule-only, non-anchor entry"
 
+    signal_checked = 0
+    bookkeeping_checked = 0
+    for entry in candidates:
+        role_by_rule = dict(entry.mode_roles)
+        roles = {role_by_rule[rid] for rid in entry.consuming_rules}
+        if roles == {"signal"}:
+            assert set(entry.failure_modes) == declared, entry.path
+            assert entry.mode_evidence == ("rule_declaration",), entry.path
+            signal_checked += 1
+        elif roles == {"bookkeeping"}:
+            assert entry.failure_modes == (), entry.path
+            assert entry.mode_evidence == ("rule_bookkeeping",), entry.path
+            bookkeeping_checked += 1
+    assert signal_checked, "expected >=1 signal-only intensity entry"
+    assert bookkeeping_checked, "expected >=1 bookkeeping-only intensity entry"
 
 # =========================================================================== #
 # AC16: an undocumented realised path fails generation loudly (strict) or is
@@ -929,12 +1112,15 @@ _MD_COLUMNS = (
     "units",
     "scale sensitivity",
     "§6 mode(s)",
+    "§6 mode role(s)",
     "consuming rules",
     "status",
 )
 
 
 def test_ac24_markdown_has_exact_columns_and_row_count(catalogue_module, full_catalogue):
+    """Reconciled (item 148, 2026-09-04): ``render_markdown`` gains a
+    "§6 mode role(s)" column carrying the per-path classification."""
     md = catalogue_module.render_markdown(full_catalogue)
     lines = md.splitlines()
 

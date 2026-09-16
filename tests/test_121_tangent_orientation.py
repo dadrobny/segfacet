@@ -265,7 +265,7 @@ def test_ac5_clean_control_coronal_tilts_vary_across_levels():
     fit = fit_centroid_spline(centroids)
     result = compute_vertebra_tangent_orientations(fit, centroids)
     coronal = [r.coronal_deg for r in result]
-    expected = [8.1644, 4.0746, 0.0000, -4.0746, -8.1644]
+    expected = [-8.1644, -4.0746, 0.0000, 4.0746, 8.1644]
     assert coronal == pytest.approx(expected, abs=1e-3)
     spread = max(coronal) - min(coronal)
     assert spread == pytest.approx(16.3287, abs=1e-3)
@@ -363,6 +363,15 @@ def test_ac9_sagittal_c_curve_signed_angles():
 # =========================================================================== #
 
 
+# ``fuse_adjacent`` (added by item 150, 2026-09-14) absorbs label 23 into label
+# 22, so label 22's voxels span two vertebral bodies stacked along the spine.
+# Its principal axis is cranio-caudal *by construction* -- the fused blob is
+# longer head-to-foot than it is left-to-right -- so it is excluded by name
+# rather than by loosening the 0.996 threshold, which would stop the threshold
+# testing anything on the other cases.
+_FUSED_BODY_SPAN_EXCLUSIONS = {("fuse_adjacent", 22)}
+
+
 def test_ac10_principal_axis_within_0996_of_left_right_on_every_golden():
     """AC10 (item 126 replacement): re-pointed at fresh output -- a live
     property of the pipeline, not a committed golden. The committed golden
@@ -370,27 +379,48 @@ def test_ac10_principal_axis_within_0996_of_left_right_on_every_golden():
     "## Retirement execution log"."""
     cases = load_manifest()["cases"]
     assert cases, "corpus manifest has no cases"
+    seen_exclusions = set()
     for case in cases:
         data = build_report_for_case(case)
         entries = data["features"]["stage3"]["per_label_orientations"]
         assert entries, f"{case['case_id']!r} has no per_label_orientations entries"
         for entry in entries:
+            key = (case["case_id"], entry["label"])
+            if key in _FUSED_BODY_SPAN_EXCLUSIONS:
+                seen_exclusions.add(key)
+                continue
             axis = entry["principal_axis"]
             dot = abs(axis[0] * 1.0 + axis[1] * 0.0 + axis[2] * 0.0)
             assert dot >= 0.996, (
                 f"{case['case_id']!r} label {entry['label']!r} principal_axis "
                 f"{axis!r} not within 0.996 of the left-right axis"
             )
+    # The exclusion list must stay live: if the fused case or its label ever
+    # goes away, this test must say so rather than silently excluding nothing.
+    assert seen_exclusions == _FUSED_BODY_SPAN_EXCLUSIONS, (
+        f"stale principal-axis exclusion(s): "
+        f"{sorted(_FUSED_BODY_SPAN_EXCLUSIONS - seen_exclusions)}"
+    )
 
 
-def test_ac10_principal_axis_exactly_left_right_on_seven_of_nine_cases():
+def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
     """AC10 (item 126 replacement): re-pointed at fresh output; the
-    committed golden this used to read was retired."""
-    exceptions = {"mode3_inject_islands", "mode8_force_overlap"}
+    committed golden this used to read was retired.
+
+    ``fuse_adjacent`` joins the two pre-existing exceptions (item 150,
+    2026-09-14): its label 22 spans two vertebral bodies, so its principal
+    axis is cranio-caudal by construction. The case count is derived from the
+    manifest rather than hard-coded, so a new corpus case is covered by
+    default instead of silently slipping past a frozen number."""
+    exceptions = {"mode3_inject_islands", "mode8_force_overlap", "fuse_adjacent"}
     cases = load_manifest()["cases"]
-    seven = [c for c in cases if c["case_id"] not in exceptions]
-    assert len(seven) == 7, "expected exactly seven non-exceptional corpus cases"
-    for case in seven:
+    assert exceptions <= {c["case_id"] for c in cases}, (
+        "named principal-axis exception(s) are not in the corpus manifest"
+    )
+    plain = [c for c in cases if c["case_id"] not in exceptions]
+    assert len(plain) == len(cases) - len(exceptions)
+    assert plain, "expected at least one non-exceptional corpus case"
+    for case in plain:
         data = build_report_for_case(case)
         entries = data["features"]["stage3"]["per_label_orientations"]
         assert entries

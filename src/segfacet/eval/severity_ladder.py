@@ -143,7 +143,8 @@ from segfacet.features.overlap import detect_overlaps
 from segfacet.io import FacetInputError
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import DEFAULT_LEVELS, build_clean_spine
-from segfacet.synth.perturbation import FAILURE_MODE_NAMES, get_perturbation
+from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+from segfacet.synth.perturbation import get_perturbation
 
 __all__ = [
     "LadderRungSpec",
@@ -248,7 +249,8 @@ class LadderSpec:
         The §6 mode key (``1``-``8``; the supplementary ``fuse`` ladder also
         carries ``2``, but is excluded from :data:`SEVERITY_LADDERS`).
     failure_mode_name:
-        Verbatim from :data:`~segfacet.synth.perturbation.FAILURE_MODE_NAMES`.
+        Verbatim from :data:`~segfacet.eval.per_mode.LEGACY_STAGE18_MODE_NAMES`
+        (the pre-item-150 numbering this ladder is keyed by).
     operator:
         The perturbation registry name every rung's step(s) use.
     severity_parameter:
@@ -519,7 +521,7 @@ def _mode1_ladder() -> LadderSpec:
         )
     return LadderSpec(
         failure_mode=1,
-        failure_mode_name=FAILURE_MODE_NAMES[1],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[1],
         operator="displace",
         severity_parameter="displacement_mm",
         severity_kind="continuous",
@@ -542,7 +544,7 @@ def _mode2_ladder() -> LadderSpec:
         )
     return LadderSpec(
         failure_mode=2,
-        failure_mode_name=FAILURE_MODE_NAMES[2],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[2],
         operator="fragment",
         severity_parameter="n_pieces",
         severity_kind="continuous",
@@ -570,7 +572,7 @@ def _mode3_ladder() -> LadderSpec:
         )
     return LadderSpec(
         failure_mode=3,
-        failure_mode_name=FAILURE_MODE_NAMES[3],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[3],
         operator="inject_islands",
         severity_parameter="n_islands",
         severity_kind="continuous",
@@ -592,7 +594,7 @@ def _mode4_ladder() -> LadderSpec:
     ]
     return LadderSpec(
         failure_mode=4,
-        failure_mode_name=FAILURE_MODE_NAMES[4],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[4],
         operator="relabel_swap",
         severity_parameter="n_affected_labels",
         severity_kind="affected-label-count",
@@ -618,7 +620,7 @@ def _mode5_ladder() -> LadderSpec:
     ]
     return LadderSpec(
         failure_mode=5,
-        failure_mode_name=FAILURE_MODE_NAMES[5],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[5],
         operator="remove_level",
         severity_parameter="n_affected_labels",
         severity_kind="affected-label-count",
@@ -643,7 +645,7 @@ def _mode6_ladder() -> LadderSpec:
     ]
     return LadderSpec(
         failure_mode=6,
-        failure_mode_name=FAILURE_MODE_NAMES[6],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[6],
         operator="crop_at_border",
         severity_parameter="n_affected_labels",
         severity_kind="affected-label-count",
@@ -668,7 +670,7 @@ def _mode7_ladder() -> LadderSpec:
     ]
     return LadderSpec(
         failure_mode=7,
-        failure_mode_name=FAILURE_MODE_NAMES[7],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[7],
         operator="sequence_break",
         severity_parameter="n/a",
         severity_kind="degenerate",
@@ -704,7 +706,7 @@ def _mode8_ladder() -> LadderSpec:
         )
     return LadderSpec(
         failure_mode=8,
-        failure_mode_name=FAILURE_MODE_NAMES[8],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[8],
         operator="force_overlap",
         severity_parameter="overlap_depth",
         severity_kind="continuous",
@@ -730,7 +732,7 @@ def _fuse_ladder() -> LadderSpec:
     ]
     return LadderSpec(
         failure_mode=2,
-        failure_mode_name=FAILURE_MODE_NAMES[2],
+        failure_mode_name=LEGACY_STAGE18_MODE_NAMES[2],
         operator="fuse",
         severity_parameter="n_fused_neighbours",
         severity_kind="affected-label-count",

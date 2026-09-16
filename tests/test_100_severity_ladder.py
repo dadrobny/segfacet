@@ -323,9 +323,13 @@ def test_ac2_ladder_failure_mode_field_matches_its_key(mode):
 
 
 @pytest.mark.parametrize("mode", range(1, 9))
-def test_ac2_ladder_failure_mode_name_matches_failure_mode_names(mode):
+def test_ac2_ladder_failure_mode_name_matches_legacy_stage18_names(mode):
+    """Item 150: the ladders are keyed by the pre-sign-off numbering, frozen
+    in ``segfacet.eval.per_mode.LEGACY_STAGE18_MODE_NAMES``."""
+    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+
     sl = _sl()
-    assert sl.SEVERITY_LADDERS[mode].failure_mode_name == FAILURE_MODE_NAMES[mode]
+    assert sl.SEVERITY_LADDERS[mode].failure_mode_name == LEGACY_STAGE18_MODE_NAMES[mode]
 
 
 # =========================================================================== #

@@ -303,6 +303,30 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
 # corpus case's net +S advance is positive
 # =========================================================================== #
 
+#: Corpus cases added *after* this item measured the pre-item tables below,
+#: so this item never recorded values for them. Added by item 150
+#: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
+#: coverage for modes 2 and 4. A pre-item table is deliberately not extended
+#: with values the item it belongs to never measured; instead each sweep pins
+#: the uncovered set exactly, so a *third* uncovered case still fails.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel"}
+
+
+def _cases_covered_by(table, manifest):
+    """Manifest cases the pre-item *table* covers, after asserting that the
+    only cases it does not cover are exactly the post-item additions."""
+    case_ids = {c["case_id"] for c in manifest["cases"]}
+    uncovered = case_ids - set(table)
+    assert uncovered == _ADDED_AFTER_ITEM, (
+        f"corpus cases with no pre-item measurement: {sorted(uncovered)}"
+    )
+    assert set(table) <= case_ids, (
+        f"pre-item table names cases the corpus no longer has: "
+        f"{sorted(set(table) - case_ids)}"
+    )
+    return [c for c in manifest["cases"] if c["case_id"] in table]
+
+
 _PRE_ITEM_TANGENT_ANGLES_DEG = {
     "clean_control": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
     "mode1_displace": [25.5042, 27.8238, 0.0, 27.8238, 25.5042],
@@ -315,23 +339,27 @@ _PRE_ITEM_TANGENT_ANGLES_DEG = {
     "mode8_force_overlap": [13.2111, 6.9636, 0.6253, 4.9247, 5.7262],
 }
 
+#: Item 143 corrected the synthetic corpus's S-axis stacking so ascending
+#: labels advance caudally (descending S) instead of superiorly -- these
+#: values are the negation of the pre-item table (measured 2026-09-03,
+#: matching AC3's mirror-symmetry guarantee that the correction changes only
+#: the sign of the net advance, never its magnitude).
 _PRE_ITEM_NET_ADVANCE_S_MM = {
-    "clean_control": 160.0,
-    "mode1_displace": 160.0,
-    "mode2_fragment": 160.0,
-    "mode3_inject_islands": 160.0,
-    "mode4_relabel_swap": 160.0,
-    "mode5_remove_level": 160.0,
-    "mode6_crop_at_border": 160.0,
-    "mode7_sequence_break": 160.0,
-    "mode8_force_overlap": 142.0,
+    "clean_control": -160.0,
+    "mode1_displace": -160.0,
+    "mode2_fragment": -160.0,
+    "mode3_inject_islands": -160.0,
+    "mode4_relabel_swap": -160.0,
+    "mode5_remove_level": -160.0,
+    "mode6_crop_at_border": -160.0,
+    "mode7_sequence_break": -160.0,
+    "mode8_force_overlap": -142.0,
 }
 
 
 def test_ac5_no_corpus_case_tangent_angles_deg_moves():
     manifest = load_manifest()
-    assert set(_PRE_ITEM_TANGENT_ANGLES_DEG) == {c["case_id"] for c in manifest["cases"]}
-    for case in manifest["cases"]:
+    for case in _cases_covered_by(_PRE_ITEM_TANGENT_ANGLES_DEG, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
         actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
@@ -343,15 +371,20 @@ def test_ac5_no_corpus_case_tangent_angles_deg_moves():
 
 def test_ac6_every_corpus_case_net_advance_positive():
     manifest = load_manifest()
-    assert set(_PRE_ITEM_NET_ADVANCE_S_MM) == {c["case_id"] for c in manifest["cases"]}
+    covered = {c["case_id"] for c in _cases_covered_by(_PRE_ITEM_NET_ADVANCE_S_MM, manifest)}
+    # The *sign* is a live property of the corpus and is checked on every
+    # case, including the ones added after this item; only the pinned
+    # magnitude is restricted to the cases this item measured.
     for case in manifest["cases"]:
         centroids = _ordered_centroids_for_case(case)
         net = float(centroids[-1].centroid_mm[2]) - float(centroids[0].centroid_mm[2])
-        assert net > 0.0, f"{case['case_id']}: net +S advance {net} is not positive"
+        assert net < 0.0, f"{case['case_id']}: net +S advance {net} is not negative"
+        if case["case_id"] not in covered:
+            continue
         expected = _PRE_ITEM_NET_ADVANCE_S_MM[case["case_id"]]
         assert net == pytest.approx(expected, abs=1e-6), (
             f"{case['case_id']}: net advance {net} != measured {expected} -- "
-            f"AC5's table is no longer explained by every case advancing superiorly"
+            f"AC5's table is no longer explained by every case advancing caudally"
         )
 
 
@@ -374,8 +407,7 @@ _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
 
 def test_ac7_no_corpus_case_inter_tangent_angles_deg_moves():
     manifest = load_manifest()
-    assert set(_PRE_ITEM_INTER_TANGENT_ANGLES_DEG) == {c["case_id"] for c in manifest["cases"]}
-    for case in manifest["cases"]:
+    for case in _cases_covered_by(_PRE_ITEM_INTER_TANGENT_ANGLES_DEG, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
         actual = list(record["stage3"]["curvature"]["inter_tangent_angles_deg"])
@@ -693,8 +725,7 @@ def test_ac19_no_corpus_case_changes_findings():
     import test_129_coincident_centroids_and_held_out_floor as t129
 
     manifest = load_manifest()
-    assert set(t129._PRE_129_FINDINGS) == {c["case_id"] for c in manifest["cases"]}
-    for case in manifest["cases"]:
+    for case in _cases_covered_by(t129._PRE_129_FINDINGS, manifest):
         seg_img = loaded_seg_image(case)
         case_result, _features_block = run_qc(seg_img, bundled_default_config())
         pairs = {(f.rule_id, tuple(sorted(f.labels))) for f in case_result.findings}
@@ -738,7 +769,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_curvature_deg": 16.330407,
         "sagittal_curvature_deg": 0.0,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [8.165203, 4.072969, 0.0, -4.072969, -8.165203],
+        "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
     "mode1_displace": {
@@ -746,15 +777,15 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_curvature_deg": 44.926306,
         "sagittal_curvature_deg": 42.295125,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-15.600454, 22.463153, 0.0, -22.463153, 15.600454],
-        "sagittal_tangent_angles_deg": [-21.147563, 18.160137, 0.0, -18.160137, 21.147563],
+        "coronal_tangent_angles_deg": [15.600454, -22.463153, 0.0, 22.463153, -15.600454],
+        "sagittal_tangent_angles_deg": [21.147563, -18.160137, 0.0, 18.160137, -21.147563],
     },
     "mode2_fragment": {
         "total_curvature_deg": 16.330407,
         "coronal_curvature_deg": 16.330407,
         "sagittal_curvature_deg": 0.0,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [8.165203, 4.072969, 0.0, -4.072969, -8.165203],
+        "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
     "mode3_inject_islands": {
@@ -762,23 +793,23 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_curvature_deg": 16.299623,
         "sagittal_curvature_deg": 0.035422,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [8.149811, 4.065017, 0.0, -4.065017, -8.149811],
-        "sagittal_tangent_angles_deg": [-0.017711, -0.008789, 0.0, 0.008789, 0.017711],
+        "coronal_tangent_angles_deg": [-8.149811, -4.065017, 0.0, 4.065017, 8.149811],
+        "sagittal_tangent_angles_deg": [0.017711, 0.008789, 0.0, -0.008789, -0.017711],
     },
     "mode4_relabel_swap": {
         "total_curvature_deg": 355.238942,
         "coronal_curvature_deg": 355.238942,
         "sagittal_curvature_deg": 180.0,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [3.295293, 182.351007, 184.78163, 358.534236, 337.988237],
-        "sagittal_tangent_angles_deg": [0.0, 180.0, 180.0, 0.0, 0.0],
+        "coronal_tangent_angles_deg": [-3.295293, -182.351007, -184.78163, -358.534236, -337.988237],
+        "sagittal_tangent_angles_deg": [0.0, -180.0, -180.0, 0.0, 0.0],
     },
     "mode5_remove_level": {
         "total_curvature_deg": 15.264623,
         "coronal_curvature_deg": 15.264623,
         "sagittal_curvature_deg": 0.0,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [7.632311, 3.795155, -3.795155, -7.632311],
+        "coronal_tangent_angles_deg": [-7.632311, -3.795155, 3.795155, 7.632311],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0],
     },
     "mode6_crop_at_border": {
@@ -786,15 +817,15 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_curvature_deg": 12.316259,
         "sagittal_curvature_deg": 56.66451,
         "curvature_plane": "sagittal",
-        "coronal_tangent_angles_deg": [6.15813, 4.869332, 0.0, -4.869332, -6.15813],
-        "sagittal_tangent_angles_deg": [-28.332255, 23.961638, 0.0, -23.961638, 28.332255],
+        "coronal_tangent_angles_deg": [-6.15813, -4.869332, 0.0, 4.869332, 6.15813],
+        "sagittal_tangent_angles_deg": [28.332255, -23.961638, 0.0, 23.961638, -28.332255],
     },
     "mode7_sequence_break": {
         "total_curvature_deg": 16.330407,
         "coronal_curvature_deg": 16.330407,
         "sagittal_curvature_deg": 0.0,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [8.165203, 4.072969, 0.0, -4.072969, -8.165203],
+        "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
     "mode8_force_overlap": {
@@ -802,7 +833,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_curvature_deg": 18.937358,
         "sagittal_curvature_deg": 0.0,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [13.211112, 6.963566, -0.62529, -4.924689, -5.726245],
+        "coronal_tangent_angles_deg": [-13.211112, -6.963566, 0.62529, 4.924689, 5.726245],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
 }
@@ -810,8 +841,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
 
 def test_ac21_other_curvature_fields_unmoved():
     manifest = load_manifest()
-    assert set(_PRE_ITEM_OTHER_CURVATURE_FIELDS) == {c["case_id"] for c in manifest["cases"]}
-    for case in manifest["cases"]:
+    for case in _cases_covered_by(_PRE_ITEM_OTHER_CURVATURE_FIELDS, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
         curv = record["stage3"]["curvature"]

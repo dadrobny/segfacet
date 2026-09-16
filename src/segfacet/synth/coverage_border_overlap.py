@@ -48,7 +48,9 @@ import nibabel as nib
 from segfacet.io import FacetInputError
 from segfacet.labels import LabelConvention
 from segfacet.synth.axes import FACE_NAMES, resolve_face, si_axis
+from segfacet.failure_modes import CONDITIONS
 from segfacet.synth.perturbation import (
+    CLEAN_CONTROL_MODE,
     Expectation,
     FAILURE_MODE_NAMES,
     Perturbation,
@@ -113,6 +115,13 @@ def _require_present(label: int, labels: Sequence[int], *, what: str) -> None:
             f"{what} {label!r} is not present in the segmentation image. "
             f"Available non-zero labels: {list(labels)}."
         )
+
+
+#: The condition the crop_at_border fixture exhibits (item 150), and the
+#: manifest name it carries -- read from the specification so the corpus and
+#: the catalogue cannot drift apart.
+FOV_TRUNCATION_CONDITION: str = "fov_truncation"
+FOV_TRUNCATION_CONDITION_NAME: str = CONDITIONS[FOV_TRUNCATION_CONDITION].short_name
 
 
 def _level_name(label: int) -> str:
@@ -199,14 +208,99 @@ class RemoveLevelPerturbation(Perturbation):
 
         level_name = _level_name(target)
         expectation = Expectation(
-            failure_mode=5,
-            failure_mode_name=FAILURE_MODE_NAMES[5],
+            failure_mode=6,
+            failure_mode_name=FAILURE_MODE_NAMES[6],
             expected_rule_ids=frozenset({"coverage"}),
             expected_labels=frozenset(),
             expected_verdict="flagged-for-review",
             detail=(
                 f"remove_level: deleted interior level {level_name} "
-                f"(label {target}) from the span {labels!r}."
+                f"(label {target}) from the span {labels!r}. Mode 6 "
+                "(vertebra not segmented) of the catalogue signed off at "
+                "item 150: the vertebra is missed and every remaining label "
+                "is right, so the gap in the label sequence is that missed "
+                "vertebra's signature, not a skipped label (mode 10)."
+            ),
+        )
+        return PerturbationResult(labelmap=out_img, expectation=expectation)
+
+
+# --------------------------------------------------------------------------- #
+# RemoveLevelRelabelPerturbation
+# --------------------------------------------------------------------------- #
+
+
+@register_perturbation
+class RemoveLevelRelabelPerturbation(Perturbation):
+    """Delete an interior vertebra **and renumber the caudal labels** so the
+    label sequence stays continuous over a spatial gap (item 150).
+
+    Registered under ``"remove_level_relabel"``. Zeroes every voxel of the
+    target label, then shifts every present label caudal to it up by one
+    position in the sorted present-label order (``[20, 21, 22, 23, 24]``
+    with target 22 becomes ``[20, 21, 22, 23]``: old 23 -> 22, old 24 ->
+    23). This is mode 4 (vertebra not segmented) in the form a real
+    segmenter produces when it misses a vertebra and miscounts the rest:
+    ``relationships.missing_levels[]`` stays empty and the only signature
+    is a doubled inter-centroid spacing at the gap
+    (``stage3.spacing_consistency.spacings_mm[]``), which no shipped rule
+    reads -- so the expectation designates no rule and a ``"pass"``
+    verdict, honestly recording "not detected today". Rejects a span with
+    fewer than 3 present labels or a terminal target, as ``remove_level``
+    does.
+    """
+
+    name = "remove_level_relabel"
+
+    def __init__(self, *, target_label: Optional[int] = None):
+        self._target_label = target_label
+
+    def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
+        labels = _present_labels(labelmap)
+        if len(labels) < 3:
+            raise FacetInputError(
+                "RemoveLevelRelabelPerturbation requires at least 3 present "
+                f"labels (an interior level to remove); found {labels!r}."
+            )
+        interior = labels[1:-1]
+        if self._target_label is not None:
+            _require_present(self._target_label, labels, what="target_label")
+            if self._target_label not in interior:
+                raise FacetInputError(
+                    f"RemoveLevelRelabelPerturbation: target_label="
+                    f"{self._target_label!r} is a span-end (terminal) level in "
+                    f"{labels!r}; choose an interior label."
+                )
+            target = self._target_label
+        else:
+            target = interior[len(interior) // 2]
+
+        data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
+        data[data == target] = 0
+        # Renumber caudal labels one position up, cranial-most first so no
+        # relabel collides with a value still to be moved.
+        caudal = [label for label in labels if label > target]
+        renumbered = []
+        for old, new in zip(caudal, [target] + caudal[:-1]):
+            data[data == old] = new
+            renumbered.append((old, new))
+        out_img = _new_image(data, labelmap)
+
+        level_name = _level_name(target)
+        expectation = Expectation(
+            failure_mode=6,
+            failure_mode_name=FAILURE_MODE_NAMES[6],
+            expected_rule_ids=frozenset(),
+            expected_labels=frozenset(),
+            expected_verdict="pass",
+            detail=(
+                f"remove_level_relabel: deleted interior level {level_name} "
+                f"(label {target}) and renumbered the caudal labels "
+                f"{renumbered!r} so the label sequence stays continuous over "
+                "the spatial gap. Mode 6 (vertebra not segmented) of the "
+                "catalogue signed off at item 150; not detected by any "
+                "shipped rule (the doubled centroid spacing is a "
+                "hypothesised signal), recorded as expected."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
@@ -301,15 +395,18 @@ class CropAtBorderPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=6,
-            failure_mode_name=FAILURE_MODE_NAMES[6],
+            failure_mode=CLEAN_CONTROL_MODE,
+            failure_mode_name=FOV_TRUNCATION_CONDITION_NAME,
+            condition=FOV_TRUNCATION_CONDITION,
             expected_rule_ids=frozenset({"border"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
             detail=(
                 f"crop_at_border: translated label {target} toward the "
                 f"{self._face!r} face by {self._crop_depth} voxel(s) beyond "
-                "touching, clipping the overhang."
+                "touching, clipping the overhang. Exhibits the FOV-truncation "
+                "CONDITION (item 150: retired failure mode 6), not a failure "
+                "mode; the border rule records it."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
@@ -430,8 +527,8 @@ class ForceOverlapPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=8,
-            failure_mode_name=FAILURE_MODE_NAMES[8],
+            failure_mode=15,
+            failure_mode_name=FAILURE_MODE_NAMES[15],
             expected_rule_ids=frozenset({"overlap"}),
             expected_labels=frozenset({target, neighbour}),
             expected_verdict="flagged-for-review",

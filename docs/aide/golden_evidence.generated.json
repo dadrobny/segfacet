@@ -4,6 +4,10 @@
       "total_leaf_paths": 94,
       "unwired_leaf_paths": 26
     },
+    "fuse_adjacent": {
+      "total_leaf_paths": 94,
+      "unwired_leaf_paths": 26
+    },
     "mode1_displace": {
       "total_leaf_paths": 94,
       "unwired_leaf_paths": 26
@@ -33,6 +37,10 @@
       "unwired_leaf_paths": 26
     },
     "mode8_force_overlap": {
+      "total_leaf_paths": 94,
+      "unwired_leaf_paths": 26
+    },
+    "remove_level_relabel": {
       "total_leaf_paths": 94,
       "unwired_leaf_paths": 26
     }

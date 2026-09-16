@@ -46,6 +46,7 @@ from segfacet.synth.coverage_border_overlap import (
     CropAtBorderPerturbation,
     ForceOverlapPerturbation,
     RemoveLevelPerturbation,
+    RemoveLevelRelabelPerturbation,
 )
 from segfacet.synth.identity_ordering_alignment import (
     DisplacePerturbation,
@@ -65,6 +66,8 @@ from segfacet.synth.regression import (
     RECONSTRUCTIONS,
     designated_findings,
     designated_rule_fired,
+    intensity_pipeline_findings,
+    loaded_intensity_case,
     loaded_seg_image,
     offending_labels_match,
     pipeline_findings,
@@ -126,6 +129,7 @@ __all__ = [
     "FusePerturbation",
     "InjectIslandsPerturbation",
     "RemoveLevelPerturbation",
+    "RemoveLevelRelabelPerturbation",
     "CropAtBorderPerturbation",
     "ForceOverlapPerturbation",
     "DisplacePerturbation",
@@ -148,6 +152,8 @@ __all__ = [
     "offending_labels_match",
     "pipeline_hides_designated_rule",
     "verify_case",
+    "loaded_intensity_case",
+    "intensity_pipeline_findings",
     "GOLDEN_ABS_TOL",
     "GOLDEN_REL_TOL",
     "VOLATILE_POINTERS",

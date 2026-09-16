@@ -36,6 +36,8 @@ from typing import Dict, FrozenSet, Iterator, NamedTuple, Type
 import numpy as np
 import nibabel as nib
 
+from segfacet.failure_modes import failure_mode_names
+
 __all__ = [
     "CLEAN_CONTROL_MODE",
     "FAILURE_MODE_NAMES",
@@ -57,19 +59,24 @@ __all__ = [
 #: Sentinel §6 "mode" for the clean control (no injected failure).
 CLEAN_CONTROL_MODE: int = 0
 
-#: Canonical §6 failure-mode names, keyed 0..8 (0 == clean control). Shared so
-#: every operator (037-039) names its mode identically.
-FAILURE_MODE_NAMES: Dict[int, str] = {
-    0: "clean control (no failure)",
-    1: "label not aligned with the vertebra it names",
-    2: "over-/under-segmentation (fused / fragmented)",
-    3: "disconnected components / rogue islands",
-    4: "semantic mislabelling (wrong identification)",
-    5: "not all vertebrae segmented (missing levels)",
-    6: "partial vertebra at the image border",
-    7: "non-continuous label sequence",
-    8: "overlapping segments",
-}
+#: Canonical failure-mode names, keyed by mode id (0 == clean control),
+#: under the catalogue signed off at item 150 (2026-09-14). Shared so every
+#: operator (037-039) names its mode identically.
+#:
+#: **Derived, not authored** since item 147: the values live on
+#: ``segfacet.failure_modes.SPECIFICATION[id].short_name`` -- the authored
+#: paraphrase both committed corpus manifests carry in ``failure_mode_name``
+#: -- and key 0 on ``failure_modes.CLEAN_CONTROL_NAME``, since the clean
+#: control is not a failure mode and has no ``ModeSpec`` entry. This name
+#: stays the binding every consumer reads; only its source moved. Keys 9 and
+#: 10 appear here for the first time as a consequence, because the
+#: specification carries them.
+#:
+#: The import is safe at module level: ``segfacet.failure_modes`` imports
+#: only ``feature_docs`` (stdlib-only) and ``verdict`` at construction time,
+#: and reaches ``segfacet.synth`` exclusively through deferred, in-function
+#: imports -- so this does not close a cycle.
+FAILURE_MODE_NAMES: Dict[int, str] = dict(failure_mode_names())
 
 
 # --------------------------------------------------------------------------- #
@@ -84,9 +91,17 @@ class Expectation:
     Attributes
     ----------
     failure_mode:
-        The §6 failure-mode key (0..8; 0 == :data:`CLEAN_CONTROL_MODE`).
+        The failure-mode id in ``segfacet.failure_modes.SPECIFICATION``
+        (``0`` == :data:`CLEAN_CONTROL_MODE`, also used by a case that
+        exhibits a *condition* and no failure mode -- see ``condition``).
     failure_mode_name:
-        Human-readable name, usually ``FAILURE_MODE_NAMES[failure_mode]``.
+        Human-readable name, usually ``FAILURE_MODE_NAMES[failure_mode]``;
+        for a condition-only case, the condition's ``short_name``.
+    condition:
+        The id of the ``segfacet.failure_modes.CONDITIONS`` entry this case
+        exhibits (item 150; e.g. ``"fov_truncation"``), or ``""``. A case
+        with ``failure_mode == 0`` and a non-empty ``condition`` is not a
+        clean control: its designated rule is expected to fire.
     expected_rule_ids:
         The Stage 4 ``rule_id`` string(s) expected among the fired findings.
         Empty for the clean control.
@@ -107,12 +122,14 @@ class Expectation:
     expected_labels: FrozenSet[int]
     expected_verdict: str
     detail: str = ""
+    condition: str = ""
 
     def to_dict(self) -> dict:
         """Return a JSON-ready dict (``rule_ids``/``labels`` as sorted lists)."""
         return {
             "failure_mode": self.failure_mode,
             "failure_mode_name": self.failure_mode_name,
+            "condition": self.condition,
             "expected_rule_ids": sorted(self.expected_rule_ids),
             "expected_labels": sorted(self.expected_labels),
             "expected_verdict": self.expected_verdict,

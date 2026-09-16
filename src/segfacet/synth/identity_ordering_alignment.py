@@ -321,8 +321,8 @@ class RelabelSwapPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=4,
-            failure_mode_name=FAILURE_MODE_NAMES[4],
+            failure_mode=9,
+            failure_mode_name=FAILURE_MODE_NAMES[9],
             expected_rule_ids=frozenset({"mislabel"}),
             expected_labels=frozenset({target, neighbour}),
             expected_verdict="flagged-for-review",
@@ -401,8 +401,8 @@ class SequenceBreakPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=7,
-            failure_mode_name=FAILURE_MODE_NAMES[7],
+            failure_mode=9,
+            failure_mode_name=FAILURE_MODE_NAMES[9],
             expected_rule_ids=frozenset({"sequence"}),
             expected_labels=frozenset({self._new_label}),
             expected_verdict="flagged-for-review",
