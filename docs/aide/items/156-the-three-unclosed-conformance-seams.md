@@ -460,4 +460,56 @@ leaves unchanged. Item 160 counts the three entries this item absorbs.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **D1: message wording (A3).** The new declaration → specification message
+  reads `rule '<id>': declares §6 mode <m>, but SPECIFICATION[<m>].intended_rules
+  carries no IntendedRule edge for it (edges: [<ids>]).` — deliberately using
+  "declares" rather than "declared" so `traceability.build_matrix()`'s
+  `_uncatalogued_mode_re` (`^rule '([^']+)': declared §6 mode \d+ is outside`)
+  cannot match it (AC5).
+- **D2: manifest field lookup in `traceability.build_matrix()`.** Both
+  geometric and intensity cases are read uniformly via
+  `case.get("expected_rule_ids", ())` and `case.get("expected_firing", ())`
+  unioned per case, rather than branching on which corpus a case came from —
+  a geometric case has no `expected_firing` key and an intensity case has no
+  `expected_rule_ids` key, so `.get(..., ())` on the absent key is always
+  empty and the union is exactly "whichever field this case actually
+  carries." This matches AC7/AC8/AC9 without a corpus-name branch.
+- **D3: `manifest_cases_all` loaded once.** Moved to the top of
+  `build_matrix()` (before `corpus_designated_unregistered_rule_ids` is
+  derived) and reused unchanged by the later `cases_by_mode` /
+  `pipeline_detected_by_mode` computation, per Implementation Step 3 — no
+  behavioural change there, only a hoisted, shared load.
+- **D4: `scan_synth_rule_mode_map` import removed from `build_matrix()`.**
+  The function no longer calls the scan at all; its other two callers
+  (`catalogue.build_catalogue`'s mechanism C, and the corpus → declaration
+  direction of `catalogue.rule_declaration_conflicts()`) are untouched and
+  still geometric-only, per A4 — confirmed by AC10's monkeypatch of both
+  `scan_synth_rule_mode_map` and `_scan_synth_rule_mode_map`.
+- **Verification (Validation steps 1-3), measured 2026-09-16/17:**
+  - Regenerating with `python -m segfacet.traceability --json/--md` to a
+    scratch directory and `cmp`-ing against the committed
+    `docs/aide/traceability_matrix.generated.{json,md}` shows **no
+    difference** — both files are byte-identical, confirming AC14 and that
+    none of the three fixes moves a rendered value.
+  - Replaying the two Seam-1 controls outside the suite:
+    `reference_delta` widened to `(1, 2, 3, 4, 6, 8)` prints exactly one new
+    message naming mode 6 (`edges: ['coverage']`); widened to `(1, 2, 5)`
+    prints exactly one message naming mode 5 (`edges: []`). Both are `()`
+    before this item's change, matching the Description's measurement.
+    `fragmentation` widened to `(1, 2, 4)` prints a message naming mode 2
+    (`edges: ['bounds', 'reference_delta']`); `bounds` widened to `(999,)`
+    prints exactly the one pre-existing "outside the key set" message, naming
+    999 only.
+  - `build_matrix()` on the shipped tree: `corpus_designated_unregistered_rule_ids
+    == ()`; `mode_to_rule.holes == ('10', '11', '12', '13', '14', '5', '7')`,
+    exactly the modes with `derive_status(...) == "proposed"` (AC13).
+  - `python .aide/scripts/aide.py scope` reports only `src/segfacet/catalogue.py`
+    and `src/segfacet/traceability.py` changed among the two May-change
+    source paths.
+  - The A6 hand-back is recorded as a dated (2026-09-17) trail line under the
+    item-146 (2026-09-04) `insights.md` entry via
+    `aide insights tick 42 --pointer "..."`; a second, new `knowledge` line
+    (dated 2026-09-16) records the out-of-scope `(1, 2, 5)`-control finding
+    from the Description (Step 8) — not previously captured verbatim.
+  - `roadmap.md` and `progress.md` prose are untouched; `progress.md`'s only
+    edit is the CLI-driven status flip to `in-progress` (A7).

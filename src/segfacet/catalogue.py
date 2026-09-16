@@ -31,7 +31,11 @@ Four derivation mechanisms, each carrying its own evidence tag
   off every ``Expectation(failure_mode=N, ..., expected_rule_ids=frozenset(
   {...}))`` call's literal keyword pairs. No hand-typed rule-id -> mode
   dictionary exists anywhere in this module's source (drift guard, AC13).
-  Exposed publicly as :func:`scan_synth_rule_mode_map`.
+  Exposed publicly as :func:`scan_synth_rule_mode_map`. It matches only
+  geometric ``Expectation(...)`` literals under ``src/segfacet/synth/*.py``
+  and cannot see the intensity corpus, whose cases are ``_RecipeEntry(...)``
+  literals (item 156, Seam 2) — see the function's own docstring for its two
+  remaining consumers.
 - **D. Non-rule consumers** (``observed`` / ``vocabulary``) — the same trace
   proxy run through ``eval.per_mode.compute_per_mode_metrics`` and
   ``human_report.render_feature_table``, plus the declared feature-name
@@ -50,12 +54,18 @@ declared modes may include an *analytic* attribution with no corpus
 corroboration (item 137's ``bounds``/``reference_delta``, tagged
 ``"analytic"`` rather than ``"corpus"`` in the declaration's own
 ``evidence``), a declared mode is **not** guaranteed to already be a subset
-of mechanism C's corpus-derived map — :func:`rule_declaration_conflicts`
-only enforces agreement in the corpus → declaration direction (a corpus
-case must be reflected in the declaration), never the reverse. Disagreement
-between the declaration and the corpus-derived map — in either enforced
-direction — is reported by :func:`rule_declaration_conflicts`, never
-silently resolved here.
+of mechanism C's corpus-derived map — against *that* map,
+:func:`rule_declaration_conflicts` only enforces the corpus → declaration
+direction (a corpus case must be reflected in the declaration), never the
+declaration → corpus-map reverse (item 147 retired that direction
+permanently; a declaration's *analytic* attribution is legitimately absent
+from the corpus). Disagreement between the declaration and the corpus-derived
+map — in either enforced direction — is reported by
+:func:`rule_declaration_conflicts`, never silently resolved here.
+:func:`rule_declaration_conflicts` also enforces a *second*, unrelated
+reverse direction (item 156, Seam 1): declaration → **specification** (not
+the corpus-derived map) — every declared known mode must be mirrored by an
+``IntendedRule`` edge in :data:`segfacet.failure_modes.SPECIFICATION`.
 
 A fourth tag, ``"rule_mode_less"`` (item 137, ordered last — after
 ``"rule_declaration"``), marks an entry with at least one consuming rule
@@ -693,7 +703,20 @@ def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
     """``rule_id -> §6 mode(s)``, read from every ``Expectation(...)`` call's
     literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
     ``src/segfacet/synth/*.py``. No rule-id -> mode mapping is hand-typed
-    anywhere in this module's source (AC13's drift guard)."""
+    anywhere in this module's source (AC13's drift guard).
+
+    Geometric-only (item 156, Seam 2): this scan matches ``Expectation(...)``
+    literals only, so it never sees the intensity corpus
+    (``src/segfacet/synth/intensity.py``'s cases are ``_RecipeEntry(...)``
+    literals, an unrelated call shape). Its two remaining consumers, both
+    geometric-only by the same limit: mechanism C of :func:`build_catalogue`
+    (this module's own ``rule_mode_map`` evidence term), and the corpus ->
+    declaration direction of :func:`rule_declaration_conflicts`.
+    :func:`segfacet.traceability.build_matrix` used to read this scan for
+    ``corpus_designated_unregistered_rule_ids`` too; since item 156 it derives
+    that field from the two committed manifests
+    (``tests/corpus/manifest.json`` and ``tests/corpus/intensity/manifest.json``)
+    directly, so an intensity case naming an unregistered rule is reported."""
     import ast
     import segfacet.synth as synth_pkg
 
@@ -731,7 +754,9 @@ def scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
     literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
     ``src/segfacet/synth/*.py`` -- the corpus-derived side of the
     declaration <-> corpus agreement checked by
-    :func:`rule_declaration_conflicts`.
+    :func:`rule_declaration_conflicts`. Geometric-only: see
+    :func:`_scan_synth_rule_mode_map`'s docstring for what this scan cannot
+    see and who still reads it.
     """
     return _scan_synth_rule_mode_map()
 
@@ -1138,7 +1163,16 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
       :data:`segfacet.feature_docs.MODE_ANCHOR_PATHS`'s keys instead; the two
       agreed exactly while both were 1-8, and the specification is the one
       that grows when a mode enters through the lifecycle (item 147 completes
-      the collapse of the remaining partial sources onto it).
+      the collapse of the remaining partial sources onto it);
+    - (item 156, Seam 1) a declared **known** mode with no mirroring
+      ``IntendedRule`` edge (naming both rule and mode) -- the declaration ->
+      specification direction. Unconditional: reported whether or not a
+      corpus case exists for the mode (spec Assumption A2). This is the
+      direction :func:`segfacet.failure_modes.specification_conflicts`
+      does not check (it only checks specification -> declaration), and the
+      corpus -> declaration direction below does not check either (a corpus
+      case's silence about a mode says nothing about whether the
+      specification mirrors a declaration that names it).
 
     Item 147 retired the reserved ``"corpus"`` evidence tag and the
     declaration -> corpus direction it gated. That direction was an
@@ -1177,6 +1211,25 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
                 f"segfacet.failure_modes.SPECIFICATION's key set "
                 f"{sorted(known_modes)!r}."
             )
+
+        # Declaration -> specification (item 156, Seam 1). For every known
+        # mode the rule declares, the specification must mirror it with an
+        # IntendedRule edge -- the direction nothing checked before this
+        # item: a rule could declare a listed mode with no edge naming it,
+        # and both rule_declaration_conflicts() (corpus -> declaration only,
+        # until now) and failure_modes.specification_conflicts()
+        # (specification -> declaration only) stayed silent (A1, A2
+        # unconditional -- reported whether or not a corpus case exists).
+        for mode in sorted(set(decl.modes) & known_modes):
+            edges = {
+                edge.rule_id for edge in _failure_modes_module.SPECIFICATION[mode].intended_rules
+            }
+            if rule_id not in edges:
+                messages.append(
+                    f"rule {rule_id!r}: declares §6 mode {mode}, but "
+                    f"SPECIFICATION[{mode}].intended_rules carries no "
+                    f"IntendedRule edge for it (edges: {sorted(edges)!r})."
+                )
 
     # Corpus -> declaration. Item 147: iterate the **corpus map's** rule_ids,
     # not the registered rules, so a corpus case designating a rule_id no

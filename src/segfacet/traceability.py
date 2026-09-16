@@ -55,8 +55,11 @@ derived from :func:`segfacet.catalogue.scan_synth_rule_mode_map`, an AST scan
 matching only geometric ``Expectation(...)`` literals, so mode 9's
 ``intensity`` edge (corpus-designated only in the intensity manifest, which
 the scan never reads) rendered ``"analytic"`` beside a rung claiming three
-committed intensity cases drive it end-to-end. The scan is still read, for
-``corpus_designated_unregistered_rule_ids`` only.
+committed intensity cases drive it end-to-end. Item 156 Seam 2 retires the
+scan's last read here too: ``corpus_designated_unregistered_rule_ids`` is now
+derived from the two committed manifests' ``expected_rule_ids`` /
+``expected_firing`` directly, so :func:`build_matrix` no longer calls
+:func:`segfacet.catalogue.scan_synth_rule_mode_map` at all.
 
 An unclassified or dropped ``consumed_paths`` entry is folded in from
 :func:`segfacet.catalogue.path_classification_conflicts` as
@@ -416,7 +419,6 @@ def build_matrix() -> TraceabilityMatrix:
         build_catalogue,
         path_classification_conflicts,
         rule_declaration_conflicts,
-        scan_synth_rule_mode_map,
     )
     from segfacet.heuristics.rule import iter_rule_declarations, iter_rules
 
@@ -454,7 +456,21 @@ def build_matrix() -> TraceabilityMatrix:
         for rid in e.consuming_rules:
             by_rule_counts[rid] = by_rule_counts.get(rid, 0) + 1
 
-    corpus_map = scan_synth_rule_mode_map()
+    # Item 156 Seam 2: both committed manifests, loaded once and shared by
+    # corpus_designated_unregistered_rule_ids below and by cases_by_mode
+    # further down -- corpus_designated_unregistered_rule_ids no longer reads
+    # catalogue.scan_synth_rule_mode_map (an AST scan blind to the intensity
+    # corpus's _RecipeEntry cases; see catalogue.py's docstrings).
+    from segfacet.synth import corpus as corpus_module
+    from segfacet.synth import intensity as intensity_module
+
+    manifest_cases_all = [
+        ("geometric", c)
+        for c in corpus_module.load_manifest().get("cases", [])
+    ] + [
+        ("intensity", c)
+        for c in intensity_module.load_intensity_manifest().get("cases", [])
+    ]
 
     registered_rule_ids = sorted(r.rule_id for r in iter_rules())
     declared_modes_by_rule: Dict[str, Tuple[int, ...]] = {}
@@ -539,8 +555,12 @@ def build_matrix() -> TraceabilityMatrix:
             )
         )
 
+    designated_rule_ids: Set[str] = set()
+    for _corpus_name, _case in manifest_cases_all:
+        designated_rule_ids.update(_case.get("expected_rule_ids", ()))
+        designated_rule_ids.update(_case.get("expected_firing", ()))
     unregistered_designated = tuple(
-        sorted(rid for rid in corpus_map if rid not in registered_rule_ids)
+        sorted(rid for rid in designated_rule_ids if rid not in registered_rule_ids)
     )
 
     mode_to_rule_holes = tuple(
@@ -554,16 +574,7 @@ def build_matrix() -> TraceabilityMatrix:
 
     # Both committed manifests -> cases_by_mode + pipeline_detected (item 149
     # AC18: re-derived across BOTH corpora, not the geometric one alone).
-    from segfacet.synth import corpus as corpus_module
-    from segfacet.synth import intensity as intensity_module
-
-    manifest_cases_all = [
-        ("geometric", c)
-        for c in corpus_module.load_manifest().get("cases", [])
-    ] + [
-        ("intensity", c)
-        for c in intensity_module.load_intensity_manifest().get("cases", [])
-    ]
+    # manifest_cases_all is loaded once, above (item 156 Seam 2).
     cases_by_mode: Dict[int, Tuple[Tuple[str, str], ...]] = {}
     pipeline_detected_by_mode: Dict[int, bool] = {}
     for mode in known_modes:
@@ -579,9 +590,10 @@ def build_matrix() -> TraceabilityMatrix:
 
     # Item 149 Decision D2: attribution is derived from the specification's
     # own corpus_cases (which span both corpora by construction), not from
-    # scan_synth_rule_mode_map (which only ever matched geometric
-    # Expectation(...) literals). The scan is still read above, for
-    # corpus_designated_unregistered_rule_ids only.
+    # catalogue.scan_synth_rule_mode_map (which only ever matched geometric
+    # Expectation(...) literals). Item 156 Seam 2: the scan is no longer read
+    # anywhere in this function -- corpus_designated_unregistered_rule_ids is
+    # now derived from the two committed manifests directly (see above).
     specification = failure_modes_module.SPECIFICATION
     corpus_rule_ids_by_mode: Dict[int, Set[str]] = {}
     for mode_id, mode_spec in specification.items():
