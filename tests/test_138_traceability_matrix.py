@@ -223,9 +223,11 @@ def _manifest_detection_by_case_id() -> dict:
 
 
 # Reconciled (item 147, 2026-09-04): the local ``_vision_mode_titles()``
-# parse is retired -- the vision §6 parse has one home now,
-# ``failure_modes.vision_seed_titles()`` (AC4), and every caller here reads
-# that instead of re-parsing ``vision.md`` independently.
+# parse is retired. Reconciled again (item 152): ``failure_modes.
+# vision_seed_titles()`` is itself now retired -- the vision §6 parse has no
+# live home. What survives is provenance only, frozen in
+# ``failure_modes.VISION_SEED_DISPOSITION`` (spec A6); no module re-parses
+# ``vision.md`` §6 at runtime.
 
 
 def _token_in_mechanism(token: str, mechanism: str) -> bool:
@@ -767,11 +769,12 @@ def test_ac8_mode_set_equals_mode_anchor_paths_keys(matrix):
 # =========================================================================== #
 
 # Hand-transcribed from docs/aide/vision.md §6 "Segmentation Failure Modes"
-# (lines 279-286 as of this writing), independently of
-# ``failure_modes.vision_seed_titles()`` (item 147's one home for the §6
-# parse) -- comparing the builder's output only to that function's own
-# output would let a shared parsing bug through undetected (both sides
-# would agree with each other while disagreeing with the actual document).
+# (lines 279-286 as of this writing), independently of any parser --
+# ``failure_modes.vision_seed_titles()`` is retired (item 152); the v3 §6
+# text survives only as frozen provenance in
+# ``failure_modes.VISION_SEED_DISPOSITION`` (spec A6). Comparing these
+# literals against that frozen copy still catches a hand-transcription slip
+# on either side, since neither is derived from the other.
 # These literals are the trailing-period-stripped,
 # whitespace-normalised title text exactly as §6 states it, preserving its
 # em dashes and arrows. If §6's wording changes, these must be updated by
