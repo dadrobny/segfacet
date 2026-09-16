@@ -479,10 +479,11 @@ The framework ships a fourth reviewer the table below does not cover: the
 `reviewer` agent ([`.claude/agents/reviewer.md`](.claude/agents/reviewer.md),
 engine 1.40.0, issue #151), which runs inside the item loop concurrently with
 the validator on Sonnet at high effort, preloads §9 and reads `REVIEW.md` when
-the prompt hands it over. It is off unless `aide.toml` sets
-`[loop] review = "background"`, under which the validator holds the merge until
-the findings are triaged. **This repo has not enabled it** — `aide.toml` sets
-`review = "off"` explicitly — and whether to is the maintainer's call.
+the prompt hands it over. **This repo enables it** — `aide.toml` sets
+`[loop] review = "background"` (2026-09-16) — so under `/aide-run-item` the
+validator holds the merge at PASS until the reviewer's findings are triaged, and
+the orchestrator runs `aide merge NNN` itself. It is the first read of every
+item's diff; the table below is what to spend on a second one.
 
 **Reviewer capacity is the binding constraint, so this table offers tools
 rather than prescribing a routine.** Both hosted reviewers run on quotas a
