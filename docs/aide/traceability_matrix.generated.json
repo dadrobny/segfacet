@@ -14,6 +14,60 @@
       },
       {
         "agrees": true,
+        "case_id": "crop_at_border",
+        "corpus": "geometric",
+        "expected_firing": [
+          "border",
+          "mislabel"
+        ],
+        "expected_source": "specification-condition",
+        "measured_firing": [
+          "border",
+          "mislabel"
+        ],
+        "mode": 0
+      },
+      {
+        "agrees": true,
+        "case_id": "displace",
+        "corpus": "geometric",
+        "expected_firing": [
+          "mislabel"
+        ],
+        "expected_source": "specification",
+        "measured_firing": [
+          "mislabel"
+        ],
+        "mode": 1
+      },
+      {
+        "agrees": true,
+        "case_id": "force_overlap",
+        "corpus": "geometric",
+        "expected_firing": [
+          "overlap"
+        ],
+        "expected_source": "specification",
+        "measured_firing": [
+          "overlap"
+        ],
+        "mode": 15
+      },
+      {
+        "agrees": true,
+        "case_id": "fragment",
+        "corpus": "geometric",
+        "expected_firing": [
+          "fragmentation"
+        ],
+        "expected_source": "specification",
+        "measured_firing": [
+          "fragmentation"
+        ],
+        "mode": 1
+      },
+      {
+        "agrees": true,
         "case_id": "fuse_adjacent",
         "corpus": "geometric",
         "expected_firing": [
@@ -29,33 +83,7 @@
       },
       {
         "agrees": true,
-        "case_id": "mode1_displace",
-        "corpus": "geometric",
-        "expected_firing": [
-          "mislabel"
-        ],
-        "expected_source": "specification",
-        "measured_firing": [
-          "mislabel"
-        ],
-        "mode": 1
-      },
-      {
-        "agrees": true,
-        "case_id": "mode2_fragment",
-        "corpus": "geometric",
-        "expected_firing": [
-          "fragmentation"
-        ],
-        "expected_source": "specification",
-        "measured_firing": [
-          "fragmentation"
-        ],
-        "mode": 1
-      },
-      {
-        "agrees": true,
-        "case_id": "mode3_inject_islands",
+        "case_id": "inject_islands",
         "corpus": "geometric",
         "expected_firing": [
           "fragmentation"
@@ -68,7 +96,7 @@
       },
       {
         "agrees": true,
-        "case_id": "mode4_relabel_swap",
+        "case_id": "relabel_swap",
         "corpus": "geometric",
         "expected_firing": [
           "mislabel"
@@ -81,7 +109,7 @@
       },
       {
         "agrees": true,
-        "case_id": "mode5_remove_level",
+        "case_id": "remove_level",
         "corpus": "geometric",
         "expected_firing": [
           "coverage"
@@ -91,47 +119,6 @@
           "coverage"
         ],
         "mode": 6
-      },
-      {
-        "agrees": true,
-        "case_id": "mode6_crop_at_border",
-        "corpus": "geometric",
-        "expected_firing": [
-          "border",
-          "mislabel"
-        ],
-        "expected_source": "specification-condition",
-        "measured_firing": [
-          "border",
-          "mislabel"
-        ],
-        "mode": 0
-      },
-      {
-        "agrees": true,
-        "case_id": "mode7_sequence_break",
-        "corpus": "geometric",
-        "expected_firing": [
-          "sequence"
-        ],
-        "expected_source": "specification",
-        "measured_firing": [
-          "sequence"
-        ],
-        "mode": 9
-      },
-      {
-        "agrees": true,
-        "case_id": "mode8_force_overlap",
-        "corpus": "geometric",
-        "expected_firing": [
-          "overlap"
-        ],
-        "expected_source": "specification",
-        "measured_firing": [
-          "overlap"
-        ],
-        "mode": 15
       },
       {
         "agrees": true,
@@ -141,6 +128,19 @@
         "expected_source": "specification",
         "measured_firing": [],
         "mode": 6
+      },
+      {
+        "agrees": true,
+        "case_id": "sequence_break",
+        "corpus": "geometric",
+        "expected_firing": [
+          "sequence"
+        ],
+        "expected_source": "specification",
+        "measured_firing": [
+          "sequence"
+        ],
+        "mode": 9
       },
       {
         "agrees": true,
@@ -245,11 +245,11 @@
       "authored_status": "specified",
       "cases": [
         {
-          "case_id": "mode1_displace",
+          "case_id": "displace",
           "detection": "pipeline"
         },
         {
-          "case_id": "mode2_fragment",
+          "case_id": "fragment",
           "detection": "pipeline"
         }
       ],
@@ -271,7 +271,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: mode2_fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. The corpus case mode1_displace (a rigidly translated vertebra, which is over-segmentation into background plus under-segmentation of the true body) fires mislabel's spline-offset detector via stage3.per_label_offsets[].offset_mm -- a detector that serves no failure mode (the spline offset is an anatomy-classification signal), so that case is a recorded co-detection.",
+      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. The corpus case displace (a rigidly translated vertebra, which is over-segmentation into background plus under-segmentation of the true body) fires mislabel's spline-offset detector via stage3.per_label_offsets[].offset_mm -- a detector that serves no failure mode (the spline offset is an anatomy-classification signal), so that case is a recorded co-detection.",
       "mode": 1,
       "pipeline_detected": true,
       "read_paths": [
@@ -395,7 +395,7 @@
       "authored_status": "specified",
       "cases": [
         {
-          "case_id": "mode8_force_overlap",
+          "case_id": "force_overlap",
           "detection": "reconstructed_record"
         }
       ],
@@ -407,7 +407,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "A single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a case deliberately corrupted to violate that invariant, which no real segmenter output can be; mode8_force_overlap therefore stays detection=\"reconstructed_record\" rather than pipeline-detected, while the overlap rule and the paths it reads remain correct and fully wired.",
+      "mechanism": "A single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a case deliberately corrupted to violate that invariant, which no real segmenter output can be; force_overlap therefore stays detection=\"reconstructed_record\" rather than pipeline-detected, while the overlap rule and the paths it reads remain correct and fully wired.",
       "mode": 15,
       "pipeline_detected": false,
       "read_paths": [
@@ -570,7 +570,7 @@
       "authored_status": "specified",
       "cases": [
         {
-          "case_id": "mode3_inject_islands",
+          "case_id": "inject_islands",
           "detection": "pipeline"
         }
       ],
@@ -592,7 +592,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "fragmentation's Rogue island(s): detector serves this mode end-to-end on the committed corpus: mode3_inject_islands adds tiny rogue blocks beside label 22 and the detector fires via per_label.{label}.components.stray_component_sizes[]. bounds and reference_delta stay needs-real-data: a stray island shifts volume only marginally.",
+      "mechanism": "fragmentation's Rogue island(s): detector serves this mode end-to-end on the committed corpus: inject_islands adds tiny rogue blocks beside label 22 and the detector fires via per_label.{label}.components.stray_component_sizes[]. bounds and reference_delta stay needs-real-data: a stray island shifts volume only marginally.",
       "mode": 4,
       "pipeline_detected": true,
       "read_paths": [
@@ -648,7 +648,7 @@
       "authored_status": "specified",
       "cases": [
         {
-          "case_id": "mode5_remove_level",
+          "case_id": "remove_level",
           "detection": "pipeline"
         },
         {
@@ -664,7 +664,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). From the label map alone: coverage's always-active interior-gap detector fires on relationships.missing_levels[] when the remaining labels are kept -- mode5_remove_level deletes L3 without renumbering and drives it end-to-end -- although the same gap is what a skipped label (mode 10) leaves, which centroid spacing would separate and no rule reads. coverage's opt-in expected-span and expected-count checks over relationships.present_levels[] ship disabled (needs-real-data). The renumbered form is not detected: remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a double inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped rule reads, so its expected firing set is empty. Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
+      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). From the label map alone: coverage's always-active interior-gap detector fires on relationships.missing_levels[] when the remaining labels are kept -- remove_level deletes L3 without renumbering and drives it end-to-end -- although the same gap is what a skipped label (mode 10) leaves, which centroid spacing would separate and no rule reads. coverage's opt-in expected-span and expected-count checks over relationships.present_levels[] ship disabled (needs-real-data). The renumbered form is not detected: remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a double inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped rule reads, so its expected firing set is empty. Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
       "mode": 6,
       "pipeline_detected": true,
       "read_paths": [
@@ -713,7 +713,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Single-channel-observable only where the mislabelled vertebra's geometry does not fit the level it is named: reference_delta's per-level cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z) are the shipped proxy, needs-real-data. The whole-sequence shift is mode 12 and needs an external vertebra classifier. The corpus swap case (mode4_relabel_swap) is a mode-9 case: a swap breaks the order of the sequence, which is the observable form.",
+      "mechanism": "Single-channel-observable only where the mislabelled vertebra's geometry does not fit the level it is named: reference_delta's per-level cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z) are the shipped proxy, needs-real-data. The whole-sequence shift is mode 12 and needs an external vertebra classifier. The corpus swap case (relabel_swap) is a mode-9 case: a swap breaks the order of the sequence, which is the observable form.",
       "mode": 8,
       "pipeline_detected": false,
       "read_paths": [
@@ -739,11 +739,11 @@
       "authored_status": "specified",
       "cases": [
         {
-          "case_id": "mode4_relabel_swap",
+          "case_id": "relabel_swap",
           "detection": "pipeline"
         },
         {
-          "case_id": "mode7_sequence_break",
+          "case_id": "sequence_break",
           "detection": "pipeline"
         }
       ],
@@ -760,7 +760,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Two detectors serve this mode: sequence fires on relationships.out_of_order_labels[] (mode7_sequence_break relabels the tail to T13 -- one rank descent, since segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (mode4_relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
+      "mechanism": "Two detectors serve this mode: sequence fires on relationships.out_of_order_labels[] (sequence_break relabels the tail to T13 -- one rank descent, since segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
       "mode": 9,
       "pipeline_detected": true,
       "read_paths": [
@@ -799,7 +799,7 @@
         "per_label.{label}.level_name",
         "relationships.present_levels[]"
       ],
-      "mode_less_reason": "records the FOV-truncation CONDITION, not a failure mode: the item-150 sign-off (2026-09-14) retired 'partial vertebra at the image border' from the failure catalogue into segfacet.failure_modes.CONDITIONS['fov_truncation'], because a truncated vertebra is a property of the scan that gates other rules, not a defect of the segmentation. tests/corpus/manifest.json's mode6_crop_at_border is that condition's fixture.",
+      "mode_less_reason": "records the FOV-truncation CONDITION, not a failure mode: the item-150 sign-off (2026-09-14) retired 'partial vertebra at the image border' from the failure catalogue into segfacet.failure_modes.CONDITIONS['fov_truncation'], because a truncated vertebra is a property of the scan that gates other rules, not a defect of the segmentation. tests/corpus/manifest.json's crop_at_border is that condition's fixture.",
       "modes": [],
       "rule_id": "border"
     },
@@ -831,7 +831,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's mode5_remove_level designates this rule for mode 6 (vertebra not segmented) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the corpus operator deletes an interior vertebra without renumbering, and the always-active detector fires on the resulting gap in relationships.missing_levels[]. The two opt-in checks (expected span, expected count) over relationships.present_levels[] serve the same mode, needs-real-data. A skipped label on a segmented vertebra (mode 10) leaves the same gap, but this rule cannot tell the two apart and does not declare mode 10; the other mode-6 fixture remove_level_relabel renumbers the labels to stay continuous and fires nothing."
+        "tests/corpus/manifest.json's remove_level designates this rule for mode 6 (vertebra not segmented) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the corpus operator deletes an interior vertebra without renumbering, and the always-active detector fires on the resulting gap in relationships.missing_levels[]. The two opt-in checks (expected span, expected count) over relationships.present_levels[] serve the same mode, needs-real-data. A skipped label on a segmented vertebra (mode 10) leaves the same gap, but this rule cannot tell the two apart and does not declare mode 10; the other mode-6 fixture remove_level_relabel renumbers the labels to stay continuous and fires nothing."
       ],
       "feature_path_count": 4,
       "feature_paths": [
@@ -850,7 +850,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's mode2_fragment designates this rule for mode 1 (segmentation accuracy: a vertebra cut into large same-label pieces) and mode3_inject_islands for mode 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- the Fragmentation: detector for the first, the Rogue island(s): detector for the second. The per-mode evidence claims are the per-edge rungs in segfacet.failure_modes.SPECIFICATION[1] and [4]."
+        "tests/corpus/manifest.json's fragment designates this rule for mode 1 (segmentation accuracy: a vertebra cut into large same-label pieces) and inject_islands for mode 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- the Fragmentation: detector for the first, the Rogue island(s): detector for the second. The per-mode evidence claims are the per-edge rungs in segfacet.failure_modes.SPECIFICATION[1] and [4]."
       ],
       "feature_path_count": 7,
       "feature_paths": [
@@ -916,7 +916,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's mode4_relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Detector A (spline offset) serves NO failure mode since that sign-off: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis), so its firing on mode1_displace and on the FOV-truncation condition's fixture mode6_crop_at_border is a recorded co-detection, and its read paths are classified bookkeeping below rather than attributed to mode 9."
+        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Detector A (spline offset) serves NO failure mode since that sign-off: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis), so its firing on displace and on the FOV-truncation condition's fixture crop_at_border is a recorded co-detection, and its read paths are classified bookkeeping below rather than attributed to mode 9."
       ],
       "feature_path_count": 9,
       "feature_paths": [
@@ -940,7 +940,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's mode8_force_overlap designates this rule for mode 15 (overlapping segments) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15). That case is detection=\"reconstructed_record\", not pipeline-detected: a single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a deliberately corrupted record. Free-form provenance -- item 147 retired the reserved 'corpus' evidence tag, and the mode 15 <-> overlap evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[15]."
+        "tests/corpus/manifest.json's force_overlap designates this rule for mode 15 (overlapping segments) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15). That case is detection=\"reconstructed_record\", not pipeline-detected: a single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a deliberately corrupted record. Free-form provenance -- item 147 retired the reserved 'corpus' evidence tag, and the mode 15 <-> overlap evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[15]."
       ],
       "feature_path_count": 6,
       "feature_paths": [
@@ -991,7 +991,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's mode7_sequence_break designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the fixture relabels one vertebra to the transitional label T13, and this rule fires on the resulting non-monotonic sequence. The mode 9 <-> sequence evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[9]."
+        "tests/corpus/manifest.json's sequence_break designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the fixture relabels one vertebra to the transitional label T13, and this rule fires on the resulting non-monotonic sequence. The mode 9 <-> sequence evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[9]."
       ],
       "feature_path_count": 5,
       "feature_paths": [

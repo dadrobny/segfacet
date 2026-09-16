@@ -108,7 +108,7 @@ class RuleModeDeclaration:
 
           RuleModeDeclaration(
               modes=(6,),
-              evidence=("corpus-manifest", "tests/corpus/manifest.json's mode6_crop_at_border ..."),
+              evidence=("corpus-manifest", "tests/corpus/manifest.json's crop_at_border ..."),
           )
 
     - **Mode-less**: the rule deliberately targets no §6 mode, with the

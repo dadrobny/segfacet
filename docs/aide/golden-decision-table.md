@@ -171,14 +171,14 @@ signed text.
 | tests/corpus/manifest.json | The Stage-5 synthetic corpus index (case ids, seg fixture paths, expected mode metadata) is byte-identical to a fresh regeneration, checked both regenerated-vs-committed and regenerated-twice for internal reproducibility. | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/base_scan.nii.gz | The clean base scan volume used to derive every corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/clean_control_seg.nii.gz | The clean_control corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode1_displace_seg.nii.gz | The mode1_displace corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode2_fragment_seg.nii.gz | The mode2_fragment corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode3_inject_islands_seg.nii.gz | The mode3_inject_islands corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode4_relabel_swap_seg.nii.gz | The mode4_relabel_swap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode5_remove_level_seg.nii.gz | The mode5_remove_level corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode6_crop_at_border_seg.nii.gz | The mode6_crop_at_border corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode7_sequence_break_seg.nii.gz | The mode7_sequence_break corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/mode8_force_overlap_seg.nii.gz | The mode8_force_overlap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice), and is also read by test_094's AC3 loader-invariance snapshot. | tests/test_040_synthetic_corpus.py, tests/test_094_tptbox_image_layer.py | n/a | keep | — |
+| tests/corpus/fixtures/displace_seg.nii.gz | The displace corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/fragment_seg.nii.gz | The fragment corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/inject_islands_seg.nii.gz | The inject_islands corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/relabel_swap_seg.nii.gz | The relabel_swap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/remove_level_seg.nii.gz | The remove_level corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/crop_at_border_seg.nii.gz | The crop_at_border corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/sequence_break_seg.nii.gz | The sequence_break corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/force_overlap_seg.nii.gz | The force_overlap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice), and is also read by test_094's AC3 loader-invariance snapshot. | tests/test_040_synthetic_corpus.py, tests/test_094_tptbox_image_layer.py | n/a | keep | — |
 | tests/corpus/fixtures/fuse_adjacent_seg.nii.gz | The fuse_adjacent corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/remove_level_relabel_seg.nii.gz | The remove_level_relabel corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/intensity/manifest.json | The Stage-8 intensity corpus index (case ids, scan/seg fixture paths, expected finding metadata) is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
@@ -273,21 +273,21 @@ with the reason it earns its keep rather than following Group A:
   an input fixture, not a computed-feature snapshot.
 - `tests/corpus/fixtures/clean_control_seg.nii.gz` — input fixture, not a
   report snapshot.
-- `tests/corpus/fixtures/mode1_displace_seg.nii.gz` — input fixture, not a
+- `tests/corpus/fixtures/displace_seg.nii.gz` — input fixture, not a
   report snapshot.
-- `tests/corpus/fixtures/mode2_fragment_seg.nii.gz` — input fixture, not a
+- `tests/corpus/fixtures/fragment_seg.nii.gz` — input fixture, not a
   report snapshot.
-- `tests/corpus/fixtures/mode3_inject_islands_seg.nii.gz` — input fixture,
+- `tests/corpus/fixtures/inject_islands_seg.nii.gz` — input fixture,
   not a report snapshot.
-- `tests/corpus/fixtures/mode4_relabel_swap_seg.nii.gz` — input fixture, not
+- `tests/corpus/fixtures/relabel_swap_seg.nii.gz` — input fixture, not
   a report snapshot.
-- `tests/corpus/fixtures/mode5_remove_level_seg.nii.gz` — input fixture, not
+- `tests/corpus/fixtures/remove_level_seg.nii.gz` — input fixture, not
   a report snapshot.
-- `tests/corpus/fixtures/mode6_crop_at_border_seg.nii.gz` — input fixture,
+- `tests/corpus/fixtures/crop_at_border_seg.nii.gz` — input fixture,
   not a report snapshot.
-- `tests/corpus/fixtures/mode7_sequence_break_seg.nii.gz` — input fixture,
+- `tests/corpus/fixtures/sequence_break_seg.nii.gz` — input fixture,
   not a report snapshot.
-- `tests/corpus/fixtures/mode8_force_overlap_seg.nii.gz` — input fixture, not
+- `tests/corpus/fixtures/force_overlap_seg.nii.gz` — input fixture, not
   a report snapshot; also underlies test_094's loader-invariance snapshot.
 - `tests/corpus/fixtures/fuse_adjacent_seg.nii.gz` — input fixture, not a
   report snapshot (added by item 150, 2026-09-14).

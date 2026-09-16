@@ -103,7 +103,7 @@ class OverlapRule(Rule):
         modes=(15,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode8_force_overlap designates "
+            "tests/corpus/manifest.json's force_overlap designates "
             "this rule for mode 15 (overlapping segments) of the catalogue "
             "signed off at item 150 (2026-09-14, revised 2026-09-15). That case is "
             "detection=\"reconstructed_record\", not pipeline-detected: a "

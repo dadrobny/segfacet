@@ -74,14 +74,14 @@ Corpus margins (from `tests/corpus/manifest.json`'s nine cases, each measured
 via a freshly built `build_report_for_case` report -- item 126 retired the
 committed corpus-golden snapshots these margins used to cite),
 all measured on **interior** entries only:
-- `mode4_relabel_swap`'s largest interior reading (label 23 / L4) is
+- `relabel_swap`'s largest interior reading (label 23 / L4) is
   `2.510990` mm and must **not** fire -- the non-firing ceiling. (Its larger
   `5.143859` mm reading, label 20, is that case's cranial-terminal vertebra
   and is excluded from consideration entirely.)
-- `mode6_crop_at_border`'s firing reading is `17.507445` mm and **must**
+- `crop_at_border`'s firing reading is `17.507445` mm and **must**
   fire -- so ``_DEFAULT_MAX_OFFSET_MM`` sits in `(2.510990, 17.507445]`
   (`13.0` qualifies).
-- `mode1_displace`'s firing reading is `18.718604` mm and **must** fire.
+- `displace`'s firing reading is `18.718604` mm and **must** fire.
 
 Distribution calibrated against: `src/segfacet/reference/reference_verse_v1.json`.
 """
@@ -178,15 +178,15 @@ class MislabelRule(Rule):
         modes=(9,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode4_relabel_swap designates "
+            "tests/corpus/manifest.json's relabel_swap designates "
             "this rule for mode 9 (out-of-order label sequence) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
             "2026-09-15) via Detector B "
             "(ordering). Detector A (spline offset) serves NO failure mode "
             "since that sign-off: the offset from the spinal curve is an "
             "anatomy-classification signal (spondylolisthesis, scoliosis), "
-            "so its firing on mode1_displace and on the FOV-truncation "
-            "condition's fixture mode6_crop_at_border is a recorded "
+            "so its firing on displace and on the FOV-truncation "
+            "condition's fixture crop_at_border is a recorded "
             "co-detection, and its read paths are classified bookkeeping "
             "below rather than attributed to mode 9.",
         ),

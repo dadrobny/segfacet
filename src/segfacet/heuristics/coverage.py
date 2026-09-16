@@ -139,7 +139,7 @@ class CoverageRule(Rule):
         modes=(6,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode5_remove_level designates "
+            "tests/corpus/manifest.json's remove_level designates "
             "this rule for mode 6 (vertebra not segmented) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
             "2026-09-15): the corpus operator deletes an interior vertebra "

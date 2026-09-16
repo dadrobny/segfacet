@@ -114,7 +114,7 @@ class SequenceRule(Rule):
         modes=(9,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode7_sequence_break designates "
+            "tests/corpus/manifest.json's sequence_break designates "
             "this rule for mode 9 (out-of-order label sequence) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
             "2026-09-15): the fixture relabels one vertebra to the "

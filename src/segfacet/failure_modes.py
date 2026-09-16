@@ -57,13 +57,13 @@ shipped detector serves at most one mode -- fused (2) / split (3), islands
 sub-modes, out-of-order (9, severity fail), skipped level label (10,
 severity fail) and unprompted numbering variant (11). A gap in the label
 sequence caused by a vertebra that was not segmented is mode 6's, so
-``coverage``'s interior-gap detector and ``mode5_remove_level`` serve mode
+``coverage``'s interior-gap detector and ``remove_level`` serve mode
 6; mode 10 is only a skipped label on a segmented vertebra, which no rule
 tells apart from a missed one yet. A duplicated label is the
 same label on non-adjacent vertebrae anywhere in the sequence; adjacent
 vertebrae sharing a label are a fusion. Fused/split are defined by a
 substantial part of a vertebra under a neighbour's label; islands and holes
-by small same-label topology defects. ``mode2_fragment`` (a vertebra cut
+by small same-label topology defects. ``fragment`` (a vertebra cut
 into large same-label pieces by a missing slab of its own body) is neither,
 so it and ``fragmentation``'s Fragmentation: detector sit at the parent,
 mode 1; the Rogue island(s): detector serves mode 4. ``ModeSpec.scope`` and
@@ -82,18 +82,18 @@ full walkthrough is transcribed in
 * The old mode 2 ("over-/under-segmentation") is split: overall accuracy
   is the new catch-all mode 1, and fused/split correspondence is mode 2.
   A label in two large pieces is a connectivity defect, so
-  ``mode2_fragment`` and ``fragmentation``'s component detector move to
+  ``fragment`` and ``fragmentation``'s component detector move to
   mode 3.
 * "Missing interior level" is a label-sequence finding, so ``coverage``'s
-  interior-gap detector and ``mode5_remove_level`` move to mode 6; mode 4
+  interior-gap detector and ``remove_level`` move to mode 6; mode 4
   (vertebra not segmented) keeps ``coverage``'s opt-in span/count checks
   and gains ``remove_level_relabel`` -- a vertebra removed with the labels
   renumbered to stay continuous -- which no shipped rule detects.
-* A relabel swap breaks the sequence, so ``mode4_relabel_swap`` and
+* A relabel swap breaks the sequence, so ``relabel_swap`` and
   ``mislabel``'s ordering detector move to mode 6. Mode 5 keeps only the
   per-level-geometry proxy (``reference_delta``).
 * Mode 6 (partial vertebra at the border) becomes the FOV-truncation
-  **condition**: ``border`` declares no mode, and ``mode6_crop_at_border``
+  **condition**: ``border`` declares no mode, and ``crop_at_border``
   is the condition's fixture, still expecting ``{border, mislabel}``.
 * Two observability classes are added, ``needs-ground-truth`` and
   ``needs-external-classifier``; ``bounds`` and ``reference_delta`` are
@@ -788,11 +788,11 @@ _MODE_1 = ModeSpec(
         "reference_delta's cohort z-scores "
         "(reference_delta.{label}.features.physical_volume_mm3.robust_z), "
         "both declared at needs-real-data. One form is demonstrated "
-        "end-to-end: mode2_fragment cuts a background slab through label 22 "
+        "end-to-end: fragment cuts a background slab through label 22 "
         "and fragmentation's Fragmentation: detector fires on the two "
         "comparably-sized same-label pieces via "
         "per_label.{label}.components.fragmentation_index. The corpus case "
-        "mode1_displace (a rigidly translated vertebra, which is "
+        "displace (a rigidly translated vertebra, which is "
         "over-segmentation into background plus under-segmentation of the "
         "true body) fires mislabel's spline-offset detector via "
         "stage3.per_label_offsets[].offset_mm -- a detector that serves no "
@@ -857,7 +857,7 @@ _MODE_1 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode1_displace",
+            case_id="displace",
             corpus="geometric",
             expected_firing=("mislabel",),
             reason=(
@@ -871,7 +871,7 @@ _MODE_1 = ModeSpec(
             ),
         ),
         CorpusCaseExpectation(
-            case_id="mode2_fragment",
+            case_id="fragment",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason=(
@@ -1097,7 +1097,7 @@ _MODE_4 = ModeSpec(
     ),
     mechanism=(
         "fragmentation's Rogue island(s): detector serves this mode "
-        "end-to-end on the committed corpus: mode3_inject_islands adds tiny "
+        "end-to-end on the committed corpus: inject_islands adds tiny "
         "rogue blocks beside label 22 and the detector fires via "
         "per_label.{label}.components.stray_component_sizes[]. bounds and "
         "reference_delta stay needs-real-data: a stray island shifts volume "
@@ -1137,7 +1137,7 @@ _MODE_4 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode3_inject_islands",
+            case_id="inject_islands",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason=(
@@ -1231,7 +1231,7 @@ _MODE_6 = ModeSpec(
         "with no candidate voxels). From the label map alone: coverage's "
         "always-active interior-gap detector fires on "
         "relationships.missing_levels[] when the remaining labels are kept "
-        "-- mode5_remove_level deletes L3 without renumbering and drives it "
+        "-- remove_level deletes L3 without renumbering and drives it "
         "end-to-end -- although the same gap is what a skipped label (mode "
         "10) leaves, which centroid spacing would separate and no rule "
         "reads. coverage's opt-in expected-span and expected-count checks "
@@ -1285,7 +1285,7 @@ _MODE_6 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode5_remove_level",
+            case_id="remove_level",
             corpus="geometric",
             expected_firing=("coverage",),
             reason=(
@@ -1406,7 +1406,7 @@ _MODE_8 = ModeSpec(
         "(reference_delta.{label}.features.physical_volume_mm3.robust_z) "
         "are the shipped proxy, needs-real-data. The whole-sequence shift "
         "is mode 12 and needs an external vertebra classifier. The corpus "
-        "swap case (mode4_relabel_swap) is a mode-9 case: a swap breaks the "
+        "swap case (relabel_swap) is a mode-9 case: a swap breaks the "
         "order of the sequence, which is the observable form."
     ),
     observability="single-channel-observable",
@@ -1467,12 +1467,12 @@ _MODE_9 = ModeSpec(
     ),
     mechanism=(
         "Two detectors serve this mode: sequence fires on "
-        "relationships.out_of_order_labels[] (mode7_sequence_break relabels "
+        "relationships.out_of_order_labels[] (sequence_break relabels "
         "the tail to T13 -- one rank descent, since "
         "segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); "
         "mislabel's ordering detector fires on "
         "stage3.monotonic_consistency.non_monotonic_pairs[] "
-        "(mode4_relabel_swap exchanges L2 and L3). A multi-relabel scramble "
+        "(relabel_swap exchanges L2 and L3). A multi-relabel scramble "
         "is not expressible by the fixture generator, which is why the "
         "sequence edge stays needs-real-data although its case is "
         "pipeline-detected."
@@ -1506,7 +1506,7 @@ _MODE_9 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode4_relabel_swap",
+            case_id="relabel_swap",
             corpus="geometric",
             expected_firing=("mislabel",),
             reason=(
@@ -1519,7 +1519,7 @@ _MODE_9 = ModeSpec(
             ),
         ),
         CorpusCaseExpectation(
-            case_id="mode7_sequence_break",
+            case_id="sequence_break",
             corpus="geometric",
             expected_firing=("sequence",),
             reason=(
@@ -1797,7 +1797,7 @@ _MODE_15 = ModeSpec(
         "A single-channel integer label map cannot assign two labels to one "
         "voxel, so overlaps[] populates only on a case deliberately "
         "corrupted to violate that invariant, which no real segmenter "
-        "output can be; mode8_force_overlap therefore stays "
+        "output can be; force_overlap therefore stays "
         "detection=\"reconstructed_record\" rather than pipeline-detected, "
         "while the overlap rule and the paths it reads remain correct and "
         "fully wired."
@@ -1818,7 +1818,7 @@ _MODE_15 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode8_force_overlap",
+            case_id="force_overlap",
             corpus="geometric",
             expected_firing=("overlap",),
             reason=(
@@ -1983,7 +1983,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     ),
     mechanism=(
         "The border rule records the condition end-to-end on "
-        "mode6_crop_at_border, which crops label 22's anterior face "
+        "crop_at_border, which crops label 22's anterior face "
         "(per_label.{label}.geometry.touches_anterior), classifying it an "
         "unexpected clip; cropping also displaces the centroid off the "
         "fitted spinal curve, so mislabel's mode-less spline-offset "
@@ -2009,7 +2009,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     exempting_rules=("mislabel", "coverage"),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode6_crop_at_border",
+            case_id="crop_at_border",
             corpus="geometric",
             expected_firing=("border", "mislabel"),
             reason=(

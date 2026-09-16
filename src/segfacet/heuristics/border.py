@@ -133,7 +133,7 @@ class BorderRule(Rule):
             "segfacet.failure_modes.CONDITIONS['fov_truncation'], because a "
             "truncated vertebra is a property of the scan that gates other "
             "rules, not a defect of the segmentation. "
-            "tests/corpus/manifest.json's mode6_crop_at_border is that "
+            "tests/corpus/manifest.json's crop_at_border is that "
             "condition's fixture."
         ),
         consumed_paths=(

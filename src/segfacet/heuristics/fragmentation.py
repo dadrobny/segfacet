@@ -280,9 +280,9 @@ class FragmentationRule(Rule):
         modes=(1, 4),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode2_fragment designates this "
+            "tests/corpus/manifest.json's fragment designates this "
             "rule for mode 1 (segmentation accuracy: a vertebra cut into "
-            "large same-label pieces) and mode3_inject_islands for mode 4 "
+            "large same-label pieces) and inject_islands for mode 4 "
             "(islands) of the catalogue signed off at item 150 "
             "(2026-09-14, revised 2026-09-15) -- the Fragmentation: "
             "detector for the first, the Rogue island(s): detector for the "

@@ -283,7 +283,7 @@ Their `disposition` stays `keep` and no judgement cell changes.
    Divergences bullets. Retired rows and the execution log stay
    byte-unchanged.
 10. **`docs/reference-build.md`** line 262 (A6).
-11. **New test module** `tests/test_157_case_id_prefixes.py` covering AC1–AC19.
+11. **New test module** `tests/test_157_case_id_rename.py` covering AC1–AC19.
 12. **Insight** (AC14): append one line with the Write/Edit tool (a heredoc
     trips the hygiene hook on `;`):
     `- [ ] knowledge — corpus case ids dropped their modeN_ prefixes: mode1_displace→displace, mode2_fragment→fragment, mode3_inject_islands→inject_islands, mode4_relabel_swap→relabel_swap, mode5_remove_level→remove_level, mode6_crop_at_border→crop_at_border, mode7_sequence_break→sequence_break, mode8_force_overlap→force_overlap; records dated before this keep the old names, and segfacet.synth.corpus.RENAMED_CASE_IDS holds the map *(item 157, 2026-09-17, engine 1.52.1)*`
@@ -313,7 +313,7 @@ Their `disposition` stays `keep` and no judgement cell changes.
 - `docs/aide/golden_evidence.generated.json` — regenerated, keyed by case id
 - `docs/aide/golden-decision-table.md` — keep rows and Divergences bullets only (A3)
 - `docs/reference-build.md` — one living mention (A6)
-- `tests/test_157_case_id_prefixes.py` — this item's tests
+- `tests/test_157_case_id_rename.py` — this item's tests
 - `tests/test_040_synthetic_corpus.py` — live pins and prose on prefixes
 - `tests/test_041_regression_suite.py` — live pins
 - `tests/test_042_golden_determinism.py` — live pins
@@ -368,7 +368,7 @@ Their `disposition` stays `keep` and no judgement cell changes.
 
 ## Testing Strategy
 
-New module `tests/test_157_case_id_prefixes.py`, one test per AC1–AC19. AC20 is
+New module `tests/test_157_case_id_rename.py`, one test per AC1–AC19. AC20 is
 the validator's full-suite run.
 
 - **AC9/AC10 scans.** Build the regex from `RENAMED_CASE_IDS`, never from a
@@ -453,4 +453,18 @@ whichever lands second rebases.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Test module filename corrected.** The spec's Authorised paths and
+  Implementation Steps named the new test module
+  `tests/test_157_case_id_prefixes.py`; the test-writer committed
+  `tests/test_157_case_id_rename.py` (559862b), whose content fully covers
+  AC1-AC19 as specified with no substantive disagreement. Corrected the three
+  filename mentions in this spec to match the committed file rather than
+  treating the naming mismatch as a spec/test contradiction requiring
+  hand-back, since the ACs and the test bodies agree.
+- All other renames (production code, generated docs, decision-table keep
+  rows, the 094 snapshot, and the 44 test modules' live/historical pins) were
+  already present on the branch from the docs/tests commits (e08c0b1,
+  559862b) or completed here per the Implementation Steps. `write_corpus`
+  into a scratch directory reproduced the committed `manifest.json` with
+  zero diff, and the eight fixture renames are `R100` (byte-identical) per
+  `git diff -M`.
