@@ -783,7 +783,18 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     Re-measured (item 150, revised catalogue 2026-09-15): ``fragmentation``
     now declares modes (1, 4), so its five signal paths join mode 1 (9 -> 14);
     mode 2's count is unchanged at 14; the intensity rules' mode is re-numbered
-    16 (still 2 paths). The ``mode_evidence`` distribution does not move."""
+    16 (still 2 paths). The ``mode_evidence`` distribution does not move.
+
+    Re-measured (item 154, 2026-09-16): the re-anchor drops
+    ``stage3.per_label_offsets[].offset_mm`` from ``MODE_ANCHOR_PATHS[1]`` (its
+    anchor moves to ``per_label.{label}.components.fragmentation_index``,
+    already a mode-1 path), so that one path's ``failure_modes`` loses 1
+    (mode 1 -> 13). Mode 2's count does not move. The same role flip (its
+    candidate-feature role goes from ``"stage18-metric-anchor"`` to
+    ``"hypothesised"``) drops that path's ``"per_mode_metric"`` evidence tag
+    too, since only the anchor role earns it: the one-entry
+    ``("per_mode_metric", "rule_bookkeeping")`` bucket empties into
+    ``("rule_bookkeeping",)`` (18 -> 19)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -791,7 +802,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
 
     # The two analytic rules' own declared modes ...
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 14
+    assert mode1_count == 13
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     assert mode2_count == 14
@@ -804,7 +815,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
         (): 86,
-        ("rule_bookkeeping",): 18,
+        ("rule_bookkeeping",): 19,
         ("rule_declaration",): 6,
         ("rule_mode_less", "rule_condition_signal"): 6,
         ("rule_mode_map", "rule_declaration"): 6,
@@ -812,7 +823,6 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,
         ("per_mode_metric",): 2,
-        ("per_mode_metric", "rule_bookkeeping"): 1,
         ("rule_mode_less", "rule_bookkeeping"): 1,
         ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 1,
         (

@@ -209,20 +209,37 @@ def test_ac5_harness_base_is_the_geometric_corpus_default(sl):
     )
 
 
+def _date_in_window(date_str, lower_bound, today):
+    """AC6's check: ``date_str`` parses as ISO and falls within
+    ``[lower_bound, today]``. A non-ISO string is rejected rather than
+    raising, so a caller can feed it adversarial input directly."""
+    try:
+        measured = date.fromisoformat(date_str)
+    except ValueError:
+        return False
+    return lower_bound <= measured <= today
+
+
 def test_ac6_every_measurement_dated_after_the_carry_over(all_provenances):
     lower_bound = date(2026, 9, 16)
     today = date.today()
     for provenance in all_provenances:
-        measured = date.fromisoformat(provenance.measured_on)
-        assert lower_bound <= measured <= today, provenance
+        assert _date_in_window(provenance.measured_on, lower_bound, today), provenance
 
 
 def test_adv_ac6_dates_outside_the_window_fail_the_check():
     lower_bound = date(2026, 9, 16)
-    too_early = date.fromisoformat("2026-09-15")
-    assert not (lower_bound <= too_early)
-    with pytest.raises(ValueError):
-        date.fromisoformat("16/09/2026")
+    today = date.today()
+
+    # A good ISO date inside the window passes, so the rejections below
+    # are not vacuous.
+    assert _date_in_window("2026-09-16", lower_bound, today)
+
+    # Before the carry-over cutoff.
+    assert not _date_in_window("2026-09-15", lower_bound, today)
+
+    # Non-ISO date string.
+    assert not _date_in_window("16/09/2026", lower_bound, today)
 
 
 # =========================================================================== #
@@ -249,16 +266,30 @@ def test_ac8_coupling_set_is_what_is_measured(harness_run, sl):
     assert recorded_pairs == measured_pairs
 
 
+def _tolerance(measured):
+    return 10 ** (math.floor(math.log10(measured)) - 3)
+
+
+def _coupling_is_fresh_transcription(recorded_response, measured):
+    """AC9's check: ``recorded_response`` is a rounded-up transcription of
+    ``measured`` -- it must not undershoot the measurement, and it must sit
+    within one tolerance step above it."""
+    if measured > recorded_response:
+        return False
+    gap = recorded_response - measured
+    return gap < _tolerance(measured)
+
+
 def test_ac9_each_coupling_value_is_a_fresh_transcription(harness_run, sl):
     _, verdict = harness_run
     for coupling in sl.KNOWN_CROSS_MODE_COUPLINGS:
         measured = verdict.per_ladder[coupling.ladder_operator].responses[
             coupling.foreign_metric
         ]
-        assert measured <= coupling.recorded_response, coupling
-        gap = coupling.recorded_response - measured
-        tolerance = 10 ** (math.floor(math.log10(measured)) - 3)
-        assert gap < tolerance, (coupling, measured, gap, tolerance)
+        assert _coupling_is_fresh_transcription(coupling.recorded_response, measured), (
+            coupling,
+            measured,
+        )
 
 
 def test_adv_ac9_out_of_tolerance_couplings_fail_the_check(harness_run, sl):
@@ -267,13 +298,29 @@ def test_adv_ac9_out_of_tolerance_couplings_fail_the_check(harness_run, sl):
     measured = verdict.per_ladder[coupling.ladder_operator].responses[
         coupling.foreign_metric
     ]
-    tolerance = 10 ** (math.floor(math.log10(measured)) - 3)
+    tolerance = _tolerance(measured)
 
-    too_high = dataclasses.replace(coupling, recorded_response=measured + tolerance * 2)
-    assert not (too_high.recorded_response - measured < tolerance)
+    # The recorded value itself passes, so the rejections below are not
+    # vacuous.
+    assert _coupling_is_fresh_transcription(coupling.recorded_response, measured)
 
-    too_low = dataclasses.replace(coupling, recorded_response=measured - tolerance)
-    assert not (measured <= too_low.recorded_response)
+    too_high = measured + tolerance * 2
+    assert not _coupling_is_fresh_transcription(too_high, measured)
+
+    too_low = measured - tolerance
+    assert not _coupling_is_fresh_transcription(too_low, measured)
+
+
+def _margin_is_fresh_transcription(recorded, measured):
+    """AC10's check: ``recorded`` is a rounded-down transcription of
+    ``measured`` -- an infinite margin must be recorded as exactly ``inf``
+    (and vice versa), and a finite one must not overshoot the measurement,
+    sitting within one tolerance step below it."""
+    if measured == math.inf or recorded == math.inf:
+        return measured == math.inf and recorded == math.inf
+    if recorded > measured:
+        return False
+    return measured - recorded < _tolerance(measured)
 
 
 def test_ac10_each_margin_is_a_fresh_transcription(harness_run, sl):
@@ -281,13 +328,7 @@ def test_ac10_each_margin_is_a_fresh_transcription(harness_run, sl):
     for operator in sl.SEVERITY_LADDERS:
         measured = verdict.per_ladder[operator].margin
         recorded = sl.RECORDED_MARGINS[operator]
-        if recorded == math.inf:
-            assert measured == math.inf, operator
-        else:
-            assert measured != math.inf, operator
-            assert recorded <= measured, operator
-            tolerance = 10 ** (math.floor(math.log10(measured)) - 3)
-            assert measured - recorded < tolerance, (operator, measured, recorded, tolerance)
+        assert _margin_is_fresh_transcription(recorded, measured), (operator, recorded, measured)
 
 
 def test_adv_ac10_margin_transcription_positive_controls(harness_run, sl):
@@ -296,14 +337,18 @@ def test_adv_ac10_margin_transcription_positive_controls(harness_run, sl):
     assert finite_operators, "expected at least one finite recorded margin"
     operator = finite_operators[0]
     measured = verdict.per_ladder[operator].margin
+    recorded = sl.RECORDED_MARGINS[operator]
+
+    # The recorded value itself passes, so the rejections below are not
+    # vacuous.
+    assert _margin_is_fresh_transcription(recorded, measured)
 
     # A finite margin recorded above its measurement fails "recorded <= measured".
     recorded_too_high = measured * 1.1 + 1.0
-    assert not (recorded_too_high <= measured)
+    assert not _margin_is_fresh_transcription(recorded_too_high, measured)
 
     # A margin recorded inf against a finite measurement fails the exactness check.
-    recorded_as_inf = math.inf
-    assert (measured == math.inf) != (recorded_as_inf == math.inf)
+    assert not _margin_is_fresh_transcription(math.inf, measured)
 
 
 def test_ac11_couplings_are_not_self_couplings(sl):
