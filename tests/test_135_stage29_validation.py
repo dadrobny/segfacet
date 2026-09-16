@@ -62,16 +62,15 @@ established for Stage 28:
         clean control) is 7 of {1..7}, and the committed golden-snapshot
         inventory is 11 -> 0 with one surviving format fixture, agreeing
         dynamically with ``test_040``/``test_057``'s mode-set constants.
-- AC26: no changed line in this item's ``docs/aide/progress.md`` diff (vs
-        the recorded queue-018 base) is a hand-typed stage-heading or
-        deliverable-bullet status icon -- skip-guarded, never fail, when the
-        base ref cannot be resolved.
 - AC27: ``python .aide/scripts/aide.py check``'s in-process ``run_checks``
         reports no error and no warning outside the two recorded baseline
         classes (missing ``## Assumptions``, a gate awaiting a decision).
-- AC28: this item's ``docs/aide/insights.md`` diff (vs the same base) is
-        append-only -- no non-blank line is removed. Skip-guarded the same
-        way as AC26.
+
+AC26 and AC28 (this item's ``progress.md``/``insights.md`` diffs against the
+queue-018 base) were retired from this module on 2026-09-16: the base branch
+no longer exists, so both had become permanent skips, and a claim about one
+item's diff belongs to the branch at merge time, not the suite
+(``.aide/conventions/6-test-hygiene.md``).
 
 AC7, AC17, AC18-AC23 are replays with no stable in-suite shape (the
 scratch-branch deletion replay itself, the fails-before-the-fix parent-commit
@@ -87,10 +86,6 @@ Adversarial and edge cases covered:
   companion assertions (checked via the live constant, not a hypothetical).
 - A guard allowlist widened to cover ``reference_default.json`` would break
   AC5's in-suite shadow -- pinned by confirming the path stays excluded.
-- A synthetic diff line matching a hand-typed deliverable-bullet status icon
-  fails the AC26 checker directly (no real git diff required for this case).
-- A synthetic ``insights.md`` diff removing a non-blank line fails the AC28
-  checker directly.
 - Determinism: two ``extract_feature_record`` calls on ``mode4_relabel_swap``
   agree; two four-level held-out computations agree.
 - Immutability: the four-level and nested-label maps are built in memory;
@@ -133,11 +128,6 @@ _GOLDEN_DIR = _TESTS_DIR / "golden"
 
 #: queue-018's first commit -- the item spec's AC4 range start.
 _QUEUE018_FIRST_COMMIT = "69e5cf5"
-
-#: The item spec's own designated base for this item's diff checks (AC26,
-#: AC28) -- the same fallback pair test_126/test_128/test_132 already use for
-#: "git diff against the recorded base".
-_BASE_REF_CANDIDATES = ("origin/aide/queue-018", "aide/queue-018")
 
 
 def _read_progress() -> str:
@@ -820,77 +810,14 @@ def test_ac25_progress_names_seven_of_eight_and_eleven_to_zero():
 
 
 # =========================================================================== #
-# AC26: no deliverable bullet or item status is hand-edited -- skip-guarded
-# when the recorded base is unavailable.
+# AC26 (no hand-edited status icon in this item's progress.md diff) and AC28
+# (this item's insights.md diff is append-only) are retired from the suite.
+# Both were git-diff tests against the aide/queue-018 base. That branch no
+# longer exists, so both had become permanent skips, and their synthetic
+# companions exercised only patterns local to this module. A claim about one
+# item's diff belongs to the branch at merge time, not the suite
+# (.aide/conventions/6-test-hygiene.md, "A scope claim about a diff").
 # =========================================================================== #
-
-_HEADING_STATUS_RE = re.compile(r"^#{1,6}\s.*[✅🚧📋⏸️❌⏳]")
-_DELIVERABLE_BULLET_STATUS_RE = re.compile(r"^-\s+[✅🚧📋⏸️❌⏳]\s*\*\*[A-Za-z]")
-
-
-def _resolve_base_ref():
-    for base_ref in _BASE_REF_CANDIDATES:
-        result = run_utf8(
-            ["git", "cat-file", "-e", f"{base_ref}^{{commit}}"],
-            cwd=_REPO_ROOT,
-            timeout=30,
-        )
-        if result.returncode == 0:
-            return base_ref
-    return None
-
-
-def _diff_changed_content_lines(rel_path: str, base_ref: str) -> list:
-    result = run_utf8(
-        ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", rel_path],
-        cwd=_REPO_ROOT,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"git diff against {base_ref!r} failed: {result.stderr}")
-    changed = []
-    for line in result.stdout.splitlines():
-        if line.startswith(("+++", "---")):
-            continue
-        if line.startswith(("+", "-")):
-            changed.append(line[1:])
-    return changed
-
-
-def test_ac26_progress_diff_has_no_hand_typed_status_icon():
-    base_ref = _resolve_base_ref()
-    if base_ref is None:
-        pytest.skip("recorded queue-018 base ref is unavailable in this clone")
-    changed = _diff_changed_content_lines("docs/aide/progress.md", base_ref)
-    heading_offenders = [l for l in changed if _HEADING_STATUS_RE.match(l)]
-    bullet_offenders = [l for l in changed if _DELIVERABLE_BULLET_STATUS_RE.match(l)]
-    assert heading_offenders == [], (
-        f"progress.md diff hand-edits a stage-heading status icon: {heading_offenders}"
-    )
-    assert bullet_offenders == [], (
-        f"progress.md diff hand-edits a deliverable-bullet status icon: {bullet_offenders}"
-    )
-
-
-def test_adv_synthetic_deliverable_bullet_status_line_is_flagged():
-    """Adversarial: a synthetic diff line hand-flipping a deliverable
-    bullet's status icon must be caught by the AC26 pattern directly,
-    independent of whatever the real git diff currently contains."""
-    offending_line = "- ✅ **D12** A hand-typed deliverable that was never through aide progress set."
-    assert _DELIVERABLE_BULLET_STATUS_RE.match(offending_line)
-
-
-def test_adv_synthetic_heading_status_line_is_flagged():
-    offending_line = "## Stage 30 — Something New (G1) — ✅"
-    assert _HEADING_STATUS_RE.match(offending_line)
-
-
-def test_adv_acceptance_checkbox_line_is_not_flagged_by_bullet_pattern():
-    """An acceptance checkbox line (``- [x] ...``) must not trip the
-    deliverable-bullet pattern -- it starts with ``- [`` not ``- <icon>``,
-    and legitimately changes as part of this item's own authorised edit."""
-    checkbox_line = "- [x] All 11 retired snapshots are gone. *(evidence here)*"
-    assert not _DELIVERABLE_BULLET_STATUS_RE.match(checkbox_line)
 
 
 # =========================================================================== #
@@ -1002,45 +929,6 @@ def test_adv_unrecognised_branch_warning_classifies_as_branch_state():
     classify as 'branch-state', not 'unclassified'."""
     warning = "unrecognised branch aide/does-not-exist"
     assert _classify_warning(warning) == "branch-state"
-
-
-# =========================================================================== #
-# AC28: insights.md's diff (vs the recorded base) is append-only -- no
-# existing entry is reworded, reordered or deleted here.
-# =========================================================================== #
-
-
-def test_ac28_insights_diff_is_append_only():
-    base_ref = _resolve_base_ref()
-    if base_ref is None:
-        pytest.skip("recorded queue-018 base ref is unavailable in this clone")
-    changed = _diff_changed_content_lines("docs/aide/insights.md", base_ref)
-    result = run_utf8(
-        ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", "docs/aide/insights.md"],
-        cwd=_REPO_ROOT,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"git diff against {base_ref!r} failed: {result.stderr}")
-    removed = [
-        line[1:]
-        for line in result.stdout.splitlines()
-        if line.startswith("-") and not line.startswith("---")
-    ]
-    non_blank_removed = [l for l in removed if l.strip()]
-    assert non_blank_removed == [], (
-        f"docs/aide/insights.md diff removes non-blank line(s), not append-only: "
-        f"{non_blank_removed}"
-    )
-
-
-def test_adv_synthetic_insights_removal_would_fail_the_append_only_check():
-    """Adversarial: a synthetic diff removing a non-blank existing insights
-    line must be caught by the same non-blank-removal rule the real AC28
-    check applies."""
-    synthetic_removed_lines = ["- [ ] knowledge -- an existing entry *(item 100, 2026-08-01)*"]
-    non_blank_removed = [l for l in synthetic_removed_lines if l.strip()]
-    assert non_blank_removed != [], "expected the synthetic removal to be non-blank"
 
 
 # =========================================================================== #
