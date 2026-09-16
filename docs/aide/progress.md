@@ -1639,7 +1639,7 @@ changes here.**
   corrected.
 - ✅ **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
   `vision_seed_conflicts`) re-pointed or retired to follow the re-issue. *(Item 152)*
-- 🔍 **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
+- ✅ **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
   `per_mode_cohort`, schemas, pins) re-keyed off the retired `LEGACY_STAGE18_MODE_NAMES`
   map onto its own metric/operator names, with the specification's mode ids carried in a
   nullable `failure_mode` field derived live from `SPECIFICATION`/`CONDITIONS`; every
