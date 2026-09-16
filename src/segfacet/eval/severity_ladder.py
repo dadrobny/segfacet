@@ -232,9 +232,9 @@ LADDER_SEED: int = 0
 #: once its span-ratio reaches this fraction of the metric's own full swing.
 COUPLING_THRESHOLD: float = 0.25
 
-#: The one ladder whose operator is structurally incapable of more than two
-#: rungs (see the module docstring's "why three ladders have no continuous
-#: knob" section, ``sequence_break``).
+#: The one ladder with just one default step, not because its operator is
+#: structurally incapable of more (a relabel past value 27 yields 2+ descents;
+#: see the module docstring's corrected rank-premise section, item 154).
 DEGENERATE_LADDERS = frozenset({"sequence_break"})
 
 #: The base :func:`~segfacet.synth.clean_gt.build_clean_spine` parameters
