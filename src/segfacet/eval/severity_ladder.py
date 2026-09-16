@@ -517,39 +517,37 @@ def _tuples_to_lists(obj: Any) -> Any:
 
 
 # --------------------------------------------------------------------------- #
-# Ladder homes -- derived live from the specification/conditions/manifest,
-# per the item spec's rule (b) (a ladder's home is rule (b) alone -- it has
-# no candidate_features citation of its own to apply rule (a) against).
+# Ladder homes -- a literal transcription of the item spec's measured rule
+# (b) table (Description, AC19), not a derivation run at import time (a
+# ladder's home is rule (b) alone -- it has no candidate_features citation of
+# its own to apply rule (a) against). Deriving this live at import time (via
+# segfacet.synth.corpus.load_manifest(), reading tests/corpus/manifest.json)
+# made a packaged, non-editable install -- which ships no test tree -- raise
+# FileNotFoundError on merely importing this module, i.e. on every
+# `evaluate --per-mode`/`compare-runs` run. The test suite
+# (test_ac19_ladder_homes_are_derived_from_the_specification) independently
+# re-derives rule (b) live from SPECIFICATION/CONDITIONS/the manifest and
+# checks this table still agrees.
 # --------------------------------------------------------------------------- #
+
+_LADDER_HOMES: Mapping[str, Tuple[Optional[int], Optional[str]]] = MappingProxyType(
+    {
+        "displace": (1, None),
+        "fragment": (1, None),
+        "inject_islands": (4, None),
+        "relabel_swap": (9, None),
+        "remove_level": (6, None),
+        "crop_at_border": (None, "fov_truncation"),
+        "sequence_break": (9, None),
+        "force_overlap": (15, None),
+        "fuse": (2, None),
+    }
+)
 
 
 def _ladder_home(operator: str) -> Tuple[Optional[int], Optional[str]]:
-    """``(failure_mode, condition)`` for *operator*'s manifest case, per rule (b)."""
-    import segfacet.failure_modes as failure_modes
-    from segfacet.synth.corpus import load_manifest
-
-    specification = failure_modes.SPECIFICATION
-    conditions = failure_modes.CONDITIONS
-
-    cases = load_manifest()["cases"]
-    matches = [c["case_id"] for c in cases if c.get("perturbation") == operator]
-    case_id = matches[0]
-
-    mode_hits = [
-        mode_id
-        for mode_id, mode in specification.items()
-        if any(cc.case_id == case_id for cc in mode.corpus_cases)
-    ]
-    condition_hits = [
-        cond_id
-        for cond_id, cond in conditions.items()
-        if any(cc.case_id == case_id for cc in cond.corpus_cases)
-    ]
-    if mode_hits:
-        return mode_hits[0], None
-    if condition_hits:
-        return None, condition_hits[0]
-    return None, None
+    """``(failure_mode, condition)`` for *operator*, per the literal table above."""
+    return _LADDER_HOMES[operator]
 
 
 def _mode_name(failure_mode: Optional[int]) -> Optional[str]:

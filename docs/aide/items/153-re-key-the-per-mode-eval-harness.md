@@ -555,3 +555,39 @@ also references; the two edits touch different lines.
   no traceback on stderr and writes nothing to `--out` (AC31).
 - **`aide scope`** confirms this branch's 20 changed files are all
   authorised, measured against `origin/aide/queue-021`.
+- **(2026-09-16) Reviewer-found production defect fixed: homes are literal,
+  not derived at import time.** `per_mode._derive_homes()` and
+  `severity_ladder._ladder_home()` called `segfacet.synth.corpus.
+  load_manifest()`, reading `tests/corpus/manifest.json`, from module-level
+  code (`PER_MODE_METRIC_SPECS = _build_registry()` / `SEVERITY_LADDERS =
+  {...}` both execute at import time). `pyproject.toml` packages only
+  `src/segfacet`, so a non-editable install ships no `tests/` tree, and
+  merely `import segfacet.eval.per_mode` (or `severity_ladder`) raised a raw
+  `FileNotFoundError` -- breaking every `evaluate --per-mode`/`compare-runs`
+  run outside an editable checkout. Neither module touched the test tree
+  before this item. Fixed by replacing both live derivations with literal
+  `_METRIC_HOMES` / `_LADDER_HOMES` tables transcribed from this item's
+  measured re-homing table (Description, AC6/AC11/AC19) -- the same pattern
+  already used for `_METRIC_TO_OPERATOR` (now removed as unused: the test
+  file's own independent `_metric_to_operator()` in
+  `tests/test_153_eval_harness_rekey.py` covers what it existed for).
+  Re-verified this does not contradict any test: `test_ac5_*`, `test_ac13_*`
+  and `test_ac19_*` compare production's *stored* `failure_mode`/`condition`
+  against a value the test module derives live, independently, from
+  `SPECIFICATION`/`CONDITIONS`/the manifest (`_derived_home`, `_rule_a_home`,
+  `_rule_b_home` in the test file) -- none reads or monkeypatches
+  production's derivation function or expects a changed `SPECIFICATION` to
+  move a registry/ladder value at runtime, so literals in production,
+  checked against a live re-derivation in the test, satisfy every AC. AC11's
+  "derived live from CONDITIONS" reads the same way: the test derives live
+  and asserts the literal `condition` matches. Sanity-imported both modules
+  after the fix (`.venv/bin/python -c "import segfacet.eval.per_mode,
+  segfacet.eval.severity_ladder"`) and printed every metric's/ladder's
+  `(failure_mode, condition)`; all nine ladder homes (eight plus `fuse`) and
+  all eight metric homes match this item's recorded table exactly.
+  **Reviewer's minor finding (production's derivation lacked the test
+  mirror's uniqueness guards) is moot**: there is no longer a
+  production-side derivation to guard -- the values are literal, and the
+  uniqueness/ambiguity checks live entirely in the test's own
+  `_rule_a_home`/`_rule_b_home` helpers, which is where the item spec's
+  adversarial cases (AC5/AC13 negative controls) already exercise them.

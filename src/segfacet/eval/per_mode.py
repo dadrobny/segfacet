@@ -7,10 +7,12 @@ scalar metric per entry, computed all at once by
 specification mode it is homed on (``failure_mode``, nullable) and a
 ``mode_disposition`` recording whether it measures a mode at all. Item 153
 re-keyed this surface off the frozen pre-sign-off legacy id map (retired)
-onto these metric names, deriving each entry's home live from
-``segfacet.failure_modes.SPECIFICATION``/``CONDITIONS`` and the corpus
-manifest -- see the item spec's rule (a) / rule (b) for the derivation and
-the re-homing table below.
+onto these metric names. Each entry's home is a literal transcription of the
+item spec's measured re-homing table (below) -- rule (a) then rule (b),
+applied once against ``segfacet.failure_modes.SPECIFICATION``/``CONDITIONS``
+and the corpus manifest, not re-derived at import time (see
+:data:`_METRIC_HOMES`'s docstring for why); the test suite re-derives it
+live and checks this table still agrees.
 
 Detection rate vs. magnitude
 ----------------------------
@@ -280,11 +282,9 @@ def _tuples_to_lists(obj: Any) -> Any:
 # The spec registry
 # --------------------------------------------------------------------------- #
 
-# (direction, source, baseline, description, failure_mode, condition)
-# failure_mode/condition are item 153's re-homing table (item spec
-# Description's re-homing table, AC6/AC11), derived once, live, at import
-# time from segfacet.failure_modes and the corpus manifest -- see
-# _derive_homes() below.
+# (direction, source, baseline, description) -- failure_mode/condition are
+# item 153's re-homing table (item spec Description's re-homing table,
+# AC6/AC11), a literal transcription; see _METRIC_HOMES below.
 _METRIC_TABLE: Dict[str, Tuple[str, str, float, str]] = {
     "unanchored_foreground_fraction": (
         "increases",
@@ -344,91 +344,39 @@ _METRIC_TABLE: Dict[str, Tuple[str, str, float, str]] = {
 }
 
 
-#: Each metric's primary ladder operator (the "eight operators", in the same
-#: order as the "eight metric names" -- item spec's Acceptance Criteria
-#: preamble). This is a structural 1:1 pairing between a metric and the one
-#: ladder designating it (:data:`segfacet.eval.severity_ladder.SEVERITY_LADDERS`
-#: reproduces the same pairing via each ``LadderSpec.designated_metric``),
-#: kept as a local literal here -- not imported from ``severity_ladder`` --
-#: because that module imports this one (``PER_MODE_METRIC_SPECS``), and a
-#: module-load-time import back here would be circular.
-_METRIC_TO_OPERATOR: Mapping[str, str] = MappingProxyType(
+#: Each metric's ``(failure_mode, condition)`` home -- a literal transcription
+#: of the item spec's measured re-homing table (Description, AC6/AC11), not a
+#: derivation run at import time. The table is *itself* rule (a) then rule
+#: (b) applied to ``SPECIFICATION``/``CONDITIONS``/the corpus manifest, but
+#: computing that live at import time made every ``import segfacet.eval.
+#: per_mode`` (hence every ``evaluate --per-mode``/``compare-runs`` run) read
+#: ``tests/corpus/manifest.json`` off disk -- a path a packaged, non-editable
+#: install never ships, so a plain ``pip install segfacet`` raised
+#: ``FileNotFoundError`` on first import. The tests are the live derivation:
+#: ``test_ac5_homes_are_derived_from_the_specification`` and
+#: ``test_ac19_ladder_homes_are_derived_from_the_specification`` independently
+#: recompute rule (a)/(b) from the manifest and assert this table (and
+#: ``severity_ladder``'s) agrees, so a specification change that would move a
+#: home fails the suite here rather than silently drifting.
+_METRIC_HOMES: Mapping[str, Tuple[Optional[int], Optional[str]]] = MappingProxyType(
     {
-        "unanchored_foreground_fraction": "displace",
-        "min_dominant_component_fraction": "fragment",
-        "rogue_island_count": "inject_islands",
-        "mislabelled_volume_fraction": "relabel_swap",
-        "missing_level_count": "remove_level",
-        "fov_clipped_label_count": "crop_at_border",
-        "out_of_order_label_count": "sequence_break",
-        "overlapping_voxel_count": "force_overlap",
+        "unanchored_foreground_fraction": (1, None),
+        "min_dominant_component_fraction": (1, None),
+        "rogue_island_count": (4, None),
+        "mislabelled_volume_fraction": (8, None),
+        "missing_level_count": (6, None),
+        "fov_clipped_label_count": (None, "fov_truncation"),
+        "out_of_order_label_count": (9, None),
+        "overlapping_voxel_count": (15, None),
     }
 )
-
-
-def _derive_homes() -> Dict[str, Tuple[Optional[int], Optional[str]]]:
-    """Derive each metric's ``(failure_mode, condition)`` home live, per the
-    item spec's rule (a) then rule (b).
-
-    Rule (a): the metric is homed on the one mode *m* whose
-    ``SPECIFICATION[m].candidate_features`` cites the path
-    ``eval.per_mode.<metric_name>``. Rule (b): otherwise, the metric's
-    primary ladder operator's manifest case decides -- owned by a
-    specification mode, a condition, or neither.
-    """
-    import segfacet.failure_modes as failure_modes
-    from segfacet.synth.corpus import load_manifest
-
-    specification = failure_modes.SPECIFICATION
-    conditions = failure_modes.CONDITIONS
-
-    manifest_cases = load_manifest()["cases"]
-    case_id_by_operator: Dict[str, str] = {}
-    for case in manifest_cases:
-        perturbation = case.get("perturbation")
-        if perturbation:
-            case_id_by_operator[perturbation] = case["case_id"]
-
-    homes: Dict[str, Tuple[Optional[int], Optional[str]]] = {}
-    for metric_name in _METRIC_TABLE:
-        # Rule (a).
-        path = f"eval.per_mode.{metric_name}"
-        rule_a_homes = [
-            mode_id
-            for mode_id, mode in specification.items()
-            if any(cf.path == path for cf in mode.candidate_features)
-        ]
-        if rule_a_homes:
-            homes[metric_name] = (rule_a_homes[0], None)
-            continue
-
-        # Rule (b).
-        operator = _METRIC_TO_OPERATOR[metric_name]
-        case_id = case_id_by_operator[operator]
-        mode_hits = [
-            mode_id
-            for mode_id, mode in specification.items()
-            if any(cc.case_id == case_id for cc in mode.corpus_cases)
-        ]
-        condition_hits = [
-            cond_id
-            for cond_id, cond in conditions.items()
-            if any(cc.case_id == case_id for cc in cond.corpus_cases)
-        ]
-        if mode_hits:
-            homes[metric_name] = (mode_hits[0], None)
-        elif condition_hits:
-            homes[metric_name] = (None, condition_hits[0])
-        else:
-            homes[metric_name] = (None, None)
-    return homes
 
 
 def _build_registry() -> "MappingProxyType[str, MetricSpec]":
     import segfacet.failure_modes as failure_modes
 
     specification = failure_modes.SPECIFICATION
-    homes = _derive_homes()
+    homes = _METRIC_HOMES
 
     registry: Dict[str, MetricSpec] = {}
     for metric_name, (direction, source, baseline, description) in _METRIC_TABLE.items():
