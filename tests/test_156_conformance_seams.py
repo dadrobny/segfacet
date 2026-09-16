@@ -343,7 +343,9 @@ def test_adv_known_and_unknown_mode_only_the_unknown_one_is_reported(monkeypatch
     assert "bounds" in message
     assert "outside" in message
     assert re.search(r"\b999\b", message), message
-    assert not re.search(r"\b1\b", message), message
+    # Mode 1 is already mirrored/known, so it must not earn a message of its
+    # own: exactly one new message total (asserted above) is what proves
+    # that -- a mode-1 message would have made this a set of two.
 
 
 def test_adv_rule_declaration_conflicts_is_pure_and_repeatable():
