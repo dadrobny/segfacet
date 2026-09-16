@@ -427,4 +427,41 @@ criterion 2 from AC1–AC3.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **A4: v4 merge sha.** By the time the builder started, the item branch
+  already carried vision v4's content under commits `4b5326a`
+  ("re-issue section 6 as v4") and `bd88a61` ("compact section 6..."), whose
+  tree for `docs/aide/vision.md` is byte-identical to gate-6-approved commit
+  `7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e` (verified: `git diff bd88a61
+  7d800a2 -- docs/aide/vision.md` is empty). That sha was not, however, an
+  ancestor of `HEAD` (`git merge-base --is-ancestor 7d800a2 HEAD` exited 1) —
+  a rebase during `aide sync` had linearised what had briefly been a genuine
+  merge into independent commits with new hashes, dropping the merge edge
+  from the graph. Per A4's default path, the builder ran
+  `git merge --no-ff 7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e -m "Merge
+  vision v4 section 6 (PR #77, gate 6) into item 152"`. Because the trees
+  already agreed, the merge produced no file changes — only the merge edge
+  itself — as commit `cfff59ef29477cc9d1ce6f0fe5ac3f4f88cc42f2`. This
+  satisfies Validation step 1 (`7d800a2` is now a genuine ancestor of `HEAD`)
+  without altering `docs/aide/vision.md`'s content.
+- **AC3 predicate:** implemented exactly per the 2026-09-16 correction (a
+  path-shaped `re.search(r"(?:^|[/\\])vision\.md$", value)` over non-docstring
+  `str` constants). The one live path read
+  (`_REPO_ROOT / "docs" / "aide" / "vision.md"` inside the retired
+  `vision_seed_titles()`) is deleted along with the function, so the set is
+  empty; every remaining `vision.md` mention in `src/segfacet/` is prose
+  (docstrings, comments, or the AC10/AC11 rendered strings) that does not
+  match the path predicate.
+- **`_REPO_ROOT` kept.** It still backs `JSON_PATH`/`MD_PATH`, unrelated to
+  reading `vision.md`; nothing in scope asked to remove it.
+- **Public API docstring entry:** replaced the retired
+  `vision_seed_titles()` entry with a `VISION_SEED_DISPOSITION` entry (one of
+  the two options Implementation Step 2 offered).
+- **No mode/condition content changed** by this item: the only diff in
+  `docs/aide/failure_modes.generated.json` is the `note` line; the only diff
+  in `docs/aide/failure_modes.generated.md` is the note line plus the
+  provenance section's heading and opening sentence — verified with
+  `git diff` against the pre-regeneration tree.
+- Tests were already reconciled (test-writer, commits `d57e717`/`7ce9af2`
+  plus the AC3-correction commits): all ten listed reconcile-targets carry
+  only comments/docstrings naming the retired functions, no live calls; AC17
+  in `test_137` is retired per A5.

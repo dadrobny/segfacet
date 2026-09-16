@@ -267,10 +267,10 @@ class TraceabilityMatrix:
 
 
 # =========================================================================== #
-# The private ``_vision_mode_titles()`` parse lived here until item 147 moved
-# it to its one public home, ``failure_modes.vision_seed_titles()``. A mode
-# row's title now comes from ``SPECIFICATION[mode].name`` -- the record --
-# and the §6 seed list is checked against that record there, once.
+# A private vision.md §6 parse lived here until item 147 moved it into
+# failure_modes.py, itself retired at item 152. A mode row's title comes
+# from ``SPECIFICATION[mode].name`` -- the record -- and no module reads
+# ``vision.md``.
 # =========================================================================== #
 
 
