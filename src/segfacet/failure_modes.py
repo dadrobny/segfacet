@@ -102,11 +102,14 @@ full walkthrough is transcribed in
   the mode's **own** intended rules (:func:`_demonstrates`); co-detections
   and empty expected sets never validate.
 
-Known divergence, deferred to a follow-up item: the Stage-18/29 eval
-harness (``segfacet.eval.per_mode``, ``severity_ladder``,
-``per_mode_cohort``) is still keyed by the **pre-sign-off** ids 1-8 and
-names them through ``segfacet.eval.per_mode.LEGACY_STAGE18_MODE_NAMES``;
-re-keying it needs re-measured ladder constants and is not this module's.
+Item 153 (2026-09-16) re-keyed the Stage-18/29 eval harness
+(``segfacet.eval.per_mode``, ``severity_ladder``, ``per_mode_cohort``) off
+its former pre-sign-off id map onto its own metric names (for the per-case
+magnitude registry) and operator names (for the severity ladders), with this
+module's specification mode ids carried in a nullable ``failure_mode`` field
+derived live from ``SPECIFICATION``/``CONDITIONS`` -- so the eval harness no
+longer maintains a second, frozen name map of its own. Re-measuring that
+harness's ladder constants against the new homes is deferred to item 154.
 
 Adding the ninth mode (item 146, 2026-09-04)
 --------------------------------------------

@@ -349,15 +349,16 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # --------------------------------------------------------------------------- #
 # MODE_ANCHOR_PATHS -- item 099's per-mode metrics -> record leaf path(s),
 # keyed by the failure-mode ids of segfacet.failure_modes.SPECIFICATION as
-# signed off at item 150 (2026-09-14, revised 2026-09-15). The metrics
-# themselves (segfacet.eval.per_mode.PER_MODE_METRIC_SPECS) are still keyed by
-# the pre-sign-off ids 1-8 pending the eval re-key item; the mapping from
-# metric to signed-off mode is: legacy 1 (unanchored foreground fraction) and
-# legacy 2 (min dominant component fraction) -> mode 1; legacy 3 (rogue island
-# count) -> mode 4; legacy 4 (mislabelled volume fraction) -> mode 8; legacy 5
-# (missing level count) -> mode 6; legacy 7 (out-of-order label count) ->
-# mode 9; legacy 8 (overlapping voxel count) -> mode 15; legacy 6 (FOV-clipped
-# label count) -> the fov_truncation CONDITION, carried in
+# signed off at item 150 (2026-09-14, revised 2026-09-15). Item 153 re-keyed
+# the metrics themselves (segfacet.eval.per_mode.PER_MODE_METRIC_SPECS) off
+# their former pre-sign-off id map onto their own metric names, each now
+# carrying this same specification mode id (or None) as a nullable
+# ``failure_mode`` field; the mapping from metric to mode below is unchanged
+# by that re-key: unanchored_foreground_fraction and
+# min_dominant_component_fraction -> mode 1; rogue_island_count -> mode 4;
+# mislabelled_volume_fraction -> mode 8; missing_level_count -> mode 6;
+# out_of_order_label_count -> mode 9; overlapping_voxel_count -> mode 15;
+# fov_clipped_label_count -> the fov_truncation CONDITION, carried in
 # CONDITION_ANCHOR_PATHS. Modes 2, 3, 5, 7 and 10-14 and 16 have no Stage-18
 # metric and no anchor.
 # --------------------------------------------------------------------------- #
@@ -376,8 +377,9 @@ MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
     }
 )
 
-#: The Stage-18 metric anchor for each case CONDITION (item 150) -- the
-#: legacy mode-6 FOV-clipped-label-count metric reads the in-plane faces.
+#: The Stage-18 metric anchor for each case CONDITION (item 150) --
+#: ``fov_clipped_label_count`` (item 153's re-key of the harness's no-mode
+#: metric) reads the in-plane faces.
 CONDITION_ANCHOR_PATHS: Mapping[str, Tuple[str, ...]] = MappingProxyType(
     {
         "fov_truncation": ("per_label.{label}.geometry.touches_left",),

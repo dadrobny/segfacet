@@ -130,9 +130,11 @@ def _load_comparison_schema() -> dict:
 
 _COMPARISON_SCHEMA: dict = _load_comparison_schema()
 
-#: Run-vs-run comparison-report schema version discriminator -- always "0.1"
-#: for v0 (item 101; independent of ``EVAL_REPORT_SCHEMA_VERSION``).
-PER_MODE_COMPARISON_SCHEMA_VERSION: str = "0.1"
+#: Run-vs-run comparison-report schema version discriminator (item 101;
+#: independent of ``EVAL_REPORT_SCHEMA_VERSION``). Bumped to "0.2" by item
+#: 153, which renamed the comparison's ``excluded_modes`` field to
+#: ``excluded_metric_names``.
+PER_MODE_COMPARISON_SCHEMA_VERSION: str = "0.2"
 
 
 # --------------------------------------------------------------------------- #
@@ -428,8 +430,14 @@ def render_evaluation_report(
     if per_mode_summary is not None:
         lines.append(f"Per-mode magnitudes ({per_mode_summary.run_id}):")
         for agg in per_mode_summary.per_mode:
+            if agg.failure_mode_name is not None:
+                mode_label = agg.failure_mode_name
+            else:
+                # Item 153 (A12): a no-mode metric renders where a mode's
+                # failure_mode_name would otherwise appear.
+                mode_label = f"no failure mode ({agg.condition} condition)"
             lines.append(
-                f"  {agg.failure_mode_name} ({agg.metric_name}): "
+                f"  {mode_label} ({agg.metric_name}): "
                 f"mean={_fmt_metric(agg.mean)}, n_with_value={agg.n_with_value}, "
                 f"detection_rate={_fmt_metric(agg.detection_rate)}"
             )
@@ -615,9 +623,9 @@ def render_run_comparison(comparison: "RunComparison") -> str:
     )
     lines.append("")
 
-    if comparison.attributed_mode is None:
+    if comparison.attributed_metric_name is None:
         # Degenerate comparison: say so explicitly rather than printing a
-        # per-mode table that would name every mode without any of them
+        # per-mode table that would name every metric without any of them
         # actually being implicated (AC22). Item 109 (AC12): distinguish "no
         # metric here is normalisable" from "every normalisable metric
         # normalised to 0.0" -- these are different findings and the old
@@ -626,16 +634,16 @@ def render_run_comparison(comparison: "RunComparison") -> str:
             entry for entry in comparison.per_mode if entry.normalised_delta is not None
         ]
         if not normalisable:
-            excluded = ", ".join(str(m) for m in comparison.excluded_modes)
+            excluded = ", ".join(comparison.excluded_metric_names)
             lines.append(
-                "Attribution: not normalisable -- no mode in this comparison "
+                "Attribution: not normalisable -- no metric in this comparison "
                 "carries a normalised delta"
                 + (f" (excluded: {excluded})." if excluded else ".")
             )
         else:
             lines.append(
-                "Attribution: no single mode dominates this comparison "
-                "(every normalisable mode's delta normalised to 0.0)."
+                "Attribution: no single metric dominates this comparison "
+                "(every normalisable metric's delta normalised to 0.0)."
             )
         lines.append("")
         return "\n".join(lines)
@@ -648,8 +656,14 @@ def render_run_comparison(comparison: "RunComparison") -> str:
             worsened_label = "worsened"
         else:
             worsened_label = "improved/unchanged"
+        if entry.failure_mode_name is not None:
+            mode_label = entry.failure_mode_name
+        else:
+            # Item 153 (A12): a no-mode metric renders where a mode's
+            # failure_mode_name would otherwise appear.
+            mode_label = f"no failure mode ({entry.condition} condition)"
         lines.append(
-            f"  {entry.failure_mode_name} ({entry.metric_name}): "
+            f"  {mode_label} ({entry.metric_name}): "
             f"{_fmt_metric(entry.value_a)} -> {_fmt_metric(entry.value_b)}, "
             f"delta={_fmt_metric(entry.delta)}, "
             f"normalised_delta={_fmt_metric(entry.normalised_delta)}, "
@@ -657,24 +671,25 @@ def render_run_comparison(comparison: "RunComparison") -> str:
         )
     lines.append("")
 
-    top = comparison.by_mode(comparison.attributed_mode)
+    top = comparison.by_metric(comparison.attributed_metric_name)
+    attributed_label = comparison.attributed_mode_name or "no failure mode"
     lines.append(
-        f"Attribution: mode {comparison.attributed_mode} "
-        f"({comparison.attributed_mode_name}, {comparison.attributed_metric_name}) "
+        f"Attribution: {attributed_label} "
+        f"({comparison.attributed_metric_name}) "
         f"accounts for the largest normalised move "
         f"(normalised_delta={_fmt_metric(top.normalised_delta)})."
     )
 
-    if comparison.excluded_modes:
-        # Item 109 (AC8b): even when attribution succeeds, name any mode
+    if comparison.excluded_metric_names:
+        # Item 109 (AC8b): even when attribution succeeds, name any metric
         # that carried real data but no normalised_delta -- the per-mode
         # table above already shows "n/a" for each such entry, which by
         # itself does not tell a reader whether "n/a" means "excluded from
         # ranking because unbounded/no reviewed scale" or "missing data".
-        excluded = ", ".join(str(m) for m in comparison.excluded_modes)
+        excluded = ", ".join(comparison.excluded_metric_names)
         lines.append(
             f"Excluded from attribution ranking (not normalisable, raw "
-            f"delta only): mode(s) {excluded}."
+            f"delta only): {excluded}."
         )
 
     lines.append("")

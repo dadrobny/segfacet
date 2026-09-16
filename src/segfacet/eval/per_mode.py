@@ -1,48 +1,55 @@
-"""Per-mode failure-magnitude metric API (Stage 18, item 099).
+"""Per-mode failure-magnitude metric API (Stage 18, item 099; re-keyed item 153).
 
-Item 098 named §6 mode 3's stray-island quantity; this module builds the
-**measurement surface** for the eight failure modes of the pre-item-150
-catalogue, named in :data:`LEGACY_STAGE18_MODE_NAMES` (keys ``1``-``8``,
-``0`` is the clean-control sentinel and is deliberately excluded): exactly
-one named scalar metric per mode, computed all at once by
-:func:`compute_per_mode_metrics`. The catalogue was re-organised at the
-item-150 sign-off (2026-09-14) and this surface is not yet re-keyed to it --
-see :data:`LEGACY_STAGE18_MODE_NAMES`.
+This module builds the **measurement surface** for eight failure-magnitude
+metrics, keyed by their own stable ``metric_name`` -- exactly one named
+scalar metric per entry, computed all at once by
+:func:`compute_per_mode_metrics`. Each entry additionally carries the
+specification mode it is homed on (``failure_mode``, nullable) and a
+``mode_disposition`` recording whether it measures a mode at all. Item 153
+re-keyed this surface off the frozen pre-sign-off legacy id map (retired)
+onto these metric names, deriving each entry's home live from
+``segfacet.failure_modes.SPECIFICATION``/``CONDITIONS`` and the corpus
+manifest -- see the item spec's rule (a) / rule (b) for the derivation and
+the re-homing table below.
 
 Detection rate vs. magnitude
 ----------------------------
 This API is deliberately **complementary to**
 :class:`segfacet.eval.metrics.PerModeSensitivity` (item 054), which reports,
 per mode and per cohort, *the fraction of expected-failure cases whose
-designated rule fired* — a **detection rate**. This module reports, per
-*single case*, *how much of the mode is present* — a **magnitude**. Both are
+designated rule fired* -- a **detection rate**. This module reports, per
+*single case*, *how much of the mode is present* -- a **magnitude**. Both are
 meant to land side by side in item 101's cohort report. Nothing in
 ``segfacet.eval.metrics`` is read, imported, or changed by this module.
 
-The mode -> metric mapping
----------------------------
-====  ================================  ================  =========  ========
-mode  metric_name                       direction         source     baseline
-====  ================================  ================  =========  ========
-1     unanchored_foreground_fraction    increases         paired     0.0
-2     min_dominant_component_fraction   decreases         record     1.0
-3     rogue_island_count                increases         record     0.0
-4     mislabelled_volume_fraction       increases         paired     0.0
-5     missing_level_count               increases         paired     0.0
-6     fov_clipped_label_count           increases         record     0.0
-7     out_of_order_label_count          increases         record     0.0
-8     overlapping_voxel_count           increases         record     0.0
-====  ================================  ================  =========  ========
+The metric -> home table
+-------------------------
+=================================  ================  =========  ========  ============  ===============
+metric_name                        direction         source     baseline  failure_mode  condition
+=================================  ================  =========  ========  ============  ===============
+unanchored_foreground_fraction     increases         paired     0.0       1             --
+min_dominant_component_fraction    decreases         record     1.0       1             --
+rogue_island_count                 increases         record     0.0       4             --
+mislabelled_volume_fraction        increases         paired     0.0       8             --
+missing_level_count                increases         paired     0.0       6             --
+fov_clipped_label_count            increases         record     0.0       None          fov_truncation
+out_of_order_label_count           increases         record     0.0       9             --
+overlapping_voxel_count            increases         record     0.0       15            --
+=================================  ================  =========  ========  ============  ===============
 
 Two input routes
 -----------------
-- **``record``** — the per-case feature dict :func:`segfacet.pipeline.
-  extract_feature_record` returns. Modes 2, 3, 6, 7, 8 read it only.
-- **``candidate``/``gt``** — a pair of integer instance label-map arrays of
-  identical shape, compared directly (never through ``record``). Modes 1, 4,
-  5 need this pair; mode 5 additionally reuses the single shared
-  :func:`segfacet.eval.overlap.compute_overlap` call's ``per_label`` /
-  aggregate output rather than deriving its own overlap bookkeeping.
+- **``record``** -- the per-case feature dict :func:`segfacet.pipeline.
+  extract_feature_record` returns. ``min_dominant_component_fraction``,
+  ``rogue_island_count``, ``fov_clipped_label_count``,
+  ``out_of_order_label_count`` and ``overlapping_voxel_count`` read it only.
+- **``candidate``/``gt``** -- a pair of integer instance label-map arrays of
+  identical shape, compared directly (never through ``record``).
+  ``unanchored_foreground_fraction``, ``mislabelled_volume_fraction`` and
+  ``missing_level_count`` need this pair; the last additionally reuses the
+  single shared :func:`segfacet.eval.overlap.compute_overlap` call's
+  ``per_label`` / aggregate output rather than deriving its own overlap
+  bookkeeping.
 
 Purity contract
 ----------------
@@ -78,18 +85,18 @@ This module does **not**:
 Public API
 ----------
 ``MetricSpec``
-    Frozen dataclass describing one mode's metric (name, direction, source,
-    baseline, description).
+    Frozen dataclass describing one metric's static declaration (name,
+    direction, source, baseline, description, home, disposition, condition).
 ``PerModeMetric``
-    Frozen dataclass carrying one mode's computed result (spec fields plus
+    Frozen dataclass carrying one metric's computed result (spec fields plus
     ``value``/``detail``).
 ``PerModeMetrics``
     Frozen dataclass carrying all eight :class:`PerModeMetric` entries plus
     the aggregate overlap context (``mean_dice``, ``volume_weighted_dice``,
     ``mean_jaccard``, ``n_matched``, ``n_unmatched``); has ``to_dict()`` and
-    ``by_mode()``.
+    ``by_metric()``.
 ``PER_MODE_METRIC_SPECS``
-    Immutable ``{1..8: MetricSpec}`` registry.
+    Immutable ``{metric_name: MetricSpec}`` registry, in the table's order.
 ``compute_per_mode_metrics(record, *, candidate=None, gt=None, spacing=(1.0,
 1.0, 1.0), island_size_ratio=0.10, convention=None) -> PerModeMetrics``
     The single entry point; computes all eight metrics plus the aggregate
@@ -109,30 +116,6 @@ from segfacet.eval.overlap import OverlapResult, compute_overlap
 from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.io import FacetInputError
 from segfacet.labels import LabelConvention
-from types import MappingProxyType as _MappingProxyType
-
-#: The pre-item-150 failure-mode numbering this Stage-18 surface is still
-#: keyed by. The catalogue was re-organised at the item-150 sign-off
-#: (2026-09-14; ``segfacet.failure_modes``, "Taxonomy as signed off"), and
-#: re-keying the per-mode metrics, scale specs and severity ladders needs
-#: re-measured ladder constants -- a follow-up item. Until then the metric
-#: ids 1-8 and these names are the **legacy Stage-18 numbering**, frozen
-#: here rather than read from ``FAILURE_MODE_NAMES`` (which now carries the
-#: signed-off catalogue), so the eval artifacts stay self-consistent. The
-#: legacy -> signed-off mapping is recorded beside
-#: ``segfacet.feature_docs.MODE_ANCHOR_PATHS``.
-LEGACY_STAGE18_MODE_NAMES: Mapping[int, str] = _MappingProxyType(
-    {
-        1: "label not aligned with the vertebra it names",
-        2: "over-/under-segmentation (fused / fragmented)",
-        3: "disconnected components / rogue islands",
-        4: "semantic mislabelling (wrong identification)",
-        5: "not all vertebrae segmented (missing levels)",
-        6: "partial vertebra at the image border",
-        7: "non-continuous label sequence",
-        8: "overlapping segments",
-    }
-)
 
 __all__ = [
     "MetricSpec",
@@ -150,22 +133,24 @@ __all__ = [
 
 @dataclass(frozen=True)
 class MetricSpec:
-    """Static description of one §6 failure mode's designated metric.
+    """Static description of one metric.
 
     Attributes
     ----------
     failure_mode:
-        The §6 mode integer key (``1``-``8``).
+        The specification mode id (:data:`segfacet.failure_modes.SPECIFICATION`
+        key) this metric is homed on, or ``None`` when the metric measures no
+        failure mode at all (see ``mode_disposition``).
     failure_mode_name:
-        The mode's display name, taken verbatim from
-        :data:`segfacet.synth.perturbation.FAILURE_MODE_NAMES` so it cannot
-        drift from the taxonomy's own naming.
+        ``SPECIFICATION[failure_mode].name`` when ``failure_mode`` is not
+        ``None``; otherwise ``None``.
     metric_name:
         The metric's stable name; always ends in ``_fraction`` or ``_count``
-        (the repo's existing unit-in-the-name convention).
+        (the repo's existing unit-in-the-name convention). This is the
+        registry key.
     direction:
         ``"increases"`` or ``"decreases"`` -- how the metric moves away from
-        ``baseline`` as the mode's severity increases.
+        ``baseline`` as severity increases.
     source:
         ``"record"`` (computed from a single per-case feature record) or
         ``"candidate_vs_gt"`` (computed from a candidate/GT label-map pair).
@@ -173,26 +158,35 @@ class MetricSpec:
         The documented clean-control value for this metric.
     description:
         One-line human-readable description of what the metric measures.
+    mode_disposition:
+        ``"measures-mode"`` when ``failure_mode`` is not ``None``, else
+        ``"measures-no-mode"``.
+    condition:
+        The :data:`segfacet.failure_modes.CONDITIONS` id this metric's
+        corpus case is instead owned by, when ``mode_disposition ==
+        "measures-no-mode"``; ``None`` otherwise.
     """
 
-    failure_mode: int
-    failure_mode_name: str
+    failure_mode: Optional[int]
+    failure_mode_name: Optional[str]
     metric_name: str
     direction: str
     source: str
     baseline: float
     description: str
+    mode_disposition: str
+    condition: Optional[str]
 
 
 @dataclass(frozen=True)
 class PerModeMetric:
-    """One mode's computed metric result.
+    """One metric's computed result.
 
     Attributes
     ----------
     failure_mode, failure_mode_name, metric_name, direction, baseline,
-    source:
-        Copied verbatim from the mode's :class:`MetricSpec`.
+    source, mode_disposition, condition:
+        Copied verbatim from the metric's :class:`MetricSpec`.
     value:
         The computed metric value, or ``None`` if it could not be computed
         (missing/malformed input). Always a plain ``float`` when not
@@ -200,29 +194,32 @@ class PerModeMetric:
     detail:
         ``None`` when ``value`` was computed successfully; otherwise a
         non-empty human-readable string naming why it could not be (e.g. the
-        missing block, the absent candidate/GT).
+        missing block, the absent candidate/GT), and always naming the
+        metric by its ``metric_name``.
     """
 
-    failure_mode: int
-    failure_mode_name: str
+    failure_mode: Optional[int]
+    failure_mode_name: Optional[str]
     metric_name: str
     value: Optional[float]
     direction: str
     baseline: float
     source: str
+    mode_disposition: str
+    condition: Optional[str]
     detail: Optional[str]
 
 
 @dataclass(frozen=True)
 class PerModeMetrics:
-    """All eight per-mode metric results plus the aggregate overlap context.
+    """All eight metric results plus the aggregate overlap context.
 
     Attributes
     ----------
     per_mode:
-        Exactly eight :class:`PerModeMetric` entries, in ascending
-        ``failure_mode`` order (``1..8``) -- never dropped, reordered, or
-        replaced by ``None``, regardless of input.
+        Exactly eight :class:`PerModeMetric` entries, in the registry's
+        declared order -- never dropped, reordered, or replaced by ``None``,
+        regardless of input.
     mean_dice, volume_weighted_dice, mean_jaccard, n_matched, n_unmatched:
         Taken verbatim from the single shared
         :func:`segfacet.eval.overlap.compute_overlap` call made when both
@@ -247,18 +244,18 @@ class PerModeMetrics:
         """
         return _tuples_to_lists(dataclasses.asdict(self))
 
-    def by_mode(self, failure_mode: int) -> PerModeMetric:
-        """Return the entry for *failure_mode* (``1..8``) by key, not position.
+    def by_metric(self, metric_name: str) -> PerModeMetric:
+        """Return the entry for *metric_name* by key, not position.
 
         Raises
         ------
         KeyError
-            If no entry has that ``failure_mode``.
+            If no entry has that ``metric_name``.
         """
         for entry in self.per_mode:
-            if entry.failure_mode == failure_mode:
+            if entry.metric_name == metric_name:
                 return entry
-        raise KeyError(failure_mode)
+        raise KeyError(metric_name)
 
 
 def _tuples_to_lists(obj: Any) -> Any:
@@ -283,66 +280,62 @@ def _tuples_to_lists(obj: Any) -> Any:
 # The spec registry
 # --------------------------------------------------------------------------- #
 
-# (metric_name, direction, source, baseline, description)
-_METRIC_TABLE: Dict[int, Tuple[str, str, str, float, str]] = {
-    1: (
-        "unanchored_foreground_fraction",
+# (direction, source, baseline, description, failure_mode, condition)
+# failure_mode/condition are item 153's re-homing table (item spec
+# Description's re-homing table, AC6/AC11), derived once, live, at import
+# time from segfacet.failure_modes and the corpus manifest -- see
+# _derive_homes() below.
+_METRIC_TABLE: Dict[str, Tuple[str, str, float, str]] = {
+    "unanchored_foreground_fraction": (
         "increases",
         "candidate_vs_gt",
         0.0,
         "Fraction of GT-background voxels covered by candidate foreground "
         "-- a displaced label sitting where the GT has no vertebra at all.",
     ),
-    2: (
-        "min_dominant_component_fraction",
+    "min_dominant_component_fraction": (
         "decreases",
         "record",
         1.0,
         "Minimum, over per_label entries, of the label's fragmentation_index "
         "(largest connected component's fraction of that label's volume).",
     ),
-    3: (
-        "rogue_island_count",
+    "rogue_island_count": (
         "increases",
         "record",
         0.0,
         "Maximum, over per_label entries, of the number of stray connected "
         "components strictly below island_size_ratio of the dominant one.",
     ),
-    4: (
-        "mislabelled_volume_fraction",
+    "mislabelled_volume_fraction": (
         "increases",
         "candidate_vs_gt",
         0.0,
         "Fraction of GT-foreground voxels whose candidate label is non-zero, "
         "different from the GT label, and itself present in the GT label set.",
     ),
-    5: (
-        "missing_level_count",
+    "missing_level_count": (
         "increases",
         "candidate_vs_gt",
         0.0,
         "Count of GT labels absent from the candidate whose GT region is "
         "majority background in the candidate (excludes a merely renamed level).",
     ),
-    6: (
-        "fov_clipped_label_count",
+    "fov_clipped_label_count": (
         "increases",
         "record",
         0.0,
         "Count of per_label entries touching an image face the border rule "
         "would classify as an unexpected (non-FOV-end) clip.",
     ),
-    7: (
-        "out_of_order_label_count",
+    "out_of_order_label_count": (
         "increases",
         "record",
         0.0,
         "Count of labels breaking canonical head-to-tail monotonicity "
         "(relationships.out_of_order_labels).",
     ),
-    8: (
-        "overlapping_voxel_count",
+    "overlapping_voxel_count": (
         "increases",
         "record",
         0.0,
@@ -350,20 +343,115 @@ _METRIC_TABLE: Dict[int, Tuple[str, str, str, float, str]] = {
     ),
 }
 
-PER_MODE_METRIC_SPECS: Mapping[int, MetricSpec] = MappingProxyType(
+
+#: Each metric's primary ladder operator (the "eight operators", in the same
+#: order as the "eight metric names" -- item spec's Acceptance Criteria
+#: preamble). This is a structural 1:1 pairing between a metric and the one
+#: ladder designating it (:data:`segfacet.eval.severity_ladder.SEVERITY_LADDERS`
+#: reproduces the same pairing via each ``LadderSpec.designated_metric``),
+#: kept as a local literal here -- not imported from ``severity_ladder`` --
+#: because that module imports this one (``PER_MODE_METRIC_SPECS``), and a
+#: module-load-time import back here would be circular.
+_METRIC_TO_OPERATOR: Mapping[str, str] = MappingProxyType(
     {
-        mode: MetricSpec(
-            failure_mode=mode,
-            failure_mode_name=LEGACY_STAGE18_MODE_NAMES[mode],
-            metric_name=name,
+        "unanchored_foreground_fraction": "displace",
+        "min_dominant_component_fraction": "fragment",
+        "rogue_island_count": "inject_islands",
+        "mislabelled_volume_fraction": "relabel_swap",
+        "missing_level_count": "remove_level",
+        "fov_clipped_label_count": "crop_at_border",
+        "out_of_order_label_count": "sequence_break",
+        "overlapping_voxel_count": "force_overlap",
+    }
+)
+
+
+def _derive_homes() -> Dict[str, Tuple[Optional[int], Optional[str]]]:
+    """Derive each metric's ``(failure_mode, condition)`` home live, per the
+    item spec's rule (a) then rule (b).
+
+    Rule (a): the metric is homed on the one mode *m* whose
+    ``SPECIFICATION[m].candidate_features`` cites the path
+    ``eval.per_mode.<metric_name>``. Rule (b): otherwise, the metric's
+    primary ladder operator's manifest case decides -- owned by a
+    specification mode, a condition, or neither.
+    """
+    import segfacet.failure_modes as failure_modes
+    from segfacet.synth.corpus import load_manifest
+
+    specification = failure_modes.SPECIFICATION
+    conditions = failure_modes.CONDITIONS
+
+    manifest_cases = load_manifest()["cases"]
+    case_id_by_operator: Dict[str, str] = {}
+    for case in manifest_cases:
+        perturbation = case.get("perturbation")
+        if perturbation:
+            case_id_by_operator[perturbation] = case["case_id"]
+
+    homes: Dict[str, Tuple[Optional[int], Optional[str]]] = {}
+    for metric_name in _METRIC_TABLE:
+        # Rule (a).
+        path = f"eval.per_mode.{metric_name}"
+        rule_a_homes = [
+            mode_id
+            for mode_id, mode in specification.items()
+            if any(cf.path == path for cf in mode.candidate_features)
+        ]
+        if rule_a_homes:
+            homes[metric_name] = (rule_a_homes[0], None)
+            continue
+
+        # Rule (b).
+        operator = _METRIC_TO_OPERATOR[metric_name]
+        case_id = case_id_by_operator[operator]
+        mode_hits = [
+            mode_id
+            for mode_id, mode in specification.items()
+            if any(cc.case_id == case_id for cc in mode.corpus_cases)
+        ]
+        condition_hits = [
+            cond_id
+            for cond_id, cond in conditions.items()
+            if any(cc.case_id == case_id for cc in cond.corpus_cases)
+        ]
+        if mode_hits:
+            homes[metric_name] = (mode_hits[0], None)
+        elif condition_hits:
+            homes[metric_name] = (None, condition_hits[0])
+        else:
+            homes[metric_name] = (None, None)
+    return homes
+
+
+def _build_registry() -> "MappingProxyType[str, MetricSpec]":
+    import segfacet.failure_modes as failure_modes
+
+    specification = failure_modes.SPECIFICATION
+    homes = _derive_homes()
+
+    registry: Dict[str, MetricSpec] = {}
+    for metric_name, (direction, source, baseline, description) in _METRIC_TABLE.items():
+        failure_mode, condition = homes[metric_name]
+        failure_mode_name = (
+            specification[failure_mode].name if failure_mode is not None else None
+        )
+        mode_disposition = "measures-mode" if failure_mode is not None else "measures-no-mode"
+        registry[metric_name] = MetricSpec(
+            failure_mode=failure_mode,
+            failure_mode_name=failure_mode_name,
+            metric_name=metric_name,
             direction=direction,
             source=source,
             baseline=baseline,
             description=description,
+            mode_disposition=mode_disposition,
+            condition=condition,
         )
-        for mode, (name, direction, source, baseline, description) in _METRIC_TABLE.items()
-    }
-)
+    return MappingProxyType(registry)
+
+
+PER_MODE_METRIC_SPECS: Mapping[str, MetricSpec] = _build_registry()
 
 
 def _build_metric(
@@ -378,13 +466,16 @@ def _build_metric(
         direction=spec.direction,
         baseline=spec.baseline,
         source=spec.source,
+        mode_disposition=spec.mode_disposition,
+        condition=spec.condition,
         detail=detail,
     )
 
 
 # --------------------------------------------------------------------------- #
-# Border-rule face groupings (mirrors heuristics/border.py exactly, so mode
-# 6 can never disagree with BorderRule's own classification -- AC12).
+# Border-rule face groupings (mirrors heuristics/border.py exactly, so
+# fov_clipped_label_count can never disagree with BorderRule's own
+# classification -- AC12 of item 099).
 # --------------------------------------------------------------------------- #
 
 _END_FACES = ("touches_superior", "touches_inferior")
@@ -401,29 +492,33 @@ _MISSING = object()
 
 # --------------------------------------------------------------------------- #
 # Eight private metric functions -- each total: (value, detail), never raises
-# on missing/malformed input.
+# on missing/malformed input. Named for their metric, not a mode number.
 # --------------------------------------------------------------------------- #
 
 
-def _mode1_unanchored_foreground_fraction(
+def _unanchored_foreground_fraction(
     cand_arr: Optional[np.ndarray], gt_arr: Optional[np.ndarray]
 ) -> Tuple[Optional[float], Optional[str]]:
     if cand_arr is None or gt_arr is None:
-        return None, "mode 1 needs both candidate and gt; at least one is missing"
+        return (
+            None,
+            "unanchored_foreground_fraction needs both candidate and gt; "
+            "at least one is missing",
+        )
     gt_fg = gt_arr != 0
     denom = int(np.count_nonzero(gt_fg))
     if denom == 0:
-        return None, "gt has no foreground voxels"
+        return None, "unanchored_foreground_fraction: gt has no foreground voxels"
     numer = int(np.count_nonzero((cand_arr != 0) & (gt_arr == 0)))
     return float(numer) / float(denom), None
 
 
-def _mode2_min_dominant_component_fraction(
+def _min_dominant_component_fraction(
     record: Any,
 ) -> Tuple[Optional[float], Optional[str]]:
     per_label = record.get("per_label") if hasattr(record, "get") else None
     if not isinstance(per_label, dict) or not per_label:
-        return None, "record has no usable per_label entries"
+        return None, "min_dominant_component_fraction: record has no usable per_label entries"
 
     values: List[float] = []
     for entry in per_label.values():
@@ -437,16 +532,20 @@ def _mode2_min_dominant_component_fraction(
         elif "largest_component_fraction" in components:
             values.append(components["largest_component_fraction"])
     if not values:
-        return None, "no per_label entry carried a usable components block"
+        return (
+            None,
+            "min_dominant_component_fraction: no per_label entry carried a "
+            "usable components block",
+        )
     return float(min(values)), None
 
 
-def _mode3_rogue_island_count(
+def _rogue_island_count(
     record: Any, island_size_ratio: float
 ) -> Tuple[Optional[float], Optional[str]]:
     per_label = record.get("per_label") if hasattr(record, "get") else None
     if not isinstance(per_label, dict) or not per_label:
-        return None, "record has no usable per_label entries"
+        return None, "rogue_island_count: record has no usable per_label entries"
 
     counts: List[int] = []
     for entry in per_label.values():
@@ -465,15 +564,19 @@ def _mode3_rogue_island_count(
         threshold = island_size_ratio * dominant
         counts.append(sum(1 for s in stray if s < threshold))
     if not counts:
-        return None, "no per_label entry carried a usable components block"
+        return None, "rogue_island_count: no per_label entry carried a usable components block"
     return float(max(counts)), None
 
 
-def _mode4_mislabelled_volume_fraction(
+def _mislabelled_volume_fraction(
     cand_arr: Optional[np.ndarray], gt_arr: Optional[np.ndarray]
 ) -> Tuple[Optional[float], Optional[str]]:
     if cand_arr is None or gt_arr is None:
-        return None, "mode 4 needs both candidate and gt; at least one is missing"
+        return (
+            None,
+            "mislabelled_volume_fraction needs both candidate and gt; "
+            "at least one is missing",
+        )
     gt_fg = gt_arr != 0
     denom = int(np.count_nonzero(gt_fg))
     if denom == 0:
@@ -485,13 +588,16 @@ def _mode4_mislabelled_volume_fraction(
     return float(count) / float(denom), None
 
 
-def _mode5_missing_level_count(
+def _missing_level_count(
     cand_arr: Optional[np.ndarray],
     gt_arr: Optional[np.ndarray],
     overlap_result: Optional[OverlapResult],
 ) -> Tuple[Optional[float], Optional[str]]:
     if cand_arr is None or gt_arr is None or overlap_result is None:
-        return None, "mode 5 needs both candidate and gt; at least one is missing"
+        return (
+            None,
+            "missing_level_count needs both candidate and gt; at least one is missing",
+        )
     count = 0
     for entry in overlap_result.per_label:
         if entry.gt_voxels > 0 and entry.candidate_voxels == 0:
@@ -507,10 +613,10 @@ def _mode5_missing_level_count(
     return float(count), None
 
 
-def _mode6_fov_clipped_label_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
+def _fov_clipped_label_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
     per_label = record.get("per_label") if hasattr(record, "get") else None
     if not isinstance(per_label, dict) or not per_label:
-        return None, "record has no usable per_label entries"
+        return None, "fov_clipped_label_count: record has no usable per_label entries"
 
     fov = derive_fov_coverage(record)
     superior_end = fov.superior_end_level
@@ -541,28 +647,31 @@ def _mode6_fov_clipped_label_count(record: Any) -> Tuple[Optional[float], Option
     return float(count), None
 
 
-def _mode7_out_of_order_label_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
+def _out_of_order_label_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
     rel = record.get("relationships") if hasattr(record, "get") else None
     if not isinstance(rel, dict):
-        return None, "record has no relationships block"
+        return None, "out_of_order_label_count: record has no relationships block"
     out_of_order = rel.get("out_of_order_labels")
     if not isinstance(out_of_order, list):
-        return None, "relationships block has no out_of_order_labels list"
+        return (
+            None,
+            "out_of_order_label_count: relationships block has no "
+            "out_of_order_labels list",
+        )
     return float(len(out_of_order)), None
 
 
-def _mode8_overlapping_voxel_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
+def _overlapping_voxel_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
     overlaps = record.get("overlaps", _MISSING) if hasattr(record, "get") else _MISSING
     if overlaps is _MISSING:
-        return None, "record has no overlaps key"
+        return None, "overlapping_voxel_count: record has no overlaps key"
     if not isinstance(overlaps, list):
-        return None, "overlaps block is not a list"
+        return None, "overlapping_voxel_count: overlaps block is not a list"
     total = 0
     for entry in overlaps:
         if isinstance(entry, dict) and "overlap_voxels" in entry:
             total += entry["overlap_voxels"]
     return float(total), None
-
 
 
 def _validate_overlap_result(
@@ -633,26 +742,30 @@ def compute_per_mode_metrics(
     convention: Optional[LabelConvention] = None,
     overlap_result: Optional[OverlapResult] = None,
 ) -> PerModeMetrics:
-    """Compute all eight per-mode magnitude metrics for one case.
+    """Compute all eight per-case magnitude metrics for one case.
 
     Parameters
     ----------
     record:
         The per-case feature dict (:func:`segfacet.pipeline.
         extract_feature_record`'s return value, or any dict-shaped subset).
-        Never mutated. Modes 2, 3, 6, 7, 8 read it; modes 1, 4, 5 do not.
+        Never mutated. ``min_dominant_component_fraction``,
+        ``rogue_island_count``, ``fov_clipped_label_count``,
+        ``out_of_order_label_count`` and ``overlapping_voxel_count`` read it;
+        the other three do not.
     candidate, gt:
         Optional integer instance label-map arrays of identical shape, never
-        mutated. Required for modes 1, 4, 5; when either is ``None`` those
-        three entries resolve to ``value=None``.
+        mutated. Required for ``unanchored_foreground_fraction``,
+        ``mislabelled_volume_fraction`` and ``missing_level_count``; when
+        either is ``None`` those three entries resolve to ``value=None``.
     spacing:
         ``(sx, sy, sz)`` physical voxel spacing passed through to
         :func:`segfacet.eval.overlap.compute_overlap`.
     island_size_ratio:
-        Keyword-only. Mode 3's relative stray-island size floor (fraction of
-        the per-label dominant component); a stray component strictly below
-        ``island_size_ratio * dominant_size`` counts as a rogue island.
-        Defaults to ``0.10``.
+        Keyword-only. ``rogue_island_count``'s relative stray-island size
+        floor (fraction of the per-label dominant component); a stray
+        component strictly below ``island_size_ratio * dominant_size``
+        counts as a rogue island. Defaults to ``0.10``.
     convention:
         Passed through to :func:`~segfacet.eval.overlap.compute_overlap`
         (label naming/ordering only; never affects value-based matching).
@@ -681,8 +794,8 @@ def compute_per_mode_metrics(
     Returns
     -------
     PerModeMetrics
-        Always carries exactly eight entries, in ascending mode order, plus
-        the aggregate overlap context.
+        Always carries exactly eight entries, in the registry's declared
+        order, plus the aggregate overlap context.
 
     Raises
     ------
@@ -716,25 +829,22 @@ def compute_per_mode_metrics(
     else:
         overlap_result = None
 
+    _dispatch = {
+        "unanchored_foreground_fraction": lambda: _unanchored_foreground_fraction(
+            cand_arr, gt_arr
+        ),
+        "min_dominant_component_fraction": lambda: _min_dominant_component_fraction(record),
+        "rogue_island_count": lambda: _rogue_island_count(record, island_size_ratio),
+        "mislabelled_volume_fraction": lambda: _mislabelled_volume_fraction(cand_arr, gt_arr),
+        "missing_level_count": lambda: _missing_level_count(cand_arr, gt_arr, overlap_result),
+        "fov_clipped_label_count": lambda: _fov_clipped_label_count(record),
+        "out_of_order_label_count": lambda: _out_of_order_label_count(record),
+        "overlapping_voxel_count": lambda: _overlapping_voxel_count(record),
+    }
+
     entries: List[PerModeMetric] = []
-    for mode in range(1, 9):
-        spec = PER_MODE_METRIC_SPECS[mode]
-        if mode == 1:
-            value, detail = _mode1_unanchored_foreground_fraction(cand_arr, gt_arr)
-        elif mode == 2:
-            value, detail = _mode2_min_dominant_component_fraction(record)
-        elif mode == 3:
-            value, detail = _mode3_rogue_island_count(record, island_size_ratio)
-        elif mode == 4:
-            value, detail = _mode4_mislabelled_volume_fraction(cand_arr, gt_arr)
-        elif mode == 5:
-            value, detail = _mode5_missing_level_count(cand_arr, gt_arr, overlap_result)
-        elif mode == 6:
-            value, detail = _mode6_fov_clipped_label_count(record)
-        elif mode == 7:
-            value, detail = _mode7_out_of_order_label_count(record)
-        else:
-            value, detail = _mode8_overlapping_voxel_count(record)
+    for metric_name, spec in PER_MODE_METRIC_SPECS.items():
+        value, detail = _dispatch[metric_name]()
         entries.append(_build_metric(spec, value, detail))
 
     # Built as a dict (rather than named-variable assignments) so the

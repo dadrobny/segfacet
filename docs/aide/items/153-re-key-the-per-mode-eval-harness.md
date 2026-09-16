@@ -484,4 +484,74 @@ also references; the two edits touch different lines.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **`_METRIC_TO_OPERATOR` is a local literal in `per_mode.py`, not read from
+  `severity_ladder.SEVERITY_LADDERS`.** `severity_ladder.py` imports
+  `per_mode.PER_MODE_METRIC_SPECS` at module load time, so having
+  `per_mode._derive_homes()` import `severity_ladder` back (to read each
+  ladder's `designated_metric`) would be circular -- `severity_ladder`'s own
+  module body would still be executing (before `SEVERITY_LADDERS` exists)
+  when `per_mode` tried to import it. The eight-entry metric-name ->
+  operator table is a fixed structural pairing (the item spec's own "eight
+  metric names" / "eight operators" lists, matched positionally), so it is
+  declared once as a private constant in `per_mode.py` and cross-checked
+  live by the test file's own independent `_metric_to_operator()` (which
+  *does* read `severity_ladder.SEVERITY_LADDERS`, since the test module has
+  no such circularity constraint).
+- **`score_harness`'s per-(ladder, metric) span lookup needed a real fix, not
+  just a re-key.** The legacy implementation read `spans[f][f]` to get "metric
+  f's own full swing on its own ladder", which worked only because a
+  ladder's dict key and its designated metric's dict key were the same
+  integer (`mode`). Under the re-keyed scheme (`spans` keyed by operator,
+  metric identity is a separate string), that lookup has to go through an
+  explicit `owning_operator = {designated_metric: operator}` map built from
+  the ladders actually present in the harness, then `spans[owning_operator[f]][f]`.
+  Without this fix every response inflated to `math.inf` or `0.0`-denominator
+  and the ratchet failed universally on first measurement -- caught before
+  commit by re-running `run_severity_harness()` + `score_harness()` and
+  comparing against `RECORDED_MARGINS`/`KNOWN_CROSS_MODE_COUPLINGS` (below).
+- **`score_harness(assignment=...)` now merges onto the default rather than
+  requiring a complete mapping.** AC25's adversarial cases pass a
+  single-operator override (`{op: bad_value}`) and expect the *non-vacuity*
+  companion call (`{op: valid}`) to succeed without needing every other
+  operator's entry supplied. The resolved assignment is therefore
+  `{op: spec.designated_metric for ...}` updated in place by any
+  caller-supplied partial mapping, and every *resolved* value (not just the
+  caller-supplied ones) is validated against the registry. This drops the
+  previous `KeyError`-on-missing-entry behaviour, which the pre-153 code
+  never exercised with a partial dict either (`score_harness(assignment=)`
+  had no test passing anything but a full identity/negative-control mapping
+  before this item).
+- **`ModeDelta` gained a `condition: Optional[str]` field** (not enumerated
+  in A10's list) so `render_run_comparison`'s no-mode rendering (A12) can
+  read the excluded metric's condition without a second registry lookup.
+  Copied verbatim from `PER_MODE_METRIC_SPECS[metric_name].condition` in
+  `compare_runs`; no test in this item or the reconciled suite constructs a
+  `ModeDelta` positionally, so the added field is additive.
+- **Measured harness run (2026-09-16), confirming every constant moved
+  verbatim (A5):** `run_severity_harness()` + `score_harness()` on the
+  re-keyed registries reproduces `passed=True` and exactly the recorded
+  margins: `displace`=inf, `fragment`=inf, `inject_islands`=112.0370...
+  (>= `112.0 * 0.95`), `relabel_swap`=inf, `remove_level`=inf,
+  `crop_at_border`=0.35852... (>= `0.3585 * 0.95`, status `coupled`),
+  `sequence_break`=inf, `force_overlap`=1.03863... (>= `1.038 * 0.95`,
+  status `coupled`). The two recorded couplings
+  (`crop_at_border`→`unanchored_foreground_fraction`=2.79,
+  `force_overlap`→`unanchored_foreground_fraction`=0.9629) both hold under
+  the `measured <= recorded * 1.05` ratchet. A line-level diff of
+  `per_mode.py`/`severity_ladder.py`/`per_mode_cohort.py` against the branch
+  base confirms every float/int literal in `RECORDED_MARGINS`, the
+  `KNOWN_CROSS_MODE_COUPLINGS` `recorded_response`s, `COUPLING_THRESHOLD`,
+  the `_METRIC_TABLE` baselines, the rung severities, and `MODE_SCALE_SPECS`
+  appears with the identical multiset of numeric literals on both sides of
+  the diff (checked file-by-file with a literal-extraction script) -- no
+  number moved.
+- **CLI end-to-end (2026-09-16):** `segfacet evaluate --per-mode` on the
+  `test_101_compare_runs_cli` two-case cohort fixture exits 0 and
+  `eval_report.json`'s `per_mode_magnitude.per_mode` metric names equal the
+  registry's key order; `segfacet compare-runs` on two such reports exits 0
+  and the written `per_mode_comparison.json` validates against the bumped
+  (`"0.2"`) schema. A pre-item-shaped `per_mode_magnitude` block (int
+  `failure_mode`, no `mode_disposition`) fed to `compare-runs` exits 1 with
+  no traceback on stderr and writes nothing to `--out` (AC31).
+- **`aide scope`** confirms this branch's 20 changed files are all
+  authorised, measured against `origin/aide/queue-021`.
