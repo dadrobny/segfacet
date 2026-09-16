@@ -752,9 +752,7 @@ def test_ac30_golden_decision_table_untouched_vs_base():
     127) flags a raw fresh-vs-committed byte/hash comparison, and this
     document is deliberately excluded from its allowlist (it is read-only
     prose, never regenerated) -- see ``tests/committed_artifact_guard.py``'s
-    module docstring and ``test_126``'s
-    ``test_ac22_guard_module_absent_from_this_items_diff`` for the same
-    idiom.
+    module docstring.
     """
     result = run_utf8(
         [
