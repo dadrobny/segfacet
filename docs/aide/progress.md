@@ -1648,7 +1648,7 @@ changes here.**
   Stage 20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored;
   the false `rank(v) == v - 1` claim in `severity_ladder.py` corrected; resolves the four
   recorded-not-resolved disagreements from item 153's Description. *(Item 154)*
-- 🚧 **D4** A corpus case is a clean control, a condition case, or a failure case, never
+- 🔍 **D4** A corpus case is a clean control, a condition case, or a failure case, never
   `failure_mode == 0` alone: `case_kind`/`corpus_case_kind` in `synth/perturbation.py`
   derive and read a closed three-value `kind` on every manifest case, both committed
   manifests regenerate carrying it, and every production consumer
