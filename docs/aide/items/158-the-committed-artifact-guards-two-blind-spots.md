@@ -389,4 +389,33 @@ tree sweeps read, but it pins nothing this item changes.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- Implemented per the spec: `_file_root_parent_count` gained an `ast.Subscript`
+  branch (`.parents[N]`, `N` a non-negative `int` literal per `type(value) is
+  int`, contributing `N+1` steps) and an `ast.Name` branch consulting a new
+  `depths: Dict[str, int]` parameter threaded through it, `_is_file_root_chain`
+  (name unchanged, A9), `_resolve_expr`, `_resolve_operand`,
+  `_module_level_paths` (now returns `(known, depths)`, recording every
+  module-level `Path(__file__)`-chain assignment's depth, one-step roots
+  included) and `_classify_function` (copies the module depths, extends them
+  with the function's own assignments in the same pre-scan pass that already
+  built `local_known`). `classify_module` threads the new `module_depths`
+  through.
+- Docstring: rewrote "Precise, not exhaustive" to name `parents[N]` and the
+  two-hop name-carried root, and added the `Still skipped in silence:` list in
+  the A6 form (intro line immediately followed by bullets, no blank line
+  before the first bullet, since the parser treats a blank line as the list's
+  end) covering all seven required shapes. Placement shapes (class methods,
+  module-level comparisons, subdirectory modules, `in`/`is`/chained
+  comparisons) are described in prose after the list, per A6. The "a loop
+  variable" phrase stays in prose since the list's "comprehension variable"
+  entry is a distinct shape (`for` binding vs. a comprehension).
+  `GROUNDS`'s comment fixed from "Adding a sixth member" to "Adding a member"
+  (six members already existed).
+- Verified: `iter_violations` over `tests/` with the committed `ALLOWLIST` is
+  `[]` (per the item's own instruction to STOP if not); no `ALLOWLIST` or
+  `GROUNDS` change was made, matching the spec's claim that all 22 newly
+  visible comparisons are already grounded.
+- Tests (already committed by test-writer) verified directly via
+  `classify_module`/`iter_violations` calls rather than `pytest`, per this
+  role's constraints: all 23 tests in
+  `tests/test_158_committed_artifact_guard_resolver.py` pass.
