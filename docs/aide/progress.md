@@ -1670,7 +1670,7 @@ changes here.**
   (a name assigned from another name's `.parent`) were both invisible to
   `iter_violations`, silently passing a comparison the guard is meant to catch.
   *(Item 158)*
-- 🚧 **D5** Per `docs/aide/queue/queue-021.md` item 159, the prerequisite test and
+- 🔍 **D5** Per `docs/aide/queue/queue-021.md` item 159, the prerequisite test and
   import defects in the surfaces Stage 32 edits (dead `aide/queue-018` base-ref
   skips, committed-artifact guard gaps, eager NiBabel import in
   `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag);
