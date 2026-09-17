@@ -1665,14 +1665,16 @@ changes here.**
   the mode they carry after the item-150 re-keying, renaming the eight affected
   geometric case ids and updating every pin (manifests, generator, rule/synth/
   eval modules, both conformance artifacts) to match. *(Item 157)*
-- 🚧 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
-  `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
-  `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries
-  already fixed are ticked with a pointer. *(Item 158)*
-- 📋 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
-  `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
-  `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries
-  already fixed are ticked with a pointer. *(Item 159)*
+- 🚧 **D5** Closes two blind spots in `tests/committed_artifact_guard.py`'s resolver:
+  an arbitrary `parents[N]` chain and a name-carried root reached through two hops
+  (a name assigned from another name's `.parent`) were both invisible to
+  `iter_violations`, silently passing a comparison the guard is meant to catch.
+  *(Item 158)*
+- 📋 **D5** Per `docs/aide/queue/queue-021.md` item 159, the prerequisite test and
+  import defects in the surfaces Stage 32 edits (dead `aide/queue-018` base-ref
+  skips, committed-artifact guard gaps, eager NiBabel import in
+  `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag);
+  entries already fixed are ticked with a pointer. *(Item 159)*
 - 📋 **D6** Insight triage: every open `defect` and `gap` entry at the stage's start ticked,
   re-homed with a pointer, or left open with a dated reason. *(Item 160)*
 - 📋 **D7** Stage validation: full suite green, eval harness re-run from a clean tree with

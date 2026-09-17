@@ -419,3 +419,16 @@ tree sweeps read, but it pins nothing this item changes.
   `classify_module`/`iter_violations` calls rather than `pytest`, per this
   role's constraints: all 23 tests in
   `tests/test_158_committed_artifact_guard_resolver.py` pass.
+- 2026-09-17: Validation round 1 found a soundness defect in the depth/known
+  tracking added above: `_module_level_paths`'s and `_classify_function`'s
+  pre-scan loops only ever *set* `depths[name]` (and `known[name]`) when a new
+  assignment resolves; a rebinding of an already-tracked name to something
+  that does *not* resolve (e.g. `_TESTS_DIR = some_call()`) left the old entry
+  in place, so a later `_TESTS_DIR.parent` read the stale depth/path and could
+  manufacture a false-positive `Violation` — the guard's own contract ("a
+  reported Violation is authoritative") depends on there being no such
+  staleness. Fixed by popping `name` from `depths`/`known`/`local_reads`
+  whenever the corresponding resolution attempt comes back `None`, so a
+  rebinding always overwrites-or-clears rather than only ever overwriting.
+  Function-local rebindings still only mutate the function's own copies
+  (`local_known`/`local_depths`/`local_reads`), never the module-level dicts.

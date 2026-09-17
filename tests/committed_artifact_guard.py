@@ -423,9 +423,13 @@ def _module_level_paths(tree: ast.Module) -> Tuple[Dict[str, str], Dict[str, int
             count = _file_root_parent_count(stmt.value, depths)
             if count is not None:
                 depths[name] = count
+            else:
+                depths.pop(name, None)
             resolved = _resolve_expr(stmt.value, known, depths)
             if resolved is not None:
                 known[name] = resolved
+            else:
+                known.pop(name, None)
     return known, depths
 
 
@@ -466,15 +470,21 @@ def _classify_function(
         count = _file_root_parent_count(stmt.value, local_depths)
         if count is not None:
             local_depths[name] = count
+        else:
+            local_depths.pop(name, None)
         resolved = _resolve_expr(stmt.value, local_known, local_depths)
         if resolved is not None:
             local_known[name] = resolved
+            local_reads.pop(name, None)
             continue
+        local_known.pop(name, None)
         path_expr = _extract_path_expr_from_read(stmt.value)
         if path_expr is not None:
             read_resolved = _resolve_expr(path_expr, local_known, local_depths)
             if read_resolved is not None:
                 local_reads[name] = read_resolved
+                continue
+        local_reads.pop(name, None)
 
     violations: List[Violation] = []
     for stmt in _walk_stmts(func.body):
