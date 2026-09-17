@@ -337,4 +337,28 @@ AC plus these adversarial cases:
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **D-a fix, measured in a subprocess (2026-09-17, `.venv/bin/python`).**
+  Before: `import segfacet.failure_modes` and `import segfacet.traceability`
+  each left `numpy`/`scipy`/`nibabel` roots in `sys.modules` (the eager
+  `segfacet/__init__.py` re-exports pulled them in transitively). After the
+  PEP 562 `__getattr__` change: both imports leave `sorted({m.split('.')[0]
+  for m in sys.modules} & {'numpy','scipy','nibabel'})` empty (`[]`). `from
+  segfacet import check_empty, CheckResult, compute_fragmentation_index`
+  still resolves each name `is`-identical to its defining module's attribute,
+  `segfacet.__all__` is unchanged (twelve names), and
+  `getattr(segfacet, "no_such_attribute_159")` still raises
+  `AttributeError: module 'segfacet' has no attribute 'no_such_attribute_159'`.
+  `segfacet --help` still runs unaffected (the CLI never touches the two lazy
+  names at import time).
+- **A7 outcome.** `aide progress set 159 in-progress` did not split any
+  shared deliverable bullet — item 159 has no shared `*(Items A, B)*`
+  attribution in `progress.md` — so no reword was needed.
+- **A8 outcome.** `aide insights tick` on entries 38, 39, 45, 47 and 52 (all
+  already ticked `→ item 159`) appended a dated trail line each, pointing at
+  the commit that fixed them (per A8, no re-tick). Entry 86 (item 158,
+  2026-09-17, the `_classify_warning` warning-class pin) was ticked with
+  pointer `item 159`.
+- **Post-fix `aide check`**: 7 warnings, all in the four pre-existing
+  baseline classes (unfilled `## Assumptions` block, two human-gate-pending
+  warnings, three stage-20 retraction warnings) — no new warning class, no
+  error, none naming a path this item changed.
