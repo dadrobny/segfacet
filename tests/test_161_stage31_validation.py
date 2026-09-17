@@ -113,6 +113,41 @@ def _annotation_violations(lines: List[str], start: int, end: int, aide) -> List
     return violations
 
 
+def _spliced_trail_violations(lines: List[str], start: int, end: int, aide) -> List[str]:
+    """Checkbox lines (stripped) whose block carries a trail line followed by
+    a further indented, non-trail line before the block ends.
+
+    A correctly-wrapped box's own continuation lines all sit *before* its
+    first trail line; `_box_text` stops gathering there by design (a trail
+    line's own annotation is never the box's attestation). But that means a
+    splice that reorders a wrapped box -- first line, trail line, *then* the
+    continuation `aide progress amend` displaced below it -- would silently
+    lose that continuation from `_box_text`'s gathered text with no signal:
+    the trail-line-then-continuation shape reads as if the box had no
+    continuation at all. This walks each box's full block (not stopping at
+    the first trail line) and flags one where an indented, non-trail line
+    follows a trail line -- the splice's structural signature.
+    """
+    boxes = aide.acceptance_boxes(lines, start, end)
+    violations = []
+    for k, box in enumerate(boxes):
+        sub_end = boxes[k + 1] if k + 1 < len(boxes) else end
+        seen_trail = False
+        for i in range(box + 1, sub_end):
+            line = lines[i]
+            if not line.strip():
+                break
+            if not line[:1].isspace():
+                break
+            if _TRAIL_LINE_RE.match(line):
+                seen_trail = True
+                continue
+            if seen_trail:
+                violations.append(lines[box].strip())
+                break
+    return violations
+
+
 # =========================================================================== #
 # AC14: every Stage 31 acceptance box is attested with evidence or annotated
 # with a reason.
@@ -238,6 +273,89 @@ def test_adv_ac14_annotation_inside_a_trail_line_does_not_count():
     start, end, _ = aide.stage_section(lines, _STAGE)
     violations = _annotation_violations(lines, start, end, aide)
     assert violations, "expected the box to be flagged despite the trail's own annotation"
+
+
+def test_adv_wrapped_box_continuation_before_trail_line_is_gathered():
+    """Correctly-ordered shape: the continuation line sits before the trail
+    line. `_box_text` must still include it, and the structural splice check
+    must find nothing wrong with this box."""
+    aide = _aide_module()
+    lines = (
+        "## Stage 31 — Post-Sign-Off Maintenance (G7, G8) — 🚧\n"
+        "\n"
+        "**Acceptance.**\n"
+        "\n"
+        "- [ ] Some long criterion\n"
+        "  spanning two lines, not attested. *(not attested 2026-09-17, item 161.)*\n"
+        "  - **2026-09-17** → retracted: AC10 failed in the clone.\n"
+    ).splitlines()
+    start, end, _ = aide.stage_section(lines, _STAGE)
+    boxes = aide.acceptance_boxes(lines, start, end)
+    assert boxes, "expected at least one acceptance box in the synthetic section"
+    text = _box_text(lines, boxes[0], end)
+    assert "spanning two lines" in text, (
+        "expected the pre-trail continuation line to be part of the gathered box text"
+    )
+    violations = _spliced_trail_violations(lines, start, end, aide)
+    assert violations == []
+
+
+def test_adv_spliced_trail_before_continuation_is_flagged():
+    """The defective shape a hand-edit/`amend` can produce: the checkbox's
+    first line, then a trail line, then an indented continuation line that
+    belongs to the box's own criterion text -- displaced *below* the trail
+    line instead of staying above it. `_box_text` would silently drop that
+    continuation (it stops gathering at the first trail line), so this must
+    be caught structurally instead."""
+    aide = _aide_module()
+    lines = (
+        "## Stage 31 — Post-Sign-Off Maintenance (G7, G8) — 🚧\n"
+        "\n"
+        "**Acceptance.**\n"
+        "\n"
+        "- [ ] Some long criterion, not attested. *(not attested 2026-09-17.)*\n"
+        "  - **2026-09-17** → retracted: AC10 failed in the clone.\n"
+        "  spanning two lines that got spliced below the trail line.\n"
+    ).splitlines()
+    start, end, _ = aide.stage_section(lines, _STAGE)
+    violations = _spliced_trail_violations(lines, start, end, aide)
+    assert violations, "expected the trail-then-continuation splice to be flagged"
+
+
+def test_adv_box_with_no_trail_line_has_no_splice_violation():
+    """A box with no trail line at all (the common case) must never be
+    flagged by the splice check -- it has nothing to splice."""
+    aide = _aide_module()
+    lines = (
+        "## Stage 31 — Post-Sign-Off Maintenance (G7, G8) — 🚧\n"
+        "\n"
+        "**Acceptance.**\n"
+        "\n"
+        "- [x] Criterion one. *(evidence one.)*\n"
+    ).splitlines()
+    start, end, _ = aide.stage_section(lines, _STAGE)
+    violations = _spliced_trail_violations(lines, start, end, aide)
+    assert violations == []
+
+
+def test_live_stage31_section_has_no_spliced_trail_lines():
+    """Structural regression guard: a future `aide progress amend` on Stage
+    31 must not reproduce the trail-line/continuation splice fixed by this
+    item (criterion 4's box). Runs against the live progress.md, not a
+    fixture, so it reds the suite the moment the shape reappears."""
+    aide = _aide_module()
+    lines = _PROGRESS_PATH.read_text(encoding="utf-8").splitlines()
+    section = aide.stage_section(lines, _STAGE)
+    assert section is not None, "no Stage 31 section found in progress.md"
+    start, end, _stage_num = section
+    boxes = aide.acceptance_boxes(lines, start, end)
+    assert boxes, "Stage 31 section carries no acceptance boxes"
+
+    violations = _spliced_trail_violations(lines, start, end, aide)
+    assert violations == [], (
+        f"Stage 31 acceptance box(es) with a trail line spliced before a "
+        f"later continuation line: {violations}"
+    )
 
 
 def test_adv_ac14_empty_annotation_is_flagged():
