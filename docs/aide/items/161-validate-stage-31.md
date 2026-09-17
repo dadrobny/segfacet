@@ -530,4 +530,156 @@ with `aide progress amend 31`, never by editing the note.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **2026-09-17 — the rig (AC1).** Cloned `aide/161-validate-stage-31-post-sign` into
+  the session scratchpad: `git clone --branch aide/161-validate-stage-31-post-sign
+  <this repo> <scratchpad>/clone`. Clone `HEAD` at clone time:
+  `6bf417df59d5ec22c1c6bcfcc9190ad2582537c5`, equal to the branch tip at that
+  moment. Bootstrapped with `python <clone>/.aide/scripts/aide.py --repo <clone>
+  env --bootstrap` (ok: venv is Python 3.11; `import segfacet`/`import pytest`
+  succeed). Resolution proof: `<clone>/.venv/bin/python -P -c "import segfacet;
+  print(segfacet.__file__)"` printed
+  `<scratchpad>/clone/src/segfacet/__init__.py` — resolves under the clone, not
+  the working checkout.
+
+- **2026-09-17 — Criterion 1, the engine version (AC2).** `X` = clone's
+  `.aide/VERSION` = `1.52.1`. Queue-021's planning commit resolved fresh by
+  subject `docs(aide): add work queue 021`: `99520a9faf5ce7ae7cf669a4a6b12d37dba55624`,
+  committer date `2026-09-16T17:20:06+01:00`. On the declared `aide-loop`
+  sibling (`/mnt/data/spine/codes/aide-loop`, `[framework] local_path`),
+  `git fetch origin main` then `git log origin/main --before=2026-09-16T17:20:06+01:00
+  -1 --format='%H %cI' -- core/VERSION` names `5e305c5ca5e62da20a08ff2fca6b551801968442`
+  (2026-09-15T13:49:20+01:00); `core/VERSION` at that commit is `1.52.1`, equal
+  to `X`. Framework's current `origin/main` `core/VERSION` is `1.53.1`
+  (informational; recorded, does not affect this criterion). **Criterion 1
+  holds.** Attested: `aide progress accept 31 --criterion 1 --evidence "..."`
+  (commit `056716b`).
+
+- **2026-09-17 — Criterion 2, `vision.md` §6 (AC3–AC5).** AC3/AC4:
+  `test_152_retire_vision_seed.py::test_ac1_section_six_carries_no_numbered_list`,
+  `::test_ac2_section_six_names_the_specification`,
+  `::test_ac3_no_production_module_names_vision_md_as_a_path`,
+  `::test_ac5_no_source_text_names_a_retired_function` — 4 passed in the clone.
+  AC5: `grep -rnoE "§6('s)? (failure[ -])?modes? [0-9]+|§6's (eight )?numbered|numbered
+  eight" src/segfacet --include='*.py'` in the clone returns **42** matching
+  lines across **16** files (matches the 2026-09-17 starting-point measurement
+  in the Description exactly). Exactly one line contains the token `v3`
+  (`failure_modes.py:117`, `"v3 vision.md §6's numbered eight. It entered
+  through this module's schema,"`) and is excluded per AC5's rule, leaving
+  **41** hits that count against the zero threshold. The count is non-zero, so
+  under reading R2 (A4) **criterion 2 does not hold** and stays unticked. A
+  hand-written annotation was appended to the box's last line (commit
+  `dd6505b`, folded into the `progress set` commit since it was made before
+  that command ran) and one `defect` entry was appended to `insights.md`
+  (commit `58c17a5`) naming `stage 31 criterion 2`, the count (42/16, 41
+  counted), the two example files, and that the cited ids are pre-sign-off
+  ids. Per A4, if a human later judges prose out of scope, criterion 2 closes
+  on AC3/AC4 alone — that decision is left to the queue boundary, not made
+  here.
+
+- **2026-09-17 — Criterion 3, the harness re-key and constants (AC6–AC9).**
+  AC6/AC7: `test_153_eval_harness_rekey.py`'s
+  `test_ac1_legacy_map_is_gone`, `test_ac2_no_source_or_test_names_the_legacy_map`,
+  `test_ac5_homes_are_derived_from_the_specification`,
+  `test_ac17_ladders_are_keyed_by_operator`, `test_ac20_margins_are_keyed_by_operator`,
+  `test_ac21_couplings_name_a_ladder_and_a_foreign_metric`,
+  `test_ac26_cohort_aggregates_follow_the_registry`,
+  `test_ac27_scale_specs_are_keyed_by_metric`, `test_ac30_every_emitted_mode_id_is_valid`
+  — 9 passed in the clone. AC8: `score_harness(run_severity_harness())` run from
+  the clone's venv (`python -P -c ...`) printed `passed=True`, with per-ladder
+  margins `displace inf`, `fragment inf`, `inject_islands 112.04`, `relabel_swap
+  inf`, `remove_level inf`, `crop_at_border 0.3585`, `sequence_break inf`,
+  `force_overlap 1.0386` and couplings `crop_at_border → unanchored_foreground_fraction
+  2.789`, `force_overlap → unanchored_foreground_fraction 0.9628` (unrounded;
+  matches the committed 4-sig-fig constants). `test_154_ladder_remeasurement.py`'s
+  `test_ac8_coupling_set_is_what_is_measured`, `test_ac9_each_coupling_value_is_a_fresh_transcription`,
+  `test_ac10_each_margin_is_a_fresh_transcription` — 3 passed in the clone. AC9,
+  the re-measured constants read fresh from the clone's
+  `segfacet.eval.severity_ladder` (replay date 2026-09-17, clone commit
+  `6bf417d`):
+  - `RECORDED_MARGINS`: `displace=inf`, `fragment=inf`, `inject_islands=112.0`,
+    `relabel_swap=inf`, `remove_level=inf`, `crop_at_border=0.3585`,
+    `sequence_break=inf`, `force_overlap=1.038`.
+  - `KNOWN_CROSS_MODE_COUPLINGS`: `crop_at_border → unanchored_foreground_fraction
+    2.79`, `force_overlap → unanchored_foreground_fraction 0.9629`.
+  - Provenance: `corpus="geometric"`, `base_params={levels: (L1,L2,L3,L4,L5),
+    spacing: (1.0,1.0,1.0), curve_amplitude_mm: 6.0}`, `measured_on="2026-09-16"`.
+
+  Every value equals the corresponding starting-point value in the Description
+  exactly — no drift since 2026-09-16. **Criterion 3 holds.** Attested:
+  `aide progress accept 31 --criterion 3 --evidence "..."` (commit `1e9f009`).
+
+- **2026-09-17 — Criterion 4, no zero-comparison consumer (AC10).**
+  `test_155_corpus_case_kind.py::test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains`
+  and every parametrisation of `::test_ac13_scan_detects_each_forbidden_shape` —
+  8 passed in the clone. Since the tests pass, the correction is an `amend`,
+  not a `retract`: `aide progress amend 31 --criterion 4 --evidence "..."`
+  (commit `f7e4b28`), which appends a `- **2026-09-17** → ...` trail line
+  under the box while leaving its original 2026-09-16 attestation and tick
+  unchanged, exactly as A6 describes. **Criterion 4 holds, re-confirmed.**
+
+- **2026-09-17 — Criterion 5, the triage counts (AC11–AC13).**
+  `test_160_insight_triage.py`'s `test_ac1_…` through `test_ac8_…`
+  parametrisations — 125 passed in the clone (every S1–S29/Q1–Q6 row
+  classifies exactly as item 160 recorded; a mismatch would have failed one of
+  these parametrised tests). AC12, re-measured (not copied) from
+  `python .aide/scripts/aide.py insights list --trail` on the working
+  checkout (89 entries total, 24 open) classified by item 160's own AC2/AC4/AC7
+  predicates, keyed by row (type, provenance, date, claim substring), never by
+  list number:
+  - **Stage-start (S1–S29):** 29 rows — **18 ticked, 10 re-homed, 1 left open**.
+  - **In-queue (Q1–Q6):** 6 rows — **2 ticked, 0 re-homed, 4 left open**.
+
+  Both cohorts match item 160's recorded 18/10/1 and 2/0/4 exactly; no
+  difference to explain. Independently cross-checked by counting the raw
+  markers in `docs/aide/insights.md`: `grep -c "re-homed ("` → 10 (matches
+  10+0); `grep -c "→ left open:"` → 5 (matches 1+4). **Criterion 5 holds.**
+  Attested: `aide progress accept 31 --criterion 5 --evidence "..."` (commit
+  `ff004cc`), whose evidence note carries the AC13 clause
+  `stage-start defect/gap entries: 29 — ticked 18, re-homed 10, left open 1`
+  followed by `in-queue: 6 — ticked 2, re-homed 0, left open 4`
+  (18+10+1=29, 2+0+4=6).
+
+- **2026-09-17 — Bookkeeping order and verbs (AC16).** Run in order 1→5:
+  `accept --criterion 1`, `accept --criterion 3`, `amend --criterion 4`,
+  `accept --criterion 5` (each via the CLI, each auto-committed), then a hand
+  edit for criterion 2 (unticked, per AC5) plus its `insights.md` defect entry
+  (committed separately, `58c17a5`, since it predated the verb calls in
+  wall-clock order but was folded into the `progress set` commit for the
+  progress.md side). No box was ticked on evidence that failed. `aide progress
+  set 161 in-progress` (commit `dd6505b`) flipped D7's bullet from 📋 to 🚧; it
+  names only item 161, so no identical-prose split occurred (A7) and no
+  reword was needed.
+
+- **2026-09-17 — Environment (AC17).** `aide env` → `OK` (venv is Python 3.11;
+  `import segfacet`/`import pytest` succeed). `aide env --profile pyradiomics`
+  → exit 1, `ModuleNotFoundError: No module named 'radiomics'` (recorded as ❓
+  Unverified, never a silent pass, per the profile's own contract).
+  `aide env --profile docker` → exit 1, docker not satisfied.
+  `aide env --profile gpu` → exit 1, `ModuleNotFoundError: No module named
+  'cupy'`. `progress.md`'s Environment-Gated Capability Verification table has
+  no row whose "Introduced by" column names Stage 31 (verified by reading
+  every row) — Stage 31 introduces no gated capability, and none of the
+  replays above depend on a profile. The table is left unchanged.
+
+- **2026-09-17 — `aide check` (AC18).** Baseline before this item's
+  bookkeeping (on `6d90126`, tree clean): `OK (7 warning(s))` — 1
+  assumptions-block warning, 2 awaiting-a-decision warnings (gates 1, 2), 4
+  retracted-criterion warnings (Stage 20 criteria 1, 3, 4, 5). After every
+  bookkeeping commit above: `OK (7 warning(s))`, byte-identical set (same 7
+  lines). No warning text contains `stage 31`, `queue-021`, or a spec filename
+  `152-` through `161-`. No `stage 31 criterion 4 was retracted` warning
+  appeared, consistent with AC10's tests passing (an `amend`, not a
+  `retract`). The baseline is recorded for comparison only, pinned nowhere in
+  the suite.
+
+- **2026-09-17 — the in-suite module (AC14/AC15).** `tests/test_161_stage31_validation.py`
+  (written by the test-writer before this item's bookkeeping ran) passes in
+  full against the bookkept `progress.md`: `.venv/bin/python -m pytest
+  tests/test_161_stage31_validation.py -q` → 11 passed. AC14: every Stage 31
+  acceptance box (criteria 1, 3, 4, 5 ticked with evidence; criterion 2
+  unticked with its hand-written reason) carries a non-empty `*(...)*`
+  annotation. AC15: `progress.md`'s Stage 31 section has 5 acceptance boxes,
+  equal to `roadmap_acceptance_bullets(..., "31")`'s 5 bullets.
+
+- **2026-09-17 — the full suite in a fresh clone of the final commit (AC19).**
+  See the paragraph below, added after the branch's final commit landed.
