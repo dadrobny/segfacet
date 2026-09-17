@@ -8,8 +8,8 @@ Pins the precise contract the three Stage 5 operator-family items (037, 038,
   (the registry key) and an ``apply(labelmap, seed) -> PerturbationResult``
   contract.
 * :class:`Expectation` -- what the perturbed case is expected to look like
-  once run back through the real Stage 4 pipeline: the intended §6 failure
-  mode, the Stage 4 rule id(s) expected to fire, the expected offending
+  once run back through the real Stage 4 pipeline: the intended failure
+  mode (a ``failure_modes.SPECIFICATION`` id), the Stage 4 rule id(s) expected to fire, the expected offending
   labels, and the expected verdict.
 * :class:`PerturbationResult` -- the ``(labelmap, expectation)`` pair
   ``apply`` returns, as both an unpackable tuple and named attributes.
@@ -59,10 +59,10 @@ __all__ = [
 ]
 
 # --------------------------------------------------------------------------- #
-# §6 failure-mode taxonomy
+# Failure-mode taxonomy (ids from failure_modes.SPECIFICATION)
 # --------------------------------------------------------------------------- #
 
-#: Sentinel §6 "mode" for the clean control (no injected failure).
+#: Sentinel "mode" id for the clean control (no injected failure).
 CLEAN_CONTROL_MODE: int = 0
 
 #: Canonical failure-mode names, keyed by mode id (0 == clean control),

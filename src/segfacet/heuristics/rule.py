@@ -90,7 +90,7 @@ class ConsumedPath:
 
 @dataclasses.dataclass(frozen=True)
 class RuleModeDeclaration:
-    """A rule's own statement of the §6 failure mode(s) it targets (item 136).
+    """A rule's own statement of the failure mode(s) it targets (item 136).
 
     Exactly one of three states must be realised:
 
@@ -107,11 +107,11 @@ class RuleModeDeclaration:
       ``src/segfacet/`` reads an element of ``evidence`` for meaning::
 
           RuleModeDeclaration(
-              modes=(6,),
-              evidence=("corpus-manifest", "tests/corpus/manifest.json's crop_at_border ..."),
+              modes=(15,),
+              evidence=("corpus-manifest", "tests/corpus/manifest.json's force_overlap ..."),
           )
 
-    - **Mode-less**: the rule deliberately targets no §6 mode, with the
+    - **Mode-less**: the rule deliberately targets no failure mode, with the
       reason recorded in ``mode_less_reason``::
 
           RuleModeDeclaration(mode_less_reason="structural sanity check, not a failure-mode detector")
@@ -128,7 +128,7 @@ class RuleModeDeclaration:
     ``consumed_paths`` (item 148) is the fifth, **additive** field: a tuple of
     :class:`ConsumedPath`, ascending and unique by ``path``, classifying every
     catalogued leaf path ``segfacet.catalogue.build_catalogue`` attributes to
-    this rule. It is what lets the catalogue attribute a rule's §6 modes to
+    this rule. It is what lets the catalogue attribute a rule's failure modes to
     the paths that can actually evidence them: only a ``"signal"`` pair
     contributes. It defaults to ``()`` so every pre-item-148 construction
     still constructs; a *registered* rule with a non-empty ``modes`` and an
@@ -296,7 +296,7 @@ class Rule(abc.ABC):
 
     mode_declaration: Optional["RuleModeDeclaration"] = None
     """Every concrete rule must set this (item 136): a class-attribute
-    ``RuleModeDeclaration`` stating the §6 failure mode(s) this rule targets,
+    ``RuleModeDeclaration`` stating the failure mode(s) this rule targets,
     that it targets none (with a reason), or that its disposition is
     pending (naming the carrier item). Registration does **not** enforce
     this (A3) — ``segfacet.catalogue.rule_declaration_conflicts()`` and the

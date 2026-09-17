@@ -2,7 +2,7 @@
 Specification: the vision.md §6 catalogue as an authored source).
 
 This module is the **primary record** vision.md §6 describes: one frozen
-:class:`ModeSpec` declaration per §6 failure mode, shaped after
+:class:`ModeSpec` declaration per failure mode, shaped after
 ``RuleModeDeclaration`` (:mod:`segfacet.heuristics.rule`, item 136), from
 which ``docs/aide/failure_modes.generated.{md,json}`` are rendered by
 zero-argument regeneration (:func:`main`). Today the catalogue exists as five
@@ -13,8 +13,8 @@ renders.
 
 **This module ships the schema, the validation, the derivation and the
 rendering.** Item 144 shipped a minimal seed set of two entries to exercise
-both derivation paths end-to-end (item spec A4); item 145 entered vision.md
-§6's eight hypothesised modes; item 146 added the ninth mode and the first
+both derivation paths end-to-end (item spec A4); item 145 entered the eight hypothesised
+modes of vision.md v3's seed list; item 146 added the ninth mode and the first
 ``proposed`` entry; item 147 collapsed the five partial sources onto it.
 Item 150's maintainer sign-off (2026-09-14) then **re-organised the
 catalogue** -- see "Taxonomy as signed off" below -- so :data:`SPECIFICATION`
@@ -2157,7 +2157,7 @@ def failure_mode_names() -> Mapping[int, str]:
     mode id and ascending.
 
     The values are the **paraphrases** both committed corpus manifests carry
-    in ``failure_mode_name``, not the vision §6 titles ``ModeSpec.name``
+    in ``failure_mode_name``, not the specification titles ``ModeSpec.name``
     holds -- which is why they are an authored field rather than derived
     from ``name``: re-pointing the manifests at ``name`` would be a corpus
     value change. Key 0 is explicit because the clean control is not a

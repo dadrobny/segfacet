@@ -2,7 +2,7 @@
 Mode Specification: the §6 catalogue as an authored source).
 
 Items 144-148 built ``segfacet.failure_modes.SPECIFICATION`` as the
-**primary, authored record** of every §6 failure mode -- a schema, a
+**primary, authored record** of every failure mode -- a schema, a
 derivation for lifecycle status and evidence rung, and a per-corpus-case
 measured firing set. Before item 149, this module (item 138) instead
 cross-checked **five partial sources** that could agree or disagree with no
@@ -33,7 +33,7 @@ firing set beside the *measured* firing set
 manifest case with no ``ModeSpec.corpus_cases`` entry covering it is a named
 hole (``expected_source == "unspecified"``); the clean-control cases (item 155:
 ``kind == "clean_control"``) are scored too, labelled
-``"manifest-clean-control"`` since §6 defines no mode 0. This is the check
+``"manifest-clean-control"`` since the specification defines no mode 0. This is the check
 none of queue-019's shape tests could
 express: running the case and comparing the sets tests the specification's
 *truth*, not merely its *shape*.

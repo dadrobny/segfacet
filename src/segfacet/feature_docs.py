@@ -37,11 +37,11 @@ Contents
     last segment (``spline_offset_mm`` is tracked under the record field name
     ``offset_mm``, nested under ``stage3.per_label_offsets[]``).
 ``MODE_ANCHOR_PATHS``
-    ``{1..8: (leaf_path, ...)}`` -- the record leaf path(s) item 099's eight
-    per-mode metrics read (or, for the three candidate-vs-GT metrics with no
-    record path of their own -- modes 1, 4, 5 -- the record path their *rule*
-    counterpart reads instead; see item 099's spec table "The mapping" and
-    this module's per-mode notes below). Every path here anchors that mode
+    ``{mode_id: (leaf_path, ...)}``, keyed by ``failure_modes.SPECIFICATION``
+    mode ids -- the record leaf path(s) item 099's per-mode metrics read (or,
+    for a candidate-vs-GT metric with no record path of their own, the record
+    path its *rule* counterpart reads instead; see the comment above the
+    constant and this module's per-mode notes below). Every path here anchors that mode
     onto the matching catalogue entry with ``mode_evidence`` containing
     ``"per_mode_metric"`` (AC14).
 ``STATUS_OVERRIDES``
@@ -51,29 +51,34 @@ Contents
     path starts at ``"keep"`` and every unread path at ``"unwired"`` -- both
     derived, both honest -- until that review lands.
 
-Mode-anchor notes (modes 1, 4, 5 have no record path of their own)
+Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
 --------------------------------------------------------------------
-- **Mode 1** (``unanchored_foreground_fraction``, candidate-vs-GT) is
-  anchored on ``stage3.per_label_offsets[].offset_mm`` -- the record path
-  ``heuristics.mislabel.MislabelRule``'s Detector A (§6 mode 1) reads.
-- **Mode 4** (``mislabelled_volume_fraction``, candidate-vs-GT) is anchored
-  on ``stage3.monotonic_consistency.is_monotonic`` -- the same
-  ``monotonic_consistency`` sub-block ``MislabelRule``'s Detector B (§6 mode
-  4) reads its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
+- **Mode 1** (segmentation accuracy) is anchored on
+  ``per_label.{label}.components.fragmentation_index`` -- the record path
+  its fragment metric reads (item 154 re-anchor; see the comment above
+  ``MODE_ANCHOR_PATHS``).
+- **Mode 8** (semantic mislabelling; ``mislabelled_volume_fraction``,
+  candidate-vs-GT) is anchored on
+  ``stage3.monotonic_consistency.is_monotonic`` -- the same
+  ``monotonic_consistency`` sub-block ``MislabelRule``'s Detector B (which
+  serves mode 9, out-of-order label sequence, a sub-mode of mode 8) reads
+  its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
   (rather than ``non_monotonic_pairs[]``) is deliberately the anchor so
   ``non_monotonic_pairs[]`` -- the field Detector B actually reads and the
   *only* leaf path exclusively consumed by ``mislabel`` -- stays a plain,
   code-derived (mechanism A) attribution rather than being absorbed into the
   anchor set; item 103's AC13 test asserts such an exclusively-consumed,
   non-anchor witness exists per mapped rule.
-- **Mode 5** (``missing_level_count``, candidate-vs-GT) is anchored on
+- **Mode 6** (vertebra not segmented; ``missing_level_count``,
+  candidate-vs-GT) is anchored on
   ``relationships.present_levels[]`` -- the present-level span
   ``heuristics.coverage.CoverageRule`` resolves its missing-level checks
   against. ``relationships.missing_levels[]`` itself -- the field the rule
   actually reads and coverage's only exclusively-consumed leaf path -- is
-  deliberately left as a plain attribution for the same reason as mode 4
+  deliberately left as a plain attribution for the same reason as mode 8
   above.
-- **Mode 7** (``out_of_order_label_count``) is anchored on
+- **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
+  anchored on
   ``relationships.is_continuous`` -- the companion continuity flag in the
   same ``relationships`` sub-block ``heuristics.sequence.SequenceRule``
   reads its ``out_of_order_labels`` signal from, for the same reason:

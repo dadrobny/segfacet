@@ -1,6 +1,7 @@
 """Label-sequence continuity rule (item 030).
 
-Implements a **sequence-continuity rule** targeting §6 failure mode 7 — a
+Implements a **sequence-continuity rule** targeting failure mode 9
+(out-of-order label sequence) in ``failure_modes.SPECIFICATION`` — a
 non-continuous label sequence: a set of present vertebrae whose anatomical
 ordering does not progress monotonically along the spine (reversals and
 non-anatomical jumps, e.g. ``L1 -> T12 -> L2 -> L5``). It consumes the
@@ -106,9 +107,10 @@ class SequenceRule(Rule):
 
     rule_id = "sequence"
 
-    # §6 mode 7 (item 136): SequenceBreakPerturbation
+    # Specification mode 9 (out-of-order label sequence):
+    # SequenceBreakPerturbation
     # (src/segfacet/synth/identity_ordering_alignment.py) designates
-    # "sequence" for mode 7 via its Expectation(failure_mode=7,
+    # "sequence" for mode 9 via its Expectation(failure_mode=9,
     # expected_rule_ids={"sequence"}).
     mode_declaration = RuleModeDeclaration(
         modes=(9,),

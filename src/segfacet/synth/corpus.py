@@ -1,8 +1,9 @@
-"""Committed synthetic fixture corpus spanning every §6 failure mode plus the
+"""Committed synthetic fixture corpus for the failure-mode specification plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
 Materialises the **eleven canonical cases** -- item 040's original nine (the
-clean control plus one per pre-renumbering §6 mode 1-8, whose case ids name
+clean control plus one per mode of the vision.md v3 seed list, history ids
+1-8, whose case ids name
 the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
 ``modeN_`` prefixes those ids carried, since the manifest's ``failure_mode``
 field is the authority and the prefix was a second, drifting copy of it) and

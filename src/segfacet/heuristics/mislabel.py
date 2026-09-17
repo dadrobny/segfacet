@@ -1,13 +1,16 @@
 """Mislabel / misalignment rule (item 033).
 
-Implements a **mislabel / misalignment rule** targeting two related §6 failure
-modes:
+Implements a **mislabel / misalignment rule** with two detectors, which
+originally targeted two related modes of the v3 vision.md seed list (history;
+the current ids are ``failure_modes.SPECIFICATION``'s):
 
-- **Mode 1 — label not aligned with the vertebra it names (misalignment).**
-  Detector A flags a vertebra whose centroid is a large outlier from the
+- **Misalignment — label not aligned with the vertebra it names.** Serves no
+  failure mode since the item-150 sign-off (the spline offset is an
+  anatomy-classification signal). Detector A flags a vertebra whose centroid is a large outlier from the
   fitted spinal curve, via the per-vertebra perpendicular spline offset
   (``stage3.per_label_offsets[*].offset_mm``, item 018).
-- **Mode 4 — semantic mislabelling / wrong vertebra identification.**
+- **Mode 9 — out-of-order label sequence** (a sub-mode of mode 8, semantic
+  mislabelling / wrong vertebra identification).
   Detector B flags a vertebra whose physical position is inconsistent with
   its anatomical label's expected ordering relative to neighbours, via the
   monotonic-progression metric
@@ -163,17 +166,20 @@ class MislabelRule(Rule):
     """Mislabel / misalignment rule (item 033).
 
     Runs two independent, config-gated detectors and returns their combined
-    findings: spline-offset outliers (Detector A, §6 mode 1) first in
+    findings: spline-offset outliers (Detector A, no failure mode) first in
     ascending label order, then monotonic-progression inconsistencies
-    (Detector B, §6 mode 4) in ascending name-pair order.
+    (Detector B, specification mode 9, out-of-order label sequence) in
+    ascending name-pair order.
     """
 
     rule_id = "mislabel"
 
-    # §6 modes 1, 4 (item 136): DisplacePerturbation designates mode 1,
-    # RelabelSwapPerturbation designates mode 4
-    # (src/segfacet/synth/identity_ordering_alignment.py), both via
-    # Expectation(..., expected_rule_ids={"mislabel"}).
+    # Specification mode 9 (out-of-order label sequence):
+    # RelabelSwapPerturbation designates mode 9
+    # (src/segfacet/synth/identity_ordering_alignment.py) via
+    # Expectation(..., expected_rule_ids={"mislabel"}). DisplacePerturbation
+    # designates mode 1 (segmentation accuracy), which this rule's mode-less
+    # Detector A only co-detects.
     mode_declaration = RuleModeDeclaration(
         modes=(9,),
         evidence=(
@@ -370,7 +376,7 @@ class MislabelRule(Rule):
     def _detect_offset_outliers(
         stage3: dict, severity: Severity, max_offset: float
     ) -> List[Finding]:
-        """Detector A: spline-offset outliers (misalignment, §6 mode 1)."""
+        """Detector A: spline-offset outliers (misalignment, no failure mode)."""
         offsets = stage3.get("per_label_offsets")
         if not isinstance(offsets, list):
             return []
@@ -421,7 +427,7 @@ class MislabelRule(Rule):
         stage3: dict, record: dict, severity: Severity
     ) -> List[Finding]:
         """Detector B: monotonic-progression inconsistency (mislabelling,
-        §6 mode 4)."""
+        specification mode 9)."""
         mono = stage3.get("monotonic_consistency")
         if not isinstance(mono, dict):
             mono = {}

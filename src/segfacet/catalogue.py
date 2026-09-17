@@ -27,7 +27,7 @@ Four derivation mechanisms, each carrying its own evidence tag
   (the pre-item-110 behaviour, tagged ``static-ambiguous``, produced exactly
   this false-positive shape whenever an unrelated block reused a generic key
   name).
-- **C. Static AST scan of ``synth/*.py``** — ``rule_id -> §6 mode(s)``, read
+- **C. Static AST scan of ``synth/*.py``** — ``rule_id -> failure mode(s)``, read
   off every ``Expectation(failure_mode=N, ..., expected_rule_ids=frozenset(
   {...}))`` call's literal keyword pairs. No hand-typed rule-id -> mode
   dictionary exists anywhere in this module's source (drift guard, AC13).
@@ -46,7 +46,7 @@ Four derivation mechanisms, each carrying its own evidence tag
 
 A third source of ``mode_evidence`` (item 136) sits alongside C: each
 registered rule's own class-attribute ``RuleModeDeclaration``
-(:mod:`segfacet.heuristics.rule`) states the §6 mode(s) it targets (or that
+(:mod:`segfacet.heuristics.rule`) states the failure mode(s) it targets (or that
 it targets none, or that its disposition is pending). ``mode_evidence`` gains
 the tag ``"rule_declaration"`` when at least one of an entry's
 ``consuming_rules`` carries a declaration with non-empty ``modes``. Because
@@ -700,7 +700,7 @@ def _extract_frozenset_string_elements(node) -> List[str]:
 
 
 def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
-    """``rule_id -> §6 mode(s)``, read from every ``Expectation(...)`` call's
+    """``rule_id -> failure mode(s)``, read from every ``Expectation(...)`` call's
     literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
     ``src/segfacet/synth/*.py``. No rule-id -> mode mapping is hand-typed
     anywhere in this module's source (AC13's drift guard).
@@ -750,7 +750,7 @@ def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
 def scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
     """Public name for :func:`_scan_synth_rule_mode_map` (item 136).
 
-    ``rule_id -> §6 mode(s)``, read from every ``Expectation(...)`` call's
+    ``rule_id -> failure mode(s)``, read from every ``Expectation(...)`` call's
     literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
     ``src/segfacet/synth/*.py`` -- the corpus-derived side of the
     declaration <-> corpus agreement checked by
@@ -913,10 +913,10 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
             for path in candidates:
                 attributions[path][rule.rule_id].add("static")
 
-    # Mechanism C: rule_id -> §6 mode(s), from synth/*.py's Expectation(...).
+    # Mechanism C: rule_id -> failure mode(s), from synth/*.py's Expectation(...).
     rule_mode_map = _scan_synth_rule_mode_map()
 
-    # Declaration source (item 136): rule_id -> declared §6 mode(s), read
+    # Declaration source (item 136): rule_id -> declared failure mode(s), read
     # from each rule's own class-attribute RuleModeDeclaration.
     declared_modes_by_rule: Dict[str, Tuple[int, ...]] = {
         rule_id: decl.modes
@@ -925,7 +925,7 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
     }
 
     # Mode-less declaration source (item 137): rule_ids whose declaration
-    # states, with a reason, that they target no §6 mode -- a source that
+    # states, with a reason, that they target no failure mode -- a source that
     # has *spoken* and said "no mode", categorically different from
     # "rule_unmapped" ("nobody has said").
     mode_less_by_rule: Set[str] = {
@@ -1144,7 +1144,7 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
 
 def rule_declaration_conflicts() -> Tuple[str, ...]:
     """Report every disagreement between each rule's ``RuleModeDeclaration``
-    and the corpus-derived ``rule_id -> §6 mode(s)`` map (item 136).
+    and the corpus-derived ``rule_id -> failure mode(s)`` map (item 136).
 
     Returns a sorted tuple of human-readable messages, empty when the two
     sources agree. Reports, for the shipped registry:
@@ -1158,7 +1158,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
       case designating a rule that does not exist;
     - a declared mode outside :data:`segfacet.failure_modes.SPECIFICATION`'s
       key set -- the authored failure-mode specification (item 144), which
-      since item 146 is the in-code §6 mode catalogue -- (naming both).
+      since item 146 is the in-code failure-mode catalogue -- (naming both).
       Before item 146 this check sourced its known-mode set from
       :data:`segfacet.feature_docs.MODE_ANCHOR_PATHS`'s keys instead; the two
       agreed exactly while both were 1-8, and the specification is the one

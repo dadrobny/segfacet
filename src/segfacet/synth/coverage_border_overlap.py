@@ -6,18 +6,20 @@ perturbation.Perturbation` subclasses that inject label-coverage /
 spatial-extent failures onto the item-036 clean-GT positive control
 (:func:`segfacet.synth.clean_gt.build_clean_spine`), each returning a
 well-formed :class:`~segfacet.synth.perturbation.Expectation` naming the induced
-§6 failure mode and the offending label(s):
+failure mode (a ``failure_modes.SPECIFICATION`` id, or the clean-control key
+for a condition) and the offending label(s):
 
 * :class:`RemoveLevelPerturbation` (``"remove_level"``) -- deletes an
   interior (non-terminal) vertebra from the span, leaving an anatomical gap
   that :class:`~segfacet.heuristics.coverage.CoverageRule` (item 029) detects as
-  a case-level ``"Missing interior level(s):"`` finding (§6 mode 5).
+  a case-level ``"Missing interior level(s):"`` finding (specification
+  mode 6, vertebra not segmented).
 * :class:`CropAtBorderPerturbation` (``"crop_at_border"``) -- translates a
   target vertebra toward a chosen **in-plane** FOV face and clips the
   overhang, so ``touches_<face>`` becomes ``True`` and
   :class:`~segfacet.heuristics.border.BorderRule` (item 031) fires a
-  label-attributed ``"Partial vertebra clipped by FOV:"`` finding (§6 mode
-  6).
+  label-attributed ``"Partial vertebra clipped by FOV:"`` finding (the
+  FOV-truncation condition, not a failure mode).
 * :class:`ForceOverlapPerturbation` (``"force_overlap"``) -- shifts an
   entire target body along the stacking (superior-inferior) axis -- resolved
   from the target volume's own affine (item 116), not a hardcoded index --
@@ -26,7 +28,8 @@ well-formed :class:`~segfacet.synth.perturbation.Expectation` naming the induced
   belonging to two labels, this overlap is **not** visible through the
   normal ``run_qc`` one-hot pipeline -- it is asserted via a reconstructed
   two-channel mask stack fed to :func:`segfacet.features.overlap.detect_overlaps`
-  / :class:`~segfacet.heuristics.overlap.OverlapRule` directly (§6 mode 8; see
+  / :class:`~segfacet.heuristics.overlap.OverlapRule` directly (specification
+  mode 15, overlapping segments; see
   the item spec's Assumptions for the full rationale).
 
 Implemented strictly against the unchanged item-036 contract (``Perturbation``,
@@ -166,7 +169,8 @@ class RemoveLevelPerturbation(Perturbation):
     label, leaving a level-sequence gap that
     :class:`~segfacet.heuristics.coverage.CoverageRule` detects via
     ``relationships.missing_levels`` as a case-level
-    ``"Missing interior level(s):"`` finding (§6 mode 5). Rejects a span with
+    ``"Missing interior level(s):"`` finding (specification mode 6, vertebra
+    not segmented). Rejects a span with
     fewer than 3 present labels (no interior level exists) or an explicit
     terminal (span-end) target.
     """
@@ -319,7 +323,7 @@ class CropAtBorderPerturbation(Perturbation):
     the chosen face by ``margin + crop_depth`` voxels along that axis and
     clips the overhang outside ``[0, shape[axis))``, so the retained body
     touches the face (driving :class:`~segfacet.heuristics.border.BorderRule`,
-    §6 mode 6) while its retained volume stays inside the level group's
+    the FOV-truncation condition, not a failure mode) while its retained volume stays inside the level group's
     ``bounds``. The axis/side for the requested face is resolved from the
     target volume's own affine at ``apply()`` time (item 116, AC5) via
     :func:`segfacet.synth.axes.resolve_face` -- not a hardcoded index.
@@ -433,7 +437,8 @@ class ForceOverlapPerturbation(Perturbation):
     (see the module/item docstring); it is asserted via a reconstructed
     two-channel mask stack fed to
     :func:`segfacet.features.overlap.detect_overlaps` /
-    :class:`~segfacet.heuristics.overlap.OverlapRule` directly (§6 mode 8).
+    :class:`~segfacet.heuristics.overlap.OverlapRule` directly (specification
+    mode 15, overlapping segments).
     Rejects a map with fewer than 2 labels or an explicit non-adjacent pair.
     """
 

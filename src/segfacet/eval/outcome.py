@@ -4,7 +4,7 @@ This is the §8 **level-1** evaluation primitive -- the coarsest of the three
 comparison levels (`1. QC pass/fail verdict; 2. segmentation overlap / DICE;
 3. feature-set match`). Given an **expected** side (a `pass` expectation for a
 clean ground-truth case, or a known synthetic/curated failure carrying its
-expected verdict, §6 failure mode, designated Stage-4 rule id(s), and expected
+expected verdict, failure mode, designated Stage-4 rule id(s), and expected
 offending labels -- exactly the shape of
 ``segfacet.synth.perturbation.Expectation.to_dict()`` / a ``tests/corpus``
 manifest-case entry, or a hand-built dict for a human-provided expectation)
@@ -164,9 +164,9 @@ class CaseOutcome:
         ``actual_flagged``; ``None`` for clean-expected cases (nothing to
         catch).
     failure_mode:
-        The §6 failure-mode key, or ``None`` if not supplied.
+        The failure-mode key, or ``None`` if not supplied.
     failure_mode_name:
-        The §6 failure-mode name, or ``None`` if not supplied.
+        The failure-mode name, or ``None`` if not supplied.
     expected_rule_ids:
         Sorted, deduplicated tuple of the designated Stage-4 rule id(s).
     expected_labels:

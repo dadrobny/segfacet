@@ -10,7 +10,7 @@ the level-1 verdict ``outcome`` (item 052), the level-2 DICE ``overlap``
 1. **False-positive rate (FPR) on GT** -- of the expected-pass (clean-GT /
    negative, ``expected_failure is False``) cases, the fraction wrongly
    flagged: ``FP / (FP + TN)`` (roadmap **G3**).
-2. **Sensitivity per §6 failure mode** -- for each failure mode present among
+2. **Sensitivity per failure mode** -- for each failure mode present among
    the expected-failure cases, the fraction caught by its **designated**
    Stage-4 rule (``outcome.caught_by_designated_rule``), with a coarser
    caught-at-all rate (``outcome.caught``) reported alongside (roadmap
@@ -22,7 +22,7 @@ the level-1 verdict ``outcome`` (item 052), the level-2 DICE ``overlap``
 
 This module is **pure aggregation over already-computed records**: it runs no
 pipeline, no rule, and does no label-map / file I/O. It is deliberately
-decoupled from ``segfacet.synth`` -- the §6 failure-mode integer keys are
+decoupled from ``segfacet.synth`` -- the failure-mode integer keys are
 consumed only as plain ints/metadata carried on ``CaseOutcome.failure_mode``,
 never imported from the taxonomy module (item 057 may pass the full
 catalogue in via the ``failure_modes`` parameter).
@@ -37,7 +37,7 @@ Public API
 ``ConfusionCounts``
     Frozen dataclass carrying the aggregated ``tp/fp/tn/fn`` counts.
 ``PerModeSensitivity``
-    Frozen dataclass carrying one §6 failure mode's per-mode breakdown.
+    Frozen dataclass carrying one failure mode's per-mode breakdown.
 ``CorrelationResult``
     Frozen dataclass carrying one correlation's coefficient, sample size,
     method, and named variables.
@@ -111,12 +111,12 @@ class ConfusionCounts:
 
 @dataclass(frozen=True)
 class PerModeSensitivity:
-    """One §6 failure mode's per-mode sensitivity/caught-rate breakdown.
+    """One failure mode's per-mode sensitivity/caught-rate breakdown.
 
     Attributes
     ----------
     failure_mode:
-        The §6 mode integer key, or ``None`` for the trailing "no mode
+        The specification mode integer key, or ``None`` for the trailing "no mode
         metadata" bucket.
     failure_mode_name:
         The mode's display name, or ``None`` if unavailable.
@@ -185,7 +185,7 @@ class CohortMetrics:
     specificity:
         ``TN / (TN + FP)``; ``None`` if the expected-pass set is empty.
     per_mode:
-        One :class:`PerModeSensitivity` per reported §6 failure mode.
+        One :class:`PerModeSensitivity` per reported failure mode.
     dice_vs_flag:
         The DICE-vs-flag correlation.
     feature_divergence_vs_flag:

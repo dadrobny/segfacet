@@ -5,7 +5,7 @@ perturbation.Perturbation` subclasses that inject connected-component /
 mask-topology failures onto the item-036 clean-GT positive control
 (:func:`segfacet.synth.clean_gt.build_clean_spine`), each returning a
 well-formed :class:`~segfacet.synth.perturbation.Expectation` naming the induced
-§6 failure mode and the offending label(s):
+failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
 
 * :class:`FragmentPerturbation` (``"fragment"``) -- splits one label's body
   into >= 2 comparable disconnected pieces via a thin interior slab cut
@@ -124,7 +124,7 @@ class FragmentPerturbation(Perturbation):
     (item 116, via :func:`segfacet.synth.axes.si_axis`) rather than a
     hardcoded index -- so the label becomes ``n_pieces`` disconnected
     components while its bounding box (and therefore ``bounds`` findings)
-    stays unchanged (§6 mode 2).
+    stays unchanged (specification mode 1, segmentation accuracy).
     """
 
     name = "fragment"
@@ -211,7 +211,9 @@ class FusePerturbation(Perturbation):
     Registered under ``"fuse"``. The neighbour's voxels are re-labelled onto
     the target (unbridged -- the physical gap is not filled), leaving the
     target spanning two disconnected vertebra bodies. Drives the
-    fragmentation-kind finding on the surviving label (§6 mode 2; see the
+    fragmentation-kind finding on the surviving label (filed under
+    specification mode 2, fused vertebra segments, which that finding only
+    co-detects; see the
     item spec's Assumptions for why not ``bounds``).
     """
 
@@ -292,7 +294,7 @@ class InjectIslandsPerturbation(Perturbation):
     wide line of ``island_voxels`` length) placed in confirmed-empty voxels
     adjacent to the target body along array axis 1 (the clean GT's margin
     space on that axis): >= 1 empty voxel from the body (disconnected under
-    6-connectivity) and >= 1 voxel from every FOV face (§6 mode 3). This
+    6-connectivity) and >= 1 voxel from every FOV face (specification mode 4, islands). This
     placement is purely geometric (internal margin space, not a named
     anatomical face), so it is unaffected by which array axis carries which
     anatomical direction -- see the module/item-116 note on ``fragment``

@@ -249,7 +249,7 @@ class CalibrationObjective:
     sensitivity_floor:
         Every per-mode :class:`~segfacet.eval.metrics.PerModeSensitivity` with
         ``n_cases > 0`` must have ``sensitivity >= sensitivity_floor`` for a
-        candidate to be feasible. Default ``1.0`` (catch every §6 failure
+        candidate to be feasible. Default ``1.0`` (catch every failure
         mode present in the cohort). Modes with ``n_cases == 0``
         (``sensitivity is None``) are excluded from the check -- a mode with
         no cases cannot be missed.

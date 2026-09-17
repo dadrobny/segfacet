@@ -42,9 +42,11 @@ in the same order. Findings are emitted ascending by integer label; within a
 label, in fixed condition order (distribution-distance -> out-of-range ->
 robust-z), with per-feature findings in ascending feature-name order.
 
-Targets §6 modes 1 and 2 (spline-offset displacement, and over-/under-
-segmentation), declared on analytic grounds (item 137, corrected 2026-09-02)
--- see ``ReferenceDeltaRule.mode_declaration``.
+Targets failure modes 1 (segmentation accuracy), 2 (fused), 3 (split),
+4 (islands) and 8 (semantic mislabelling) in ``failure_modes.SPECIFICATION``
+as a cohort proxy, declared on analytic grounds (item 137, corrected
+2026-09-02, re-keyed at the item-150 sign-off) -- see
+``ReferenceDeltaRule.mode_declaration``.
 """
 
 from __future__ import annotations
@@ -117,7 +119,8 @@ class ReferenceDeltaRule(Rule):
 
     rule_id = "reference_delta"
 
-    # §6 disposition (item 137, corrected 2026-09-02): declares modes 1 and 2
+    # Disposition (item 137, corrected 2026-09-02, re-keyed at the item-150
+    # sign-off): declares failure_modes.SPECIFICATION modes 1, 2, 3, 4 and 8
     # on analytic grounds -- no committed corpus case designates
     # "reference_delta" for any mode, so evidence carries "analytic" plus the
     # mechanism sentence, never "corpus". compute_reference_delta scores
@@ -127,12 +130,11 @@ class ReferenceDeltaRule(Rule):
     # committed reference artifacts (reference_verse_v1.json,
     # reference_default.json) track 21 per-label features. That set spans
     # physical_volume_mm3 and extent_{x,y,z}_mm -- the same magnitude
-    # features "bounds" targets verbatim (§6 mode 2), here measured against a
+    # features "bounds" targets verbatim (modes 1-4), here measured against a
     # cohort instead of hand-set bounds -- and also spline_offset_mm, read
-    # from stage3.per_label_offsets[].offset_mm, which is §6 mode 1's own
-    # anchor path (feature_docs.MODE_ANCHOR_PATHS[1]). A displaced-but-
-    # plausibly-sized label can therefore fire this rule on spline_offset_mm
-    # alone, a mode-1 detection, so mode 1 is declared alongside mode 2.
+    # from stage3.per_label_offsets[].offset_mm. Because the reference is per
+    # level, a vertebra whose geometry does not fit the level it is named is
+    # also mode 8's (semantic mislabelling) single-channel proxy.
     mode_declaration = RuleModeDeclaration(
         modes=(1, 2, 3, 4, 8),
         evidence=(

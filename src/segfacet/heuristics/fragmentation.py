@@ -1,12 +1,13 @@
 """Connected-components fragmentation / rogue-island rule (item 028; item 090
 adds the reference-derived path).
 
-Implements two §6 failure-mode checks off the same topology data:
+Implements two failure-mode checks off the same topology data (mode ids are
+``failure_modes.SPECIFICATION``'s):
 
-- **Fragmentation (§6 mode 2)** — a label whose fragmentation index (= largest
+- **Fragmentation (mode 1, segmentation accuracy)** — a label whose fragmentation index (= largest
   connected component / total volume) falls strictly below a threshold is
   judged to have split into comparable pieces.
-- **Rogue islands / excess fragments (§6 mode 3)** — a label with too many
+- **Rogue islands / excess fragments (mode 4, islands)** — a label with too many
   disconnected pieces is judged to have small disconnected fragments attached
   to a dominant body.
 
@@ -272,10 +273,11 @@ class FragmentationRule(Rule):
 
     rule_id = "fragmentation"
 
-    # §6 modes 2, 3 (item 136): FragmentPerturbation / FusePerturbation
-    # designate mode 2, InjectIslandsPerturbation designates mode 3
-    # (src/segfacet/synth/component_shape.py), all via
-    # Expectation(..., expected_rule_ids={"fragmentation"}).
+    # Specification modes 1, 4: FragmentPerturbation designates mode 1
+    # (segmentation accuracy), InjectIslandsPerturbation designates mode 4
+    # (islands) (src/segfacet/synth/component_shape.py), both via
+    # Expectation(..., expected_rule_ids={"fragmentation"}). FusePerturbation
+    # designates mode 2 (fused), which this rule only co-detects.
     mode_declaration = RuleModeDeclaration(
         modes=(1, 4),
         evidence=(
@@ -431,7 +433,7 @@ class FragmentationRule(Rule):
                 )
 
             # ----------------------------------------------------------------- #
-            # Fragmentation check (§6 mode 2)
+            # Fragmentation check (specification mode 1, segmentation accuracy)
             # ----------------------------------------------------------------- #
             # Primary key: fragmentation_index; fallback: largest_component_fraction.
             index = comp.get("fragmentation_index") or comp.get(
@@ -473,7 +475,7 @@ class FragmentationRule(Rule):
                 )
 
             # ----------------------------------------------------------------- #
-            # Island / excess-fragment check (§6 mode 3)
+            # Island / excess-fragment check (specification mode 4, islands)
             # ----------------------------------------------------------------- #
             sizes: list = comp.get("component_sizes") or []
             component_count_val = comp.get("component_count")

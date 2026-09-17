@@ -18,7 +18,10 @@ This module covers exactly the two criteria the spec designates **in-suite**:
             the progress-file boxes don't mirror).
 
 AC1-AC13 and AC16-AC19 are replay-only and belong to the item's Decisions
-log and Validation section, not here.
+log and Validation section, not here -- with one exception added
+2026-09-17: Stage 31 criterion 2's module-prose half (Assumption A4,
+reading R2) is pinned by a tree-wide scan of `src/segfacet/**/*.py` below,
+because no merged test scans module prose for a numbered-§6 claim.
 
 Per Assumption A2, AC14 is expected to fail (before this item's bookkeeping
 step runs `aide progress accept`/`amend`/`retract`, or hand-annotates a
@@ -462,3 +465,54 @@ def test_adv_ac15_a_sixth_box_makes_the_count_mismatch_fail():
     boxes = aide.acceptance_boxes(progress_lines, start, end)
     assert len(boxes) == 6
     assert len(boxes) != len(bullets)
+
+
+# --------------------------------------------------------------------------- #
+# Stage 31 criterion 2, module-prose half (Assumption A4, reading R2)
+# --------------------------------------------------------------------------- #
+
+_SRC_DIR = _REPO_ROOT / "src" / "segfacet"
+
+#: Item 161's scan: prose attributing a numbered mode to vision.md §6, which
+#: asserts §6 carries a numbered mode list (v4 §6 carries none).
+_NUMBERED_SECTION6_RE = re.compile(
+    r"§6('s)? (failure[ -])?modes? [0-9]+|§6's (eight )?numbered|numbered eight"
+)
+
+#: The one exemption: a line that names v3 explicitly, i.e. reads as history.
+_V3_HISTORY_RE = re.compile(r"\bv3\b")
+
+
+def _numbered_section6_claims(text: str) -> List[int]:
+    return [
+        number
+        for number, line in enumerate(text.splitlines(), start=1)
+        if _NUMBERED_SECTION6_RE.search(line) and not _V3_HISTORY_RE.search(line)
+    ]
+
+
+def test_criterion2_no_module_attributes_a_numbered_mode_to_section6():
+    sources = sorted(_SRC_DIR.rglob("*.py"))
+    assert len(sources) > 20, _SRC_DIR.as_posix()
+    violations = [
+        f"{path.relative_to(_REPO_ROOT).as_posix()}:{number}"
+        for path in sources
+        for number in _numbered_section6_claims(path.read_text(encoding="utf-8"))
+    ]
+    assert violations == [], (
+        "module prose attributes a numbered failure mode to vision.md §6; "
+        "cite failure_modes.SPECIFICATION instead: " + ", ".join(violations)
+    )
+
+
+def test_adv_criterion2_matcher_flags_a_section6_mode_number():
+    text = (
+        '"""Overlap rule.\n'
+        "\n"
+        "Implements an overlap rule targeting §6 failure mode 8.\n"
+        "# §6 modes 2, 3 (item 136)\n"
+        "dispositioned mode-less because §6's eight numbered modes name none\n"
+        "targeting failure mode 15 in failure_modes.SPECIFICATION\n"
+        "Mode 9 is not one of v3 vision.md §6's numbered eight.\n"
+    )
+    assert _numbered_section6_claims(text) == [3, 4, 5]
