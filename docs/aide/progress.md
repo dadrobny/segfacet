@@ -1677,7 +1677,7 @@ changes here.**
   entries already fixed are ticked with a pointer. *(Item 159)*
 - ✅ **D6** Insight triage: every open `defect` and `gap` entry at the stage's start ticked,
   re-homed with a pointer, or left open with a dated reason. *(Item 160)*
-- 📋 **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
+- 🚧 **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
   re-measured constants recorded here, triage counts recorded as measured numbers.
   *(Item 161)*
 
@@ -1686,7 +1686,7 @@ changes here.**
 - [x] The installed engine version equals the framework's at the time the stage's queue was *(AC2 verified 2026-09-17 in clone 6bf417d: clone's .aide/VERSION reads 1.52.1 (X); queue-021 planning commit 99520a9 (2026-09-16T17:20:06+01:00) resolved fresh by subject; on aide-loop, git log origin/main --before=<that date> -1 -- core/VERSION names 5e305c5 whose core/VERSION is 1.52.1, equal to X. Framework's current origin/main core/VERSION is 1.53.1 (informational, does not affect this criterion).)*
   planned, or the gap and its reason are recorded.
 - [ ] `vision.md` §6 names the specification as the catalogue and carries no numbered mode
-  list, and no module under `src/segfacet/` asserts that it does (**G8**).
+  list, and no module under `src/segfacet/` asserts that it does (**G8**). *(not attested 2026-09-17, item 161: AC3/AC4 pass in clone 6bf417d (test_152_retire_vision_seed.py test_ac1/test_ac2/test_ac3/test_ac5, 4 passed), but AC5's prose scan under reading R2 (A4) counts 42 raw hits across 16 files of `§6 mode N` / `§6's numbered` under src/segfacet/ (excluding the one line naming v3 as history, 41 count against the zero threshold), so the count is non-zero and criterion 2 stays unticked per AC5.)*
 - [x] No module or test under `src/segfacet/` or `tests/` references *(AC6-AC9 verified 2026-09-17 in clone 6bf417d: test_153_eval_harness_rekey.py test_ac1/test_ac2/test_ac5/test_ac17/test_ac20/test_ac21/test_ac26/test_ac27/test_ac30 pass (9 passed); test_154_ladder_remeasurement.py test_ac8/test_ac9/test_ac10 pass (3 passed); harness re-run via score_harness(run_severity_harness()) prints passed=True. Re-measured constants (segfacet.eval.severity_ladder, clone 6bf417d, replayed 2026-09-17): RECORDED_MARGINS displace inf, fragment inf, inject_islands 112.0, relabel_swap inf, remove_level inf, crop_at_border 0.3585, sequence_break inf, force_overlap 1.038; KNOWN_CROSS_MODE_COUPLINGS crop_at_border -> unanchored_foreground_fraction 2.79, force_overlap -> unanchored_foreground_fraction 0.9629; provenance corpus=geometric, base_params={levels: (L1,L2,L3,L4,L5), spacing: (1.0,1.0,1.0), curve_amplitude_mm: 6.0}, measured_on=2026-09-16.)*
   `LEGACY_STAGE18_MODE_NAMES` or keys a per-mode metric, ladder or cohort count by an id
   outside `failure_modes.SPECIFICATION`; the re-measured cross-mode constants are recorded
