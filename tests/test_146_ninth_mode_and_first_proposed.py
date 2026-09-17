@@ -561,7 +561,7 @@ def test_ac12_mode_absent_from_specification_is_still_reported(isolated_registry
     ]
     assert matching, conflicts
     for msg in matching:
-        assert re.match(r"^rule '([^']+)': declared §6 mode \d+ is outside", msg), msg
+        assert re.match(r"^rule '([^']+)': declared failure mode \d+ is outside", msg), msg
 
 
 # =========================================================================== #

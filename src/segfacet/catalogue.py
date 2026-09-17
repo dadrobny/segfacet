@@ -102,7 +102,7 @@ per-path.
 The classification is **rendered, not silently applied**:
 ``CatalogueEntry.mode_roles`` carries the entry's ``(rule_id, role)`` pairs
 into both artifacts (the JSON's ``"mode_roles"`` key, the Markdown's
-``§6 mode role(s)`` column), and ``mode_evidence`` gains
+``Mode role(s)`` column), and ``mode_evidence`` gains
 ``"rule_bookkeeping"`` / ``"rule_not_read"``, so a reader can tell "a source
 spoke and said this path cannot evidence a mode" from ``"rule_unmapped"``
 ("nobody has said") and from ``()`` ("no rule reads it").
@@ -1207,7 +1207,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
 
         for mode in sorted(set(decl.modes) - known_modes):
             messages.append(
-                f"rule {rule_id!r}: declared §6 mode {mode} is outside "
+                f"rule {rule_id!r}: declared failure mode {mode} is outside "
                 f"segfacet.failure_modes.SPECIFICATION's key set "
                 f"{sorted(known_modes)!r}."
             )
@@ -1226,7 +1226,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
             }
             if rule_id not in edges:
                 messages.append(
-                    f"rule {rule_id!r}: declares §6 mode {mode}, but "
+                    f"rule {rule_id!r}: declares failure mode {mode}, but "
                     f"SPECIFICATION[{mode}].intended_rules carries no "
                     f"IntendedRule edge for it (edges: {sorted(edges)!r})."
                 )
@@ -1239,7 +1239,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
         corpus_modes = set(corpus_map.get(rule_id, ()))
         if rule_id not in declarations:
             messages.append(
-                f"rule {rule_id!r}: the corpus-derived map designates §6 mode(s) "
+                f"rule {rule_id!r}: the corpus-derived map designates failure mode(s) "
                 f"{sorted(corpus_modes)!r} for it, but no rule registers that "
                 f"rule_id (registered: {sorted(declarations)!r})."
             )
@@ -1270,7 +1270,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
         }
         for mode in sorted(corpus_modes - declared_modes - recorded_co_detections):
             messages.append(
-                f"rule {rule_id!r}: corpus designates §6 mode {mode} but the "
+                f"rule {rule_id!r}: corpus designates failure mode {mode} but the "
                 f"declaration does not include it (declared modes: {sorted(declared_modes)!r})."
             )
 
@@ -1337,7 +1337,7 @@ def path_classification_conflicts() -> Tuple[str, ...]:
 
         if decl.modes and not decl.consumed_paths:
             messages.append(
-                f"rule {rule_id!r}: declares §6 mode(s) {sorted(decl.modes)!r} but "
+                f"rule {rule_id!r}: declares failure mode(s) {sorted(decl.modes)!r} but "
                 f"its 'consumed_paths' classification is empty, so it contributes "
                 f"no mode to any of the {len(consumed)} leaf path(s) the catalogue "
                 f"attributes to it."
@@ -1500,7 +1500,7 @@ def render_markdown(cat: FeatureCatalogue) -> str:
         "",
         "| path | module / item | measures | computation | units | "
         "scale sensitivity | observed range | observed verdict | "
-        "\u00a76 mode(s) | \u00a76 mode role(s) | consuming rules | status |",
+        "Mode(s) | Mode role(s) | consuming rules | status |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for e in cat.entries:

@@ -862,7 +862,7 @@ def _feature_item_detail(entry: dict) -> str:
         meta_bits.append(f"scale sensitivity: {scale}")
     modes = entry.get("failure_modes") or []
     if modes:
-        meta_bits.append("§6 mode(s): " + ", ".join(str(m) for m in modes))
+        meta_bits.append("Mode(s): " + ", ".join(str(m) for m in modes))
     rules = entry.get("consuming_rules") or []
     if rules:
         meta_bits.append("consuming rules: " + ", ".join(str(r) for r in rules))

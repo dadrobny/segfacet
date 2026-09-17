@@ -514,14 +514,14 @@ def build_matrix() -> TraceabilityMatrix:
     # declaration_state alone but targets no known mode, which is exactly a
     # rule -> mode hole per this module's own completeness contract.
     # catalogue's rule_declaration_conflicts() already reports this
-    # disagreement (its "declared §6 mode ... is outside
+    # disagreement (its "declared failure mode ... is outside
     # segfacet.failure_modes.SPECIFICATION's key set" message); folded in
     # here rather than re-derived, so the artifact's own completeness claim
     # covers it too, and rules_by_mode (which is built from
     # declared_modes_by_rule directly) never silently drops it.
     _uncatalogued_mode_rule_ids = set()
     _uncatalogued_mode_re = re.compile(
-        r"^rule '([^']+)': declared §6 mode \d+ is outside"
+        r"^rule '([^']+)': declared failure mode \d+ is outside"
     )
     for _message in rule_declaration_conflicts():
         _match = _uncatalogued_mode_re.match(_message)
@@ -827,7 +827,7 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
         f"Direction complete: {matrix.mode_to_rule.complete}. "
         f"Holes: {', '.join(matrix.mode_to_rule.holes) if matrix.mode_to_rule.holes else 'none'}.",
         "",
-        "| Mode | §6 title | Status (derived) | Status (authored) | "
+        "| Mode | Title | Status (derived) | Status (authored) | "
         "Rules (attribution) | Per-edge rungs | Evidence rung (derived) | "
         "Pipeline-detected | Stage-18 metric anchor paths | Rule signal read paths |",
         "|---|---|---|---|---|---|---|---|---|---|",
@@ -858,7 +858,7 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
             "",
             _md_escape(_READ_PATHS_QUALIFIER),
             "",
-            "## Rules -> section 6 modes",
+            "## Rules -> failure modes",
             "",
             f"Direction complete: {matrix.rule_to_mode.complete}. "
             f"Holes: {', '.join(matrix.rule_to_mode.holes) if matrix.rule_to_mode.holes else 'none'}.",

@@ -543,8 +543,8 @@ def test_ac9_mode_roles_rendered_in_json_and_markdown(shipped_catalogue):
 
     md = catalogue.render_markdown(cat)
     header_cells, rows = _md_header_and_rows(md)
-    assert "§6 mode role(s)" in header_cells, header_cells
-    role_col = header_cells.index("§6 mode role(s)")
+    assert "Mode role(s)" in header_cells, header_cells
+    role_col = header_cells.index("Mode role(s)")
     path_col = header_cells.index("path")
 
     # A path shared between an analytic "bookkeeping" declarer

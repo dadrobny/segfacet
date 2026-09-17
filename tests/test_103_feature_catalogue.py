@@ -1111,8 +1111,8 @@ _MD_COLUMNS = (
     "computation",
     "units",
     "scale sensitivity",
-    "§6 mode(s)",
-    "§6 mode role(s)",
+    "Mode(s)",
+    "Mode role(s)",
     "consuming rules",
     "status",
 )
@@ -1120,7 +1120,7 @@ _MD_COLUMNS = (
 
 def test_ac24_markdown_has_exact_columns_and_row_count(catalogue_module, full_catalogue):
     """Reconciled (item 148, 2026-09-04): ``render_markdown`` gains a
-    "§6 mode role(s)" column carrying the per-path classification."""
+    "Mode role(s)" column carrying the per-path classification."""
     md = catalogue_module.render_markdown(full_catalogue)
     lines = md.splitlines()
 
