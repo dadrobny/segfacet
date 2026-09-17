@@ -56,7 +56,7 @@ from segfacet.reference.artifact import build_and_write_default, default_artifac
 from segfacet.synth import clean_gt as clean_gt_module
 from segfacet.synth.axes import si_axis
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import load_manifest, write_corpus
+from segfacet.synth.corpus import RENAMED_CASE_IDS, load_manifest, write_corpus
 from segfacet.synth.golden import assert_matches_committed_artifact, build_report_for_case
 from segfacet.synth.intensity import write_intensity_corpus
 from segfacet.synth.regression import loaded_seg_image
@@ -673,6 +673,30 @@ _NON_CORPUS_REQUIRED_ARTIFACTS: Tuple[str, ...] = (
 #: added -- a claim about live state pinned onto a dated document. This set
 #: is exact, not an approximation; a genuinely new record revision would
 #: need its own frozen constant, not a live derivation.
+
+#: The eight renamed cases' *current* (post-item-157) ids, frozen here as a
+#: fixed list -- never read from a live manifest. The record predates the
+#: rename, so its fixture filenames still carry the old ``modeN_...`` ids;
+#: this test recovers those old ids by inverting the frozen
+#: ``RENAMED_CASE_IDS`` mapping (a code constant, not live state) rather than
+#: spelling a retired id as a literal, which is what test_157 AC9's
+#: no-old-id-on-any-live-surface sweep forbids everywhere but the mapping's
+#: own module and its own test file.
+_FROZEN_RENAMED_CASE_IDS: Tuple[str, ...] = (
+    "displace",
+    "fragment",
+    "inject_islands",
+    "relabel_swap",
+    "remove_level",
+    "crop_at_border",
+    "sequence_break",
+    "force_overlap",
+)
+
+_OLD_CASE_ID_BY_NEW_ID: Dict[str, str] = {
+    new_id: old_id for old_id, new_id in RENAMED_CASE_IDS.items()
+}
+
 _FROZEN_REQUIRED_ARTIFACT_PATHS: Set[str] = frozenset(
     _NON_CORPUS_REQUIRED_ARTIFACTS
     + (
@@ -681,20 +705,16 @@ _FROZEN_REQUIRED_ARTIFACT_PATHS: Set[str] = frozenset(
         "tests/corpus/fixtures/base_scan.nii.gz",
         "tests/corpus/fixtures/clean_control_seg.nii.gz",
         "tests/corpus/fixtures/fuse_adjacent_seg.nii.gz",
-        "tests/corpus/fixtures/mode1_displace_seg.nii.gz",
-        "tests/corpus/fixtures/mode2_fragment_seg.nii.gz",
-        "tests/corpus/fixtures/mode3_inject_islands_seg.nii.gz",
-        "tests/corpus/fixtures/mode4_relabel_swap_seg.nii.gz",
-        "tests/corpus/fixtures/mode5_remove_level_seg.nii.gz",
-        "tests/corpus/fixtures/mode6_crop_at_border_seg.nii.gz",
-        "tests/corpus/fixtures/mode7_sequence_break_seg.nii.gz",
-        "tests/corpus/fixtures/mode8_force_overlap_seg.nii.gz",
         "tests/corpus/fixtures/remove_level_relabel_seg.nii.gz",
         "tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz",
         "tests/corpus/intensity/fixtures/clean_spine_seg.nii.gz",
         "tests/corpus/intensity/fixtures/degenerate_uniform_scan.nii.gz",
         "tests/corpus/intensity/fixtures/implausible_metal_scan.nii.gz",
         "tests/corpus/intensity/fixtures/implausible_soft_tissue_scan.nii.gz",
+    )
+    + tuple(
+        f"tests/corpus/fixtures/{_OLD_CASE_ID_BY_NEW_ID[new_id]}_seg.nii.gz"
+        for new_id in _FROZEN_RENAMED_CASE_IDS
     )
 )
 

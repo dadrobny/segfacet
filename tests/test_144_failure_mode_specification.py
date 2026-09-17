@@ -247,12 +247,13 @@ def test_ac1_zero_argument_calls_accepted(monkeypatch):
 
 def test_ac1_no_module_level_heavy_import():
     """AC1's "no heavy import" clause, honestly scoped: ``failure_modes.py``
-    itself has no top-level ``numpy``/``scipy``/``nibabel`` import. A bare
-    ``import segfacet.X`` cannot be asserted heavy-module-free at all --
-    ``src/segfacet/__init__.py`` unconditionally imports
-    ``segfacet.features.fragmentation``, which imports ``nibabel`` at module
-    level, before any submodule's own body runs (see this item's Decisions
-    log; not a path this item may edit)."""
+    itself has no top-level ``numpy``/``scipy``/``nibabel`` import. This is
+    the module-level check available to it -- ``import segfacet.X`` alone is
+    not a reliable heavy-module-free probe, since ``src/segfacet/__init__.py``
+    eagerly imports several other submodules at package-import time (see this
+    item's Decisions log; not a path this item may edit), even though
+    ``segfacet.features.fragmentation`` itself is now resolved lazily
+    (item 159's PEP 562 ``__getattr__``)."""
     source = _FAILURE_MODES_SOURCE.read_text(encoding="utf-8")
     assert source, "expected non-empty source for failure_modes.py"
     heavy = _top_level_heavy_imports(source)
