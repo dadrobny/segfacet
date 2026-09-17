@@ -6,7 +6,8 @@ The third and final Stage 5 operator family: three seeded
 label-identity / ordering / spatial-alignment failures onto the item-036
 clean-GT positive control (:func:`segfacet.synth.clean_gt.build_clean_spine`),
 each returning a well-formed :class:`~segfacet.synth.perturbation.Expectation`
-naming the induced §6 failure mode and the offending label(s):
+naming the induced failure mode (a ``failure_modes.SPECIFICATION`` id) and
+the offending label(s):
 
 * :class:`DisplacePerturbation` (``"displace"``) -- translates a target
   vertebra's whole mask off the fitted spinal curve (along the two array axes
@@ -14,7 +15,8 @@ naming the induced §6 failure mode and the offending label(s):
   affine -- item 116) while keeping its label. Targets the misalignment
   detector of
   :class:`~segfacet.heuristics.mislabel.MislabelRule` (item 033, Detector A,
-  §6 mode 1). Since item 120 promoted a **held-out** (leave-one-out,
+  which serves no failure mode; the case is filed under specification mode 1,
+  segmentation accuracy). Since item 120 promoted a **held-out** (leave-one-out,
   down-weighted) per-label spline offset into the pipeline itself, the
   target's ``offset_mm`` is measured against a curve it did not shape, so
   the displacement separates through plain ``run_qc`` -- no reconstruction
@@ -26,7 +28,7 @@ naming the induced §6 failure mode and the offending label(s):
   adjacent vertebra bodies' integer labels, so each label sits at the
   other's anatomical position while the present-label set is unchanged.
   Targets the ordering-inconsistency detector of ``MislabelRule`` (Detector
-  B, §6 mode 4). Same structural limitation as ``displace`` (the pipeline
+  B, specification mode 9, out-of-order label sequence). Same structural limitation as ``displace`` (the pipeline
   reorders by ascending label before refitting, so ``non_monotonic_pairs``
   is always empty through ``run_qc``); asserted via a reconstructed
   ``monotonic_consistency`` record (the spline fit through centroids in
@@ -35,7 +37,7 @@ naming the induced §6 failure mode and the offending label(s):
   tail vertebra to a transitional label (T13 = 28) whose canonical rank
   contradicts its integer value, producing a genuine non-monotonic label
   sequence that :class:`~segfacet.heuristics.sequence.SequenceRule` (item 030,
-  §6 mode 7) catches directly through the real ``run_qc`` pipeline -- unlike
+  specification mode 9, out-of-order label sequence) catches directly through the real ``run_qc`` pipeline -- unlike
   the other two operators in this file.
 
 Implemented strictly against the unchanged item-036 contract
@@ -153,8 +155,8 @@ class DisplacePerturbation(Perturbation):
     :func:`segfacet.synth.axes.non_stacking_axes`), not a hardcoded index --
     by ``displacement_mm`` (split evenly across the two axes, spacing-aware),
     keeping the body >= 1 voxel inset from every face so it stays a single
-    solid block with no bounds / fragmentation / border side-effect (§6 mode
-    1). The pipeline's held-out per-label spline offset (item 120) measures
+    solid block with no bounds / fragmentation / border side-effect (filed
+    under specification mode 1, segmentation accuracy). The pipeline's held-out per-label spline offset (item 120) measures
     the target against a curve it did not shape, so the misalignment
     finding is asserted through plain ``run_qc`` -- see the module
     docstring. Rejects an explicit target not present, or a
@@ -258,7 +260,8 @@ class RelabelSwapPerturbation(Perturbation):
     Registered under ``"relabel_swap"``. Swaps the voxel labels of an
     **adjacent** (consecutive-in-sorted-present-label-order) pair, so each
     label now occupies the other's anatomical position while the
-    present-label set is unchanged (§6 mode 4). Because the real pipeline
+    present-label set is unchanged (specification mode 9, out-of-order
+    label sequence). Because the real pipeline
     reorders centroids by ascending label before refitting the spline (see
     the module docstring), the ordering-inconsistency finding is asserted
     via a reconstructed ``monotonic_consistency`` record fed to
@@ -353,7 +356,8 @@ class SequenceBreakPerturbation(Perturbation):
     its integer value under the default convention. Relabelling the tail of
     a contiguous lumbar span produces a genuine non-monotonic label sequence
     that :class:`~segfacet.heuristics.sequence.SequenceRule` catches directly
-    through the real ``run_qc`` pipeline (§6 mode 7) -- unlike ``displace``
+    through the real ``run_qc`` pipeline (specification mode 9, out-of-order
+    label sequence) -- unlike ``displace``
     and ``relabel_swap`` in this module. Rejects a map with fewer than 2
     present labels (no ordering to break), an explicit target not present,
     or a ``new_label`` already present in the map.

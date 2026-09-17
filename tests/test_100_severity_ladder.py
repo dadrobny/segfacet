@@ -102,32 +102,62 @@ def harness():
 # Shared helpers
 # --------------------------------------------------------------------------- #
 
+# Item 153: the ladder registry is keyed by operator and the per-mode metric
+# registry by metric name, not the retired legacy mode id. These two maps
+# (plus their inverses) let every helper below keep working in the old
+# legacy-int space internally and translate only at the point of touching
+# the re-keyed production API -- same eight ladders/metrics, same pairing,
+# same values (A5).
+_LEGACY_TO_OPERATOR = {
+    1: "displace",
+    2: "fragment",
+    3: "inject_islands",
+    4: "relabel_swap",
+    5: "remove_level",
+    6: "crop_at_border",
+    7: "sequence_break",
+    8: "force_overlap",
+}
+_OPERATOR_TO_LEGACY = {v: k for k, v in _LEGACY_TO_OPERATOR.items()}
+_LEGACY_TO_METRIC_NAME = {
+    1: "unanchored_foreground_fraction",
+    2: "min_dominant_component_fraction",
+    3: "rogue_island_count",
+    4: "mislabelled_volume_fraction",
+    5: "missing_level_count",
+    6: "fov_clipped_label_count",
+    7: "out_of_order_label_count",
+    8: "overlapping_voxel_count",
+}
+_METRIC_NAME_TO_LEGACY = {v: k for k, v in _LEGACY_TO_METRIC_NAME.items()}
+_LADDER_OPERATORS = tuple(_LEGACY_TO_OPERATOR.values())
 
-def _identity_assignment() -> dict:
-    return {k: k for k in range(1, 9)}
+
+def _identity_assignment(sl) -> dict:
+    """``{operator: its own ladder's designated_metric}`` -- the re-keyed
+    identity assignment (each ladder scored against its own metric)."""
+    return {op: spec.designated_metric for op, spec in sl.SEVERITY_LADDERS.items()}
 
 
 def _verdict_for(hv, mode: int):
-    """Fetch the per-ladder verdict for *mode* whether ``per_ladder`` is a
-    ``Mapping`` keyed by mode or a sequence of entries carrying their own
-    ``failure_mode`` field."""
-    per_ladder = hv.per_ladder
-    if isinstance(per_ladder, Mapping):
-        return per_ladder[mode]
-    for entry in per_ladder:
-        if getattr(entry, "failure_mode", None) == mode:
-            return entry
-    raise KeyError(mode)
+    """Fetch the per-ladder verdict for the retired legacy mode id *mode*,
+    ``per_ladder`` now being a ``Mapping`` keyed by operator (item 153)."""
+    return hv.per_ladder[_LEGACY_TO_OPERATOR[mode]]
 
 
 def _spans_table(harness_result) -> dict:
     """``{(ladder_mode, metric_mode): span}`` over the eight primary ladders
-    (never the supplementary one -- ``score_harness`` ignores it, AC21)."""
+    (never the supplementary one -- ``score_harness`` ignores it, AC21),
+    still indexed by the legacy int pair -- only the registry access at each
+    cell is translated to operator/metric_name (item 153)."""
     spans = {}
     for ladder_mode in range(1, 9):
-        lr = harness_result.by_mode(ladder_mode)
+        lr = harness_result.by_operator(_LEGACY_TO_OPERATOR[ladder_mode])
         for metric_mode in range(1, 9):
-            values = [pt.metrics.by_mode(metric_mode).value for pt in lr.points]
+            values = [
+                pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[metric_mode]).value
+                for pt in lr.points
+            ]
             spans[(ladder_mode, metric_mode)] = max(values) - min(values)
     return spans
 
@@ -148,12 +178,14 @@ def _margin(spans: dict, m: int) -> float:
 
 
 def _collect_degenerate_flags(node, results: dict) -> None:
-    """Recursively walk a ``to_dict()`` tree, collecting ``{failure_mode:
+    """Recursively walk a ``to_dict()`` tree, collecting ``{operator:
     degenerate}`` from any dict node carrying both keys -- robust to exactly
-    where ``HarnessResult.to_dict()`` nests the per-ladder degenerate flag."""
+    where ``HarnessResult.to_dict()`` nests the per-ladder degenerate flag.
+    Item 153: keyed by ``operator`` (unique per ladder), not the nullable,
+    non-unique ``failure_mode``."""
     if isinstance(node, dict):
-        if "failure_mode" in node and "degenerate" in node:
-            results[node["failure_mode"]] = node["degenerate"]
+        if "operator" in node and "degenerate" in node:
+            results[node["operator"]] = node["degenerate"]
         for v in node.values():
             _collect_degenerate_flags(v, results)
     elif isinstance(node, list):
@@ -221,7 +253,7 @@ _PUBLIC_NAMES = (
     "CrossModeCoupling",
     "SEVERITY_LADDERS",
     "SUPPLEMENTARY_LADDERS",
-    "DEGENERATE_LADDER_MODES",
+    "DEGENERATE_LADDERS",
     "KNOWN_CROSS_MODE_COUPLINGS",
     "RECORDED_MARGINS",
     "COUPLING_THRESHOLD",
@@ -277,9 +309,9 @@ def test_ac1_frozen_instances_raise_on_mutation(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
     ladder_verdict = _verdict_for(verdict, 1)
-    rung_spec = sl.SEVERITY_LADDERS[1].rungs[0]
-    ladder_spec = sl.SEVERITY_LADDERS[1]
-    ladder_result = harness.by_mode(1)
+    rung_spec = sl.SEVERITY_LADDERS["displace"].rungs[0]
+    ladder_spec = sl.SEVERITY_LADDERS["displace"]
+    ladder_result = harness.by_operator("displace")
     ladder_point = ladder_result.points[0]
 
     instances = [
@@ -306,9 +338,9 @@ def test_ac1_frozen_instances_raise_on_mutation(harness):
 # =========================================================================== #
 
 
-def test_ac2_key_set_is_exactly_one_through_eight():
+def test_ac2_key_set_is_exactly_the_eight_operators():
     sl = _sl()
-    assert set(sl.SEVERITY_LADDERS.keys()) == {1, 2, 3, 4, 5, 6, 7, 8}
+    assert set(sl.SEVERITY_LADDERS.keys()) == set(_LADDER_OPERATORS)
 
 
 def test_ac2_clean_control_mode_zero_is_not_a_key():
@@ -316,20 +348,28 @@ def test_ac2_clean_control_mode_zero_is_not_a_key():
     assert 0 not in sl.SEVERITY_LADDERS
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
-def test_ac2_ladder_failure_mode_field_matches_its_key(mode):
+@pytest.mark.parametrize("operator", _LADDER_OPERATORS)
+def test_ac2_ladder_operator_field_matches_its_key(operator):
+    """Item 153: the registry is keyed by operator, not the retired legacy
+    mode id -- every key indexes the entry naming itself (AC17)."""
     sl = _sl()
-    assert sl.SEVERITY_LADDERS[mode].failure_mode == mode
+    assert sl.SEVERITY_LADDERS[operator].operator == operator
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
-def test_ac2_ladder_failure_mode_name_matches_legacy_stage18_names(mode):
-    """Item 150: the ladders are keyed by the pre-sign-off numbering, frozen
-    in ``segfacet.eval.per_mode.LEGACY_STAGE18_MODE_NAMES``."""
-    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
+@pytest.mark.parametrize("operator", _LADDER_OPERATORS)
+def test_ac2_ladder_failure_mode_name_comes_from_the_specification(operator):
+    """Item 153: the retired legacy pre-sign-off name map is gone;
+    ``failure_mode_name`` is looked up live from
+    ``segfacet.failure_modes.SPECIFICATION`` (``None`` when the ladder's
+    ``failure_mode`` is ``None``, e.g. ``crop_at_border``)."""
+    import segfacet.failure_modes as fm
 
     sl = _sl()
-    assert sl.SEVERITY_LADDERS[mode].failure_mode_name == LEGACY_STAGE18_MODE_NAMES[mode]
+    spec = sl.SEVERITY_LADDERS[operator]
+    if spec.failure_mode is None:
+        assert spec.failure_mode_name is None
+    else:
+        assert spec.failure_mode_name == fm.SPECIFICATION[spec.failure_mode].name
 
 
 # =========================================================================== #
@@ -337,14 +377,14 @@ def test_ac2_ladder_failure_mode_name_matches_legacy_stage18_names(mode):
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
-def test_ac3_every_step_names_a_registered_operator_and_is_constructible(mode):
+@pytest.mark.parametrize("operator", _LADDER_OPERATORS)
+def test_ac3_every_step_names_a_registered_operator_and_is_constructible(operator):
     sl = _sl()
     names = set(perturbation_names())
-    spec = sl.SEVERITY_LADDERS[mode]
+    spec = sl.SEVERITY_LADDERS[operator]
     for rung in spec.rungs:
         for op_name, kwargs in rung.steps:
-            assert op_name in names, (mode, rung.index, op_name)
+            assert op_name in names, (operator, rung.index, op_name)
             get_perturbation(op_name)(**kwargs)  # must not raise
 
 
@@ -387,7 +427,7 @@ def test_ac4_module_contains_no_metric_rederivation():
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_ac5_rung_zero_has_no_steps_and_zero_severity(mode, harness):
     sl = _sl()
-    ladder = sl.SEVERITY_LADDERS[mode]
+    ladder = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]]
     rung0 = ladder.rungs[0]
     assert rung0.steps == ()
     assert rung0.severity == 0.0
@@ -395,10 +435,10 @@ def test_ac5_rung_zero_has_no_steps_and_zero_severity(mode, harness):
 
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_ac5_rung_zero_metrics_are_at_baseline_for_all_eight_modes(mode, harness):
-    ladder_result = harness.by_mode(mode)
+    ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
     rung0_point = ladder_result.points[0]
     for metric_mode in range(1, 9):
-        entry = rung0_point.metrics.by_mode(metric_mode)
+        entry = rung0_point.metrics.by_metric(_LEGACY_TO_METRIC_NAME[metric_mode])
         expected_baseline = 1.0 if metric_mode == 2 else 0.0
         assert entry.value is not None
         assert entry.value == pytest.approx(expected_baseline, abs=1e-9)
@@ -411,10 +451,10 @@ def test_ac5_rung_zero_metrics_are_at_baseline_for_all_eight_modes(mode, harness
 
 def test_ac6_no_metric_value_is_ever_none(harness):
     for mode in range(1, 9):
-        ladder_result = harness.by_mode(mode)
+        ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
         for point in ladder_result.points:
             for metric_mode in range(1, 9):
-                entry = point.metrics.by_mode(metric_mode)
+                entry = point.metrics.by_metric(_LEGACY_TO_METRIC_NAME[metric_mode])
                 assert type(entry.value) is float, (mode, point.index, metric_mode)
 
 
@@ -422,7 +462,7 @@ def test_ac6_supplementary_no_metric_value_is_ever_none(harness):
     for ladder_result in harness.supplementary:
         for point in ladder_result.points:
             for metric_mode in range(1, 9):
-                entry = point.metrics.by_mode(metric_mode)
+                entry = point.metrics.by_metric(_LEGACY_TO_METRIC_NAME[metric_mode])
                 assert type(entry.value) is float
 
 
@@ -434,7 +474,7 @@ def test_ac6_supplementary_no_metric_value_is_ever_none(harness):
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_ac7_rung_severities_strictly_increasing(mode):
     sl = _sl()
-    rungs = sl.SEVERITY_LADDERS[mode].rungs
+    rungs = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].rungs
     assert rungs[0].severity == 0.0
     for i in range(len(rungs) - 1):
         assert rungs[i].severity < rungs[i + 1].severity, (mode, i)
@@ -448,8 +488,8 @@ def test_ac7_rung_severities_strictly_increasing(mode):
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_ac8_rung_counts_per_degenerate_status(mode):
     sl = _sl()
-    n_rungs = len(sl.SEVERITY_LADDERS[mode].rungs)
-    if mode in sl.DEGENERATE_LADDER_MODES:
+    n_rungs = len(sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].rungs)
+    if _LEGACY_TO_OPERATOR[mode] in sl.DEGENERATE_LADDERS:
         assert n_rungs == 2, mode
     else:
         assert n_rungs >= 3, mode
@@ -464,9 +504,9 @@ def test_ac8_rung_counts_per_degenerate_status(mode):
 def test_ac9_designated_metric_monotone_in_declared_direction(mode, harness):
     from segfacet.eval.per_mode import PER_MODE_METRIC_SPECS
 
-    direction = PER_MODE_METRIC_SPECS[mode].direction
-    ladder_result = harness.by_mode(mode)
-    values = [pt.metrics.by_mode(mode).value for pt in ladder_result.points]
+    direction = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]].direction
+    ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
+    values = [pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[mode]).value for pt in ladder_result.points]
     if direction == "increases":
         assert all(a <= b for a, b in zip(values, values[1:])), values
     else:
@@ -475,8 +515,8 @@ def test_ac9_designated_metric_monotone_in_declared_direction(mode, harness):
 
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_ac10_designated_metric_changes_strictly_at_every_rung_transition(mode, harness):
-    ladder_result = harness.by_mode(mode)
-    values = [pt.metrics.by_mode(mode).value for pt in ladder_result.points]
+    ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
+    values = [pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[mode]).value for pt in ladder_result.points]
     for i in range(len(values) - 1):
         diff = abs(values[i + 1] - values[i])
         assert diff > 1e-9, (
@@ -514,20 +554,20 @@ _EXPECTED_SEVERITY_PARAMETER = {
 @pytest.mark.parametrize("mode", range(1, 9))
 def test_ac11_severity_kind_matches_the_spec_table(mode):
     sl = _sl()
-    assert sl.SEVERITY_LADDERS[mode].severity_kind == _EXPECTED_SEVERITY_KIND[mode]
+    assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].severity_kind == _EXPECTED_SEVERITY_KIND[mode]
 
 
 @pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 8])
 def test_ac11_severity_parameter_matches_the_spec_table(mode):
     sl = _sl()
-    assert sl.SEVERITY_LADDERS[mode].severity_parameter == _EXPECTED_SEVERITY_PARAMETER[mode]
+    assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].severity_parameter == _EXPECTED_SEVERITY_PARAMETER[mode]
 
 
 def test_ac11_only_three_severity_kind_values_are_ever_used():
     sl = _sl()
     allowed = {"continuous", "affected-label-count", "degenerate"}
     for mode in range(1, 9):
-        assert sl.SEVERITY_LADDERS[mode].severity_kind in allowed
+        assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].severity_kind in allowed
 
 
 # =========================================================================== #
@@ -535,35 +575,37 @@ def test_ac11_only_three_severity_kind_values_are_ever_used():
 # =========================================================================== #
 
 
-def test_ac12_degenerate_ladder_modes_is_exactly_mode_seven():
+def test_ac12_degenerate_ladders_is_exactly_sequence_break():
     sl = _sl()
-    assert sl.DEGENERATE_LADDER_MODES == frozenset({7})
+    assert sl.DEGENERATE_LADDERS == frozenset({"sequence_break"})
 
 
 def test_ac12_mode_seven_rationale_names_the_transitional_label_cap():
     sl = _sl()
-    rationale = sl.SEVERITY_LADDERS[7].rationale
+    rationale = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[7]].rationale
     assert isinstance(rationale, str) and rationale
     assert "28" in rationale
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
-def test_ac12_degenerate_iff_mode_seven_and_iff_two_rungs(mode):
+@pytest.mark.parametrize("operator", _LADDER_OPERATORS)
+def test_ac12_degenerate_iff_sequence_break_and_iff_two_rungs(operator):
     sl = _sl()
-    spec = sl.SEVERITY_LADDERS[mode]
+    spec = sl.SEVERITY_LADDERS[operator]
     is_degenerate_kind = spec.severity_kind == "degenerate"
-    is_degenerate_mode = mode in sl.DEGENERATE_LADDER_MODES
+    is_degenerate_operator = operator in sl.DEGENERATE_LADDERS
     has_two_rungs = len(spec.rungs) == 2
-    assert is_degenerate_kind == is_degenerate_mode == has_two_rungs, mode
+    assert is_degenerate_kind == is_degenerate_operator == has_two_rungs, operator
 
 
-def test_ac12_to_dict_carries_degenerate_flag_true_for_mode_seven_false_otherwise(harness):
+def test_ac12_to_dict_carries_degenerate_flag_true_for_sequence_break_false_otherwise(harness):
     d = harness.to_dict()
     flags: dict = {}
     _collect_degenerate_flags(d, flags)
-    assert flags.get(7) is True
-    for mode in (1, 2, 3, 4, 5, 6, 8):
-        assert flags.get(mode) is False, mode
+    assert flags.get("sequence_break") is True
+    for operator in _LADDER_OPERATORS:
+        if operator == "sequence_break":
+            continue
+        assert flags.get(operator) is False, operator
 
 
 # =========================================================================== #
@@ -577,12 +619,14 @@ def test_ac13_response_surface_matches_independent_recomputation(harness):
     spans = _spans_table(harness)
     for m in range(1, 9):
         lv = _verdict_for(verdict, m)
-        assert lv.responses[m] == pytest.approx(1.0, abs=1e-9)
+        assert lv.responses[_LEGACY_TO_METRIC_NAME[m]] == pytest.approx(1.0, abs=1e-9)
         for f in range(1, 9):
             if f == m:
                 continue
             expected = _response(spans, m, f)
-            assert lv.responses[f] == pytest.approx(expected, rel=1e-6, abs=1e-9), (m, f)
+            assert lv.responses[_LEGACY_TO_METRIC_NAME[f]] == pytest.approx(
+                expected, rel=1e-6, abs=1e-9
+            ), (m, f)
 
 
 # =========================================================================== #
@@ -594,7 +638,9 @@ def test_ac14_uncoupled_ladders_are_strictly_specific(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
     spans = _spans_table(harness)
-    coupled_ladder_modes = {c.ladder_mode for c in sl.KNOWN_CROSS_MODE_COUPLINGS}
+    coupled_ladder_modes = {
+        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+    }
     for m in range(1, 9):
         if m in coupled_ladder_modes:
             continue
@@ -622,7 +668,10 @@ def test_ac15_coupling_table_matches_measurement_both_directions(harness):
                 continue
             if _response(spans, m, f) >= sl.COUPLING_THRESHOLD:
                 measured.add((m, f))
-    recorded = {(c.ladder_mode, c.foreign_mode) for c in sl.KNOWN_CROSS_MODE_COUPLINGS}
+    recorded = {
+        (_OPERATOR_TO_LEGACY[c.ladder_operator], _METRIC_NAME_TO_LEGACY[c.foreign_metric])
+        for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+    }
     # Two-way equality: catches both a hidden leak (measured - recorded) and
     # a stale entry (recorded - measured).
     assert measured == recorded, (measured - recorded, recorded - measured)
@@ -632,7 +681,10 @@ def test_ac15_every_coupling_entry_has_a_non_empty_cause_and_no_self_coupling():
     sl = _sl()
     for c in sl.KNOWN_CROSS_MODE_COUPLINGS:
         assert isinstance(c.cause, str) and c.cause
-        assert c.foreign_mode != c.ladder_mode
+        # Item 153: a ladder operator and a metric name never collide by
+        # construction, so "no self coupling" is the substantive check that
+        # a coupling never names its own ladder's designated metric.
+        assert c.foreign_metric != sl.SEVERITY_LADDERS[c.ladder_operator].designated_metric
 
 
 # =========================================================================== #
@@ -644,13 +696,17 @@ def test_ac16_coupling_response_ratchet_holds(harness):
     sl = _sl()
     spans = _spans_table(harness)
     for c in sl.KNOWN_CROSS_MODE_COUPLINGS:
-        measured = _response(spans, c.ladder_mode, c.foreign_mode)
+        measured = _response(
+            spans,
+            _OPERATOR_TO_LEGACY[c.ladder_operator],
+            _METRIC_NAME_TO_LEGACY[c.foreign_metric],
+        )
         assert measured <= c.recorded_response * 1.05, c
 
 
 def test_ac16_recorded_margins_has_all_eight_modes():
     sl = _sl()
-    assert set(sl.RECORDED_MARGINS.keys()) == set(range(1, 9))
+    assert set(sl.RECORDED_MARGINS.keys()) == set(_LADDER_OPERATORS)
 
 
 def test_ac16_margin_ratchet_holds(harness):
@@ -658,7 +714,7 @@ def test_ac16_margin_ratchet_holds(harness):
     spans = _spans_table(harness)
     for mode in range(1, 9):
         measured_margin = _margin(spans, mode)
-        recorded_margin = sl.RECORDED_MARGINS[mode]
+        recorded_margin = sl.RECORDED_MARGINS[_LEGACY_TO_OPERATOR[mode]]
         assert measured_margin >= recorded_margin * 0.95, mode
 
 
@@ -670,12 +726,14 @@ def test_ac16_margin_ratchet_holds(harness):
 def test_ac17_coupled_ladders_report_status_coupled_with_nonempty_coupled_modes(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
-    coupled_modes = {c.ladder_mode for c in sl.KNOWN_CROSS_MODE_COUPLINGS}
+    coupled_modes = {
+        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+    }
     assert coupled_modes, "expected at least one recorded coupling (mode 6 -> metric 1)"
     for m in coupled_modes:
         lv = _verdict_for(verdict, m)
         assert lv.status == "coupled"
-        assert len(lv.coupled_modes) > 0
+        assert len(lv.coupled_metrics) > 0
 
 
 def test_ac17_identity_assignment_passes_despite_recorded_couplings(harness):
@@ -687,12 +745,14 @@ def test_ac17_identity_assignment_passes_despite_recorded_couplings(harness):
 def test_ac17_summary_names_every_coupled_and_degenerate_ladder(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
-    coupled_modes = {c.ladder_mode for c in sl.KNOWN_CROSS_MODE_COUPLINGS}
+    coupled_modes = {
+        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+    }
     summary = verdict.summary()
     assert isinstance(summary, str) and summary
     for m in coupled_modes:
-        assert str(m) in summary, m
-    assert "7" in summary  # the degenerate ladder
+        assert _LEGACY_TO_OPERATOR[m] in summary, m
+    assert "sequence_break" in summary  # the degenerate ladder
 
 
 # =========================================================================== #
@@ -702,9 +762,9 @@ def test_ac17_summary_names_every_coupled_and_degenerate_ladder(harness):
 
 def test_ac18_negative_control_swapping_modes_2_and_3_fails(harness):
     sl = _sl()
-    swapped = _identity_assignment()
-    swapped[2] = 3
-    swapped[3] = 2
+    swapped = _identity_assignment(sl)
+    swapped["fragment"] = sl.SEVERITY_LADDERS["inject_islands"].designated_metric
+    swapped["inject_islands"] = sl.SEVERITY_LADDERS["fragment"].designated_metric
     verdict = sl.score_harness(harness, assignment=swapped)
     assert verdict.passed is False
     lv2 = _verdict_for(verdict, 2)
@@ -717,7 +777,7 @@ def test_ac18_identity_assignment_on_the_same_harness_still_passes(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
     assert verdict.passed is True
-    explicit = sl.score_harness(harness, assignment=_identity_assignment())
+    explicit = sl.score_harness(harness, assignment=_identity_assignment(sl))
     assert explicit.passed is True
 
 
@@ -727,11 +787,11 @@ def test_ac18_identity_assignment_on_the_same_harness_still_passes(harness):
 
 
 def test_ac19_mode8_overlap_depth_three_rung_reproduces_corpus_1950(harness):
-    ladder8 = harness.by_mode(8)
+    ladder8 = harness.by_operator(_LEGACY_TO_OPERATOR[8])
     rung3 = next(pt for pt in ladder8.points if pt.severity == 3.0)
     # Cross-referenced against tests/test_099_per_mode_metrics.py's AC14
-    # (mode8_force_overlap's overlapping_voxel_count == 1950.0).
-    assert rung3.metrics.by_mode(8).value == pytest.approx(1950.0, abs=1e-9)
+    # (force_overlap's overlapping_voxel_count == 1950.0).
+    assert rung3.metrics.by_metric(_LEGACY_TO_METRIC_NAME[8]).value == pytest.approx(1950.0, abs=1e-9)
 
 
 # =========================================================================== #
@@ -741,15 +801,15 @@ def test_ac19_mode8_overlap_depth_three_rung_reproduces_corpus_1950(harness):
 
 @pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 7])
 def test_ac20_mode8_metric_is_zero_on_every_other_ladder(mode, harness):
-    ladder_result = harness.by_mode(mode)
+    ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
     for point in ladder_result.points:
-        assert point.metrics.by_mode(8).value == 0.0, (mode, point.index)
+        assert point.metrics.by_metric(_LEGACY_TO_METRIC_NAME[8]).value == 0.0, (mode, point.index)
 
 
 def test_ac20_mode8_metric_is_zero_on_the_supplementary_ladder(harness):
     for ladder_result in harness.supplementary:
         for point in ladder_result.points:
-            assert point.metrics.by_mode(8).value == 0.0
+            assert point.metrics.by_metric(_LEGACY_TO_METRIC_NAME[8]).value == 0.0
 
 
 # =========================================================================== #
@@ -768,7 +828,7 @@ def test_ac21_exactly_one_supplementary_ladder_is_the_fuse_ladder():
 
 def test_ac21_fuse_ladder_min_dominant_component_fraction_strictly_decreases(harness):
     fuse_ladder = harness.supplementary[0]
-    values = [pt.metrics.by_mode(2).value for pt in fuse_ladder.points]
+    values = [pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[2]).value for pt in fuse_ladder.points]
     for i in range(len(values) - 1):
         assert values[i + 1] < values[i], (i, values)
 
@@ -797,7 +857,7 @@ def test_ac22_two_full_harness_runs_produce_equal_to_dict(harness):
 def test_ac22_per_rung_perturbed_arrays_are_deterministic(harness):
     sl = _sl()
     for mode in range(1, 9):
-        spec = sl.SEVERITY_LADDERS[mode]
+        spec = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]]
         for rung in spec.rungs:
             replays = []
             for _ in range(2):
@@ -821,7 +881,7 @@ def test_ac23_evaluate_ladder_never_mutates_the_base_image_or_array():
     seg_before = np.array(np.asanyarray(base.seg_img.dataobj), copy=True)
     scan_before = np.array(np.asanyarray(base.scan_img.dataobj), copy=True)
 
-    sl.evaluate_ladder(sl.SEVERITY_LADDERS[1], base=base)
+    sl.evaluate_ladder(sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[1]], base=base)
 
     seg_after = np.asanyarray(base.seg_img.dataobj)
     scan_after = np.asanyarray(base.scan_img.dataobj)
@@ -854,7 +914,7 @@ def test_ac23_evaluate_ladder_opens_no_file_and_reads_no_clock(monkeypatch):
     monkeypatch.setattr(time, "time", _tracking_time)
 
     base = build_clean_spine()
-    sl.evaluate_ladder(sl.SEVERITY_LADDERS[1], base=base)
+    sl.evaluate_ladder(sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[1]], base=base)
 
     assert calls["open"] == 0
     assert calls["write_bytes"] == 0
@@ -866,7 +926,7 @@ def test_ac23_leaves_tests_corpus_byte_unchanged():
     hash_before = _corpus_content_digest(files_before, _CORPUS_DIR)
 
     sl = _sl()
-    sl.evaluate_ladder(sl.SEVERITY_LADDERS[1])
+    sl.evaluate_ladder(sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[1]])
 
     files_after = sorted(p for p in _CORPUS_DIR.rglob("*") if p.is_file())
     hash_after = _corpus_content_digest(files_after, _CORPUS_DIR)
@@ -922,6 +982,8 @@ def test_ac25_out_of_range_displacement_raises_facet_input_error():
         failure_mode=1,
         failure_mode_name=FAILURE_MODE_NAMES[1],
         operator="displace",
+        designated_metric="unanchored_foreground_fraction",
+        condition=None,
         severity_parameter="displacement_mm",
         severity_kind="continuous",
         rungs=(rung0, rung1),
@@ -945,6 +1007,8 @@ def test_ac25_unregistered_operator_raises_key_error_not_skipped():
         failure_mode=1,
         failure_mode_name=FAILURE_MODE_NAMES[1],
         operator="not_a_real_perturbation",
+        designated_metric="unanchored_foreground_fraction",
+        condition=None,
         severity_parameter="displacement_mm",
         severity_kind="continuous",
         rungs=(rung0, rung1),
@@ -970,18 +1034,21 @@ def test_ac25_unregistered_operator_raises_key_error_not_skipped():
 def test_adv_single_rung_ladder_scores_explicit_failure_not_zero_division(harness):
     sl = _sl()
     truncated_ladder_1 = dataclasses.replace(
-        harness.by_mode(1), points=harness.by_mode(1).points[:1]
+        harness.by_operator(_LEGACY_TO_OPERATOR[1]), points=harness.by_operator(_LEGACY_TO_OPERATOR[1]).points[:1]
     )
     minimal = dataclasses.replace(harness, ladders=(truncated_ladder_1,))
-    verdict = sl.score_harness(minimal, assignment={1: 1})  # must not raise
+    verdict = sl.score_harness(
+        minimal, assignment={"displace": "unanchored_foreground_fraction"}
+    )  # must not raise
     lv = _verdict_for(verdict, 1)
     assert len(lv.failures) > 0
 
 
 def test_adv_assignment_outside_valid_mode_range_raises(harness):
     sl = _sl()
-    # 99 is guaranteed absent from PER_MODE_METRIC_SPECS (keys are 1..8).
-    bad_assignment = {**_identity_assignment(), 1: 99}
+    # 99 is guaranteed absent from PER_MODE_METRIC_SPECS (keys are metric
+    # names, item 153).
+    bad_assignment = {**_identity_assignment(sl), "displace": 99}
     with pytest.raises((KeyError, FacetInputError)):
         sl.score_harness(harness, assignment=bad_assignment)
 
@@ -1007,10 +1074,10 @@ def test_adv_baseline_sanity_rung_zero_clean_base_passes_run_qc():
 
 def test_adv_non_default_config_threads_through_to_extract_feature_record():
     sl = _sl()
-    default_result = sl.evaluate_ladder(sl.SEVERITY_LADDERS[1])
+    default_result = sl.evaluate_ladder(sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[1]])
     explicit_result = sl.evaluate_ladder(
-        sl.SEVERITY_LADDERS[1], config=bundled_default_config()
+        sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[1]], config=bundled_default_config()
     )
-    default_values = [pt.metrics.by_mode(1).value for pt in default_result.points]
-    explicit_values = [pt.metrics.by_mode(1).value for pt in explicit_result.points]
+    default_values = [pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[1]).value for pt in default_result.points]
+    explicit_values = [pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[1]).value for pt in explicit_result.points]
     assert default_values == explicit_values

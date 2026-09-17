@@ -1,6 +1,7 @@
 """Incomplete-coverage / missing-level rule (item 029).
 
-Implements a **coverage rule family** targeting §6 failure mode 5 — *not all
+Implements a **coverage rule family** targeting failure mode 6 (vertebra
+not segmented) in ``failure_modes.SPECIFICATION`` — *not all
 vertebrae in the image are segmented*. It runs up to three independent checks
 off the pre-computed ``relationships`` (item 014) and per-label ``geometry``
 (item 011) sub-blocks, distinguished by a stable tag at the start of each
@@ -132,14 +133,14 @@ class CoverageRule(Rule):
 
     rule_id = "coverage"
 
-    # §6 mode 5 (item 136): RemoveLevelPerturbation
+    # Specification mode 6 (vertebra not segmented): RemoveLevelPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) designates "coverage"
-    # for mode 5 via its Expectation(failure_mode=5, expected_rule_ids={"coverage"}).
+    # for mode 6 via its Expectation(failure_mode=6, expected_rule_ids={"coverage"}).
     mode_declaration = RuleModeDeclaration(
         modes=(6,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode5_remove_level designates "
+            "tests/corpus/manifest.json's remove_level designates "
             "this rule for mode 6 (vertebra not segmented) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
             "2026-09-15): the corpus operator deletes an interior vertebra "

@@ -1,7 +1,7 @@
 """Overlap rule (item 032).
 
-Implements an **overlap rule** targeting §6 failure mode 8 — overlapping
-segments: voxels assigned to more than one vertebra label, or labels whose
+Implements an **overlap rule** targeting failure mode 15 (overlapping
+segments) in ``failure_modes.SPECIFICATION``: voxels assigned to more than one vertebra label, or labels whose
 masks intersect. It consumes the pre-computed overlap-detection results (item
 015, exposed at the per-case feature record's top-level ``overlaps`` key,
 assembled by ``build_features_block`` / ``overlap_to_dict``, item 016). It does
@@ -96,14 +96,14 @@ class OverlapRule(Rule):
 
     rule_id = "overlap"
 
-    # §6 mode 8 (item 136): ForceOverlapPerturbation
+    # Specification mode 15 (overlapping segments): ForceOverlapPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) designates "overlap"
-    # for mode 8 via its Expectation(failure_mode=8, expected_rule_ids={"overlap"}).
+    # for mode 15 via its Expectation(failure_mode=15, expected_rule_ids={"overlap"}).
     mode_declaration = RuleModeDeclaration(
         modes=(15,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode8_force_overlap designates "
+            "tests/corpus/manifest.json's force_overlap designates "
             "this rule for mode 15 (overlapping segments) of the catalogue "
             "signed off at item 150 (2026-09-14, revised 2026-09-15). That case is "
             "detection=\"reconstructed_record\", not pipeline-detected: a "

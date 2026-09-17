@@ -36,7 +36,7 @@ Public API
 
 ``RuleModeDeclaration``
     Frozen dataclass (item 136): a rule's own class-attribute statement of the
-    §6 failure mode(s) it targets — or that it targets none, or that its
+    failure mode(s) it targets — or that it targets none, or that its
     disposition is pending a named downstream item. Metadata only; never read
     during ``evaluate``.
 
@@ -44,7 +44,7 @@ Public API
     Frozen dataclass and closed vocabulary (item 148) behind a declaration's
     ``consumed_paths``: each catalogued leaf path the rule consumes, tagged
     ``"signal"``, ``"bookkeeping"`` or ``"not-read"``. Only a ``"signal"``
-    pair lets the catalogue attribute the rule's §6 modes to that path.
+    pair lets the catalogue attribute the rule's failure modes to that path.
     Metadata only; never read during ``evaluate``.
 
 ``declaration_for(rule_or_id)`` / ``iter_rule_declarations()``

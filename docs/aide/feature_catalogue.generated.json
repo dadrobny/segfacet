@@ -3488,12 +3488,9 @@
             "mislabel"
           ],
           "documented": true,
-          "failure_modes": [
-            1
-          ],
+          "failure_modes": [],
           "measures": "Perpendicular distance from the vertebra's centroid to the fitted spline.",
           "mode_evidence": [
-            "per_mode_metric",
             "rule_bookkeeping"
           ],
           "mode_roles": [

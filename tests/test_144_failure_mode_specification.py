@@ -36,7 +36,6 @@ from run_process import run_utf8
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _COMMITTED_JSON = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
 _COMMITTED_MD = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
-_VISION_PATH = _REPO_ROOT / "docs" / "aide" / "vision.md"
 _MANIFEST_PATH = _REPO_ROOT / "tests" / "corpus" / "manifest.json"
 _FAILURE_MODES_SOURCE = _REPO_ROOT / "src" / "segfacet" / "failure_modes.py"
 
@@ -123,7 +122,7 @@ def _measured_expected_firing(case_id: str) -> tuple:
 
 def _mode4_kwargs(**overrides) -> dict:
     """A valid, self-consistent kwargs dict for mode 4 -- islands, the mode
-    the islands operator ``mode3_inject_islands`` and ``fragmentation``'s
+    the islands operator ``inject_islands`` and ``fragmentation``'s
     Rogue island(s): detector serve since the item-150 sign-off
     (2026-09-15 revision) -- grounded in the live ``MODE_ANCHOR_PATHS`` and
     a live measurement of the committed geometric corpus -- not transcribed
@@ -158,8 +157,8 @@ def _mode4_kwargs(**overrides) -> dict:
         # and `specification_conflicts((mode,))`'s corpus-side check reports
         # nothing but the conflict a given test is actually asking about.
         # Derived from the manifest, never transcribed (the item-150
-        # 2026-09-15 revision re-homed `mode2_fragment` onto mode 1 and left
-        # `mode3_inject_islands` alone on mode 4).
+        # 2026-09-15 revision re-homed `fragment` onto mode 1 and left
+        # `inject_islands` alone on mode 4).
         corpus_cases=tuple(
             fm.CorpusCaseExpectation(
                 case_id=case["case_id"],
@@ -192,27 +191,11 @@ def _manifest_case(case_id: str) -> dict:
     raise AssertionError(f"case_id {case_id!r} not found in the committed manifest")
 
 
-def _vision_mode_titles() -> dict:
-    """Parse vision.md §6's numbered list live -- A10 keeps this parse in the
-    test, not in the production module."""
-    text = _VISION_PATH.read_text(encoding="utf-8")
-    section_match = re.search(
-        r"^## 6\. Segmentation Failure Modes[^\n]*\n(.*?)(?=^## \d|\Z)",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    assert section_match is not None, "expected a '## 6. Segmentation Failure Modes' section"
-    section_text = section_match.group(1)
-    items = re.findall(r"^\d+\.\s+(.+)$", section_text, flags=re.MULTILINE)
-    assert items, "expected numbered §6 items"
-    titles = {}
-    for index, raw in enumerate(items, start=1):
-        title = raw.strip()
-        if title.endswith("."):
-            title = title[:-1]
-        title = re.sub(r"\s+", " ", title).strip()
-        titles[index] = title
-    return titles
+# _vision_mode_titles()/_VISION_PATH retired (item 152, 2026-09-16): both
+# were used only by the two AC16 tests below, which are themselves retired
+# because vision.md v4 carries no numbered §6 list left to parse. AC6/AC7 of
+# `tests/test_152_retire_vision_seed.py` carry the frozen-provenance and
+# every-disposition-resolves claims those tests made.
 
 
 # =========================================================================== #
@@ -264,12 +247,13 @@ def test_ac1_zero_argument_calls_accepted(monkeypatch):
 
 def test_ac1_no_module_level_heavy_import():
     """AC1's "no heavy import" clause, honestly scoped: ``failure_modes.py``
-    itself has no top-level ``numpy``/``scipy``/``nibabel`` import. A bare
-    ``import segfacet.X`` cannot be asserted heavy-module-free at all --
-    ``src/segfacet/__init__.py`` unconditionally imports
-    ``segfacet.features.fragmentation``, which imports ``nibabel`` at module
-    level, before any submodule's own body runs (see this item's Decisions
-    log; not a path this item may edit)."""
+    itself has no top-level ``numpy``/``scipy``/``nibabel`` import. This is
+    the module-level check available to it -- ``import segfacet.X`` alone is
+    not a reliable heavy-module-free probe, since ``src/segfacet/__init__.py``
+    eagerly imports several other submodules at package-import time (see this
+    item's Decisions log; not a path this item may edit), even though
+    ``segfacet.features.fragmentation`` itself is now resolved lazily
+    (item 159's PEP 562 ``__getattr__``)."""
     source = _FAILURE_MODES_SOURCE.read_text(encoding="utf-8")
     assert source, "expected non-empty source for failure_modes.py"
     heavy = _top_level_heavy_imports(source)
@@ -285,23 +269,20 @@ def test_ac1_heavy_import_helper_flags_a_positive_case():
     assert heavy == {"numpy"}
 
 
-def test_ac1_import_adds_no_heavy_module_beyond_the_package_init():
-    """``import segfacet.failure_modes`` may load whatever
-    ``import segfacet`` already loads (the package init's own cost, out of
-    this item's authorised paths) but must add no *further* heavy module."""
-    bare = run_utf8(
-        [
-            sys.executable,
-            "-c",
-            "import sys, json\nimport segfacet\nprint(json.dumps(sorted(sys.modules)))",
-        ],
-        cwd=_REPO_ROOT,
-        timeout=60,
-    )
-    assert bare.returncode == 0, bare.stderr
-    assert bare.stdout, "expected stdout from the bare-package subprocess"
-    bare_loaded = set(json.loads(bare.stdout))
+def test_ac1_import_adds_no_heavy_module():
+    """``import segfacet.failure_modes`` loads no ``numpy``/``scipy``/
+    ``nibabel`` root at all.
 
+    Reconciled by item 159 (D-a/AC1): the package init's own heavy imports
+    were the "package init's own cost, out of this item's authorised paths"
+    the previous shape of this test carved out and asserted was non-empty
+    (``assert heavy_bare, "expected the bare package import to already load
+    a heavy module"``). Item 159 made the two heavy re-exports
+    (``segfacet.empty``, ``segfacet.features.fragmentation``) lazy via
+    PEP 562, so a bare ``import segfacet`` no longer carries that cost --
+    pinning it as *expected* would now pin the defect the fix removes. The
+    claim this item actually needs -- ``failure_modes`` itself is
+    import-light -- is asserted directly instead."""
     with_module = run_utf8(
         [
             sys.executable,
@@ -315,13 +296,8 @@ def test_ac1_import_adds_no_heavy_module_beyond_the_package_init():
     assert with_module.stdout, "expected stdout from the failure_modes subprocess"
     module_loaded = set(json.loads(with_module.stdout))
 
-    heavy_bare = {m for m in bare_loaded if m.split(".")[0] in _HEAVY_ROOTS}
     heavy_module = {m for m in module_loaded if m.split(".")[0] in _HEAVY_ROOTS}
-    assert heavy_bare, "expected the bare package import to already load a heavy module"
-    assert heavy_module == heavy_bare, (
-        sorted(heavy_module - heavy_bare),
-        sorted(heavy_bare - heavy_module),
-    )
+    assert heavy_module == set(), sorted(heavy_module)
 
 
 # =========================================================================== #
@@ -605,7 +581,7 @@ def test_ac7_intended_rules_list_rejected():
 def test_ac7_corpus_cases_bare_string_rejected():
     import segfacet.failure_modes as fm
 
-    kwargs = _mode4_kwargs(corpus_cases="mode3_inject_islands")
+    kwargs = _mode4_kwargs(corpus_cases="inject_islands")
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
@@ -635,7 +611,7 @@ def test_ac7_expected_firing_bare_string_rejected_not_split_character_wise():
     kwargs = _mode4_kwargs(
         corpus_cases=(
             fm.CorpusCaseExpectation(
-                case_id="mode3_inject_islands",
+                case_id="inject_islands",
                 corpus="geometric",
                 expected_firing="border",
                 reason="adversarial: bare string, must not split into 'b','o','r','d','e','r'",
@@ -655,7 +631,7 @@ def test_ac7_expected_firing_list_rejected():
     kwargs = _mode4_kwargs(
         corpus_cases=(
             fm.CorpusCaseExpectation(
-                case_id="mode3_inject_islands",
+                case_id="inject_islands",
                 corpus="geometric",
                 expected_firing=["fragmentation"],
                 reason="adversarial: list, not tuple",
@@ -804,7 +780,7 @@ def test_ac10_wrong_expected_firing_drops_validated_to_implemented():
     import segfacet.failure_modes as fm
 
     wrong_case = fm.CorpusCaseExpectation(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         corpus="geometric",
         expected_firing=("__item144_no_such_rule_ever_fires__",),
         reason="adversarial: deliberately wrong expected_firing",
@@ -824,7 +800,7 @@ def test_adv_expected_firing_empty_on_case_that_fires_something_is_disagreement(
     import segfacet.failure_modes as fm
 
     empty_case = fm.CorpusCaseExpectation(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         corpus="geometric",
         expected_firing=(),
         reason="adversarial: empty expected_firing against a case that fires",
@@ -1016,13 +992,13 @@ def test_adv_duplicate_case_id_within_corpus_cases_rejected():
 
     cases = (
         fm.CorpusCaseExpectation(
-            case_id="mode3_inject_islands",
+            case_id="inject_islands",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason="first",
         ),
         fm.CorpusCaseExpectation(
-            case_id="mode3_inject_islands",
+            case_id="inject_islands",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason="duplicate",
@@ -1033,7 +1009,7 @@ def test_adv_duplicate_case_id_within_corpus_cases_rejected():
         fm.ModeSpec(**kwargs)
     message = str(excinfo.value)
     assert "4" in message
-    assert "mode3_inject_islands" in message
+    assert "inject_islands" in message
 
 
 def test_adv_duplicate_mode_ids_rejected_rather_than_silently_dropped():
@@ -1059,7 +1035,7 @@ def test_adv_case_agrees_rejects_a_bare_string_expected_firing():
     import segfacet.failure_modes as fm
 
     case = fm.CorpusCaseExpectation(
-        case_id="mode8_force_overlap",
+        case_id="force_overlap",
         corpus="geometric",
         expected_firing="overlap",
         reason="adversarial: bare string reaching the public derivation directly",
@@ -1068,7 +1044,7 @@ def test_adv_case_agrees_rejects_a_bare_string_expected_firing():
         fm.case_agrees(case)
     message = str(excinfo.value)
     assert "expected_firing" in message
-    assert "mode8_force_overlap" in message
+    assert "force_overlap" in message
 
 
 # =========================================================================== #
@@ -1306,60 +1282,15 @@ def test_ac16_stage18_anchors_and_mode_anchor_paths_agree_exactly():
             assert path in feature_docs.MODE_ANCHOR_PATHS[mode_id], (mode_id, path)
 
 
-def test_ac16_vision_section_six_seed_titles_all_have_a_resolving_disposition():
-    """Re-targeted at the item-150 sign-off: mode ``name`` fields no longer
-    equal vision.md §6's titles, by design -- §6 is the **seed** the
-    catalogue started from, and ``VISION_SEED_DISPOSITION`` records what
-    became of each of its titles (``mode:<id>``, ``condition:<id>`` or
-    ``retired``).
-
-    The §6 parse here is the test's own (``_vision_mode_titles``, A10), so
-    the two sides are independent: a title added to or dropped from §6
-    without a matching disposition fails here even if the module's own
-    parse and its mapping were changed together.
-    """
-    import segfacet.failure_modes as fm
-
-    titles = _vision_mode_titles()
-    assert titles
-    assert set(titles.values()) == set(fm.VISION_SEED_DISPOSITION), (
-        sorted(set(titles.values()) - set(fm.VISION_SEED_DISPOSITION)),
-        sorted(set(fm.VISION_SEED_DISPOSITION) - set(titles.values())),
-    )
-
-    resolved = 0
-    for title, disposition in sorted(fm.VISION_SEED_DISPOSITION.items()):
-        kind, _sep, target = disposition.partition(":")
-        if disposition == "retired":
-            resolved += 1
-        elif kind == "mode":
-            assert target.isdigit(), (title, disposition)
-            assert int(target) in fm.SPECIFICATION, (title, disposition)
-            resolved += 1
-        elif kind == "condition":
-            assert target in fm.CONDITIONS, (title, disposition)
-            resolved += 1
-        else:
-            raise AssertionError(f"unrecognised disposition {disposition!r} for {title!r}")
-    assert resolved == len(titles)
-
-    assert fm.vision_seed_conflicts() == ()
-
-
-def test_ac16_vision_seed_conflicts_reports_an_unresolvable_disposition(monkeypatch):
-    """The conformance check must be able to fail: a disposition naming a
-    mode id the specification does not carry is reported, naming it."""
-    import segfacet.failure_modes as fm
-
-    titles = _vision_mode_titles()
-    assert titles
-    victim = titles[1]
-    broken = dict(fm.VISION_SEED_DISPOSITION)
-    broken[victim] = "mode:9999"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", broken)
-
-    conflicts = fm.vision_seed_conflicts()
-    assert any("mode:9999" in c for c in conflicts), conflicts
+# test_ac16_vision_section_six_seed_titles_all_have_a_resolving_disposition
+# and test_ac16_vision_seed_conflicts_reports_an_unresolvable_disposition
+# retired (item 152, 2026-09-16): both called `fm.vision_seed_conflicts()`,
+# retired with `vision_seed_titles()` because vision.md v4's §6 carries no
+# numbered list left to parse. The frozen-provenance and
+# every-disposition-resolves claims they made are
+# `tests/test_152_retire_vision_seed.py::test_ac6_provenance_map_is_frozen_at_its_v3_value`
+# and its AC7 pair (including the positive control for an unresolvable
+# disposition).
 
 
 # =========================================================================== #
@@ -1700,36 +1631,36 @@ def test_adv_main_called_twice_is_deterministic(tmp_path):
 
 
 def test_adv_islands_corpus_case_is_pipeline_detected_and_measured_live():
-    """``mode3_inject_islands`` keeps its historical ``modeN_`` case id; the
+    """``inject_islands`` keeps its historical ``modeN_`` case id; the
     mode it belongs to is **4** (islands) since the item-150 sign-off -- read
     from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 
-    case = _manifest_case("mode3_inject_islands")
+    case = _manifest_case("inject_islands")
     assert case["detection"] == "pipeline"
     assert case["failure_mode"] == 4
 
     mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
     assert len(mode.corpus_cases) >= 1
-    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "mode3_inject_islands")
+    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "inject_islands")
     measured = fm.measured_firing(case_expectation)
     assert measured, "expected a non-empty measured firing set for a genuinely-firing case"
     assert set(measured) == set(case_expectation.expected_firing)
 
 
 def test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live():
-    """``mode8_force_overlap`` is the case id the corpus has always carried
+    """``force_overlap`` is the case id the corpus has always carried
     (the ``modeN_`` prefixes are historical), but the mode it belongs to is
     **15** since the item-150 sign-off re-assigned ids -- the mode id is read
     from the manifest rather than named, so the test follows the case."""
     import segfacet.failure_modes as fm
 
-    case = _manifest_case("mode8_force_overlap")
+    case = _manifest_case("force_overlap")
     assert case["detection"] == "reconstructed_record"
 
     mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
     assert len(mode.corpus_cases) >= 1
-    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "mode8_force_overlap")
+    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "force_overlap")
     measured = fm.measured_firing(case_expectation)
     assert measured, "expected a non-empty measured firing set for a genuinely-firing case"
     assert set(measured) == set(case_expectation.expected_firing)

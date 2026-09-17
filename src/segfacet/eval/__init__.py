@@ -15,7 +15,7 @@ per-case outcome classification** primitive (item 052; see
 (item 053; see :mod:`segfacet.eval.harness`) that assembles the three per case
 against the real pipeline, the **cohort-level metrics aggregation** (item
 054; see :mod:`segfacet.eval.metrics`) that reduces a harness cohort to
-FPR-on-GT, per-§6-mode sensitivity, and DICE-vs-flag / feature-divergence-vs-
+FPR-on-GT, per-failure-mode sensitivity, and DICE-vs-flag / feature-divergence-vs-
 flag correlations, the **threshold-calibration loop** (item 055; see
 :mod:`segfacet.eval.calibrate`) that sweeps a config-parameter grid through 053
 + 054 and selects the best feasible setting against a documented objective,
@@ -24,9 +24,10 @@ and the **evaluation report (JSON + human) and calibrated-config recorder**
 chosen calibration into a versioned, schema-validated JSON report, a
 stdlib-only plain-text rendering, and a byte-reproducible calibrated
 ``HeuristicConfig`` YAML writer, and the **per-mode failure-magnitude metric
-surface** (item 099; see :mod:`segfacet.eval.per_mode`) that maps each of the
-eight §6 failure modes to one named scalar metric measuring *how much* of the
-mode is present in a single case, complementing item 054's per-mode
+surface** (item 099; see :mod:`segfacet.eval.per_mode`) that maps eight named
+scalar metrics, each optionally homed on a specification failure mode (item
+153), to *how much* of that measurement is present in a single case,
+complementing item 054's per-mode
 *sensitivity* (a cohort-wide *detection-rate*, not a per-case magnitude), and
 the **severity-ladder monotonicity & cross-mode specificity harness** (item
 100; see :mod:`segfacet.eval.severity_ladder`) that runs item 099's eight
@@ -108,9 +109,12 @@ from .report import (
 )
 from .severity_ladder import (
     COUPLING_THRESHOLD,
-    DEGENERATE_LADDER_MODES,
+    DEGENERATE_LADDERS,
     KNOWN_CROSS_MODE_COUPLINGS,
     LADDER_SEED,
+    MODE_LADDER_DISPOSITION_VALUES,
+    MODE_LADDER_DISPOSITIONS,
+    RECORDED_MARGIN_PROVENANCE,
     RECORDED_MARGINS,
     SEVERITY_LADDERS,
     SUPPLEMENTARY_LADDERS,
@@ -122,6 +126,8 @@ from .severity_ladder import (
     LadderRungSpec,
     LadderSpec,
     LadderVerdict,
+    MeasurementProvenance,
+    ModeLadderDisposition,
     evaluate_ladder,
     run_severity_harness,
     score_harness,
@@ -187,11 +193,16 @@ __all__ = [
     "LadderVerdict",
     "HarnessVerdict",
     "CrossModeCoupling",
+    "MeasurementProvenance",
+    "ModeLadderDisposition",
     "SEVERITY_LADDERS",
     "SUPPLEMENTARY_LADDERS",
-    "DEGENERATE_LADDER_MODES",
+    "DEGENERATE_LADDERS",
     "KNOWN_CROSS_MODE_COUPLINGS",
     "RECORDED_MARGINS",
+    "RECORDED_MARGIN_PROVENANCE",
+    "MODE_LADDER_DISPOSITIONS",
+    "MODE_LADDER_DISPOSITION_VALUES",
     "COUPLING_THRESHOLD",
     "LADDER_SEED",
     "evaluate_ladder",

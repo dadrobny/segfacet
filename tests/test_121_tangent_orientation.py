@@ -15,7 +15,7 @@ and its narrowness -- are the builder's responsibility; AC26 is verified by
 the item's Validation section's ``git diff`` commands, not by pytest).
 
 Adversarial scenarios: two-centroid minimum, empty-sequence ValueError,
-a doubling-back (``mode4_relabel_swap``-shaped) sequence exercising the wrap
+a doubling-back (``relabel_swap``-shaped) sequence exercising the wrap
 convention against item 122's unwrap convention, a degenerate near-zero
 tangent, coincident centroids propagating ``fit_centroid_spline``'s own
 ValueError, anisotropic spacing, determinism, immutability, merge-by-label
@@ -129,7 +129,7 @@ def _two_centroid() -> List[LabelCentroid]:
 
 
 def _mode4_relabel_swap_shape() -> List[LabelCentroid]:
-    """A doubling-back coronal sequence in the shape of mode4_relabel_swap --
+    """A doubling-back coronal sequence in the shape of relabel_swap --
     every wrapped angle must stay inside (-180, 180], unlike item 122's
     unwrapped ``coronal_tangent_angles_deg`` on the same shape."""
     xs = [0.0, 40.0, 65.0, 40.0, -40.0, -65.0]
@@ -164,13 +164,13 @@ def _clean_control_ordered_centroids():
 def _mode4_relabel_swap_case() -> dict:
     cases = load_manifest()["cases"]
     for case in cases:
-        if case["case_id"] == "mode4_relabel_swap":
+        if case["case_id"] == "relabel_swap":
             return case
-    raise AssertionError("mode4_relabel_swap not found in corpus manifest")
+    raise AssertionError("relabel_swap not found in corpus manifest")
 
 
 def _mode4_relabel_swap_ordered_centroids() -> List[LabelCentroid]:
-    """The real ``mode4_relabel_swap`` corpus case's centroids, ordered by
+    """The real ``relabel_swap`` corpus case's centroids, ordered by
     label -- unlike ``_mode4_relabel_swap_shape``'s hand-built approximation,
     a freshly built report for this case (its committed golden snapshot was
     retired by item 126) measures ``coronal_tangent_angles_deg`` entries at
@@ -412,7 +412,7 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
     axis is cranio-caudal by construction. The case count is derived from the
     manifest rather than hard-coded, so a new corpus case is covered by
     default instead of silently slipping past a frozen number."""
-    exceptions = {"mode3_inject_islands", "mode8_force_overlap", "fuse_adjacent"}
+    exceptions = {"inject_islands", "force_overlap", "fuse_adjacent"}
     cases = load_manifest()["cases"]
     assert exceptions <= {c["case_id"] for c in cases}, (
         "named principal-axis exception(s) are not in the corpus manifest"
@@ -795,7 +795,7 @@ def test_adv_doubling_back_sequence_stays_within_wrap_bounds():
 def test_adv_doubling_back_contrasted_with_unwrapped_curvature_convention():
     """Item 121's per-vertebra angles stay wrapped to (-180, 180], while item
     122's stage3.curvature.coronal_tangent_angles_deg on the real
-    ``mode4_relabel_swap`` corpus case is deliberately unwrapped and does
+    ``relabel_swap`` corpus case is deliberately unwrapped and does
     leave that range (committed golden measures 182.3510 / 184.7816 /
     358.5342 degrees there) -- the two conventions differ on purpose (see the
     item's Decisions log). The hand-built ``_mode4_relabel_swap_shape``
@@ -816,7 +816,7 @@ def test_adv_doubling_back_contrasted_with_unwrapped_curvature_convention():
     unwrapped = curvature_result.coronal_tangent_angles_deg
     assert any(v <= -180.0 or v > 180.0 for v in unwrapped), (
         "expected item 122's unwrapped array to leave (-180, 180] on the "
-        "real mode4_relabel_swap corpus case, contrasting with item 121's "
+        "real relabel_swap corpus case, contrasting with item 121's "
         "wrapped convention"
     )
 

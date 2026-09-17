@@ -50,11 +50,12 @@ robust-z), with per-feature findings in ascending feature-name order.
 Reason tags are distinct from item 047's geometric ``"Reference ..."`` tags
 so a reader can tell the two reference-delta families apart.
 
-§6 mode 9 (item 146): the reference-relative form of "intensity"'s tissue-
-plausibility judgement. Dispositioned mode-less by item 137 because §6's
-eight numbered modes name no such failure; item 146 entered mode 9
-("Implausible tissue under a label") into
-``segfacet.failure_modes.SPECIFICATION`` and moved this declaration onto it
+Failure mode 16 (implausible tissue under a label) in
+``segfacet.failure_modes.SPECIFICATION``: the reference-relative form of
+"intensity"'s tissue-plausibility judgement. Dispositioned mode-less by item
+137 because the eight-mode seed list of vision.md v3 named no such failure;
+item 146 entered the mode into the specification (as mode 9, renumbered 16
+at the item-150 sign-off) and moved this declaration onto it
 -- see ``IntensityReferenceDeltaRule.mode_declaration``. No threshold,
 condition, severity or ``evaluate`` line changed with it.
 """
@@ -129,8 +130,9 @@ class IntensityReferenceDeltaRule(Rule):
 
     rule_id = "intensity_reference_delta"
 
-    # §6 disposition (item 146, superseding item 137's mode-less
-    # disposition): mode 9, for the same reason as "intensity" -- it is the
+    # Disposition (item 146, superseding item 137's mode-less
+    # disposition): specification mode 16 (mode 9 before the item-150
+    # sign-off), for the same reason as "intensity" -- it is the
     # reference-relative form of the same tissue-plausibility judgement.
     mode_declaration = RuleModeDeclaration(
         modes=(16,),

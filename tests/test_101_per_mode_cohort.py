@@ -69,8 +69,8 @@ Covers Acceptance Criteria AC1-AC22, AC26-AC27 (AC23-AC25, the CLI, live in
 
 Adversarial / edge-case scenarios included: an empty cohort; a cohort where
 every record's ``per_mode`` is ``None`` (forgot the flag); a mode ``None`` in
-run A but a float in run B; ``inf``/``nan`` absence; ``by_mode(0)``/
-``by_mode(9)`` ``KeyError``; ``from_dict`` on a truncated/malformed block;
+run A but a float in run B; ``inf``/``nan`` absence; ``by_metric`` with an
+unknown metric name raising ``KeyError``; ``from_dict`` on a truncated/malformed block;
 identical ``run_id``s on both sides (allowed).
 """
 
@@ -108,6 +108,25 @@ def _pmc():
     return per_mode_cohort
 
 
+# Item 153: PER_MODE_METRIC_SPECS, RunPerModeSummary.by_mode and
+# RunComparison.by_mode are re-keyed off the retired legacy mode id onto
+# metric name (by_mode -> by_metric). Every hand-built fixture and helper
+# below keeps working in the old legacy-int space internally and translates
+# only at the point of touching the re-keyed production API -- same eight
+# metrics, same order, same values (A5).
+_LEGACY_TO_METRIC_NAME = {
+    1: "unanchored_foreground_fraction",
+    2: "min_dominant_component_fraction",
+    3: "rogue_island_count",
+    4: "mislabelled_volume_fraction",
+    5: "missing_level_count",
+    6: "fov_clipped_label_count",
+    7: "out_of_order_label_count",
+    8: "overlapping_voxel_count",
+}
+_METRIC_NAME_TO_LEGACY = {v: k for k, v in _LEGACY_TO_METRIC_NAME.items()}
+
+
 def _harness_mod():
     import segfacet.eval.harness as harness
 
@@ -128,7 +147,7 @@ def _arr(cid: str) -> np.ndarray:
     return np.asanyarray(loaded_seg_image(_CASES[cid]).dataobj)
 
 
-_FIXTURE_CASE_IDS = ("clean_control", "mode1_displace", "mode3_inject_islands")
+_FIXTURE_CASE_IDS = ("clean_control", "displace", "inject_islands")
 
 
 @pytest.fixture(scope="module")
@@ -170,7 +189,7 @@ def _pmm(values: dict, mean_dice=None, volume_weighted_dice=None) -> PerModeMetr
     ``None``)."""
     entries = []
     for mode in range(1, 9):
-        spec = PER_MODE_METRIC_SPECS[mode]
+        spec = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
         value = values.get(mode)
         entries.append(
             PerModeMetric(
@@ -182,6 +201,8 @@ def _pmm(values: dict, mean_dice=None, volume_weighted_dice=None) -> PerModeMetr
                 baseline=spec.baseline,
                 source=spec.source,
                 detail=None if value is not None else "test stub: no value",
+                mode_disposition=spec.mode_disposition,
+                condition=spec.condition,
             )
         )
     return PerModeMetrics(
@@ -215,13 +236,15 @@ def _fake_case(case_id, values, mean_dice=None, volume_weighted_dice=None) -> _F
 
 def _aggregate(mode, mean, *, n_cases=2, n_with_value=2, detection_rate=None, n_detection_cases=0):
     pmc = _pmc()
-    spec = PER_MODE_METRIC_SPECS[mode]
+    spec = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]]
     return pmc.ModeAggregate(
         failure_mode=spec.failure_mode,
         failure_mode_name=spec.failure_mode_name,
         metric_name=spec.metric_name,
         direction=spec.direction,
         baseline=spec.baseline,
+        mode_disposition=spec.mode_disposition,
+        condition=spec.condition,
         n_cases=n_cases,
         n_with_value=n_with_value,
         mean=mean,
@@ -353,7 +376,7 @@ def test_ac2_evaluate_cohort_default_omitted_every_record_per_mode_is_none():
             candidate=_arr(cid),
             expected={"expected_verdict": "pass"},
         )
-        for cid in ("clean_control", "mode1_displace")
+        for cid in ("clean_control", "displace")
     ]
     cohort = harness.evaluate_cohort(cases, _CONFIG)
     for record in cohort.cases:
@@ -392,7 +415,7 @@ def test_ac3_hook_matches_independently_computed_compute_per_mode_metrics():
     from segfacet.pipeline import run_qc
 
     harness = _harness_mod()
-    cand_arr = _arr("mode1_displace")
+    cand_arr = _arr("displace")
 
     case = harness.EvaluationCase(
         case_id="c",
@@ -442,7 +465,7 @@ def test_ac4_evaluate_case_calls_run_qc_and_compute_per_mode_metrics_exactly_onc
     case = harness.EvaluationCase(
         case_id="c",
         gt=_GT_ARRAY,
-        candidate=_arr("mode1_displace"),
+        candidate=_arr("displace"),
         expected={"expected_verdict": "pass"},
     )
     harness.evaluate_case(case, _CONFIG, per_mode=True)
@@ -478,7 +501,7 @@ def test_ac4_evaluate_cohort_calls_each_exactly_once_per_case(monkeypatch):
             candidate=_arr(cid),
             expected={"expected_verdict": "pass"},
         )
-        for cid in ("clean_control", "mode1_displace")
+        for cid in ("clean_control", "displace")
     ]
     harness.evaluate_cohort(cases, _CONFIG, per_mode=True)
 
@@ -500,11 +523,11 @@ def test_ac5_candidate_less_case_modes_1_4_5_none_2_3_6_7_8_float_mean_dice_none
     pm = result.per_mode
     assert pm is not None
     for mode in (1, 4, 5):
-        entry = pm.by_mode(mode)
+        entry = pm.by_metric(_LEGACY_TO_METRIC_NAME[mode])
         assert entry.value is None, mode
         assert isinstance(entry.detail, str) and entry.detail, mode
     for mode in (2, 3, 6, 7, 8):
-        entry = pm.by_mode(mode)
+        entry = pm.by_metric(_LEGACY_TO_METRIC_NAME[mode])
         assert type(entry.value) is float, mode
     assert pm.mean_dice is None
 
@@ -514,9 +537,9 @@ def test_ac5_real_cohort_fixture_no_candidate_case_matches(real_cohort):
     pm = record.per_mode
     assert pm is not None
     for mode in (1, 4, 5):
-        assert pm.by_mode(mode).value is None, mode
+        assert pm.by_metric(_LEGACY_TO_METRIC_NAME[mode]).value is None, mode
     for mode in (2, 3, 6, 7, 8):
-        assert type(pm.by_mode(mode).value) is float, mode
+        assert type(pm.by_metric(_LEGACY_TO_METRIC_NAME[mode]).value) is float, mode
     assert pm.mean_dice is None
 
 
@@ -529,10 +552,10 @@ def test_ac6_empty_cohort_returns_eight_spec_consistent_aggregates():
     pmc = _pmc()
     summary = pmc.summarise_run_per_mode(_FakeCohort(cases=()), run_id="empty")
     assert len(summary.per_mode) == 8
-    assert tuple(a.failure_mode for a in summary.per_mode) == tuple(range(1, 9))
+    assert tuple(a.metric_name for a in summary.per_mode) == tuple(PER_MODE_METRIC_SPECS)
     for agg in summary.per_mode:
-        spec = PER_MODE_METRIC_SPECS[agg.failure_mode]
-        assert agg.metric_name == spec.metric_name
+        spec = PER_MODE_METRIC_SPECS[agg.metric_name]
+        assert agg.failure_mode == spec.failure_mode
         assert agg.direction == spec.direction
         assert agg.baseline == spec.baseline
 
@@ -554,10 +577,10 @@ def test_ac6_real_cohort_matches_spec_table(real_cohort):
     pmc = _pmc()
     summary = pmc.summarise_run_per_mode(real_cohort, run_id="real")
     assert len(summary.per_mode) == 8
-    assert tuple(a.failure_mode for a in summary.per_mode) == tuple(range(1, 9))
+    assert tuple(a.metric_name for a in summary.per_mode) == tuple(PER_MODE_METRIC_SPECS)
     for agg in summary.per_mode:
-        spec = PER_MODE_METRIC_SPECS[agg.failure_mode]
-        assert agg.metric_name == spec.metric_name
+        spec = PER_MODE_METRIC_SPECS[agg.metric_name]
+        assert agg.failure_mode == spec.failure_mode
         assert agg.direction == spec.direction
         assert agg.baseline == spec.baseline
 
@@ -586,7 +609,7 @@ def test_ac7_hand_computed_mix_of_present_and_none_values():
         8: (2, 150.0, 100.0, 200.0, 300.0),
     }
     for mode, (n_with_value, mean, minimum, maximum, total) in expected.items():
-        agg = summary.by_mode(mode)
+        agg = summary.by_metric(_LEGACY_TO_METRIC_NAME[mode])
         assert agg.n_cases == 3, mode
         assert agg.n_with_value == n_with_value, mode
         assert agg.mean == pytest.approx(mean), mode
@@ -601,7 +624,7 @@ def test_ac7_all_none_for_a_mode_yields_none_stats_including_total():
     case_b = _fake_case("b", {**_full(0.0), 4: None})
     cohort = _FakeCohort(cases=(case_a, case_b))
     summary = pmc.summarise_run_per_mode(cohort, run_id="r")
-    mode4 = summary.by_mode(4)
+    mode4 = summary.by_metric(_LEGACY_TO_METRIC_NAME[4])
     assert mode4.n_with_value == 0
     assert mode4.mean is None
     assert mode4.minimum is None
@@ -618,7 +641,7 @@ def test_ac7_records_with_per_mode_none_are_skipped_not_zero():
     case_b = _FakeCase(case_id="b", per_mode=None)
     cohort = _FakeCohort(cases=(case_a, case_b))
     summary = pmc.summarise_run_per_mode(cohort, run_id="r")
-    mode1 = summary.by_mode(1)
+    mode1 = summary.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert mode1.n_with_value == 1
     assert mode1.mean == pytest.approx(1.0)
 
@@ -655,25 +678,27 @@ def _fake_cohort_metrics(per_mode_entries) -> CohortMetrics:
 
 def test_ac8_detection_rate_and_n_detection_cases_match_per_mode_sensitivity_verbatim():
     pmc = _pmc()
-    sens3 = PerModeSensitivity(
-        failure_mode=3, failure_mode_name="rogue islands", n_cases=5,
+    rogue_metric = PER_MODE_METRIC_SPECS["rogue_island_count"]
+    missing_metric = PER_MODE_METRIC_SPECS["missing_level_count"]
+    sens_rogue = PerModeSensitivity(
+        failure_mode=rogue_metric.failure_mode, failure_mode_name="rogue islands", n_cases=5,
         n_caught=4, n_caught_by_designated_rule=3, sensitivity=0.6, caught_rate=0.8,
     )
-    sens5 = PerModeSensitivity(
-        failure_mode=5, failure_mode_name="missing level", n_cases=2,
+    sens_missing = PerModeSensitivity(
+        failure_mode=missing_metric.failure_mode, failure_mode_name="missing level", n_cases=2,
         n_caught=2, n_caught_by_designated_rule=2, sensitivity=1.0, caught_rate=1.0,
     )
-    metrics = _fake_cohort_metrics([sens3, sens5])
+    metrics = _fake_cohort_metrics([sens_rogue, sens_missing])
     cohort = _FakeCohort(cases=(_fake_case("a", _full(0.0)),))
     summary = pmc.summarise_run_per_mode(cohort, run_id="r", metrics=metrics)
 
-    agg3 = summary.by_mode(3)
-    assert agg3.detection_rate == 0.6
-    assert agg3.n_detection_cases == 5
+    agg_rogue = summary.by_metric("rogue_island_count")
+    assert agg_rogue.detection_rate == 0.6
+    assert agg_rogue.n_detection_cases == 5
 
-    agg5 = summary.by_mode(5)
-    assert agg5.detection_rate == 1.0
-    assert agg5.n_detection_cases == 2
+    agg_missing = summary.by_metric("missing_level_count")
+    assert agg_missing.detection_rate == 1.0
+    assert agg_missing.n_detection_cases == 2
 
 
 def test_ac8_modes_absent_from_metrics_are_none_and_zero():
@@ -687,7 +712,7 @@ def test_ac8_modes_absent_from_metrics_are_none_and_zero():
     summary = pmc.summarise_run_per_mode(cohort, run_id="r", metrics=metrics)
 
     for mode in (1, 2, 4, 5, 6, 7, 8):
-        agg = summary.by_mode(mode)
+        agg = summary.by_metric(_LEGACY_TO_METRIC_NAME[mode])
         assert agg.detection_rate is None, mode
         assert agg.n_detection_cases == 0, mode
 
@@ -749,7 +774,7 @@ def test_ac10_eight_deltas_mode_order_value_a_b_and_delta():
     b = _summary("b", ("c1", "c2"), _full(2.0))
     cmp = pmc.compare_runs(a, b)
     assert len(cmp.per_mode) == 8
-    assert tuple(d.failure_mode for d in cmp.per_mode) == tuple(range(1, 9))
+    assert tuple(d.metric_name for d in cmp.per_mode) == tuple(PER_MODE_METRIC_SPECS)
     for d in cmp.per_mode:
         assert d.value_a == 1.0
         assert d.value_b == 2.0
@@ -761,7 +786,7 @@ def test_ac10_delta_is_none_when_value_a_is_none():
     a = _summary("a", ("c1",), {**_full(1.0), 3: None})
     b = _summary("b", ("c1",), _full(1.0))
     cmp = pmc.compare_runs(a, b)
-    d3 = cmp.by_mode(3)
+    d3 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[3])
     assert d3.value_a is None
     assert d3.delta is None
 
@@ -771,7 +796,7 @@ def test_ac10_delta_is_none_when_value_b_is_none():
     a = _summary("a", ("c1",), _full(1.0))
     b = _summary("b", ("c1",), {**_full(1.0), 3: None})
     cmp = pmc.compare_runs(a, b)
-    d3 = cmp.by_mode(3)
+    d3 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[3])
     assert d3.value_b is None
     assert d3.delta is None
 
@@ -783,7 +808,7 @@ def test_ac10_mode_absent_in_a_present_in_b_delta_none_not_zero():
     a = _summary("a", ("c1",), {**_full(2.0), 1: None})
     b = _summary("b", ("c1",), _full(2.0))
     cmp = pmc.compare_runs(a, b)
-    d1 = cmp.by_mode(1)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert d1.delta is None
     assert d1.normalised_delta is None
     assert d1.worsened is None
@@ -806,7 +831,7 @@ def test_ac11_scale_and_normalised_delta_general_case():
     a = _summary("a", ("c1",), {**_full(0.0), 1: 0.2})
     b = _summary("b", ("c1",), {**_full(0.0), 1: 0.8})
     cmp = pmc.compare_runs(a, b)
-    d1 = cmp.by_mode(1)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert d1.scale == pytest.approx(1.0)
     assert d1.normalised_delta == pytest.approx(0.6)
 
@@ -825,7 +850,7 @@ def test_ac11_scale_zero_yields_normalised_delta_exactly_zero_not_zerodivision()
     a = _summary("a", ("c1",), {**_full(0.0), 1: 0.0})
     b = _summary("b", ("c1",), {**_full(0.0), 1: 0.0})
     cmp = pmc.compare_runs(a, b)
-    d1 = cmp.by_mode(1)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert d1.scale == pytest.approx(1.0)
     assert d1.normalised_delta == 0.0
 
@@ -839,7 +864,7 @@ def test_ac11_normalised_delta_is_none_when_delta_is_none(value_a, value_b):
     a = _summary("a", ("c1",), {**_full(0.0), 1: value_a})
     b = _summary("b", ("c1",), {**_full(0.0), 1: value_b})
     cmp = pmc.compare_runs(a, b)
-    d1 = cmp.by_mode(1)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
     assert d1.normalised_delta is None
 
 
@@ -865,7 +890,7 @@ def test_ac12_worsened_is_none_iff_delta_is_none():
     a = _summary("a", ("c1",), {**_full(0.0), 1: None})
     b = _summary("b", ("c1",), _full(0.0))
     cmp = pmc.compare_runs(a, b)
-    assert cmp.by_mode(1).worsened is None
+    assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[1]).worsened is None
 
 
 @pytest.mark.parametrize(
@@ -881,13 +906,13 @@ def test_ac12_worsened_is_none_iff_delta_is_none():
 )
 def test_ac12_worsened_direction_matrix(mode, value_a, value_b, expected_worsened):
     pmc = _pmc()
-    baseline = PER_MODE_METRIC_SPECS[mode].baseline
+    baseline = PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[mode]].baseline
     a_values = {**_full(baseline), mode: value_a}
     b_values = {**_full(baseline), mode: value_b}
     a = _summary("a", ("c1",), a_values)
     b = _summary("b", ("c1",), b_values)
     cmp = pmc.compare_runs(a, b)
-    assert cmp.by_mode(mode).worsened is expected_worsened
+    assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[mode]).worsened is expected_worsened
 
 
 # =========================================================================== #
@@ -912,11 +937,15 @@ def test_ac13_attributed_mode_is_the_largest_normalised_move():
     a = _summary("a", ("c1",), a_values)
     b = _summary("b", ("c1",), b_values)
     cmp = pmc.compare_runs(a, b)
-    assert abs(cmp.by_mode(1).normalised_delta) == pytest.approx(0.4)
-    assert abs(cmp.by_mode(4).normalised_delta) == pytest.approx(0.9)
-    assert cmp.attributed_mode == 4
-    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[4].failure_mode_name
-    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[4].metric_name
+    assert abs(cmp.by_metric(_LEGACY_TO_METRIC_NAME[1]).normalised_delta) == pytest.approx(0.4)
+    assert abs(cmp.by_metric(_LEGACY_TO_METRIC_NAME[4]).normalised_delta) == pytest.approx(0.9)
+    # Item 153: attribution is by metric (AC28); the winning metric here is
+    # still mislabelled_volume_fraction (the legacy mode 4 slot), whose
+    # specification failure_mode is now 8, not 4 (AC6's re-homing table).
+    assert cmp.attributed_metric_name == "mislabelled_volume_fraction"
+    assert cmp.attributed_mode == PER_MODE_METRIC_SPECS["mislabelled_volume_fraction"].failure_mode
+    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[4]].failure_mode_name
+    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[4]].metric_name
 
 
 def test_ac13_exact_tie_breaks_to_lowest_mode():
@@ -926,10 +955,11 @@ def test_ac13_exact_tie_breaks_to_lowest_mode():
     a = _summary("a", ("c1",), a_values)
     b = _summary("b", ("c1",), b_values)
     cmp = pmc.compare_runs(a, b)
-    d1 = cmp.by_mode(1)
-    d2 = cmp.by_mode(2)
+    d1 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[1])
+    d2 = cmp.by_metric(_LEGACY_TO_METRIC_NAME[2])
     assert abs(d1.normalised_delta) == pytest.approx(abs(d2.normalised_delta))
     assert cmp.attributed_mode == 1
+    assert cmp.attributed_metric_name == "unanchored_foreground_fraction"
 
 
 def test_ac13_all_zero_or_none_normalised_deltas_yield_no_attribution():
@@ -967,13 +997,16 @@ def test_ac14_self_comparison_is_all_zero():
     pmc = _pmc()
     s = _summary("r", ("c1", "c2"), {1: 0.3, 2: 0.7, 3: 4.0, 4: 0.1, 5: 2.0, 6: 1.0, 7: 3.0, 8: 500.0}, mean_dice=0.9, volume_weighted_dice=0.85)
     cmp = pmc.compare_runs(s, s)
+    bounded_fraction_metrics = {
+        "unanchored_foreground_fraction", "min_dominant_component_fraction", "mislabelled_volume_fraction",
+    }
     for d in cmp.per_mode:
-        assert d.delta == 0.0, d.failure_mode
-        if d.failure_mode in (1, 2, 4):
-            assert d.normalised_delta == 0.0, d.failure_mode
+        assert d.delta == 0.0, d.metric_name
+        if d.metric_name in bounded_fraction_metrics:
+            assert d.normalised_delta == 0.0, d.metric_name
         else:
-            assert d.normalised_delta is None, d.failure_mode
-        assert d.worsened is False, d.failure_mode
+            assert d.normalised_delta is None, d.metric_name
+        assert d.worsened is False, d.metric_name
     assert cmp.mean_dice_delta == 0.0
     assert cmp.volume_weighted_dice_delta == 0.0
     assert cmp.attributed_mode is None
@@ -1043,7 +1076,7 @@ def _strip_stray_islands(arr: np.ndarray) -> np.ndarray:
 def demonstrator_comparison():
     pmc = _pmc()
     harness = _harness_mod()
-    islands_arr = _arr("mode3_inject_islands")
+    islands_arr = _arr("inject_islands")
     stripped_arr = _strip_stray_islands(islands_arr)
 
     def _cases(candidate_islands):
@@ -1097,21 +1130,25 @@ def test_ac16_attributed_mode_is_two():
     a = _summary("runA_islands_on", ("islands",), a_values)
     b = _summary("runB_islands_stripped", ("islands",), b_values)
     cmp = pmc.compare_runs(a, b)
-    assert abs(cmp.by_mode(1).normalised_delta) < 1.0
-    assert cmp.by_mode(2).normalised_delta == pytest.approx(0.15)
-    assert cmp.by_mode(3).normalised_delta is None
-    assert cmp.by_mode(3).delta == pytest.approx(-8.0)
-    assert 3 in cmp.excluded_modes
-    assert cmp.attributed_mode == 2
-    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[2].failure_mode_name
-    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[2].metric_name
+    assert abs(cmp.by_metric(_LEGACY_TO_METRIC_NAME[1]).normalised_delta) < 1.0
+    assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[2]).normalised_delta == pytest.approx(0.15)
+    assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[3]).normalised_delta is None
+    assert cmp.by_metric(_LEGACY_TO_METRIC_NAME[3]).delta == pytest.approx(-8.0)
+    assert "rogue_island_count" in cmp.excluded_metric_names
+    # Item 153: attribution is by metric (AC28); the winning metric here is
+    # still min_dominant_component_fraction (the legacy mode 2 slot), whose
+    # specification failure_mode is now 1, not 2 (AC6's re-homing table).
+    assert cmp.attributed_metric_name == "min_dominant_component_fraction"
+    assert cmp.attributed_mode == PER_MODE_METRIC_SPECS["min_dominant_component_fraction"].failure_mode
+    assert cmp.attributed_mode_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[2]].failure_mode_name
+    assert cmp.attributed_metric_name == PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[2]].metric_name
 
 
 def test_ac16_mode3_worsened_is_false_islands_removed_is_an_improvement(demonstrator_comparison):
     # worsened is computed from delta's sign and the metric's declared
     # direction, independently of scale/normalised_delta -- unaffected by
     # item 109's fix.
-    d3 = demonstrator_comparison.by_mode(3)
+    d3 = demonstrator_comparison.by_metric(_LEGACY_TO_METRIC_NAME[3])
     assert d3.worsened is False
 
 
@@ -1130,11 +1167,11 @@ def test_ac16_mode3_raw_delta_is_visible_though_unnormalisable(demonstrator_comp
     # all. What the fix preserves, and this test pins, is that mode 3's raw
     # per-case signal remains visible and non-zero on the record (AC2) even
     # though it is excluded from magnitude-ranked attribution (AC8).
-    d3 = demonstrator_comparison.by_mode(3)
+    d3 = demonstrator_comparison.by_metric(_LEGACY_TO_METRIC_NAME[3])
     assert d3.normalised_delta is None
     assert d3.delta is not None
     assert d3.delta != 0.0
-    assert 3 in demonstrator_comparison.excluded_modes
+    assert "rogue_island_count" in demonstrator_comparison.excluded_metric_names
 
 
 def test_ac16_mean_dice_delta_is_small_in_absolute_terms(demonstrator_comparison):
@@ -1296,10 +1333,10 @@ def _comparison_schema() -> dict:
     return json.loads(ref.read_text(encoding="utf-8"))
 
 
-def test_ac20_schema_version_constant_is_01():
+def test_ac20_schema_version_constant_is_02():
     import segfacet.eval.report as report_mod
 
-    assert report_mod.PER_MODE_COMPARISON_SCHEMA_VERSION == "0.1"
+    assert report_mod.PER_MODE_COMPARISON_SCHEMA_VERSION == "0.2"
 
 
 def test_ac20_schema_root_shape():
@@ -1330,7 +1367,7 @@ def test_ac20_build_run_comparison_report_validates(real_cohort):
 
     jsonschema.validate(report, _comparison_schema())
     assert set(report.keys()) <= {"schema_version", "run_a", "run_b", "comparison"}
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == "0.2"
 
 
 def test_ac20_deleting_a_required_key_fails_validation(real_cohort):
@@ -1424,8 +1461,8 @@ def test_ac22_names_attributed_mode_metric_run_ids_and_dice_delta(demonstrator_c
 
     text = report_mod.render_run_comparison(demonstrator_comparison)
     assert isinstance(text, str) and text
-    assert PER_MODE_METRIC_SPECS[3].failure_mode_name in text
-    assert PER_MODE_METRIC_SPECS[3].metric_name in text
+    assert PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[3]].failure_mode_name in text
+    assert PER_MODE_METRIC_SPECS[_LEGACY_TO_METRIC_NAME[3]].metric_name in text
     assert demonstrator_comparison.run_a_id in text
     assert demonstrator_comparison.run_b_id in text
     assert "None" not in text
@@ -1572,27 +1609,27 @@ def test_ac26_compare_runs_opens_no_file_and_reads_no_clock(monkeypatch):
 # =========================================================================== #
 
 
-def test_adv_by_mode_zero_raises_key_error_on_summary():
+def test_adv_by_metric_unknown_name_raises_key_error_on_summary():
     summary = _summary("r", ("c1",), _full(0.0))
     with pytest.raises(KeyError):
-        summary.by_mode(0)
+        summary.by_metric("does_not_exist")
 
 
-def test_adv_by_mode_nine_raises_key_error_on_summary():
+def test_adv_by_metric_empty_string_raises_key_error_on_summary():
     summary = _summary("r", ("c1",), _full(0.0))
     with pytest.raises(KeyError):
-        summary.by_mode(9)
+        summary.by_metric("")
 
 
-def test_adv_by_mode_zero_and_nine_raise_key_error_on_comparison():
+def test_adv_by_metric_unknown_name_raises_key_error_on_comparison():
     pmc = _pmc()
     a = _summary("a", ("c1",), _full(0.0))
     b = _summary("b", ("c1",), _full(1.0))
     cmp = pmc.compare_runs(a, b)
     with pytest.raises(KeyError):
-        cmp.by_mode(0)
+        cmp.by_metric("does_not_exist")
     with pytest.raises(KeyError):
-        cmp.by_mode(9)
+        cmp.by_metric("")
 
 
 def test_adv_from_dict_truncated_block_six_entries_raises_facet_input_error():

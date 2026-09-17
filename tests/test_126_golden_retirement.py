@@ -48,6 +48,8 @@ from pathlib import Path
 
 import pytest
 
+from segfacet.synth.corpus import RENAMED_CASE_IDS
+
 _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
 _CORPUS_GOLDEN_DIR = _TESTS_DIR / "corpus" / "golden"
@@ -64,15 +66,20 @@ _GOLDEN_MARKERS_WITH_PATH = _GOLDEN_MARKERS + ("tests/corpus/golden",)
 
 _CASE_IDS = (
     "clean_control",
-    "mode1_displace",
-    "mode2_fragment",
-    "mode3_inject_islands",
-    "mode4_relabel_swap",
-    "mode5_remove_level",
-    "mode6_crop_at_border",
-    "mode7_sequence_break",
-    "mode8_force_overlap",
+    "displace",
+    "fragment",
+    "inject_islands",
+    "relabel_swap",
+    "remove_level",
+    "crop_at_border",
+    "sequence_break",
+    "force_overlap",
 )
+
+#: The nine live ids' pre-item-157 form, for reconstructing paths that name a
+#: file item 126 deleted (git history and retired-row digests below reach the
+#: historical id only through the mapping, never a literal -- item 157).
+_OLD_CASE_ID = {new: old for old, new in RENAMED_CASE_IDS.items()}
 
 
 # =========================================================================== #
@@ -164,7 +171,7 @@ def test_ac3_fresh_report_validates_against_schema(case_id):
 # =========================================================================== #
 
 _RETIRED_PATHS = tuple(
-    f"tests/corpus/golden/{case_id}.json" for case_id in _CASE_IDS
+    f"tests/corpus/golden/{_OLD_CASE_ID.get(case_id, case_id)}.json" for case_id in _CASE_IDS
 ) + (
     "tests/golden/016_features_report.json",
     "tests/golden/022_stage3_report.json",
@@ -632,6 +639,9 @@ _AC17_ALLOWLISTED_FILES = frozenset(
         # item 135: validation module checks the retirement, so it legitimately
         # names the retired path.
         "tests/test_135_stage29_validation.py",
+        # item 157: AC9 planted control and AC19 historical retired-row lookup
+        # legitimately name the retired path.
+        "tests/test_157_case_id_rename.py",
     }
 )
 
@@ -761,19 +771,30 @@ def _row_cell_digest(row: dict) -> str:
 #: transcribed N/M fraction to a stable pointer at
 #: docs/aide/golden_evidence.generated.json -- narrowing this fence to the
 #: three columns that are actually *judgement*, not measurement.
-_AC18_PRE_ITEM_ROW_DIGESTS = {
-    "tests/corpus/golden/clean_control.json": "06c98a414c9f5153dffd57b337f73eedd9429c2d22cb87e73c32888114381e4e",
-    "tests/corpus/golden/mode1_displace.json": "0ae6c0c86aa3bb317fa7b2f2746ee70e98012d6eae2d02d9183c8c21dd5d6d37",
-    "tests/corpus/golden/mode2_fragment.json": "4e3147522be51f4e58510c9333b5d67606490d8423b160718fd183c329f324ab",
-    "tests/corpus/golden/mode3_inject_islands.json": "5a4498419b0629dc709f69853a7abc150a76b054adc3e86f66ea8469b05bb459",
-    "tests/corpus/golden/mode4_relabel_swap.json": "464028945b250726b97e4aa041ed9008e35ce7019312426bb91f5d40ae52e871",
-    "tests/corpus/golden/mode5_remove_level.json": "533d5be7be316510ad1d4b3c7b2957c8a1e8bc649d3f2bb6452cda06d446b57a",
-    "tests/corpus/golden/mode6_crop_at_border.json": "23e7b3121567574ea4955bcb27d7be151daac79d12969590eec50dabc1cc20ad",
-    "tests/corpus/golden/mode7_sequence_break.json": "2107420259c2264d60706f2c47e73255b1496efebae5ff955db65e38044d13f6",
-    "tests/corpus/golden/mode8_force_overlap.json": "9328b5ee5e83d9ebad3267119b11d1799273347162bf938d0376076c15dc63aa",
-    "tests/golden/016_features_report.json": "385e852ac9f0f45f91645c0c4a82ad914c80938dfea76eacc33b15f003b9ecdd",
-    "tests/golden/022_stage3_report.json": "d037b5c3c02272728a32bf6715963a8b00e72ce578b23bea51d32637dca9d432",
+#: Digests keyed by live id; the historical retired-path keys below are
+#: reconstructed through ``_OLD_CASE_ID`` rather than written as literals.
+_AC18_PRE_ITEM_ROW_DIGESTS_BY_LIVE_ID = {
+    "clean_control": "06c98a414c9f5153dffd57b337f73eedd9429c2d22cb87e73c32888114381e4e",
+    "displace": "0ae6c0c86aa3bb317fa7b2f2746ee70e98012d6eae2d02d9183c8c21dd5d6d37",
+    "fragment": "4e3147522be51f4e58510c9333b5d67606490d8423b160718fd183c329f324ab",
+    "inject_islands": "5a4498419b0629dc709f69853a7abc150a76b054adc3e86f66ea8469b05bb459",
+    "relabel_swap": "464028945b250726b97e4aa041ed9008e35ce7019312426bb91f5d40ae52e871",
+    "remove_level": "533d5be7be316510ad1d4b3c7b2957c8a1e8bc649d3f2bb6452cda06d446b57a",
+    "crop_at_border": "23e7b3121567574ea4955bcb27d7be151daac79d12969590eec50dabc1cc20ad",
+    "sequence_break": "2107420259c2264d60706f2c47e73255b1496efebae5ff955db65e38044d13f6",
+    "force_overlap": "9328b5ee5e83d9ebad3267119b11d1799273347162bf938d0376076c15dc63aa",
 }
+
+_AC18_PRE_ITEM_ROW_DIGESTS = {
+    f"tests/corpus/golden/{_OLD_CASE_ID.get(cid, cid)}.json": digest
+    for cid, digest in _AC18_PRE_ITEM_ROW_DIGESTS_BY_LIVE_ID.items()
+}
+_AC18_PRE_ITEM_ROW_DIGESTS.update(
+    {
+        "tests/golden/016_features_report.json": "385e852ac9f0f45f91645c0c4a82ad914c80938dfea76eacc33b15f003b9ecdd",
+        "tests/golden/022_stage3_report.json": "d037b5c3c02272728a32bf6715963a8b00e72ce578b23bea51d32637dca9d432",
+    }
+)
 
 assert len(_AC18_PRE_ITEM_ROW_DIGESTS) == 11
 

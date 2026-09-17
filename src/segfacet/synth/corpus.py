@@ -1,11 +1,19 @@
-"""Committed synthetic fixture corpus spanning every §6 failure mode plus the
+"""Committed synthetic fixture corpus for the failure-mode specification plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
 Materialises the **eleven canonical cases** -- item 040's original nine (the
-clean control plus one per pre-renumbering §6 mode 1-8, whose ``modeN_``
-case ids are kept as stable identifiers) and the ``fuse_adjacent`` and
-``remove_level_relabel`` cases item 150 added; each manifest entry's
-``failure_mode`` field carries the current mode number -- using
+clean control plus one per mode of the vision.md v3 seed list, history ids
+1-8, whose case ids name
+the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
+``modeN_`` prefixes those ids carried, since the manifest's ``failure_mode``
+field is the authority and the prefix was a second, drifting copy of it) and
+the ``fuse_adjacent`` and ``remove_level_relabel`` cases item 150 added; each
+manifest entry's
+``failure_mode`` field carries the current mode number, and (item 155) a
+``kind`` field records which of the three closed values
+(``segfacet.synth.perturbation.CASE_KINDS``: ``"clean_control"``,
+``"condition"``, ``"failure"``) the case is, derived from ``failure_mode``
+and ``condition`` by ``segfacet.synth.perturbation.case_kind`` -- using
 the merged Stage 5 generators (items 036-039): :func:`build_clean_spine`
 (item 036) as the shared base, and the registered operators from item 037
 (``fragment``), item 038 (``remove_level``, ``crop_at_border``,
@@ -35,6 +43,20 @@ geometric traversal order rather than the ordering under test, so the swap
 now reads out of order through plain ``run_qc``; it is now
 ``detection == "pipeline"`` like every case but the overlap one. See the item 040
 spec's Assumptions for the full rationale.
+
+Item 157 (2026-09-17) dropped the ``modeN_`` prefixes above; the mapping is
+also recorded in code as :data:`RENAMED_CASE_IDS`, a frozen historical record
+kept for the handful of tests that must still reach a pre-rename artifact.
+Each pair, old id -> new id:
+
+* ``mode1_displace`` -> ``displace``
+* ``mode2_fragment`` -> ``fragment``
+* ``mode3_inject_islands`` -> ``inject_islands``
+* ``mode4_relabel_swap`` -> ``relabel_swap``
+* ``mode5_remove_level`` -> ``remove_level``
+* ``mode6_crop_at_border`` -> ``crop_at_border``
+* ``mode7_sequence_break`` -> ``sequence_break``
+* ``mode8_force_overlap`` -> ``force_overlap``
 """
 
 from __future__ import annotations
@@ -66,6 +88,7 @@ __all__ = [
     "MANIFEST_VERSION",
     "CorpusCase",
     "CASE_RECIPE",
+    "RENAMED_CASE_IDS",
     "build_corpus",
     "write_corpus",
     "load_manifest",
@@ -87,6 +110,23 @@ FIXTURES_DIRNAME: str = "fixtures"
 
 #: Manifest schema version (bump on any incompatible schema change).
 MANIFEST_VERSION: int = 1
+
+#: Item 157 (2026-09-17): the frozen historical record of the eight
+#: ``modeN_`` case-id prefixes dropped from the corpus, old id -> new id.
+#: Never extended by later renames without a new decision (A2), and nothing
+#: in ``src/`` reads it at runtime -- it exists for documentation and for the
+#: tests that must resolve a pre-rename artifact (a pinned git blob, a
+#: retired file, a dated comparison record).
+RENAMED_CASE_IDS: Dict[str, str] = {
+    "mode1_displace": "displace",
+    "mode2_fragment": "fragment",
+    "mode3_inject_islands": "inject_islands",
+    "mode4_relabel_swap": "relabel_swap",
+    "mode5_remove_level": "remove_level",
+    "mode6_crop_at_border": "crop_at_border",
+    "mode7_sequence_break": "sequence_break",
+    "mode8_force_overlap": "force_overlap",
+}
 
 #: Name of the shared base-scan fixture (every case derives from the same
 #: default clean spine and operators preserve shape/affine -- see the item
@@ -129,57 +169,58 @@ CASE_RECIPE: List[_RecipeEntry] = [
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode1_displace",
+        case_id="displace",
         perturbation="displace",
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode2_fragment",
+        case_id="fragment",
         perturbation="fragment",
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode3_inject_islands",
+        case_id="inject_islands",
         perturbation="inject_islands",
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode4_relabel_swap",
+        case_id="relabel_swap",
         perturbation="relabel_swap",
         perturbation_params={"target_label": 21, "neighbour_label": 22},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode5_remove_level",
+        case_id="remove_level",
         perturbation="remove_level",
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode6_crop_at_border",
+        case_id="crop_at_border",
         perturbation="crop_at_border",
         perturbation_params={"target_label": 22, "face": "anterior"},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode7_sequence_break",
+        case_id="sequence_break",
         perturbation="sequence_break",
         perturbation_params={},
         detection="pipeline",
     ),
     _RecipeEntry(
-        case_id="mode8_force_overlap",
+        case_id="force_overlap",
         perturbation="force_overlap",
         perturbation_params={"target_label": 20, "neighbour_label": 21},
         detection="reconstructed_record",
         reconstruction="overlap_mask_stack",
     ),
     # Item 150 (2026-09-14): the two cases the signed-off taxonomy needed.
-    # Case ids keep the historical "modeN_" prefixes above as stable
-    # identifiers; the manifest's failure_mode field is the authority.
+    # Case ids name the case's perturbation operator, like the cases above
+    # (item 157 dropped their stale "modeN_" prefixes); the manifest's
+    # failure_mode field is the authority.
     _RecipeEntry(
         case_id="fuse_adjacent",
         perturbation="fuse",
@@ -326,6 +367,7 @@ def write_corpus(dest: Path) -> Path:
             "failure_mode": expectation_dict["failure_mode"],
             "failure_mode_name": expectation_dict["failure_mode_name"],
             "condition": expectation_dict["condition"],
+            "kind": expectation_dict["kind"],
             "detection": case.detection,
             "reconstruction": case.reconstruction,
             "perturbation": case.perturbation,

@@ -543,8 +543,8 @@ def test_ac9_mode_roles_rendered_in_json_and_markdown(shipped_catalogue):
 
     md = catalogue.render_markdown(cat)
     header_cells, rows = _md_header_and_rows(md)
-    assert "§6 mode role(s)" in header_cells, header_cells
-    role_col = header_cells.index("§6 mode role(s)")
+    assert "Mode role(s)" in header_cells, header_cells
+    role_col = header_cells.index("Mode role(s)")
     path_col = header_cells.index("path")
 
     # A path shared between an analytic "bookkeeping" declarer
@@ -818,12 +818,12 @@ def test_ac15_schema_version_and_status_report_loader():
 
 
 _AC16_CASES = (
-    ("mode6_crop_at_border", "geo", ("border",)),
-    ("mode1_displace", "geo", ("mislabel",)),
-    ("mode2_fragment", "geo", ("fragmentation",)),
-    ("mode5_remove_level", "geo", ("coverage",)),
-    ("mode7_sequence_break", "geo", ("sequence",)),
-    ("mode8_force_overlap", "overlap", ("overlap",)),
+    ("crop_at_border", "geo", ("border",)),
+    ("displace", "geo", ("mislabel",)),
+    ("fragment", "geo", ("fragmentation",)),
+    ("remove_level", "geo", ("coverage",)),
+    ("sequence_break", "geo", ("sequence",)),
+    ("force_overlap", "overlap", ("overlap",)),
     ("clean_hu", "intensity", ("bounds", "reference_delta", "intensity_reference_delta")),
     ("implausible_metal", "intensity", ("intensity",)),
 )

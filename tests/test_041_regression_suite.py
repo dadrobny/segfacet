@@ -24,12 +24,12 @@ Covers Acceptance Criteria AC1-AC12:
 
 Adversarial / edge-case scenarios included:
 - ``verify_case`` is deterministic across repeated calls on the same case.
-- The case-level ``mode5_remove_level`` case (``expected_labels == []``)
+- The case-level ``remove_level`` case (``expected_labels == []``)
   passes AC6 without crashing on the empty-set union.
 - ``loaded_seg_image`` succeeds for every manifest case (guards the
   mandatory explicit ``dtype=`` nibabel 5.3.3 requirement).
 - A drift meta-test targets a genuinely-fired pipeline case
-  (``mode7_sequence_break``), so AC9-AC11 exercise the fired path rather
+  (``sequence_break``), so AC9-AC11 exercise the fired path rather
   than a no-op.
 - Cross-check: for every ``reconstructed_record`` case, the designated rule
   filtered out of plain ``run_qc`` (AC7) is indeed the same rule the
@@ -45,6 +45,7 @@ import pytest
 
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
 from segfacet.synth.corpus import load_manifest
+from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, CASE_KIND_FAILURE, corpus_case_kind
 from segfacet.synth.regression import (
     RECONSTRUCTIONS,
     designated_rule_fired,
@@ -67,15 +68,16 @@ _COMMITTED_CASE_IDS = {c["case_id"] for c in _CASES}
 _PIPELINE_CASES = [c for c in _CASES if c["detection"] == "pipeline"]
 # Item 150: a failure-mode case may designate NO rule ("not detected today",
 # e.g. remove_level_relabel), and a failure_mode-0 case may carry a condition
-# (mode6_crop_at_border) and designate one -- the designation, not the mode
-# id, decides which check applies.
+# (crop_at_border) and designate one -- the designation, not the mode
+# id, decides which check applies. Item 155: the recorded `kind` replaces the
+# hand-rolled failure_mode/condition check.
 _NON_CLEAN_PIPELINE_CASES = [
     c
     for c in _PIPELINE_CASES
-    if (c["failure_mode"] != 0 or c.get("condition")) and c["expected_rule_ids"]
+    if corpus_case_kind(c) != CASE_KIND_CLEAN_CONTROL and c["expected_rule_ids"]
 ]
 _UNDETECTED_PIPELINE_CASES = [
-    c for c in _PIPELINE_CASES if c["failure_mode"] != 0 and not c["expected_rule_ids"]
+    c for c in _PIPELINE_CASES if corpus_case_kind(c) == CASE_KIND_FAILURE and not c["expected_rule_ids"]
 ]
 _RECONSTRUCTED_CASES = [c for c in _CASES if c["detection"] == "reconstructed_record"]
 
@@ -182,7 +184,7 @@ def test_ac5_undetected_failure_case_fires_nothing_and_verifies(case):
 def test_ac6_offending_labels_match_manifest_for_pipeline_cases(case):
     """AC6: for every non-clean detection == "pipeline" case,
     offending_labels_match(case) is True -- including the case-level
-    mode5_remove_level case whose expected_labels == []."""
+    remove_level case whose expected_labels == []."""
     assert offending_labels_match(case) is True
 
 
@@ -221,7 +223,7 @@ def test_ac9_verdict_drift_is_caught():
     """AC9: for a detection == "pipeline" case, a copy whose
     expected_verdict is changed to a different valid label makes the
     verdict comparison fail."""
-    case = _case("mode7_sequence_break")
+    case = _case("sequence_break")
     assert case["detection"] == "pipeline"
     drifted = copy.deepcopy(case)
     assert drifted["expected_verdict"] == "flagged-for-review"
@@ -235,7 +237,7 @@ def test_ac10_fired_rule_drift_is_caught():
     """AC10: for a detection == "pipeline" case, a copy whose
     expected_rule_ids is changed to a rule id that did not fire makes
     designated_rule_fired(copy) return False."""
-    case = _case("mode7_sequence_break")
+    case = _case("sequence_break")
     assert case["expected_rule_ids"] == ["sequence"]
     drifted = copy.deepcopy(case)
     drifted["expected_rule_ids"] = ["overlap"]
@@ -246,7 +248,7 @@ def test_ac10_fired_rule_drift_is_caught():
 def test_ac11_offending_label_drift_is_caught():
     """AC11: for a non-clean case, a copy whose expected_labels is changed
     to a wrong label set makes offending_labels_match(copy) return False."""
-    case = _case("mode7_sequence_break")
+    case = _case("sequence_break")
     assert case["failure_mode"] != 0
     drifted = copy.deepcopy(case)
     assert drifted["expected_labels"] == [28]
@@ -259,7 +261,7 @@ def test_ac12_unknown_reconstruction_technique_raises_value_error():
     """AC12: reconstructed_findings(case) on a case whose reconstruction is
     an unrecognised string raises ValueError rather than returning an
     empty / "passed" result."""
-    case = _case("mode1_displace")
+    case = _case("displace")
     bad_case = copy.deepcopy(case)
     bad_case["reconstruction"] = "not_a_real_technique"
 
@@ -282,10 +284,10 @@ def test_adv_verify_case_is_deterministic(case):
 
 
 def test_adv_mode5_remove_level_case_level_labels_no_crash_on_empty_union():
-    """Adversarial: the case-level mode5_remove_level case
+    """Adversarial: the case-level remove_level case
     (expected_labels == []) passes offending_labels_match without crashing
     on the empty-set union."""
-    case = _case("mode5_remove_level")
+    case = _case("remove_level")
     assert case["expected_labels"] == []
     assert designated_rule_fired(case) is True
     assert offending_labels_match(case) is True

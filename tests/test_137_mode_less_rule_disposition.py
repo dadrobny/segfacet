@@ -251,11 +251,18 @@ def test_adv_reference_delta_declared_modes_cover_every_tracked_mode_anchor_feat
     vocabulary ``_case_features_for_label`` actually scores), map it onto the
     record leaf path it is read from and, wherever that path is a §6
     mode-anchor path (``feature_docs.MODE_ANCHOR_PATHS``), require the rule's
-    declared modes to include that mode. ``spline_offset_mm`` is read from
-    ``stage3.per_label_offsets[].offset_mm``, exactly mode 1's own anchor
-    path, so this fails the moment ``reference_delta``'s declaration is
-    re-narrowed to ``(2,)`` -- the original, false-premised shape -- even
-    though nothing else in this module or the rule's code changed."""
+    declared modes to include that mode.
+
+    Reconciled for item 154: ``spline_offset_mm`` used to be read from
+    ``stage3.per_label_offsets[].offset_mm``, which was mode 1's own anchor
+    path, so this test used to require mode 1 in the derived set. Item 154
+    drops that path from ``MODE_ANCHOR_PATHS[1]`` (the only consumer,
+    ``mislabel``, declares it ``bookkeeping``, not ``signal`` -- it serves no
+    mode). No tracked feature now maps onto any §6 mode-anchor path at all,
+    so ``reference_delta``'s modes=(1, 2) declaration is no longer justified
+    by an anchor path -- it stands on the corpus-corroborated case alone.
+    The derivation below still runs in full, so a future anchor change that
+    re-populates ``required_modes`` is still caught."""
     import segfacet.feature_docs as feature_docs_module
     import segfacet.reference.delta as delta_module
 
@@ -281,11 +288,10 @@ def test_adv_reference_delta_declared_modes_cover_every_tracked_mode_anchor_feat
     for feature_name in tracked:
         required_modes |= anchor_modes_by_path.get(feature_record_path[feature_name], set())
 
-    assert required_modes, (
-        "expected at least one reference_delta-tracked feature to map onto "
-        "a §6 mode anchor path"
-    )
-    assert 1 in required_modes, required_modes  # spline_offset_mm -> mode 1
+    # Item 154: no tracked feature anchors any mode now that mode 1's
+    # offset_mm anchor is dropped. Asserted as equality (not skipped) so a
+    # later anchor change that re-populates this set is still caught.
+    assert required_modes == set(), required_modes
 
     decl = _RULES["reference_delta"].mode_declaration
     assert required_modes <= set(decl.modes), (required_modes, decl.modes)
@@ -777,7 +783,18 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     Re-measured (item 150, revised catalogue 2026-09-15): ``fragmentation``
     now declares modes (1, 4), so its five signal paths join mode 1 (9 -> 14);
     mode 2's count is unchanged at 14; the intensity rules' mode is re-numbered
-    16 (still 2 paths). The ``mode_evidence`` distribution does not move."""
+    16 (still 2 paths). The ``mode_evidence`` distribution does not move.
+
+    Re-measured (item 154, 2026-09-16): the re-anchor drops
+    ``stage3.per_label_offsets[].offset_mm`` from ``MODE_ANCHOR_PATHS[1]`` (its
+    anchor moves to ``per_label.{label}.components.fragmentation_index``,
+    already a mode-1 path), so that one path's ``failure_modes`` loses 1
+    (mode 1 -> 13). Mode 2's count does not move. The same role flip (its
+    candidate-feature role goes from ``"stage18-metric-anchor"`` to
+    ``"hypothesised"``) drops that path's ``"per_mode_metric"`` evidence tag
+    too, since only the anchor role earns it: the one-entry
+    ``("per_mode_metric", "rule_bookkeeping")`` bucket empties into
+    ``("rule_bookkeeping",)`` (18 -> 19)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -785,7 +802,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
 
     # The two analytic rules' own declared modes ...
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 14
+    assert mode1_count == 13
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     assert mode2_count == 14
@@ -798,7 +815,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
         (): 86,
-        ("rule_bookkeeping",): 18,
+        ("rule_bookkeeping",): 19,
         ("rule_declaration",): 6,
         ("rule_mode_less", "rule_condition_signal"): 6,
         ("rule_mode_map", "rule_declaration"): 6,
@@ -806,7 +823,6 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,
         ("per_mode_metric",): 2,
-        ("per_mode_metric", "rule_bookkeeping"): 1,
         ("rule_mode_less", "rule_bookkeeping"): 1,
         ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 1,
         (
@@ -863,21 +879,12 @@ def test_ac16_catalogue_gap_finding_captured_in_inbox_or_archive():
 # AC17: §6 was recorded against, not grown
 # =========================================================================== #
 
-
-def test_ac17_vision_section_six_still_has_exactly_eight_modes():
-    vision_path = _REPO_ROOT / "docs" / "aide" / "vision.md"
-    text = vision_path.read_text(encoding="utf-8")
-
-    section_match = re.search(
-        r"^## 6\. Segmentation Failure Modes[^\n]*\n(.*?)(?=^## \d|\Z)",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    assert section_match is not None, "expected a '## 6. Segmentation Failure Modes' section"
-    section_text = section_match.group(1)
-
-    numbered_headings = re.findall(r"^\d+\.\s+\S", section_text, flags=re.MULTILINE)
-    assert len(numbered_headings) == 8, numbered_headings
+# test_ac17_vision_section_six_still_has_exactly_eight_modes retired (item
+# 152, A5): vision.md v4 (PR #77, gate 6, 2026-09-16) re-issues §6 as
+# principles plus a pointer to `segfacet.failure_modes.SPECIFICATION`, with
+# no numbered list at all, so "§6 was recorded against, not grown" is false
+# by design under v4. The v4 claim (§6 carries no numbered list) is
+# `tests/test_152_retire_vision_seed.py::test_ac1_section_six_carries_no_numbered_list`.
 
 
 def test_ac17_mode_anchor_paths_keys_are_signed_off_mode_ids():

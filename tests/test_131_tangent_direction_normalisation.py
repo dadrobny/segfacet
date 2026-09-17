@@ -24,7 +24,7 @@ deliberately not asserted there), near-coincident centroids, anisotropic
 spacing combined with reversal, a coronal C-curve mirrored left-right (proves
 ``tangent_angles_deg`` depends only on the S-component, not R), a spine
 reversed *and* mirrored L<->R, determinism, immutability, and a synthetic
-per-element-fold implementation fed ``mode4_relabel_swap``'s tangents to show
+per-element-fold implementation fed ``relabel_swap``'s tangents to show
 it would produce a different array than the one global sign decision (AC4).
 """
 
@@ -114,7 +114,7 @@ def _cranial_first_c_curve(n: int = 7) -> List[LabelCentroid]:
 
 def _mode4_relabel_swap_shape() -> List[LabelCentroid]:
     """A doubling-back coronal sequence reproducing the real
-    ``mode4_relabel_swap`` corpus case's shape at unit-test scale (indices 2
+    ``relabel_swap`` corpus case's shape at unit-test scale (indices 2
     and 3 swapped in S)."""
     xs = [0.0, 40.0, 65.0, 40.0, -40.0, -65.0]
     zs = [0.0, 15.0, 45.0, 30.0, 60.0, 75.0]
@@ -246,7 +246,7 @@ def test_ac2_clean_control_own_sequence_reversal_equivariant():
 
 
 def test_ac3_doubling_back_fixture_reversal_equivariant_looser_tolerance():
-    """mode4_relabel_swap's shape reverses in S; the residual (measured
+    """relabel_swap's shape reverses in S; the residual (measured
     6.563e-03 deg) is spline-fit asymmetry, not a convention difference, so
     the tolerance is deliberately looser than AC2's."""
     forward = _curvature_for(_mode4_relabel_swap_shape())
@@ -273,7 +273,7 @@ def _per_element_fold(angles) -> List[float]:
 
 def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode4_relabel_swap")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "relabel_swap")
     seg_img = loaded_seg_image(case)
     record = extract_feature_record(seg_img, bundled_default_config())
     actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
@@ -329,14 +329,14 @@ def _cases_covered_by(table, manifest):
 
 _PRE_ITEM_TANGENT_ANGLES_DEG = {
     "clean_control": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
-    "mode1_displace": [25.5042, 27.8238, 0.0, 27.8238, 25.5042],
-    "mode2_fragment": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
-    "mode3_inject_islands": [8.1498, 4.0650, 0.0, 4.0650, 8.1498],
-    "mode4_relabel_swap": [3.2953, 177.6490, 175.2184, 1.4658, 22.0118],
-    "mode5_remove_level": [7.6323, 3.7952, 3.7952, 7.6323],
-    "mode6_crop_at_border": [28.8047, 24.3476, 0.0, 24.3476, 28.8047],
-    "mode7_sequence_break": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
-    "mode8_force_overlap": [13.2111, 6.9636, 0.6253, 4.9247, 5.7262],
+    "displace": [25.5042, 27.8238, 0.0, 27.8238, 25.5042],
+    "fragment": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
+    "inject_islands": [8.1498, 4.0650, 0.0, 4.0650, 8.1498],
+    "relabel_swap": [3.2953, 177.6490, 175.2184, 1.4658, 22.0118],
+    "remove_level": [7.6323, 3.7952, 3.7952, 7.6323],
+    "crop_at_border": [28.8047, 24.3476, 0.0, 24.3476, 28.8047],
+    "sequence_break": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
+    "force_overlap": [13.2111, 6.9636, 0.6253, 4.9247, 5.7262],
 }
 
 #: Item 143 corrected the synthetic corpus's S-axis stacking so ascending
@@ -346,14 +346,14 @@ _PRE_ITEM_TANGENT_ANGLES_DEG = {
 #: the sign of the net advance, never its magnitude).
 _PRE_ITEM_NET_ADVANCE_S_MM = {
     "clean_control": -160.0,
-    "mode1_displace": -160.0,
-    "mode2_fragment": -160.0,
-    "mode3_inject_islands": -160.0,
-    "mode4_relabel_swap": -160.0,
-    "mode5_remove_level": -160.0,
-    "mode6_crop_at_border": -160.0,
-    "mode7_sequence_break": -160.0,
-    "mode8_force_overlap": -142.0,
+    "displace": -160.0,
+    "fragment": -160.0,
+    "inject_islands": -160.0,
+    "relabel_swap": -160.0,
+    "remove_level": -160.0,
+    "crop_at_border": -160.0,
+    "sequence_break": -160.0,
+    "force_overlap": -142.0,
 }
 
 
@@ -394,14 +394,14 @@ def test_ac6_every_corpus_case_net_advance_positive():
 
 _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
     "clean_control": [4.092235, 4.072969, 4.072969, 4.092235],
-    "mode1_displace": [52.786936, 27.823768, 27.823768, 52.786936],
-    "mode2_fragment": [4.092235, 4.072969, 4.072969, 4.092235],
-    "mode3_inject_islands": [4.084804, 4.065026, 4.065026, 4.084804],
-    "mode4_relabel_swap": [179.055714, 2.430623, 173.752605, 20.545999],
-    "mode5_remove_level": [3.837156, 7.590310, 3.837156],
-    "mode6_crop_at_border": [52.093619, 24.347610, 24.347610, 52.093619],
-    "mode7_sequence_break": [4.092235, 4.072969, 4.072969, 4.092235],
-    "mode8_force_overlap": [6.247546, 7.588856, 4.299399, 0.801556],
+    "displace": [52.786936, 27.823768, 27.823768, 52.786936],
+    "fragment": [4.092235, 4.072969, 4.072969, 4.092235],
+    "inject_islands": [4.084804, 4.065026, 4.065026, 4.084804],
+    "relabel_swap": [179.055714, 2.430623, 173.752605, 20.545999],
+    "remove_level": [3.837156, 7.590310, 3.837156],
+    "crop_at_border": [52.093619, 24.347610, 24.347610, 52.093619],
+    "sequence_break": [4.092235, 4.072969, 4.072969, 4.092235],
+    "force_overlap": [6.247546, 7.588856, 4.299399, 0.801556],
 }
 
 
@@ -772,7 +772,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
-    "mode1_displace": {
+    "displace": {
         "total_curvature_deg": 44.926306,
         "coronal_curvature_deg": 44.926306,
         "sagittal_curvature_deg": 42.295125,
@@ -780,7 +780,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [15.600454, -22.463153, 0.0, 22.463153, -15.600454],
         "sagittal_tangent_angles_deg": [21.147563, -18.160137, 0.0, 18.160137, -21.147563],
     },
-    "mode2_fragment": {
+    "fragment": {
         "total_curvature_deg": 16.330407,
         "coronal_curvature_deg": 16.330407,
         "sagittal_curvature_deg": 0.0,
@@ -788,7 +788,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
-    "mode3_inject_islands": {
+    "inject_islands": {
         "total_curvature_deg": 16.299623,
         "coronal_curvature_deg": 16.299623,
         "sagittal_curvature_deg": 0.035422,
@@ -796,7 +796,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-8.149811, -4.065017, 0.0, 4.065017, 8.149811],
         "sagittal_tangent_angles_deg": [0.017711, 0.008789, 0.0, -0.008789, -0.017711],
     },
-    "mode4_relabel_swap": {
+    "relabel_swap": {
         "total_curvature_deg": 355.238942,
         "coronal_curvature_deg": 355.238942,
         "sagittal_curvature_deg": 180.0,
@@ -804,7 +804,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-3.295293, -182.351007, -184.78163, -358.534236, -337.988237],
         "sagittal_tangent_angles_deg": [0.0, -180.0, -180.0, 0.0, 0.0],
     },
-    "mode5_remove_level": {
+    "remove_level": {
         "total_curvature_deg": 15.264623,
         "coronal_curvature_deg": 15.264623,
         "sagittal_curvature_deg": 0.0,
@@ -812,7 +812,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-7.632311, -3.795155, 3.795155, 7.632311],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0],
     },
-    "mode6_crop_at_border": {
+    "crop_at_border": {
         "total_curvature_deg": 56.66451,
         "coronal_curvature_deg": 12.316259,
         "sagittal_curvature_deg": 56.66451,
@@ -820,7 +820,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-6.15813, -4.869332, 0.0, 4.869332, 6.15813],
         "sagittal_tangent_angles_deg": [28.332255, -23.961638, 0.0, 23.961638, -28.332255],
     },
-    "mode7_sequence_break": {
+    "sequence_break": {
         "total_curvature_deg": 16.330407,
         "coronal_curvature_deg": 16.330407,
         "sagittal_curvature_deg": 0.0,
@@ -828,7 +828,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
         "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
     },
-    "mode8_force_overlap": {
+    "force_overlap": {
         "total_curvature_deg": 18.937358,
         "coronal_curvature_deg": 18.937358,
         "sagittal_curvature_deg": 0.0,

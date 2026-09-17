@@ -257,7 +257,7 @@ def test_ac4_outcome_matches_direct_classify_outcome_call_with_candidate():
     """AC4: outcome equals classify_outcome(expected, run_qc(candidate, config)[0]) when present."""
     from segfacet.eval.harness import EvaluationCase, evaluate_case
 
-    corpus_case = _corpus_by_id()["mode2_fragment"]
+    corpus_case = _corpus_by_id()["fragment"]
     gt = _gt_for(corpus_case)
     expected = corpus_case.expectation.to_dict()
 
@@ -283,7 +283,7 @@ def test_ac5_actual_verdict_follows_candidate_not_gt():
     """AC5: when candidate/GT verdicts differ, recorded actual_verdict matches the candidate's."""
     from segfacet.eval.harness import EvaluationCase, evaluate_case
 
-    corpus_case = _corpus_by_id()["mode2_fragment"]
+    corpus_case = _corpus_by_id()["fragment"]
     gt = _gt_for(corpus_case)
     expected = corpus_case.expectation.to_dict()
 
@@ -313,7 +313,7 @@ def test_ac6_overlap_equals_direct_compute_overlap_call():
     """AC6: overlap equals compute_overlap(candidate_array, gt_array, gt_spacing)."""
     from segfacet.eval.harness import EvaluationCase, evaluate_case
 
-    corpus_case = _corpus_by_id()["mode5_remove_level"]
+    corpus_case = _corpus_by_id()["remove_level"]
     gt = _gt_for(corpus_case)
     expected = corpus_case.expectation.to_dict()
 
@@ -342,7 +342,7 @@ def test_ac7_feature_match_equals_direct_compute_feature_match_call():
     """AC7: feature_match equals compute_feature_match(candidate_block, extract_feature_record(gt))."""
     from segfacet.eval.harness import EvaluationCase, evaluate_case
 
-    corpus_case = _corpus_by_id()["mode5_remove_level"]
+    corpus_case = _corpus_by_id()["remove_level"]
     gt = _gt_for(corpus_case)
     expected = corpus_case.expectation.to_dict()
 
@@ -393,7 +393,7 @@ def test_ac9_cohort_count_order_and_case_ids():
 
     clean_a = build_clean_spine(levels=["L1", "L2"])
     clean_b = build_clean_spine(levels=["L3", "L4", "L5"])
-    corpus_case = _corpus_by_id()["mode2_fragment"]
+    corpus_case = _corpus_by_id()["fragment"]
     corpus_gt = _gt_for(corpus_case)
 
     cases = [
@@ -421,7 +421,7 @@ def test_ac9_cohort_count_order_and_case_ids():
 
 
 def test_ac10_pipeline_detectable_perturbation_is_caught_and_dice_below_one():
-    """AC10: mode2_fragment -> expected_failure True, positive outcome, mean_dice < 1.0.
+    """AC10: fragment -> expected_failure True, positive outcome, mean_dice < 1.0.
 
     fragment carves an interior slab out of the target label's own voxels (the
     label stays present -- and therefore matched -- in both candidate and GT,
@@ -431,7 +431,7 @@ def test_ac10_pipeline_detectable_perturbation_is_caught_and_dice_below_one():
     """
     from segfacet.eval.harness import EvaluationCase, evaluate_case
 
-    corpus_case = _corpus_by_id()["mode2_fragment"]
+    corpus_case = _corpus_by_id()["fragment"]
     assert corpus_case.detection == "pipeline"
     gt = _gt_for(corpus_case)
     expected = corpus_case.expectation.to_dict()
@@ -483,7 +483,7 @@ def test_ac12_to_dict_is_json_serialisable_and_deterministic():
     """AC12: cohort.to_dict() JSON-dumps byte-identically across two runs, keys present."""
     from segfacet.eval.harness import EvaluationCase, evaluate_cohort
 
-    corpus_case = _corpus_by_id()["mode2_fragment"]
+    corpus_case = _corpus_by_id()["fragment"]
     gt = _gt_for(corpus_case)
     clean = build_clean_spine(levels=["L1", "L2"])
 
@@ -547,7 +547,7 @@ def test_ac13_evaluate_case_does_not_mutate_inputs():
     """AC13: evaluate_case leaves the case, config, and gt/candidate arrays unchanged."""
     from segfacet.eval.harness import EvaluationCase, evaluate_case
 
-    corpus_case = _corpus_by_id()["mode2_fragment"]
+    corpus_case = _corpus_by_id()["fragment"]
     gt = _gt_for(corpus_case)
     gt_array = np.asanyarray(gt.seg_img.dataobj).copy()
     candidate_array = np.asanyarray(corpus_case.seg_img.dataobj).copy()

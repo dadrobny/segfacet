@@ -56,7 +56,7 @@ from segfacet.reference.artifact import build_and_write_default, default_artifac
 from segfacet.synth import clean_gt as clean_gt_module
 from segfacet.synth.axes import si_axis
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import load_manifest, write_corpus
+from segfacet.synth.corpus import RENAMED_CASE_IDS, load_manifest, write_corpus
 from segfacet.synth.golden import assert_matches_committed_artifact, build_report_for_case
 from segfacet.synth.intensity import write_intensity_corpus
 from segfacet.synth.regression import loaded_seg_image
@@ -312,14 +312,14 @@ def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
 
 _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
     "clean_control": 160.0,
-    "mode1_displace": 160.0,
-    "mode2_fragment": 160.0,
-    "mode3_inject_islands": 160.0,
-    "mode4_relabel_swap": 160.0,
-    "mode5_remove_level": 160.0,
-    "mode6_crop_at_border": 160.0,
-    "mode7_sequence_break": 160.0,
-    "mode8_force_overlap": 142.0,
+    "displace": 160.0,
+    "fragment": 160.0,
+    "inject_islands": 160.0,
+    "relabel_swap": 160.0,
+    "remove_level": 160.0,
+    "crop_at_border": 160.0,
+    "sequence_break": 160.0,
+    "force_overlap": 142.0,
 }
 
 
@@ -365,7 +365,7 @@ def test_ac6_single_case_caudal_assertion_would_fail_pre_correction():
 # mode4, which moves only by item 131's measured fit asymmetry
 # =========================================================================== #
 
-_MODE4_CASE_ID = "mode4_relabel_swap"
+_MODE4_CASE_ID = "relabel_swap"
 
 
 def test_ac7_tangent_angles_deg_unmoved_on_the_non_doubling_back_cases():
@@ -391,7 +391,7 @@ def test_ac8_mode4_relabel_swap_tangent_angles_within_loosened_fit_asymmetry_tol
     actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
     expected = _PRE_ITEM_TANGENT_ANGLES_DEG[_MODE4_CASE_ID]
     assert actual == pytest.approx(expected, abs=1e-2), (
-        f"mode4_relabel_swap: tangent_angles_deg {actual} moved by more than "
+        f"relabel_swap: tangent_angles_deg {actual} moved by more than "
         f"abs=1e-2 from {expected} -- item 131 AC3 measured this curve's "
         f"spline-fit-asymmetry residual at 6.563e-03 deg on a reversing "
         f"curve; a larger move is a convention difference, not fit "
@@ -665,20 +665,75 @@ _NON_CORPUS_REQUIRED_ARTIFACTS: Tuple[str, ...] = (
 )
 
 
-def _required_artifact_paths() -> Set[str]:
-    geo_manifest = json.loads((_REPO_ROOT / "tests" / "corpus" / "manifest.json").read_text(encoding="utf-8"))
-    intensity_manifest = json.loads(
-        (_REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json").read_text(encoding="utf-8")
+#: The 27 paths ``docs/corpus-s-axis-correction.md`` covered as of the
+#: 2026-09-03 record (pre-item-157 case ids). Frozen 2026-09-17 by item 159
+#: (AC5/AC6, spec A3): the record is a dated, verbatim comparison that is
+#: never rewritten, and deriving this set live from the corpus manifests
+#: (the pre-item-159 shape) turns it red the next time a corpus case is
+#: added -- a claim about live state pinned onto a dated document. This set
+#: is exact, not an approximation; a genuinely new record revision would
+#: need its own frozen constant, not a live derivation.
+
+#: The eight renamed cases' *current* (post-item-157) ids, frozen here as a
+#: fixed list -- never read from a live manifest. The record predates the
+#: rename, so its fixture filenames still carry the old ``modeN_...`` ids;
+#: this test recovers those old ids by inverting the frozen
+#: ``RENAMED_CASE_IDS`` mapping (a code constant, not live state) rather than
+#: spelling a retired id as a literal, which is what test_157 AC9's
+#: no-old-id-on-any-live-surface sweep forbids everywhere but the mapping's
+#: own module and its own test file.
+_FROZEN_RENAMED_CASE_IDS: Tuple[str, ...] = (
+    "displace",
+    "fragment",
+    "inject_islands",
+    "relabel_swap",
+    "remove_level",
+    "crop_at_border",
+    "sequence_break",
+    "force_overlap",
+)
+
+_OLD_CASE_ID_BY_NEW_ID: Dict[str, str] = {
+    new_id: old_id for old_id, new_id in RENAMED_CASE_IDS.items()
+}
+
+_FROZEN_REQUIRED_ARTIFACT_PATHS: Set[str] = frozenset(
+    _NON_CORPUS_REQUIRED_ARTIFACTS
+    + (
+        "tests/corpus/manifest.json",
+        "tests/corpus/intensity/manifest.json",
+        "tests/corpus/fixtures/base_scan.nii.gz",
+        "tests/corpus/fixtures/clean_control_seg.nii.gz",
+        "tests/corpus/fixtures/fuse_adjacent_seg.nii.gz",
+        "tests/corpus/fixtures/remove_level_relabel_seg.nii.gz",
+        "tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz",
+        "tests/corpus/intensity/fixtures/clean_spine_seg.nii.gz",
+        "tests/corpus/intensity/fixtures/degenerate_uniform_scan.nii.gz",
+        "tests/corpus/intensity/fixtures/implausible_metal_scan.nii.gz",
+        "tests/corpus/intensity/fixtures/implausible_soft_tissue_scan.nii.gz",
     )
-    paths: Set[str] = {"tests/corpus/manifest.json", "tests/corpus/intensity/manifest.json"}
-    for case in geo_manifest["cases"]:
-        paths.add(f"tests/corpus/{case['scan_fixture']}")
-        paths.add(f"tests/corpus/{case['seg_fixture']}")
-    for case in intensity_manifest["cases"]:
-        paths.add(f"tests/corpus/intensity/{case['scan_fixture']}")
-        paths.add(f"tests/corpus/intensity/{case['seg_fixture']}")
-    paths.update(_NON_CORPUS_REQUIRED_ARTIFACTS)
-    return paths
+    + tuple(
+        f"tests/corpus/fixtures/{_OLD_CASE_ID_BY_NEW_ID[new_id]}_seg.nii.gz"
+        for new_id in _FROZEN_RENAMED_CASE_IDS
+    )
+)
+
+
+def _required_artifact_paths(
+    geo_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "manifest.json",
+    intensity_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json",
+) -> Set[str]:
+    """The path set ``docs/corpus-s-axis-correction.md`` must cover.
+
+    Frozen to ``_FROZEN_REQUIRED_ARTIFACT_PATHS`` (item 159 A3) -- no longer
+    derived from the corpus manifests, so adding a corpus case cannot turn
+    this dated record red. The manifest-path parameters are kept, defaulted
+    to the committed files, only so a caller (item 159's AC5) can exercise
+    this check against substituted manifest copies and confirm the result is
+    unaffected by their content; they are not read here.
+    """
+    del geo_manifest_path, intensity_manifest_path
+    return set(_FROZEN_REQUIRED_ARTIFACT_PATHS)
 
 
 def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
@@ -711,23 +766,37 @@ def _normalise_cell_path(cell: str) -> str:
     return cell.strip().strip("`").strip()
 
 
-def _load_record_rows() -> Tuple[List[Dict[str, str]], List[str]]:
-    assert _RECORD_DOC_PATH.exists(), f"missing {_RECORD_DOC_PATH.as_posix()} (AC16)"
-    text = _RECORD_DOC_PATH.read_text(encoding="utf-8")
+def _load_record_rows(record_path: Path = _RECORD_DOC_PATH) -> Tuple[List[Dict[str, str]], List[str]]:
+    """Parse the record's markdown table. ``record_path`` defaults to the
+    committed doc but accepts a substitute (item 159 AC6 drives this against
+    a ``tmp_path`` copy with a row removed, never the committed file)."""
+    assert record_path.exists(), f"missing {record_path.as_posix()} (AC16)"
+    text = record_path.read_text(encoding="utf-8")
     rows = _parse_markdown_table(text)
     header = list(rows[0].keys()) if rows else []
     return rows, header
 
 
-def test_ac16_record_covers_exactly_the_required_artifact_set():
-    rows, header = _load_record_rows()
+def _check_record_covers_required(
+    record_path: Path = _RECORD_DOC_PATH,
+    geo_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "manifest.json",
+    intensity_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json",
+) -> None:
+    """The AC16 check itself, factored out so item 159's AC5/AC6 tests can
+    drive it against substituted ``record_path``/manifest-path inputs
+    without touching the committed files."""
+    rows, header = _load_record_rows(record_path)
     path_col = _find_column(header, "path", "artifact")
     row_paths = {_normalise_cell_path(row[path_col]) for row in rows}
-    required = _required_artifact_paths()
+    required = _required_artifact_paths(geo_manifest_path, intensity_manifest_path)
     missing = required - row_paths
     extra = row_paths - required
     assert not missing, f"docs/corpus-s-axis-correction.md is missing rows for: {sorted(missing)}"
     assert not extra, f"docs/corpus-s-axis-correction.md has rows outside the required set: {sorted(extra)}"
+
+
+def test_ac16_record_covers_exactly_the_required_artifact_set():
+    _check_record_covers_required()
 
 
 def test_ac17_every_row_names_what_was_compared_and_what_happened():

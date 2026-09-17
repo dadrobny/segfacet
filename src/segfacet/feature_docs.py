@@ -37,11 +37,11 @@ Contents
     last segment (``spline_offset_mm`` is tracked under the record field name
     ``offset_mm``, nested under ``stage3.per_label_offsets[]``).
 ``MODE_ANCHOR_PATHS``
-    ``{1..8: (leaf_path, ...)}`` -- the record leaf path(s) item 099's eight
-    per-mode metrics read (or, for the three candidate-vs-GT metrics with no
-    record path of their own -- modes 1, 4, 5 -- the record path their *rule*
-    counterpart reads instead; see item 099's spec table "The mapping" and
-    this module's per-mode notes below). Every path here anchors that mode
+    ``{mode_id: (leaf_path, ...)}``, keyed by ``failure_modes.SPECIFICATION``
+    mode ids -- the record leaf path(s) item 099's per-mode metrics read (or,
+    for a candidate-vs-GT metric with no record path of their own, the record
+    path its *rule* counterpart reads instead; see the comment above the
+    constant and this module's per-mode notes below). Every path here anchors that mode
     onto the matching catalogue entry with ``mode_evidence`` containing
     ``"per_mode_metric"`` (AC14).
 ``STATUS_OVERRIDES``
@@ -51,29 +51,34 @@ Contents
     path starts at ``"keep"`` and every unread path at ``"unwired"`` -- both
     derived, both honest -- until that review lands.
 
-Mode-anchor notes (modes 1, 4, 5 have no record path of their own)
+Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
 --------------------------------------------------------------------
-- **Mode 1** (``unanchored_foreground_fraction``, candidate-vs-GT) is
-  anchored on ``stage3.per_label_offsets[].offset_mm`` -- the record path
-  ``heuristics.mislabel.MislabelRule``'s Detector A (§6 mode 1) reads.
-- **Mode 4** (``mislabelled_volume_fraction``, candidate-vs-GT) is anchored
-  on ``stage3.monotonic_consistency.is_monotonic`` -- the same
-  ``monotonic_consistency`` sub-block ``MislabelRule``'s Detector B (§6 mode
-  4) reads its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
+- **Mode 1** (segmentation accuracy) is anchored on
+  ``per_label.{label}.components.fragmentation_index`` -- the record path
+  its fragment metric reads (item 154 re-anchor; see the comment above
+  ``MODE_ANCHOR_PATHS``).
+- **Mode 8** (semantic mislabelling; ``mislabelled_volume_fraction``,
+  candidate-vs-GT) is anchored on
+  ``stage3.monotonic_consistency.is_monotonic`` -- the same
+  ``monotonic_consistency`` sub-block ``MislabelRule``'s Detector B (which
+  serves mode 9, out-of-order label sequence, a sub-mode of mode 8) reads
+  its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
   (rather than ``non_monotonic_pairs[]``) is deliberately the anchor so
   ``non_monotonic_pairs[]`` -- the field Detector B actually reads and the
   *only* leaf path exclusively consumed by ``mislabel`` -- stays a plain,
   code-derived (mechanism A) attribution rather than being absorbed into the
   anchor set; item 103's AC13 test asserts such an exclusively-consumed,
   non-anchor witness exists per mapped rule.
-- **Mode 5** (``missing_level_count``, candidate-vs-GT) is anchored on
+- **Mode 6** (vertebra not segmented; ``missing_level_count``,
+  candidate-vs-GT) is anchored on
   ``relationships.present_levels[]`` -- the present-level span
   ``heuristics.coverage.CoverageRule`` resolves its missing-level checks
   against. ``relationships.missing_levels[]`` itself -- the field the rule
   actually reads and coverage's only exclusively-consumed leaf path -- is
-  deliberately left as a plain attribution for the same reason as mode 4
+  deliberately left as a plain attribution for the same reason as mode 8
   above.
-- **Mode 7** (``out_of_order_label_count``) is anchored on
+- **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
+  anchored on
   ``relationships.is_continuous`` -- the companion continuity flag in the
   same ``relationships`` sub-block ``heuristics.sequence.SequenceRule``
   reads its ``out_of_order_labels`` signal from, for the same reason:
@@ -349,25 +354,37 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # --------------------------------------------------------------------------- #
 # MODE_ANCHOR_PATHS -- item 099's per-mode metrics -> record leaf path(s),
 # keyed by the failure-mode ids of segfacet.failure_modes.SPECIFICATION as
-# signed off at item 150 (2026-09-14, revised 2026-09-15). The metrics
-# themselves (segfacet.eval.per_mode.PER_MODE_METRIC_SPECS) are still keyed by
-# the pre-sign-off ids 1-8 pending the eval re-key item; the mapping from
-# metric to signed-off mode is: legacy 1 (unanchored foreground fraction) and
-# legacy 2 (min dominant component fraction) -> mode 1; legacy 3 (rogue island
-# count) -> mode 4; legacy 4 (mislabelled volume fraction) -> mode 8; legacy 5
-# (missing level count) -> mode 6; legacy 7 (out-of-order label count) ->
-# mode 9; legacy 8 (overlapping voxel count) -> mode 15; legacy 6 (FOV-clipped
-# label count) -> the fov_truncation CONDITION, carried in
+# signed off at item 150 (2026-09-14, revised 2026-09-15). Item 153 re-keyed
+# the metrics themselves (segfacet.eval.per_mode.PER_MODE_METRIC_SPECS) off
+# their former pre-sign-off id map onto their own metric names, each now
+# carrying this same specification mode id (or None) as a nullable
+# ``failure_mode`` field; the mapping from metric to mode below is unchanged
+# by that re-key: unanchored_foreground_fraction and
+# min_dominant_component_fraction -> mode 1; rogue_island_count -> mode 4;
+# mislabelled_volume_fraction -> mode 8; missing_level_count -> mode 6;
+# out_of_order_label_count -> mode 9; overlapping_voxel_count -> mode 15;
+# fov_clipped_label_count -> the fov_truncation CONDITION, carried in
 # CONDITION_ANCHOR_PATHS. Modes 2, 3, 5, 7 and 10-14 and 16 have no Stage-18
 # metric and no anchor.
+#
+# Mode 1's anchor (item 154 re-anchor): the anchor is the record path its
+# fragment metric (min_dominant_component_fraction) reads --
+# ``per_label.{label}.components.fragmentation_index``, which
+# ``heuristics.fragmentation`` consumes as ``signal``, one of mode 1's
+# intended rules. ``unanchored_foreground_fraction`` is computed
+# candidate-vs-GT and reads no record path, so it has no anchor here. The
+# spline-offset path (``stage3.per_label_offsets[].offset_mm``) is dropped:
+# its only consumer, ``mislabel``, was classified at the item-150 sign-off
+# as serving no failure mode (mislabel itself declares that path
+# ``bookkeeping``, not ``signal``), so mode 1's anchor and mode 1's
+# mechanism disagreed. The corresponding candidate-feature role in
+# ``failure_modes._MODE_1`` moved from ``"stage18-metric-anchor"`` to
+# ``"hypothesised"`` to match (the path itself stays listed there).
 # --------------------------------------------------------------------------- #
 
 MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
     {
-        1: (
-            "stage3.per_label_offsets[].offset_mm",
-            "per_label.{label}.components.fragmentation_index",
-        ),
+        1: ("per_label.{label}.components.fragmentation_index",),
         4: ("per_label.{label}.components.stray_component_sizes[]",),
         6: ("relationships.present_levels[]",),
         8: ("stage3.monotonic_consistency.is_monotonic",),
@@ -376,8 +393,9 @@ MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
     }
 )
 
-#: The Stage-18 metric anchor for each case CONDITION (item 150) -- the
-#: legacy mode-6 FOV-clipped-label-count metric reads the in-plane faces.
+#: The Stage-18 metric anchor for each case CONDITION (item 150) --
+#: ``fov_clipped_label_count`` (item 153's re-key of the harness's no-mode
+#: metric) reads the in-plane faces.
 CONDITION_ANCHOR_PATHS: Mapping[str, Tuple[str, ...]] = MappingProxyType(
     {
         "fov_truncation": ("per_label.{label}.geometry.touches_left",),

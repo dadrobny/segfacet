@@ -62,6 +62,7 @@ from segfacet.synth.axes import si_axis
 from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.corpus import CORPUS_DIR
 from segfacet.synth.intensity import INTENSITY_CORPUS_DIR
+from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, corpus_case_kind
 
 __all__ = [
     "RECONSTRUCTIONS",
@@ -327,11 +328,10 @@ def pipeline_hides_designated_rule(case: dict, config=None) -> bool:
 def verify_case(case: dict, config=None) -> bool:
     """The whole per-case check, dispatched on ``detection``:
 
-    * ``pipeline``: verdict label matches, and (clean case -> no findings) or
-      (a case designating no rule -> no findings; "not detected today") or
-      (non-clean case, including a condition-only case with
-      ``failure_mode == 0`` and a ``condition`` -> designated rule fires
-      and offending labels match).
+    * ``pipeline``: verdict label matches, and (``kind == "clean_control"`` ->
+      no findings) or (a case designating no rule -> no findings; "not
+      detected today") or (``kind in {"condition", "failure"}`` -> designated
+      rule fires and offending labels match).
     * ``reconstructed_record``: plain pipeline hides the designated rule,
       the reconstruction fires it, and the offending labels match.
     """
@@ -340,7 +340,7 @@ def verify_case(case: dict, config=None) -> bool:
     if case["detection"] == "pipeline":
         if pipeline_verdict_label(case, config) != case["expected_verdict"]:
             return False
-        if case.get("failure_mode") == 0 and not case.get("condition"):
+        if corpus_case_kind(case) == CASE_KIND_CLEAN_CONTROL:
             return pipeline_findings(case, config) == ()
         if not case["expected_rule_ids"]:
             # A failure-mode case no shipped rule detects yet (item 150:

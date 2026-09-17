@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "FACET Run-vs-Run Per-Mode Comparison Report v0",
-  "description": "Machine-readable Stage-18 run-vs-run per-mode comparison schema v0 for segfacet.eval.report (item 101). Bundles two runs' provenance/run-manifest identity plus the full RunComparison.to_dict() diff.",
+  "description": "Machine-readable run-vs-run per-mode comparison schema v0 for segfacet.eval.report (item 101; re-keyed by item 153 to name metrics/exclusions by metric_name rather than a legacy mode id). Bundles two runs' provenance/run-manifest identity plus the full RunComparison.to_dict() diff.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,8 +13,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "description": "Version discriminator for this comparison-report schema. Always '0.1' for v0.",
-      "const": "0.1"
+      "description": "Version discriminator for this comparison-report schema. '0.2' since item 153 renamed excluded_modes to excluded_metric_names.",
+      "const": "0.2"
     },
     "run_a": {
       "description": "Run A's identity: provenance plus optional run-manifest.",
@@ -25,7 +25,7 @@
       "$ref": "#/definitions/runSide"
     },
     "comparison": {
-      "description": "The RunComparison.to_dict() bundle (item 101): eight per-Section-6-failure-mode deltas plus the aggregate Dice deltas and the attributed mode. Nested shapes (per_mode entries) are already guaranteed by RunComparison.to_dict() and are not enumerated leaf-by-leaf here.",
+      "description": "The RunComparison.to_dict() bundle (item 101): eight per-metric deltas plus the aggregate Dice deltas and the attribution. Nested shapes (per_mode entries) are already guaranteed by RunComparison.to_dict() and are not enumerated leaf-by-leaf here.",
       "$ref": "#/definitions/comparison"
     }
   },
@@ -60,7 +60,7 @@
         "attributed_metric_name",
         "run_manifest_a",
         "run_manifest_b",
-        "excluded_modes",
+        "excluded_metric_names",
         "unattributable_reason"
       ],
       "properties": {
@@ -80,10 +80,10 @@
         "attributed_metric_name": {"type": ["string", "null"]},
         "run_manifest_a": {"type": ["object", "null"]},
         "run_manifest_b": {"type": ["object", "null"]},
-        "excluded_modes": {
-          "description": "Item 109 (AC8b): failure_mode ints, ascending, that carry a real delta but no normalised_delta -- excluded from magnitude-ranked attribution rather than silently dropped. Possibly empty.",
+        "excluded_metric_names": {
+          "description": "Item 109 (AC8b), re-keyed by item 153 (AC29/AC33): metric_name strings, in registry order, that carry a real delta but no normalised_delta -- excluded from magnitude-ranked attribution rather than silently dropped. Possibly empty.",
           "type": "array",
-          "items": {"type": "integer", "minimum": 1, "maximum": 8}
+          "items": {"type": "string"}
         },
         "unattributable_reason": {
           "description": "Item 109 (AC8b/AC9): null whenever attributed_mode is not null; otherwise a non-empty human-readable string naming why no mode is attributable.",

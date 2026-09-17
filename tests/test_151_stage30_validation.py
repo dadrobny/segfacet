@@ -374,7 +374,7 @@ def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
     load; only ``case_id`` is overridden to one no ``ModeSpec.corpus_cases``
     entry carries.
     """
-    real_case = _manifest_case("mode1_displace")
+    real_case = _manifest_case("displace")
     assert real_case["failure_mode"] == 1
 
     def _fake_load_manifest():
@@ -391,14 +391,14 @@ def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
 
 
 # =========================================================================== #
-# AC10/AC11: mode6_crop_at_border, the FOV-truncation condition's fixture.
+# AC10/AC11: crop_at_border, the FOV-truncation condition's fixture.
 # =========================================================================== #
 
 
 def test_ac10_condition_case_expects_border_and_mislabel_with_a_reason():
     condition = fm.CONDITIONS["fov_truncation"]
     case = next(
-        (c for c in condition.corpus_cases if c.case_id == "mode6_crop_at_border"), None
+        (c for c in condition.corpus_cases if c.case_id == "crop_at_border"), None
     )
     assert case is not None
     assert set(case.expected_firing) == {"border", "mislabel"}
@@ -406,18 +406,18 @@ def test_ac10_condition_case_expects_border_and_mislabel_with_a_reason():
 
 
 def test_ac10_manifest_entry_has_no_failure_mode_and_the_condition():
-    manifest_case = _manifest_case("mode6_crop_at_border")
+    manifest_case = _manifest_case("crop_at_border")
     assert manifest_case["failure_mode"] == 0
     assert manifest_case.get("condition") == "fov_truncation"
 
 
 def test_ac10_no_specification_mode_carries_the_case():
     for mode in fm.SPECIFICATION.values():
-        assert "mode6_crop_at_border" not in {c.case_id for c in mode.corpus_cases}, mode.id
+        assert "crop_at_border" not in {c.case_id for c in mode.corpus_cases}, mode.id
 
 
 def test_ac11_crop_at_border_touches_anterior_and_offset_exceeds_threshold():
-    record = _record("mode6_crop_at_border")
+    record = _record("crop_at_border")
     assert record["per_label"]["22"]["geometry"]["touches_anterior"] is True
 
     offset_entry = _per_label_offset(record, 22)
@@ -434,7 +434,7 @@ def test_ac11_clean_control_does_not_touch_anterior():
 
 def test_adv_ac11_offset_exactly_at_threshold_does_not_count_as_above():
     threshold = _max_offset_mm()
-    record = _record("mode6_crop_at_border")
+    record = _record("crop_at_border")
     offset_entry = dict(_per_label_offset(record, 22))
     offset_entry["offset_mm"] = threshold
     assert not (offset_entry["offset_mm"] > threshold)
@@ -593,27 +593,27 @@ def test_ac15_mode15_mechanism_states_the_single_channel_invariant():
 
 
 def test_ac16_overlap_case_yields_no_overlap_through_the_pipeline():
-    case = _manifest_case("mode8_force_overlap")
-    record = _record("mode8_force_overlap")
+    case = _manifest_case("force_overlap")
+    record = _record("force_overlap")
     assert record["overlaps"] == []
     findings = pipeline_findings(case)
     assert "overlap" not in {f.rule_id for f in findings}
 
 
 def test_ac16_overlap_case_yields_overlap_through_the_reconstruction():
-    case = _manifest_case("mode8_force_overlap")
+    case = _manifest_case("force_overlap")
     findings = reconstructed_findings(case)
     assert findings, "expected >=1 reconstructed finding"
     assert "overlap" in {f.rule_id for f in findings}
 
 
 def test_ac16_manifest_detection_is_reconstructed_record():
-    case = _manifest_case("mode8_force_overlap")
+    case = _manifest_case("force_overlap")
     assert case["detection"] == "reconstructed_record"
 
 
 def test_ac16_mode15_carries_the_case():
-    assert "mode8_force_overlap" in {c.case_id for c in fm.SPECIFICATION[15].corpus_cases}
+    assert "force_overlap" in {c.case_id for c in fm.SPECIFICATION[15].corpus_cases}
 
 
 # =========================================================================== #
@@ -725,7 +725,7 @@ def test_adv_ac18_emptied_agreeing_case_stops_validating(conformance_index):
 
     mutated_cases = tuple(
         dataclasses.replace(case, expected_firing=())
-        if case.case_id == "mode4_relabel_swap"
+        if case.case_id == "relabel_swap"
         else case
         for case in mode9.corpus_cases
     )
@@ -842,19 +842,15 @@ def test_ac26_traceability_has_no_mode_rungs_attribute():
 # =========================================================================== #
 # AC27: every vision.md §6 seed title resolves through
 # VISION_SEED_DISPOSITION.
+#
+# test_ac27_vision_seed_conflicts_is_empty and
+# test_adv_ac27_unresolvable_disposition_is_flagged retired (item 152,
+# 2026-09-16), with `vision_seed_conflicts()`: vision.md v4's §6 carries no
+# numbered list left to parse. AC27's every-disposition-resolves claim, and
+# the positive control that it can fail, are
+# `tests/test_152_retire_vision_seed.py::test_ac7_every_disposition_resolves`
+# and its adversarial pair.
 # =========================================================================== #
-
-
-def test_ac27_vision_seed_conflicts_is_empty():
-    assert fm.vision_seed_conflicts() == ()
-
-
-def test_adv_ac27_unresolvable_disposition_is_flagged(monkeypatch):
-    bad_disposition = dict(fm.VISION_SEED_DISPOSITION)
-    some_title = next(iter(bad_disposition))
-    bad_disposition[some_title] = "mode:9999"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", bad_disposition)
-    assert fm.vision_seed_conflicts() != ()
 
 
 # =========================================================================== #
@@ -1369,7 +1365,7 @@ def test_ac40_intensity_pipeline_findings_pins_pyradiomics_disabled_by_default()
 
 def test_adv_measured_firing_is_deterministic_across_two_calls():
     probe = fm.CorpusCaseExpectation(
-        case_id="mode4_relabel_swap", corpus="geometric", expected_firing=(), reason=""
+        case_id="relabel_swap", corpus="geometric", expected_firing=(), reason=""
     )
     first = fm.measured_firing(probe)
     second = fm.measured_firing(probe)

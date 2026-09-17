@@ -571,16 +571,16 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 #: sign-off (revised 2026-09-15) leaves it: the modes ``synth/*.py``'s
 #: ``Expectation(...)`` literals attribute to each rule, which is exactly what
 #: ``catalogue._scan_synth_rule_mode_map`` must recover. ``border`` is absent
-#: on purpose -- its corpus case (``mode6_crop_at_border``) now carries
+#: on purpose -- its corpus case (``crop_at_border``) now carries
 #: ``failure_mode=0`` plus the ``fov_truncation`` *condition*, so the scan
 #: attributes no mode to it; the mode-less half of AC15 covers it instead.
 #: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
-    "mislabel": (1, 9),  # mode1_displace (1), mode4_relabel_swap (9)
-    "fragmentation": (1, 2, 4),  # mode2_fragment (1), fuse_adjacent (2), islands (4)
-    "coverage": (2, 6),  # fuse_adjacent (2), mode5_remove_level (6)
-    "sequence": (9,),  # mode7_sequence_break
-    "overlap": (15,),  # mode8_force_overlap
+    "mislabel": (1, 9),  # displace (1), relabel_swap (9)
+    "fragmentation": (1, 2, 4),  # fragment (1), fuse_adjacent (2), islands (4)
+    "coverage": (2, 6),  # fuse_adjacent (2), remove_level (6)
+    "sequence": (9,),  # sequence_break
+    "overlap": (15,),  # force_overlap
 }
 
 
@@ -1111,8 +1111,8 @@ _MD_COLUMNS = (
     "computation",
     "units",
     "scale sensitivity",
-    "§6 mode(s)",
-    "§6 mode role(s)",
+    "Mode(s)",
+    "Mode role(s)",
     "consuming rules",
     "status",
 )
@@ -1120,7 +1120,7 @@ _MD_COLUMNS = (
 
 def test_ac24_markdown_has_exact_columns_and_row_count(catalogue_module, full_catalogue):
     """Reconciled (item 148, 2026-09-04): ``render_markdown`` gains a
-    "§6 mode role(s)" column carrying the per-path classification."""
+    "Mode role(s)" column carrying the per-path classification."""
     md = catalogue_module.render_markdown(full_catalogue)
     lines = md.splitlines()
 

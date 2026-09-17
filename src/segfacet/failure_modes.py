@@ -2,7 +2,7 @@
 Specification: the vision.md §6 catalogue as an authored source).
 
 This module is the **primary record** vision.md §6 describes: one frozen
-:class:`ModeSpec` declaration per §6 failure mode, shaped after
+:class:`ModeSpec` declaration per failure mode, shaped after
 ``RuleModeDeclaration`` (:mod:`segfacet.heuristics.rule`, item 136), from
 which ``docs/aide/failure_modes.generated.{md,json}`` are rendered by
 zero-argument regeneration (:func:`main`). Today the catalogue exists as five
@@ -13,8 +13,8 @@ renders.
 
 **This module ships the schema, the validation, the derivation and the
 rendering.** Item 144 shipped a minimal seed set of two entries to exercise
-both derivation paths end-to-end (item spec A4); item 145 entered vision.md
-§6's eight hypothesised modes; item 146 added the ninth mode and the first
+both derivation paths end-to-end (item spec A4); item 145 entered the eight hypothesised
+modes of vision.md v3's seed list; item 146 added the ninth mode and the first
 ``proposed`` entry; item 147 collapsed the five partial sources onto it.
 Item 150's maintainer sign-off (2026-09-14) then **re-organised the
 catalogue** -- see "Taxonomy as signed off" below -- so :data:`SPECIFICATION`
@@ -23,11 +23,11 @@ entry.
 
 Taxonomy as signed off (item 150, 2026-09-14, revised 2026-09-15)
 -----------------------------------------------------------------
-Ids are assigned in this module and are stable from the sign-off on; the
-vision.md §6 list is provenance only (:data:`VISION_SEED_DISPOSITION`), so a
-§6 re-issue through the create-vision entry point is owed and does not move
-an id. The tree runs generic to specific, and a case that meets a parent's
-definition but no sub-mode's rule is classified at the parent. ``scope``
+Ids are assigned in this module and are stable from the sign-off on. §6 of
+vision.md points here as the catalogue's specification; the numbered list its
+v3 carried is provenance only (:data:`VISION_SEED_DISPOSITION`), frozen and
+never re-parsed. The tree runs generic to specific, and a case that meets a
+parent's definition but no sub-mode's rule is classified at the parent. ``scope``
 says whether a mode's finding is about one vertebra or about the labels
 along the spine::
 
@@ -57,13 +57,13 @@ shipped detector serves at most one mode -- fused (2) / split (3), islands
 sub-modes, out-of-order (9, severity fail), skipped level label (10,
 severity fail) and unprompted numbering variant (11). A gap in the label
 sequence caused by a vertebra that was not segmented is mode 6's, so
-``coverage``'s interior-gap detector and ``mode5_remove_level`` serve mode
+``coverage``'s interior-gap detector and ``remove_level`` serve mode
 6; mode 10 is only a skipped label on a segmented vertebra, which no rule
 tells apart from a missed one yet. A duplicated label is the
 same label on non-adjacent vertebrae anywhere in the sequence; adjacent
 vertebrae sharing a label are a fusion. Fused/split are defined by a
 substantial part of a vertebra under a neighbour's label; islands and holes
-by small same-label topology defects. ``mode2_fragment`` (a vertebra cut
+by small same-label topology defects. ``fragment`` (a vertebra cut
 into large same-label pieces by a missing slab of its own body) is neither,
 so it and ``fragmentation``'s Fragmentation: detector sit at the parent,
 mode 1; the Rogue island(s): detector serves mode 4. ``ModeSpec.scope`` and
@@ -82,18 +82,18 @@ full walkthrough is transcribed in
 * The old mode 2 ("over-/under-segmentation") is split: overall accuracy
   is the new catch-all mode 1, and fused/split correspondence is mode 2.
   A label in two large pieces is a connectivity defect, so
-  ``mode2_fragment`` and ``fragmentation``'s component detector move to
+  ``fragment`` and ``fragmentation``'s component detector move to
   mode 3.
 * "Missing interior level" is a label-sequence finding, so ``coverage``'s
-  interior-gap detector and ``mode5_remove_level`` move to mode 6; mode 4
+  interior-gap detector and ``remove_level`` move to mode 6; mode 4
   (vertebra not segmented) keeps ``coverage``'s opt-in span/count checks
   and gains ``remove_level_relabel`` -- a vertebra removed with the labels
   renumbered to stay continuous -- which no shipped rule detects.
-* A relabel swap breaks the sequence, so ``mode4_relabel_swap`` and
+* A relabel swap breaks the sequence, so ``relabel_swap`` and
   ``mislabel``'s ordering detector move to mode 6. Mode 5 keeps only the
   per-level-geometry proxy (``reference_delta``).
 * Mode 6 (partial vertebra at the border) becomes the FOV-truncation
-  **condition**: ``border`` declares no mode, and ``mode6_crop_at_border``
+  **condition**: ``border`` declares no mode, and ``crop_at_border``
   is the condition's fixture, still expecting ``{border, mislabel}``.
 * Two observability classes are added, ``needs-ground-truth`` and
   ``needs-external-classifier``; ``bounds`` and ``reference_delta`` are
@@ -102,16 +102,19 @@ full walkthrough is transcribed in
   the mode's **own** intended rules (:func:`_demonstrates`); co-detections
   and empty expected sets never validate.
 
-Known divergence, deferred to a follow-up item: the Stage-18/29 eval
-harness (``segfacet.eval.per_mode``, ``severity_ladder``,
-``per_mode_cohort``) is still keyed by the **pre-sign-off** ids 1-8 and
-names them through ``segfacet.eval.per_mode.LEGACY_STAGE18_MODE_NAMES``;
-re-keying it needs re-measured ladder constants and is not this module's.
+Item 153 (2026-09-16) re-keyed the Stage-18/29 eval harness
+(``segfacet.eval.per_mode``, ``severity_ladder``, ``per_mode_cohort``) off
+its former pre-sign-off id map onto its own metric names (for the per-case
+magnitude registry) and operator names (for the severity ladders), with this
+module's specification mode ids carried in a nullable ``failure_mode`` field
+derived live from ``SPECIFICATION``/``CONDITIONS`` -- so the eval harness no
+longer maintains a second, frozen name map of its own. Re-measuring that
+harness's ladder constants against the new homes is deferred to item 154.
 
 Adding the ninth mode (item 146, 2026-09-04)
 --------------------------------------------
 Mode 9 ("Implausible tissue under a label") is deliberately **not** one of
-vision.md §6's numbered eight. It entered through this module's schema,
+v3 vision.md §6's numbered eight. It entered through this module's schema,
 acquired its rules by their declarations moving from mode-less to
 ``modes=(9,)``, and derives ``"validated"`` from live state -- evidence for
 §6's own claim that a mode can be added **without everything being rebuilt**:
@@ -176,11 +179,11 @@ authored:
 * ``traceability.MODE_RUNGS`` / ``ModeRung`` / ``RUNGS`` are retired.
   :data:`RUNG_LABELS` moved here verbatim, and the matrix's per-mode rung
   is :func:`derive_mode_rung` over the per-edge rungs item 145 authored.
-* The ``vision.md`` §6 parse moved here as the public
-  :func:`vision_seed_titles`. It is the **seed**, not the record: the one
-  kept conformance check in that direction is that modes 1-8's ``name``
-  fields still equal §6's list. No other module under ``src/segfacet/``
-  reads ``vision.md``.
+* The ``vision.md`` §6 parse item 147 moved here was retired at item 152,
+  once vision v4 re-issued §6 as principles plus a pointer to this module
+  and dropped the numbered list. What v3's list became is kept as frozen
+  provenance (:data:`VISION_SEED_DISPOSITION`); no module under
+  ``src/segfacet/`` parses ``vision.md``.
 * The reserved ``"corpus"`` evidence tag is retired rather than hardened
   (``docs/aide/insights.md``, item 136, 2026-09-02, three located defects):
   it was an exact-element membership test over an unvalidated tuple. The
@@ -235,9 +238,10 @@ Public API
     The immutable, ascending-by-id seed (a ``MappingProxyType``).
 ``iter_modes() -> Iterator[ModeSpec]``
     Yield the seed modes in ascending ``id`` order. Takes no argument.
-``vision_seed_titles() -> Dict[int, str]``
-    The vision.md §6 numbered titles, parsed live (item 147 AC4) -- this
-    module is the only reader of that document under ``src/segfacet/``.
+``VISION_SEED_DISPOSITION``
+    Frozen provenance: what each of vision.md v3 section 6's numbered seed
+    titles became (``mode:<id>``, ``condition:<id>`` or ``retired``). No
+    live parse backs it; the value never changes.
 ``failure_mode_names() -> Mapping[int, str]``
     ``{0: CLEAN_CONTROL_NAME}`` plus every mode's ``short_name``; the
     binding ``segfacet.synth.perturbation.FAILURE_MODE_NAMES`` resolves to.
@@ -295,8 +299,6 @@ __all__ = [
     "iter_conditions",
     "mode_path",
     "VISION_SEED_DISPOSITION",
-    "vision_seed_conflicts",
-    "vision_seed_titles",
     "failure_mode_names",
     "CLEAN_CONTROL_NAME",
     "RUNG_LABELS",
@@ -329,7 +331,7 @@ MD_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
 _NOTE = (
     "Generated by `python -m segfacet.failure_modes` (item 144; taxonomy "
     "signed off at item 150, 2026-09-14, revised 2026-09-15). Do not "
-    "hand-edit this document -- edit the seed ModeSpec entries in "
+    "hand-edit this document -- edit the ModeSpec entries in "
     "src/segfacet/failure_modes.py (the authored fields), then regenerate. "
     "`status_authored` is the hand-set proposed/specified value; "
     "`status_derived` and `derived_rung` are computed live from the rule "
@@ -741,8 +743,9 @@ class ConditionSpec:
 # =========================================================================== #
 # The catalogue as signed off (item 150, 2026-09-14; revised 2026-09-15).
 #
-# Ids are assigned HERE and are stable from this sign-off on; the vision.md
-# section 6 list is provenance only (see VISION_SEED_DISPOSITION). The tree is
+# Ids are assigned HERE and are stable from this sign-off on; v3's vision.md
+# section 6 numbered list is provenance only (see VISION_SEED_DISPOSITION),
+# frozen, and unread by any module. The tree is
 # generic-to-specific: a case that meets a parent's definition but no
 # sub-mode's rule is classified at the parent. Each sub-mode names one defect,
 # never a pair of converse defects, so every shipped detector serves at most
@@ -785,11 +788,11 @@ _MODE_1 = ModeSpec(
         "reference_delta's cohort z-scores "
         "(reference_delta.{label}.features.physical_volume_mm3.robust_z), "
         "both declared at needs-real-data. One form is demonstrated "
-        "end-to-end: mode2_fragment cuts a background slab through label 22 "
+        "end-to-end: fragment cuts a background slab through label 22 "
         "and fragmentation's Fragmentation: detector fires on the two "
         "comparably-sized same-label pieces via "
         "per_label.{label}.components.fragmentation_index. The corpus case "
-        "mode1_displace (a rigidly translated vertebra, which is "
+        "displace (a rigidly translated vertebra, which is "
         "over-segmentation into background plus under-segmentation of the "
         "true body) fires mislabel's spline-offset detector via "
         "stage3.per_label_offsets[].offset_mm -- a detector that serves no "
@@ -800,7 +803,7 @@ _MODE_1 = ModeSpec(
     candidate_features=(
         CandidateFeature(
             path="stage3.per_label_offsets[].offset_mm",
-            role="stage18-metric-anchor",
+            role="hypothesised",
         ),
         CandidateFeature(
             path="per_label.{label}.components.fragmentation_index",
@@ -854,7 +857,7 @@ _MODE_1 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode1_displace",
+            case_id="displace",
             corpus="geometric",
             expected_firing=("mislabel",),
             reason=(
@@ -868,7 +871,7 @@ _MODE_1 = ModeSpec(
             ),
         ),
         CorpusCaseExpectation(
-            case_id="mode2_fragment",
+            case_id="fragment",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason=(
@@ -1094,7 +1097,7 @@ _MODE_4 = ModeSpec(
     ),
     mechanism=(
         "fragmentation's Rogue island(s): detector serves this mode "
-        "end-to-end on the committed corpus: mode3_inject_islands adds tiny "
+        "end-to-end on the committed corpus: inject_islands adds tiny "
         "rogue blocks beside label 22 and the detector fires via "
         "per_label.{label}.components.stray_component_sizes[]. bounds and "
         "reference_delta stay needs-real-data: a stray island shifts volume "
@@ -1134,7 +1137,7 @@ _MODE_4 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode3_inject_islands",
+            case_id="inject_islands",
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason=(
@@ -1228,7 +1231,7 @@ _MODE_6 = ModeSpec(
         "with no candidate voxels). From the label map alone: coverage's "
         "always-active interior-gap detector fires on "
         "relationships.missing_levels[] when the remaining labels are kept "
-        "-- mode5_remove_level deletes L3 without renumbering and drives it "
+        "-- remove_level deletes L3 without renumbering and drives it "
         "end-to-end -- although the same gap is what a skipped label (mode "
         "10) leaves, which centroid spacing would separate and no rule "
         "reads. coverage's opt-in expected-span and expected-count checks "
@@ -1282,7 +1285,7 @@ _MODE_6 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode5_remove_level",
+            case_id="remove_level",
             corpus="geometric",
             expected_firing=("coverage",),
             reason=(
@@ -1403,7 +1406,7 @@ _MODE_8 = ModeSpec(
         "(reference_delta.{label}.features.physical_volume_mm3.robust_z) "
         "are the shipped proxy, needs-real-data. The whole-sequence shift "
         "is mode 12 and needs an external vertebra classifier. The corpus "
-        "swap case (mode4_relabel_swap) is a mode-9 case: a swap breaks the "
+        "swap case (relabel_swap) is a mode-9 case: a swap breaks the "
         "order of the sequence, which is the observable form."
     ),
     observability="single-channel-observable",
@@ -1464,12 +1467,12 @@ _MODE_9 = ModeSpec(
     ),
     mechanism=(
         "Two detectors serve this mode: sequence fires on "
-        "relationships.out_of_order_labels[] (mode7_sequence_break relabels "
+        "relationships.out_of_order_labels[] (sequence_break relabels "
         "the tail to T13 -- one rank descent, since "
         "segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); "
         "mislabel's ordering detector fires on "
         "stage3.monotonic_consistency.non_monotonic_pairs[] "
-        "(mode4_relabel_swap exchanges L2 and L3). A multi-relabel scramble "
+        "(relabel_swap exchanges L2 and L3). A multi-relabel scramble "
         "is not expressible by the fixture generator, which is why the "
         "sequence edge stays needs-real-data although its case is "
         "pipeline-detected."
@@ -1503,7 +1506,7 @@ _MODE_9 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode4_relabel_swap",
+            case_id="relabel_swap",
             corpus="geometric",
             expected_firing=("mislabel",),
             reason=(
@@ -1516,7 +1519,7 @@ _MODE_9 = ModeSpec(
             ),
         ),
         CorpusCaseExpectation(
-            case_id="mode7_sequence_break",
+            case_id="sequence_break",
             corpus="geometric",
             expected_firing=("sequence",),
             reason=(
@@ -1794,7 +1797,7 @@ _MODE_15 = ModeSpec(
         "A single-channel integer label map cannot assign two labels to one "
         "voxel, so overlaps[] populates only on a case deliberately "
         "corrupted to violate that invariant, which no real segmenter "
-        "output can be; mode8_force_overlap therefore stays "
+        "output can be; force_overlap therefore stays "
         "detection=\"reconstructed_record\" rather than pipeline-detected, "
         "while the overlap rule and the paths it reads remain correct and "
         "fully wired."
@@ -1815,7 +1818,7 @@ _MODE_15 = ModeSpec(
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode8_force_overlap",
+            case_id="force_overlap",
             corpus="geometric",
             expected_firing=("overlap",),
             reason=(
@@ -1980,7 +1983,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     ),
     mechanism=(
         "The border rule records the condition end-to-end on "
-        "mode6_crop_at_border, which crops label 22's anterior face "
+        "crop_at_border, which crops label 22's anterior face "
         "(per_label.{label}.geometry.touches_anterior), classifying it an "
         "unexpected clip; cropping also displaces the centroid off the "
         "fitted spinal curve, so mislabel's mode-less spline-offset "
@@ -2006,7 +2009,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     exempting_rules=("mislabel", "coverage"),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="mode6_crop_at_border",
+            case_id="crop_at_border",
             corpus="geometric",
             expected_firing=("border", "mislabel"),
             reason=(
@@ -2024,10 +2027,11 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
 
 
 # =========================================================================== #
-# Provenance: what became of each vision.md section 6 seed title (item 150).
-# The vision list is the SEED the catalogue started from, never its ids; the
-# one conformance claim in that direction is that every seed title has a
-# disposition here and every referenced mode id exists.
+# Provenance: what each of vision.md v3 section 6's numbered seed titles
+# became (item 150, retired to frozen provenance by item 152). v3's list
+# seeded this catalogue but never assigned its ids; nothing under
+# src/segfacet/ parses vision.md any more, and this map's value never
+# changes -- it is history, kept because both generated artifacts render it.
 # =========================================================================== #
 
 VISION_SEED_DISPOSITION: Mapping[str, str] = MappingProxyType(
@@ -2141,51 +2145,6 @@ def iter_modes() -> Iterator[ModeSpec]:
         yield SPECIFICATION[mode_id]
 
 
-# =========================================================================== #
-# The vision.md §6 parse (item 147 AC4) -- one home, here.
-# =========================================================================== #
-
-
-def vision_seed_titles() -> Dict[int, str]:
-    """The numbered titles of ``docs/aide/vision.md`` §6, parsed live.
-
-    This is the **seed**, not the record, and it provides no ids. §6
-    names the eight modes this catalogue started from; :data:`SPECIFICATION`
-    is what the catalogue *is* today, re-organised at the item-150 sign-off
-    (2026-09-14). The one conformance claim in this direction is
-    :func:`vision_seed_conflicts`: every seed title has a
-    :data:`VISION_SEED_DISPOSITION` entry that resolves -- nothing else
-    reads this, and no consumer should treat a missing key as a missing
-    mode.
-
-    Item 147 moved this function here from ``segfacet.traceability``
-    (where it was private) so that exactly one module under
-    ``src/segfacet/`` reads ``vision.md`` at all.
-    """
-    import re
-
-    text = (_REPO_ROOT / "docs" / "aide" / "vision.md").read_text(encoding="utf-8")
-    section_match = re.search(
-        r"^## 6\. Segmentation Failure Modes[^\n]*\n(.*?)(?=^## \d|\Z)",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-    if section_match is None:
-        raise RuntimeError(
-            "segfacet.failure_modes: docs/aide/vision.md carries no "
-            "'## 6. Segmentation Failure Modes' section to transcribe titles from."
-        )
-    section_text = section_match.group(1)
-    items = re.findall(r"^\d+\.\s+(.+)$", section_text, flags=re.MULTILINE)
-    titles: Dict[int, str] = {}
-    for index, raw in enumerate(items, start=1):
-        title = raw.strip()
-        if title.endswith("."):
-            title = title[:-1]
-        title = re.sub(r"\s+", " ", title).strip()
-        titles[index] = title
-    return titles
-
 
 # =========================================================================== #
 # The derived failure-mode name map (item 147 AC21) -- the binding
@@ -2198,7 +2157,7 @@ def failure_mode_names() -> Mapping[int, str]:
     mode id and ascending.
 
     The values are the **paraphrases** both committed corpus manifests carry
-    in ``failure_mode_name``, not the vision §6 titles ``ModeSpec.name``
+    in ``failure_mode_name``, not the specification titles ``ModeSpec.name``
     holds -- which is why they are an authored field rather than derived
     from ``name``: re-pointing the manifests at ``name`` would be a corpus
     value change. Key 0 is explicit because the clean control is not a
@@ -2512,13 +2471,20 @@ def _corpus_case_conflicts(modes: Tuple[ModeSpec, ...]) -> Tuple[str, ...]:
     * ``tests/corpus/intensity/manifest.json`` carries ``expected_firing``,
       the full set -- compared by **equality**.
 
-    Cases whose ``failure_mode`` is 0 are the clean controls: not a failure
-    mode, no ``ModeSpec`` entry, skipped. Manifests are read through the
+    A clean-control case (``kind == "clean_control"``) is not a failure mode,
+    has no ``ModeSpec`` entry, and is skipped. Manifests are read through the
     module objects (deferred imports, house style) so a test can substitute
-    one.
+    one. Every case's ``kind`` (item 155) is validated by
+    ``segfacet.synth.perturbation.corpus_case_kind``, which raises
+    ``ValueError`` for a case carrying no recorded kind.
     """
     from segfacet.synth import corpus as corpus_module
     from segfacet.synth import intensity as intensity_module
+    from segfacet.synth.perturbation import (
+        CASE_KIND_CLEAN_CONTROL,
+        CASE_KIND_CONDITION,
+        corpus_case_kind,
+    )
 
     by_id = {mode.id: mode for mode in modes}
     conflicts = []
@@ -2540,14 +2506,16 @@ def _corpus_case_conflicts(modes: Tuple[ModeSpec, ...]) -> Tuple[str, ...]:
         for case in cases:
             mode_id = case.get("failure_mode")
             case_id = case.get("case_id")
-            if mode_id == 0:
+            kind = corpus_case_kind(case)
+            if kind == CASE_KIND_CLEAN_CONTROL:
+                continue
+            if kind == CASE_KIND_CONDITION:
                 condition_id = case.get("condition") or ""
-                if condition_id:
-                    conflicts.extend(
-                        _condition_case_conflicts(
-                            corpus_name, case, condition_id, expectation_key, relation
-                        )
+                conflicts.extend(
+                    _condition_case_conflicts(
+                        corpus_name, case, condition_id, expectation_key, relation
                     )
+                )
                 continue
             mode = by_id.get(mode_id)
             if mode is None:
@@ -2598,9 +2566,9 @@ def _condition_case_conflicts(
     relation: str,
 ) -> Tuple[str, ...]:
     """The condition half of :func:`_corpus_case_conflicts` (item 150): a
-    manifest case carrying ``failure_mode == 0`` **and** a ``condition``
-    must be carried by that :class:`ConditionSpec`'s ``corpus_cases`` with
-    an agreeing expectation, under the same relation as a mode's case."""
+    manifest case whose ``kind`` (item 155) is ``"condition"`` must be
+    carried by that :class:`ConditionSpec`'s ``corpus_cases`` with an
+    agreeing expectation, under the same relation as a mode's case."""
     case_id = case.get("case_id")
     condition = CONDITIONS.get(condition_id)
     if condition is None:
@@ -2636,42 +2604,6 @@ def _condition_case_conflicts(
             f"under the {relation} relation this corpus is compared by.",
         )
     return ()
-
-
-def vision_seed_conflicts() -> Tuple[str, ...]:
-    """The one conformance claim kept in the vision -> specification
-    direction (item 150): every ``docs/aide/vision.md`` section 6 seed
-    title has a :data:`VISION_SEED_DISPOSITION` entry, every disposition
-    resolves (``mode:<id>`` to a :data:`SPECIFICATION` key,
-    ``condition:<id>`` to a :data:`CONDITIONS` key, or ``retired``), and no
-    disposition names a title section 6 does not carry. The seed list
-    provides provenance, never ids."""
-    conflicts = []
-    titles = set(vision_seed_titles().values())
-    for title in sorted(titles):
-        if title not in VISION_SEED_DISPOSITION:
-            conflicts.append(
-                f"vision.md section 6 seed title {title!r} has no "
-                f"VISION_SEED_DISPOSITION entry."
-            )
-    for title, disposition in VISION_SEED_DISPOSITION.items():
-        if title not in titles:
-            conflicts.append(
-                f"VISION_SEED_DISPOSITION names {title!r}, which vision.md section "
-                f"6 does not carry."
-            )
-        if disposition == "retired":
-            continue
-        kind, _sep, target = disposition.partition(":")
-        if kind == "mode" and target.isdigit() and int(target) in SPECIFICATION:
-            continue
-        if kind == "condition" and target in CONDITIONS:
-            continue
-        conflicts.append(
-            f"VISION_SEED_DISPOSITION[{title!r}] = {disposition!r} does not "
-            f"resolve to a SPECIFICATION mode, a CONDITIONS entry or 'retired'."
-        )
-    return tuple(conflicts)
 
 
 # =========================================================================== #
@@ -2882,7 +2814,13 @@ def render_markdown() -> str:
                 f"{_md_escape(case['reason'])}"
             )
         lines.append("")
-    lines.append("## Vision section 6 seed disposition")
+    lines.append("## Provenance: vision.md v3 section 6 seed titles")
+    lines.append("")
+    lines.append(
+        "vision.md section 6 states the catalogue's principles and points at "
+        "this specification; the numbered list its v3 carried seeded the "
+        "catalogue, and what became of each title is recorded below."
+    )
     lines.append("")
     for title, disposition in payload["vision_seed_disposition"].items():
         lines.append(f"- {_md_escape(title)} -> {disposition}")

@@ -19,8 +19,10 @@ Design decisions (recorded per item 027 spec):
 - Missing geometry keys are silently skipped (not crashed) so partially-
   populated records remain safe to evaluate.
 - The caller's record is never mutated.
-- Targets §6 mode 2 (over-/under-segmentation), declared on analytic grounds
-  (item 137) -- see ``BoundsRule.mode_declaration``.
+- Targets failure modes 1 (segmentation accuracy), 2 (fused), 3 (split) and
+  4 (islands) in ``failure_modes.SPECIFICATION`` as a volume/extent proxy,
+  declared on analytic grounds (item 137, re-keyed at the item-150 sign-off)
+  -- see ``BoundsRule.mode_declaration``.
 """
 
 from __future__ import annotations
@@ -293,16 +295,16 @@ class BoundsRule(Rule):
 
     rule_id = "bounds"
 
-    # §6 disposition (item 137): declares mode 2 (over-/under-segmentation)
-    # on analytic grounds -- no committed corpus case designates "bounds" for
-    # any mode, so evidence carries "analytic" plus the mechanism sentence,
-    # never "corpus". Modes 3, 5 and 6 were considered and rejected: mode 5
-    # is structurally out of reach (evaluate() iterates labels *present* in
-    # per_label and can never observe an absent one -- coverage owns mode 5);
-    # mode 3 is a component-count signal, not a magnitude one (fragmentation
-    # owns it); mode 6 is detected by its own designated feature/rule
-    # (border), and declaring it here would overstate this rule's coverage.
-    # See item 137 Assumptions A2.
+    # Disposition (item 137, re-keyed at the item-150 sign-off): declares
+    # failure_modes.SPECIFICATION modes 1 (segmentation accuracy), 2 (fused),
+    # 3 (split) and 4 (islands) on analytic grounds -- no committed corpus
+    # case designates "bounds" for any mode, so evidence carries "analytic"
+    # plus the mechanism sentence, never "corpus". Mode 6 (vertebra not
+    # segmented) is structurally out of reach: evaluate() iterates labels
+    # *present* in per_label and can never observe an absent one -- coverage
+    # owns mode 6. The FOV-truncation condition is the border rule's to
+    # record, not a mode. Item 137 Assumptions A2 argues this under the
+    # pre-renumbering v3 ids.
     mode_declaration = RuleModeDeclaration(
         modes=(1, 2, 3, 4),
         evidence=(

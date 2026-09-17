@@ -21,7 +21,7 @@ Covers Acceptance Criteria AC1-AC13:
 - AC7: every corpus case still trips the same ``(rule_id, labels)`` pairs as
   the pre-migration corpus, sourced from the goldens at a pinned reference
   commit (``aeb2f55``, read from git history).
-- AC8: the ``mode6_crop_at_border`` per-mode sensitivity is restored to 1.0.
+- AC8: the ``crop_at_border`` per-mode sensitivity is restored to 1.0.
 - AC9: a ``(0.0, 1.0, 1.0)`` spacing through the eval harness does not raise.
 - AC10/AC11: regenerating fixtures, the manifest, and goldens twice is
   byte-identical, and the manifest still describes every canonical case.
@@ -61,7 +61,12 @@ from segfacet.synth.coverage_border_overlap import (
     CropAtBorderPerturbation,
     RemoveLevelPerturbation,
 )
-from segfacet.synth.corpus import CASE_RECIPE, load_manifest, write_corpus
+from segfacet.synth.corpus import (
+    CASE_RECIPE,
+    RENAMED_CASE_IDS,
+    load_manifest,
+    write_corpus,
+)
 from segfacet.synth.golden import build_report_for_case, write_goldens
 from segfacet.synth.perturbation import FAILURE_MODE_NAMES
 from segfacet.synth.regression import loaded_seg_image
@@ -310,9 +315,9 @@ def test_ac6_crop_at_border_sets_the_matching_touches_flag(face):
 #: golden predates item 120, and once PR #56 merged, every branch's merge base
 #: became current ``main``, whose goldens already carry item 120's added pair.
 #: Measured 2026-08-31 --
-#: ``git show aeb2f55:tests/corpus/golden/mode1_displace.json | grep -c '"mislabel"'``
+#: ``git show aeb2f55:tests/corpus/golden/displace.json | grep -c '"mislabel"'``
 #: gives 0, while the same probe at ``fda97b0`` (``main`` after PR #56) gives 1
-#: -- so ``mode1_displace`` and ``mode6_crop_at_border`` failed by
+#: -- so ``displace`` and ``crop_at_border`` failed by
 #: construction against a moving merge base. ``aeb2f55`` is the exact snapshot
 #: every queue-017 branch was validated against, so identity vs. that commit
 #: is what the strip logic always meant.
@@ -321,6 +326,12 @@ def test_ac6_crop_at_border_sets_the_matching_touches_flag(face):
 #: from the working tree, so item 126's deletion of
 #: ``tests/corpus/golden/*.json`` does not affect this test.
 _REFERENCE_GOLDEN_SHA = "aeb2f5581878b76336de5716ed118dcea37dfb61"
+
+#: ``_REFERENCE_GOLDEN_SHA`` predates item 157's rename, so the golden JSON it
+#: carries is committed under the old ``modeN_`` id. Reach it through the
+#: mapping (item 157) rather than a literal -- the live ``case_id`` here is
+#: already the new id.
+_OLD_CASE_ID_AT_REFERENCE_SHA = {new: old for old, new in RENAMED_CASE_IDS.items()}
 
 
 def _reference_sha():
@@ -378,15 +389,15 @@ _REFERENCE_MANIFEST_CASES = [
 #: docs/aide/items/120-per-vertebra-offset-that-separates.md's Authorised
 #: paths entry for this test.
 _ITEM_120_ADDED_MISLABEL_PAIR = ("mislabel", (22,))
-_ITEM_120_NEW_MISLABEL_CASES = frozenset({"mode1_displace", "mode6_crop_at_border"})
+_ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace", "crop_at_border"})
 
 #: Item 132 judges monotonicity against a traversal-ordered reference fit,
 #: which deliberately adds a ``mislabel`` finding on labels (21, 22) to
-#: ``mode4_relabel_swap`` (the pure-ordering-defect case this item's
+#: ``relabel_swap`` (the pure-ordering-defect case this item's
 #: detector is built to catch) that the pre-migration committed golden
 #: (``_REFERENCE_GOLDEN_SHA``) does not carry.
 _ITEM_132_ADDED_MISLABEL_PAIR = ("mislabel", (21, 22))
-_ITEM_132_NEW_MISLABEL_CASES = frozenset({"mode4_relabel_swap"})
+_ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 
 
 @pytest.mark.skipif(
@@ -403,14 +414,17 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
     it was a moving ``git merge-base HEAD main`` until 2026-08-31 -- and is
     kept because other artefacts reference the test by name.
 
-    Except for ``mode1_displace`` and ``mode6_crop_at_border``, where item
+    Except for ``displace`` and ``crop_at_border``, where item
     120 deliberately adds a ``mislabel`` finding on label 22 (AC18/AC23),
-    and ``mode4_relabel_swap``, where item 132 deliberately adds a
+    and ``relabel_swap``, where item 132 deliberately adds a
     ``mislabel`` finding on labels (21, 22): those added pairs are stripped
     from the fresh side before comparing so the rest of each case's
     rule/label identity is still pinned exactly."""
     fresh = build_report_for_case(case)
-    committed = _reference_golden(case["case_id"], _REFERENCE_SHA)
+    historical_case_id = _OLD_CASE_ID_AT_REFERENCE_SHA.get(
+        case["case_id"], case["case_id"]
+    )
+    committed = _reference_golden(historical_case_id, _REFERENCE_SHA)
     fresh_pairs = _rule_label_pairs(fresh["findings"])
     if case["case_id"] in _ITEM_120_NEW_MISLABEL_CASES:
         assert _ITEM_120_ADDED_MISLABEL_PAIR in fresh_pairs, (
@@ -452,7 +466,7 @@ def _build_corpus_cohort():
 
 
 def test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one():
-    """AC8 concerns the ``mode6_crop_at_border`` case (vision.md Sec.6's old
+    """AC8 concerns the ``crop_at_border`` case (vision.md Sec.6's old
     mode 6). Since item 150 that case carries ``failure_mode == 0`` plus the
     ``fov_truncation`` condition, so the eval harness groups it under
     failure_mode 0 -- where it is the only expected-failure record (the
@@ -462,10 +476,10 @@ def test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one():
     from segfacet.eval.outcome import Outcome
 
     cohort = evaluate_cohort(_build_corpus_cohort(), bundled_default_config())
-    crop_case = next(c for c in _MANIFEST_CASES if c["case_id"] == "mode6_crop_at_border")
+    crop_case = next(c for c in _MANIFEST_CASES if c["case_id"] == "crop_at_border")
     assert crop_case["failure_mode"] == 0
     assert crop_case["condition"] == "fov_truncation"
-    crop_record = next(c for c in cohort.cases if c.case_id == "mode6_crop_at_border")
+    crop_record = next(c for c in cohort.cases if c.case_id == "crop_at_border")
     assert crop_record.outcome.outcome is Outcome.TRUE_POSITIVE
 
     metrics = compute_cohort_metrics(cohort, failure_modes=FAILURE_MODE_NAMES)

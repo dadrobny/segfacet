@@ -83,217 +83,7 @@
       1.0
     ]
   },
-  "corpus/fixtures/mode1_displace_seg.nii.gz|seg": {
-    "affine": [
-      [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "data_sha256": "6e6bc34353acec6dcaebf91b1d9a1d4a5f26003b302b379c2ac070539098b0aa",
-    "dtype": "int64",
-    "integer_labels": true,
-    "path": "corpus/fixtures/mode1_displace_seg.nii.gz",
-    "shape": [
-      66,
-      55,
-      215
-    ],
-    "spacing": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  },
-  "corpus/fixtures/mode2_fragment_seg.nii.gz|seg": {
-    "affine": [
-      [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "data_sha256": "4374d9e195681035f002dee3fe240a57621beac6991e376d79525638f11b3725",
-    "dtype": "int64",
-    "integer_labels": true,
-    "path": "corpus/fixtures/mode2_fragment_seg.nii.gz",
-    "shape": [
-      66,
-      55,
-      215
-    ],
-    "spacing": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  },
-  "corpus/fixtures/mode3_inject_islands_seg.nii.gz|seg": {
-    "affine": [
-      [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "data_sha256": "9f49789b985c971a1008cba851c064b65e0df00f77d4d9fae180adc91a62d68c",
-    "dtype": "int64",
-    "integer_labels": true,
-    "path": "corpus/fixtures/mode3_inject_islands_seg.nii.gz",
-    "shape": [
-      66,
-      55,
-      215
-    ],
-    "spacing": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  },
-  "corpus/fixtures/mode4_relabel_swap_seg.nii.gz|seg": {
-    "affine": [
-      [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "data_sha256": "dcf4abf3eaaa38472846d902c2f47b2ce16e3c97068b7688bf2086b1c1521b9c",
-    "dtype": "int64",
-    "integer_labels": true,
-    "path": "corpus/fixtures/mode4_relabel_swap_seg.nii.gz",
-    "shape": [
-      66,
-      55,
-      215
-    ],
-    "spacing": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  },
-  "corpus/fixtures/mode5_remove_level_seg.nii.gz|seg": {
-    "affine": [
-      [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "data_sha256": "ded98c34009acd4ae00ed09f43b0699d7cb0c17c7092071fdef6d0e1dfefbb9f",
-    "dtype": "int64",
-    "integer_labels": true,
-    "path": "corpus/fixtures/mode5_remove_level_seg.nii.gz",
-    "shape": [
-      66,
-      55,
-      215
-    ],
-    "spacing": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  },
-  "corpus/fixtures/mode6_crop_at_border_seg.nii.gz|seg": {
+  "corpus/fixtures/crop_at_border_seg.nii.gz|seg": {
     "affine": [
       [
         1.0,
@@ -323,7 +113,7 @@
     "data_sha256": "708a2d386eff62449e0b4c2f7daed28fa4f5f7608b0d3dcc118dcdf5e64f3160",
     "dtype": "int64",
     "integer_labels": true,
-    "path": "corpus/fixtures/mode6_crop_at_border_seg.nii.gz",
+    "path": "corpus/fixtures/crop_at_border_seg.nii.gz",
     "shape": [
       66,
       55,
@@ -335,7 +125,7 @@
       1.0
     ]
   },
-  "corpus/fixtures/mode7_sequence_break_seg.nii.gz|seg": {
+  "corpus/fixtures/displace_seg.nii.gz|seg": {
     "affine": [
       [
         1.0,
@@ -362,10 +152,10 @@
         1.0
       ]
     ],
-    "data_sha256": "fa286cb91dd1f1161df2cd22e76960322a0e6a72804e0b7359280a5e69b5a368",
+    "data_sha256": "6e6bc34353acec6dcaebf91b1d9a1d4a5f26003b302b379c2ac070539098b0aa",
     "dtype": "int64",
     "integer_labels": true,
-    "path": "corpus/fixtures/mode7_sequence_break_seg.nii.gz",
+    "path": "corpus/fixtures/displace_seg.nii.gz",
     "shape": [
       66,
       55,
@@ -377,7 +167,7 @@
       1.0
     ]
   },
-  "corpus/fixtures/mode8_force_overlap_seg.nii.gz|seg": {
+  "corpus/fixtures/force_overlap_seg.nii.gz|seg": {
     "affine": [
       [
         1.0,
@@ -407,7 +197,217 @@
     "data_sha256": "826ae22b6d1279f1dd6dbe9f7c5ec6fcb08f0b14705f82b1616c297d67e2c871",
     "dtype": "int64",
     "integer_labels": true,
-    "path": "corpus/fixtures/mode8_force_overlap_seg.nii.gz",
+    "path": "corpus/fixtures/force_overlap_seg.nii.gz",
+    "shape": [
+      66,
+      55,
+      215
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/fragment_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "4374d9e195681035f002dee3fe240a57621beac6991e376d79525638f11b3725",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/fragment_seg.nii.gz",
+    "shape": [
+      66,
+      55,
+      215
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/inject_islands_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "9f49789b985c971a1008cba851c064b65e0df00f77d4d9fae180adc91a62d68c",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/inject_islands_seg.nii.gz",
+    "shape": [
+      66,
+      55,
+      215
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/relabel_swap_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "dcf4abf3eaaa38472846d902c2f47b2ce16e3c97068b7688bf2086b1c1521b9c",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/relabel_swap_seg.nii.gz",
+    "shape": [
+      66,
+      55,
+      215
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/remove_level_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "ded98c34009acd4ae00ed09f43b0699d7cb0c17c7092071fdef6d0e1dfefbb9f",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/remove_level_seg.nii.gz",
+    "shape": [
+      66,
+      55,
+      215
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/sequence_break_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "fa286cb91dd1f1161df2cd22e76960322a0e6a72804e0b7359280a5e69b5a368",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/sequence_break_seg.nii.gz",
     "shape": [
       66,
       55,

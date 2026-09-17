@@ -44,7 +44,7 @@ import numpy as np
 from scipy.ndimage import binary_erosion
 
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.perturbation import seeded_rng
+from segfacet.synth.perturbation import case_kind, seeded_rng
 
 __all__ = [
     "HUModel",
@@ -535,6 +535,7 @@ def write_intensity_corpus(dest: Path) -> Path:
             "expected_label_hu_bands": case.expected_label_hu_bands,
             "failure_mode": case.failure_mode,
             "failure_mode_name": case.failure_mode_name,
+            "kind": case_kind(case.failure_mode, ""),
             "detection": INTENSITY_DETECTION,
             "expected_firing": sorted(case.expected_firing),
         }

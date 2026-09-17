@@ -58,7 +58,7 @@
 | 28    | Spinal Curve Model: Formulation, Offset & Orientation                   | G2, G7          | ✅     |
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
-| 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | 🚧     |
+| 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
@@ -243,7 +243,7 @@ may resolve one._
 | §6 failure-mode taxonomy — the modes need a specification before the rest of Stage 20 can be built. Six decisions are owed, listed in [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §10: the anchor semantics for modes 4 and 7, whether mode 6's `mislabel` firing is a true positive or cross-talk, whether the evidence rung attaches to the mode or the edge, the per-mode schema and lifecycle, whether this becomes a new stage or a Stage 20 rescope, and the `vision.md` §6 wording that currently forbids a `proposed` mode | 139, 140, 141, 142 | ✅ Approved (2026-09-03) | Adopted failure-mode-taxonomy-handover.md section 12 (2026-09-03) in full. (1) Modes 4 and 7 keep the Stage-18 metric path as anchor and the rule's read path as a separate, separately-labelled column. (2) Mode 6 firing mislabel is a true co-detection: expected_firing = {border, mislabel} for mode6_crop_at_border, with the mode-1 / mode-6 discriminator (a border-touching face) written into the specification. (3) The evidence rung attaches to each mode-to-rule edge, authored; the mode's rung is derived as the strongest edge. (4) The section 6 schema and four-state lifecycle are adopted, with expected_firing authored per corpus case and implemented / validated derived from live state. (5) A new Stage 30 authors the specification and runs before the remainder of Stage 20; items 139-142 are re-specced against it in the queue after Stage 30's. (6) vision.md section 6 is reworded as part of a re-issued vision v3 now, not a point edit: a mode is claimed covered only with the rule(s) that detect it, and a proposed mode is not a claim of coverage. Items 139-142 remain held until Stage 30's specification is signed off. |
 | Spinal curve model — the deformity envelope the fit must represent without flagging it. How much scoliotic / kyphotic curvature is normal anatomy the model must follow, versus deviation it must report; and the accepted false-negative cost of a stiffer fit | 119, 120, 121, 123, 125 | ✅ Approved (2026-08-27) | Adopt item 118's proposal: smoothing_spline at s = n_points, chord-length u, leave-one-out evaluation, and max_offset_mm raised 15.0 -> 25.0. Envelope set above the 21.073357 mm leave-one-out ceiling measured across VerSe19 GT including the most coronally-deviated cases, and below the ~5 mm leave-one-out separation a small displacement produces. Accepted cost: a genuine displacement smaller than the envelope may be missed. Expected to be revised into separate normal and scoliotic envelopes later -- see docs/spinal-curve-model.md. *(Superseded 2026-08-29 by a second human decision during item 123: terminal vertebrae (first/last of each subject's ordered sequence) are excluded from the mislabel rule and threshold derivation, and the shipped threshold is `max_offset_mm = 13.0` (interior-only p99 12.91 mm at T10, real 80-subject VerSe19 cohort). Full record in `docs/reference-build.md`'s rebuild records and item 123's spec Decisions log.)* |
 | Stage 30 failure-mode specification sign-off — the maintainer reads [`failure_modes.generated.md`](failure_modes.generated.md) entry by entry (raised over the ten-entry item-149 rendering; the review re-organised it on 2026-09-14 and 2026-09-15 into sixteen modes plus the FOV-truncation condition, and all sixteen are what is signed; definition, discriminator, expected firing sets, severity, observability, per-edge evidence rungs, lifecycle status, provenance) and either accepts the rendering or names the entries to change. The date and outcome are then recorded in `src/segfacet/failure_modes.py`'s own docstring, the `feature_docs.py::STATUS_OVERRIDES` precedent | 139, 140, 141, 142 | ✅ Approved (2026-09-15) | Reviewed and approved the 16-mode failure-mode catalogue (item 150, revised 2026-09-15, commit ce0c6ec); walkthrough in docs/aide/items/150-maintainer-sign-off-of-the-specification.md |
-| Stage 31 D1 — `vision.md` §6 re-issued as v4: the maintainer reads the draft (PR #77, branch `docs/vision-v4-section-6`) and either accepts it or names the passages to change. What it asks: §6 as principles plus a pointer to `segfacet.failure_modes.SPECIFICATION` with no numbered list, the five observability classes, the FOV-truncation condition as a first-class concept, `validated` as the item-150 sign-off defined it, `scope` / `parent` / one defect per mode, the mode → rule direction scored, and the evidence-rungs example corrected to a single rank descent | stage 31 | ✅ Approved (2026-09-16) | Accepted the v4 section 6 at 7d800a2 on PR #77 |
+| Stage 31 D1 — `vision.md` §6 re-issued as v4: the maintainer reads the draft (PR #77, branch `docs/vision-v4-section-6`) and either accepts it or names the passages to change. What it asks: §6 as principles plus a pointer to `segfacet.failure_modes.SPECIFICATION` with no numbered list, the five observability classes, the FOV-truncation condition as a first-class concept, `validated` as the item-150 sign-off defined it, `scope` / `parent` / one defect per mode, the mode → rule direction scored, and the evidence-rungs example corrected to a single rank descent | 152 | ✅ Approved (2026-09-16) | Accepted the v4 section 6 at 7d800a2 on PR #77 |
 
 ---
 
@@ -1619,7 +1619,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
 
 ---
 
-## Stage 31 — Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update (G7, G8) — 🚧
+## Stage 31 — Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update (G7, G8) — ✅
 
 **Goal.** Clear what item 150's re-organisation of the catalogue left behind before any mode
 is refined against it: an eval harness still keyed by the pre-sign-off ids, a `vision.md`
@@ -1633,43 +1633,68 @@ changes here.**
 - ✅ **D0** AIDE engine updated to the framework's current version as its own reviewed PR
   (process work, not an item), before this stage's queue is planned; the two open
   `framework` insights checked against it, and Stage 20's summary status restored to 🚧.
-- 🚧 **D1** `vision.md` §6 re-issued through `/aide-create-vision` (human-gated, not an
+- ✅ **D1** `vision.md` §6 re-issued through `/aide-create-vision` (human-gated, not an
   item): principles plus a pointer to the specification, no numbered mode list, the new
   observability classes and the FOV-truncation condition named, the "two-descent" wording
-  corrected.
-- 📋 **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
-  `vision_seed_conflicts`) re-pointed or retired to follow the re-issue.
-- 📋 **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
-  `per_mode_cohort`, schemas, pins) re-keyed to the specification's ids with
-  `LEGACY_STAGE18_MODE_NAMES` retired and cross-mode constants re-measured; absorbs Stage
-  20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored; the false
-  `rank(v) == v - 1` claim in `severity_ladder.py` corrected.
-- 📋 **D4** Stage-30 residue in the specification seams: the `failure_mode == 0` double
-  meaning, the "mode → rule complete, always" wording, the geometric-only attribution scan,
-  the missing declaration-mirrors-`intended_rules` check, and a recorded decision on the
-  stale `modeN_` corpus case-id prefixes.
-- 📋 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
-  `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
-  `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries
-  already fixed are ticked with a pointer.
-- 📋 **D6** Insight triage: every open `defect` and `gap` entry at the stage's start ticked,
-  re-homed with a pointer, or left open with a dated reason.
-- 📋 **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
+  corrected. Human gate 6 approved 2026-09-16 at `7d800a2`; PR #77 merged 2026-09-17.
+- ✅ **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
+  `vision_seed_conflicts`) re-pointed or retired to follow the re-issue. *(Item 152)*
+- ✅ **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
+  `per_mode_cohort`, schemas, pins) re-keyed off the retired `LEGACY_STAGE18_MODE_NAMES`
+  map onto its own metric/operator names, with the specification's mode ids carried in a
+  nullable `failure_mode` field derived live from `SPECIFICATION`/`CONDITIONS`; every
+  ladder constant, baseline and coupling value carried over unchanged. *(Item 153)*
+- ✅ **D3** Re-measures the cross-mode constants item 153 carried over unchanged; absorbs
+  Stage 20's deferred mode-1 ladder-base deliverable; `MODE_ANCHOR_PATHS[1]` re-anchored;
+  the false `rank(v) == v - 1` claim in `severity_ladder.py` corrected; resolves the four
+  recorded-not-resolved disagreements from item 153's Description. *(Item 154)*
+- ✅ **D4** A corpus case is a clean control, a condition case, or a failure case, never
+  `failure_mode == 0` alone: `case_kind`/`corpus_case_kind` in `synth/perturbation.py`
+  derive and read a closed three-value `kind` on every manifest case, both committed
+  manifests regenerate carrying it, and every production consumer
+  (`regression.verify_case`, `failure_modes._corpus_case_conflicts`,
+  `traceability._build_conformance`) moves onto it — an AST scan confirms no comparison
+  against zero is left. *(Item 155)*
+- ✅ **D4** Three unclosed conformance seams in the specification checks: a rule
+  declaring a known mode with no mirroring `IntendedRule` edge and no corpus case
+  passes every check unreported, `catalogue.scan_synth_rule_mode_map` stays blind
+  to the intensity corpus, and the retired "mode → rule complete, always" claim is
+  handed back to the next roadmap revision with the measurement that refutes it.
+  *(Item 156)*
+- ✅ **D4** Drops the stale `modeN_` corpus case-id prefixes that no longer name
+  the mode they carry after the item-150 re-keying, renaming the eight affected
+  geometric case ids and updating every pin (manifests, generator, rule/synth/
+  eval modules, both conformance artifacts) to match. *(Item 157)*
+- ✅ **D5** Closes two blind spots in `tests/committed_artifact_guard.py`'s resolver:
+  an arbitrary `parents[N]` chain and a name-carried root reached through two hops
+  (a name assigned from another name's `.parent`) were both invisible to
+  `iter_violations`, silently passing a comparison the guard is meant to catch.
+  *(Item 158)*
+- ✅ **D5** Per `docs/aide/queue/queue-021.md` item 159, the prerequisite test and
+  import defects in the surfaces Stage 32 edits (dead `aide/queue-018` base-ref
+  skips, committed-artifact guard gaps, eager NiBabel import in
+  `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag);
+  entries already fixed are ticked with a pointer. *(Item 159)*
+- ✅ **D6** Insight triage: every open `defect` and `gap` entry at the stage's start ticked,
+  re-homed with a pointer, or left open with a dated reason. *(Item 160)*
+- ✅ **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
   re-measured constants recorded here, triage counts recorded as measured numbers.
+  *(Item 161)*
 
 **Acceptance.**
 
-- [ ] The installed engine version equals the framework's at the time the stage's queue was
+- [x] The installed engine version equals the framework's at the time the stage's queue was *(AC2 verified 2026-09-17 in clone 6bf417d: clone's .aide/VERSION reads 1.52.1 (X); queue-021 planning commit 99520a9 (2026-09-16T17:20:06+01:00) resolved fresh by subject; on aide-loop, git log origin/main --before=<that date> -1 -- core/VERSION names 5e305c5 whose core/VERSION is 1.52.1, equal to X. Framework's current origin/main core/VERSION is 1.53.1 (informational, does not affect this criterion).)*
   planned, or the gap and its reason are recorded.
-- [ ] `vision.md` §6 names the specification as the catalogue and carries no numbered mode
-  list, and no module under `src/segfacet/` asserts that it does (**G8**).
-- [ ] No module or test under `src/segfacet/` or `tests/` references
+- [x] `vision.md` §6 names the specification as the catalogue and carries no numbered mode *(verified 2026-09-17 on aide/queue-021 after fix commit 0197190, superseding the not-attested note: the maintainer ruled the module prose in scope for Stage 31, and 0197190 rewrote it to cite failure_modes.SPECIFICATION with current ids (prose-only, AST-identical with docstrings stripped); item 161's prose scan now matches only failure_modes.py:117, which names v3 as history; pinned by test_161_stage31_validation.py::test_criterion2_no_module_attributes_a_numbered_mode_to_section6 and its adversarial companion; test_152 AC1-AC3/AC5 still pass; full suite 8767 passed, 63 skipped, 0 failed)*
+  list, and no module under `src/segfacet/` asserts that it does (**G8**). *(not attested 2026-09-17, item 161: AC3/AC4 pass in clone 6bf417d (test_152_retire_vision_seed.py test_ac1/test_ac2/test_ac3/test_ac5, 4 passed), but AC5's prose scan under reading R2 (A4) counts 42 raw hits across 16 files of `§6 mode N` / `§6's numbered` under src/segfacet/ (excluding the one line naming v3 as history, 41 count against the zero threshold), so the count is non-zero and criterion 2 stays unticked per AC5.)*
+- [x] No module or test under `src/segfacet/` or `tests/` references *(AC6-AC9 verified 2026-09-17 in clone 6bf417d: test_153_eval_harness_rekey.py test_ac1/test_ac2/test_ac5/test_ac17/test_ac20/test_ac21/test_ac26/test_ac27/test_ac30 pass (9 passed); test_154_ladder_remeasurement.py test_ac8/test_ac9/test_ac10 pass (3 passed); harness re-run via score_harness(run_severity_harness()) prints passed=True. Re-measured constants (segfacet.eval.severity_ladder, clone 6bf417d, replayed 2026-09-17): RECORDED_MARGINS displace inf, fragment inf, inject_islands 112.0, relabel_swap inf, remove_level inf, crop_at_border 0.3585, sequence_break inf, force_overlap 1.038; KNOWN_CROSS_MODE_COUPLINGS crop_at_border -> unanchored_foreground_fraction 2.79, force_overlap -> unanchored_foreground_fraction 0.9629; provenance corpus=geometric, base_params={levels: (L1,L2,L3,L4,L5), spacing: (1.0,1.0,1.0), curve_amplitude_mm: 6.0}, measured_on=2026-09-16.)*
   `LEGACY_STAGE18_MODE_NAMES` or keys a per-mode metric, ladder or cohort count by an id
   outside `failure_modes.SPECIFICATION`; the re-measured cross-mode constants are recorded
   with what they were measured on (**G7**).
-- [ ] No consumer distinguishes a clean control from a condition-only case by
+- [x] No consumer distinguishes a clean control from a condition-only case by *(AC12 verified 2026-09-16: tree-wide AST scan (test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains, tests/test_155_corpus_case_kind.py) over every *.py under src/segfacet/ and tests/ returns zero violations of a failure_mode == 0 comparison outside case_kind's own body; full suite green (8511 passed, .venv/bin/python -m pytest -n auto).)*
   `failure_mode == 0` alone.
-- [ ] Every open `defect` and `gap` insight present at the stage's start is ticked,
+  - **2026-09-17** → AC10 replayed 2026-09-17 in clone 6bf417d: test_155_corpus_case_kind.py::test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains and every parametrisation of ::test_ac13_scan_detects_each_forbidden_shape pass (8 passed) — item 161 replay confirms the 2026-09-16 attestation.
+- [x] Every open `defect` and `gap` insight present at the stage's start is ticked, *(AC11-AC13 verified 2026-09-17 in clone 6bf417d: test_160_insight_triage.py test_ac1_ through test_ac8_ parametrisations pass (125 passed). AC12 re-measured via aide insights list --trail (89 entries, 24 open): stage-start defect/gap entries: 29 -- ticked 18, re-homed 10, left open 1. in-queue: 6 -- ticked 2, re-homed 0, left open 4. Counts match item 160's recorded 18/10/1 and 2/0/4 exactly; re-homed pointer count (10) and left-open trail-line count (5 = 1 + 4) independently confirmed by grep over docs/aide/insights.md.)*
   re-homed with a pointer, or left open with a dated reason; the three counts are recorded
   here (**G7**).
 

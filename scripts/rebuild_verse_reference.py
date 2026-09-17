@@ -67,7 +67,7 @@ STAGED_SCAN_SUFFIX = "_scan.nii.gz"
 ENV_VAR = "SEGFACET_VERSE_COHORT"
 
 #: The floor `derive_max_offset_mm` never returns below (Assumptions:
-#: `mode4_relabel_swap`'s 5.143859 mm non-firing ceiling must stay clear).
+#: `relabel_swap`'s 5.143859 mm non-firing ceiling must stay clear).
 _FLOOR_MM = 6.0
 #: The rounding granularity `derive_max_offset_mm` rounds up to.
 _ROUND_STEP_MM = 0.5

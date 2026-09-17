@@ -30,7 +30,7 @@ established for Stage 28:
         containing the *same* comparison the scratch-branch replay (Step 5)
         adds yields a violation naming ``assert_matches_committed_artifact``
         -- the in-suite shadow of that replay, not a substitute for it.
-- AC8/AC9: ``mode4_relabel_swap`` reads ``is_monotonic is False`` with the
+- AC8/AC9: ``relabel_swap`` reads ``is_monotonic is False`` with the
         swapped pair named, through both ``extract_feature_record`` and a
         real ``segfacet run --no-reference`` CLI invocation.
 - AC11: ``clean_control`` reads ``is_monotonic is True`` with empty
@@ -86,7 +86,7 @@ Adversarial and edge cases covered:
   companion assertions (checked via the live constant, not a hypothetical).
 - A guard allowlist widened to cover ``reference_default.json`` would break
   AC5's in-suite shadow -- pinned by confirming the path stays excluded.
-- Determinism: two ``extract_feature_record`` calls on ``mode4_relabel_swap``
+- Determinism: two ``extract_feature_record`` calls on ``relabel_swap``
   agree; two four-level held-out computations agree.
 - Immutability: the four-level and nested-label maps are built in memory;
   no committed fixture, manifest, or format fixture is written to.
@@ -109,6 +109,7 @@ from segfacet.config import bundled_default_config
 from segfacet.features.spline_offset import compute_leave_one_out_spline_offsets
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.corpus import CORPUS_DIR, load_manifest
+from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 from segfacet.synth.regression import loaded_seg_image
 
 import committed_artifact_guard as guard
@@ -391,27 +392,27 @@ def test_adv_reference_default_stays_off_the_allowlist():
 
 
 def test_ac8_mode4_relabel_swap_is_non_monotonic_through_extract_feature_record():
-    record = _record("mode4_relabel_swap")
+    record = _record("relabel_swap")
     mono = record["stage3"]["monotonic_consistency"]
     assert mono["is_monotonic"] is False
 
 
 def test_ac9_mode4_relabel_swap_non_monotonic_pairs_names_l2_l3():
-    record = _record("mode4_relabel_swap")
+    record = _record("relabel_swap")
     mono = record["stage3"]["monotonic_consistency"]
     assert mono["non_monotonic_pairs"] == [["L2", "L3"]]
 
 
 def test_ac8_mode4_relabel_swap_is_non_monotonic_through_cli(tmp_path):
-    report = _cli_no_reference_report("mode4_relabel_swap", tmp_path)
+    report = _cli_no_reference_report("relabel_swap", tmp_path)
     mono = report["features"]["stage3"]["monotonic_consistency"]
     assert mono["is_monotonic"] is False
     assert mono["non_monotonic_pairs"] == [["L2", "L3"]]
 
 
 def test_adv_mode4_extract_feature_record_is_deterministic_across_two_calls():
-    record1 = _record("mode4_relabel_swap")
-    record2 = _record("mode4_relabel_swap")
+    record1 = _record("relabel_swap")
+    record2 = _record("relabel_swap")
     assert (
         record1["stage3"]["monotonic_consistency"]
         == record2["stage3"]["monotonic_consistency"]
@@ -756,7 +757,7 @@ def _pipeline_detected_modes_excluding_clean_control() -> set:
     return {
         c["failure_mode"]
         for c in manifest["cases"]
-        if c["detection"] == "pipeline" and c["failure_mode"] != 0
+        if c["detection"] == "pipeline" and corpus_case_kind(c) == CASE_KIND_FAILURE
     }
 
 

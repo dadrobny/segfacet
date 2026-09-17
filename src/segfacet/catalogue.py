@@ -27,11 +27,15 @@ Four derivation mechanisms, each carrying its own evidence tag
   (the pre-item-110 behaviour, tagged ``static-ambiguous``, produced exactly
   this false-positive shape whenever an unrelated block reused a generic key
   name).
-- **C. Static AST scan of ``synth/*.py``** — ``rule_id -> §6 mode(s)``, read
+- **C. Static AST scan of ``synth/*.py``** — ``rule_id -> failure mode(s)``, read
   off every ``Expectation(failure_mode=N, ..., expected_rule_ids=frozenset(
   {...}))`` call's literal keyword pairs. No hand-typed rule-id -> mode
   dictionary exists anywhere in this module's source (drift guard, AC13).
-  Exposed publicly as :func:`scan_synth_rule_mode_map`.
+  Exposed publicly as :func:`scan_synth_rule_mode_map`. It matches only
+  geometric ``Expectation(...)`` literals under ``src/segfacet/synth/*.py``
+  and cannot see the intensity corpus, whose cases are ``_RecipeEntry(...)``
+  literals (item 156, Seam 2) — see the function's own docstring for its two
+  remaining consumers.
 - **D. Non-rule consumers** (``observed`` / ``vocabulary``) — the same trace
   proxy run through ``eval.per_mode.compute_per_mode_metrics`` and
   ``human_report.render_feature_table``, plus the declared feature-name
@@ -42,7 +46,7 @@ Four derivation mechanisms, each carrying its own evidence tag
 
 A third source of ``mode_evidence`` (item 136) sits alongside C: each
 registered rule's own class-attribute ``RuleModeDeclaration``
-(:mod:`segfacet.heuristics.rule`) states the §6 mode(s) it targets (or that
+(:mod:`segfacet.heuristics.rule`) states the failure mode(s) it targets (or that
 it targets none, or that its disposition is pending). ``mode_evidence`` gains
 the tag ``"rule_declaration"`` when at least one of an entry's
 ``consuming_rules`` carries a declaration with non-empty ``modes``. Because
@@ -50,12 +54,18 @@ declared modes may include an *analytic* attribution with no corpus
 corroboration (item 137's ``bounds``/``reference_delta``, tagged
 ``"analytic"`` rather than ``"corpus"`` in the declaration's own
 ``evidence``), a declared mode is **not** guaranteed to already be a subset
-of mechanism C's corpus-derived map — :func:`rule_declaration_conflicts`
-only enforces agreement in the corpus → declaration direction (a corpus
-case must be reflected in the declaration), never the reverse. Disagreement
-between the declaration and the corpus-derived map — in either enforced
-direction — is reported by :func:`rule_declaration_conflicts`, never
-silently resolved here.
+of mechanism C's corpus-derived map — against *that* map,
+:func:`rule_declaration_conflicts` only enforces the corpus → declaration
+direction (a corpus case must be reflected in the declaration), never the
+declaration → corpus-map reverse (item 147 retired that direction
+permanently; a declaration's *analytic* attribution is legitimately absent
+from the corpus). Disagreement between the declaration and the corpus-derived
+map — in either enforced direction — is reported by
+:func:`rule_declaration_conflicts`, never silently resolved here.
+:func:`rule_declaration_conflicts` also enforces a *second*, unrelated
+reverse direction (item 156, Seam 1): declaration → **specification** (not
+the corpus-derived map) — every declared known mode must be mirrored by an
+``IntendedRule`` edge in :data:`segfacet.failure_modes.SPECIFICATION`.
 
 A fourth tag, ``"rule_mode_less"`` (item 137, ordered last — after
 ``"rule_declaration"``), marks an entry with at least one consuming rule
@@ -92,7 +102,7 @@ per-path.
 The classification is **rendered, not silently applied**:
 ``CatalogueEntry.mode_roles`` carries the entry's ``(rule_id, role)`` pairs
 into both artifacts (the JSON's ``"mode_roles"`` key, the Markdown's
-``§6 mode role(s)`` column), and ``mode_evidence`` gains
+``Mode role(s)`` column), and ``mode_evidence`` gains
 ``"rule_bookkeeping"`` / ``"rule_not_read"``, so a reader can tell "a source
 spoke and said this path cannot evidence a mode" from ``"rule_unmapped"``
 ("nobody has said") and from ``()`` ("no rule reads it").
@@ -690,10 +700,23 @@ def _extract_frozenset_string_elements(node) -> List[str]:
 
 
 def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
-    """``rule_id -> §6 mode(s)``, read from every ``Expectation(...)`` call's
+    """``rule_id -> failure mode(s)``, read from every ``Expectation(...)`` call's
     literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
     ``src/segfacet/synth/*.py``. No rule-id -> mode mapping is hand-typed
-    anywhere in this module's source (AC13's drift guard)."""
+    anywhere in this module's source (AC13's drift guard).
+
+    Geometric-only (item 156, Seam 2): this scan matches ``Expectation(...)``
+    literals only, so it never sees the intensity corpus
+    (``src/segfacet/synth/intensity.py``'s cases are ``_RecipeEntry(...)``
+    literals, an unrelated call shape). Its two remaining consumers, both
+    geometric-only by the same limit: mechanism C of :func:`build_catalogue`
+    (this module's own ``rule_mode_map`` evidence term), and the corpus ->
+    declaration direction of :func:`rule_declaration_conflicts`.
+    :func:`segfacet.traceability.build_matrix` used to read this scan for
+    ``corpus_designated_unregistered_rule_ids`` too; since item 156 it derives
+    that field from the two committed manifests
+    (``tests/corpus/manifest.json`` and ``tests/corpus/intensity/manifest.json``)
+    directly, so an intensity case naming an unregistered rule is reported."""
     import ast
     import segfacet.synth as synth_pkg
 
@@ -727,11 +750,13 @@ def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
 def scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
     """Public name for :func:`_scan_synth_rule_mode_map` (item 136).
 
-    ``rule_id -> §6 mode(s)``, read from every ``Expectation(...)`` call's
+    ``rule_id -> failure mode(s)``, read from every ``Expectation(...)`` call's
     literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
     ``src/segfacet/synth/*.py`` -- the corpus-derived side of the
     declaration <-> corpus agreement checked by
-    :func:`rule_declaration_conflicts`.
+    :func:`rule_declaration_conflicts`. Geometric-only: see
+    :func:`_scan_synth_rule_mode_map`'s docstring for what this scan cannot
+    see and who still reads it.
     """
     return _scan_synth_rule_mode_map()
 
@@ -888,10 +913,10 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
             for path in candidates:
                 attributions[path][rule.rule_id].add("static")
 
-    # Mechanism C: rule_id -> §6 mode(s), from synth/*.py's Expectation(...).
+    # Mechanism C: rule_id -> failure mode(s), from synth/*.py's Expectation(...).
     rule_mode_map = _scan_synth_rule_mode_map()
 
-    # Declaration source (item 136): rule_id -> declared §6 mode(s), read
+    # Declaration source (item 136): rule_id -> declared failure mode(s), read
     # from each rule's own class-attribute RuleModeDeclaration.
     declared_modes_by_rule: Dict[str, Tuple[int, ...]] = {
         rule_id: decl.modes
@@ -900,7 +925,7 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
     }
 
     # Mode-less declaration source (item 137): rule_ids whose declaration
-    # states, with a reason, that they target no §6 mode -- a source that
+    # states, with a reason, that they target no failure mode -- a source that
     # has *spoken* and said "no mode", categorically different from
     # "rule_unmapped" ("nobody has said").
     mode_less_by_rule: Set[str] = {
@@ -1119,7 +1144,7 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
 
 def rule_declaration_conflicts() -> Tuple[str, ...]:
     """Report every disagreement between each rule's ``RuleModeDeclaration``
-    and the corpus-derived ``rule_id -> §6 mode(s)`` map (item 136).
+    and the corpus-derived ``rule_id -> failure mode(s)`` map (item 136).
 
     Returns a sorted tuple of human-readable messages, empty when the two
     sources agree. Reports, for the shipped registry:
@@ -1133,12 +1158,21 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
       case designating a rule that does not exist;
     - a declared mode outside :data:`segfacet.failure_modes.SPECIFICATION`'s
       key set -- the authored failure-mode specification (item 144), which
-      since item 146 is the in-code §6 mode catalogue -- (naming both).
+      since item 146 is the in-code failure-mode catalogue -- (naming both).
       Before item 146 this check sourced its known-mode set from
       :data:`segfacet.feature_docs.MODE_ANCHOR_PATHS`'s keys instead; the two
       agreed exactly while both were 1-8, and the specification is the one
       that grows when a mode enters through the lifecycle (item 147 completes
-      the collapse of the remaining partial sources onto it).
+      the collapse of the remaining partial sources onto it);
+    - (item 156, Seam 1) a declared **known** mode with no mirroring
+      ``IntendedRule`` edge (naming both rule and mode) -- the declaration ->
+      specification direction. Unconditional: reported whether or not a
+      corpus case exists for the mode (spec Assumption A2). This is the
+      direction :func:`segfacet.failure_modes.specification_conflicts`
+      does not check (it only checks specification -> declaration), and the
+      corpus -> declaration direction below does not check either (a corpus
+      case's silence about a mode says nothing about whether the
+      specification mirrors a declaration that names it).
 
     Item 147 retired the reserved ``"corpus"`` evidence tag and the
     declaration -> corpus direction it gated. That direction was an
@@ -1173,10 +1207,29 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
 
         for mode in sorted(set(decl.modes) - known_modes):
             messages.append(
-                f"rule {rule_id!r}: declared §6 mode {mode} is outside "
+                f"rule {rule_id!r}: declared failure mode {mode} is outside "
                 f"segfacet.failure_modes.SPECIFICATION's key set "
                 f"{sorted(known_modes)!r}."
             )
+
+        # Declaration -> specification (item 156, Seam 1). For every known
+        # mode the rule declares, the specification must mirror it with an
+        # IntendedRule edge -- the direction nothing checked before this
+        # item: a rule could declare a listed mode with no edge naming it,
+        # and both rule_declaration_conflicts() (corpus -> declaration only,
+        # until now) and failure_modes.specification_conflicts()
+        # (specification -> declaration only) stayed silent (A1, A2
+        # unconditional -- reported whether or not a corpus case exists).
+        for mode in sorted(set(decl.modes) & known_modes):
+            edges = {
+                edge.rule_id for edge in _failure_modes_module.SPECIFICATION[mode].intended_rules
+            }
+            if rule_id not in edges:
+                messages.append(
+                    f"rule {rule_id!r}: declares failure mode {mode}, but "
+                    f"SPECIFICATION[{mode}].intended_rules carries no "
+                    f"IntendedRule edge for it (edges: {sorted(edges)!r})."
+                )
 
     # Corpus -> declaration. Item 147: iterate the **corpus map's** rule_ids,
     # not the registered rules, so a corpus case designating a rule_id no
@@ -1186,7 +1239,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
         corpus_modes = set(corpus_map.get(rule_id, ()))
         if rule_id not in declarations:
             messages.append(
-                f"rule {rule_id!r}: the corpus-derived map designates §6 mode(s) "
+                f"rule {rule_id!r}: the corpus-derived map designates failure mode(s) "
                 f"{sorted(corpus_modes)!r} for it, but no rule registers that "
                 f"rule_id (registered: {sorted(declarations)!r})."
             )
@@ -1217,7 +1270,7 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
         }
         for mode in sorted(corpus_modes - declared_modes - recorded_co_detections):
             messages.append(
-                f"rule {rule_id!r}: corpus designates §6 mode {mode} but the "
+                f"rule {rule_id!r}: corpus designates failure mode {mode} but the "
                 f"declaration does not include it (declared modes: {sorted(declared_modes)!r})."
             )
 
@@ -1284,7 +1337,7 @@ def path_classification_conflicts() -> Tuple[str, ...]:
 
         if decl.modes and not decl.consumed_paths:
             messages.append(
-                f"rule {rule_id!r}: declares §6 mode(s) {sorted(decl.modes)!r} but "
+                f"rule {rule_id!r}: declares failure mode(s) {sorted(decl.modes)!r} but "
                 f"its 'consumed_paths' classification is empty, so it contributes "
                 f"no mode to any of the {len(consumed)} leaf path(s) the catalogue "
                 f"attributes to it."
@@ -1447,7 +1500,7 @@ def render_markdown(cat: FeatureCatalogue) -> str:
         "",
         "| path | module / item | measures | computation | units | "
         "scale sensitivity | observed range | observed verdict | "
-        "\u00a76 mode(s) | \u00a76 mode role(s) | consuming rules | status |",
+        "Mode(s) | Mode role(s) | consuming rules | status |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for e in cat.entries:

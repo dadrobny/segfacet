@@ -134,7 +134,7 @@ def _coord_appears(msg: str, value: float) -> bool:
 
 def _mode1_displace_case_and_centroids():
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode1_displace")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "displace")
     seg_img = loaded_seg_image(case)
     data = np.asanyarray(seg_img.dataobj)
     present = sorted(int(v) for v in np.unique(data) if v != 0)
@@ -590,7 +590,7 @@ def test_ac17_threshold_margins_hold_on_corpus():
     manifest = load_manifest()
     # These two cases are the item's own deliberate new mislabel firings
     # (AC18, AC23); the "must not raise" ceiling excludes them.
-    firing_cases = {"mode1_displace", "mode6_crop_at_border"}
+    firing_cases = {"displace", "crop_at_border"}
 
     ceiling = 0.0
     for case in manifest["cases"]:
@@ -602,7 +602,7 @@ def test_ac17_threshold_margins_hold_on_corpus():
             ceiling = max(ceiling, o["offset_mm"])
     assert ceiling < 15.0, f"non-firing ceiling {ceiling} mm reaches the threshold"
 
-    mode1_case = next(c for c in manifest["cases"] if c["case_id"] == "mode1_displace")
+    mode1_case = next(c for c in manifest["cases"] if c["case_id"] == "displace")
     mode1_report = build_report_for_case(mode1_case)
     mode1_offsets = mode1_report["features"]["stage3"]["per_label_offsets"]
     displaced = next(o for o in mode1_offsets if o["label"] == 22)
@@ -616,7 +616,7 @@ def test_ac17_threshold_margins_hold_on_corpus():
 
 def test_ac18_mislabel_fires_through_plain_run_qc_naming_label_22():
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode1_displace")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "displace")
 
     findings = _mislabel_findings(pipeline_findings(case))
     assert findings, "expected at least one mislabel finding via plain run_qc"
@@ -641,13 +641,13 @@ def test_ac19_clean_control_fires_nothing():
 
 
 # =========================================================================== #
-# AC20: mode1_displace no longer needs a reconstruction
+# AC20: displace no longer needs a reconstruction
 # =========================================================================== #
 
 
 def test_ac20_mode1_manifest_entry_is_pipeline_detected():
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode1_displace")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "displace")
     assert case["detection"] == "pipeline"
     assert not case.get("reconstruction")
 
@@ -694,7 +694,7 @@ def test_ac22_every_corpus_case_verifies():
 
 def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode6_crop_at_border")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
 
     findings = pipeline_findings(case)
     mislabel = _mislabel_findings(findings)
@@ -714,7 +714,7 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     assert border_union == {22}
 
     manifest = load_manifest()
-    border_case = next(c for c in manifest["cases"] if c["case_id"] == "mode6_crop_at_border")
+    border_case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
     report = build_report_for_case(border_case)
     offsets = report["features"]["stage3"]["per_label_offsets"]
     entry = next(o for o in offsets if o["label"] == 22)
@@ -808,14 +808,14 @@ def test_ac25_write_goldens_into_two_dirs_is_byte_identical(tmp_path):
 # this item's step 9 rewrites.
 _PRE_120_VERDICTS_AND_FINDINGS = {
     "clean_control": ("pass", []),
-    "mode1_displace": ("pass", []),
-    "mode2_fragment": ("flagged-for-review", [("fragmentation", [22])]),
-    "mode3_inject_islands": ("flagged-for-review", [("fragmentation", [22])]),
-    "mode4_relabel_swap": ("pass", []),
-    "mode5_remove_level": ("flagged-for-review", [("coverage", [])]),
-    "mode6_crop_at_border": ("flagged-for-review", [("border", [22])]),
-    "mode7_sequence_break": ("flagged-for-review", [("sequence", [28])]),
-    "mode8_force_overlap": ("pass", []),
+    "displace": ("pass", []),
+    "fragment": ("flagged-for-review", [("fragmentation", [22])]),
+    "inject_islands": ("flagged-for-review", [("fragmentation", [22])]),
+    "relabel_swap": ("pass", []),
+    "remove_level": ("flagged-for-review", [("coverage", [])]),
+    "crop_at_border": ("flagged-for-review", [("border", [22])]),
+    "sequence_break": ("flagged-for-review", [("sequence", [28])]),
+    "force_overlap": ("pass", []),
 }
 
 

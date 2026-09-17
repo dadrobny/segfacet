@@ -674,7 +674,7 @@ def test_ac27_four_level_blind_spot_asserted():
 # =========================================================================== #
 
 # Values measured on the pre-item tree (2026-08-31), captured via
-# extract_feature_record(loaded_seg_image(mode5_remove_level_case), ...) --
+# extract_feature_record(loaded_seg_image(remove_level_case), ...) --
 # the corpus's only four-level case, per the spec's Assumptions.
 _PRE_129_MODE5_REMOVE_LEVEL_OFFSETS_MM = {
     20: 8.999145394285883e-05,
@@ -686,12 +686,12 @@ _PRE_129_MODE5_REMOVE_LEVEL_OFFSETS_MM = {
 
 def test_ac28_mode5_remove_level_offsets_numerically_unmoved():
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "mode5_remove_level")
+    case = next(c for c in manifest["cases"] if c["case_id"] == "remove_level")
     seg_img = loaded_seg_image(case)
 
     record = extract_feature_record(seg_img, bundled_default_config())
     offsets = record["stage3"]["per_label_offsets"]
-    assert offsets, "mode5_remove_level produced no per_label_offsets"
+    assert offsets, "remove_level produced no per_label_offsets"
     assert len(offsets) == 4
 
     seen = set()
@@ -712,16 +712,16 @@ def test_ac28_mode5_remove_level_offsets_numerically_unmoved():
 # case in tests/corpus/manifest.json.
 _PRE_129_FINDINGS = {
     "clean_control": set(),
-    "mode1_displace": {("mislabel", (22,))},
-    "mode2_fragment": {("fragmentation", (22,))},
-    "mode3_inject_islands": {("fragmentation", (22,))},
+    "displace": {("mislabel", (22,))},
+    "fragment": {("fragmentation", (22,))},
+    "inject_islands": {("fragmentation", (22,))},
     # 2026-08-31 (item 132): traversal-ordered monotonicity now surfaces the
     # swap through plain run_qc, moved from set().
-    "mode4_relabel_swap": {("mislabel", (21, 22))},
-    "mode5_remove_level": {("coverage", ())},
-    "mode6_crop_at_border": {("border", (22,)), ("mislabel", (22,))},
-    "mode7_sequence_break": {("sequence", (28,))},
-    "mode8_force_overlap": set(),
+    "relabel_swap": {("mislabel", (21, 22))},
+    "remove_level": {("coverage", ())},
+    "crop_at_border": {("border", (22,)), ("mislabel", (22,))},
+    "sequence_break": {("sequence", (28,))},
+    "force_overlap": set(),
 }
 
 

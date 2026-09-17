@@ -157,13 +157,13 @@ def test_ac1_mode4_relabel_swap_is_non_monotonic_through_shipped_record_builder(
     compute_monotonic_consistency judges against the in-sample fit alone
     and this reads True; post-fix, against the traversal-ordered reference
     curve, it reads False."""
-    record = _record("mode4_relabel_swap")
+    record = _record("relabel_swap")
     mono = record["stage3"]["monotonic_consistency"]
     assert mono["is_monotonic"] is False
 
 
 def test_ac2_mode4_relabel_swap_non_monotonic_pairs_names_l2_l3():
-    record = _record("mode4_relabel_swap")
+    record = _record("relabel_swap")
     mono = record["stage3"]["monotonic_consistency"]
     assert mono["non_monotonic_pairs"] == [["L2", "L3"]]
 
@@ -186,13 +186,13 @@ def test_ac3_clean_control_stays_monotonic():
 
 _PRE_ITEM_U_VALUES = {
     "clean_control": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
-    "mode1_displace": [0.000000561, 0.234074709, 0.500000025, 0.765925291, 0.999999440],
-    "mode2_fragment": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
-    "mode3_inject_islands": [0.000049227, 0.250369752, 0.500000000, 0.749630248, 0.999950773],
-    "mode5_remove_level": [0.000000561, 0.250621894, 0.749378106, 0.999999440],
-    "mode6_crop_at_border": [0.000000561, 0.237035382, 0.499999976, 0.762964618, 0.999999440],
-    "mode7_sequence_break": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
-    "mode8_force_overlap": [0.000061555, 0.165598814, 0.437861146, 0.718006432, 0.999999440],
+    "displace": [0.000000561, 0.234074709, 0.500000025, 0.765925291, 0.999999440],
+    "fragment": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
+    "inject_islands": [0.000049227, 0.250369752, 0.500000000, 0.749630248, 0.999950773],
+    "remove_level": [0.000000561, 0.250621894, 0.749378106, 0.999999440],
+    "crop_at_border": [0.000000561, 0.237035382, 0.499999976, 0.762964618, 0.999999440],
+    "sequence_break": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
+    "force_overlap": [0.000061555, 0.165598814, 0.437861146, 0.718006432, 0.999999440],
 }
 
 
@@ -217,7 +217,7 @@ _ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel"}
 
 def test_ac4_pre_item_table_covers_every_non_mode4_manifest_case():
     manifest = load_manifest()
-    case_ids = {c["case_id"] for c in manifest["cases"]} - {"mode4_relabel_swap"}
+    case_ids = {c["case_id"] for c in manifest["cases"]} - {"relabel_swap"}
     uncovered = case_ids - set(_PRE_ITEM_U_VALUES)
     assert uncovered == _ADDED_AFTER_ITEM, (
         f"corpus cases with no pre-item u-value measurement: {sorted(uncovered)}"
@@ -403,7 +403,7 @@ def test_ac12_pair_loop_still_uses_gte_not_strict_gt():
 
 
 def test_ac13_mode4_fires_exactly_one_mislabel_finding_on_21_22():
-    case_result, _block = _run_qc_case("mode4_relabel_swap")
+    case_result, _block = _run_qc_case("relabel_swap")
     assert len(case_result.findings) == 1
     finding = case_result.findings[0]
     assert finding.rule_id == "mislabel"
@@ -413,7 +413,7 @@ def test_ac13_mode4_fires_exactly_one_mislabel_finding_on_21_22():
 
 
 def test_ac14_mode4_verdict_is_flagged_for_review():
-    case_result, _block = _run_qc_case("mode4_relabel_swap")
+    case_result, _block = _run_qc_case("relabel_swap")
     assert case_result.verdict.overall.label == "flagged-for-review"
 
 
@@ -423,7 +423,7 @@ def test_ac14_mode4_verdict_is_flagged_for_review():
 
 
 def test_ac15_case_recipe_mode4_is_pipeline_no_reconstruction():
-    entry = next(e for e in CASE_RECIPE if e.case_id == "mode4_relabel_swap")
+    entry = next(e for e in CASE_RECIPE if e.case_id == "relabel_swap")
     assert entry.detection == "pipeline"
     assert entry.reconstruction is None
 
@@ -435,13 +435,13 @@ def test_ac15_case_recipe_mode4_is_pipeline_no_reconstruction():
 
 
 def test_ac16_committed_manifest_mode4_is_pipeline_no_reconstruction():
-    case = _manifest_case("mode4_relabel_swap")
+    case = _manifest_case("relabel_swap")
     assert case["detection"] == "pipeline"
     assert case.get("reconstruction") is None
 
 
 def test_ac17_committed_manifest_mode4_detail_names_mislabel_not_pipeline_miss():
-    case = _manifest_case("mode4_relabel_swap")
+    case = _manifest_case("relabel_swap")
     detail = case["detail"]
     assert "Not surfaced by plain run_qc" not in detail
     assert "reconstructed" not in detail
@@ -496,7 +496,7 @@ def test_ac20_test_040_detection_partition_reconciled():
     # Re-keyed 2026-09-15 (item 150's catalogue revision): the modes were
     # renumbered -- overlap is mode 15, and the pipeline-only set is the
     # remaining designated modes plus the mode-less clean/condition cases.
-    # Mode 10 (skipped level label) has no corpus case; mode5_remove_level
+    # Mode 10 (skipped level label) has no corpus case; remove_level
     # is mode 6's.
     assert t040._RECONSTRUCTED_MODES == {15}
     assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 4, 6, 9}
@@ -512,7 +512,7 @@ def test_ac20_test_040_detection_partition_reconciled():
 def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
     """The swap case's failure-mode id is read from the manifest rather than
     hard-coded: item 150 renumbered the catalogue, moving
-    ``mode4_relabel_swap`` from mode 4 to mode 6 on 2026-09-14 and then to
+    ``relabel_swap`` from mode 4 to mode 6 on 2026-09-14 and then to
     mode 9 (out-of-order label sequence) on 2026-09-15, and overlap from
     mode 8 to 9 and then 15. What AC21 pins is that *this case's*
     mode is claimed pipeline-detectable at sensitivity 1.0, not the number
@@ -522,7 +522,7 @@ def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
     swap_mode = next(
         c["failure_mode"]
         for c in load_manifest()["cases"]
-        if c["case_id"] == "mode4_relabel_swap"
+        if c["case_id"] == "relabel_swap"
     )
     assert swap_mode in t057._PIPELINE_DETECTABLE_MODES
     assert swap_mode not in t057._RECONSTRUCTED_RECORD_MODES
@@ -562,18 +562,18 @@ def test_ac24_item_039_mode4_pin_flipped():
 def test_ac25_item_129_pre_findings_baseline_reconciled():
     import test_129_coincident_centroids_and_held_out_floor as t129
 
-    assert t129._PRE_129_FINDINGS["mode4_relabel_swap"] == {("mislabel", (21, 22))}
+    assert t129._PRE_129_FINDINGS["relabel_swap"] == {("mislabel", (21, 22))}
     t129.test_ac29_no_corpus_case_changes_findings()
 
 
 def test_ac26_item_098_shared_golden_constant_reconciled():
     import test_098_stray_components as t098
 
-    expected = t098._PRE_098_GOLDEN_VERDICT_AND_FINDINGS["mode4_relabel_swap"]
+    expected = t098._PRE_098_GOLDEN_VERDICT_AND_FINDINGS["relabel_swap"]
     assert expected["verdict"] == "flagged-for-review"
     assert len(expected["findings"]) == 1
     assert expected["findings"][0]["rule_id"] == "mislabel"
-    t098.test_ac15_golden_verdict_and_findings_unchanged("mode4_relabel_swap")
+    t098.test_ac15_golden_verdict_and_findings_unchanged("relabel_swap")
 
 
 def test_ac27_item_123_detector_a_claim_preserved():
@@ -950,14 +950,14 @@ def test_adv_centroids_and_fit_not_mutated():
 
 
 # =========================================================================== #
-# Adversarial: run_qc on mode4_relabel_swap twice is deterministic
+# Adversarial: run_qc on relabel_swap twice is deterministic
 # (findings and monotonicity block)
 # =========================================================================== #
 
 
 def test_adv_run_qc_mode4_relabel_swap_deterministic_across_two_calls():
-    case_result_a, block_a = _run_qc_case("mode4_relabel_swap")
-    case_result_b, block_b = _run_qc_case("mode4_relabel_swap")
+    case_result_a, block_a = _run_qc_case("relabel_swap")
+    case_result_b, block_b = _run_qc_case("relabel_swap")
 
     assert block_a["stage3"]["monotonic_consistency"] == block_b["stage3"]["monotonic_consistency"]
 

@@ -39,7 +39,7 @@ Adversarial / edge-case scenarios included:
   ``volatile_pointers=()``.
 - ``canonical_json`` sorts keys regardless of input dict-construction order
   (a hand-permuted copy canonicalises identically to the original).
-- The ``mode5_remove_level`` golden (case-level finding, empty ``labels``)
+- The ``remove_level`` golden (case-level finding, empty ``labels``)
   canonicalises and validates without crashing on the empty list.
 - A malformed (invalid-JSON) golden file is caught by ``json.loads`` raising
   ``json.JSONDecodeError`` rather than silently passing.
@@ -376,10 +376,10 @@ def test_adv_canonical_json_is_a_noop_under_default_volatile_pointers(case):
 
 
 def test_adv_mode5_remove_level_golden_canonicalises_without_crashing_on_empty_labels():
-    """Adversarial (item 126 replacement): the freshly built mode5_remove_level
+    """Adversarial (item 126 replacement): the freshly built remove_level
     report (case-level finding, labels == []) canonicalises and validates
     without crashing on an empty label list."""
-    case = _case("mode5_remove_level")
+    case = _case("remove_level")
     report = _fresh_report(case["case_id"])
     jsonschema.validate(report, _SCHEMA)
 

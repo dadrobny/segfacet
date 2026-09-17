@@ -305,12 +305,12 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # declare, each one a co-detection the sign-off records deliberately.
     # Revised 2026-09-15: mode 2 is "fused vertebra segments" (fuse_adjacent),
     # which neither coverage nor fragmentation declares; mode 1 still carries
-    # mode1_displace, which mislabel detects only as a co-detection
-    # (fragmentation's mode-1 designation is now declared, via mode2_fragment).
+    # displace, which mislabel detects only as a co-detection
+    # (fragmentation's mode-1 designation is now declared, via fragment).
     expected_co_detections = {
         ("coverage", 2),  # fuse_adjacent fires coverage alongside fragmentation
         ("fragmentation", 2),  # ... and fragmentation, neither declaring mode 2
-        ("mislabel", 1),  # mode1_displace is detected only as a co-detection
+        ("mislabel", 1),  # displace is detected only as a co-detection
     }
 
     measured_co_detections = set()

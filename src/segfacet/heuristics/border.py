@@ -1,6 +1,8 @@
 """Border-partial-vertebra rule (item 031).
 
-Implements a **border-partial-vertebra rule** targeting §6 failure mode 6 — a
+Implements a **border-partial-vertebra rule** recording the FOV-truncation
+condition (``failure_modes.CONDITIONS["fov_truncation"]``; a condition, not a
+failure mode in ``failure_modes.SPECIFICATION``) — a
 partial vertebra at the image border whose appearance is truncated by the
 field of view (FOV). It consumes the pre-computed per-label image-border-
 contact flags (item 011, exposed under each ``per_label`` entry's ``geometry``
@@ -122,9 +124,9 @@ class BorderRule(Rule):
 
     rule_id = "border"
 
-    # §6 mode 6 (item 136): CropAtBorderPerturbation
-    # (src/segfacet/synth/coverage_border_overlap.py) designates "border" for
-    # mode 6 via its Expectation(failure_mode=6, expected_rule_ids={"border"}).
+    # No failure mode (item 150): CropAtBorderPerturbation
+    # (src/segfacet/synth/coverage_border_overlap.py) is the fixture of the
+    # FOV-truncation condition, not of a mode in failure_modes.SPECIFICATION.
     mode_declaration = RuleModeDeclaration(
         mode_less_reason=(
             "records the FOV-truncation CONDITION, not a failure mode: the "
@@ -133,7 +135,7 @@ class BorderRule(Rule):
             "segfacet.failure_modes.CONDITIONS['fov_truncation'], because a "
             "truncated vertebra is a property of the scan that gates other "
             "rules, not a defect of the segmentation. "
-            "tests/corpus/manifest.json's mode6_crop_at_border is that "
+            "tests/corpus/manifest.json's crop_at_border is that "
             "condition's fixture."
         ),
         consumed_paths=(

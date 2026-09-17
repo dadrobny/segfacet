@@ -95,7 +95,7 @@ _SMALL_COHORT_CASES = [
     {
         "case_id": "cropped",
         "gt": "fixtures/clean_control_seg.nii.gz",
-        "candidate": "fixtures/mode6_crop_at_border_seg.nii.gz",
+        "candidate": "fixtures/crop_at_border_seg.nii.gz",
         "expected": {
             "expected_verdict": "flagged-for-review",
             "expected_rule_ids": ["border"],
@@ -119,7 +119,7 @@ def test_ac1_loader_builds_evaluation_cases_in_order_with_resolved_paths(tmp_pat
     case_with_candidate = {
         "case_id": "c1",
         "gt": "fixtures/clean_control_seg.nii.gz",
-        "candidate": "fixtures/mode6_crop_at_border_seg.nii.gz",
+        "candidate": "fixtures/crop_at_border_seg.nii.gz",
         "spacing": [1.0, 1.0, 1.0],
         "expected": {
             "expected_verdict": "flagged-for-review",
@@ -146,7 +146,7 @@ def test_ac1_loader_builds_evaluation_cases_in_order_with_resolved_paths(tmp_pat
     first, second = cases
     assert Path(first.gt).samefile(tmp_path / "fixtures" / "clean_control_seg.nii.gz")
     assert Path(first.candidate).samefile(
-        tmp_path / "fixtures" / "mode6_crop_at_border_seg.nii.gz"
+        tmp_path / "fixtures" / "crop_at_border_seg.nii.gz"
     )
     assert dict(first.expected) == case_with_candidate["expected"]
     assert first.spacing == (1.0, 1.0, 1.0)

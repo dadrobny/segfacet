@@ -32,7 +32,7 @@
       "$ref": "#/definitions/runManifest"
     },
     "per_mode_magnitude": {
-      "description": "Optional Stage 18 cohort-level per-mode magnitude surface (item 101): the RunPerModeSummary.to_dict() bundle -- eight per-Section-6-failure-mode aggregate statistics plus the aggregate Dice context, read verbatim from item 099's per-case magnitudes. Absent when the evaluation was run without --per-mode.",
+      "description": "Optional Stage 18 cohort-level per-mode magnitude surface (item 101; re-keyed by item 153): the RunPerModeSummary.to_dict() bundle -- eight per-metric aggregate statistics (each optionally homed on a specification failure mode) plus the aggregate Dice context, read verbatim from item 099's per-case magnitudes. Absent when the evaluation was run without --per-mode.",
       "$ref": "#/definitions/perModeMagnitude"
     }
   },

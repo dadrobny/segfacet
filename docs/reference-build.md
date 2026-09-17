@@ -259,7 +259,7 @@ corpus window `(5.143859, 17.507445]` — so the recalibration is applied:
 `reference_verse_v1.json` and `reference_default.json` are rebuilt (the
 latter via `python -m segfacet.reference.artifact`); the nine corpus goldens
 and `tests/golden/022_stage3_report.json` are regenerated to carry
-`is_terminal`, with `mode1_displace` and `mode6_crop_at_border` additionally
+`is_terminal`, with `displace` and `crop_at_border` additionally
 moving their `mislabel` finding's threshold clause from `15.0` to `13.0` mm.
 `L5` dropped to 3 interior occurrences (below the `count >= 10` qualifying
 floor, mean `0.69` mm) and `C1` (always terminal-only in this cohort) carries

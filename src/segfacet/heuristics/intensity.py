@@ -53,11 +53,13 @@ and two calls with the same ``(record, config)`` return equal finding lists in
 the same order. Findings are emitted ascending by integer label; within a
 label, in fixed condition order (low -> high -> degenerate).
 
-§6 mode 9 (item 146): this rule judges tissue plausibility. It was
-dispositioned mode-less by item 137, because §6's eight numbered modes name
-no tissue-plausibility failure; item 146 entered that mode into
-``segfacet.failure_modes.SPECIFICATION`` as mode 9 and moved this
-declaration onto it -- see ``IntensityRule.mode_declaration``. Nothing about
+Failure mode 16 (implausible tissue under a label) in
+``segfacet.failure_modes.SPECIFICATION``: this rule judges tissue
+plausibility. It was dispositioned mode-less by item 137, because the
+eight-mode seed list of vision.md v3 named no tissue-plausibility failure;
+item 146 entered that mode into the specification (as mode 9, renumbered 16
+at the item-150 sign-off) and moved this declaration onto it -- see
+``IntensityRule.mode_declaration``. Nothing about
 this rule's thresholds, conditions, severities or ``evaluate`` body changed
 with it; the declaration is metadata the rule engine never reads.
 """
@@ -134,11 +136,11 @@ class IntensityRule(Rule):
 
     rule_id = "intensity"
 
-    # §6 disposition (item 146, superseding item 137's mode-less
-    # disposition): mode 9, "Implausible tissue under a label". The mode is
-    # not one of §6's numbered eight -- it entered through the failure-mode
-    # specification's own schema, which is what vision.md §6 says should
-    # happen when the catalogue is short a mode.
+    # Disposition (item 146, superseding item 137's mode-less disposition):
+    # specification mode 16, "Implausible tissue under a label" (mode 9 before
+    # the item-150 sign-off). The mode was not in the eight-mode seed list of
+    # vision.md v3 -- it entered through the failure-mode specification's own
+    # schema, which is how vision.md §6 says the catalogue grows.
     mode_declaration = RuleModeDeclaration(
         modes=(16,),
         evidence=(

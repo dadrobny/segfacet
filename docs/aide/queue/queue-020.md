@@ -1,4 +1,5 @@
 # FACET — Work Queue 020
+> **Status:** ✅ Completed — superseded by queue-021 (2026-09-16).
 
 > **Created:** 2026-09-03
 > Step 4 of the AIDE loop · derived from [`../vision.md`](../vision.md),

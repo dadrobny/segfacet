@@ -21,10 +21,12 @@ AC -> test map (house style, items 144-146):
         test_adv_ac2_walker_flags_a_planted_mode_rungs_shaped_dict
 - AC3:  test_ac3_mode_anchor_paths_stays_under_its_own_metric_label,
         test_adv_ac3_walker_flags_a_planted_real_reference
-- AC4:  test_ac4_vision_parse_has_one_home,
-        test_adv_ac4_walker_flags_a_planted_real_read
-- AC5:  test_ac5_every_vision_seed_title_disposes_and_resolves,
-        test_adv_ac5_unresolvable_disposition_is_reported
+- AC4:  retired (item 152, 2026-09-16 correction) -- duplicated item 152's
+        AC3 under stale substring semantics that the correction narrowed
+        away from. See `tests/test_152_retire_vision_seed.py`
+- AC5:  retired (item 152, 2026-09-16) with `vision_seed_conflicts()` --
+        vision.md v4 carries no numbered §6 list left to parse. See
+        `tests/test_152_retire_vision_seed.py`
 - AC6:  test_ac6_matrix_titles_come_from_the_specification
 - AC7:  test_ac7_mode_rungs_are_derived_from_the_specification
 - AC8:  test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode
@@ -241,23 +243,6 @@ def _docstring_constant_ids(tree: ast.AST) -> set:
     return ids
 
 
-def _references_vision_md(tree: ast.AST) -> bool:
-    """True if *tree* contains a non-docstring string constant naming
-    ``vision.md`` -- a docstring or comment mentioning the file's name,
-    without reading it, does not count (comments are not part of the AST at
-    all; a docstring is excluded explicitly)."""
-    docstring_ids = _docstring_constant_ids(tree)
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Constant)
-            and isinstance(node.value, str)
-            and id(node) not in docstring_ids
-            and "vision.md" in node.value
-        ):
-            return True
-    return False
-
-
 # =========================================================================== #
 # AC1: one source for mode names in production code
 # =========================================================================== #
@@ -275,27 +260,12 @@ def test_ac1_one_source_for_mode_names_in_production_code(src_literals_by_file):
     assert offenders == {
         "src/segfacet/failure_modes.py",
         "src/segfacet/synth/intensity.py",
-        # `eval/per_mode.py::LEGACY_STAGE18_MODE_NAMES` (item 150): the
-        # deliberately frozen pre-sign-off name map the Stage-18/29 eval
-        # harness is still keyed by, documented as such at its definition.
-        # Re-keying that harness needs re-measured ladder constants and is a
-        # separate item, so this is a named exception, not a second source.
-        "src/segfacet/eval/per_mode.py",
+        # Item 153 re-keyed the Stage-18/29 eval harness off the frozen
+        # pre-sign-off name map onto metric/operator names, with the
+        # specification's mode ids carried in a nullable field derived from
+        # SPECIFICATION/CONDITIONS -- so `eval/per_mode.py` is no longer a
+        # second source of mode-name literals and drops out of this set.
     }, offenders
-
-    # ... and the exception is exactly that map: the only mode-name literals
-    # `per_mode.py` carries are its values, so the allowance cannot quietly
-    # cover a freshly hand-typed name.
-    from segfacet.eval.per_mode import LEGACY_STAGE18_MODE_NAMES
-
-    per_mode_literals = next(
-        literals
-        for path, literals in src_literals_by_file.items()
-        if _rel(path) == "src/segfacet/eval/per_mode.py"
-    )
-    assert (per_mode_literals & needles) <= set(LEGACY_STAGE18_MODE_NAMES.values()), (
-        per_mode_literals & needles
-    )
 
 
 def test_adv_ac1_walker_flags_a_planted_mode_name_literal(tmp_path):
@@ -419,56 +389,21 @@ def test_adv_ac3_walker_flags_a_planted_real_reference(tmp_path):
 
 # =========================================================================== #
 # AC4: the vision §6 parse has one home
+#
+# Retired (item 152, 2026-09-16 correction), not re-pointed: AC4's surviving
+# claim ("no module under src/segfacet/ holds a non-docstring string constant
+# naming vision.md") is exactly item 152's AC3, and the item-152 correction
+# narrowed that predicate from a substring match to a path-shaped match
+# (`test_152_retire_vision_seed.py::_names_vision_md_as_a_path`) precisely
+# because the substring form this test used (`_references_vision_md`) trips
+# on the AC10/AC11 provenance literals `failure_modes.py` is required to
+# carry (e.g. "## Provenance: vision.md v3 section 6 seed titles"). Keeping
+# a second copy here under the old substring semantics would make this test
+# red the moment item 152 lands, over text the correction explicitly
+# exempts. See
+# `tests/test_152_retire_vision_seed.py::test_ac3_no_production_module_names_vision_md_as_a_path`
+# for the one surviving copy of this check.
 # =========================================================================== #
-
-
-def test_ac4_vision_parse_has_one_home():
-    import segfacet.failure_modes as fm
-
-    assert callable(fm.vision_seed_titles)
-    titles = fm.vision_seed_titles()
-    assert titles, "expected >=1 title parsed from vision.md §6"
-
-    offenders = []
-    for path in _all_src_py_files():
-        if path.name == "failure_modes.py":
-            continue
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        if _references_vision_md(tree):
-            offenders.append(_rel(path))
-    assert offenders == [], offenders
-
-
-def test_adv_ac4_walker_flags_a_planted_real_read(tmp_path):
-    """Positive control: the same walker must flag a planted real read (a
-    non-docstring string constant naming vision.md), so a clean AC4 result
-    is not vacuous -- and must not flag a planted docstring/comment-only
-    mention."""
-    planted_real = tmp_path / "planted_real_read.py"
-    planted_real.write_text(
-        'text = open("docs/aide/vision.md").read()\n',
-        encoding="utf-8",
-    )
-    tree = ast.parse(planted_real.read_text(encoding="utf-8"))
-    assert _references_vision_md(tree)
-
-    planted_docstring = tmp_path / "planted_docstring_mention.py"
-    planted_docstring.write_text(
-        '"""See docs/aide/vision.md for background."""\n'
-        "x = 1\n",
-        encoding="utf-8",
-    )
-    tree_docstring = ast.parse(planted_docstring.read_text(encoding="utf-8"))
-    assert not _references_vision_md(tree_docstring)
-
-    planted_comment = tmp_path / "planted_comment_mention.py"
-    planted_comment.write_text(
-        "# see docs/aide/vision.md for background\n"
-        "y = 1\n",
-        encoding="utf-8",
-    )
-    tree_comment = ast.parse(planted_comment.read_text(encoding="utf-8"))
-    assert not _references_vision_md(tree_comment)
 
 
 # =========================================================================== #
@@ -484,68 +419,15 @@ def test_adv_ac4_walker_flags_a_planted_real_read(tmp_path):
 # =========================================================================== #
 
 
-def test_ac5_every_vision_seed_title_disposes_and_resolves():
-    import segfacet.failure_modes as fm
-
-    titles = fm.vision_seed_titles()
-    assert titles, "expected >=1 title parsed from vision.md §6"
-    assert set(titles) == set(range(1, len(titles) + 1)), sorted(titles)
-
-    assert fm.vision_seed_conflicts() == ()
-    assert set(fm.VISION_SEED_DISPOSITION) == set(titles.values()), (
-        set(fm.VISION_SEED_DISPOSITION) ^ set(titles.values())
-    )
-
-    resolved = 0
-    for title, disposition in fm.VISION_SEED_DISPOSITION.items():
-        assert title in set(titles.values()), title
-        if disposition == "retired":
-            resolved += 1
-            continue
-        kind, _sep, target = disposition.partition(":")
-        if kind == "mode":
-            assert target.isdigit() and int(target) in fm.SPECIFICATION, disposition
-        elif kind == "condition":
-            assert target in fm.CONDITIONS, disposition
-        else:
-            raise AssertionError(f"unresolvable disposition {disposition!r} for {title!r}")
-        resolved += 1
-    assert resolved == len(fm.VISION_SEED_DISPOSITION), resolved
-
-    # The seed titles are no longer the mode names, by design -- so the
-    # retired claim must not have quietly survived as an accident.
-    assert set(titles.values()) != {mode.name for mode in fm.SPECIFICATION.values()}
-
-
-def test_adv_ac5_unresolvable_disposition_is_reported(monkeypatch):
-    """Positive control for the check above: `vision_seed_conflicts()` must
-    be able to fail, in each of its three directions."""
-    import segfacet.failure_modes as fm
-
-    baseline = dict(fm.VISION_SEED_DISPOSITION)
-    assert baseline, "expected a non-empty disposition map"
-
-    dropped_title = sorted(baseline)[0]
-
-    missing_entry = {k: v for k, v in baseline.items() if k != dropped_title}
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", missing_entry)
-    conflicts = fm.vision_seed_conflicts()
-    assert any(dropped_title in msg for msg in conflicts), conflicts
-
-    unknown_title = dict(baseline)
-    unknown_title["__item150_no_such_vision_title__"] = "retired"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", unknown_title)
-    conflicts = fm.vision_seed_conflicts()
-    assert any("__item150_no_such_vision_title__" in msg for msg in conflicts), conflicts
-
-    unresolvable = dict(baseline)
-    unresolvable[dropped_title] = "mode:9999"
-    monkeypatch.setattr(fm, "VISION_SEED_DISPOSITION", unresolvable)
-    conflicts = fm.vision_seed_conflicts()
-    assert any("mode:9999" in msg for msg in conflicts), conflicts
-
-    monkeypatch.undo()
-    assert fm.vision_seed_conflicts() == ()
+# test_ac5_every_vision_seed_title_disposes_and_resolves and
+# test_adv_ac5_unresolvable_disposition_is_reported retired (item 152,
+# 2026-09-16), with `vision_seed_conflicts()`/`vision_seed_titles()`:
+# vision.md v4's §6 carries no numbered list left to parse, so there is no
+# live title set for a disposition to resolve against. The frozen-provenance
+# and every-disposition-resolves claims they made, positive control
+# included, are
+# `tests/test_152_retire_vision_seed.py::test_ac6_provenance_map_is_frozen_at_its_v3_value`
+# and its AC7 pair.
 
 
 # =========================================================================== #
@@ -661,7 +543,7 @@ def test_ac9_every_mechanism_names_a_token_that_resolves_live(mode_id):
 # Item 147 settled the correction on the then-mode 7 ("non-continuous label
 # sequence"); the item-150 sign-off re-homed that mode as mode 6
 # ("Implausible label sequence"), and its 2026-09-15 revision split that into
-# three, the sequence rule and `mode7_sequence_break` landing on mode 9
+# three, the sequence rule and `sequence_break` landing on mode 9
 # ("Out-of-order label sequence"), carrying the sentence with it. The claim
 # is unchanged: `rank(v) == v - 1` is false, and the sentence that replaced
 # it must name what makes it false.
@@ -822,6 +704,7 @@ def test_ac13_intended_rule_whose_rule_declares_no_such_mode_is_reported(monkeyp
 def test_ac14_corpus_case_the_specification_does_not_carry_is_reported(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.corpus as corpus_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE
 
     baseline = fm.specification_conflicts()
 
@@ -832,6 +715,8 @@ def test_ac14_corpus_case_the_specification_does_not_carry_is_reported(monkeypat
     # Point the case at a mode whose corpus_cases do not carry this case_id.
     other_mode = next(m for m in fm.SPECIFICATION if m != original_mode and m != 0)
     target["failure_mode"] = other_mode
+    target["condition"] = ""
+    target["kind"] = CASE_KIND_FAILURE
 
     monkeypatch.setattr(corpus_module, "load_manifest", lambda *a, **k: manifest)
 
@@ -847,12 +732,13 @@ def test_ac14_corpus_case_the_specification_does_not_carry_is_reported(monkeypat
 def test_ac14_intensity_manifest_is_covered_by_the_same_check(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.intensity as intensity_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     baseline = fm.specification_conflicts()
 
     manifest = copy.deepcopy(intensity_module.load_intensity_manifest())
     assert manifest["cases"], "expected a non-empty intensity manifest"
-    target = next(c for c in manifest["cases"] if c["failure_mode"] != 0)
+    target = next(c for c in manifest["cases"] if corpus_case_kind(c) == CASE_KIND_FAILURE)
     original_mode = target["failure_mode"]
     other_mode = next(
         m for m in fm.SPECIFICATION if m not in (0, original_mode)
@@ -875,12 +761,15 @@ def test_ac14_intensity_manifest_is_covered_by_the_same_check(monkeypatch):
 def test_ac15_geometric_case_expectation_disagreement_is_reported(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.corpus as corpus_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     baseline = fm.specification_conflicts()
 
     manifest = copy.deepcopy(corpus_module.load_manifest())
     target = next(
-        c for c in manifest["cases"] if c["failure_mode"] != 0 and c.get("expected_rule_ids")
+        c
+        for c in manifest["cases"]
+        if corpus_case_kind(c) == CASE_KIND_FAILURE and c.get("expected_rule_ids")
     )
     target["expected_rule_ids"] = list(target["expected_rule_ids"]) + [
         "__item147_extra_rule_id__"
@@ -901,11 +790,12 @@ def test_ac15_geometric_case_expectation_disagreement_is_reported(monkeypatch):
 def test_ac15_intensity_case_expectation_disagreement_is_reported(monkeypatch):
     import segfacet.failure_modes as fm
     import segfacet.synth.intensity as intensity_module
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     baseline = fm.specification_conflicts()
 
     manifest = copy.deepcopy(intensity_module.load_intensity_manifest())
-    target = next(c for c in manifest["cases"] if c["failure_mode"] != 0)
+    target = next(c for c in manifest["cases"] if corpus_case_kind(c) == CASE_KIND_FAILURE)
     target["expected_firing"] = list(target["expected_firing"]) + [
         "__item147_extra_rule_id__"
     ]
@@ -1138,7 +1028,7 @@ def test_ac22_committed_corpora_agree_with_the_derived_name_map():
     for case in geometric_cases:
         # A case carrying `failure_mode == 0` **and** a `condition` is a
         # condition fixture, not a clean control (item 150:
-        # `mode6_crop_at_border` became the FOV-truncation condition's
+        # `crop_at_border` became the FOV-truncation condition's
         # case). Its `failure_mode_name` is the condition's `short_name`;
         # `failure_mode_names()[0]` -- the clean-control name -- belongs
         # only to a case with no condition.
@@ -1310,12 +1200,12 @@ def test_ac25_matrix_note_names_the_specification_not_a_retired_constant(matrix)
 #: a co-detection by a rule the mode does not own, a case recording "not
 #: detected today" with an empty expected set, or no corpus case at all.
 _EXPECTED_DERIVED_STATUS = {
-    1: "validated",     # mode2_fragment fires fragmentation's Fragmentation: detector
+    1: "validated",     # fragment fires fragmentation's Fragmentation: detector
     2: "implemented",   # fuse_adjacent fires coverage/fragmentation, neither mode 2's own
     3: "implemented",   # no corpus case
     4: "validated",
     5: "proposed",
-    6: "validated",     # mode5_remove_level fires coverage (remove_level_relabel expects {})
+    6: "validated",     # remove_level fires coverage (remove_level_relabel expects {})
     7: "proposed",
     8: "implemented",   # no corpus case
     9: "validated",

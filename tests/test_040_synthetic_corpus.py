@@ -46,7 +46,7 @@ Covers Acceptance Criteria AC1-AC18:
   case-id set.
 
 Adversarial / edge-case scenarios included:
-- The case-level mode5_remove_level case (expected_labels == []) still loads
+- The case-level remove_level case (expected_labels == []) still loads
   and is schema-valid (mode 6, "vertebra not segmented", since item 150's
   2026-09-15 catalogue revision).
 - Every seg_fixture path is distinct (no two cases silently share a seg).
@@ -124,6 +124,9 @@ _SCHEMA_KEYS_TYPES = {
     # Item 150 (2026-09-14): the id of the failure_modes.CONDITIONS entry the
     # case exhibits, "" for a case that exhibits none.
     "condition": str,
+    # Item 155 (2026-09-16): the derived clean_control/condition/failure
+    # discriminator -- see segfacet.synth.perturbation.CASE_KINDS.
+    "kind": str,
     "detection": str,
     "perturbation": str,
     "perturbation_params": dict,
@@ -446,8 +449,12 @@ def test_ac17_manifest_expectations_equal_operators_expectation():
     # != 0" -- the FOV-truncation case carries mode 0 plus a condition and
     # is emphatically not a clean control. Every case built by an operator
     # other than the identity is rebuilt here, the condition case included.
+    # Item 155: the recorded `kind` is the discriminator, not a hand-rolled
+    # failure_mode/condition check.
+    from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, corpus_case_kind
+
     non_clean = [
-        c for c in _cases() if c["failure_mode"] != 0 or c["condition"]
+        c for c in _cases() if corpus_case_kind(c) != CASE_KIND_CLEAN_CONTROL
     ]
     assert non_clean  # sanity
     assert {c["case_id"] for c in _cases()} - {c["case_id"] for c in non_clean} == {
@@ -537,7 +544,7 @@ def test_condition_case_is_not_a_clean_control_despite_failure_mode_zero():
     rule, and a non-pass verdict. Treating mode 0 as "clean control" would
     silently turn this into a case expected to fire nothing, so the
     distinction is pinned here."""
-    case = _case("mode6_crop_at_border")
+    case = _case("crop_at_border")
     assert case["failure_mode"] == 0
     assert case["condition"] == "fov_truncation"
     assert case["expected_rule_ids"] == ["border"]
@@ -556,13 +563,13 @@ def test_condition_case_is_not_a_clean_control_despite_failure_mode_zero():
 
 
 def test_adv_remove_level_case_level_labels_stay_schema_valid():
-    """Adversarial: the case-level ``mode5_remove_level`` case
+    """Adversarial: the case-level ``remove_level`` case
     (expected_labels == []) still loads without crashing and is
     schema-valid. Its mode moved from 5 to 6, "vertebra not segmented", at
     item 150's catalogue revision (2026-09-15) -- a missed vertebra
     segmentation is mode 6 whether or not the labels hide the gap -- while
     the case id is historical and deliberately unchanged."""
-    case = _case("mode5_remove_level")
+    case = _case("remove_level")
     assert case["expected_labels"] == []
     assert case["failure_mode"] == 6
     assert case["condition"] == ""

@@ -13,12 +13,12 @@ in-suite:
 - AC4:  ``features/spline.py``'s default smoothing is scale-free (a function
         of point count, not a literal mm^2 constant) and its default
         parameterisation is chord-length, not the cranio-caudal coordinate.
-- AC7:  ``mode4_relabel_swap``'s ``is_monotonic``/``non_monotonic_pairs`` are
+- AC7:  ``relabel_swap``'s ``is_monotonic``/``non_monotonic_pairs`` are
         pinned to ``False`` / ``[["L2", "L3"]]`` -- item 132's traversal-
         ordered reference fit -- flipped 2026-08-31 from the ``True`` / ``()``
         measured before that item. Its manifest ``detection`` is now
         ``pipeline``, flipped from ``reconstructed_record``.
-- AC9:  ``mode1_displace``'s maximum offset exceeds, and ``clean_control``'s
+- AC9:  ``displace``'s maximum offset exceeds, and ``clean_control``'s
         stays below, the shipped ``mislabel.max_offset_mm`` threshold, by a
         floor margin (not an equality) so float noise cannot fail it.
 - AC12: both reference artifacts' ``spline_offset_mm`` statistics clear a
@@ -29,7 +29,7 @@ in-suite:
         agreeing with ``test_040``'s
         ``_PIPELINE_ONLY_MODES``/``_RECONSTRUCTED_MODES`` and ``test_057``'s
         ``_PIPELINE_DETECTABLE_MODES``.
-- AC16: ``mode6_crop_at_border`` fires both ``border`` and ``mislabel``
+- AC16: ``crop_at_border`` fires both ``border`` and ``mislabel``
         through plain ``run_qc``, while its manifest ``expected_rule_ids`` is
         ``["border"]`` alone -- the discrepancy asserted as a recorded fact.
 - AC17: every Stage 28 acceptance box is ticked-and-annotated or
@@ -79,6 +79,7 @@ from segfacet.features.spline import fit_centroid_spline
 from segfacet.io import load_case
 from segfacet.pipeline import run_qc
 from segfacet.synth.corpus import CORPUS_DIR, load_manifest
+from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
 _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
@@ -326,7 +327,7 @@ def test_ac7_mode4_relabel_swap_is_monotonic_pinned_true():
     pin, don't just widen it (this test's own prior instruction). Pre-item
     132 this read ``True`` with zero non-monotonic pairs; now it reads
     ``False`` with the swapped pair named."""
-    _case_result, block = _run_qc("mode4_relabel_swap")
+    _case_result, block = _run_qc("relabel_swap")
     mono = block["stage3"]["monotonic_consistency"]
     assert mono["is_monotonic"] is False
     # non_monotonic_pairs is serialised as a list of two-element lists
@@ -339,15 +340,15 @@ def test_ac7_mode4_manifest_detection_still_reconstructed_record():
     from ``detection == "reconstructed_record"`` to ``"pipeline"`` -- see
     docs/aide/items/132-judge-monotonicity-against-the-traversal-ordered-fit.md
     AC15/AC16."""
-    case = _manifest_case("mode4_relabel_swap")
+    case = _manifest_case("relabel_swap")
     assert case["detection"] == "pipeline"
 
 
 def test_ac7_mode4_run_qc_is_deterministic_across_two_calls():
     """Adversarial (spec-named): two run_qc calls on the same fixture return
     equal offsets and equal monotonicity."""
-    _cr1, block1 = _run_qc("mode4_relabel_swap")
-    _cr2, block2 = _run_qc("mode4_relabel_swap")
+    _cr1, block1 = _run_qc("relabel_swap")
+    _cr2, block2 = _run_qc("relabel_swap")
     assert block1["stage3"]["monotonic_consistency"] == block2["stage3"]["monotonic_consistency"]
     assert _max_offset_mm(block1) == pytest.approx(_max_offset_mm(block2))
 
@@ -362,7 +363,7 @@ def test_ac9_mode1_displace_exceeds_threshold_and_clean_control_stays_below():
     max_offset_mm = config.rule_param("mislabel", "max_offset_mm", default=None)
     assert max_offset_mm is not None, "expected a shipped mislabel.max_offset_mm"
 
-    _cr_mode1, block_mode1 = _run_qc("mode1_displace")
+    _cr_mode1, block_mode1 = _run_qc("displace")
     _cr_clean, block_clean = _run_qc("clean_control")
 
     mode1_max = _max_offset_mm(block_mode1)
@@ -434,7 +435,7 @@ def _pipeline_detected_modes_excluding_clean_control() -> set:
     return {
         c["failure_mode"]
         for c in manifest["cases"]
-        if c["detection"] == "pipeline" and c["failure_mode"] != 0
+        if c["detection"] == "pipeline" and corpus_case_kind(c) == CASE_KIND_FAILURE
     }
 
 
@@ -488,14 +489,14 @@ def test_ac15_agrees_with_test_057_pipeline_detectable_modes():
 
 
 def test_ac16_mode6_fires_both_border_and_mislabel():
-    case_result, _block = _run_qc("mode6_crop_at_border")
+    case_result, _block = _run_qc("crop_at_border")
     rule_ids = {f.rule_id for f in case_result.findings}
     assert "border" in rule_ids, rule_ids
     assert "mislabel" in rule_ids, rule_ids
 
 
 def test_ac16_mode6_manifest_expected_rule_ids_is_border_alone():
-    case = _manifest_case("mode6_crop_at_border")
+    case = _manifest_case("crop_at_border")
     assert case["expected_rule_ids"] == ["border"]
 
 

@@ -2,7 +2,7 @@
 Mode Specification: the §6 catalogue as an authored source).
 
 Items 144-148 built ``segfacet.failure_modes.SPECIFICATION`` as the
-**primary, authored record** of every §6 failure mode -- a schema, a
+**primary, authored record** of every failure mode -- a schema, a
 derivation for lifecycle status and evidence rung, and a per-corpus-case
 measured firing set. Before item 149, this module (item 138) instead
 cross-checked **five partial sources** that could agree or disagree with no
@@ -31,9 +31,10 @@ committed corpus manifests (``tests/corpus/manifest.json`` and
 firing set beside the *measured* firing set
 (:func:`segfacet.failure_modes.measured_firing`), scored for agreement. A
 manifest case with no ``ModeSpec.corpus_cases`` entry covering it is a named
-hole (``expected_source == "unspecified"``); the two ``failure_mode == 0``
-clean controls are scored too, labelled ``"manifest-clean-control"`` since §6
-defines no mode 0. This is the check none of queue-019's shape tests could
+hole (``expected_source == "unspecified"``); the clean-control cases (item 155:
+``kind == "clean_control"``) are scored too, labelled
+``"manifest-clean-control"`` since the specification defines no mode 0. This is the check
+none of queue-019's shape tests could
 express: running the case and comparing the sets tests the specification's
 *truth*, not merely its *shape*.
 
@@ -54,8 +55,11 @@ derived from :func:`segfacet.catalogue.scan_synth_rule_mode_map`, an AST scan
 matching only geometric ``Expectation(...)`` literals, so mode 9's
 ``intensity`` edge (corpus-designated only in the intensity manifest, which
 the scan never reads) rendered ``"analytic"`` beside a rung claiming three
-committed intensity cases drive it end-to-end. The scan is still read, for
-``corpus_designated_unregistered_rule_ids`` only.
+committed intensity cases drive it end-to-end. Item 156 Seam 2 retires the
+scan's last read here too: ``corpus_designated_unregistered_rule_ids`` is now
+derived from the two committed manifests' ``expected_rule_ids`` /
+``expected_firing`` directly, so :func:`build_matrix` no longer calls
+:func:`segfacet.catalogue.scan_synth_rule_mode_map` at all.
 
 An unclassified or dropped ``consumed_paths`` entry is folded in from
 :func:`segfacet.catalogue.path_classification_conflicts` as
@@ -267,10 +271,10 @@ class TraceabilityMatrix:
 
 
 # =========================================================================== #
-# The private ``_vision_mode_titles()`` parse lived here until item 147 moved
-# it to its one public home, ``failure_modes.vision_seed_titles()``. A mode
-# row's title now comes from ``SPECIFICATION[mode].name`` -- the record --
-# and the §6 seed list is checked against that record there, once.
+# A private vision.md §6 parse lived here until item 147 moved it into
+# failure_modes.py, itself retired at item 152. A mode row's title comes
+# from ``SPECIFICATION[mode].name`` -- the record -- and no module reads
+# ``vision.md``.
 # =========================================================================== #
 
 
@@ -306,6 +310,11 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
     ``SPECIFICATION`` itself."""
     from segfacet.synth import corpus as corpus_module
     from segfacet.synth import intensity as intensity_module
+    from segfacet.synth.perturbation import (
+        CASE_KIND_CLEAN_CONTROL,
+        CASE_KIND_CONDITION,
+        corpus_case_kind,
+    )
 
     specification = failure_modes_module.SPECIFICATION
 
@@ -323,6 +332,7 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
     ):
         for manifest_case in manifest_cases:
             case_id = manifest_case.get("case_id")
+            kind = corpus_case_kind(manifest_case)
             mode_id = manifest_case.get("failure_mode")
             key = (corpus_name, case_id)
 
@@ -332,9 +342,9 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
             measured = failure_modes_module.measured_firing(probe)
 
             condition_id = manifest_case.get("condition") or ""
-            if mode_id == 0 and condition_id:
-                # Item 150: a condition-only case (failure_mode 0 plus a
-                # condition) is carried by CONDITIONS, not SPECIFICATION.
+            if kind == CASE_KIND_CONDITION:
+                # Item 150: a condition-only case (kind == "condition") is
+                # carried by CONDITIONS, not SPECIFICATION.
                 condition = failure_modes_module.CONDITIONS.get(condition_id)
                 condition_case = None
                 if condition is not None:
@@ -351,7 +361,7 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
                     expected_firing = tuple(condition_case.expected_firing)
                     expected_source = "specification-condition"
                     agrees = set(measured) == set(expected_firing)
-            elif mode_id == 0:
+            elif kind == CASE_KIND_CLEAN_CONTROL:
                 expected_firing: Tuple[str, ...] = ()
                 expected_source = "manifest-clean-control"
                 agrees = set(measured) == set(expected_firing)
@@ -409,7 +419,6 @@ def build_matrix() -> TraceabilityMatrix:
         build_catalogue,
         path_classification_conflicts,
         rule_declaration_conflicts,
-        scan_synth_rule_mode_map,
     )
     from segfacet.heuristics.rule import iter_rule_declarations, iter_rules
 
@@ -447,7 +456,21 @@ def build_matrix() -> TraceabilityMatrix:
         for rid in e.consuming_rules:
             by_rule_counts[rid] = by_rule_counts.get(rid, 0) + 1
 
-    corpus_map = scan_synth_rule_mode_map()
+    # Item 156 Seam 2: both committed manifests, loaded once and shared by
+    # corpus_designated_unregistered_rule_ids below and by cases_by_mode
+    # further down -- corpus_designated_unregistered_rule_ids no longer reads
+    # catalogue.scan_synth_rule_mode_map (an AST scan blind to the intensity
+    # corpus's _RecipeEntry cases; see catalogue.py's docstrings).
+    from segfacet.synth import corpus as corpus_module
+    from segfacet.synth import intensity as intensity_module
+
+    manifest_cases_all = [
+        ("geometric", c)
+        for c in corpus_module.load_manifest().get("cases", [])
+    ] + [
+        ("intensity", c)
+        for c in intensity_module.load_intensity_manifest().get("cases", [])
+    ]
 
     registered_rule_ids = sorted(r.rule_id for r in iter_rules())
     declared_modes_by_rule: Dict[str, Tuple[int, ...]] = {}
@@ -491,14 +514,14 @@ def build_matrix() -> TraceabilityMatrix:
     # declaration_state alone but targets no known mode, which is exactly a
     # rule -> mode hole per this module's own completeness contract.
     # catalogue's rule_declaration_conflicts() already reports this
-    # disagreement (its "declared §6 mode ... is outside
+    # disagreement (its "declared failure mode ... is outside
     # segfacet.failure_modes.SPECIFICATION's key set" message); folded in
     # here rather than re-derived, so the artifact's own completeness claim
     # covers it too, and rules_by_mode (which is built from
     # declared_modes_by_rule directly) never silently drops it.
     _uncatalogued_mode_rule_ids = set()
     _uncatalogued_mode_re = re.compile(
-        r"^rule '([^']+)': declared §6 mode \d+ is outside"
+        r"^rule '([^']+)': declared failure mode \d+ is outside"
     )
     for _message in rule_declaration_conflicts():
         _match = _uncatalogued_mode_re.match(_message)
@@ -532,8 +555,12 @@ def build_matrix() -> TraceabilityMatrix:
             )
         )
 
+    designated_rule_ids: Set[str] = set()
+    for _corpus_name, _case in manifest_cases_all:
+        designated_rule_ids.update(_case.get("expected_rule_ids", ()))
+        designated_rule_ids.update(_case.get("expected_firing", ()))
     unregistered_designated = tuple(
-        sorted(rid for rid in corpus_map if rid not in registered_rule_ids)
+        sorted(rid for rid in designated_rule_ids if rid not in registered_rule_ids)
     )
 
     mode_to_rule_holes = tuple(
@@ -547,16 +574,7 @@ def build_matrix() -> TraceabilityMatrix:
 
     # Both committed manifests -> cases_by_mode + pipeline_detected (item 149
     # AC18: re-derived across BOTH corpora, not the geometric one alone).
-    from segfacet.synth import corpus as corpus_module
-    from segfacet.synth import intensity as intensity_module
-
-    manifest_cases_all = [
-        ("geometric", c)
-        for c in corpus_module.load_manifest().get("cases", [])
-    ] + [
-        ("intensity", c)
-        for c in intensity_module.load_intensity_manifest().get("cases", [])
-    ]
+    # manifest_cases_all is loaded once, above (item 156 Seam 2).
     cases_by_mode: Dict[int, Tuple[Tuple[str, str], ...]] = {}
     pipeline_detected_by_mode: Dict[int, bool] = {}
     for mode in known_modes:
@@ -572,9 +590,10 @@ def build_matrix() -> TraceabilityMatrix:
 
     # Item 149 Decision D2: attribution is derived from the specification's
     # own corpus_cases (which span both corpora by construction), not from
-    # scan_synth_rule_mode_map (which only ever matched geometric
-    # Expectation(...) literals). The scan is still read above, for
-    # corpus_designated_unregistered_rule_ids only.
+    # catalogue.scan_synth_rule_mode_map (which only ever matched geometric
+    # Expectation(...) literals). Item 156 Seam 2: the scan is no longer read
+    # anywhere in this function -- corpus_designated_unregistered_rule_ids is
+    # now derived from the two committed manifests directly (see above).
     specification = failure_modes_module.SPECIFICATION
     corpus_rule_ids_by_mode: Dict[int, Set[str]] = {}
     for mode_id, mode_spec in specification.items():
@@ -808,7 +827,7 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
         f"Direction complete: {matrix.mode_to_rule.complete}. "
         f"Holes: {', '.join(matrix.mode_to_rule.holes) if matrix.mode_to_rule.holes else 'none'}.",
         "",
-        "| Mode | §6 title | Status (derived) | Status (authored) | "
+        "| Mode | Title | Status (derived) | Status (authored) | "
         "Rules (attribution) | Per-edge rungs | Evidence rung (derived) | "
         "Pipeline-detected | Stage-18 metric anchor paths | Rule signal read paths |",
         "|---|---|---|---|---|---|---|---|---|---|",
@@ -839,7 +858,7 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
             "",
             _md_escape(_READ_PATHS_QUALIFIER),
             "",
-            "## Rules -> section 6 modes",
+            "## Rules -> failure modes",
             "",
             f"Direction complete: {matrix.rule_to_mode.complete}. "
             f"Holes: {', '.join(matrix.rule_to_mode.holes) if matrix.rule_to_mode.holes else 'none'}.",

@@ -757,7 +757,7 @@ def _corpus_case(case_id):
 
 
 def test_ac15_mode1_displace_fires_mislabel_naming_exactly_label_22():
-    case = _corpus_case("mode1_displace")
+    case = _corpus_case("displace")
     findings = [f for f in pipeline_findings(case) if f.rule_id == "mislabel"]
     assert findings
     union = set()
@@ -767,7 +767,7 @@ def test_ac15_mode1_displace_fires_mislabel_naming_exactly_label_22():
 
 
 def test_ac15_mode6_crop_at_border_fires_mislabel_and_border_on_label_22():
-    case = _corpus_case("mode6_crop_at_border")
+    case = _corpus_case("crop_at_border")
     findings = pipeline_findings(case)
     mislabel = [f for f in findings if f.rule_id == "mislabel"]
     border = [f for f in findings if f.rule_id == "border"]
@@ -787,7 +787,7 @@ def test_ac15_mode4_relabel_swap_fires_no_offset_misalignment_finding():
     label:") through plain run_qc, so the finding list is no longer empty --
     but Detector A's offset-MISALIGNMENT reason never fires on this case,
     which is what this recalibration test preserves."""
-    case = _corpus_case("mode4_relabel_swap")
+    case = _corpus_case("relabel_swap")
     findings = [f for f in pipeline_findings(case) if f.rule_id == "mislabel"]
     assert not any(
         f.reason.startswith("Vertebra misaligned from spinal curve:")
@@ -802,7 +802,7 @@ def test_ac15_mode4_relabel_swap_fires_no_offset_misalignment_finding():
 
 def test_ac16_docstring_records_the_margins_and_the_artifact_name():
     """Amended 2026-08-29: the docstring records the INTERIOR-only ceiling
-    (2.510990 mm, mode4_relabel_swap) rather than the pre-amendment
+    (2.510990 mm, relabel_swap) rather than the pre-amendment
     5.143859 mm (that reading is on mode4's cranial-terminal label 20, which
     AC39 removes from the detector's consideration entirely)."""
     import segfacet.heuristics.mislabel as mislabel_mod
@@ -1002,7 +1002,7 @@ def test_ac24_write_goldens_into_two_dirs_is_byte_identical(tmp_path):
 # replacing the pre-amendment "seven are byte-unchanged").
 # =========================================================================== #
 
-_THRESHOLD_CARRYING_CASES = frozenset({"mode1_displace", "mode6_crop_at_border"})
+_THRESHOLD_CARRYING_CASES = frozenset({"displace", "crop_at_border"})
 
 
 def _all_offset_entries(golden: dict) -> list:
@@ -1044,8 +1044,8 @@ def test_ac28_pinned_snapshot_reasons_name_the_current_threshold():
     from test_098_stray_components import _PRE_098_GOLDEN_VERDICT_AND_FINDINGS
 
     clause = f"(threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)"
-    mode1_reason = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["mode1_displace"]["findings"][0]["reason"]
-    mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["mode6_crop_at_border"]["findings"]
+    mode1_reason = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["displace"]["findings"][0]["reason"]
+    mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
     mode6_reason = next(f["reason"] for f in mode6_findings if f["rule_id"] == "mislabel")
 
     assert clause in mode1_reason
@@ -1061,16 +1061,16 @@ def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
     manifest = load_manifest()
     cases_by_id = {c["case_id"]: c for c in manifest["cases"]}
 
-    mode1_expected = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["mode1_displace"]["findings"][0]["reason"]
-    mode1_report = build_report_for_case(cases_by_id["mode1_displace"])
+    mode1_expected = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["displace"]["findings"][0]["reason"]
+    mode1_report = build_report_for_case(cases_by_id["displace"])
     mode1_actual = next(f["reason"] for f in mode1_report["findings"] if f["rule_id"] == "mislabel")
     assert mode1_actual == mode1_expected
 
     mode6_expected = next(
-        f["reason"] for f in _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["mode6_crop_at_border"]["findings"]
+        f["reason"] for f in _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
         if f["rule_id"] == "mislabel"
     )
-    mode6_report = build_report_for_case(cases_by_id["mode6_crop_at_border"])
+    mode6_report = build_report_for_case(cases_by_id["crop_at_border"])
     mode6_actual = next(f["reason"] for f in mode6_report["findings"] if f["rule_id"] == "mislabel")
     assert mode6_actual == mode6_expected
 

@@ -1,13 +1,16 @@
 """Mislabel / misalignment rule (item 033).
 
-Implements a **mislabel / misalignment rule** targeting two related §6 failure
-modes:
+Implements a **mislabel / misalignment rule** with two detectors, which
+originally targeted two related modes of the v3 vision.md seed list (history;
+the current ids are ``failure_modes.SPECIFICATION``'s):
 
-- **Mode 1 — label not aligned with the vertebra it names (misalignment).**
-  Detector A flags a vertebra whose centroid is a large outlier from the
+- **Misalignment — label not aligned with the vertebra it names.** Serves no
+  failure mode since the item-150 sign-off (the spline offset is an
+  anatomy-classification signal). Detector A flags a vertebra whose centroid is a large outlier from the
   fitted spinal curve, via the per-vertebra perpendicular spline offset
   (``stage3.per_label_offsets[*].offset_mm``, item 018).
-- **Mode 4 — semantic mislabelling / wrong vertebra identification.**
+- **Mode 9 — out-of-order label sequence** (a sub-mode of mode 8, semantic
+  mislabelling / wrong vertebra identification).
   Detector B flags a vertebra whose physical position is inconsistent with
   its anatomical label's expected ordering relative to neighbours, via the
   monotonic-progression metric
@@ -74,14 +77,14 @@ Corpus margins (from `tests/corpus/manifest.json`'s nine cases, each measured
 via a freshly built `build_report_for_case` report -- item 126 retired the
 committed corpus-golden snapshots these margins used to cite),
 all measured on **interior** entries only:
-- `mode4_relabel_swap`'s largest interior reading (label 23 / L4) is
+- `relabel_swap`'s largest interior reading (label 23 / L4) is
   `2.510990` mm and must **not** fire -- the non-firing ceiling. (Its larger
   `5.143859` mm reading, label 20, is that case's cranial-terminal vertebra
   and is excluded from consideration entirely.)
-- `mode6_crop_at_border`'s firing reading is `17.507445` mm and **must**
+- `crop_at_border`'s firing reading is `17.507445` mm and **must**
   fire -- so ``_DEFAULT_MAX_OFFSET_MM`` sits in `(2.510990, 17.507445]`
   (`13.0` qualifies).
-- `mode1_displace`'s firing reading is `18.718604` mm and **must** fire.
+- `displace`'s firing reading is `18.718604` mm and **must** fire.
 
 Distribution calibrated against: `src/segfacet/reference/reference_verse_v1.json`.
 """
@@ -163,30 +166,33 @@ class MislabelRule(Rule):
     """Mislabel / misalignment rule (item 033).
 
     Runs two independent, config-gated detectors and returns their combined
-    findings: spline-offset outliers (Detector A, §6 mode 1) first in
+    findings: spline-offset outliers (Detector A, no failure mode) first in
     ascending label order, then monotonic-progression inconsistencies
-    (Detector B, §6 mode 4) in ascending name-pair order.
+    (Detector B, specification mode 9, out-of-order label sequence) in
+    ascending name-pair order.
     """
 
     rule_id = "mislabel"
 
-    # §6 modes 1, 4 (item 136): DisplacePerturbation designates mode 1,
-    # RelabelSwapPerturbation designates mode 4
-    # (src/segfacet/synth/identity_ordering_alignment.py), both via
-    # Expectation(..., expected_rule_ids={"mislabel"}).
+    # Specification mode 9 (out-of-order label sequence):
+    # RelabelSwapPerturbation designates mode 9
+    # (src/segfacet/synth/identity_ordering_alignment.py) via
+    # Expectation(..., expected_rule_ids={"mislabel"}). DisplacePerturbation
+    # designates mode 1 (segmentation accuracy), which this rule's mode-less
+    # Detector A only co-detects.
     mode_declaration = RuleModeDeclaration(
         modes=(9,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's mode4_relabel_swap designates "
+            "tests/corpus/manifest.json's relabel_swap designates "
             "this rule for mode 9 (out-of-order label sequence) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
             "2026-09-15) via Detector B "
             "(ordering). Detector A (spline offset) serves NO failure mode "
             "since that sign-off: the offset from the spinal curve is an "
             "anatomy-classification signal (spondylolisthesis, scoliosis), "
-            "so its firing on mode1_displace and on the FOV-truncation "
-            "condition's fixture mode6_crop_at_border is a recorded "
+            "so its firing on displace and on the FOV-truncation "
+            "condition's fixture crop_at_border is a recorded "
             "co-detection, and its read paths are classified bookkeeping "
             "below rather than attributed to mode 9.",
         ),
@@ -370,7 +376,7 @@ class MislabelRule(Rule):
     def _detect_offset_outliers(
         stage3: dict, severity: Severity, max_offset: float
     ) -> List[Finding]:
-        """Detector A: spline-offset outliers (misalignment, §6 mode 1)."""
+        """Detector A: spline-offset outliers (misalignment, no failure mode)."""
         offsets = stage3.get("per_label_offsets")
         if not isinstance(offsets, list):
             return []
@@ -421,7 +427,7 @@ class MislabelRule(Rule):
         stage3: dict, record: dict, severity: Severity
     ) -> List[Finding]:
         """Detector B: monotonic-progression inconsistency (mislabelling,
-        §6 mode 4)."""
+        specification mode 9)."""
         mono = stage3.get("monotonic_consistency")
         if not isinstance(mono, dict):
             mono = {}

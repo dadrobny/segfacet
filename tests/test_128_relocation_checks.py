@@ -289,7 +289,7 @@ def test_ac8_companion_actually_runs_and_finds_label_22_bounds_finding():
 
     manifest = load_manifest()
     case = next(
-        c for c in manifest["cases"] if c["case_id"] == "mode6_crop_at_border"
+        c for c in manifest["cases"] if c["case_id"] == "crop_at_border"
     )
     seg_img = loaded_seg_image(case)
     reference = bundled_production_reference()
