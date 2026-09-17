@@ -149,8 +149,10 @@ def test_ac6_module_level_two_hop_root_matches_literal_chain():
         "_ROOT = _TESTS_DIR.parent\n"
     )
     literal_source = _build_module(
+        "_PAD = None\n"
         "_ROOT = Path(__file__).resolve().parent.parent\n"
     )
+    assert len(two_hop_source.splitlines()) == len(literal_source.splitlines())
     two_hop_violations = guard.classify_module(two_hop_source, MODULE_PATH)
     literal_violations = guard.classify_module(literal_source, MODULE_PATH)
     assert two_hop_violations == literal_violations
@@ -191,8 +193,10 @@ def test_ac8_function_local_two_hop_root_matches_literal_chain():
         "    root = here.parent\n"
     )
     literal_source = _build_local_module(
+        "    here = None\n"
         "    root = Path(__file__).resolve().parent.parent\n"
     )
+    assert len(two_hop_source.splitlines()) == len(literal_source.splitlines())
     two_hop_violations = guard.classify_module(two_hop_source, MODULE_PATH)
     literal_violations = guard.classify_module(literal_source, MODULE_PATH)
     assert two_hop_violations == literal_violations
