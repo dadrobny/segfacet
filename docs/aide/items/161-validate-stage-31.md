@@ -682,4 +682,27 @@ with `aide progress amend 31`, never by editing the note.
   equal to `roadmap_acceptance_bullets(..., "31")`'s 5 bullets.
 
 - **2026-09-17 — the full suite in a fresh clone of the final commit (AC19).**
-  See the paragraph below, added after the branch's final commit landed.
+  Brought AC1's clone up to the branch's then-final commit `fa3931e` (the
+  Decisions-section commit above; this paragraph is the one exception, added
+  in a follow-up commit after the suite ran, since a self-describing commit
+  cannot name its own hash) with `python <clone>/.aide/scripts/aide.py --repo
+  <clone> sync --item 161`; the clone's branch ref then read `fa3931e`,
+  matching. Resolution proof re-printed: `<clone>/.venv/bin/python -P -c
+  "import segfacet; print(segfacet.__file__)"` again resolved under the clone.
+  `<clone>/.venv/bin/python -P -m pytest <clone>/tests -n auto -q`: **7556
+  passed, 63 skipped, 0 failed** (259.07s). `tests --collect-only -q` on the
+  working checkout at the same commit independently collects 7619 tests
+  (7556 + 63), confirming no test was silently dropped from the node count.
+  Every skip is environment-gated or fixture-gated, each printing its own
+  reason: `CuPy/GPU not available` (backend/benchmark/verdict-equivalence
+  tests), `docker CLI/daemon not available on this host` (container-smoke/
+  Dockerfile/stage-9 tests), `could not import 'cupy'`/`could not import
+  'radiomics'` (backend feature port, radiomics features), `real VerSe19
+  cohort not mounted` / `real VerSe GT cohort not mounted` (stage 12/13/14/17/
+  28 acceptance and the curve-formulation decision test, all needing
+  `SEGFACET_VERSE_COHORT`), `no real SPINEPS-output fixture found` (stage 17),
+  and `no pinned pre-098 shape for '<case>'` (2 cases in
+  `test_108_affine_faces.py`). No skip is recorded as verification. The clone
+  was then deleted. (The 2026-09-16 item-155 attestation's "8511 passed" is a
+  different, earlier commit's collection total — items 156–159 changed test
+  counts in between — not a discrepancy against this run.)
