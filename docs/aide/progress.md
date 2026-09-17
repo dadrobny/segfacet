@@ -1694,7 +1694,7 @@ changes here.**
 - [x] No consumer distinguishes a clean control from a condition-only case by *(AC12 verified 2026-09-16: tree-wide AST scan (test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains, tests/test_155_corpus_case_kind.py) over every *.py under src/segfacet/ and tests/ returns zero violations of a failure_mode == 0 comparison outside case_kind's own body; full suite green (8511 passed, .venv/bin/python -m pytest -n auto).)*
   - **2026-09-17** → AC10 replayed 2026-09-17 in clone 6bf417d: test_155_corpus_case_kind.py::test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains and every parametrisation of ::test_ac13_scan_detects_each_forbidden_shape pass (8 passed) — item 161 replay confirms the 2026-09-16 attestation.
   `failure_mode == 0` alone.
-- [ ] Every open `defect` and `gap` insight present at the stage's start is ticked,
+- [x] Every open `defect` and `gap` insight present at the stage's start is ticked, *(AC11-AC13 verified 2026-09-17 in clone 6bf417d: test_160_insight_triage.py test_ac1_ through test_ac8_ parametrisations pass (125 passed). AC12 re-measured via aide insights list --trail (89 entries, 24 open): stage-start defect/gap entries: 29 -- ticked 18, re-homed 10, left open 1. in-queue: 6 -- ticked 2, re-homed 0, left open 4. Counts match item 160's recorded 18/10/1 and 2/0/4 exactly; re-homed pointer count (10) and left-open trail-line count (5 = 1 + 4) independently confirmed by grep over docs/aide/insights.md.)*
   re-homed with a pointer, or left open with a dated reason; the three counts are recorded
   here (**G7**).
 
