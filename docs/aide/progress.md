@@ -1661,7 +1661,7 @@ changes here.**
   to the intensity corpus, and the retired "mode → rule complete, always" claim is
   handed back to the next roadmap revision with the measurement that refutes it.
   *(Item 156)*
-- 🔍 **D4** Drops the stale `modeN_` corpus case-id prefixes that no longer name
+- ✅ **D4** Drops the stale `modeN_` corpus case-id prefixes that no longer name
   the mode they carry after the item-150 re-keying, renaming the eight affected
   geometric case ids and updating every pin (manifests, generator, rule/synth/
   eval modules, both conformance artifacts) to match. *(Item 157)*
