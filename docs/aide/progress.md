@@ -1687,7 +1687,7 @@ changes here.**
   planned, or the gap and its reason are recorded.
 - [ ] `vision.md` §6 names the specification as the catalogue and carries no numbered mode
   list, and no module under `src/segfacet/` asserts that it does (**G8**).
-- [ ] No module or test under `src/segfacet/` or `tests/` references
+- [x] No module or test under `src/segfacet/` or `tests/` references *(AC6-AC9 verified 2026-09-17 in clone 6bf417d: test_153_eval_harness_rekey.py test_ac1/test_ac2/test_ac5/test_ac17/test_ac20/test_ac21/test_ac26/test_ac27/test_ac30 pass (9 passed); test_154_ladder_remeasurement.py test_ac8/test_ac9/test_ac10 pass (3 passed); harness re-run via score_harness(run_severity_harness()) prints passed=True. Re-measured constants (segfacet.eval.severity_ladder, clone 6bf417d, replayed 2026-09-17): RECORDED_MARGINS displace inf, fragment inf, inject_islands 112.0, relabel_swap inf, remove_level inf, crop_at_border 0.3585, sequence_break inf, force_overlap 1.038; KNOWN_CROSS_MODE_COUPLINGS crop_at_border -> unanchored_foreground_fraction 2.79, force_overlap -> unanchored_foreground_fraction 0.9629; provenance corpus=geometric, base_params={levels: (L1,L2,L3,L4,L5), spacing: (1.0,1.0,1.0), curve_amplitude_mm: 6.0}, measured_on=2026-09-16.)*
   `LEGACY_STAGE18_MODE_NAMES` or keys a per-mode metric, ladder or cohort count by an id
   outside `failure_modes.SPECIFICATION`; the re-measured cross-mode constants are recorded
   with what they were measured on (**G7**).
