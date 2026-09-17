@@ -1665,7 +1665,7 @@ changes here.**
   the mode they carry after the item-150 re-keying, renaming the eight affected
   geometric case ids and updating every pin (manifests, generator, rule/synth/
   eval modules, both conformance artifacts) to match. *(Item 157)*
-- 🚧 **D5** Closes two blind spots in `tests/committed_artifact_guard.py`'s resolver:
+- 🔍 **D5** Closes two blind spots in `tests/committed_artifact_guard.py`'s resolver:
   an arbitrary `parents[N]` chain and a name-carried root reached through two hops
   (a name assigned from another name's `.parent`) were both invisible to
   `iter_violations`, silently passing a comparison the guard is meant to catch.
