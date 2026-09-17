@@ -58,7 +58,7 @@
 | 28    | Spinal Curve Model: Formulation, Offset & Orientation                   | G2, G7          | ✅     |
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
-| 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | 🚧     |
+| 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
@@ -1619,7 +1619,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
 
 ---
 
-## Stage 31 — Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update (G7, G8) — 🚧
+## Stage 31 — Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update (G7, G8) — ✅
 
 **Goal.** Clear what item 150's re-organisation of the catalogue left behind before any mode
 is refined against it: an eval harness still keyed by the pre-sign-off ids, a `vision.md`
@@ -1633,10 +1633,10 @@ changes here.**
 - ✅ **D0** AIDE engine updated to the framework's current version as its own reviewed PR
   (process work, not an item), before this stage's queue is planned; the two open
   `framework` insights checked against it, and Stage 20's summary status restored to 🚧.
-- 🚧 **D1** `vision.md` §6 re-issued through `/aide-create-vision` (human-gated, not an
+- ✅ **D1** `vision.md` §6 re-issued through `/aide-create-vision` (human-gated, not an
   item): principles plus a pointer to the specification, no numbered mode list, the new
   observability classes and the FOV-truncation condition named, the "two-descent" wording
-  corrected.
+  corrected. Human gate 6 approved 2026-09-16 at `7d800a2`; PR #77 merged 2026-09-17.
 - ✅ **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
   `vision_seed_conflicts`) re-pointed or retired to follow the re-issue. *(Item 152)*
 - ✅ **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
