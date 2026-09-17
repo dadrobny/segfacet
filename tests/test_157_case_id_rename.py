@@ -454,16 +454,35 @@ def test_ac12_renamed_fixture_is_pinned_binary(new_id):
 # =========================================================================== #
 
 
+def _pair_pattern(old: str, new: str) -> "re.Pattern[str]":
+    # Matches the docstring's own ``old`` -> ``new`` shape, both ids as
+    # whole double-backtick-quoted tokens, old strictly before new -- not a
+    # bare substring check, since every new id is a suffix of its old id
+    # (e.g. "mode1_displace" -> "displace") and so "new in line" is always
+    # true whenever "old in line" is.
+    return re.compile(rf"``{re.escape(old)}``\s*->\s*``{re.escape(new)}``")
+
+
 def test_ac13_generator_docstring_documents_every_pair():
     import segfacet.synth.corpus as corpus_module
 
     doc = corpus_module.__doc__ or ""
     lines = doc.splitlines()
     for old, new in RENAMED_CASE_IDS.items():
-        matching = [ln for ln in lines if old in ln and new in ln]
+        pattern = _pair_pattern(old, new)
+        matching = [ln for ln in lines if pattern.search(ln)]
         assert matching, (
-            f"no docstring line mentions both {old!r} and {new!r} as tokens"
+            f"no docstring line documents the pair ``{old}`` -> ``{new}``"
         )
+
+
+def test_ac13_pair_pattern_rejects_old_id_named_alone():
+    # Negative control: a line naming only the old id (no "-> ``new``")
+    # must not satisfy the pattern -- proves the check above can fail.
+    old, new = next(iter(RENAMED_CASE_IDS.items()))
+    pattern = _pair_pattern(old, new)
+    assert not pattern.search(f"* ``{old}`` was renamed.")
+    assert pattern.search(f"* ``{old}`` -> ``{new}``")
 
 
 # =========================================================================== #

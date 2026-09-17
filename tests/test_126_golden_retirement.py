@@ -639,6 +639,9 @@ _AC17_ALLOWLISTED_FILES = frozenset(
         # item 135: validation module checks the retirement, so it legitimately
         # names the retired path.
         "tests/test_135_stage29_validation.py",
+        # item 157: AC9 planted control and AC19 historical retired-row lookup
+        # legitimately name the retired path.
+        "tests/test_157_case_id_rename.py",
     }
 )
 
