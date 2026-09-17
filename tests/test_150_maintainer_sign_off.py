@@ -313,18 +313,6 @@ def test_adv_ac3_awaiting_and_declined_variants_still_block(status_cell):
 
 _BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
 
-#: The recorded baseline warning classes -- identical to
-#: ``tests/test_145_eight_hypothesised_modes.py``'s, and deliberately shared by
-#: shape rather than by count (§6: never pin a count from a module that itself
-#: trips the lint being counted).
-_BASELINE_WARNING_CLASSES = (
-    "assumptions-block",
-    "awaiting-a-decision",
-    "branch-state",
-    "retracted-criterion",
-)
-
-
 def _classify_warning(message: str) -> str:
     """The ``test_145_eight_hypothesised_modes.py::_classify_warning`` shape
     idiom, reproduced verbatim: a genuinely new instance of a tolerated class
@@ -361,12 +349,17 @@ def _human_gates_section(text: str) -> str:
 
 
 def test_ac4_aide_check_reports_no_error_and_no_unfilled_slot():
+    """The class-subset pin this name once carried is retired (item 159 A4,
+    D-n): see ``tests/test_146_ninth_mode_and_first_proposed.py``'s
+    ``test_ac36_aide_check_reports_no_error_and_no_new_warning_class`` for the
+    matching retirement and rationale -- a live warning shape legitimately
+    changing is not a defect, and the no-error claim already has a
+    module-independent home in ``tests/test_aide_check_no_errors.py``. The
+    unfilled-slot negative below is this test's own and stays (item 159
+    keeps it; AC9 drives it via an injected wrapper)."""
     aide = _aide_module()
     errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
     assert errors == [], errors
-    # A plumbing failure must fail loudly rather than pass an empty loop
-    # vacuously: this repo always reports the baseline warnings.
-    assert warnings, "run_checks returned no warnings at all -- expected the baseline"
 
     assert not [w for w in warnings if "unfilled template slot" in w], (
         "aide check reports an unfilled template slot"
@@ -375,12 +368,6 @@ def test_ac4_aide_check_reports_no_error_and_no_unfilled_slot():
     assert "{{" not in section, (
         "the '## Human gates' section carries a doubled-brace template slot, "
         "which aide check's template_residue_errors reports as an error (D5)"
-    )
-
-    classes = {_classify_warning(w) for w in warnings}
-    assert classes <= set(_BASELINE_WARNING_CLASSES), (
-        "aide check reports a warning class outside the recorded baseline: "
-        f"{sorted(classes - set(_BASELINE_WARNING_CLASSES))}"
     )
 
 

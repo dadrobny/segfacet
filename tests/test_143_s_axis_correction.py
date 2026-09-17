@@ -56,7 +56,7 @@ from segfacet.reference.artifact import build_and_write_default, default_artifac
 from segfacet.synth import clean_gt as clean_gt_module
 from segfacet.synth.axes import si_axis
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import RENAMED_CASE_IDS, load_manifest, write_corpus
+from segfacet.synth.corpus import load_manifest, write_corpus
 from segfacet.synth.golden import assert_matches_committed_artifact, build_report_for_case
 from segfacet.synth.intensity import write_intensity_corpus
 from segfacet.synth.regression import loaded_seg_image
@@ -665,34 +665,55 @@ _NON_CORPUS_REQUIRED_ARTIFACTS: Tuple[str, ...] = (
 )
 
 
-def _as_of_record_path(path: str) -> str:
-    """Map a live geometric fixture path back to the id it carried when
-    ``docs/corpus-s-axis-correction.md`` was written (item 143, pre-item-157)
-    -- the record is a dated, verbatim comparison and is never rewritten
-    (spec A4), so the live side is mapped back through
-    ``RENAMED_CASE_IDS`` instead."""
-    for old, new in RENAMED_CASE_IDS.items():
-        if f"/{new}_seg.nii.gz" in path or f"/{new}_scan.nii.gz" in path:
-            return path.replace(f"/{new}_seg.nii.gz", f"/{old}_seg.nii.gz").replace(
-                f"/{new}_scan.nii.gz", f"/{old}_scan.nii.gz"
-            )
-    return path
-
-
-def _required_artifact_paths() -> Set[str]:
-    geo_manifest = json.loads((_REPO_ROOT / "tests" / "corpus" / "manifest.json").read_text(encoding="utf-8"))
-    intensity_manifest = json.loads(
-        (_REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json").read_text(encoding="utf-8")
+#: The 27 paths ``docs/corpus-s-axis-correction.md`` covered as of the
+#: 2026-09-03 record (pre-item-157 case ids). Frozen 2026-09-17 by item 159
+#: (AC5/AC6, spec A3): the record is a dated, verbatim comparison that is
+#: never rewritten, and deriving this set live from the corpus manifests
+#: (the pre-item-159 shape) turns it red the next time a corpus case is
+#: added -- a claim about live state pinned onto a dated document. This set
+#: is exact, not an approximation; a genuinely new record revision would
+#: need its own frozen constant, not a live derivation.
+_FROZEN_REQUIRED_ARTIFACT_PATHS: Set[str] = frozenset(
+    _NON_CORPUS_REQUIRED_ARTIFACTS
+    + (
+        "tests/corpus/manifest.json",
+        "tests/corpus/intensity/manifest.json",
+        "tests/corpus/fixtures/base_scan.nii.gz",
+        "tests/corpus/fixtures/clean_control_seg.nii.gz",
+        "tests/corpus/fixtures/fuse_adjacent_seg.nii.gz",
+        "tests/corpus/fixtures/mode1_displace_seg.nii.gz",
+        "tests/corpus/fixtures/mode2_fragment_seg.nii.gz",
+        "tests/corpus/fixtures/mode3_inject_islands_seg.nii.gz",
+        "tests/corpus/fixtures/mode4_relabel_swap_seg.nii.gz",
+        "tests/corpus/fixtures/mode5_remove_level_seg.nii.gz",
+        "tests/corpus/fixtures/mode6_crop_at_border_seg.nii.gz",
+        "tests/corpus/fixtures/mode7_sequence_break_seg.nii.gz",
+        "tests/corpus/fixtures/mode8_force_overlap_seg.nii.gz",
+        "tests/corpus/fixtures/remove_level_relabel_seg.nii.gz",
+        "tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz",
+        "tests/corpus/intensity/fixtures/clean_spine_seg.nii.gz",
+        "tests/corpus/intensity/fixtures/degenerate_uniform_scan.nii.gz",
+        "tests/corpus/intensity/fixtures/implausible_metal_scan.nii.gz",
+        "tests/corpus/intensity/fixtures/implausible_soft_tissue_scan.nii.gz",
     )
-    paths: Set[str] = {"tests/corpus/manifest.json", "tests/corpus/intensity/manifest.json"}
-    for case in geo_manifest["cases"]:
-        paths.add(_as_of_record_path(f"tests/corpus/{case['scan_fixture']}"))
-        paths.add(_as_of_record_path(f"tests/corpus/{case['seg_fixture']}"))
-    for case in intensity_manifest["cases"]:
-        paths.add(f"tests/corpus/intensity/{case['scan_fixture']}")
-        paths.add(f"tests/corpus/intensity/{case['seg_fixture']}")
-    paths.update(_NON_CORPUS_REQUIRED_ARTIFACTS)
-    return paths
+)
+
+
+def _required_artifact_paths(
+    geo_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "manifest.json",
+    intensity_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json",
+) -> Set[str]:
+    """The path set ``docs/corpus-s-axis-correction.md`` must cover.
+
+    Frozen to ``_FROZEN_REQUIRED_ARTIFACT_PATHS`` (item 159 A3) -- no longer
+    derived from the corpus manifests, so adding a corpus case cannot turn
+    this dated record red. The manifest-path parameters are kept, defaulted
+    to the committed files, only so a caller (item 159's AC5) can exercise
+    this check against substituted manifest copies and confirm the result is
+    unaffected by their content; they are not read here.
+    """
+    del geo_manifest_path, intensity_manifest_path
+    return set(_FROZEN_REQUIRED_ARTIFACT_PATHS)
 
 
 def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
@@ -725,23 +746,37 @@ def _normalise_cell_path(cell: str) -> str:
     return cell.strip().strip("`").strip()
 
 
-def _load_record_rows() -> Tuple[List[Dict[str, str]], List[str]]:
-    assert _RECORD_DOC_PATH.exists(), f"missing {_RECORD_DOC_PATH.as_posix()} (AC16)"
-    text = _RECORD_DOC_PATH.read_text(encoding="utf-8")
+def _load_record_rows(record_path: Path = _RECORD_DOC_PATH) -> Tuple[List[Dict[str, str]], List[str]]:
+    """Parse the record's markdown table. ``record_path`` defaults to the
+    committed doc but accepts a substitute (item 159 AC6 drives this against
+    a ``tmp_path`` copy with a row removed, never the committed file)."""
+    assert record_path.exists(), f"missing {record_path.as_posix()} (AC16)"
+    text = record_path.read_text(encoding="utf-8")
     rows = _parse_markdown_table(text)
     header = list(rows[0].keys()) if rows else []
     return rows, header
 
 
-def test_ac16_record_covers_exactly_the_required_artifact_set():
-    rows, header = _load_record_rows()
+def _check_record_covers_required(
+    record_path: Path = _RECORD_DOC_PATH,
+    geo_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "manifest.json",
+    intensity_manifest_path: Path = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.json",
+) -> None:
+    """The AC16 check itself, factored out so item 159's AC5/AC6 tests can
+    drive it against substituted ``record_path``/manifest-path inputs
+    without touching the committed files."""
+    rows, header = _load_record_rows(record_path)
     path_col = _find_column(header, "path", "artifact")
     row_paths = {_normalise_cell_path(row[path_col]) for row in rows}
-    required = _required_artifact_paths()
+    required = _required_artifact_paths(geo_manifest_path, intensity_manifest_path)
     missing = required - row_paths
     extra = row_paths - required
     assert not missing, f"docs/corpus-s-axis-correction.md is missing rows for: {sorted(missing)}"
     assert not extra, f"docs/corpus-s-axis-correction.md has rows outside the required set: {sorted(extra)}"
+
+
+def test_ac16_record_covers_exactly_the_required_artifact_set():
+    _check_record_covers_required()
 
 
 def test_ac17_every_row_names_what_was_compared_and_what_happened():

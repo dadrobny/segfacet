@@ -268,23 +268,20 @@ def test_ac1_heavy_import_helper_flags_a_positive_case():
     assert heavy == {"numpy"}
 
 
-def test_ac1_import_adds_no_heavy_module_beyond_the_package_init():
-    """``import segfacet.failure_modes`` may load whatever
-    ``import segfacet`` already loads (the package init's own cost, out of
-    this item's authorised paths) but must add no *further* heavy module."""
-    bare = run_utf8(
-        [
-            sys.executable,
-            "-c",
-            "import sys, json\nimport segfacet\nprint(json.dumps(sorted(sys.modules)))",
-        ],
-        cwd=_REPO_ROOT,
-        timeout=60,
-    )
-    assert bare.returncode == 0, bare.stderr
-    assert bare.stdout, "expected stdout from the bare-package subprocess"
-    bare_loaded = set(json.loads(bare.stdout))
+def test_ac1_import_adds_no_heavy_module():
+    """``import segfacet.failure_modes`` loads no ``numpy``/``scipy``/
+    ``nibabel`` root at all.
 
+    Reconciled by item 159 (D-a/AC1): the package init's own heavy imports
+    were the "package init's own cost, out of this item's authorised paths"
+    the previous shape of this test carved out and asserted was non-empty
+    (``assert heavy_bare, "expected the bare package import to already load
+    a heavy module"``). Item 159 made the two heavy re-exports
+    (``segfacet.empty``, ``segfacet.features.fragmentation``) lazy via
+    PEP 562, so a bare ``import segfacet`` no longer carries that cost --
+    pinning it as *expected* would now pin the defect the fix removes. The
+    claim this item actually needs -- ``failure_modes`` itself is
+    import-light -- is asserted directly instead."""
     with_module = run_utf8(
         [
             sys.executable,
@@ -298,13 +295,8 @@ def test_ac1_import_adds_no_heavy_module_beyond_the_package_init():
     assert with_module.stdout, "expected stdout from the failure_modes subprocess"
     module_loaded = set(json.loads(with_module.stdout))
 
-    heavy_bare = {m for m in bare_loaded if m.split(".")[0] in _HEAVY_ROOTS}
     heavy_module = {m for m in module_loaded if m.split(".")[0] in _HEAVY_ROOTS}
-    assert heavy_bare, "expected the bare package import to already load a heavy module"
-    assert heavy_module == heavy_bare, (
-        sorted(heavy_module - heavy_bare),
-        sorted(heavy_bare - heavy_module),
-    )
+    assert heavy_module == set(), sorted(heavy_module)
 
 
 # =========================================================================== #

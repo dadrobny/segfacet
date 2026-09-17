@@ -1435,14 +1435,6 @@ def test_ac35_module_docstring_records_the_change_with_resolvable_paths():
 
 _BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
 
-_BASELINE_WARNING_CLASSES = (
-    "assumptions-block",
-    "awaiting-a-decision",
-    "branch-state",
-    "retracted-criterion",
-)
-
-
 def _aide_module():
     import importlib.util
 
@@ -1468,18 +1460,17 @@ def _classify_warning(message: str) -> str:
 
 
 def test_ac36_aide_check_reports_no_error_and_no_new_warning_class():
+    """The class-subset pin this name once carried is retired (item 159 A4,
+    D-n): a warning shape ``aide check`` legitimately starts emitting is not
+    a defect, so pinning "the classes are a subset of a recorded baseline"
+    turned a legitimate change red twice in this queue (items 155 and 158).
+    The one claim worth keeping here -- no *error* -- is also asserted,
+    module-independently, by ``tests/test_aide_check_no_errors.py``; this
+    test keeps the name (item 159 AC7 drives it via an injected wrapper)
+    and the same call shape, minus the retired assertions."""
     aide = _aide_module()
-    errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
+    errors, _warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
     assert errors == [], errors
-    # A plumbing failure must fail loudly, not pass an empty loop vacuously:
-    # this repo always reports the baseline warnings.
-    assert warnings, "run_checks returned no warnings at all -- expected the baseline"
-
-    classes = {_classify_warning(warning) for warning in warnings}
-    assert classes <= set(_BASELINE_WARNING_CLASSES), (
-        f"aide check reports a warning class outside the recorded baseline: "
-        f"{classes - set(_BASELINE_WARNING_CLASSES)}"
-    )
 
 
 def test_ac36_no_warning_names_a_path_this_item_writes():
