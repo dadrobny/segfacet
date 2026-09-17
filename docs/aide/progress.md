@@ -1692,6 +1692,7 @@ changes here.**
   outside `failure_modes.SPECIFICATION`; the re-measured cross-mode constants are recorded
   with what they were measured on (**G7**).
 - [x] No consumer distinguishes a clean control from a condition-only case by *(AC12 verified 2026-09-16: tree-wide AST scan (test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains, tests/test_155_corpus_case_kind.py) over every *.py under src/segfacet/ and tests/ returns zero violations of a failure_mode == 0 comparison outside case_kind's own body; full suite green (8511 passed, .venv/bin/python -m pytest -n auto).)*
+  - **2026-09-17** → AC10 replayed 2026-09-17 in clone 6bf417d: test_155_corpus_case_kind.py::test_ac12_no_tree_wide_zero_comparison_of_failure_mode_remains and every parametrisation of ::test_ac13_scan_detects_each_forbidden_shape pass (8 passed) — item 161 replay confirms the 2026-09-16 attestation.
   `failure_mode == 0` alone.
 - [ ] Every open `defect` and `gap` insight present at the stage's start is ticked,
   re-homed with a pointer, or left open with a dated reason; the three counts are recorded
