@@ -507,6 +507,100 @@ def test_adv_loop_variable_still_skipped_in_silence():
     assert not violations
 
 
+def test_adv_module_level_rebind_control_still_one_violation():
+    """Positive control for the next test: without the rebind, a two-hop
+    module-level root reached via a *second* name (``_REPO_ROOT``, not the
+    ``_ROOT`` `_build_module` uses) still resolves to one violation."""
+    source = (
+        "from pathlib import Path\n"
+        "_TESTS_DIR = Path(__file__).resolve().parent\n"
+        "_REPO_ROOT = _TESTS_DIR.parent\n"
+        "\n\n"
+        "def test_x(tmp_path):\n"
+        '    fresh = tmp_path / "fresh.json"\n'
+        f"    assert fresh.read_bytes() == (_REPO_ROOT / {_JOIN}).read_bytes()\n"
+    )
+    violations = guard.classify_module(source, MODULE_PATH)
+    _one_violation(violations)
+
+
+def test_adv_module_level_rebind_to_unrelated_path_does_not_leak_stale_depth():
+    """bc8ac68's regression case: rebinding ``_TESTS_DIR`` to something that
+    does not resolve (a plain string-literal ``Path(...)``) must drop its
+    stale ``depths`` entry, so the later ``_REPO_ROOT = _TESTS_DIR.parent``
+    does not inherit a depth that belongs to the discarded first binding."""
+    source = (
+        "from pathlib import Path\n"
+        "_TESTS_DIR = Path(__file__).resolve().parent\n"
+        '_TESTS_DIR = Path("/tmp/unrelated")\n'
+        "_REPO_ROOT = _TESTS_DIR.parent\n"
+        "\n\n"
+        "def test_x(tmp_path):\n"
+        '    fresh = tmp_path / "fresh.json"\n'
+        f"    assert fresh.read_bytes() == (_REPO_ROOT / {_JOIN}).read_bytes()\n"
+    )
+    assert guard.classify_module(source, MODULE_PATH) == []
+
+
+def test_adv_function_local_rebind_control_still_one_violation():
+    """Positive control for the next test: without the rebind, a
+    function-local ``root = _TESTS_DIR.parent`` off a module-level one-step
+    root still resolves to one violation."""
+    source = (
+        "from pathlib import Path\n"
+        "_TESTS_DIR = Path(__file__).resolve().parent\n"
+        "\n\n"
+        "def test_x(tmp_path):\n"
+        "    root = _TESTS_DIR.parent\n"
+        '    fresh = tmp_path / "fresh.json"\n'
+        f"    assert fresh.read_bytes() == (root / {_JOIN}).read_bytes()\n"
+    )
+    violations = guard.classify_module(source, MODULE_PATH)
+    _one_violation(violations)
+
+
+def test_adv_function_local_rebind_to_unrelated_call_does_not_leak_stale_depth():
+    """Function-local counterpart of the module-level regression above:
+    rebinding ``_TESTS_DIR`` inside the function body to an arbitrary call
+    result must drop the depth it inherited from the module-level scan, so
+    ``root = _TESTS_DIR.parent`` does not resolve off the stale binding."""
+    source = (
+        "from pathlib import Path\n"
+        "_TESTS_DIR = Path(__file__).resolve().parent\n"
+        "\n\n"
+        "def test_x(tmp_path):\n"
+        "    _TESTS_DIR = some_unrelated_call()\n"
+        "    root = _TESTS_DIR.parent\n"
+        '    fresh = tmp_path / "fresh.json"\n'
+        f"    assert fresh.read_bytes() == (root / {_JOIN}).read_bytes()\n"
+    )
+    assert guard.classify_module(source, MODULE_PATH) == []
+
+
+def test_adv_function_local_rebind_does_not_leak_into_a_later_function():
+    """A function-local rebind must not poison a *sibling* function's use of
+    the same module-level name: ``test_a`` rebinds and stops resolving,
+    ``test_b`` never rebinds and must still report its violation."""
+    source = (
+        "from pathlib import Path\n"
+        "_TESTS_DIR = Path(__file__).resolve().parent\n"
+        "\n\n"
+        "def test_a(tmp_path):\n"
+        "    _TESTS_DIR = some_unrelated_call()\n"
+        "    root = _TESTS_DIR.parent\n"
+        '    fresh = tmp_path / "fresh.json"\n'
+        f"    assert fresh.read_bytes() == (root / {_JOIN}).read_bytes()\n"
+        "\n\n"
+        "def test_b(tmp_path):\n"
+        "    root = _TESTS_DIR.parent\n"
+        '    fresh = tmp_path / "fresh.json"\n'
+        f"    assert fresh.read_bytes() == (root / {_JOIN}).read_bytes()\n"
+    )
+    violations = guard.classify_module(source, MODULE_PATH)
+    _one_violation(violations)
+    assert violations[0].line > source.splitlines().index("def test_b(tmp_path):") + 1
+
+
 def test_adv_unchanged_fence_still_not_a_violation():
     """Re-run of test_127's unchanged-fence idiom in this module, for the
     same reason: comparing the same committed path to itself twice within
