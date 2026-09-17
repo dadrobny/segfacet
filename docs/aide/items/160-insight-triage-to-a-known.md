@@ -439,4 +439,29 @@ item's counts are final only once all of them have merged (queue-021:
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **2026-09-17 — measured disposition counts.** Every S/Q row's resolved entry
+  was classified with the AC2/AC4/AC7 predicates after all edits. Stage start
+  (S1–S29): **18 ticked** (16 already by items 152–159, plus the 2 this item
+  ticked — S15, S21), **10 re-homed** (S1–S6, S25, S26, S27, S29), **1 left
+  open** (S20). In-queue (Q1–Q6): **2 ticked** (Q1, Q6, already by items 152
+  and 159), **0 re-homed**, **4 left open** (Q2, Q3, Q4, Q5). Both match the
+  Description's recorded table exactly. `python .aide/scripts/aide.py
+  insights list --trail` summary line after the edits: `aide insights: 88
+  entries, 23 open (16 knowledge, 1 defect, 4 gap, 2 framework)` (down from 35
+  open `defect`/`gap` entries before this item's 12 ticks).
+- **2026-09-17 — verb vs. hand edits.** The two fixed ticks (S15, S21) and the
+  ten re-homes (S1–S6, S25–S27, S29) were each written with `python
+  .aide/scripts/aide.py insights tick <ordinal> --pointer "<table text>"`,
+  re-running `insights list --open` before every tick per the spec's
+  resolve-by-key instruction; no row's ordinal moved between ticks (ticking
+  edits a line in place and does not add or remove entries, so ordinals stay
+  stable within one session — confirmed by re-listing after the first tick).
+  The five left-open reasons (S20, Q2, Q3, Q4, Q5) were hand-appended as
+  `  - **2026-09-17** → left open: <table reason>` trail lines directly under
+  each entry, per A3 (no verb can append a trail line to an unticked entry).
+  No entry line, claim text, or other trail line was touched.
+- **2026-09-17 — `aide check` after the edits.** Reports `OK (7 warning(s))`,
+  no errors. All seven warnings pre-date this item (missing `## Assumptions`
+  blocks in 32 old item specs, two Stage-16 human-gate awaiting-decision
+  notices, and four Stage-20 acceptance-criterion retraction notices) — none
+  names a path this item wrote, and none is a new warning class.
