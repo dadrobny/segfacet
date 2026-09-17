@@ -706,3 +706,32 @@ with `aide progress amend 31`, never by editing the note.
   was then deleted. (The 2026-09-16 item-155 attestation's "8511 passed" is a
   different, earlier commit's collection total — items 156–159 changed test
   counts in between — not a discrepancy against this run.)
+
+- **2026-09-17 — correction to AC19's suite count (validation round 1).** The
+  run recorded above, `python -P -m pytest <clone>/tests -n auto` (7556
+  passed, 63 skipped), covered only the `tests` directory. `pyproject.toml`'s
+  `testpaths` is `["tests", ".aide/scripts/tests"]`, and `aide.toml`'s
+  `test_command` is `python -m pytest -n auto` with no explicit path, so the
+  configured suite AC19 asks for also includes `.aide/scripts/tests` (1205
+  tests), which the first run never collected. As item 151's AC38 did for its
+  own undercount, this is an appended correction, not a rewrite of the
+  original entry above. Re-run 2026-09-17 in a fresh clone of this branch's
+  then-tip `7cc9cb2a0d015aa29b9c639f4725cf0063019f0d`, bootstrapped the same
+  way; resolution proof re-confirmed (`segfacet.__file__` resolved under the
+  new clone). From the clone, with no explicit path so `testpaths` picks up
+  both directories (the two `testpaths` directories were named explicitly with
+  `--rootdir` pinned to the clone, since the command-hygiene guard disallows a
+  `cd` prefix; this is equivalent to running the bare configured command from
+  the clone root): `python -P -m pytest -n auto -q` → **8761 passed, 63
+  skipped, 0 failed** (257.05s). The skip set and reasons are identical to the
+  ones itemised above (docker, CuPy/GPU, PyRadiomics, unmounted
+  VerSe19/SPINEPS fixtures, two pre-098 shapes) — `.aide/scripts/tests`
+  contributes no skips. Independently, `python -m pytest --collect-only -q` on
+  the working checkout at the same commit collects **8824** tests, and
+  8761 + 63 = 8824, confirming no test was silently dropped. **AC19's holding
+  value is 8761 passed, 63 skipped, 0 failed**, not the 7556/63 figure recorded
+  above; that figure undercounted by omitting `.aide/scripts/tests`. No
+  criterion box in `progress.md` cites the suite count (checked: criterion 4's
+  evidence cites item 155's 2026-09-16 "8511 passed", a different, unrelated
+  attestation — see the parenthetical two paragraphs above — and no other box
+  names a suite total), so no `progress.md` edit follows from this correction.
