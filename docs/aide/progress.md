@@ -1677,7 +1677,7 @@ changes here.**
   entries already fixed are ticked with a pointer. *(Item 159)*
 - ✅ **D6** Insight triage: every open `defect` and `gap` entry at the stage's start ticked,
   re-homed with a pointer, or left open with a dated reason. *(Item 160)*
-- 🔍 **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
+- ✅ **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
   re-measured constants recorded here, triage counts recorded as measured numbers.
   *(Item 161)*
 
