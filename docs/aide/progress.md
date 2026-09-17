@@ -1683,7 +1683,7 @@ changes here.**
 
 **Acceptance.**
 
-- [ ] The installed engine version equals the framework's at the time the stage's queue was
+- [x] The installed engine version equals the framework's at the time the stage's queue was *(AC2 verified 2026-09-17 in clone 6bf417d: clone's .aide/VERSION reads 1.52.1 (X); queue-021 planning commit 99520a9 (2026-09-16T17:20:06+01:00) resolved fresh by subject; on aide-loop, git log origin/main --before=<that date> -1 -- core/VERSION names 5e305c5 whose core/VERSION is 1.52.1, equal to X. Framework's current origin/main core/VERSION is 1.53.1 (informational, does not affect this criterion).)*
   planned, or the gap and its reason are recorded.
 - [ ] `vision.md` §6 names the specification as the catalogue and carries no numbered mode
   list, and no module under `src/segfacet/` asserts that it does (**G8**).
