@@ -174,6 +174,21 @@ with both modules laid out line-for-line alike so the `line` fields match.
   into the same A6 template. `classify_module` returns exactly one `Violation`,
   whose `committed_path` equals `ARTIFACT`.
 
+**Clarification (2026-09-17), AC6 and AC8 fixtures.** The criteria stand as
+written, and `Violation` equality includes `line`. The preamble above already
+requires the two members of a pair to be laid out line-for-line alike, so a
+fixture pair whose root bindings differ in statement count fails for a correct
+resolver and is a fixture defect, not a resolver finding. Where the two-hop
+variant needs two binding lines, the literal variant must carry the same
+number of lines before the comparison. Pad it with a neutral no-op binding
+that no resolver can read as a root: `_PAD = None` at module level for AC6,
+and `    here = None` inside the function for AC8, placed first so the root
+binding stays on the same line in both members. The padding must not bind a
+`Path(__file__)` chain, since that would put resolver-relevant input into the
+control member. The test should also assert that the two sources have the
+same number of lines, so a future layout drift fails on the fixture rather
+than on the `line` field.
+
 No AC closes a Stage 31 acceptance criterion: none of the stage's five boxes
 is about the guard. D5 is a deliverable bullet and is not closed by annotation.
 
