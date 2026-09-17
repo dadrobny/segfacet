@@ -1665,10 +1665,14 @@ changes here.**
   the mode they carry after the item-150 re-keying, renaming the eight affected
   geometric case ids and updating every pin (manifests, generator, rule/synth/
   eval modules, both conformance artifacts) to match. *(Item 157)*
+- 🚧 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
+  `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
+  `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries
+  already fixed are ticked with a pointer. *(Item 158)*
 - 📋 **D5** Prerequisite test and import defects in the surfaces Stage 32 edits (dead
   `aide/queue-018` base-ref skips, committed-artifact guard gaps, eager NiBabel import in
   `segfacet/__init__.py`, tests still exercising the retired `"corpus"` tag); entries
-  already fixed are ticked with a pointer. *(Items 158, 159)*
+  already fixed are ticked with a pointer. *(Item 159)*
 - 📋 **D6** Insight triage: every open `defect` and `gap` entry at the stage's start ticked,
   re-homed with a pointer, or left open with a dated reason. *(Item 160)*
 - 📋 **D7** Stage validation: full suite green, eval harness re-run from a clean tree with
