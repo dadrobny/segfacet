@@ -460,8 +460,9 @@ queue of code is too much to review as first contact, so the review runs
   queue completes. Opening the PR is a human-gated action, once per queue.
   **CI does not run on a draft** (2026-09-18, to stay inside the Actions
   budget): the workflow starts when the PR is marked ready and on each push
-  after that, and there is no `push: main` run. So a draft queue PR shows no
-  checks at all — absent, not green — and the first Windows signal for a whole
+  after that, and there is no `push: main` run. So on a draft queue PR every
+  job reports **skipped** (observed on PR #80) — skipped, not passed, and no
+  runner minutes spent — and the first Windows signal for a whole
   queue arrives at mark-ready. For an earlier one, start the workflow by hand
   (`gh workflow run CI --ref aide/queue-NNN`).
 - **One item's diff is the review round.** After `aide merge NNN` returns an
