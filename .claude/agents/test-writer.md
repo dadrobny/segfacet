@@ -6,7 +6,7 @@ description: >-
   adversarial cases the spec's Testing Strategy names — no others. Does NOT
   implement production code and does NOT run tests.
   Commits the test file(s) on the item's branch and returns a coverage summary.
-model: sonnet
+model: claude-sonnet-5
 effort: medium
 skills:
   - aide-test-hygiene
