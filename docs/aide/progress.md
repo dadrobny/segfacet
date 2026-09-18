@@ -986,12 +986,15 @@ rule(s) and any features they need; features may be added alone, modes and rules
 - ✅ The four mode-less rules (`bounds`, `intensity`, `reference_delta`,
   `intensity_reference_delta`) mapped to §6 modes, or recorded as targeting none with a
   reason — the root close of Stage 19's G8 shortfall. *(Item 137)*
-- ⏸️ Specificity assertion — no unintended rule may fire — adopted as a ratchet.
+- ❌ Specificity assertion — no unintended rule may fire — adopted as a ratchet.
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. The ratchet's first
   real case is mode 6's corpus case firing `mislabel` alongside `border` (measured
   2026-09-03), and whether that is a true positive or cross-talk is not decidable before
   the §6 modes carry a definition and a discriminator. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.2. *(Item 140)*
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.2.
+  ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 163. *(Item 140)*
+- 📋 Specificity assertion — no unintended rule may fire — as a ratchet whose allowlist is
+  each corpus case's `expected_firing` in the specification (Stage 32 D0). *(Item 163)*
 - ✅ Reachability hole closed *with its mechanism named per mode*: mode 8 is
   single-channel-unobservable, mode 1's ladder is FOV-capped, mode 4's cause TBD. Made
   detectable where the mechanism allows, recorded where it does not. Not both silent.
@@ -1000,7 +1003,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   every committed golden (max `6.8e-04` mm vs a 15.0 mm threshold) and on real VerSe GT
   (mean `2.9e-05` mm), so no field of view produces a non-zero offset and the FOV-headroom
   remedy named here could not have worked. Mode 8 stays this stage's to record. *(Item 138)*
-- ⏸️ Per-rule **and per-operator** corpus-exercise reporting (the registered `fuse` operator
+- ❌ Per-rule **and per-operator** corpus-exercise reporting (the registered `fuse` operator
   generates no corpus case at all).
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. The item's spec was
   authored and is preserved at [`items/139-per-rule-and-per-operator.md`](items/139-per-rule-and-per-operator.md),
@@ -1008,7 +1011,10 @@ rule(s) and any features they need; features may be added alone, modes and rules
   across both corpora, and `intensity_reference_delta` is driven by nothing because no
   harness attaches a reference. Its "unexercised, with reason" records need a mode
   specification first. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §9. *(Item 139)*
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §9.
+  ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 162. *(Item 139)*
+- 📋 Per-rule and per-operator corpus-exercise report across both corpora, re-authored
+  against the signed-off specification (Stage 32 D0). *(Item 162)*
 - ⏸️ The mode-1 severity-ladder base (`tests/test_100_severity_ladder.py`, Stage 18)
   widened so mode 1's metric swing is set by the
   perturbation rather than the fixture's FOV walls — the recorded root cause of mode 6's
@@ -1017,12 +1023,15 @@ rule(s) and any features they need; features may be added alone, modes and rules
   mode-1-vs-mode-6 semantics, which is the discriminator field the §6 modes do not yet
   carry. See
   [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.1. *(Item 141)*
-- ⏸️ Stage 20 end-to-end validation: traceability artifact regenerated from a clean tree,
+- ❌ Stage 20 end-to-end validation: traceability artifact regenerated from a clean tree,
   the specificity assertion driven over every corpus case, the cross-mode margins
   re-measured, and the end-to-end detection count stated honestly here.
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. Stating the
   detection count honestly requires a mode↔rule story that is not yet defined. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md). *(Item 142)*
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md).
+  ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 169. *(Item 142)*
+- 📋 Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
+  (Stage 32 D3). *(Item 169)*
 
 > **Why those four now read ⏸️ rather than 📋** *(queue-020 boundary,
 > 2026-09-03)*. Their prose had said Deferred since 2026-09-03 while their status
@@ -1058,6 +1067,17 @@ rule(s) and any features they need; features may be added alone, modes and rules
 > in the acceptance below is read as every specification entry at `implemented`
 > or above, with `proposed` entries reported as unimplemented; mode numbers in
 > this section's text are the pre-sign-off ids (mapping in Stage 30's note).
+
+> **Items 139, 140 and 142 re-queued under new numbers** *(queue-022,
+> 2026-09-18)*. The deliverables return to 📋 as the 2026-09-03 note above said
+> they would, but not under the old numbers — the old bullets read ❌ (number
+> retired, not deliverable dropped) and a new 📋 bullet follows each: `aide check` reports an item
+> number declared in two queues as an error, and all three are declared in
+> queue-019. So **139 → 162** and **140 → 163** lead
+> [`queue/queue-022.md`](queue/queue-022.md), and **142 → 169** closes it. This
+> supersedes "keep their numbers" above.
+> Item 141's bullet keeps ⏸️ — its work moved to Stage 31 (item 154) and is not
+> re-queued.
 
 **Acceptance.**
 
@@ -1720,10 +1740,17 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   specificity-ratchet deliverables (allowlist derived from each case's `expected_firing`)
   re-specified against the specification and built at the head of the first queue; they
   stay tracked by their Stage 20 bullets.
+- 📋 First-class detector ids on multi-detector rules, referenced by the
+  specification's intended-rule edges, so "a detector serves no other mode" is
+  checked mechanically (prerequisite of D1's condition 4). *(Item 162)*
 - 📋 **D1** The MVP mode: at least one maintainer-selected mode brought to the
-  fully-specified bar and signed off.
+  fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 163)*
 - 📋 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
-  queue's checkpoint, to the bar or to a recorded intermediate state.
+  queue's checkpoint, to the bar or to a recorded intermediate state. Selected
+  2026-09-18: mode 3 (split) — its split operator and corpus case. *(Item 164)*
+- 📋 **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 165)*
+- 📋 **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
+  with date and outcome in the specification module. *(Item 166)*
 - 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
