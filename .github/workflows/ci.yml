@@ -1,9 +1,25 @@
 name: CI
 
+# Runs only for a pull request that is marked ready for review -- never for a
+# draft, and never on a bare push (2026-09-18: the Actions minutes ran out).
+# A queue PR is a draft for the whole time its items are landing (CLAUDE.md
+# "Code review"), and every push to it used to start five full-suite jobs, two
+# of them on the 2x-billed Windows runner. `ready_for_review` is in `types` so
+# that marking the PR ready starts the first run; a push to a ready PR still
+# runs (`synchronize`). The draft test is repeated on every job because a
+# workflow-level `if` does not exist. There is no `push: main` trigger: main
+# only moves by merging a PR this workflow already ran on, so that run bought
+# a second copy of the same result. `workflow_dispatch` is the manual escape
+# hatch -- a draft's branch, or main after a merge that raced another.
 on:
-  push:
-    branches: [main]
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+# A newer push to the same PR supersedes the run still in flight.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # Item 107 built this as a diff-based scope check, replacing the byte-hash
@@ -21,7 +37,7 @@ jobs:
   scope-check:
     name: item scope check
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,6 +95,8 @@ jobs:
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # `draft` is absent on workflow_dispatch, so a manual run passes this.
+    if: ${{ !github.event.pull_request.draft }}
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +153,9 @@ jobs:
         # runner has 4 vCPUs, so the worker count is pinned to that rather
         # than left to `-n auto`. Measured locally 2026-09-01: 6690 passed in
         # 4m51s against 15m00s serial. windows-latest was the critical path of
-        # the whole workflow at 21.0 min (run 33483503854).
+        # the whole workflow at 21.0 min (run 33483503854). Re-measured
+        # locally 2026-09-18: 8989 tests in 8m35s -- the suite grew, the
+        # runner did not; what is slow is in docs/aide/insights.md that date.
         run: python -m pytest -n 4
 
   # Item 095: numpy-major agnosticism check. pyproject.toml declares a numpy
@@ -167,6 +187,7 @@ jobs:
   test-numpy-majors:
     name: test (numpy ${{ matrix.numpy-version }})
     runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
     strategy:
       fail-fast: false
       matrix:
@@ -227,6 +248,7 @@ jobs:
   verify-environment-gated:
     name: verify environment-gated capabilities (radiomics + docker)
     runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
