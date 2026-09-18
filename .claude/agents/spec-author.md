@@ -1,12 +1,12 @@
 ---
 name: spec-author
 description: >-
-  Work-item specification author on Opus. Turns a queued item into a complete,
+  Work-item specification author. Turns a queued item into a complete,
   testable `docs/aide/items/NNN-*.md` spec — Description, atomic Acceptance
   Criteria, Assumptions, Implementation Steps, Testing Strategy, Dependencies,
   Decisions log — then commits it on the item branch. Does NOT write production
   code or tests.
-model: opus
+model: claude-opus-5
 effort: high
 skills:
   - aide-document-format
