@@ -195,7 +195,7 @@ modes. `docs/aide/feature_catalogue.generated.json` is therefore regenerated;
 - **A8 (no behaviour change):** declarations are inert at evaluation time.
   `Rule.evaluate`'s signature, `run_rules`, `report_schema_v0.json`, every
   verdict and every finding are unchanged (AC14 is the test of this).
-- **A9 (engine 1.37.0, re-checked 1.52.1):** `aide check`'s `.gitattributes` lint needs nothing new
+- **A9 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide check`'s `.gitattributes` lint needs nothing new
   — both catalogue artifacts are already pinned `text eol=lf`
   (`.gitattributes` lines 40–41) and this item commits no new byte-reproducible
   fixture.

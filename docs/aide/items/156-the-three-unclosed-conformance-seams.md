@@ -266,7 +266,7 @@ criteria is about these seams.
   describes this item, so no deliverable prose is added or duplicated. A
   duplicated bullet raises an `aide check` warning class, which reds
   `test_146`/`test_150`.
-- **A8 (engine 1.52.1):** a tree-wide scan test that reads every file under a
+- **A8 (engine 1.52.1, re-checked 1.59.0):** a tree-wide scan test that reads every file under a
   directory is not declared under **Asserts against**, following item 155's
   AC12 precedent. Listing `src/segfacet/**` or `docs/aide/*.generated.*` there
   would conflict under `aide check --queue` with the May-change globs of item

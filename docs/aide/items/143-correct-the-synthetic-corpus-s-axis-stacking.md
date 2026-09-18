@@ -274,7 +274,7 @@ queue boundary.
   normalisation, which is unchanged; only its input direction flips. Editing it
   would break item 131's AC8–AC11 for no gain.
 
-- **A7 (engine 1.37.0, re-checked 1.52.1): the `.gitattributes` lint has nothing new to report.**
+- **A7 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0): the `.gitattributes` lint has nothing new to report.**
   `aide check` warns when a test's resolved fixture path is uncovered by
   `.gitattributes`. Every committed path this item writes is already pinned
   (`tests/corpus/manifest.json`, `tests/corpus/fixtures/*.nii.gz`,

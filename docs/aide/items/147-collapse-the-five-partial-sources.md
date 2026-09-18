@@ -330,7 +330,7 @@ each defensible default taken is recorded here for the queue-boundary audit.
   edited from inside an item (queue-020 scope fence); one line is appended to
   `docs/aide/insights.md` instead, and the specification's corrected sentence
   states the measurement rather than repeating §6's parenthetical.
-- **A14 (engine 1.37.0, re-checked 1.52.1) — the `aide check` baseline is 7 warnings** on this
+- **A14 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0) — the `aide check` baseline is 7 warnings** on this
   branch's base (measured 2026-09-04): 1 missing-Assumptions roll-up, 2 pending
   human gates, 4 Stage-20 retraction notices. AC27 pins that number under this
   engine.

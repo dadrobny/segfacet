@@ -247,7 +247,7 @@ and designates no new `Expectation`. It does not edit `vision.md` or
   must eventually make — whether §6 grows a tissue-plausibility mode — is
   deferred to the captured finding and its own entry point, and blocks nothing
   in this queue.
-- **A10 (engine 1.37.0, re-checked 1.52.1):** `aide check`'s `.gitattributes` lint needs nothing
+- **A10 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide check`'s `.gitattributes` lint needs nothing
   new — both catalogue artifacts are already pinned `text eol=lf`, and this
   item commits no new byte-reproducible fixture.
 

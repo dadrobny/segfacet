@@ -252,9 +252,15 @@ up to date. Every template ships an `<!-- aide-template: <name> <N> -->` marker
 (engine 1.52.0, issue #164) and `aide check` warns when a living document's
 marker is behind the installed template; a document carrying no marker is never
 reported. This repo's `vision.md`, `roadmap.md`, `progress.md` and `insights.md`
-carry the marker at version 1 from engine 1.52.1 on, and a new queue or item
-spec inherits one from its template. A `CHANGELOG.md` entry that bumps
-`<name> template <N>` is the one that names what a consumer edits.
+carry the marker from engine 1.52.1 on, and a new queue or item spec inherits
+one from its template. A `CHANGELOG.md` entry that bumps
+`<name> template <N>` is the one that names what a consumer edits. `vision.md`
+moved to template 2 at engine 1.59.0 by gaining the `> **Posture:**` header
+line (engine 1.55.0, issue #241): it is set to `prototype`, which is also what
+an absent line means, and what that asks of the roadmap, queue and spec authors
+is §1 → vision.md. `docs/aide/ledger.md` (engine 1.58.0, §1 → ledger.md) needs
+no such step: `aide merge` creates it from its template with the first row it
+writes, and nobody authors it by hand.
 
 **Read `$AIDE_LOOP/CLAUDE.md` before changing anything there — it is not in
 context.** An agent's instruction files are loaded for the *working directory's*
@@ -416,6 +422,10 @@ mid-suite now restores the claim branch and its recorded base itself (1.41.0;
 1.39.0, issue #167). And `aide status` / `aide sync` measure a 🔍 claim against
 its own recorded base (1.49.7), so a stacked item merged into `aide/queue-NNN`
 is reported as landed instead of sitting 🔍 until the queue reaches `main`.
+From engine 1.53.0 (issue #232) `aide merge` also runs `aide check` beside the
+post-merge suite and treats an **error** as a red run (§4). The check reads the
+whole document set, so an error already on the base refuses every item's merge
+until it is fixed there; warnings never block.
 
 **2. Whether a PR is opened per item (`[git] mode` in `aide.toml`).** Currently
 **`auto-merge`**. What each mode does — and what ✅ versus 🔍 mean — is §4
@@ -482,7 +492,12 @@ the prompt hands it over. **This repo enables it** — `aide.toml` sets
 `[loop] review = "background"` (2026-09-16) — so under `/aide-run-item` the
 validator holds the merge at PASS until the reviewer's findings are triaged, and
 the orchestrator runs `aide merge NNN` itself. It is the first read of every
-item's diff; the table below is what to spend on a second one.
+item's diff; the table below is what to spend on a second one. From engine
+1.59.0 (issue #244) the orchestrator ranks each in-scope finding on §9's
+blocking / minor / nit scale and passes the counts and the validation-round
+number to the merge, which writes them as the item's row in
+`docs/aide/ledger.md` in the same commit as the ✅.
+`REVIEW.md` says how this project's two tiers map onto the three ranks.
 
 **Reviewer capacity is the binding constraint, so this table offers tools
 rather than prescribing a routine.** Both hosted reviewers run on quotas a
