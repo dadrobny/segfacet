@@ -42,17 +42,41 @@ the setting and follow it; nothing ever hangs waiting for input.
 2. **Read** the item's one-line queue description, the relevant `roadmap.md`
    stage, the matching `progress.md` rows, and `vision.md`. Skim `source_dir` /
    `tests_dir` only enough to know the conventions the item must fit.
-3. **Write `docs/aide/items/NNN-descriptive-name.md`** from
+3. **A complete spec that already exists is re-checked, never rewritten** —
+   when that is what you were briefed for. Read its Assumptions and
+   `## Dependencies`: an Assumption that pins the interface of an item named
+   there was written before that item was built, and the item is claimed now,
+   so the dependency has merged since (§5, preloaded above, which also names
+   the three shapes that are not this signal — an audit entry, a pin already
+   re-checked, a dependency that left the queue as ❌/⏸️). Re-check each such
+   pin against the real code on the base branch and append a dated re-check
+   to the assumption — agreeing, or correcting it with the original left
+   standing (§1 → items.md) — then commit (step 8) and return (step 9), saying
+   which Assumptions changed. A spec pinning no dependency is returned as it
+   stands. Skip the rest of this list **only in that case**: an incomplete
+   spec is finished below, and a spec you were briefed to correct after the
+   builder's contradiction hand-back (§5) is amended below, not re-checked.
+
+4. **Write `docs/aide/items/NNN-descriptive-name.md`** from
    `.aide/templates/item.md`. It MUST contain: the header (**Created** date +
    pointer to `progress.md`, Stage, Queue, Objectives, Suggested branch — **no
    status field**); Description; **atomic, observable, directly testable**
    Acceptance Criteria, in none of the shapes §1 → items.md rules out — one
    test per AC, no compound and/or, no factual claim worded so a shape check
    could satisfy it, and the *(closes Stage N criterion M)* annotation on any
-   AC that closes a stage criterion, since position is not a mapping; the
-   mandatory **Assumptions** block; Implementation Steps (the code path in
-   `source_dir`);
-   **Authorised paths**; Testing Strategy (incl. adversarial/edge cases);
+   AC that closes a stage criterion, since position is not a mapping — and
+   **each one justified**: written only where the deliverable, or a declared
+   consumer in the batch, fails without it (§1 → items.md, preloaded above);
+   a question you deliberately leave undecided is one `**Left open:**` line
+   under Decisions & Trade-offs, never a criterion; the
+   mandatory **Assumptions** block, each pinned interface at the level this
+   item reads it (§5, preloaded above); Implementation Steps (the code path in
+   `source_dir`, naming the existing helper each step reuses rather than
+   re-implements, and adding no dependency);
+   **Authorised paths**; Testing Strategy — **you own the suite's depth**:
+   beyond the one test per AC, name each adversarial case with the failure
+   mode it guards, and the test-writer writes those and no others (§6), so a
+   case you cannot name a failure mode for is left out;
    Dependencies (item numbers this relies on — a queue-mate still 📋
    included, which is how an item that pins what a sibling produces records
    that order); and a Decisions & Trade-offs
@@ -62,13 +86,13 @@ the setting and follow it; nothing ever hangs waiting for input.
    run / output to inspect / use case to replay, and — if it needs a special
    environment — the `[validation]` profile name plus the honest downgrade
    when absent (see the item template).
-4. **Fill `## Authorised paths` concretely** — the actual files this item
+5. **Fill `## Authorised paths` concretely** — the actual files this item
    touches, not a placeholder and not a whole subtree you only partly need.
    §1 → authorised paths is preloaded above and fixes the two lists, the
    narrowness rule, and what belongs in neither. Proving the declaration once
    the branch exists is §1 → authorised-paths-proof, the validator's and the
    spec-reviewer's; write the list the diff will actually match.
-5. **Raise a human gate if this item needs one.** When the item cannot honestly
+6. **Raise a human gate if this item needs one.** When the item cannot honestly
    proceed without a person's decision or an out-of-band prerequisite (a
    sign-off, data access, an authorised spend), note it in the spec's
    Validation/Assumptions **and** add the row to `progress.md`'s
@@ -76,15 +100,15 @@ the setting and follow it; nothing ever hangs waiting for input.
    prose blocks nothing. Adding one is safe and always allowed; **never** run
    `aide gate approve`/`decline`, which is a person's call alone. This is the
    one `progress.md` edit permitted to you.
-6. **Sweep for stale test assumptions.** If the spec (or an Assumption)
+7. **Sweep for stale test assumptions.** If the spec (or an Assumption)
    changes an existing default or behaviour, grep `tests_dir` for tests pinning
    the OLD behaviour and list every hit in the Testing Strategy as "existing
    tests to reconcile" — otherwise the first validation round fails on stale
    assertions instead of on the new code.
-7. **Commit** the spec on the branch (plain single-line message):
+8. **Commit** the spec on the branch (plain single-line message):
    `git add docs/aide/items/NNN-*.md` then
    `git commit -m "docs(NNN): work item spec for <short title>"`.
-8. **Return** a tight summary: item number, spec file path, the list of Acceptance
+9. **Return** a tight summary: item number, spec file path, the list of Acceptance
    Criteria, the Authorised paths declared, and any Assumptions recorded (so the
    orchestrator can pass them on).
 
@@ -95,7 +119,7 @@ the setting and follow it; nothing ever hangs waiting for input.
   declining one is a person's call and never yours.
 - **Do NOT run `pytest`.** **Do NOT edit `progress.md`** (the builder sets 🚧,
   the validator sets 🔍, and `aide merge` writes the ✅ — all via the CLI), with
-  exactly one exception: adding a row to its `## Human gates` table (step 5).
+  exactly one exception: adding a row to its `## Human gates` table (step 6).
 - Edit only `docs/aide/items/NNN-*.md`, plus that one gate row.
 
 ## Stop and hand back (needs human approval)

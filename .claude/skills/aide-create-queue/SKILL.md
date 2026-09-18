@@ -108,7 +108,18 @@ as the reason.
    re-queuing completed or already-queued items.
 3. **Sequential numbering** — item numbers are sequential across **all** queues;
    find the highest existing number and continue from it. Never restart.
-4. **Testable items** — each item must be testable locally.
+4. **Testable, justified items** — each item must be testable locally, and
+   each is queued for a reason the vision's posture row admits (§1 →
+   vision.md; a vision carrying no posture line is read as `prototype`):
+   under `prototype`, no preparatory or "for later" items: an item is queued
+   only where a success criterion, a deliverable, or a justified sibling in
+   the same queue needs it; under `durable`, foundations a later stage will
+   use may be queued. A justified sibling is one the row admits, itself or
+   through a sibling in turn, so a chain of dependencies of any length ends at
+   a criterion, a deliverable or a foundation, never at an unjustified item.
+   A candidate the row does
+   not admit is not queued, and the pass-over is named in the summary
+   (below), like an inbox entry passed over.
 5. **A stage-closing queue ends with a stage-validation item** — when this
    queue completes a roadmap stage, its final item must be
    `Validate stage N: <stage title>`: replay the stage's use cases end-to-end

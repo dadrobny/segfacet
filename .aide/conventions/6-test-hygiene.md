@@ -61,6 +61,24 @@ entire loop, indefinitely.
   pass `errors="replace"` when you do not — then assert the value is there
   before asserting anything about it.
 
+**What the item's tests are.**
+
+- **One test per acceptance criterion is the floor and the ceiling, unless
+  the spec's Testing Strategy names the case.** The Testing Strategy names
+  each adversarial case with the failure mode it guards; the tests an item
+  adds cover every criterion and every named case, **and no other**. A test's
+  name says which it covers — the criterion's number (`ac3`) or the label the
+  Testing Strategy gave the case — so the link is readable without the spec.
+  Depth is the spec author's decision, made where the deliverable and the
+  posture (§1 → vision.md) are known; a test with no criterion and no named
+  case behind it is a test nobody asked for — `aide scope` warns on one
+  (`aide scope -h` states the grammar).
+- **A consumer test never hand-builds a producer's serialised form.** It
+  obtains the form from the producer's code, or from a fixture the producer's
+  item ships, and asserts on what it reads — so when the shape changes, one
+  test changes. A literal of another item's output written into this item's
+  test is a second copy of that shape, and it is the copy that goes red.
+
 **Tests that can actually fail.**
 
 - **Prefer calling the function over shelling out to the command that calls
@@ -152,3 +170,22 @@ silence as partial throughout — not only on the pin.
 - **The unrecognisable value.** Had that Windows capture returned `""` rather
   than `None`, the loop over its lines would have iterated zero times and the
   test would have reported PASS having verified nothing.
+- **The floor and the ceiling.** The item loop's gates all pushed toward more
+  tests and none toward fewer: the validator FAILs an uncovered criterion,
+  and the test-writer — the one role that never reads the vision — was told
+  to add four categories of adversarial input on its own judgement, so a
+  fifth test of the same branch failed nothing. Measured across consumers on
+  engine ≤ 1.54.1 (issue #242): suites in the thousands within a few queues,
+  most of them pinning behaviour no criterion named. Naming the case in the
+  spec moves the decision to the role that knows what the deliverable is for,
+  and the name rule is what makes "no other" checkable: `aide scope` warns
+  on a test the branch added whose name carries neither, the counter-gate the
+  loop lacked, reported as a warning first so a consumer lives with it
+  before it gates anything.
+- **The hand-built form.** Consumers on the same engines saw one item's tests
+  invalidated by the next: the consumer's test carried a literal of the
+  producer's JSON, so every legitimate change to the producer went red in a
+  test that had read one field of it. §5 holds the spec-side half — a
+  producer pins what is read, in the form it is read — and this is the
+  test-side half, since a fixture the producer ships is the one copy of the
+  shape that changes with it.

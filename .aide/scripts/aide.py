@@ -38,7 +38,7 @@ import shlex
 import signal
 import subprocess
 import sys
-from pathlib import Path, PurePath
+from pathlib import Path, PurePosixPath, PurePath
 from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 
 # --------------------------------------------------------------------------- #
@@ -1146,10 +1146,13 @@ def accept_criteria(text: str, stage: str, criteria: Optional[List[int]],
         if m.group("mark") != " ":
             messages.append(f"criterion {n}: already ticked, unchanged")
             continue
-        post = m.group("post")
+        lines[i] = m.group("pre") + "x" + m.group("post")
         if evidence:
-            post = post.rstrip() + f" *({evidence})*"
-        lines[i] = m.group("pre") + "x" + post
+            # On the box's LAST line, which is its first only when it does not
+            # wrap: an annotation dropped mid-criterion splits the sentence it
+            # attests (issue #237).
+            last = acceptance_box_last(lines, i, end)
+            lines[last] = lines[last].rstrip() + f" *({evidence})*"
         messages.append(f"criterion {n}: accepted")
     return "\n".join(lines) + ("\n" if text.endswith("\n") else ""), messages
 
@@ -1174,15 +1177,41 @@ _RETRACTED_PREFIX = "retracted: "
 _ACCEPT_EVIDENCE_RE = re.compile(r"\*\(.*\)\*\s*$")
 
 
+#: A continuation line of a wrapped box: indented, non-blank, and not a bullet
+#: — a bullet under a box is its trail (or a malformed one), never its text.
+_BOX_CONTINUATION_RE = re.compile(r"^\s+(?![-*+]\s)\S")
+
+
+def acceptance_box_last(lines: List[str], box: int, end: int) -> int:
+    """Index of the last physical line of the acceptance box at *box*.
+
+    A criterion is one sentence, and a hand- or template-authored file wraps
+    it at a column: the box is its checkbox line **plus** every indented
+    non-bullet line that follows, up to the next box, trail line, blank or
+    section end (issue #237). Every writer that appends to a box or inserts
+    under it starts from here — `accept --evidence`, `amend`, `retract`,
+    `reword` — so a wrapped criterion keeps its sentence in one piece.
+    """
+    last = box
+    for i in range(box + 1, end):
+        if _BOX_CONTINUATION_RE.match(lines[i]) and not _ACCEPT_TRAIL_RE.match(lines[i]):
+            last = i
+            continue
+        break
+    return last
+
+
 def acceptance_box_trail(lines: List[str], box: int, end: int) -> List[int]:
     """Line indices of the correction trail under the acceptance box at *box*.
 
     A box owns every indented trail line between it and the next box, header,
     or the end of its section. Returned in file order, so the last element is
-    where the newest correction goes after.
+    where the newest correction goes after. The scan starts below the box's
+    last wrapped line, so a trail under a wrapped box is found, not mistaken
+    for prose that ends it.
     """
     out: List[int] = []
-    for i in range(box + 1, end):
+    for i in range(acceptance_box_last(lines, box, end) + 1, end):
         if _ACCEPT_TRAIL_RE.match(lines[i]):
             out.append(i)
             continue
@@ -1229,7 +1258,8 @@ def _append_trail(lines: List[str], box: int, end: int, date: str, note: str) ->
         last = lines[trail[-1]]
         indent = last[: len(last) - len(last.lstrip())]
     written = f"{indent}- **{date}** → {note}"
-    lines.insert((trail[-1] if trail else box) + 1, written)
+    lines.insert((trail[-1] if trail else acceptance_box_last(lines, box, end)) + 1,
+                 written)
     return written
 
 
@@ -1300,7 +1330,11 @@ def reword_criterion(text: str, stage: str, n: int, new_text: str) -> Tuple[str,
             "criterion into two and renumber every box below it")
     lines, end, box = _resolve_box(text, stage, n)
     m = _CHECKBOX_RE.match(lines[box])
-    body = m.group("post")[1:]
+    last = acceptance_box_last(lines, box, end)
+    # The wording is the whole box, continuation lines included: an annotation
+    # sits on its last line, and the rewrite replaces every line of it.
+    body = " ".join([m.group("post")[1:].strip()]
+                    + [lines[i].strip() for i in range(box + 1, last + 1)])
     if m.group("mark") != " ":
         raise ValueError(
             f"Stage {stage} criterion {n} is ticked; its wording is what an "
@@ -1318,6 +1352,7 @@ def reword_criterion(text: str, stage: str, n: int, new_text: str) -> Tuple[str,
             f"something has already been recorded against this wording")
     old = body.strip()
     lines[box] = m.group("pre") + m.group("mark") + "] " + new_text.strip()
+    del lines[box + 1:last + 1]
     return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""), old)
 
 
@@ -2167,7 +2202,7 @@ def _find_entry(entries: List[InsightEntry], ordinal: int) -> InsightEntry:
 
 
 def tick_insight_text(text: str, ordinal: int, pointer: str,
-                      date: str) -> Tuple[str, str]:
+                      date: str, trail_only: bool = False) -> Tuple[str, str]:
     """Tick entry *ordinal*, or append a dated trail line if already ticked.
 
     The two halves of conventions.md §1's lifecycle, chosen by the entry's own
@@ -2175,6 +2210,12 @@ def tick_insight_text(text: str, ordinal: int, pointer: str,
     records where the claim landed on the entry line; **everything after** it —
     a re-route, a resolution, a premise that decayed — is bookkeeping and goes
     in the appendable status trail underneath.
+
+    *trail_only* is the third case §1 → insights-triage.md names — a judgement
+    that leaves the entry **open** (a duplicate, a reason it stays untriaged)
+    and is still recorded as a dated trail line under it (issue #236). The
+    checkbox is not touched; on an entry already ticked it is the ordinary
+    second-update path.
 
     The captured claim is never touched by either path. Returns
     ``(new_text, message)``; raises ``ValueError`` if the ordinal does not
@@ -2190,7 +2231,13 @@ def tick_insight_text(text: str, ordinal: int, pointer: str,
     lines = text.splitlines()
     trailing_newline = text.endswith("\n")
 
-    if entry.ticked:
+    if entry.ticked or trail_only:
+        if not entry.ticked and entry.type is None:
+            raise ValueError(
+                f"entry {ordinal} does not parse as an inbox entry, so there "
+                f"is no entry to write a trail line under safely: "
+                f"{entry.raw!r}. Fix the line's shape first (`aide check` "
+                f"names the rule)")
         # end_lineno is 1-based, so as a 0-based list index it is the slot
         # just past the entry's last line — where the next trail line goes.
         insert_at = entry.end_lineno
@@ -2198,7 +2245,10 @@ def tick_insight_text(text: str, ordinal: int, pointer: str,
         if entry.trail:
             indent = entry.trail[-1][: len(entry.trail[-1]) - len(entry.trail[-1].lstrip())]
         lines.insert(insert_at, f"{indent}- **{date}** {_INSIGHT_POINTER.strip()} {pointer}")
-        message = f"entry {ordinal}: already ticked — appended a {date} trail line"
+        if entry.ticked:
+            message = f"entry {ordinal}: already ticked — appended a {date} trail line"
+        else:
+            message = f"entry {ordinal}: left open — appended a {date} trail line"
     else:
         if entry.type is None:
             raise ValueError(
@@ -3760,6 +3810,50 @@ def _has_g_code_row(lines: List[str]) -> bool:
     return False
 
 
+#: The two build postures `vision.md`'s optional header line may name
+#: (conventions.md §1 → vision.md, issue #241). A closed set: the line says how
+#: much to build, and a value nobody defined is a value no role can apply.
+_VISION_POSTURES = ("prototype", "durable")
+
+
+#: The separators a header blockquote line folds several labelled fields with.
+#: `templates/vision.md` writes `**Status:** … · **Created:** …` on one line, so
+#: a posture folded onto it is a field of that line rather than a line of its
+#: own — read by field, or an explicit `durable` reads as no posture at all.
+_HEADER_FIELD_SEP_RE = re.compile(r"[\u00b7|]")
+
+
+def vision_posture(text: str) -> Optional[str]:
+    """The value of `vision.md`'s optional `**Posture:** …` header field, or ``None``.
+
+    The scan window is every line above the first `##` heading that starts with
+    `>`; each such line is split into fields on `·` and `|`, and each field has
+    its quote marker and emphasis removed before its label is read. So the line
+    of its own the template writes, the plain `> Posture: durable`, and a
+    posture folded onto the `**Status:** … · **Created:** …` line with the
+    template's own separator are one shape. The first field labelled `posture`
+    wins. The value is returned exactly as written, including an unknown or
+    empty one: deciding what it means is the caller's, and the check below
+    warns rather than correcting it.
+
+    ``None`` means the document carries no such field, which §1 → vision.md
+    reads as ``prototype``. This returns ``None`` rather than that default so
+    the two states stay distinguishable — the check must not warn about an
+    absent line, and a role that wants the default applies it itself.
+    """
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("##"):
+            break
+        if not stripped.startswith(">"):
+            continue
+        for field in _HEADER_FIELD_SEP_RE.split(stripped[1:]):
+            plain = field.replace("*", "").replace("`", "").strip()
+            if plain.lower().startswith("posture:"):
+                return plain.split(":", 1)[1].strip()
+    return None
+
+
 def root_document_warnings(ddir: Path) -> List[str]:
     """Root documents missing the sections their templates mark MANDATORY.
 
@@ -3773,6 +3867,11 @@ def root_document_warnings(ddir: Path) -> List[str]:
     Headings are matched tolerantly (any level, the template's `2.` numbering
     optional, case-insensitive): the lint is for a *dropped* section, and a
     renumbered heading is not a dropped section.
+
+    The vision's optional build posture is read here too (issue #241): a value
+    that is neither `prototype` nor `durable` is warned about by name, while an
+    absent line is not — absence is the default, and warning about it would ask
+    every vision to state the value it already has.
 
     Warnings, not errors, matching the item specs' mandatory-Assumptions lint:
     root documents predating this check exist in real consumers, and an
@@ -3790,6 +3889,16 @@ def root_document_warnings(ddir: Path) -> List[str]:
                              re.MULTILINE | re.IGNORECASE):
                 out.append(f"vision.md: no '{title}' section — the template "
                            f"marks it MANDATORY: {why}")
+        posture = vision_posture(vtext)
+        if posture is not None and posture.lower() not in _VISION_POSTURES:
+            # Named, not corrected, and never silently defaulted: a typo that
+            # meant `durable` would otherwise build less than the human asked
+            # for and say nothing. An absent line is the default and is silent.
+            out.append(f"vision.md: the header's Posture line reads "
+                       f"'{posture}', which is neither 'prototype' nor "
+                       f"'durable' — no role applies an unknown posture, and "
+                       f"a vision with no Posture line at all is read as "
+                       f"'prototype'")
         if not _has_g_code_row(vtext.splitlines()):
             out.append("vision.md: no G-code objectives table (rows opening "
                        "'| G1 |…') — the template marks it MANDATORY: the "
@@ -3874,9 +3983,9 @@ def template_drift_warnings(ddir: Path, item_status: Dict[int, str],
 
     Which documents are read, and why:
 
-    * ``vision.md``, ``roadmap.md``, ``progress.md`` and ``insights.md`` —
-      long-lived, edited for the life of the project, so a newer template is
-      something their author may still act on.
+    * ``vision.md``, ``roadmap.md``, ``progress.md``, ``insights.md`` and
+      ``ledger.md`` — long-lived, appended to or edited for the life of the
+      project, so a newer template is something their author may still act on.
     * A queue while it is open, and an item spec while its item is not ✅ or
       ❌ — the same measure ``--queue`` uses for "spent". A finished item's
       spec is a record, and a warning on every one of them each time a template
@@ -3893,7 +4002,8 @@ def template_drift_warnings(ddir: Path, item_status: Dict[int, str],
     if installed is None:
         installed = installed_template_versions()
     targets = [ddir / name for name in
-               ("vision.md", "roadmap.md", "progress.md", "insights.md")]
+               ("vision.md", "roadmap.md", "progress.md", "insights.md",
+                "ledger.md")]
     qdir = ddir / "queue"
     if qdir.is_dir():
         for qpath in iter_queue_paths(qdir):
@@ -4285,6 +4395,7 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     errors.extend(conflict_marker_errors(ddir))
     warnings.extend(stray_icon_warnings(ddir))
     warnings.extend(insight_warnings(ddir))
+    warnings.extend(ledger_warnings(ddir))
     warnings.extend(absolute_path_test_warnings(repo_root, config))
     warnings.extend(separator_dependent_test_warnings(repo_root, config))
     warnings.extend(cli_subprocess_test_warnings(repo_root, config))
@@ -5795,7 +5906,8 @@ def _cmd_insights_tick(path: Path, text: str, ddir_rel: str, repo_root: Path,
         return 2
     try:
         updated, message = tick_insight_text(text, args.number, args.pointer.strip(),
-                                             args.date or today)
+                                             args.date or today,
+                                             trail_only=args.trail)
     except ValueError as exc:
         print(f"aide insights tick: {exc}", file=sys.stderr)
         return 1
@@ -5964,6 +6076,460 @@ def _cmd_insights_resolve(path: Path, text: str, ddir_rel: str, repo_root: Path,
                   f"{rel}` before continuing")
     print(f"aide insights resolve: wrote {rel} as the union of both sides"
           f"{staged}")
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# ledger — one row per item worked (§1 → ledger.md)
+# --------------------------------------------------------------------------- #
+#: The row, in the order `.aide/templates/ledger.md` draws it. The template is
+#: the shape's executable statement (§1) and this tuple is what writes it, so
+#: the two move together: a column added here is a column added there, and
+#: `test_aide_ledger.py` holds the pair.
+LEDGER_COLUMNS = ("Item", "Queue", "Stage", "Kind", "Outcome", "ACs", "Tests",
+                  "Files", "Rounds", "Blocking", "Minor", "Nit", "Engine",
+                  "Date")
+#: Cells whose value is an integer or nothing at all — what `ledger_warnings`
+#: reads, and the blank-cell rule's whole surface.
+LEDGER_INTEGER_COLUMNS = ("ACs", "Tests", "Files", "Rounds", "Blocking",
+                          "Minor", "Nit")
+#: The three ranks `--findings` accepts, in the order they are written.
+LEDGER_FINDING_RANKS = ("blocking", "minor", "nit")
+#: What the three finding cells hold where the project runs with no reviewer
+#: at all (§1 → `ledger.md`): not a count, and not the absence of one either.
+#: It is the engine's own answer, read from `[loop] review`, so a blank in
+#: those three columns means exactly one thing — a count that should have been
+#: passed and was not.
+LEDGER_NO_REVIEW_CELL = "-"
+#: How an item left the loop: `merge` writes one, `ledger abandon` the other.
+LEDGER_OUTCOMES = ("merged", "abandoned")
+#: An item cell: the zero-padded number the verbs write, and anything a reader
+#: can resolve to an item.
+_LEDGER_ITEM_RE = re.compile(r"^0*\d+$")
+#: A `Validate stage N` item — test-heavy by design, so it is its own `kind`
+#: (§1 → ledger.md). Read off the item's title, which is the only place the
+#: engine ever learns what an item is: the spec's `# Item NNN — <title>` line,
+#: or the queue's `### Item NNN: <title>` where no spec is left.
+_VALIDATE_STAGE_TITLE_RE = re.compile(r"^\s*validate\s+stage\b", re.IGNORECASE)
+#: The three insight types that become a maintenance item (§1 → the
+#: maintenance queue); a `knowledge` or `framework` entry never does.
+_LEDGER_MAINTENANCE_TYPES = ("defect", "gap", "automation")
+
+
+def ledger_path(ddir: Path) -> Path:
+    """The run ledger. One name, one place — see ``insights_path``."""
+    return ddir / "ledger.md"
+
+
+def review_is_off(config: Dict[str, Dict[str, object]]) -> bool:
+    """Whether `[loop] review` leaves this project with no reviewer at all.
+
+    The one reader of that key in the engine (§9 is prose the orchestrator
+    consumes), and the one thing the ledger needs from it: anything other than
+    the default `"off"` means some adversarial read runs, so a blank finding
+    cell is a count that was not passed rather than a review that never
+    happened.
+    """
+    return str(config.get("loop", {}).get("review", "off")).strip().lower() == "off"
+
+
+def parse_findings(value: str) -> Dict[str, int]:
+    """``"blocking=1,minor=2"`` -> ``{"blocking": 1, "minor": 2}``.
+
+    Strict, and strict on purpose: the counts are a claim the caller makes
+    about work the engine cannot see (§1 → `ledger.md`), so the one thing this
+    must never do is guess. Every rank is optional and the order is free; an
+    unknown rank, a repeated one, a missing `=` and a value that is not a
+    non-negative integer are each a usage error naming what was wrong, because
+    a mistyped rank silently dropped would record a blank where a count was
+    passed. Raises ``ValueError``; the parser turns it into argparse's usage
+    error.
+    """
+    counts: Dict[str, int] = {}
+    ranks = ", ".join(LEDGER_FINDING_RANKS)
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            raise ValueError(
+                f"empty entry in '{value}' — write <rank>=<count> pairs "
+                f"separated by commas, with the ranks you have ({ranks})")
+        rank, sep, count = part.partition("=")
+        rank = rank.strip().lower()
+        if not sep:
+            raise ValueError(f"'{part}' is not <rank>=<count>")
+        if rank not in LEDGER_FINDING_RANKS:
+            raise ValueError(f"unknown rank '{rank}' — one of {ranks}")
+        if rank in counts:
+            raise ValueError(f"rank '{rank}' given twice")
+        count = count.strip()
+        if not re.fullmatch(r"[0-9]+", count):
+            raise ValueError(
+                f"'{rank}={count}' is not a non-negative integer")
+        counts[rank] = int(count)
+    return counts
+
+
+def _findings_argument(value: str) -> Dict[str, int]:
+    try:
+        return parse_findings(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+
+
+def _non_negative_argument(value: str) -> int:
+    if not re.fullmatch(r"[0-9]+", value.strip()):
+        raise argparse.ArgumentTypeError(
+            f"'{value}' is not a non-negative integer")
+    return int(value.strip())
+
+
+def _item_queue_number(repo_root: Path, config, number: int) -> Optional[int]:
+    """The queue whose file lists item *number*, or ``None``."""
+    qdir = docs_dir(repo_root, config) / "queue"
+    if not qdir.is_dir():
+        return None
+    for qpath in iter_queue_paths(qdir):
+        try:
+            text = qpath.read_text(encoding=_ENCODING)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if number in queue_item_numbers(text):
+            return queue_number(qpath)
+    return None
+
+
+def _queue_item_title(repo_root: Path, config, number: int) -> Optional[str]:
+    """The item's title as its queue file writes it, or ``None``."""
+    qdir = docs_dir(repo_root, config) / "queue"
+    if not qdir.is_dir():
+        return None
+    for qpath in iter_queue_paths(qdir):
+        try:
+            title = _queue_titles(qpath.read_text(encoding=_ENCODING)).get(number)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if title:
+            return title
+    return None
+
+
+def _insight_derived_item(repo_root: Path, config, number: int) -> bool:
+    """Did an insight become item *number*?
+
+    §1 → the maintenance queue: the author who queues an open `defect`, `gap`
+    or `automation` entry ticks it with the item number it became
+    (`insights tick N --pointer "item NNN"`), so the inbox is where the engine
+    can read that an item is insight-derived. The pointer and the entry's trail
+    are read; its **provenance** deliberately is not — that names the item the
+    insight was captured *in*, which is the opposite claim.
+    """
+    path = insights_path(docs_dir(repo_root, config))
+    if not path.is_file():
+        return False
+    try:
+        entries = parse_insights(path.read_text(encoding=_ENCODING))
+    except (OSError, UnicodeDecodeError):
+        return False
+    for entry in entries:
+        if entry.type not in _LEDGER_MAINTENANCE_TYPES:
+            continue
+        for text in ([entry.pointer] if entry.pointer else []) + list(entry.trail):
+            if _references_item(text, number):
+                return True
+    return False
+
+
+def item_kind(repo_root: Path, config, number: int,
+              title: Optional[str] = None) -> str:
+    """The item's `kind` cell: one of `validate-stage`, `maintenance`, `normal`.
+
+    `validate-stage` wins over `maintenance`, because it is the reading that
+    changes how every other cell on the row is read: such an item exists to
+    add tests, so its tests-per-criterion is not comparable with anything
+    else's whatever else the item also is.
+    """
+    if title is None:
+        title = (_spec_stage_and_title(repo_root, config, number)[1]
+                 or _queue_item_title(repo_root, config, number))
+    if title and _VALIDATE_STAGE_TITLE_RE.match(title):
+        return "validate-stage"
+    if _insight_derived_item(repo_root, config, number):
+        return "maintenance"
+    return "normal"
+
+
+def _ledger_diff_cells(repo_root: Path, config, branch: Optional[str],
+                       base: Optional[str]) -> Tuple[str, str]:
+    """``(tests added, files changed)`` for *branch* against *base*.
+
+    Both blank when the diff cannot be taken — no branch left, no base
+    recorded, a ref git cannot resolve. The counting is `aide scope`'s
+    (`added_test_functions`), read from the branch tip rather than the working
+    tree so the answer does not depend on what happens to be checked out.
+    """
+    if not branch or not base:
+        return "", ""
+    mb = git(["merge-base", base, branch], repo_root, check=False)
+    if mb.returncode != 0:
+        return "", ""
+    merge_base = mb.stdout.strip()
+    diff = git(["-c", "core.quotePath=false", "diff", "--name-only",
+                merge_base, branch], repo_root, check=False)
+    if diff.returncode != 0:
+        return "", ""
+    changed = [line.strip() for line in diff.stdout.splitlines() if line.strip()]
+    added = added_test_functions(repo_root, config, changed, merge_base,
+                                 renamed_paths(repo_root, merge_base), ref=branch)
+    return str(len(added)), str(len(changed))
+
+
+def ledger_cells(repo_root: Path, config, number: int, outcome: str,
+                 rounds: Optional[int] = None,
+                 findings: Optional[Dict[str, int]] = None,
+                 branch: Optional[str] = None,
+                 base: Optional[str] = None,
+                 date: Optional[str] = None,
+                 no_review: bool = False) -> List[str]:
+    """One row's cells, in `LEDGER_COLUMNS` order.
+
+    Everything but *rounds* and *findings* is derived here, from the documents,
+    the branch and `.aide/VERSION`; those two are the caller's, and an absent
+    one is a blank cell rather than a zero (§1 → `ledger.md`). Every derivation
+    degrades to a blank: a spec that is gone, a queue that never listed the
+    item, a stage the spec header does not name and a diff with no branch to
+    take it from each cost one cell, never the row.
+    """
+    import datetime as _dt
+    findings = findings or {}
+    stage, title = _spec_stage_and_title(repo_root, config, number)
+    specs = item_spec_paths(docs_dir(repo_root, config) / "items", number)
+    criteria = ""
+    if specs:
+        try:
+            spec_text = specs[0].read_text(encoding=_ENCODING)
+        except (OSError, UnicodeDecodeError):
+            spec_text = ""
+        if _AC_HEADING_RE.search(spec_text):
+            criteria = str(len(spec_acceptance_numbers(spec_text)))
+    queue = _item_queue_number(repo_root, config, number)
+    tests, files = _ledger_diff_cells(repo_root, config, branch, base)
+    cells = {
+        "Item": f"{number:03d}",
+        "Queue": f"{queue:03d}" if queue is not None else "",
+        "Stage": stage or "",
+        "Kind": item_kind(repo_root, config, number, title),
+        "Outcome": outcome,
+        "ACs": criteria,
+        "Tests": tests,
+        "Files": files,
+        "Engine": installed_engine_version() or "",
+        "Date": date or _dt.date.today().isoformat(),
+    }
+    cells.update(zip(LEDGER_COUNT_COLUMNS,
+                     _ledger_count_cells(rounds=rounds, findings=findings,
+                                         no_review=no_review)))
+    return [cells[column] for column in LEDGER_COLUMNS]
+
+
+#: The caller-supplied cells, in the order `_ledger_count_cells` renders them.
+LEDGER_COUNT_COLUMNS = ("Rounds",) + tuple(r.capitalize() for r in LEDGER_FINDING_RANKS)
+#: Those of them that count findings — the three that may carry the no-review
+#: marker, named once so `ledger_warnings` and the renderer cannot disagree.
+LEDGER_FINDING_COLUMNS = tuple(r.capitalize() for r in LEDGER_FINDING_RANKS)
+
+
+def _ledger_count_cells(rounds: Optional[int],
+                        findings: Optional[Dict[str, int]],
+                        no_review: bool = False) -> List[str]:
+    """Render the caller's counts — a count nobody passed is `""`, never `0`.
+
+    *no_review* is the project's `[loop] review` read as "off": with no
+    reviewer in the loop there are no findings to count, so the three rank
+    cells carry `LEDGER_NO_REVIEW_CELL` instead of the blank that would read
+    as a count somebody forgot. Counts passed anyway win over it, whole — a
+    count is a claim its caller made, and the engine records claims rather
+    than correcting them from the configuration.
+    """
+    findings = findings or {}
+    absent = LEDGER_NO_REVIEW_CELL if (no_review and not findings) else ""
+    out = ["" if rounds is None else str(rounds)]
+    for rank in LEDGER_FINDING_RANKS:
+        got = findings.get(rank)
+        out.append(absent if got is None else str(got))
+    return out
+
+
+def ledger_row(cells: List[str]) -> str:
+    """The cells as the one line appended to the ledger."""
+    return "| " + " | ".join(cells) + " |"
+
+
+def append_ledger_row(repo_root: Path, config, cells: List[str],
+                      verb: str) -> Optional[str]:
+    """Append one row, creating the ledger from the template if it is missing.
+
+    Returns the repo-relative path of the file written, so the caller can put
+    it in the commit that records the item — or ``None`` when there is nowhere
+    to write: a repo with no ``docs_dir`` (a project may adopt the CLI without
+    the loop) or an install whose template is gone. Both say why. Raises
+    nothing else on purpose: every caller is a verb whose real work has
+    already succeeded.
+    """
+    ddir = docs_dir(repo_root, config)
+    if not ddir.is_dir():
+        print(f"aide {verb}: no {_rel_display(ddir, repo_root)} directory, so "
+              f"no ledger row was recorded", file=sys.stderr)
+        return None
+    path = ledger_path(ddir)
+    rel = _rel_display(path, repo_root)
+    if not path.exists():
+        template = _TEMPLATES_DIR / "ledger.md"
+        if not template.is_file():
+            print(f"aide {verb}: {rel} is missing and could not be created — "
+                  f"{_rel_display(template, repo_root)} is not there, so the "
+                  f"install is incomplete (`python install.py --into . --check` "
+                  f"from a framework checkout says how)", file=sys.stderr)
+            return None
+        path.write_bytes(template.read_bytes())
+        print(f"notice: created {rel} from .aide/templates/ledger.md — the run "
+              f"ledger, one row per item worked (conventions.md §1)")
+    text = path.read_text(encoding=_ENCODING)
+    if text and not text.endswith("\n"):
+        text += "\n"
+    path.write_text(text + ledger_row(cells) + "\n", encoding="utf-8")
+    return rel
+
+
+def ledger_rows(text: str) -> List[Tuple[int, List[str]]]:
+    """``(lineno, cells)`` for every data row of a ledger — the one reader.
+
+    Table furniture is skipped, and so is **everything inside an HTML
+    comment**: the document is created as a byte-exact copy of the template,
+    whose header comment draws the row it is about to write, so a reader that
+    took any `|` line for data would read that example as an item. The
+    comment is the author's to delete and most never do, which makes this the
+    ordinary case rather than the odd one.
+    """
+    out: List[Tuple[int, List[str]]] = []
+    in_comment = False
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        rest = line
+        while rest:
+            if in_comment:
+                _, sep, rest = rest.partition("-->")
+                if not sep:
+                    rest = ""
+                in_comment = bool(not sep)
+            else:
+                before, sep, rest = rest.partition("<!--")
+                if not sep:
+                    rest = ""
+                else:
+                    in_comment = True
+                if before.strip().startswith("|"):
+                    cells = _split_row(before)
+                    if not _is_table_furniture(cells, LEDGER_COLUMNS[0].lower()):
+                        out.append((lineno, cells))
+                if not sep:
+                    break
+    return out
+
+
+def ledger_warnings(ddir: Path) -> List[str]:
+    """Rows of `ledger.md` no reader can use — warnings, never errors.
+
+    Capture has to stay cheap: the file records work that is already finished,
+    so a mis-shaped row is worth reporting and never worth failing a run over
+    — and a row nobody can fix without rewriting a record is exactly the kind
+    of finding that teaches a reader to skim (§1 → `ledger.md`, and rung 4 of
+    the copies rule: `docs/aide/**` is the project's). An absent file is
+    silent: a project that has not merged an item through the engine has no
+    ledger, and that is not a defect.
+    """
+    path = ledger_path(ddir)
+    if not path.is_file():
+        return []
+    out: List[str] = []
+    for lineno, cells in ledger_rows(path.read_text(encoding=_ENCODING)):
+        if len(cells) != len(LEDGER_COLUMNS):
+            out.append(f"ledger.md:{lineno}: {len(cells)} cell(s), not "
+                       f"{len(LEDGER_COLUMNS)} — the columns "
+                       f"`.aide/templates/ledger.md` draws")
+            continue
+        row = dict(zip(LEDGER_COLUMNS, cells))
+        if not _LEDGER_ITEM_RE.match(row["Item"]):
+            out.append(f"ledger.md:{lineno}: Item cell '{row['Item']}' is not "
+                       f"an item number")
+        if row["Outcome"] not in LEDGER_OUTCOMES:
+            out.append(f"ledger.md:{lineno}: Outcome cell "
+                       f"'{row['Outcome']}' is not one of "
+                       f"{', '.join(LEDGER_OUTCOMES)}")
+        for column in LEDGER_INTEGER_COLUMNS:
+            value = row[column]
+            # The three finding columns may also carry the no-review marker,
+            # which the writing verbs put there themselves (§1 → ledger.md).
+            if (value == LEDGER_NO_REVIEW_CELL
+                    and column in LEDGER_FINDING_COLUMNS):
+                continue
+            if value and not re.fullmatch(r"[0-9]+", value):
+                out.append(f"ledger.md:{lineno}: {column} cell '{value}' is "
+                           f"neither an integer nor blank")
+    return out
+
+
+def cmd_ledger(args: argparse.Namespace) -> int:
+    """Write a ledger row for an item no merge will ever write one for."""
+    repo_root = find_repo_root(args.repo)
+    config = load_config(repo_root)
+    if args.rounds is None:
+        print(f"aide ledger {args.action}: --rounds is required — the round "
+              f"count is why this row exists, and an abandoned item with no "
+              f"count recorded is indistinguishable from one nobody wrote "
+              f"down.", file=sys.stderr)
+        return 2
+    no_review = review_is_off(config)
+    ddir = docs_dir(repo_root, config)
+    path = ledger_path(ddir)
+    if path.is_file():
+        counts = _ledger_count_cells(rounds=args.rounds,
+                                     findings=args.findings,
+                                     no_review=no_review)
+        for lineno, cells in ledger_rows(path.read_text(encoding=_ENCODING)):
+            row = dict(zip(LEDGER_COLUMNS, cells))
+            if (row.get("Item") == f"{args.number:03d}"
+                    and row.get("Outcome") == "abandoned"
+                    and [row.get(c) for c in LEDGER_COUNT_COLUMNS] == counts):
+                # A retried orchestrator step is the ordinary way to arrive
+                # here twice; a second row would count one abandonment as
+                # two in every ratio read from the file. Different counts are
+                # a different abandonment — an item resumed after the cap and
+                # stopped again — and that row is appended like any other.
+                print(f"aide ledger {args.action}: item {args.number:03d} is "
+                      f"already recorded as abandoned with these counts "
+                      f"({path.name}:{lineno}); nothing appended")
+                return 0
+    prefix = str(config["git"].get("branch_prefix", "aide/"))
+    branch = _find_claim_branch(repo_root, prefix, args.number)
+    base = _recorded_branch_base(repo_root, branch) if branch else None
+    cells = ledger_cells(repo_root, config, args.number, "abandoned",
+                         rounds=args.rounds, findings=args.findings,
+                         branch=branch, base=base, no_review=no_review)
+    rel = append_ledger_row(repo_root, config, cells, f"ledger {args.action}")
+    if rel is None:
+        return 1
+    print(f"aide ledger {args.action}: item {args.number:03d} recorded in {rel} "
+          f"as abandoned after {args.rounds} round(s)")
+    if not args.no_commit and (repo_root / ".git").exists():
+        # No pull: this is an append to a file the loop owns, on whatever
+        # branch the cap was hit on, and a verb that only records must not
+        # fetch on the caller's behalf (`ensure_insights_inbox` reasons the
+        # same way).
+        _commit_docs_files(repo_root, config,
+                           f"docs(aide): ledger row for item {args.number:03d} "
+                           f"(abandoned)", [rel], pull=False)
+    print(f"aide ledger {args.action}: progress.md is untouched — this verb "
+          f"records what the run cost and decides nothing about the item's "
+          f"status")
     return 0
 
 
@@ -6643,8 +7209,11 @@ def cmd_claim(args: argparse.Namespace) -> int:
               f"must be a branch this checkout can update", file=sys.stderr)
         return 1
 
+    pin_report = _interface_pin_report(repo_root, config, number)
     if args.dry_run:
         print(f"would claim item {number:03d} -> {branch} ({title}); base {base}")
+        if pin_report:
+            print(pin_report)
         return 0
     # Branch FROM the base, explicitly. `switch -c` with no start point uses
     # HEAD, which would let the branch's actual starting point disagree with
@@ -6680,7 +7249,62 @@ def cmd_claim(args: argparse.Namespace) -> int:
             return 1
     note = "" if base == str(config["git"].get("main_branch", "main")) else f" (base {base})"
     print(f"claimed item {number:03d}: {branch} — {title}{note}")
+    if pin_report:
+        print(pin_report)
     return 0
+
+
+def interface_pins(spec_text: str, deps: List[int],
+                   item_status: Dict[int, str]) -> List[Tuple[int, str, int, str]]:
+    """``(bullet index, label, dependency, status)`` for each Assumption that
+    pins a dependency's interface — the re-check signal of conventions.md §5.
+
+    An Assumption naming an item under ``## Dependencies`` was written before
+    that item was built, and a claim happens only once it has left the way, so
+    the pin is what says "re-check me". Three shapes are not the signal and
+    are skipped here exactly as §5 lists them: an engine-marked audit entry
+    (`assumption_engine_pin`), a bullet already carrying a re-check, and —
+    reported rather than skipped — a dependency that left the queue as ❌/⏸️,
+    which has no code to check against.
+    """
+    out: List[Tuple[int, str, int, str]] = []
+    for index, bullet in enumerate(_assumption_bullets(spec_text), 1):
+        named = [d for d in _referenced_item_numbers(bullet) if d in deps]
+        if not named or assumption_engine_pin(bullet) is not None:
+            continue
+        # A *recorded* re-check carries a version or a date somewhere in the
+        # bullet; "to be re-checked before tests" carries neither, and is
+        # exactly the bullet to surface.
+        if (re.search(r"re-?checked", bullet, re.IGNORECASE)
+                and re.search(r"\d+\.\d+\.\d+|\d{4}-\d{2}-\d{2}", bullet)):
+            continue
+        m = re.match(r"^\s*[-*]\s+\**\s*([^:*]{1,40}?)\s*(?:\(|:|\*\*)", bullet)
+        label = m.group(1).strip() if m else f"assumption #{index}"
+        for dep in named:
+            out.append((index, label, dep, item_status.get(dep, "unknown")))
+    return out
+
+
+def _interface_pin_report(repo_root: Path, config, number: int) -> Optional[str]:
+    idir = docs_dir(repo_root, config) / "items"
+    specs = item_spec_paths(idir, number)
+    if not specs:
+        return None
+    deps = _item_dependencies(repo_root, config, number)
+    if not deps:
+        return None
+    pins = interface_pins(specs[0].read_text(encoding=_ENCODING), deps,
+                          _progress_item_status(repo_root, config))
+    if not pins:
+        return None
+    absent = {"excluded", "deferred"}
+    parts = [f"{label} (item {dep:03d}"
+             + (", no code to check against" if st in absent else "") + ")"
+             for _, label, dep, st in pins]
+    distinct = len({index for index, _, _, _ in pins})
+    return (f"aide claim: {distinct} assumption(s) pin a dependency's interface "
+            f"— re-check before tests are written (conventions.md §5): "
+            + "; ".join(parts))
 
 
 def _find_claim_branch(repo_root: Path, prefix: str, number: int) -> Optional[str]:
@@ -6945,15 +7569,18 @@ def _unsafe_tree_state(repo_root: Path,
     return f"the working tree has uncommitted changes: {shown}{more}"
 
 
-def _has_unpushed_merge(repo_root: Path) -> bool:
+def _has_unpushed_merge(repo_root: Path, upstream: str = "@{u}") -> bool:
     """Does HEAD carry a merge commit its upstream has not seen?
 
     The one shape `git pull --rebase` must not run over: rebasing DROPS the
     merge and replays both parents' commits individually, so a conflict a human
     resolved by hand inside that merge comes back (issue #133). No upstream
-    means nothing to rebase against, which is not this shape.
+    means nothing to rebase against, which is not this shape. *upstream* names
+    the ref to compare against when the branch has no tracking ref of its own
+    — `sync --item` pulls `origin/<claim>` by name, so it asks about that ref
+    (issue #235).
     """
-    res = git(["rev-list", "--merges", "@{u}..HEAD"], repo_root, check=False)
+    res = git(["rev-list", "--merges", f"{upstream}..HEAD"], repo_root, check=False)
     return res.returncode == 0 and bool(res.stdout.strip())
 
 
@@ -7040,7 +7667,8 @@ def _restore_claim_branch(repo_root: Path, branch: str, tip: str,
 
 
 def _promote_item_to_complete(repo_root: Path, config, number: int,
-                              no_commit: bool = False) -> None:
+                              no_commit: bool = False,
+                              extra_rels: Tuple[str, ...] = ()) -> None:
     """Record item *number* as ✅ in progress.md — best effort, never fatal.
 
     Deliberately quiet about a no-op: the item may already be ✅ (a re-run, or a
@@ -7048,22 +7676,38 @@ def _promote_item_to_complete(repo_root: Path, config, number: int,
     merge itself is the thing that succeeded. It is *not* quiet about a missing
     progress.md, which is a real misconfiguration — but even that must not fail
     a merge that has already landed.
+
+    Since 1.53.0 `cmd_merge`'s document gate reaches a lost progress.md first:
+    with `docs_dir` present it is an `aide check` error, and the merge is
+    refused before this runs (issue #232). The branch below is left for a repo
+    with no document set at all, where the check passes and there is nothing
+    to tick.
+
+    *extra_rels* are paths the same commit carries — the ledger row `merge`
+    has just appended (§1 → `ledger.md`). One commit, because the row and the
+    ✅ are one fact about one item: two would let a run land the tick and lose
+    the row, leaving a ledger a reader has to reconcile against progress.md.
+    They are committed even where the tick itself is a no-op (a re-run over an
+    item already ✅), since the row is new either way.
     """
     progress_path = docs_dir(repo_root, config) / "progress.md"
+    rels = list(extra_rels)
     if not progress_path.is_file():
         print(f"aide merge: item {number:03d} merged, but {progress_path} was "
               f"not found, so its status was NOT recorded", file=sys.stderr)
-        return
-    text = progress_path.read_text(encoding=_ENCODING)
-    splits: List[BulletSplit] = []
-    updated = set_item_status(text, number, "complete", splits)
-    if updated == text:
-        return
-    progress_path.write_text(updated, encoding="utf-8")
-    print(f"item {number:03d}: set to done (merged)")
-    _report_bullet_splits(number, updated.splitlines(), splits)
-    if not no_commit and (repo_root / ".git").exists():
-        _commit_progress(repo_root, config, number, "done")
+    else:
+        text = progress_path.read_text(encoding=_ENCODING)
+        splits: List[BulletSplit] = []
+        updated = set_item_status(text, number, "complete", splits)
+        if updated != text:
+            progress_path.write_text(updated, encoding="utf-8")
+            print(f"item {number:03d}: set to done (merged)")
+            _report_bullet_splits(number, updated.splitlines(), splits)
+            rels.insert(0, str(config["project"].get("docs_dir", "docs/aide"))
+                        + "/progress.md")
+    if rels and not no_commit and (repo_root / ".git").exists():
+        _commit_docs_files(repo_root, config,
+                           f"progress(aide): item {number:03d} -> done", rels)
 
 
 def cmd_merge(args: argparse.Namespace) -> int:
@@ -7158,6 +7802,37 @@ def cmd_merge(args: argparse.Namespace) -> int:
                 f"resolved brings it back on the next attempt.",
               file=sys.stderr)
         return 1
+
+    # The ledger's derived cells, taken while the claim branch still exists:
+    # the run is about to merge it and delete it, and the row's counts are a
+    # diff of that branch against the base this run resolved (§1 →
+    # `ledger.md`). Derived here, written after the tick — a row records a
+    # merge that happened, so nothing is written where nothing lands. A
+    # failure to derive costs the row and never the merge.
+    findings = getattr(args, "findings", None)
+    no_review = review_is_off(config)
+    if not no_review and findings is None:
+        # A reviewer ran and its triage reached no flag: the row lands with
+        # three blanks that read as "counts nobody passed", which is exactly
+        # what happened. Said once, on stderr, because the row is still worth
+        # writing and the merge is still worth landing (§1 → `ledger.md`).
+        print(f"aide merge: [loop] review is on and no --findings was passed, "
+              f"so item {args.number:03d}'s row records no finding counts. "
+              f"The row is still written; pass "
+              f"'--findings {','.join(r + '=N' for r in LEDGER_FINDING_RANKS)}' "
+              f"from the role that triaged them to record what the review "
+              f"cost.", file=sys.stderr)
+    pending_row: Optional[List[str]] = None
+    try:
+        pending_row = ledger_cells(
+            repo_root, config, args.number, "merged",
+            rounds=getattr(args, "rounds", None),
+            findings=findings,
+            branch=branch, base=main, no_review=no_review)
+    except (OSError, UnicodeDecodeError, subprocess.SubprocessError) as exc:
+        print(f"aide merge: the ledger row could not be derived "
+              f"({type(exc).__name__}: {exc}), so item {args.number:03d} "
+              f"will land with no row in the ledger", file=sys.stderr)
 
     git(["switch", main], repo_root)
 
@@ -7268,6 +7943,32 @@ def cmd_merge(args: argparse.Namespace) -> int:
                           f"pushes.", file=sys.stderr)
                     return 1
 
+            # The document gate, beside the test run and refusing the same two
+            # things: the tick and the push, so the item stays 🔍. Nothing else
+            # in the loop ran `aide check` mechanically — a consumer's ✅ stage
+            # over ⏸️ deliverables sat on its base for two weeks until an
+            # engine update surfaced it, and one without its own test pinning
+            # `run_checks` would never have seen it (issue #232). In-process,
+            # and not skipped by --no-test: it is not the project's tests.
+            doc_errors, doc_warnings = run_checks(repo_root, config)
+            if doc_errors:
+                _restore_claim_branch(repo_root, branch, branch_tip, branch_base)
+                listed = "".join(f"\nerror: {e}" for e in doc_errors)
+                print(f"aide merge: `aide check` reports {len(doc_errors)} "
+                      f"error(s) after the merge, so item {args.number:03d} "
+                      f"is NOT ✅ and nothing was pushed. {branch} is merged "
+                      f"into {main} in THIS repository only, and the claim "
+                      f"branch is back with its base. The check reads the "
+                      f"whole document set, so an error may predate this "
+                      f"item. Fix the documents on {main}, commit, then re-run "
+                      f"'merge {args.number:03d} --base {main}'.{listed}",
+                      file=sys.stderr)
+                return 1
+            if doc_warnings:
+                print(f"aide merge: `aide check` reports {len(doc_warnings)} "
+                      f"warning(s), which do not block a merge; "
+                      f"'python .aide/scripts/aide.py check' lists them.")
+
             # ✅ is set HERE, by the process that just did the merge, so it always means
             # "merged" — not "an agent said so before attempting one". The validator
             # marks the item 🔍 before this call; whether it becomes ✅ is a fact about
@@ -7277,8 +7978,23 @@ def cmd_merge(args: argparse.Namespace) -> int:
             # single `git push` below is the only one that carries `main` to origin.
             # Recording it afterwards stranded it locally, so origin's progress.md
             # under-reported — and on a queue's last item nothing would ever push it.
+            # Beside the tick and in the same commit as it: one item, one
+            # row, whatever it took to get there (§1 → `ledger.md`). A ledger
+            # write that fails is a warning after the merge and never an exit
+            # code — capture is worth a sentence, never a landed item.
+            ledger_rel = None
+            if pending_row is not None:
+                try:
+                    ledger_rel = append_ledger_row(repo_root, config,
+                                                   pending_row, "merge")
+                except (OSError, UnicodeDecodeError) as exc:
+                    print(f"aide merge: item {args.number:03d} merged, but its "
+                          f"ledger row could not be written "
+                          f"({type(exc).__name__}: {exc})", file=sys.stderr)
             _promote_item_to_complete(repo_root, config, args.number,
-                                      getattr(args, "no_commit", False))
+                                      getattr(args, "no_commit", False),
+                                      (ledger_rel,) if ledger_rel else ())
+
             remote_gone = True
             if mode != "local":
                 push_res = git(["push"], repo_root, check=False)
@@ -7844,6 +8560,168 @@ def scope_findings(changed: List[str], authorised: AuthorisedPaths,
     return unauthorised, contradictions
 
 
+#: `AC3`, `ac3` — the criterion number a test name carries. Not `mac3` or
+#: `ac30` for AC3: the token is bounded on both sides.
+_AC_TOKEN_RE = re.compile(r"(?<![a-z0-9])ac(\d+)(?![0-9])")
+_AC_HEADING_RE = re.compile(r"^##\s+Acceptance Criteria\b", re.MULTILINE | re.IGNORECASE)
+_TESTING_HEADING_RE = re.compile(r"^##\s+Testing Strategy\b", re.MULTILINE | re.IGNORECASE)
+#: A case label: the first token of a Testing Strategy **bullet**, closed by a
+#: colon — `- empty-input: the walker yields nothing`, with or without
+#: backticks or bold around the token. One word, so "existing tests to
+#: reconcile:" and a `tests/test_x.py:` module name are prose, not labels;
+#: and a bullet, so a prose "Note: …" line in the section is not one either
+#: (a generic label would silence every test whose name contains it).
+_CASE_LABEL_RE = re.compile(r"^\s*[-*]\s+[`*_]*([A-Za-z][A-Za-z0-9_-]*)[`*_]*\s*:")
+
+
+_FENCE_RE = re.compile(r"^[ \t]*(```|~~~).*?^[ \t]*\1[^\n]*$", re.MULTILINE | re.DOTALL)
+
+
+def _section_text(text: str, heading: "re.Pattern") -> str:
+    """The body under *heading*, up to the next `## `, with every fenced block
+    inside that slice removed — a fence is code, not a bullet list. The slice
+    is cut first, so a fence left open in an earlier section cannot swallow
+    this one."""
+    m = heading.search(text)
+    if m is None:
+        return ""
+    rest = text[m.end():]
+    nxt = re.search(r"^##\s", rest, re.MULTILINE)
+    section = rest if nxt is None else rest[: nxt.start()]
+    return _FENCE_RE.sub("", section)
+
+
+def spec_acceptance_numbers(text: str) -> List[int]:
+    """The criterion numbers a spec's ``## Acceptance Criteria`` names."""
+    return sorted({int(n) for n in re.findall(r"\bAC(\d+)\b",
+                                             _section_text(text, _AC_HEADING_RE))})
+
+
+def testing_strategy_labels(text: str) -> List[str]:
+    """The case labels a spec's ``## Testing Strategy`` names, in order."""
+    out: List[str] = []
+    for line in _section_text(text, _TESTING_HEADING_RE).splitlines():
+        m = _CASE_LABEL_RE.match(line)
+        if m and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def _test_function_names(source: str) -> List[str]:
+    try:
+        tree = ast.parse(source.lstrip("\ufeff"))
+    except SyntaxError:
+        return []
+    return [n.name for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and n.name.startswith("test")]
+
+
+def _under_dir(rel: str, directory: str) -> bool:
+    """*rel* (a posix path git printed) sits under *directory* (whatever
+    `aide.toml` spelled: `tests`, `./tests`, `tests\\unit`, `.`)."""
+    root = tuple(p for p in PurePosixPath(directory.replace("\\", "/")).parts
+                 if p not in (".", ""))
+    return PurePosixPath(rel).parts[: len(root)] == root
+
+
+def _tests_dir_rel(repo_root: Path, config) -> Optional[str]:
+    """`tests_dir` as a path relative to the repo, whatever `aide.toml`
+    spelled; None when an absolute value points outside the repository, where
+    no git-relative path can match it."""
+    raw = str(config["project"].get("tests_dir", "tests"))
+    path = Path(raw)
+    if not path.is_absolute():
+        return raw
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def renamed_paths(repo_root: Path, merge_base: str) -> Dict[str, str]:
+    """``{new path: old path}`` for every rename git detects vs *merge_base*."""
+    # `core.quotePath=false`: with the default, a non-ASCII OLD path comes back
+    # quoted and octal-escaped, and `git show <mb>:"…"` then finds nothing.
+    status = git(["-c", "core.quotePath=false", "diff", "--name-status", "-M",
+                  merge_base], repo_root, check=False)
+    out: Dict[str, str] = {}
+    if status.returncode != 0:
+        return out
+    for line in status.stdout.splitlines():
+        cells = line.split("\t")
+        if len(cells) == 3 and cells[0][:1] in ("R", "C"):
+            out[cells[2].strip()] = cells[1].strip()
+    return out
+
+
+def added_test_functions(repo_root: Path, config, changed: List[str],
+                         merge_base: str,
+                         renamed: Optional[Dict[str, str]] = None,
+                         ref: Optional[str] = None) -> List[Tuple[str, str]]:
+    """``(path, name)`` for every test function the branch added.
+
+    A test file among *changed* is read from the working tree and compared to
+    its version at *merge_base* — under its old name where *renamed* says the
+    branch moved it; a name present in both is an edit to an existing test (a
+    reconcile the spec listed, §6) and is not the item's own. A file that did
+    not exist at the base contributes every test in it.
+
+    *ref* reads the new side from a ref instead of the working tree, for a
+    caller that must count a branch it is not standing on — `aide merge`
+    writing a ledger row (§1 → `ledger.md`) is about to merge the branch and
+    delete it, and a count that depended on the checkout would be a different
+    number on either side of that. A path the ref does not carry contributes
+    nothing, exactly as a path missing from the working tree does.
+    """
+    tests_dir = _tests_dir_rel(repo_root, config)
+    renamed = renamed or {}
+    out: List[Tuple[str, str]] = []
+    if tests_dir is None:
+        return out
+    for rel in changed:
+        if not rel.endswith(".py") or not _under_dir(rel, tests_dir):
+            continue
+        if ref is None:
+            path = repo_root / rel
+            if not path.is_file():
+                continue
+            try:
+                new = _test_function_names(path.read_text(encoding=_ENCODING))
+            except (OSError, UnicodeDecodeError):
+                continue
+        else:
+            at_ref = git(["show", f"{ref}:{rel}"], repo_root, check=False)
+            if at_ref.returncode != 0:
+                continue
+            new = _test_function_names(at_ref.stdout)
+        shown = git(["show", f"{merge_base}:{renamed.get(rel, rel)}"], repo_root, check=False)
+        old = set(_test_function_names(shown.stdout)) if shown.returncode == 0 else set()
+        out.extend((rel, name) for name in new if name not in old)
+    return out
+
+
+def traceability_warnings(added: List[Tuple[str, str]], ac_numbers: List[int],
+                          labels: List[str], rel_spec: str) -> List[str]:
+    """§6: a test the item adds names the criterion (`ac3`) or the Testing
+    Strategy case it covers; one that names neither is a test nobody asked
+    for. A warning, never a FAIL: the rule is new and a consumer lives with
+    the report before it gates anything."""
+    wanted = set(ac_numbers)
+    keys = [lbl.lower().replace("-", "_") for lbl in labels]
+    out: List[str] = []
+    for rel, name in added:
+        low = name.lower()
+        if any(int(n) in wanted for n in _AC_TOKEN_RE.findall(low)):
+            continue
+        if any(key in low for key in keys):
+            continue
+        out.append(f"warning: {rel}::{name} names no AC number and no Testing "
+                   f"Strategy case of {rel_spec} — a test the spec did not ask "
+                   f"for (conventions.md §6)")
+    return out
+
+
 def _scope_base_ref(repo_root: Path, config, explicit: Optional[str]) -> str:
     """The ref ``scope`` diffs against: ``--base`` > the branch's recorded base
     > ``main_branch``.
@@ -7907,7 +8785,8 @@ def cmd_scope(args: argparse.Namespace) -> int:
     spec = specs[0]
     rel_spec = spec.relative_to(repo_root).as_posix()
 
-    authorised = parse_authorised_paths(spec.read_text(encoding=_ENCODING))
+    spec_text = spec.read_text(encoding=_ENCODING)
+    authorised = parse_authorised_paths(spec_text)
     if declares_nothing(authorised):
         what = ("has no '## Authorised paths' section" if authorised is None
                 else "declares no path under '## Authorised paths'")
@@ -7934,6 +8813,23 @@ def cmd_scope(args: argparse.Namespace) -> int:
     always = _always_authorised_paths(ddir_rel) + (rel_spec,)
     unauthorised, contradictions = scope_findings(changed, authorised, always)
 
+    traced: List[str] = []
+    added = added_test_functions(repo_root, config, changed, mb.stdout.strip(),
+                                 renamed_paths(repo_root, mb.stdout.strip()))
+    if _tests_dir_rel(repo_root, config) is None:
+        print("notice: tests_dir lies outside the repository — traceability "
+              "not checked")
+    elif added and _AC_HEADING_RE.search(spec_text) is None:
+        print(f"notice: {rel_spec} has no '## Acceptance Criteria' heading — "
+              "traceability not checked")
+    elif added:
+        traced = traceability_warnings(
+            added, spec_acceptance_numbers(spec_text),
+            testing_strategy_labels(spec_text), rel_spec)
+    for line in traced:
+        print(line)
+    note = f", {len(traced)} traceability warning(s)" if traced else ""
+
     for path in contradictions:
         print(f"error: {path} changed, but {rel_spec} lists it under "
               "'Asserts against' as pinned-not-changed")
@@ -7943,10 +8839,10 @@ def cmd_scope(args: argparse.Namespace) -> int:
     total = len(unauthorised) + len(contradictions)
     if total:
         print(f"aide scope: FAIL (item {number:03d}, {total} of {len(changed)} "
-              f"changed file(s) outside scope, vs {base})")
+              f"changed file(s) outside scope, vs {base}{note})")
         return 1
     print(f"aide scope: OK (item {number:03d}, {len(changed)} changed file(s) "
-          f"all authorised, vs {base})")
+          f"all authorised, vs {base}{note})")
     return 0
 
 
@@ -8055,7 +8951,26 @@ def cmd_sync(args: argparse.Namespace) -> int:
                 return 1
             branch = claim
         if mode != "local" and _has_origin(repo_root) and claim in _remote_branches(repo_root):
-            pulled = git(["pull", "--rebase", "origin", claim], repo_root, check=False)
+            if _has_unpushed_merge(repo_root, f"origin/{claim}"):
+                # The same guard the bookkeeping and post-merge pulls have
+                # (issue #235): `pull --rebase` over a local merge commit
+                # linearises it silently, or stops mid-rebase on the conflict
+                # the merge resolved — on a checkout other roles may share.
+                # `--ff-only` refuses instead of rewriting.
+                ff = git(["pull", "--ff-only", "origin", claim], repo_root, check=False)
+                if ff.returncode != 0:
+                    print(f"aide sync: {claim} carries a merge commit origin "
+                          f"has not seen, and origin/{claim} has moved on. "
+                          f"Rebasing over it would linearise the merge and "
+                          f"bring back the conflicts it resolved, so this verb "
+                          f"stops rather than choosing for you: push the claim "
+                          f"branch first ('git push origin {claim}'), or "
+                          f"integrate origin by hand, then re-run.\n"
+                          f"{ff.stdout}{ff.stderr}", file=sys.stderr)
+                    return 1
+                pulled = ff
+            else:
+                pulled = git(["pull", "--rebase", "origin", claim], repo_root, check=False)
             stalled = _stalled_pull(repo_root, config, pulled)
             if stalled is not None:
                 print(f"aide sync: {stalled}\n"
@@ -8637,11 +9552,17 @@ def build_parser() -> argparse.ArgumentParser:
             "retracted acceptance criterion, a normal state rather than a "
             "defect; and an insights entry whose shape is off \u2014 loose "
             "either side of the date, strict about the date, and never "
-            "applied to an archived entry; and a document whose aide-template "
+            "applied to an archived entry; a ledger row no reader can "
+            "use \u2014 the wrong cell count, an Item cell that is not an "
+            "item number, an Outcome that is neither merged nor abandoned, "
+            "or a count cell that is neither an integer nor "
+            "blank \u2014 reported only where ledger.md exists, since a "
+            "check never creates it; and a document whose aide-template "
             "line above its title records a version other than the installed template's, "
             "names a template this engine does not ship, or cannot be read "
-            "\u2014 read on vision.md, roadmap.md, progress.md and "
-            "insights.md, on a queue while it is open and on an item spec "
+            "\u2014 read on vision.md, roadmap.md, progress.md, "
+            "insights.md and ledger.md, on a queue while it is open and on an "
+            "item spec "
             "until its item is \u2705 or \u274c, and never on a document with "
             "no such line. A \U0001f50d item's claim branch "
             "is not reported stale."))
@@ -8749,7 +9670,10 @@ def build_parser() -> argparse.ArgumentParser:
             "ticked ones included; --open narrows to the untriaged, and an "
             "archived entry is in neither\n"
             "tick:    the one in-place edit — tick entry N with --pointer; on "
-            "an entry already ticked, append a dated trail line instead\n"
+            "an entry already ticked, append a dated trail line instead; "
+            "with --trail, append the dated line under entry N and leave "
+            "its checkbox as it is, which is how a judgement that keeps an "
+            "entry open (a duplicate, a reason it stays) is recorded\n"
             "archive: move closed entries older than --before into "
             "insights/archive-YYYY-QN.md, each with its trail, line for line; "
             "an entry it cannot date is named and left behind; the archive is "
@@ -8775,7 +9699,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_ins.add_argument("--type", default=None,
                        help="list: one of " + ", ".join(_INSIGHT_TYPES))
     p_ins.add_argument("--trail", action="store_true",
-                       help="list: also print each entry's status trail")
+                       help="list: also print each entry's status trail; "
+                            "tick: append the dated --pointer line under entry N "
+                            "without ticking it")
     p_ins.add_argument("--pointer", default=None,
                        help="tick: where the claim landed (a doc, item, or issue)")
     p_ins.add_argument("--before", default=None,
@@ -8789,6 +9715,48 @@ def build_parser() -> argparse.ArgumentParser:
                        help="archive: actually move (default: dry run)")
     p_ins.add_argument("--no-commit", action="store_true", help="edit only, do not git commit")
     p_ins.set_defaults(func=cmd_insights)
+
+    p_ledger = sub.add_parser(
+        "ledger", help="record what an item cost where no merge will "
+        "(one row per item, docs/aide/ledger.md)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "abandon: the row for an item that never merged \u2014 one "
+            "stopped at the validation-round cap, which is exactly the item a "
+            "reader at a queue boundary is looking for and the one `aide "
+            "merge` never sees.\n"
+            "\n"
+            "The cells are derived as `merge` derives them, from the "
+            "documents and \u2014 where the claim branch is still there "
+            "\u2014 a diff against the base it recorded; a branch already "
+            "gone costs the two diff cells and nothing else on the row. "
+            "--rounds is required and the verb exits 2 without it: the round "
+            "count is why the row exists, and an abandoned item recorded "
+            "without one says nothing a reader can use. --findings is "
+            "optional, and a rank left out of it is a blank cell \u2014 "
+            "except under a project whose [loop] review is off, where the "
+            "three finding cells carry the same `-` mark `merge` writes. An "
+            "item "
+            "already recorded as abandoned with the same counts is not "
+            "recorded twice: a re-run appends nothing and exits 0, while a "
+            "different count is a new abandonment and a new row.\n"
+            "\n"
+            "It writes the ledger and nothing else: progress.md keeps "
+            "whatever status the run left it, since what becomes of an "
+            "abandoned item is a decision, not a record. The file is created "
+            "from .aide/templates/ledger.md when this is the first row, and "
+            "committed on the branch the run is standing on, with no pull."))
+    p_ledger.add_argument("action", choices=["abandon"])
+    p_ledger.add_argument("number", type=int)
+    p_ledger.add_argument("--rounds", type=_non_negative_argument, default=None,
+                          help="build\u2194validate rounds the item took "
+                               "before it was abandoned (required)")
+    p_ledger.add_argument("--findings", type=_findings_argument, default=None,
+                          help="findings by rank: blocking=A,minor=B,nit=C "
+                               "\u2014 any subset, any order")
+    p_ledger.add_argument("--no-commit", action="store_true",
+                          help="write the row, do not git commit")
+    p_ledger.set_defaults(func=cmd_ledger)
 
     register_git_subcommands(sub)  # claim / merge / env (git layer)
     return parser
@@ -8809,7 +9777,14 @@ def register_git_subcommands(sub) -> None:
             "rather than an unexplained \"none left\". A human-gates row it "
             "cannot read holds every item, since what it blocks is unknown: "
             "the report names the row and exits 1. A missing insights.md "
-            "is created from the template on the way through."))
+            "is created from the template on the way through. When the "
+            "item's spec exists and an Assumption names an item under its "
+            "## Dependencies, the claim names that assumption as pinning a "
+            "dependency's interface, to be re-checked before tests are "
+            "written; an engine-marked assumption and one already carrying a "
+            "re-check are not named, and a dependency that left the queue as "
+            "\u274c or \u23f8\ufe0f is named as having no code to check "
+            "against."))
     p_claim.add_argument("--queue", type=int, default=None,
                          help="queue number (default: the lowest-numbered open queue)")
     p_claim.add_argument("--base", default=None,
@@ -8819,15 +9794,66 @@ def register_git_subcommands(sub) -> None:
     p_claim.add_argument("--dry-run", action="store_true", help="print the pick, do not create/push a branch")
     p_claim.set_defaults(func=cmd_claim)
 
-    p_merge = sub.add_parser("merge", help="merge a validated item per git.mode")
+    p_merge = sub.add_parser(
+        "merge", help="merge a validated item per git.mode",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Lands the item's claim branch on its base per git.mode, re-runs "
+            "the suite and `aide check`, writes the \u2705 and appends one "
+            "ledger row.\n"
+            "\n"
+            "The row is one per item, in docs/aide/ledger.md \u2014 created "
+            "from .aide/templates/ledger.md the first time there is a row to "
+            "write, and committed together with the \u2705 so the two can "
+            "never disagree. Every cell is derived here: the item, its queue, "
+            "its stage, its kind \u2014 validate-stage from an item titled "
+            "`Validate stage N`, maintenance from an inbox entry ticked with "
+            "this item's number, else normal \u2014 how many acceptance "
+            "criteria its spec "
+            "carries, how many test functions and files the branch added "
+            "against the base this run resolved, the engine version and "
+            "today's date. The exceptions are --rounds and --findings, which "
+            "no document holds and only the caller has.\n"
+            "\n"
+            "A count nobody passed is a blank cell and never a 0 \u2014 an "
+            "unrecorded run must not read as a cheap one \u2014 and a cell "
+            "nothing could measure is blank for the same reason, so an item "
+            "whose spec or branch has gone still gets its row. Under pr mode "
+            "this verb pushes and stops, so it writes neither the tick nor a "
+            "row. A ledger write that fails is reported after the merge and "
+            "never changes the exit code: the merge landed, and capture is "
+            "worth a sentence rather than an item. An item stopped at the "
+            "validation-round cap never reaches this verb, and "
+            "`aide ledger abandon` writes its row instead.\n"
+            "\n"
+            "The finding cells read [loop] review, from aide.toml. Where it "
+            "is off no reviewer ran, so the three of them are written as `-` "
+            "rather than left blank, and a blank in them means a count that "
+            "should have been passed and was not. --findings passed anyway "
+            "under off wins over the mark, since a count is a claim its "
+            "caller made. Where review is on and --findings is absent the "
+            "run warns on stderr, writes the row and still exits 0. The "
+            "counts are of in-scope findings; one outside the item is an "
+            "insights.md line and no cell here."))
     p_merge.add_argument("number", type=int)
     p_merge.add_argument("branch", nargs="?", default=None, help="claim branch (default: found from number)")
     p_merge.add_argument("--base", default=None,
                          help="merge into this ref (default: what the claim "
                               "recorded, else main_branch)")
-    p_merge.add_argument("--no-test", action="store_true", help="skip the post-merge test run")
+    p_merge.add_argument("--no-test", action="store_true",
+                         help="skip the post-merge test run; the aide check "
+                              "gate beside it still runs, and an error in it "
+                              "still refuses the tick and the push")
     p_merge.add_argument("--no-commit", action="store_true",
-                         help="do not commit the progress.md status the merge records")
+                         help="do not commit the progress.md status the merge "
+                              "records, nor the ledger row beside it")
+    p_merge.add_argument("--rounds", type=_non_negative_argument, default=None,
+                         help="build\u2194validate rounds this item took, for "
+                              "the ledger row (absent: a blank cell)")
+    p_merge.add_argument("--findings", type=_findings_argument, default=None,
+                         help="review findings by rank for the ledger row: "
+                              "blocking=A,minor=B,nit=C \u2014 any subset, "
+                              "any order")
     p_merge.set_defaults(func=cmd_merge)
 
     p_env = sub.add_parser("env", help="venv health (exists, bootstrap finished, "
@@ -8930,6 +9956,16 @@ def register_git_subcommands(sub) -> None:
             "skipped. The base is --base if given, else the branch's recorded "
             "base, else main_branch; the two derived answers prefer "
             "origin/<base> over the local ref.\n"
+            "\n"
+            "Also warns, never fails, on traceability: every test function the "
+            "branch added under tests_dir must name an AC number the spec's "
+            "## Acceptance Criteria carries (ac3) or a case label its "
+            "## Testing Strategy names (the first word of a bullet, closed by a "
+            "colon: `empty-input: ...`); a test naming neither is reported as "
+            "one the spec did not ask for. A function present in the file at "
+            "the base is an edit, not an addition, and is not checked, a "
+            "renamed file being read under its old name; a spec with no "
+            "## Acceptance Criteria heading is a notice and no warnings.\n"
             "\n"
             "Exit 0: in scope, or nothing to check (a queue branch). 1: "
             "something changed outside it. 2: could not check (no spec, no "

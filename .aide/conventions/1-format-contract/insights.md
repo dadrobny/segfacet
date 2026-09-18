@@ -11,7 +11,14 @@ the end. Any role, at any time, appends **one line** and returns to its task:
 
 with `<type>` one of **knowledge** (document it), **defect** (fix it), **gap**
 (plan it), **automation** (a recurring manual/agent action deterministic code
-could replace — script it), **framework** (belongs to AIDE itself).
+could replace — script it), **framework** (belongs to AIDE itself). One
+entry is in scope by design: a review finding ranked *minor* (§9) that the
+triaging role chose to defer rather than fix on the branch, filed as a
+`defect` naming the item — it routes like any other `defect`, and it is the
+only line here that a role could have acted on in place. A line that records
+a review finding, in scope or out of it, opens its free text with the
+finding's rank (§9) — a word inside the one line, not a change to the entry's
+shape, and nothing parses it.
 
 **The file exists before a role needs it — the engine puts it there.**
 `aide check`, `aide claim`, `aide queue start` and `aide insights list` each
@@ -40,7 +47,7 @@ without one stays as captured.
 
 ```
 python .aide/scripts/aide.py insights list [--open] [--type T] [--trail]
-python .aide/scripts/aide.py insights tick N --pointer "<where it landed>"
+python .aide/scripts/aide.py insights tick N --pointer "<where it landed>" [--trail]
 python .aide/scripts/aide.py insights archive --before YYYY-MM-DD [--yes]
 python .aide/scripts/aide.py insights resolve [--dry-run]
 ```
@@ -69,7 +76,10 @@ status trail** — dated lines, indented under the entry, newest last:
 
 A single routing pointer may still be appended to the entry line itself
 (`- [x] … → <where it landed>`); the trail is what a *second* update goes in,
-and what an entry whose premise decayed needs.
+and what an entry whose premise decayed needs. An entry that **stays open**
+can carry a trail too — `tick N --trail --pointer` writes the dated line and
+leaves the checkbox alone, which is how a judgement that routes nothing (a
+duplicate, a reason it stays) is recorded without a hand edit.
 
 **What happens to a captured entry is two sections, read by the roles that
 perform them.** §1 → `insights-triage.md` fixes how an entry is routed and

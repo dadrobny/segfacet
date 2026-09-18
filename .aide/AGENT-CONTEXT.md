@@ -75,8 +75,9 @@ queue and item derived from it.
 
 ```
 python .aide/scripts/aide.py check | status | env | sync | claim | scope
-    | merge | gc | progress set/accept | gate list/approve/decline
-    | insights list/tick/archive | queue start/tidy
+    | merge | gc | progress set/accept/amend/retract/reword
+    | gate list/approve/decline | insights list/tick/archive/resolve
+    | queue start/tidy | ledger abandon
 ```
 
 Prefer the verb to hand-editing a document or improvising git: it is what keeps

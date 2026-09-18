@@ -91,16 +91,17 @@ you never edit the file by hand:
 A `framework` entry belongs to AIDE itself, not this project. If
 `[framework] repo` is set in `aide.toml` and `gh` is available, file it:
 `gh issue create --repo <owner/repo>` with a body carrying the observation and a
-proposal. This stays `ask`-gated (§3) — a human confirms. Otherwise leave the
-entry unchecked with a `(pending handover)` note.
+proposal. This stays `ask`-gated — `gh issue create` is on the `ask` list in
+`.claude/settings.json`, so a human confirms. Otherwise leave the entry
+unchecked with a `(pending handover)` note.
 
 **A `framework` issue body opens with the engine version the observation was
 made under** — the body's first line, before the observation
 (`.aide/conventions.md` §1 → `insights-triage.md`):
 
 ```
-**Project:** <this repo> (consumer). **Observed under engine X.Y.Z**
-(<item ref>, YYYY-MM-DD).
+**Project:** <consumer repo, or "a private consumer"> (consumer). **Observed
+under engine X.Y.Z** (<item ref>, YYYY-MM-DD).
 ```
 
 **Writing that header is the filing role's job; a form on the destination cannot
@@ -111,6 +112,34 @@ entry's own marker (`*(item 042, 2026-08-29, engine 1.22.0)*`). If the entry
 carries none, read `.aide/VERSION` and write it as *the version at triage time,
 not at capture* — and say so in the body. The framework repo cannot see this
 one, so an unmarked guess reads there as an observed fact.
+
+**The body carries what the framework can act on and nothing that identifies
+the consumer** — it should read the same had any other consumer raised it. You
+hold this project's whole working tree in context, so the line has to be drawn
+before you compose:
+
+- **Name the consumer by the least triage needs** — a public repo as
+  `owner/repo`, a private one as *a private consumer*: never its name, its
+  organisation, its URL, or a path that contains any of them.
+- **Speak in framework terms** — the verb, the lint, the `§N` section, the
+  template, the installed paths (`.aide/…`, `docs/aide/…`). **Describe
+  consumer-owned material by shape, never by copy** — source paths, module and
+  item titles, domain vocabulary, people, branch names, hostnames, commit
+  hashes.
+- **Never abstract the evidence** — the verb's output, the error text, the
+  document line that tripped a lint go in verbatim. **The shape rule still
+  applies inside the evidence, token by token**: the line's structure is what
+  is verbatim, and each consumer-owned token in it is replaced by a
+  placeholder that keeps its shape (`"Migrate billing-importer to Postgres"`
+  becomes `"<action> <module> to <store>"`). **Prefer a fixture reproduction** — a minimal `docs/aide/*`
+  shape of a few lines — over "run it on our repo".
+- **One observation per issue.** The title is framework-facing — the verb or
+  section, then the symptom — and provenance is the insight entry's number and
+  date, not a URL into the consumer.
+- **A human confirms the hand-over and sees the composed body whole before it
+  is filed.** Print the body in full at the `ask` gate rather than
+  summarising it: that confirmation is the last point a leak can be caught,
+  so it is the redaction check, and a summary of the body is not it.
 
 ### 5. Tick what you routed here, with the verb
 

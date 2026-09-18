@@ -27,8 +27,8 @@ pin the session model, so `/model sonnet` first if you're on Opus.
 
 | Step | Task | Sub-agent | Model | Notes |
 |---|---|---|---|---|
-| 0 | **Author the item spec** | `spec-author` | **Opus** | writes `docs/aide/items/NNN-*.md` (Description, atomic AC, steps, testing strategy, deps, decisions), commits. **No code, no tests.** Skip only if the spec file already exists and is complete. |
-| 1 | **Write tests** for the item | `test-writer` | Sonnet | reads spec + AC + existing test style, writes tests for every AC + adversarial cases, commits. **No production code, no pytest.** |
+| 0 | **Author the item spec** | `spec-author` | **Opus** | writes `docs/aide/items/NNN-*.md` (Description, atomic AC, steps, testing strategy, deps, decisions), commits. **No code, no tests.** Skip only if the spec file already exists and is complete — and its Assumptions pin no dependency's interface; if they do, it re-checks them (step 1). |
+| 1 | **Write tests** for the item | `test-writer` | Sonnet | reads spec + AC + existing test style, writes one test per AC plus the cases the Testing Strategy names, commits. **No production code, no pytest.** |
 | 2 | **Implement** production code | `builder` | Sonnet (→ Opus on 3rd attempt) | checkout branch, implement `source_dir` per every AC, record decisions, set progress in-progress (`aide progress set NNN in-progress`), commit. **No tests, no pytest.** |
 | 2b | **Review** the diff | `reviewer` | Sonnet | **only when `aide.toml` sets `loop.review = "background"`** (default `"off"`). Dispatched in the background the moment builder returns, concurrent with step 3 over the same branch. Reads the diff adversarially and reports findings; writes nothing, merges nothing. |
 | 3 | **Validate** (+ merge, unless held) | `validator` | Sonnet | a **different** agent: runs pytest, checks AC coverage + scope + vision fit, then on PASS reconciles via the CLI (`aide progress set NNN in-review`) and merges (`aide merge NNN` — `merge` writes the ✅ itself once the merge lands). **Under `loop.review = "background"` the merge is held**: it stops after the reconcile, reports PASS (merge held), and *you* merge once the review is discharged. **No new tests.** |
@@ -62,13 +62,36 @@ and stated canonically in `.aide/conventions.md` §3. A `PreToolUse` hook
    > **Do NOT write code or tests; do NOT run pytest.**
    > Return: spec path + the list of Acceptance Criteria.
 
+   **A spec that already exists may be stale on one point** (`.aide/conventions.md`
+   §5): an Assumption that pins the interface of an item under
+   `## Dependencies`. Such a pin was written before that item was built (the
+   batch-authored case), and the item is claimed now, so the dependency has
+   merged since — the pin is the whole signal, and no date is compared. `aide
+   claim` printed the pins when the item was claimed (a later `aide claim
+   --dry-run` picks the next unclaimed item, not this one, so it cannot
+   reprint the line — read the spec's Assumptions and Dependencies yourself
+   if the claim output is gone); where one names the other, brief the
+   `spec-author` to re-check instead of returning the criteria unread:
+   > The spec for AIDE item NNN exists on branch `aide/NNN-short-name` and its
+   > Assumptions pin item(s) <MMM>, which have since merged. Re-check every
+   > Assumption that pins their interface against the real code now on the
+   > base branch. Append a dated re-check to each — agreeing, or correcting it
+   > with the original left standing (§1 → items.md); never rewrite. Commit.
+   > Return: the Acceptance Criteria, and which Assumptions changed.
+
+   This runs **before** step 2, so no test is written from a stale pin. §5
+   names what is not a pin — an audit Assumption (a defensible default, an
+   engine version), one already re-checked, a dependency that left the queue
+   as ❌/⏸️ — so a resumed item is not re-checked twice.
+
 2. **Write tests → spawn a fresh `test-writer`.** Brief:
    > Write tests for AIDE item NNN on branch `aide/NNN-short-name`. The spec
    > (`docs/aide/items/NNN-*.md`) is committed. Read it for all Acceptance
-   > Criteria and Decisions; read `tests/` for style. Write tests covering every
-   > AC (named clearly) plus adversarial edge cases. Commit to the branch.
+   > Criteria, the Testing Strategy's named cases, and Decisions; read `tests/`
+   > for style. Write one test per AC (named for it) and one per named case
+   > (named for its label) — no others. Commit to the branch.
    > **Do NOT touch `src/` and do NOT run pytest.**
-   > Return: bullet list of AC → test-name mappings and adversarial scenarios.
+   > Return: bullet list of AC / case → test-name mappings.
 
 3. **Implement → spawn a fresh `builder`.** Brief:
    > Implement AIDE item NNN on branch `aide/NNN-short-name`. Spec and tests are
@@ -108,11 +131,15 @@ and stated canonically in `.aide/conventions.md` §3. A `PreToolUse` hook
    > Review the diff for AIDE item NNN on branch `aide/NNN-short-name`. The spec
    > is `docs/aide/items/NNN-*.md`. Read the diff adversarially for defects the
    > spec never anticipated. **Do NOT write code or tests, do NOT run pytest, do
-   > NOT merge or touch progress.md.** Findings in scope for this item are for
-   > the orchestrator to dispatch; out-of-scope ones are one `insights.md` line
-   > each.
+   > NOT merge or touch progress.md.**
+   > In scope means the finding is about what this diff did, in any file it
+   > touched — an edit to a path the spec never authorised is in scope too, and
+   > blocking. Those are for the orchestrator to dispatch. Anything about code
+   > this diff left alone is out of scope: one `insights.md` line each, opening
+   > with the rank word.
    > Return: findings, most-severe first, each with file, line, and the input or
-   > state that triggers it, and each triaged in scope / out of scope.
+   > state that triggers it, each triaged in scope / out of scope, and each
+   > carrying a proposed rank on the §9 scale — blocking, minor or nit.
 
    Hand it the contents of the repo's `REVIEW.md` in the prompt if one exists —
    a sub-agent inherits `CLAUDE.md`, not the review contract.
@@ -125,7 +152,7 @@ and stated canonically in `.aide/conventions.md` §3. A `PreToolUse` hook
    > tests.**
    > PASS: reconcile + merge via the CLI —
    > `python .aide/scripts/aide.py progress set NNN in-review` then
-   > `python .aide/scripts/aide.py merge NNN` (honours git.mode: direct-merge +
+   > `python .aide/scripts/aide.py merge NNN --rounds R` (honours git.mode: direct-merge +
    > branch cleanup + re-test for auto-merge, where a red re-test blocks the ✅
    > and the push and exits non-zero; push-and-stop for pr; local merge for
    > local). **`in-review`, never `done`** — ✅ means merged and is written by
@@ -133,6 +160,14 @@ and stated canonically in `.aide/conventions.md` §3. A `PreToolUse` hook
    > marking it done here is what once let the exhaustion sweep target an open
    > PR's head branch. FAIL: report which check failed and whether builder or test-writer
    > must fix it. Do not merge.
+
+   Substitute **R** with this dispatch's round number — 1 the first time,
+   and the count you are already keeping for the cap in step 6 on every
+   re-dispatch. The flag is what puts the round count in the ledger row
+   (`merge -h`); a brief that leaves R unsubstituted is a brief the validator
+   cannot act on. The validator never passes `--findings`: where it merges at
+   all, `loop.review` was `"off"` and no reviewer ran, so the engine marks
+   those three cells itself — they read `-`, not blank (§1 → ledger.md).
 
    **Under `loop.review = "background"`, add to that brief:**
    > A `reviewer` is reading this same diff concurrently. **The merge is held**:
@@ -147,27 +182,55 @@ and stated canonically in `.aide/conventions.md` §3. A `PreToolUse` hook
    - **FAIL — missing AC coverage** → fresh `test-writer`; then a fresh `validator`.
    - **FAIL — out-of-scope / vision conflict** → fresh `builder` to revert/fix;
      then a fresh `validator`.
-   - Cap at **3 validation rounds**. Still failing after round 3 → stop, document
-     the blocker in the item file, ask the user.
+   - Cap at **3 validation rounds**. Still failing after round 3 → record what
+     the item cost, stop, document the blocker in the item file, ask the user:
+     ```
+     python .aide/scripts/aide.py ledger abandon NNN --rounds 3
+     ```
+     No merge will ever write a row for this item, and this is the one a reader
+     at the queue boundary is looking for (`ledger -h`). It records; it decides
+     nothing about the item's status.
    - **Round-3 builder** (validator FAILed twice): spawn with `model: opus` and say
      "attempt 3, validator failed twice — hard defect, deeper analysis on Opus."
    - **PASS**, `loop.review = "off"` → the validator has reconciled progress and
      merged. Done.
    - **PASS (merge held)**, `loop.review = "background"` → wait for the reviewer
-     if it has not returned, then triage its findings (§9):
-     - **In-scope findings** → a fresh `builder` (production code) or
+     if it has not returned, then triage its findings (§9). Rank every one of
+     them as you triage it: the reviewer's rank is a proposal, this call is
+     yours, and where the repo's `REVIEW.md` ranks differently it wins. Keep a
+     running total per rank — it is what you pass to the merge.
+     - **Blocking, in scope** → a fresh `builder` (production code) or
        `test-writer` (tests) with the finding, then a fresh `validator`, merge
        still held. These are validation rounds and count against the cap.
+     - **Minor, in scope** → your call: the same dispatch (a validation
+       round, counted against the cap like any other), or one `insights.md`
+       `defect` line instead of it. Say which you chose and why.
+     - **Nit, in scope** → counted, and never worth a validation round of its
+       own. Fold it into whatever `builder` dispatch a blocking or minor
+       finding is already causing. If nits are all that is left, send them to
+       a `builder` on their own — a fresh one, or the one you last used if it
+       is still around — and when it returns, **merge: no `validator` and no
+       `reviewer` behind it, and nothing added to the round count.** A nit
+       that would change behaviour was ranked wrong; re-rank it and pay the
+       round.
      - **Out-of-scope findings** → the reviewer already appended them to
-       `insights.md`. Nothing to dispatch.
+       `insights.md`, whatever rank they carry. Nothing to dispatch.
      - **Nothing in scope left** → the review is discharged and both gates have
        passed, so merge deterministically yourself:
        ```
-       python .aide/scripts/aide.py merge NNN
+       python .aide/scripts/aide.py merge NNN --rounds <rounds this item took> \
+           --findings blocking=A,minor=B,nit=C
        ```
-       It honours `git.mode` and writes the ✅ itself. **A non-zero exit means
+       It honours `git.mode` and writes the ✅ itself; `--rounds` is the
+       count you kept for the cap and `--findings` the totals you kept while
+       triaging, and the two are what put those cells in the ledger row
+       (`merge -h`). A, B and C are in-scope findings only: one you sent to
+       `insights.md` is carried by that line and by no cell here. Substitute
+       them with your counts — a command left with its placeholders in it is
+       not a command. **A non-zero exit means
        the item did not land** — under `auto-merge` it re-runs the full suite and
-       a red re-run leaves the item 🔍 with nothing pushed; report it and stop
+       `aide check`, and a red re-run or a document error leaves the item 🔍
+       with nothing pushed; report it and stop
        rather than ticking anything by hand. Under `pr` it pushes and stops:
        leave the item 🔍 and report that it awaits review.
 

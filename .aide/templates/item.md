@@ -10,7 +10,7 @@
     - Authorised paths                [builder, validator, aide scope]
     - Testing Strategy                [test-writer]
     - Dependencies                    [aide claim]
-    - Decisions & Trade-offs          [builder, as it goes]
+    - Decisions & Trade-offs          [spec-author: Left open; builder, as it goes]
   Optional: Validation (how to observe the work beyond the tests; the
   validator executes it when present), and Environment / Hardware
   Dependencies (only for an item introducing an environment-gated capability
@@ -22,7 +22,7 @@
   read then replace. Delete this comment in the generated file,
   and keep the aide-template line below it.
 -->
-<!-- aide-template: item 1 -->
+<!-- aide-template: item 2 -->
 # Item {{nnn}} — {{title}}
 
 > **Created:** {{yyyy-mm-dd}} · status tracked in [`progress.md`](../progress.md)
@@ -41,7 +41,10 @@ what it is NOT (to fence scope)._
 ## Acceptance Criteria
 
 _Each criterion atomic, observable, and directly testable — one test per AC,
-no guessing. Split any compound "and/or" criterion._
+no guessing. Split any compound "and/or" criterion. Write a criterion only
+where the deliverable, or a consumer in the batch, would fail without it;
+conventions.md §1 → items says why, and where a deferred question goes
+instead (the `Left open` note below)._
 
 _A criterion about live state is worded as an equality its test can recompute
 from the primary source — the shapes that fail that bar, and why, are
@@ -58,8 +61,11 @@ annotation is earned is conventions.md §1 → items._
 
 _Under clarify mode `assume`, record each defensible default taken here (the
 validator surfaces them for audit). A spec written before a dependency is
-*implemented* pins that interface here as an assumption; the builder/validator
-hand back if reality diverged. Write "None." if the item was fully specified._
+*implemented* pins that interface here as an assumption — at the level this
+item reads it, through the producer's function or fixture where one exists
+(conventions.md §5); the builder/validator hand back if reality diverged, and
+the pin is re-checked at claim once the dependency has merged. Write "None."
+if the item was fully specified._
 
 _Name, in the bold label, the engine an assumption about **engine** behaviour
 was true for: `- **A3 (engine 1.28.1):** ...`. A merged spec is a record: a
@@ -70,7 +76,9 @@ later re-check is appended to that marker, never written over the assumption
 
 ## Implementation Steps
 
-_The intended code path in `source_dir` (see `aide.toml`). Ordered, specific._
+_The intended code path in `source_dir` (see `aide.toml`). Ordered, specific,
+and naming what it reuses: the existing helper a step calls rather than
+re-implements, and that no dependency is added._
 
 ## Authorised paths
 
@@ -97,9 +105,13 @@ glob is the carve-out rather than a double-listing._
 
 ## Testing Strategy
 
-_What to test: one focused test per AC, plus adversarial / edge cases (empty,
-degenerate, malformed, boundary, determinism, immutability). Name the test
-module._
+_Name the test module. One test per AC is written without being asked for;
+beyond that, list each adversarial case this item needs, as a label and the
+failure mode it guards — `empty-input: the walker yields nothing rather than
+raising`. The test-writer writes the AC tests and the cases listed here, and
+no others (conventions.md §6), so a case with no failure mode behind it is
+left out. A test of a producer's output reads that output through the
+producer's code or fixture, never a hand-built copy._
 
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 
@@ -156,3 +168,7 @@ capability:_
 ## Decisions & Trade-offs
 
 To be updated during implementation.
+
+_A question this item deliberately did not settle is one `**Left open:**`
+line here — the question and why it waits — so the next item finds it
+deferred rather than forgotten (conventions.md §1 → items)._

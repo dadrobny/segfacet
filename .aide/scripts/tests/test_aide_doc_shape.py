@@ -11,6 +11,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "aide.py"
 _spec = importlib.util.spec_from_file_location("aide_cli_shape", _MODULE_PATH)
 aide = importlib.util.module_from_spec(_spec)
@@ -902,3 +904,141 @@ def test_a_g_code_in_prose_does_not_satisfy_the_table(tmp_path: Path):
         encoding="utf-8")
     w = aide.root_document_warnings(d)
     assert len(w) == 1 and "G-code" in w[0]
+
+
+# --------------------------------------------------------------------------- #
+# the vision's optional build posture (issue #241)
+# --------------------------------------------------------------------------- #
+#: Enough of a progress.md for `run_checks` to get past its early returns —
+#: the posture warning is appended before them either way, so what matters here
+#: is only that the document set is reached at all.
+PROGRESS_MIN = """\
+# D — Progress
+
+> **Status:** Draft v1
+
+## Stage summary
+
+| Stage | Title | Status |
+|-------|-------|--------|
+| 0 | Foundations | 📋 |
+
+### Objective coverage
+
+| Objective | Status |
+|-----------|--------|
+| G1 Ship it | 📋 |
+
+## Stage 0 — Foundations — 📋
+
+**Deliverables.**
+
+- 📋 A walking skeleton. *(Item 001)*
+"""
+
+
+def _vision_with_posture(line: str) -> str:
+    """GOOD_VISION with *line* added to its header blockquote."""
+    return GOOD_VISION.replace("> **Status:** Draft v1",
+                               "> **Status:** Draft v1\n" + line)
+
+
+def test_a_vision_with_no_posture_line_is_silent(tmp_path: Path):
+    """Absence is the default (`prototype`), not an omission: warning about it
+    would ask every vision to state the value it already has."""
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    (d / "vision.md").write_text(GOOD_VISION, encoding="utf-8")
+    assert aide.vision_posture(GOOD_VISION) is None
+    assert aide.root_document_warnings(d) == []
+
+
+@pytest.mark.parametrize("line, value", [
+    ("> **Posture:** prototype", "prototype"),
+    ("> **Posture:** durable", "durable"),
+    ("> Posture: durable", "durable"),
+    ("> **Posture:** Durable", "Durable"),
+])
+def test_a_known_posture_is_read_and_is_silent(tmp_path: Path, line: str, value: str):
+    """Both values, and the line with or without the template's emphasis. The
+    value is returned as written — the check folds case, it does not rewrite."""
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    text = _vision_with_posture(line)
+    (d / "vision.md").write_text(text, encoding="utf-8")
+    assert aide.vision_posture(text) == value
+    assert aide.root_document_warnings(d) == []
+
+
+@pytest.mark.parametrize("status_line, value, warnings", [
+    ("> **Status:** Draft v1 · **Created:** 2026-01-01 · **Posture:** durable",
+     "durable", 0),
+    ("> **Status:** Draft v1 · **Posture:** prototype", "prototype", 0),
+    ("> **Status:** Draft v1 · **Posture:** balanced", "balanced", 1),
+    ("> **Status:** Draft v1 | **Posture:** durable", "durable", 0),
+])
+def test_a_posture_folded_onto_the_status_line_is_still_read(
+        tmp_path: Path, status_line: str, value: str, warnings: int):
+    """The template writes `**Status:** … · **Created:** …` on one line, so an
+    author who adds the posture to it is following the document's own shape. A
+    line-prefix reader returned None there — an explicit `durable` silently
+    became `prototype`, with no warning either: the one failure the line exists
+    to prevent, reintroduced by the reader."""
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    text = GOOD_VISION.replace("> **Status:** Draft v1", status_line)
+    (d / "vision.md").write_text(text, encoding="utf-8")
+    assert aide.vision_posture(text) == value
+    assert len(aide.root_document_warnings(d)) == warnings
+
+
+def test_an_unknown_posture_is_a_warning_naming_the_line(tmp_path: Path):
+    """The one failure the line itself cannot show: a typo taken for the
+    default would build less than the human asked for, silently."""
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    (d / "vision.md").write_text(_vision_with_posture("> **Posture:** balanced"),
+                                 encoding="utf-8")
+    w = aide.root_document_warnings(d)
+    assert len(w) == 1, w
+    assert w[0].startswith("vision.md: the header's Posture line reads 'balanced'")
+    assert "prototype" in w[0] and "durable" in w[0]
+
+
+def test_an_empty_posture_value_is_warned_about_too(tmp_path: Path):
+    """A line left as a label is not an absent line: the author meant to state
+    a posture and did not."""
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    text = _vision_with_posture("> **Posture:**")
+    assert aide.vision_posture(text) == ""
+    (d / "vision.md").write_text(text, encoding="utf-8")
+    w = aide.root_document_warnings(d)
+    assert len(w) == 1 and "Posture" in w[0]
+
+
+def test_a_posture_named_in_prose_below_the_header_is_not_the_line(tmp_path: Path):
+    """The line lives in the header blockquote; a quotation in a later section
+    is prose about the posture, not a declaration of one."""
+    text = GOOD_VISION.replace("- **Determinism.** Same input, same output.",
+                               "- **Determinism.** Same input, same output.\n\n"
+                               "> **Posture:** balanced")
+    assert aide.vision_posture(text) is None
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    (d / "vision.md").write_text(text, encoding="utf-8")
+    assert aide.root_document_warnings(d) == []
+
+
+def test_the_posture_warning_reaches_aide_check_as_a_warning(tmp_path: Path):
+    """The unit test above would survive the call being dropped from
+    `run_checks`; this is the half that proves a consumer sees it — and that it
+    is a warning, which never moves the exit code."""
+    repo = _repo(tmp_path)
+    d = repo / "docs" / "aide"
+    (d / "vision.md").write_text(_vision_with_posture("> **Posture:** thorough"),
+                                 encoding="utf-8")
+    (d / "progress.md").write_text(PROGRESS_MIN, encoding="utf-8")
+    errors, warnings = aide.run_checks(repo, _cfg(repo))
+    assert any("Posture line reads 'thorough'" in x for x in warnings), warnings
+    assert not any("Posture" in x for x in errors), errors

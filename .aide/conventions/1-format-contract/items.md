@@ -92,6 +92,21 @@ shapes fail that:
   mapping under either, and a criterion whose check the evidence cannot name
   is one nobody has yet closed.
 
+**An acceptance criterion is written only when something fails without it:
+the item's own deliverable, or a declared consumer in the batch that reads what
+it pins.** *(spec-author, spec-reviewer)* One test per criterion is the floor
+and the ceiling of what the item's tests cover (§6), so a criterion that
+neither the deliverable nor a consumer needs buys a test and nothing else. A
+criterion with neither is not written. **Under `durable` (§1 → vision.md) a
+consumer a later stage will have counts as one; under `prototype`, the
+default, only a consumer declared in the batch does.** The posture changes
+which consumers count, never what a criterion may claim. **What was
+deliberately left undecided goes in one short `Left open` note under Decisions
+& Trade-offs** — one line, `- **Left open:** <the question, and why this item
+did not settle it>` — so the next item finds the decision deferred rather than
+forgotten. The queue is bounded the same way, by the posture table's
+`queue-planner` row.
+
 #### Rationale
 
 - **Why an assumption names its engine.** A spec outlives its branch and the
@@ -133,3 +148,13 @@ shapes fail that:
   basis into `progress.md` permanently, so a reader can tell the two apart,
   and it is a sentence nobody writes by accident on a spec that could have
   carried the annotation.
+- **Why a criterion needs a reason.** Every gate in the item loop pushes
+  toward more and none toward less: the validator FAILs an uncovered
+  criterion, and a superfluous one — an AC the deliverable never needed, a
+  shape pinned that no consumer reads — fails nothing. Measured across
+  consumers on engine ≤ 1.54.1 (issue #242), that asymmetry produced item
+  specs whose criteria outran the deliverable and suites in the thousands
+  within a few queues. Stating the justification where the criterion is
+  written is the counter-gate; the `Left open` note is what keeps "not
+  written" from reading as "not considered" — the choice was made, and it is
+  on record where the builder of the next item looks.

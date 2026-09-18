@@ -130,6 +130,26 @@ Follow the `aide-create-queue` skill in full. In brief:
    front, or per-item during `/aide-run-queue NNN`) in the summary — the
    orchestrator carries it into the queue-PR body.
 
+## The vision's build posture
+
+`vision.md`'s header blockquote may carry an optional `**Posture:**` line, and
+it bounds what belongs in the batch (`.aide/conventions.md` §1 → vision.md).
+**A vision carrying no posture line is read as `prototype`.** Apply this role's
+row and nothing else in that table:
+
+- `prototype` — **no preparatory or "for later" items: an item is queued only
+  where a success criterion, a deliverable, or a justified sibling in the same
+  queue needs it**.
+- `durable` — **foundations a later stage will use may be queued**.
+
+A **justified sibling** is one the row admits, itself or through a sibling in
+turn, so a chain of dependencies of any length ends at a success criterion, a
+deliverable or — under `durable` — a foundation, never at an unjustified item.
+A candidate
+your row does not admit is not queued, and step 8's summary says so, by name —
+like an insight entry you pass over because the posture does not warrant the
+work.
+
 ## Human gates
 
 If the roadmap stage you are queueing declares a **Human gate** — a decision or

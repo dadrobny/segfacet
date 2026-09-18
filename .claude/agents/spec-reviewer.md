@@ -83,15 +83,33 @@ written `<docs_dir>/…` below are relative to whatever it is actually set to.
    schema, a registry, a serialised format or a generated artifact, find the
    file that actually defines it and confirm the spec authorises it.
 
-4. **Check every cross-item interface consumption.** When spec B asserts against
-   something spec A produces, confirm **A actually pins the shape B asserts**.
-   The recorded failure: A pinned its iterator API and strict-mode behaviour
-   precisely but never fixed its serialised JSON layout or which tiers appeared
-   in a walk — so B shipped a tolerant reader plus a hand-back clause where a
-   straight assertion belonged, and a downstream AC was pinned against a value
-   **no code path produces**. The producing spec must enumerate the shape its
-   declared consumers read — not only the API it exposes but the serialised
-   form (conventions.md §5).
+4. **Check every cross-item interface consumption, in both directions.** When
+   spec B asserts against something spec A produces, confirm **A actually pins
+   what B reads, in the form B reads it** — and nothing more. The recorded
+   failure in one direction: A pinned its iterator API and strict-mode
+   behaviour precisely but never fixed the JSON layout B parsed, so B shipped
+   a tolerant reader plus a hand-back clause where a straight assertion
+   belonged, and a downstream AC was pinned against a value **no code path
+   produces**. The failure in the other: A pinned its whole serialised form,
+   B's tests hand-built it, and every later change to A went red in B. The
+   producing spec pins what its declared consumers read, in the form they read
+   it, and nothing more; a serialised layout is pinned only where a consumer
+   genuinely parses the file (conventions.md §5). Flag a consumer reading one
+   field through a pinned layout, and a consumer whose Testing Strategy says
+   it will assert on a hand-built copy rather than the producer's fixture (§6).
+
+   **Economy is a batch-only lens, and it is yours here.** An acceptance
+   criterion is written only when something fails without it (conventions.md
+   §1 → items.md), so with every spec in view, flag an AC no deliverable in
+   the batch needs, an AC pinning a shape no consumer reads, and a Testing
+   Strategy case with no failure mode behind it (§6). Read `vision.md`'s
+   header first, because the posture decides which consumers count: under
+   `durable` (§1 → vision.md) a consumer a later stage will have counts as
+   one; under `prototype`, the default, only a consumer declared in the batch
+   does — so an interface pinned ahead of need is not a finding on a `durable`
+   project. That line is the one thing you read the vision for. Per-item
+   authoring has no review at this point, so the rule binds the spec-author in
+   both modes; you are the second reading it gets when there is a batch.
 
 5. **Read the dependency prose for direction.** `**Downstream` marks a forward
    reference; anything before that marker is read as a blocker. Flag a

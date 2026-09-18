@@ -10,13 +10,14 @@ identical across modes.
 
 - **`auto-merge`** (default) — claim branch pushed; on validator PASS `aide merge`
   direct-merges to `main`, deletes the claim branch, then re-runs the test
-  command. That run is a **gate**: green earns the ✅ and the push, red leaves
-  the merge local, the item 🔍 and the claim branch back where it was, and says
-  so.
+  command and `aide check`. Both are a **gate**: green earns the ✅ and the
+  push, red leaves the merge local, the item 🔍 and the claim branch back where
+  it was, and says so. For `aide check` only an error is red; a warning is
+  reported and never blocks.
 - **`pr`** — claim identical; on PASS `aide merge` pushes the branch and **stops**
   ("open a PR"). The human opens the PR (`gh pr create` stays `ask`-gated).
 - **`local`** — no pushes at all (offline). Claim is a local branch only (no
-  multi-machine signal); merge is local into `main`.
+  multi-machine signal); merge is local into `main`, behind the same gate.
 
 **The mode also decides what kind of CI gate can see a claim branch — pick it for
 that too.** Per-item scope is checked as each claim branch merges (§1). Whether a
@@ -79,6 +80,16 @@ tag, a raw commit or a remote-tracking ref (`origin/main`) is refused.
 
 - **Why the claim branch goes before the gate run.** So the run sees what a
   fresh clone sees.
+- **Why `aide check` is part of the gate.** Nothing else in the loop ran it
+  mechanically: a consumer's ✅ stage over ⏸️ deliverables — an error — sat on
+  its base for two weeks until an engine update surfaced it, and a consumer
+  without its own test pinning the check would never have seen it (issue
+  #232). The merge is the one seam every item crosses whether or not a
+  validator ran. It reads the whole document set rather than the item's diff,
+  so an error already on the base blocks too; telling the two apart would mean
+  checking the base as well, and an unattended run that lands items over a
+  broken document set is the failure being fixed. Warnings never block,
+  because some are permanent by design (a retracted criterion, issue #152).
 - **Why a CI gate can decay silently.** With no PR a PR-context scope job
   either never triggers, or triggers on a branch whose name yields no item
   number and correctly skips — so a gate can decay from a mode change alone,

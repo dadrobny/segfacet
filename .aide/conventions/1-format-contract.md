@@ -58,7 +58,7 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 
 | `§1 → …` | File | What it fixes |
 |---|---|---|
-| `vision.md` | [`vision.md`](1-format-contract/vision.md) | The root document's four mandatory sections, and what each is read for |
+| `vision.md` | [`vision.md`](1-format-contract/vision.md) | The root document's four mandatory sections, what each is read for, and the optional build posture the authoring roles apply |
 | `roadmap.md` | [`roadmap.md`](1-format-contract/roadmap.md) | The staged plan: its mandatory shape, and why a started stage is not re-edited |
 | Status icons | [`status-icons.md`](1-format-contract/status-icons.md) | The only six icons, their ranks, and the three structural positions they are read at |
 | `progress.md` | [`progress.md`](1-format-contract/progress.md) | The single source of truth for status — objectives, stages, deliverable bullets, outcome targets |
@@ -69,6 +69,7 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 | `insights.md` | [`insights.md`](1-format-contract/insights.md) | The compound-engineering inbox every role appends to: entry shape, the verbs, immutability |
 | Insight triage | [`insights-triage.md`](1-format-contract/insights-triage.md) | Routing an entry by type, judging it, handing a `framework` entry over |
 | The maintenance queue | [`insights-maintenance-queue.md`](1-format-contract/insights-maintenance-queue.md) | Insight-derived fixes, queued ahead of the stage queue |
+| `ledger.md` | [`ledger.md`](1-format-contract/ledger.md) | The run ledger: one row per item worked, what it cost and what it added, written by the verbs that end an item |
 | Human gates | [`human-gates.md`](1-format-contract/human-gates.md) | The table that blocks an item until a person decides |
 | Environment-gated capabilities | [`environment-gated-capabilities.md`](1-format-contract/environment-gated-capabilities.md) | Declaring a capability the loop's own machine cannot verify |
 

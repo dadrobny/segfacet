@@ -19,7 +19,7 @@ Read the section you were pointed at; nothing here expects a top-to-bottom read.
 | 6 | [Test hygiene](conventions/6-test-hygiene.md) | Portability, and tests that can actually fail. Runtime-general, like §3 |
 | 7 | [Off-platform verification](conventions/7-off-platform-verification.md) | No role in this loop sees a non-Linux checkout or real CI status; this is how to look at the gate that does |
 | 8 | [Reaching into another repository](conventions/8-sibling-repos.md) | A repository's own instructions bind for work inside it |
-| 9 | [Review and validation](conventions/9-review-and-validation.md) | Two different reads of one diff: what each answers, why neither covers for the other, and how a finding triages. Runtime-general, like §3 and §6 |
+| 9 | [Review and validation](conventions/9-review-and-validation.md) | Two different reads of one diff: what each answers, why neither covers for the other, and how a finding triages and ranks. Runtime-general, like §3 and §6 |
 
 Sections are **runtime-general**: an adapter delivers them to its own agents by
 whatever mechanism it has, and never restates a rule as its own. Each section is

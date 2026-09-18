@@ -74,7 +74,9 @@ project-agnostic; never assume a specific path or package name.
    decision once a role with standing has made it — not instead of handing
    back.
 4. **Record decisions** back into the item spec's "Decisions & Trade-offs"
-   section. Edit only that section — do **not** add any status field to the item
+   section. Edit only that section, and append: a `**Left open:**` line the
+   spec-author wrote there is a deferred decision the next item reads, so it
+   stays. Do **not** add any status field to the item
    header; implementation status lives solely in `progress.md`.
 5. **Set progress to in-progress** for this item via the CLI (it flips the row,
    pull-rebases, and commits):
