@@ -21,6 +21,15 @@
 >
 > *(Superseded run order, 2026-09-03: 30 → 20 (remainder) → 27 → 21 → 16.)*
 
+> **Build posture (2026-09-18).** [`vision.md`](vision.md) carries
+> `**Posture:** prototype` from engine 1.59.0 on (`.aide/conventions.md` §1 →
+> vision.md): a stage is built only where a success criterion needs it, a queue holds
+> no preparatory or "for later" items, and an item spec carries acceptance criteria
+> for its own deliverable only. The planned stages were written before the line
+> existed and are read through it. The run order above is unchanged. What the posture
+> changes is recorded as a dated annotation at the top of each stage it touches:
+> Stage 21, Stages 22–25, Stage 27 and Stage 32's D0. Started stages are untouched.
+
 > **Reading older annotations.** Sections below that cite `vision.md` §0 refer to v2's
 > supersession note of 2026-07-25, which v3 retired; that text is recoverable from git
 > history (v2 at commit `c519608`). A stage's supersession is marked **both** in the
@@ -994,6 +1003,11 @@ state, not a defect.
 
 ## Stage 21 — Real-GT Perturbation Corpus (G3, G7)
 
+> **Build posture, 2026-09-18.** The acceptance below stands as written. Under the
+> `prototype` posture the stage's first queue calibrates the rules that serve the modes
+> Stage 32 refined, on a rung-2 corpus sized for that. Rules serving modes left as
+> documented drafts are calibrated when their mode is picked up, not ahead of it.
+
 **Goal.** Move calibration off hand-crafted geometry. The current corpus is built from
 synthetic fixtures (`synth/clean_gt.py`) — five stacked lumbar blocks at 1 mm isotropic.
 Thresholds fitted against that geometry are fitted against a shape no real spine has, and
@@ -1036,6 +1050,12 @@ harness — the new corpus is exactly what the ratchet is there to police).
 ---
 
 ## Stages 22–25 — placeholders (authored at the full re-vision)
+
+> **Build posture, 2026-09-18.** Not queueable. These four hold numbers and name
+> dependencies, nothing more. Under the `prototype` posture none of them is staged,
+> queued or prepared for until a success criterion or an unmet Outcome target needs
+> it and the measurements it depends on exist. An item whose only justification is
+> one of these stages is a "for later" item and is not queued.
 
 > Recorded so numbering is stable and dependencies can be named. **Deliberately not
 > specified**: each depends on measurements that do not exist yet, and a stage written
@@ -1152,6 +1172,17 @@ prerequisite for any real-data claim (Stages 16/21).
 ---
 
 ## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8)
+
+> **Build posture, 2026-09-18 (maintainer decision): the stage stays, and stays
+> lean.** The deliverables and acceptance below are unchanged. What the `prototype`
+> posture bounds is how much is built to meet them. The taxonomy is one short design
+> note, not a survey. The migration moves the record to the new shape and regenerates
+> the catalogue, with the existing drift test as its safety net and no new test
+> scaffolding beyond what the acceptance bullets need. Of the "known instances", the
+> design must *answer* each one, and an answer may be "left as is, for this reason". A
+> vertebra coordinate system and a generalised reference-delta are built here only if
+> the design shows the taxonomy cannot be stated without them. Nothing is built for
+> Stages 23 or 24, which are placeholders.
 
 **Goal.** Give the feature record a **deliberately designed structure** in place of the
 current one, which groups fields by *which extractor module happened to compute them*.
@@ -1857,6 +1888,17 @@ that turns out not to reach the bar is recorded as such, not forced.
   built **first**, so from the first refinement item on, every change in what fires is
   either authored in the specification or fails the suite. A co-detection is allowed only
   where the specification records it.
+  **Build posture, 2026-09-18.** Item 139's preserved spec
+  ([`items/139-per-rule-and-per-operator.md`](items/139-per-rule-and-per-operator.md),
+  authored 2026-09-03 for queue-019) carries 33 acceptance criteria written against
+  the pre-sign-off catalogue and the pre-1.56.0 contract. It is **re-authored from
+  item template 2, not re-checked or amended**: acceptance criteria for the exercise
+  report's own deliverable only, and a Testing Strategy that names each extra case
+  with a label and the failure mode it guards, since the test-writer writes one test
+  per criterion plus the labelled cases and nothing else (§6). Its recorded
+  measurements are inputs to the new spec. Item 140 has no spec yet and is authored
+  to the same bound. Both are justified siblings of the first refinement item, which
+  is what lets them lead its queue under the `prototype` posture.
 - **D1 — the MVP mode.** At least one maintainer-selected mode brought to the bar above
   and signed off.
 - **D2 — further selected modes, optional.** Any other modes the maintainer selects,

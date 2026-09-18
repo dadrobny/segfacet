@@ -6,6 +6,15 @@
 > **Objectives:** G2 (every registered rule exercised by ≥1 case or recorded unexercised with its mechanism), G7 (honest reporting — a measured exercise count, not a transcribed one)
 > **Suggested branch:** `aide/139-per-rule-and-per-operator`
 
+> **Superseded as a build input, 2026-09-18.** This spec was authored for queue-019
+> and never built (deferred 2026-09-03). It predates the item-150 sign-off that
+> re-keyed the failure-mode catalogue, and engine 1.56.0's rule that a criterion is
+> written only where something fails without it. Roadmap Stage 32 D0 has item 139
+> **re-authored from item template 2** when its queue is planned. A spec author
+> claiming item 139 replaces this document rather than re-checking its Assumptions.
+> The measurements recorded below remain valid inputs. The text is kept as the
+> record of what was planned on 2026-09-03.
+
 ---
 
 ## Description
