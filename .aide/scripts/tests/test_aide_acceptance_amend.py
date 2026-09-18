@@ -230,3 +230,87 @@ def test_a_stage_with_no_acceptance_block_is_not_an_error():
     out, err = aide.reword_roadmap_bullet(
         "# R\n\n## Stage 1 — Foundations\n\nProse only.\n", "1", 1, "x", 2)
     assert out is None and err is None
+
+
+# --------------------------------------------------------------------------- #
+# a wrapped box is its first line plus its continuation lines (issue #237)
+# --------------------------------------------------------------------------- #
+WRAPPED = """\
+# P
+
+## Stage 1 — Foundations — 🚧
+
+**Acceptance.**
+- [ ] No consumer distinguishes a clean control from a condition-only case by
+  `failure_mode == 0` alone.
+- [ ] The CLI reports a non-zero exit on failure.
+"""
+
+
+def _boxes(text: str) -> list:
+    return [l for l in text.split("**Acceptance.**", 1)[1].splitlines() if l.strip()]
+
+
+def test_accept_evidence_lands_on_a_wrapped_boxs_last_line():
+    """The consumer's shape: every box wrapped at ~90 columns. The annotation
+    landed mid-sentence, between the first line and its continuation."""
+    out, _ = aide.accept_criteria(WRAPPED, "1", [1], evidence="AC12 verified")
+    assert _boxes(out)[:2] == [
+        "- [x] No consumer distinguishes a clean control from a condition-only case by",
+        "  `failure_mode == 0` alone. *(AC12 verified)*",
+    ]
+
+
+def test_amend_lands_below_a_wrapped_boxs_continuation_not_inside_it():
+    ticked, _ = aide.accept_criteria(WRAPPED, "1", [1], evidence="AC12 verified")
+    out, _ = aide.amend_criterion(ticked, "1", 1, "AC10 replayed", "2026-09-17")
+    assert _boxes(out)[:3] == [
+        "- [x] No consumer distinguishes a clean control from a condition-only case by",
+        "  `failure_mode == 0` alone. *(AC12 verified)*",
+        "  - **2026-09-17** → AC10 replayed",
+    ]
+
+
+def test_retract_reads_back_from_under_a_wrapped_box():
+    """The trail scan starts below the box's last wrapped line, so a
+    retraction under a wrapped box is found by `check` and `status`."""
+    ticked, _ = aide.accept_criteria(WRAPPED, "1", [1], evidence="AC12 verified")
+    out, _ = aide.retract_criterion(ticked, "1", 1, "AC12 was a dry run", "2026-09-18")
+    assert _boxes(out)[:3] == [
+        "- [ ] No consumer distinguishes a clean control from a condition-only case by",
+        "  `failure_mode == 0` alone. *(AC12 verified)*",
+        "  - **2026-09-18** → retracted: AC12 was a dry run",
+    ]
+    assert aide.retracted_criteria(out.splitlines()) == [
+        ("1", 1, "2026-09-18", "AC12 was a dry run")]
+
+
+def test_reword_replaces_every_line_of_a_wrapped_box():
+    out, old = aide.reword_criterion(WRAPPED, "1", 1, "One line now.")
+    assert _boxes(out) == ["- [ ] One line now.",
+                           "- [ ] The CLI reports a non-zero exit on failure."]
+    assert old == ("No consumer distinguishes a clean control from a "
+                   "condition-only case by `failure_mode == 0` alone.")
+
+
+def test_reword_refuses_an_annotation_on_a_wrapped_boxs_last_line():
+    ticked, _ = aide.accept_criteria(WRAPPED, "1", [1], evidence="AC12 verified")
+    unticked, _ = aide.retract_criterion(ticked, "1", 1, "no", "2026-09-18")
+    with pytest.raises(ValueError, match="annotation"):
+        aide.reword_criterion(unticked, "1", 1, "x")
+
+
+def test_a_bullet_under_a_box_is_never_read_as_its_continuation():
+    """Only an indented non-bullet line continues a box; a trail line is
+    the trail, and it is found even when the box does not wrap."""
+    lines = WRAPPED.splitlines()
+    end = len(lines)
+    boxes = aide.acceptance_boxes(lines, 0, end)
+    assert aide.acceptance_box_last(lines, boxes[0], end) == boxes[0] + 1
+    assert aide.acceptance_box_last(lines, boxes[1], end) == boxes[1]
+    ticked, _ = aide.accept_criteria(PROGRESS, "1", [2])
+    amended, _ = aide.amend_criterion(ticked, "1", 2, "note", "2026-09-17")
+    a = amended.splitlines()
+    b = aide.acceptance_boxes(a, 0, len(a))[1]
+    assert aide.acceptance_box_last(a, b, len(a)) == b
+    assert aide.acceptance_box_trail(a, b, len(a)) == [b + 1]

@@ -63,6 +63,17 @@ incomplete:
 
 Style, naming, and refactoring suggestions are Nit at most.
 
+Inside the item loop a finding is also ranked on the three-rank scale of
+`.aide/conventions.md` §9, which lets this file re-rank. An Important
+finding about the item's own diff is *blocking*. A Nit is a *nit*. *Minor*
+is what sits between: a true defect in the item's diff that leaves every
+result right, such as an error message naming the wrong cause, a docstring
+stating behaviour the code does not have, or a test that passes for a
+weaker reason than its name claims. The sentence above still holds: style,
+naming and refactoring are never more than a nit. A finding about
+code the diff did not touch stays one `docs/aide/insights.md` line
+whatever its rank.
+
 ## Do not report
 
 - Anything under `.aide/` or `.claude/` — installed framework files,

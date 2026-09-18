@@ -1,7 +1,8 @@
-<!-- aide-template: vision 1 -->
+<!-- aide-template: vision 2 -->
 # FACET — Project Vision
 
 > **Status:** v4 (draft 2026-09-16) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-16
+> **Posture:** prototype
 > Step 1 of the AIDE loop · the root document: [`roadmap.md`](roadmap.md),
 > [`progress.md`](progress.md), every queue and every work item derive from this.
 > Its guiding principles, out-of-scope list and success criteria are the mandatory

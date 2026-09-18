@@ -90,6 +90,24 @@ entire loop, indefinitely.
   pass `errors="replace"` when you do not — then assert the value is there
   before asserting anything about it.
 
+**What the item's tests are.**
+
+- **One test per acceptance criterion is the floor and the ceiling, unless
+  the spec's Testing Strategy names the case.** The Testing Strategy names
+  each adversarial case with the failure mode it guards; the tests an item
+  adds cover every criterion and every named case, **and no other**. A test's
+  name says which it covers — the criterion's number (`ac3`) or the label the
+  Testing Strategy gave the case — so the link is readable without the spec.
+  Depth is the spec author's decision, made where the deliverable and the
+  posture (§1 → vision.md) are known; a test with no criterion and no named
+  case behind it is a test nobody asked for — `aide scope` warns on one
+  (`aide scope -h` states the grammar).
+- **A consumer test never hand-builds a producer's serialised form.** It
+  obtains the form from the producer's code, or from a fixture the producer's
+  item ships, and asserts on what it reads — so when the shape changes, one
+  test changes. A literal of another item's output written into this item's
+  test is a second copy of that shape, and it is the copy that goes red.
+
 **Tests that can actually fail.**
 
 - **Prefer calling the function over shelling out to the command that calls

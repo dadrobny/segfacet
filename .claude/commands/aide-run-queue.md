@@ -66,8 +66,9 @@ stranded otherwise.
    already ✅/❌, skip it; if 🚧 or 📋, it is unfinished.
 4. For each unfinished item (item-number order), hand it to **`/aide-run-item NNN
    aide/NNN-short-name`**. `/aide-run-item` is itself resumable — its spec-author
-   step no-ops if the spec exists, and the validate/build cycle picks up from
-   whatever is already committed — so just run it.
+   step returns an existing spec, re-checking a pinned dependency's interface
+   first (that command's step 1, once per pin), and the validate/build cycle
+   picks up from whatever is already committed — so just run it.
 5. Process each resumed item to PASS+merge (or a user-stop) before claiming new
    work below.
 

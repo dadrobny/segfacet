@@ -27,6 +27,18 @@ the vision leaves a sequencing decision open — what to build first, where a
 phase boundary falls, which objective a stage prioritises — ask the human
 rather than assuming, and present the result as a draft for review.
 
+### The vision's build posture
+
+Read the header blockquote's optional `**Posture:**` line before staging
+(`.aide/conventions.md` §1 → vision.md). **The posture says how much to build,
+and the roles that apply it are the three that author a document from the
+vision** — this one among them, and **a vision carrying no posture line is read
+as `prototype`**. Apply this role's row and nothing else in the table:
+
+- `prototype` — **fewer stages: a stage only where a success criterion needs
+  one**.
+- `durable` — **stages and sections as the vision earns them**.
+
 ### Updating an existing roadmap
 
 Which stages may change, and how, is `.aide/conventions.md` §1 → roadmap.md —

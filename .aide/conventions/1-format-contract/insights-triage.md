@@ -55,8 +55,8 @@ triage as much as routing is.
 made under** — first line, before the observation:
 
 ```
-**Project:** <consumer repo> (consumer). **Observed under engine X.Y.Z**
-(<item ref>, YYYY-MM-DD).
+**Project:** <consumer repo, or "a private consumer"> (consumer). **Observed
+under engine X.Y.Z** (<item ref>, YYYY-MM-DD).
 ```
 
 Take the version from the entry; if the entry has none, read the consumer's
@@ -64,6 +64,38 @@ current `.aide/VERSION` and say in the body that it is *the version at triage
 time, not at capture* — an unmarked fallback is worse than none, because it
 reads as an observed fact. **Writing that header is the filing role's job; a
 form on the destination cannot reach it.**
+
+**The body carries what the framework can act on and nothing that identifies
+the consumer.** The test is one sentence: the issue reads the same had any
+other consumer raised it.
+
+- **Name the consumer by the least triage needs** — a public repo as
+  `owner/repo`, a private one as *a private consumer*: never its name, its
+  organisation, its URL, or a path that contains any of them.
+- **Speak in framework terms** — the verb, the lint, the `§N` section, the
+  template, the installed paths (`.aide/…`, `docs/aide/…`); those are the same
+  in every install.
+- **Describe consumer-owned material by shape, never by copy** — source paths,
+  module and item titles, domain vocabulary, people, branch names, hostnames,
+  commit hashes.
+- **Never abstract the evidence** — the verb's output, the error text, the
+  document line that tripped a lint go in verbatim; a redacted error cannot be
+  acted on. **The shape rule still applies inside the evidence, token by
+  token**: the line's structure is what is verbatim, and each consumer-owned
+  token in it is replaced by a placeholder that keeps its shape, so
+  `docs/aide/queue-018.md:42: item title "Migrate billing-importer to
+  Postgres" exceeds 80 chars` is filed as `docs/aide/queue-018.md:42: item
+  title "<action> <module> to <store>" exceeds 80 chars`.
+- **Prefer a fixture reproduction** — a minimal `docs/aide/*` shape of a few
+  lines — over "run it on our repo", which the framework cannot do.
+- **One observation per issue**; a second finding is a second issue.
+- **Provenance is the insight entry's number and date**, not a URL into the
+  consumer.
+- **The title is framework-facing** — the verb or section, then the symptom;
+  no consumer name.
+- **A human confirms the hand-over and sees the composed body whole before it
+  is filed.** That confirmation is the last point a leak can be caught, so it
+  is the redaction check, and a summary of the body is not it.
 
 **When triage happens depends on the destination.** `knowledge`, `defect`,
 `gap` and `automation` all land in this project — a document it owns, or a
@@ -91,6 +123,17 @@ queue, so a `framework` entry may be triaged **on capture or on demand**.
   handover files. The cost of writing it is nothing, because the consumer
   already holds the fact — in the entry's own marker, or one read of
   `.aide/VERSION` away.
+- **Why the body carries no consumer identity.** The issue outlives the
+  consumer and is triaged in a repo that cannot see it, so a name in the body
+  has no reader who needs it — and the consumers that have run the loop so far
+  are private repositories. A filing role holds the whole insight entry, the
+  item spec and the working tree in context, and copies what it sees unless
+  told which half is the framework's; before this rule the header shape itself
+  asked for the repo's name. The redaction test is not `vision.md`'s test of
+  whether a fix is the engine's — whether the next consumer, on a different
+  codebase, hits the same thing — but it is what lets that test be applied
+  from the issue alone: a body that reads the same from any consumer is one
+  the framework can judge without knowing which consumer it came from.
 - **Why `framework` entries need not wait.** Routing them through the boundary
   too means the inbox accumulates for exactly as long as a queue runs, and a
   long queue is normal.

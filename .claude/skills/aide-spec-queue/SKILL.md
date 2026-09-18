@@ -39,15 +39,17 @@ lowest-numbered one with open items).
    together to respect the user's time), and encode the answers. When run as an
    orchestrator, spawn a fresh `spec-author` per item with "clarify mode:
    interactive" in its brief and relay its questions to the user.
-4. **Pin cross-item interfaces as Assumptions — from both ends.** These specs
-   are written before their dependencies are *implemented*, so every interface a
-   spec relies on from an earlier (unbuilt) item goes into its **Assumptions**
-   block; the builder/validator hand back if reality diverged. And the
-   *producing* spec must enumerate the **serialised** shape its consumers read
-   (JSON layout, which records appear in a walk, what strict mode rejects), not
-   only its API — otherwise each consumer independently ships a tolerant reader
-   plus a hand-back clause where a straight assertion belonged. This keeps
-   spec-first optional, not load-bearing.
+4. **Pin cross-item interfaces as Assumptions — from both ends, at the level
+   the consumer reads.** These specs are written before their dependencies are
+   *implemented*, so every interface a spec relies on from an earlier (unbuilt)
+   item goes into its **Assumptions** block, and the producing spec pins what
+   its consumers read at the level they read it — through its function or
+   fixture where one exists, the file layout only for a consumer that parses
+   the file. `.aide/conventions.md` §5 states both duties, the divergence
+   hand-back, and the re-check at claim once the dependency has merged; the
+   two defects it was earned by pull opposite ways (a tolerant reader where an
+   assertion belonged; a layout hand-built by a consumer of one field), which
+   is why the level matters. This keeps spec-first optional, not load-bearing.
 5. **Reconcile the batch before landing it.** Every spec is visible at once,
    which is the one moment a cross-item collision is cheap to fix. Run the
    check rather than reading N specs against each other by eye:

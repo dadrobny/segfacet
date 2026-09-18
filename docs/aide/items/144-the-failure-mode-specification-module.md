@@ -285,7 +285,7 @@ them by replacement; this module simply does not reproduce them (AC7).
   added here**, and item 134's vocabulary-length pin stays at five; item 149
   moves both artifacts under the guard.
 
-- **A8 (engine 1.37.0, re-checked 1.52.1) — the `aide check` baseline.** On this branch
+- **A8 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0) — the `aide check` baseline.** On this branch
   `python .aide/scripts/aide.py check` reports **7 warnings** (32 legacy specs
   with no `## Assumptions` block; human gates 1 and 2 awaiting a decision; four
   Stage-20 retraction notices) and says nothing about `.gitattributes`. "No new

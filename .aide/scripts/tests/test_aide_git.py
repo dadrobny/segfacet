@@ -484,6 +484,68 @@ def test_sync_fast_forwards_main(tmp_path: Path):
     assert (root / "new.txt").is_file()  # local main caught up
 
 
+def _claim_with_unpushed_merge(tmp_path: Path):
+    """A pushed claim branch holding a local merge commit origin has not seen.
+
+    The consumer's shape (issue #235): an item's spec asked for a gate-approved
+    commit from another branch to be merged into the claim branch as a real
+    merge. Returns ``(root, remote, claim, merge_sha)``.
+    """
+    remote = _mkbare(tmp_path / "remote.git")
+    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], root)
+    _run(["git", "push", "-u", "origin", "main"], root)
+    claim = "aide/027-bounds-rules"
+    _make_item_branch(root, claim, "feature.txt")            # ends on main
+    _run(["git", "push", "origin", claim], root)             # no -u: no @{u}
+    _run(["git", "switch", "-c", "gate/approved", "main"], root)
+    (root / "approved.txt").write_text("approved\n", encoding="utf-8")
+    _run(["git", "add", "-A"], root)
+    _run(["git", "commit", "-m", "gate-approved work"], root)
+    _run(["git", "switch", claim], root)
+    _run(["git", "merge", "--no-ff", "-m", "merge gate/approved", "gate/approved"], root)
+    sha = _run(["git", "rev-parse", "HEAD"], root).stdout.strip()
+    _run(["git", "switch", "main"], root)
+    return root, remote, claim, sha
+
+
+def test_sync_item_keeps_an_unpushed_merge_when_origin_has_not_moved(tmp_path: Path):
+    """`pull --rebase` over a local merge commit linearises it silently —
+    nothing reports it. `--ff-only` integrates nothing here and the merge
+    survives, so the start point is safe and the verb says so."""
+    root, _, claim, sha = _claim_with_unpushed_merge(tmp_path)
+    rc = aide.main(["--repo", str(root), "sync", "--item", "27"])
+    assert rc == 0
+    assert _current_branch(root) == claim
+    assert _run(["git", "rev-parse", "HEAD"], root).stdout.strip() == sha
+    assert _run(["git", "rev-list", "--merges", f"origin/{claim}..HEAD"], root).stdout.strip()
+
+
+def test_sync_item_refuses_to_rebase_an_unpushed_merge_over_a_moved_origin(
+        tmp_path: Path, capsys):
+    """The other half: origin/<claim> moved, so a rebase would replay both
+    parents linearly and stop on the conflict the merge resolved — on a
+    checkout other roles may share. Refuse before pulling, naming the fix."""
+    root, remote, claim, sha = _claim_with_unpushed_merge(tmp_path)
+    other = tmp_path / "other"
+    _run(["git", "clone", "-b", claim, str(remote), str(other)], tmp_path)
+    _run(["git", "config", "user.email", "t@example.com"], other)
+    _run(["git", "config", "user.name", "Tester"], other)
+    (other / "approved.txt").write_text("the other machine's version\n", encoding="utf-8")
+    _run(["git", "add", "-A"], other)
+    _run(["git", "commit", "-m", "remote work on the claim"], other)
+    _run(["git", "push"], other)
+    rc = aide.main(["--repo", str(root), "sync", "--item", "27"])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "merge commit origin has not seen" in err
+    assert f"git push origin {claim}" in err
+    # Nothing was rewritten and nothing is mid-rebase.
+    assert _run(["git", "rev-parse", "HEAD"], root).stdout.strip() == sha
+    assert not (root / ".git" / "rebase-merge").exists()
+    assert not (root / ".git" / "rebase-apply").exists()
+
+
 # --------------------------------------------------------------------------- #
 # gc (WI-3: claim-branch garbage collection)
 # --------------------------------------------------------------------------- #

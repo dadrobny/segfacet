@@ -1337,3 +1337,50 @@ def test_one_stray_blank_does_not_re_space_every_other_entry():
     merged, _, refusals = _resolve(_conflicted(ours, theirs, _HEAD))
     assert refusals == []
     assert merged == _HEAD + f"{_A}\n{_B}\n\n{_C}\n\n{_D}\n"
+
+
+# --------------------------------------------------------------------------- #
+# --trail: a dated line under an entry that stays open (issue #236)
+# --------------------------------------------------------------------------- #
+def test_tick_trail_appends_a_dated_line_and_leaves_the_box_open():
+    """§1 → insights-triage: a duplicate, or a reason an entry stays open, is
+    a trail line under an UNTICKED entry — the edit the verb exists to own."""
+    out, msg = aide.tick_insight_text(INBOX, 2, "duplicate of entry 4",
+                                      "2026-09-17", trail_only=True)
+    lines = out.splitlines()
+    assert lines[6] == INBOX.splitlines()[6]          # still `- [ ]`, byte for byte
+    assert lines[7] == "  - **2026-09-17** → duplicate of entry 4"
+    assert "left open" in msg
+    entry = aide.parse_insights(out)[1]
+    assert not entry.ticked
+    assert entry.trail == ["  - **2026-09-17** → duplicate of entry 4"]
+
+
+def test_tick_trail_on_an_open_entry_is_appendable_newest_last():
+    once, _ = aide.tick_insight_text(INBOX, 2, "first", "2026-09-17", trail_only=True)
+    twice, _ = aide.tick_insight_text(once, 2, "second", "2026-09-18", trail_only=True)
+    entry = aide.parse_insights(twice)[1]
+    assert not entry.ticked
+    assert [t.split("→ ")[1] for t in entry.trail] == ["first", "second"]
+
+
+def test_tick_trail_on_a_ticked_entry_is_the_ordinary_second_update():
+    with_flag, _ = aide.tick_insight_text(INBOX, 1, "later", "2026-08-24", trail_only=True)
+    without, _ = aide.tick_insight_text(INBOX, 1, "later", "2026-08-24")
+    assert with_flag == without
+
+
+def test_tick_trail_refuses_a_malformed_entry_rather_than_guessing():
+    text = INBOX + "- [ ] not a typed entry at all\n"
+    with pytest.raises(ValueError, match="does not parse"):
+        aide.tick_insight_text(text, 5, "x", "2026-09-17", trail_only=True)
+
+
+def test_tick_trail_from_the_cli_writes_and_commits(tmp_path: Path):
+    repo = _repo(tmp_path)
+    assert aide.main(["--repo", str(repo), "insights", "tick", "2", "--trail",
+                      "--pointer", "duplicate of entry 4", "--date", "2026-09-17"]) == 0
+    inbox = _inbox(repo)
+    assert ("- [ ] defect — the reach check calls its own happy path a typo *(2026-05-11)*\n"
+            "  - **2026-09-17** → duplicate of entry 4\n") in inbox
+    assert _run(["git", "status", "--porcelain"], repo).stdout.strip() == ""

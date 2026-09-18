@@ -268,7 +268,7 @@ constants, and item 161 attests it. So no AC carries a *(closes …)* annotation
 - **A12 (rendering literal).** A no-mode metric renders in the human text as
   `no failure mode (<condition> condition)`, in the place where a mode's
   `failure_mode_name` appears.
-- **A13 (engine 1.52.1).** `aide scope` proves the authorised paths below.
+- **A13 (engine 1.52.1, re-checked 1.59.0).** `aide scope` proves the authorised paths below.
   Item 152 is merged (✅ in `progress.md`), so nothing blocks the claim.
 
 ## Implementation Steps

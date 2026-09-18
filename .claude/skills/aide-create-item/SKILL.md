@@ -63,7 +63,9 @@ with its downstream consumer):
 - **Description** — scope and deliverables, bounded to this one item; state what
   it is *not*.
 - **Acceptance Criteria** — each atomic, observable, directly testable; split
-  compound criteria.
+  compound criteria. Each one justified by the deliverable or a declared
+  consumer, else not written — a deferred question is a `**Left open:**` line
+  under Decisions (`.aide/conventions.md` §1 → items).
 - **Assumptions** — every clarify-mode default and every interface pinned before
   its dependency is implemented. "None." if fully specified.
 - **Implementation Steps** — the intended code path in `project.source_dir`
@@ -73,12 +75,15 @@ with its downstream consumer):
   against**). Scope is proved by the diff against this list, so never specify a
   test that hashes another file's bytes against a hardcoded literal instead —
   see `.aide/conventions.md` §1.
-- **Testing Strategy** — one test per AC plus adversarial/edge cases.
+- **Testing Strategy** — one test per AC, plus each adversarial case named
+  with the failure mode it guards; the test-writer writes those and no others
+  (`.aide/conventions.md` §6).
 - **Dependencies** — item numbers this relies on, a queue-mate still 📋
   included; declaring one is how an item that pins what a sibling produces
   records that order.
 - **Decisions & Trade-offs** — initialise with "To be updated during
-  implementation."
+  implementation.", plus one `**Left open:**` line per question this item
+  deliberately defers; the builder appends below those.
 
 Add project-specific sections only when the project genuinely needs them (e.g. a
 services checklist for a system with external services) — not by default.

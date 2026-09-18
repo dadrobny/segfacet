@@ -493,19 +493,19 @@ criterion without the annotation closes none._
   unticked with that disagreement as its reason. No new gate is raised for them,
   because each is a record-keeping reading and not a decision the work cannot
   proceed without.
-- **A3 (engine 1.37.0, re-checked 1.52.1):** `aide progress accept <stage> --criterion N --evidence
+- **A3 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide progress accept <stage> --criterion N --evidence
   "<text>"` ticks one unticked box and appends ` *(<text>)*` to its line. It
   reports an already-ticked box as `already ticked, unchanged` and writes
   nothing. It commits `progress.md` unless `--no-commit` is given. AC36/AC37 rest
   on this.
-- **A4 (engine 1.37.0, re-checked 1.52.1):** `aide progress amend` appends
+- **A4 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide progress amend` appends
   `  - **YYYY-MM-DD** → <text>` under a ticked box and refuses an unticked one.
   `aide progress retract` unticks, appends a `retracted: ` trail line, and
   writes an `insights.md` `gap` entry. `aide check` then warns
   `stage 30 criterion 7 was retracted on …`. No verb records a reason beside an
   unticked box, so that one annotation is a hand edit, as §1 permits ("say why in
   an annotation beside it") and as Stage 29's third box did.
-- **A5 (engine 1.37.0, re-checked 1.52.1):** `aide check` at this branch's base reports
+- **A5 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide check` at this branch's base reports
   `OK (7 warning(s))` in the classes AC41 lists. `aide insights tick <n>
   --pointer` ticks by the number `insights list` prints. `aide env --profile
   <name>` evaluates `aide.toml`'s `[validation]` expression and exits `0` iff
