@@ -648,7 +648,9 @@ _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
     "stage3.curvature.tangent_angles_deg[]",
     "stage3.curvature.total_curvature_deg",
 )
-_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 138
+# Item 167 (2026-09-20): two new `components` leaf paths
+# (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
+_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 140
 
 
 def test_ac16_catalogue_leaf_path_set_unchanged():

@@ -794,18 +794,39 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     ``"hypothesised"``) drops that path's ``"per_mode_metric"`` evidence tag
     too, since only the anchor role earns it: the one-entry
     ``("per_mode_metric", "rule_bookkeeping")`` bucket empties into
-    ``("rule_bookkeeping",)`` (18 -> 19)."""
+    ``("rule_bookkeeping",)`` (18 -> 19).
+
+    Re-measured (item 167, 2026-09-20): two new leaf paths join the
+    ``fragmentation`` rule's ``consumed_paths``,
+    ``per_label.{label}.components.stray_contact_area_mm2`` (role
+    ``"signal"``) and ``...stray_contact_label`` (role ``"bookkeeping"``),
+    138 -> 140 entries. ``fragmentation``'s ``mode_declaration.modes`` moves
+    from ``(1, 4)`` to ``(1, 3, 4)`` (item 167), while the corpus-derived
+    ``rule_mode_map["fragmentation"]`` already carried ``{1, 2, 3, 4}`` before
+    this item (the ``split`` case already co-detected ``fragmentation``, item
+    166). The new signal path therefore inherits the union of both --
+    ``{1, 2, 3, 4}`` -- the same set the rule's five pre-existing signal paths
+    already carry, so mode1_count and mode2_count each gain exactly this one
+    new path (13 -> 14, 14 -> 15); mode16_count is untouched. Both non-empty
+    sources fire for it (``rule_mode_map`` and ``rule_declaration``), so it
+    joins the existing ``("rule_mode_map", "rule_declaration")`` bucket
+    (6 -> 7). The bookkeeping-only path contributes no mode (item 148: only a
+    ``"signal"`` role lets a rule's modes reach a path) and joins
+    ``("rule_bookkeeping",)`` alone (19 -> 20). These figures are derived from
+    the item spec's Implementation Steps, not re-measured against a built
+    catalogue -- the two new fields do not exist on this tree until the
+    builder implements them; the validator's live suite run is the check."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 138
+    assert len(entries) == 140
 
     # The two analytic rules' own declared modes ...
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 13
+    assert mode1_count == 14
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
-    assert mode2_count == 14
+    assert mode2_count == 15
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
@@ -815,10 +836,10 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
         (): 86,
-        ("rule_bookkeeping",): 19,
+        ("rule_bookkeeping",): 20,
         ("rule_declaration",): 6,
         ("rule_mode_less", "rule_condition_signal"): 6,
-        ("rule_mode_map", "rule_declaration"): 6,
+        ("rule_mode_map", "rule_declaration"): 7,
         ("rule_bookkeeping", "rule_not_read"): 4,
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,
@@ -841,7 +862,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 138
+    assert sum(distribution.values()) == 140
 
 
 # =========================================================================== #

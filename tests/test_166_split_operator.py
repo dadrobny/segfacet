@@ -215,14 +215,19 @@ def test_ac8_authored_expected_firing_equals_measured_firing():
 
 # =========================================================================== #
 # AC9: mode 3's recorded state against the fully-specified bar
+#
+# Narrowed for item 167 (2026-09-20): this test now pins only the item-166
+# half that still holds -- condition 1 (entry completeness) is met, with its
+# eight completeness subjects. The five-tuple
+# ``(True, False, False, False, False)`` this test used to pin moved to item
+# 167's own AC11, which asserts the fully-met bar
+# ``(True, True, True, True, True)`` once mode 3 gains its own detector.
 # =========================================================================== #
 
 
 def test_ac9_mode_3_recorded_state_against_the_fully_specified_bar():
     catalogue = build_catalogue(strict=True)
     bar = traceability.bar_conditions(3, catalogue=catalogue)
-    assert tuple(c.met for c in bar) == (True, False, False, False, False)
-
     condition_1 = [c for c in bar if c.number == 1]
     assert len(condition_1) == 1, condition_1
     completeness_fields = {

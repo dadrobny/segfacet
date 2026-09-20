@@ -1068,8 +1068,10 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
 
 
 def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_catalogue):
+    # Item 167 (2026-09-20): two new `components` leaf paths
+    # (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
     cat = shipped_catalogue
-    assert len(cat.entries) == 138
+    assert len(cat.entries) == 140
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}

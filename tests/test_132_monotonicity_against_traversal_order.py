@@ -623,13 +623,19 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # AC29: the catalogue's measured content does not move
 # =========================================================================== #
 
+# Item 167 (2026-09-20): two new leaf paths join `components`
+# (`stray_contact_area_mm2`, `stray_contact_label`), neither ingested into
+# the reference vocabulary nor sourced from a placeholder driver; both are
+# numeric and vary across the committed corpora (0.0/0 everywhere except one
+# label at 750.0/22), so both derive "varies" (`observed_range._derive_verdict`).
+# 138 -> 140 total, "varies" 83 -> 85.
 _PRE_ITEM_OBSERVED_SUMMARY = {
     "constant-synthetic": 4,
     "degenerate": 0,
     "non-numeric": 39,
     "placeholder": 12,
     "unobserved": 0,
-    "varies": 83,
+    "varies": 85,
 }
 
 
@@ -644,7 +650,7 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     entries_by_path = {e["path"]: e for g in fresh["groups"] for e in g["entries"]}
     leaf_count = sum(len(g["entries"]) for g in fresh["groups"])
 
-    assert leaf_count == 138, f"leaf-path count {leaf_count} != pre-item 138"
+    assert leaf_count == 140, f"leaf-path count {leaf_count} != pre-item 140"
     assert fresh["observed_summary"] == _PRE_ITEM_OBSERVED_SUMMARY
 
     is_mono = entries_by_path["stage3.monotonic_consistency.is_monotonic"]

@@ -96,8 +96,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # with the modes each one declares after the item-150 sign-off, as revised
 # 2026-09-15 (sixteen modes: coverage carries 6 "vertebra not segmented" --
 # mode 10 is now "skipped level label", label-only and proposed, with no
-# rule; fragmentation carries 1 "segmentation
-# accuracy" and 4 "islands"; mislabel and sequence carry 9 "out-of-order
+# rule; fragmentation carries 1 "segmentation accuracy", 3 "split vertebra
+# segment" (item 167's own `neighbour_contact` detector) and 4 "islands";
+# mislabel and sequence carry 9 "out-of-order
 # label sequence"; overlap carries 15 "overlapping segments").
 # `border` is now mode-less on purpose: it records the `fov_truncation`
 # condition (`segfacet.failure_modes.CONDITIONS`), which is not a failure
@@ -105,7 +106,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CORROBORATED = {
     "border": (),
     "coverage": (6,),
-    "fragmentation": (1, 4),
+    "fragmentation": (1, 3, 4),
     "mislabel": (9,),
     "overlap": (15,),
     "sequence": (9,),
@@ -310,11 +311,14 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # which neither coverage nor fragmentation declares; mode 1 still carries
     # displace, which mislabel detects only as a co-detection
     # (fragmentation's mode-1 designation is now declared, via fragment).
+    # Revised 2026-09-20 (item 167): mode 3's ("fragmentation", 3) pair moved
+    # out of this set -- fragmentation now declares mode 3 itself, via the
+    # new `neighbour_contact` detector, so the pair is no longer a
+    # co-detection.
     expected_co_detections = {
         ("coverage", 2),  # fuse_adjacent fires coverage alongside fragmentation
         ("fragmentation", 2),  # ... and fragmentation, neither declaring mode 2
         ("mislabel", 1),  # displace is detected only as a co-detection
-        ("fragmentation", 3),  # split fires fragmentation on the receiving label (item 166)
     }
 
     measured_co_detections = set()

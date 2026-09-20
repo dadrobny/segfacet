@@ -1081,9 +1081,14 @@ def _live_validated_split(detection_by_case_id):
 
 
 def test_ac35_status_counts_note_matches_live_derivation():
+    # Item 167 (A6): `aide progress amend` *appends* a dated correction under
+    # the ticked box rather than rewriting it, so the section can carry more
+    # than one status-counts clause -- the superseded one first, the current
+    # attestation last. Read the LAST match, not the first.
     section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    match = _STATUS_COUNTS_RE.search(section)
-    assert match, "Stage 30's criterion-1 evidence note carries no status-counts clause yet"
+    matches = list(_STATUS_COUNTS_RE.finditer(section))
+    assert matches, "Stage 30's criterion-1 evidence note carries no status-counts clause yet"
+    match = matches[-1]
     n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
     live_n, live_counts = _live_status_counts()
     assert n == live_n
@@ -1094,9 +1099,11 @@ def test_ac35_status_counts_note_matches_live_derivation():
 
 
 def test_ac35_rung_counts_note_matches_live_derivation():
+    # Item 167 (A6): read the LAST appended clause, per the note above.
     section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    match = _RUNG_COUNTS_RE.search(section)
-    assert match, "Stage 30's criterion-3 evidence note carries no rung-counts clause yet"
+    matches = list(_RUNG_COUNTS_RE.finditer(section))
+    assert matches, "Stage 30's criterion-3 evidence note carries no rung-counts clause yet"
+    match = matches[-1]
     sd, nrd, su, none_, total_edges, e_sd, e_nrd, e_su = (int(g) for g in match.groups())
     mode_counts, live_total_edges, edge_counts = _live_rung_counts()
     assert sd == mode_counts["synthetic-demonstrable"]
@@ -1110,9 +1117,11 @@ def test_ac35_rung_counts_note_matches_live_derivation():
 
 
 def test_ac35_validated_split_note_matches_live_derivation(detection_by_case_id):
+    # Item 167 (A6): read the LAST appended clause, per the note above.
     section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    match = _VALIDATED_SPLIT_RE.search(section)
-    assert match, "Stage 30's criterion-1 evidence note carries no validated-split clause yet"
+    matches = list(_VALIDATED_SPLIT_RE.finditer(section))
+    assert matches, "Stage 30's criterion-1 evidence note carries no validated-split clause yet"
+    match = matches[-1]
     pipeline_detected, reconstructed_only = (int(g) for g in match.groups())
     live_pipeline, live_reconstructed = _live_validated_split(detection_by_case_id)
     assert pipeline_detected == live_pipeline

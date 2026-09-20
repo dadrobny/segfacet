@@ -27,7 +27,7 @@ Covers Acceptance Criteria AC1-AC23:
         ``float(f"{v:.6g}")``.
 - AC16: two same-session regenerations are byte-identical.
 - AC17: the committed artifacts match a fresh regeneration.
-- AC18: the regenerated leaf-path set is unchanged (138 paths).
+- AC18: the regenerated leaf-path set is unchanged (140 paths as of item 167).
 - AC19: ``schema_version`` is bumped to ``"1.1"`` (reconciled to ``"1.2"`` by
         item 148, 2026-09-04, which added the ``mode_roles`` shape).
 - AC20: ``aide_status_report.py``'s loader accepts the bumped schema.
@@ -536,8 +536,12 @@ def test_ac17_committed_docs_match_fresh_regeneration(catalogue_module, tmp_path
 
 
 def test_ac18_entry_set_has_138_paths(full_catalogue):
+    # Item 167 (2026-09-20): two new leaf paths join the components block
+    # (`stray_contact_area_mm2`, `stray_contact_label`), 138 -> 140. Name kept
+    # for AC18 provenance; the docstring above still names 138 as the
+    # pre-item figure.
     paths = {e.path for e in full_catalogue.entries}
-    assert len(paths) == 138
+    assert len(paths) == 140
 
 
 def test_ac18_committed_entry_set_matches_regenerated(full_catalogue, committed_json_dict):

@@ -123,6 +123,12 @@ def format_contract_inputs() -> dict:
         "stray_component_sizes": [],
         "stray_volume_mm3": 0.0,
         "stray_volume_fraction": 0.0,
+        # Item 167: the components block's two newest leaf fields. 0.0/0 are
+        # both outside the distinctive-float set item 166's Correction 2
+        # protects (see this module's invariant comment) -- introducing a
+        # plain round float here is deliberately safe.
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
     }
     centroid = {
         "centroid_voxel": [_SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT],

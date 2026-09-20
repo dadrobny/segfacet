@@ -102,7 +102,7 @@ _FOV_CONDITION_ID = "fov_truncation"
 _EXPECTED_DERIVED_STATUS = {
     1: "validated",
     2: "implemented",
-    3: "implemented",
+    3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
     6: "validated",
