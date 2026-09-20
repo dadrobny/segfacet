@@ -310,6 +310,10 @@ class SplitPerturbation(Perturbation):
         *,
         target_label: Optional[int] = None,
         neighbour_label: Optional[int] = None,
+        # 0.4 leaves the donor's extent_z at exactly the lumbar
+        # min_extent_z_mm of 15.0 mm -- a zero margin held by bounds.py's
+        # strict `<` (Correction 2, item 166, 2026-09-20). Raising this
+        # default fires `bounds` on the donor (A1).
         donated_fraction: float = 0.4,
     ):
         self._target_label = target_label

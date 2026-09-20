@@ -567,6 +567,35 @@ for it.
   disjointness, a membership, an exact-value ratchet), not only for the files
   and aggregates the change touches.
 
+- **2026-09-20 (build):** applied `## Correction 2 — 2026-09-20`'s three
+  prescribed fixes. **§1:** `tests/report_format_fixture.py`'s
+  `_NEGATIVE_FLOAT` changed from `-2.5` to `-84.62037195428361`; added
+  `_SECOND_DECIMAL_FLOAT = 53.47129068415773` and
+  `_THIRD_DECIMAL_FLOAT = 27.31460592837104`; replaced the five plain-round-float
+  sites (`bbox_voxel`/`bbox_physical` maxima, `centroid_voxel`, `centroid_mm`,
+  `per_label_offsets[0]["offset_mm"]`) with the named constants per the
+  site-by-site prescription; extended the constants-block comment with the
+  no-plain-round-float invariant; regenerated
+  `tests/golden/report_format_contract.json` via
+  `.venv/bin/python -m tests.report_format_fixture` and committed it alongside
+  the fixture. Verified directly (not via pytest, per this agent's remit): a
+  fresh `build_report_for_case` walk of all twelve committed manifest cases
+  emits 948 distinct floats, matching the correction's measurement, and the
+  post-fix `distinctive_floats` set
+  `{-84.62037195428361, 1e-12, 27.31460592837104, 53.47129068415773,
+  106.98418277680141}` has an **empty** intersection with that fresh set.
+  **§2:** added the `tests/corpus/fixtures/split_seg.nii.gz` bullet to
+  `docs/aide/golden-decision-table.md`'s "Divergences from the roadmap's
+  working assumption" section, immediately after the
+  `remove_level_relabel_seg.nii.gz` bullet, exactly as prescribed. **§3:**
+  added the one-line zero-margin comment at
+  `src/segfacet/synth/component_shape.py`'s `donated_fraction: float = 0.4`
+  default — comment only, no behaviour or threshold change. Fix 3's plain
+  test-bug item (`tests/test_166_split_operator.py`'s
+  `compute_label_geometry` call signature) was out of this agent's remit
+  (test files) and is left for the validator/test-writer as the correction
+  itself notes it needs no spec change.
+
 ## Correction — 2026-09-20
 
 **Appended, not a rewrite.** Everything above stands as authored on 2026-09-20.

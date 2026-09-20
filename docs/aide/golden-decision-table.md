@@ -294,6 +294,8 @@ with the reason it earns its keep rather than following Group A:
   report snapshot (added by item 150, 2026-09-14).
 - `tests/corpus/fixtures/remove_level_relabel_seg.nii.gz` — input fixture,
   not a report snapshot (added by item 150, 2026-09-14).
+- `tests/corpus/fixtures/split_seg.nii.gz` — input fixture, not a
+  report snapshot (added by item 166, 2026-09-20).
 - `tests/corpus/intensity/manifest.json` — an input index, not a report
   snapshot; generator reproducibility only.
 - `tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz` — input fixture, not
