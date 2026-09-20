@@ -1,14 +1,14 @@
 """Committed synthetic fixture corpus for the failure-mode specification plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
-Materialises the **eleven canonical cases** -- item 040's original nine (the
+Materialises the **twelve canonical cases** -- item 040's original nine (the
 clean control plus one per mode of the vision.md v3 seed list, history ids
 1-8, whose case ids name
 the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
 ``modeN_`` prefixes those ids carried, since the manifest's ``failure_mode``
 field is the authority and the prefix was a second, drifting copy of it) and
-the ``fuse_adjacent`` and ``remove_level_relabel`` cases item 150 added; each
-manifest entry's
+the ``fuse_adjacent`` and ``remove_level_relabel`` cases item 150 added, and
+the ``split`` case item 166 added (2026-09-20); each manifest entry's
 ``failure_mode`` field carries the current mode number, and (item 155) a
 ``kind`` field records which of the three closed values
 (``segfacet.synth.perturbation.CASE_KINDS``: ``"clean_control"``,
@@ -29,7 +29,7 @@ Two public surfaces:
   (:func:`main`), regenerating the committed corpus under
   ``tests/corpus/`` by default.
 
-One of the eleven cases (mode 15 -- ``force_overlap``) is documented by item 038
+One of the twelve cases (mode 15 -- ``force_overlap``) is documented by item 038
 as **structurally invisible** to the plain ``run_qc`` pipeline (a
 single-integer label map cannot encode an overlap). This module faithfully
 represents that fact: its manifest entry carries
@@ -159,8 +159,8 @@ class _RecipeEntry:
     reconstruction: Optional[str] = None
 
 
-#: The eleven canonical cases (item 040 spec's case table, then item 150's
-#: two), in table order.
+#: The twelve canonical cases (item 040 spec's case table, then item 150's
+#: two, then item 166's split), in table order.
 CASE_RECIPE: List[_RecipeEntry] = [
     _RecipeEntry(
         case_id="clean_control",
@@ -231,6 +231,15 @@ CASE_RECIPE: List[_RecipeEntry] = [
         case_id="remove_level_relabel",
         perturbation="remove_level_relabel",
         perturbation_params={"target_label": 22},
+        detection="pipeline",
+    ),
+    # Item 166 (2026-09-20): mode 3's first corpus case, converse of
+    # fuse_adjacent above -- donates part of label 22 (L3) to label 23 (L4)
+    # instead of absorbing 23 whole.
+    _RecipeEntry(
+        case_id="split",
+        perturbation="split",
+        perturbation_params={"target_label": 22, "neighbour_label": 23},
         detection="pipeline",
     ),
 ]

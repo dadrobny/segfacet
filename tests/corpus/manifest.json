@@ -421,6 +421,46 @@
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
       "seg_fixture": "fixtures/remove_level_relabel_seg.nii.gz"
+    },
+    {
+      "base": {
+        "curve_amplitude_mm": 6.0,
+        "levels": [
+          "L1",
+          "L2",
+          "L3",
+          "L4",
+          "L5"
+        ],
+        "spacing": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "case_id": "split",
+      "condition": "",
+      "detail": "split: donated 0.4 of target label 22's stacking-axis (array axis 2) span (indices 95-104 of 95-119) to neighbour label 23. The receiving label now spans two disconnected bodies, so fragmentation's Fragmentation: detector (mode 1's) fires on it -- a co-detection, not mode 3's own signal.",
+      "detection": "pipeline",
+      "expected_labels": [
+        23
+      ],
+      "expected_rule_ids": [
+        "fragmentation"
+      ],
+      "expected_verdict": "flagged-for-review",
+      "failure_mode": 3,
+      "failure_mode_name": "split vertebra segment",
+      "kind": "failure",
+      "perturbation": "split",
+      "perturbation_params": {
+        "neighbour_label": 23,
+        "target_label": 22
+      },
+      "reconstruction": null,
+      "scan_fixture": "fixtures/base_scan.nii.gz",
+      "seed": 0,
+      "seg_fixture": "fixtures/split_seg.nii.gz"
     }
   ],
   "generator": "segfacet.synth.corpus",

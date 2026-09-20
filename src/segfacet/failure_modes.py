@@ -1053,15 +1053,19 @@ _MODE_3 = ModeSpec(
         "part of it."
     ),
     mechanism=(
-        "No corpus case and no detector of its own: the label-map proxy is "
-        "the split vertebra reading under its level's volume/extent range "
+        "No detector of its own (item 167's): the label-map proxy is the "
+        "split vertebra reading under its level's volume/extent range "
         "(bounds, per_label.{label}.geometry.physical_volume_mm3; "
         "reference_delta, "
         "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
         "both needs-real-data. The neighbour that takes the part reads over "
         "its range, which is mode 2's proxy, so on a real case the two "
-        "modes' proxy signals co-occur. A split fixture (part of one label "
-        "reassigned to its neighbour) is not yet authored."
+        "modes' proxy signals co-occur. The corpus case split donates 40% "
+        "of label 22 (L3)'s stacking-axis extent to label 23 (L4), so what "
+        "fires today is fragmentation's Fragmentation: detector "
+        "(per_label.{label}.components.fragmentation_index) on the "
+        "receiving label -- mode 1's detector co-detecting, recorded, not "
+        "this mode's own."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1098,7 +1102,24 @@ _MODE_3 = ModeSpec(
             evidence_rung="needs-real-data",
         ),
     ),
-    corpus_cases=(),
+    corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="split",
+            corpus="geometric",
+            expected_firing=("fragmentation",),
+            reason=(
+                "pipeline-detected by a co-detection only, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-20): "
+                "the split donates a contiguous end-slab (40% of label 22's "
+                "stacking-axis extent) to label 23, so label 23 now spans "
+                "two disconnected bodies (fragmentation, Fragmentation:, "
+                "mode 1's detector -- detector id components) on the "
+                "receiving label. Neither of this mode's own intended rules "
+                "(bounds, reference_delta) fires without a reference, so "
+                "the case does not validate mode 3."
+            ),
+        ),
+    ),
     severity="flagged-for-review",
     status="specified",
     provenance="hypothesised",

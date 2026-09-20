@@ -1,7 +1,7 @@
 {
   "classification_conflicts": [],
   "conformance": {
-    "agree_count": 15,
+    "agree_count": 16,
     "cases": [
       {
         "agrees": true,
@@ -141,6 +141,19 @@
           "sequence"
         ],
         "mode": 9
+      },
+      {
+        "agrees": true,
+        "case_id": "split",
+        "corpus": "geometric",
+        "expected_firing": [
+          "fragmentation"
+        ],
+        "expected_source": "specification",
+        "measured_firing": [
+          "fragmentation"
+        ],
+        "mode": 3
       },
       {
         "agrees": true,
@@ -320,6 +333,14 @@
         "name": "sequence_break",
         "reason": "",
         "state": "used"
+      },
+      "split": {
+        "cases": [
+          "split"
+        ],
+        "name": "split",
+        "reason": "",
+        "state": "used"
       }
     },
     "rules": {
@@ -376,6 +397,10 @@
           [
             "geometric",
             "inject_islands"
+          ],
+          [
+            "geometric",
+            "split"
           ]
         ],
         "reason": "",
@@ -804,7 +829,12 @@
     "3": {
       "anchor_paths": [],
       "authored_status": "specified",
-      "cases": [],
+      "cases": [
+        {
+          "case_id": "split",
+          "detection": "pipeline"
+        }
+      ],
       "edge_rungs": [
         [
           "bounds",
@@ -824,9 +854,9 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "No corpus case and no detector of its own: the label-map proxy is the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both needs-real-data. The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur. A split fixture (part of one label reassigned to its neighbour) is not yet authored.",
+      "mechanism": "No detector of its own (item 167's): the label-map proxy is the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both needs-real-data. The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur. The corpus case split donates 40% of label 22 (L3)'s stacking-axis extent to label 23 (L4), so what fires today is fragmentation's Fragmentation: detector (per_label.{label}.components.fragmentation_index) on the receiving label -- mode 1's detector co-detecting, recorded, not this mode's own.",
       "mode": 3,
-      "pipeline_detected": false,
+      "pipeline_detected": true,
       "read_paths": [
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",

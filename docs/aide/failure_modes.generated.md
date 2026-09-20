@@ -100,7 +100,7 @@ Candidate features:
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
 - `hypothesised` candidate path: `metric_change_under_merge_candidate`
 
-Mechanism: No corpus case and no detector of its own: the label-map proxy is the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both needs-real-data. The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur. A split fixture (part of one label reassigned to its neighbour) is not yet authored.
+Mechanism: No detector of its own (item 167's): the label-map proxy is the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both needs-real-data. The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur. The corpus case split donates 40% of label 22 (L3)'s stacking-axis extent to label 23 (L4), so what fires today is fragmentation's Fragmentation: detector (per_label.{label}.components.fragmentation_index) on the receiving label -- mode 1's detector co-detecting, recorded, not this mode's own.
 
 Intended rules:
 
@@ -109,7 +109,7 @@ Intended rules:
 
 Corpus cases:
 
-- (none)
+- `split` (geometric): expected firing = [fragmentation]; agrees with live measurement: True. pipeline-detected by a co-detection only, measured live via segfacet.synth.regression.pipeline_findings (2026-09-20): the split donates a contiguous end-slab (40% of label 22's stacking-axis extent) to label 23, so label 23 now spans two disconnected bodies (fragmentation, Fragmentation:, mode 1's detector -- detector id components) on the receiving label. Neither of this mode's own intended rules (bounds, reference_delta) fires without a reference, so the case does not validate mode 3.
 
 ## Mode 4 (1.3, sub-mode of 1): Islands (disconnected components)
 

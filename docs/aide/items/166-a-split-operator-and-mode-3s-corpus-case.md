@@ -462,8 +462,34 @@ for it.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- **2026-09-20 (build):** `SplitPerturbation.apply` computes the target's
+  stacking-axis span as `axis_max - axis_min + 1` (voxel count, not the raw
+  index delta) so `donated_fraction * span` yields the "10 of 25 slices"
+  A1 measures at 0.4; the donated slab is selected by comparing the target's
+  and neighbour's mean stacking-axis index (never a hardcoded high/low end),
+  matching AC3's requirement that the claim hold under either affine
+  orientation. Measured against the built fixture: label 22's stacking-axis
+  extent shrinks from 25 to 15 voxels (11250 mm³, 15 mm extent_z — exactly at
+  `DEFAULT_BOUNDS["lumbar"]["min_extent_z_mm"]`, inclusive, so `bounds` stays
+  silent per A1), label 23 gains the donated 7500-voxel slab as a second
+  component (`fragmentation_index = 0.714286`), and `run_qc` on the resulting
+  fixture (no reference) produces exactly one finding — `fragmentation` on
+  label 23, verdict `flagged-for-review` — matching the Description's
+  measurement and AC8 exactly.
+- **2026-09-20 (build):** all named reconciliations under "existing tests to
+  reconcile" (including the Correction's entry 15,
+  `tests/test_120_leave_one_out_offset.py`) were already committed by the
+  test-writer before this build began (commits `da68784`, `ed01b84`); no test
+  file was touched during implementation. `docs/aide/golden-decision-table.md`
+  already carried the `split_seg.nii.gz` Section-1 row from the same
+  test-writer commit. Verified live: `python .aide/scripts/aide.py scope`
+  reports only the two known-and-accepted `§6` traceability warnings (the
+  `test_ac24_.../test_overall_corpus_sensitivity_...` renames not carrying an
+  item-166 AC number, per the Correction's note that this is a recorded
+  framework gap, not a defect) and otherwise OK.
+- **2026-09-20 (build):** `test_123_recalibrate_and_regenerate.py`'s interior
+  offset ceiling did not need an edit, as A1/entry 14 predicted — no build
+  activity touched that file.
 - **Left open:** whether `fuse` should gain a *bridged* variant so mode 2 is decided by its own signal rather than by co-detections (roadmap Stage 32's menu, "Mode 2 fused"). This item builds mode 3's converse operator and deliberately does not touch mode 2 — the two are separate maintainer selections, and mode 2 was not selected for queue-022.
 - **Left open:** whether `donated_fraction` should eventually be calibrated against real split failures rather than against the synthetic corpus's `fragmentation` threshold. A1's 0.4 is a synthetic-corpus calibration only; roadmap Stage 21 re-calibrates thresholds on real GT.
 

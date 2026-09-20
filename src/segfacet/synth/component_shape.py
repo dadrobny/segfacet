@@ -52,6 +52,7 @@ from segfacet.synth.perturbation import (
 __all__ = [
     "FragmentPerturbation",
     "FusePerturbation",
+    "SplitPerturbation",
     "InjectIslandsPerturbation",
 ]
 
@@ -275,6 +276,131 @@ class FusePerturbation(Perturbation):
                 "bodies under one label, coverage on the absorbed level "
                 "missing from the span -- not mode 2's own bounds / "
                 "reference_delta proxies, which need a reference."
+            ),
+        )
+        return PerturbationResult(labelmap=out_img, expectation=expectation)
+
+
+# --------------------------------------------------------------------------- #
+# SplitPerturbation
+# --------------------------------------------------------------------------- #
+
+
+@register_perturbation
+class SplitPerturbation(Perturbation):
+    """Donate a contiguous end-slab of one label to its adjacent neighbour.
+
+    Registered under ``"split"``. Mode 3's converse of :class:`FusePerturbation`:
+    instead of absorbing the whole neighbour, only a contiguous end-slab of the
+    target's own voxels -- on the side facing the neighbour along the
+    affine-resolved stacking axis (item 116, via
+    :func:`segfacet.synth.axes.si_axis`) -- is relabelled onto the neighbour.
+    Nothing is deleted or created: the foreground mask is unchanged and
+    exactly one label's voxels change hands, leaving the target a single
+    connected component and the neighbour spanning two disconnected bodies
+    (drives the fragmentation-kind finding on the *receiving* label -- see the
+    item 166 spec's Assumptions for why the co-detection is filed under mode 3
+    without moving mode 3's own ``intended_rules``).
+    """
+
+    name = "split"
+
+    def __init__(
+        self,
+        *,
+        target_label: Optional[int] = None,
+        neighbour_label: Optional[int] = None,
+        donated_fraction: float = 0.4,
+    ):
+        self._target_label = target_label
+        self._neighbour_label = neighbour_label
+        self._donated_fraction = float(donated_fraction)
+
+    def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
+        labels = _present_labels(labelmap)
+        if len(labels) < 2:
+            raise FacetInputError(
+                "SplitPerturbation requires at least two present labels to "
+                f"split onto an adjacent neighbour; found {labels!r}."
+            )
+
+        if self._target_label is not None or self._neighbour_label is not None:
+            if self._target_label is None or self._neighbour_label is None:
+                raise FacetInputError(
+                    "SplitPerturbation requires both target_label and "
+                    "neighbour_label when either is given explicitly."
+                )
+            _require_present(self._target_label, labels, what="target_label")
+            _require_present(self._neighbour_label, labels, what="neighbour_label")
+            idx_t = labels.index(self._target_label)
+            idx_n = labels.index(self._neighbour_label)
+            if abs(idx_t - idx_n) != 1:
+                raise FacetInputError(
+                    f"SplitPerturbation: target_label={self._target_label!r} and "
+                    f"neighbour_label={self._neighbour_label!r} are not adjacent "
+                    f"in the sorted present-label order {labels!r}."
+                )
+            target, neighbour = self._target_label, self._neighbour_label
+        else:
+            target, neighbour = _choose_adjacent_pair(labels, seed)
+
+        data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
+        axis = si_axis(labelmap.affine)
+
+        target_mask = data == target
+        mins, maxs = _label_bbox(data, target)
+        axis_min, axis_max = int(mins[axis]), int(maxs[axis])
+        span = axis_max - axis_min + 1
+
+        k = int(round(self._donated_fraction * span))
+        if k <= 0 or k >= span:
+            raise FacetInputError(
+                f"SplitPerturbation: donated_fraction={self._donated_fraction!r} "
+                f"applied to target label {target!r}'s stacking-axis span of "
+                f"{span} voxels would donate {k} voxels, which is either empty "
+                "or would leave the target no voxels."
+            )
+
+        target_coords = np.argwhere(target_mask)
+        neighbour_coords = np.argwhere(data == neighbour)
+        target_mean = float(target_coords[:, axis].mean())
+        neighbour_mean = float(neighbour_coords[:, axis].mean())
+
+        if neighbour_mean > target_mean:
+            slab_lo, slab_hi = axis_max - k + 1, axis_max
+        else:
+            slab_lo, slab_hi = axis_min, axis_min + k - 1
+
+        slab_idx = tuple(
+            slice(slab_lo, slab_hi + 1) if a == axis else slice(None)
+            for a in range(3)
+        )
+        slab_mask_full = np.zeros_like(target_mask)
+        slab_mask_full[slab_idx] = True
+        donate_mask = target_mask & slab_mask_full
+        if not donate_mask.any():
+            raise FacetInputError(
+                f"SplitPerturbation: donated_fraction={self._donated_fraction!r} "
+                f"produced an empty donation slab for target label {target!r}."
+            )
+        data[donate_mask] = neighbour
+
+        out_img = _new_image(data, labelmap)
+
+        expectation = Expectation(
+            failure_mode=3,
+            failure_mode_name=FAILURE_MODE_NAMES[3],
+            expected_rule_ids=frozenset({"fragmentation"}),
+            expected_labels=frozenset({neighbour}),
+            expected_verdict="flagged-for-review",
+            detail=(
+                f"split: donated {self._donated_fraction!r} of target label "
+                f"{target!r}'s stacking-axis (array axis {axis}) span "
+                f"(indices {slab_lo}-{slab_hi} of {axis_min}-{axis_max}) to "
+                f"neighbour label {neighbour!r}. The receiving label now spans "
+                "two disconnected bodies, so fragmentation's Fragmentation: "
+                "detector (mode 1's) fires on it -- a co-detection, not mode "
+                "3's own signal."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
