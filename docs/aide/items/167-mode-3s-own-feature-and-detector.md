@@ -652,3 +652,302 @@ built code before commit (not transcribed from the spec's predictions):
   synthetic corpus alone, where the nearest competing value is `0.0`; roadmap Stage
   21 re-calibrates thresholds on real GT, and a real segmentation's facet-joint
   contact is the case that will test it.
+
+## Correction — 2026-09-20
+
+Validation round 1 came back red — **19 failures**, in the files named below — and
+the concurrent review returned two minor findings, both in scope. **No acceptance
+criterion is in dispute and the deliverable does not change:** AC1–AC11 stand
+exactly as written above, and so does every Assumption A1–A8 and every
+**Authorised paths** entry. What moves is the *reconciliation surface* (six files
+the original sweep did not reach), one Testing-Strategy claim that was factually
+wrong, and the two review findings. Everything below is **appended**; nothing above
+is rewritten.
+
+### C1 — Authorised paths, appended
+
+**May change (appended 2026-09-20):**
+
+- `tests/test_103_feature_catalogue.py` — already declared above (conditionally); its `test_ac4_clean_control_leaf_paths` hardcodes the **per-record** leaf-path count and does go red (C2)
+- `tests/test_126_golden_retirement.py` — `test_ac22_documented_2694_evidence_still_verifies_unchanged`'s companion `(26, 94)` pin (C2)
+- `tests/test_147_specification_is_the_record.py` — its **own** `_EXPECTED_DERIVED_STATUS[3]`, a second copy of the map named in reconciliation entry 2 (C2)
+- `tests/test_119_curve_formulation.py` — no edit expected; declared because its AC27 digest assertion is a consumer of the fixture this item must bump (C3)
+- `tests/test_120_leave_one_out_offset.py` — no edit expected; same, for its AC12 (C3)
+- `tests/test_123_recalibrate_and_regenerate.py` — no edit expected; same, for its AC49 (C3)
+- `tests/corpus/119_pre_119_digests.json` — `catalogue_leaf_path_set_sha256` recomputed, per the standing obligation item 121 recorded (C3)
+- `tests/test_098_stray_components.py` — already declared above (conditionally); the reason given there is wrong and is corrected in C5, and the file **is** edited
+
+No path is removed, and no original bullet is rewritten: the two files already
+declared keep their original entries, and C2/C5 correct what those entries said
+about them. `tests/corpus/119_pre_119_digests.json` is already pinned
+`text eol=lf` in `.gitattributes` (line 20, item 119), so CLAUDE.md's LF gotcha
+needs **no new pin** — the builder must still write the file with `\n` bytes and
+regenerate it outside the suite (C3).
+
+### C2 — the sweep's miss: per-record enumerations, not only the corpus-wide total
+
+The original sweep tracked `build_catalogue(strict=True)`'s corpus-wide count of
+138 through five files. Two new `ComponentsInfo` fields also move every **per-record**
+leaf-path enumeration and every digest taken over the leaf-path *shape*. Three
+further files carry such a pin:
+
+1. `tests/test_103_feature_catalogue.py::test_ac4_clean_control_leaf_paths` —
+   `assert len(paths) == 94` is the count of leaf paths in **one record**
+   (`clean_control`), not in the catalogue. Move it to the **re-measured** value
+   (96 as the round-1 run reports) and append a dated item-167 comment in the same
+   style as the item-123 comment already above that line (`93 -> 94: item 123 …`),
+   naming the two new paths. Re-measure; do not transcribe.
+2. `tests/test_126_golden_retirement.py::test_ac22_documented_2694_evidence_still_verifies_unchanged`
+   — the pin is `(documented_n, documented_m) == (26, 94)`, read from the
+   regenerated `docs/aide/golden_evidence.generated.json` (already an Authorised
+   path) and cross-checked against a live `build_report_for_case` measurement, over
+   nine parametrised cases. **Re-measure both numbers and bump the literal pair**;
+   `m` moves with the two new leaf paths, and `n` (the *unwired* count) moves only
+   if the new paths are unwired — they are consumed by `fragmentation`'s
+   declaration, so `n` is expected to stay 26, but that is a prediction and the
+   builder writes what it measures. Update the docstring's `(26, 94)` sentence with
+   an appended dated item-167 clause; do not delete item 134's.
+3. `tests/test_147_specification_is_the_record.py::test_ac26_every_corpus_case_agrees_and_status_derives_correctly`
+   — a **second copy** of `_EXPECTED_DERIVED_STATUS`, independent of
+   `tests/test_145_eight_hypothesised_modes.py`'s. Entry `3` moves from
+   `"implemented"` to `"validated"`, and its trailing comment `# no corpus case` is
+   stale from item 166 on: replace it with a dated item-167 comment naming the
+   `split` case and the `fragmentation`/`neighbour_contact` edge that makes the
+   status derive. The surrounding block comment (item 150's) stays.
+
+### C3 — the three digest pins: bump the fixture, edit no test
+
+`tests/test_119_curve_formulation.py::test_ac27_catalogue_leaf_path_set_unchanged_from_pre_119`,
+`tests/test_120_leave_one_out_offset.py::test_ac12_catalogue_leaf_path_set_unchanged_from_pre_119`
+and `tests/test_123_recalibrate_and_regenerate.py::test_ac49_pre_119_digest_matches_the_live_catalogue_leaf_path_set`
+are **one assertion written three times**: sha256 of the newline-joined, sorted set
+of leaf `path` values from a fresh `segfacet.catalogue.main` run, compared against
+`tests/corpus/119_pre_119_digests.json`'s `catalogue_leaf_path_set_sha256`. None of
+them reads the *committed* catalogue, and none is a frozen provenance record of a
+past tree — the fixture has already been recomputed twice (item 121: 133 → 137
+leaves; item 123: 137 → 138).
+
+**Decision: bump the committed digest in `tests/corpus/119_pre_119_digests.json`,
+and edit none of the three tests.** This is the intended maintenance path, not a
+destruction of what the pin protects. What it protects is an *undeclared* movement
+of the leaf-path set: it is a blast-radius fence calibrated once upstream of every
+item that can move the catalogue (`docs/aide/golden-decision-table.md`, the
+`119_pre_119_digests.json` row), and item 121 recorded the standing obligation in
+so many words — *"any item that adds or removes a leaf path must recompute and
+commit this digest alongside its own change, the same way it regenerates
+`feature_catalogue.generated.json`"*. This item declares the movement in AC9 and in
+five count pins, so the bump is a declared consequence, and the fence keeps its
+whole value for the next item: it still fires on anything that moves the set
+without saying so. Freezing the digest instead would make it a permanent red, which
+protects nothing.
+
+**How it is regenerated.** There is no generator module, and there must not be one
+written here: the recomputation is the three mechanical steps item 121 and item
+123's step 9 both name — run `segfacet.catalogue.main`, take the sorted leaf `path`
+values, sha256 the newline-joined list — performed **once, by hand, from the repo
+root, outside the suite**, and the result written into the fixture. That does not
+touch this repo's "never regenerate a committed artifact from a test" rule, which
+bars a *test* from writing the artifact it asserts against; the three tests remain
+pure readers, and `test_123`'s AC49 exists precisely to fail until the builder has
+done the bump. Preserve the file's exact shape (one key, two-space indent,
+trailing newline, LF bytes).
+
+`.gitattributes` needs **no change**: line 20 already carries
+`tests/corpus/119_pre_119_digests.json text eol=lf` from item 119, which is the pin
+CLAUDE.md's gotcha requires. The file is added to **May change** in C1.
+
+### C4 — three already-authorised files, left half-reconciled
+
+4. `tests/test_166_split_operator.py::test_mode_3_intended_rules_unchanged` —
+   a second test in that file, beside the AC9 `bar_conditions(3)` pin the original
+   Testing Strategy entry 1 named. It asserts
+   `{edge.rule_id for edge in SPECIFICATION[3].intended_rules} == {"bounds", "reference_delta"}`
+   and `"fragmentation" not in rule_ids`. Item 166's claim was that **item 166**
+   added no edge — a diff-time claim about a merged item, kept as a standing
+   assertion. Preserve that provenance by narrowing it to the half that is still
+   true and dating the rest: keep the assertion that mode 3 still carries its two
+   **proxy** edges (`{"bounds", "reference_delta"} <= rule_ids`, which is what item
+   166's docstring reason — *"if a later hand authored the co-detection as an edge
+   instead, condition 4 and `derive_status` would both move on a proxy rule"* —
+   actually guards), replace the `not in` line with the corrected fact
+   (`rule_ids == {"bounds", "reference_delta", "fragmentation"}`), rename the test
+   to `test_mode_3_proxy_edges_unchanged`, and append a dated item-167 comment
+   recording that item 166 itself added no edge and that item 167 added the
+   `fragmentation`/`neighbour_contact` one. Do **not** delete the test or its A6
+   docstring.
+5. `tests/test_151_stage30_validation.py` — two failures beyond the three AC35
+   consumers named in reconciliation entry 4:
+   - `test_ac12_every_intended_rule_edge_carries_a_valid_rung` ends
+     `assert total_edges == 17`. This item adds exactly one edge (step 8), which A6
+     already predicted as 18. **Re-measure and bump the literal**, with a dated
+     item-167 comment naming the added edge. The rest of the test (every rung drawn
+     from `EVIDENCE_RUNGS`) is unchanged.
+   - `test_adv_ac35_status_counts_parser_rejects_off_by_one` is a **negative
+     control**, and it must not be "fixed" by nudging its literal. It builds the
+     text `"… validated 7, …"` and asserts `validated != live_counts["validated"]`;
+     mode 3 moving to `validated` took the live count to 7, so the control now
+     *passes or fails by coincidence with live state* rather than by construction —
+     the failure mode the review calls worse than a red test. **Rebuild the
+     perturbed clause from the live derivation instead of from literals:** take
+     `_live_status_counts()`, format a clause carrying the live `n` and the live
+     counts with **`validated` deliberately `+ 1`**, assert the regex matches, assert
+     every *unperturbed* parsed field equals its live value, and assert the
+     perturbed field differs. The control then tests the parser-and-comparison
+     (an off-by-one clause is caught) and can never coincide with live state again.
+     Append a dated item-167 comment saying why the literal form was replaced.
+     `test_adv_ac35_status_counts_parser_rejects_wrong_n` shares the shape but is
+     **not** red (its `15` cannot collide with a fixed 16-mode specification); it is
+     left alone, and the class is captured in `docs/aide/insights.md`.
+6. `tests/test_136_rule_mode_declarations.py::test_adv_expected_artifact_movement_counts_from_spec`
+   — a third edit in a file already authorised for `_CORROBORATED`,
+   `expected_co_detections` and the module comment. It pins
+   `len(entries) == 138`, `stayed_rule_unmapped == 0` and `stayed_empty == 86`.
+   **Re-measure all three** against the rebuilt catalogue (the entry total moves by
+   two; whether the two new paths land in the `()` bucket depends on their
+   `mode_evidence`, which the `fragmentation` declaration gives them, so the
+   `stayed_empty` figure is a measurement, not a prediction) and append a dated
+   item-167 paragraph to the docstring in the same style as the item-137 and
+   item-148 paragraphs already there — superseding, never overwriting, the earlier
+   measurements.
+
+### C5 — correction to the Testing Strategy's conditional claim 12
+
+The **Testing Strategy**'s conditional entry 12 and the matching **Authorised
+paths** bullet both claim that `tests/test_098_stray_components.py`'s "components
+key-set assertions are subset-shaped (`<=`, `in`)" and that the file stays green.
+**That claim is factually wrong and is corrected here; the original stands above as
+the record of what the item was specified from.**
+
+Measured 2026-09-20 (validation round 1):
+`test_ac8_dict_key_set_is_exactly_six_plus_four` asserts
+`set(components_to_dict(info).keys()) == expected_keys` against a literal set of
+**ten** names — an exact equality, not a subset — and the built code emits twelve.
+The file is therefore **edited, not merely declared**; it is already listed under
+**Authorised paths → May change**, so no path is added, only its reason corrected.
+
+**Prescribed edit.** Add `"stray_contact_area_mm2"` and `"stray_contact_label"` to
+`expected_keys`, keeping the literal set (the enumerated names are the record of
+what the serialiser owes, and a set derived from `ComponentsInfo`'s own fields would
+assert the two sides of the same declaration against each other). **Rename the test**
+— "six plus four" is now wrong — to
+`test_ac8_dict_key_set_is_exactly_the_components_block_field_set`, and add a dated
+item-167 comment above the set recording the history: six pre-098 keys, item 098's
+four, item 167's two, twelve in all. `test_ac1_existing_five_fields_still_present_and_ordered_first`
+is unaffected (it pins the first five fields only, and step 1 appends), and the
+remaining AC8 tests assert per-key values, not the key set.
+
+### C6 — review finding 1: the tie-break is undocumented and unstable
+
+`src/segfacet/features/components.py` orders components with
+`xp.argsort(component_counts)[::-1]` to decide which one is "the largest" and
+therefore excluded. `np.argsort`'s default kind is **not stable**, so two components
+of equal largest size make the exclusion implementation-dependent — and the
+exclusion decides `stray_contact_area_mm2`, `stray_contact_label`, the finding and
+the verdict. No committed corpus case ties today, so this is dormant, not a live
+defect; two equal-size stray fragments is not exotic in real data, and the package
+has a house convention of documented deterministic tie-breaks for exactly this
+choice (`features/spline_offset.py` — *"ties broken by ascending label"*;
+`heuristics/mislabel.py::_dominant_direction` — an explicit key with
+*"ties broken x -> y -> z"*; `features/consistency.py`).
+
+**Prescribed policy — stated once and applied at all three tie sites:**
+
+> Components are ordered by **descending voxel count, ties broken by ascending
+> component id**; the first of that order is the label's largest and is excluded.
+> Among contacting labels of equal area, the **lowest label id** wins.
+
+- Replace the `argsort` with an explicit, stable, backend-independent ordering over
+  the already-materialised counts — a plain `sorted(...)` keyed on
+  `(-count, component_id)`, the `mislabel.py` form — so nothing depends on a sort
+  kind in NumPy or CuPy.
+- Make the contacting-label maximum explicit too:
+  `max(area_by_other, key=lambda k: (area_by_other[k], -k))`. Today it inherits the
+  lowest-label outcome by accident, from `xp.unique`'s ascending order and dict
+  insertion order; the house convention is that this is *stated*, not inherited.
+- The across-component comparison keeps its strict `>`, which under the ordering
+  above means the lowest-id component wins an area tie — state that in the comment
+  rather than leaving it to the reader.
+
+**Where the policy must be stated** (all three, none optional): the `Attributes`
+entries for `stray_contact_area_mm2` and `stray_contact_label` in `ComponentsInfo`'s
+docstring; one inline comment at the sort itself; and the `computation` string of
+both new `FEATURE_DOCS` entries, which is where a reader outside the module meets
+the feature via the generated catalogue. The catalogue artifacts are regenerated
+either way (step 10), and the leaf-path *set* is unchanged by a docs edit, so C3's
+digest is unaffected.
+
+**One new named adversarial case**, added to the Testing Strategy's list:
+
+- `largest-component-tie-is-broken-by-ascending-id`: a synthetic label with **two
+  equal-size** components, only the second of which is face-adjacent to another
+  label; the documented policy excludes the lower-id component, so the contacting
+  one is counted and `stray_contact_area_mm2` is a hand-computed positive literal
+  with `stray_contact_label` naming the neighbour. **Failure mode guarded:** under
+  the opposite (or an unstable) tie-break the contacting component is the one
+  excluded and the feature reads `0.0`, silently dropping a real split — the whole
+  detector goes quiet on a case it exists for. The expected values are hand-computed
+  literals, never `_recompute_stray_contact` (C7).
+
+### C7 — review finding 2: the test's "independent recomputation" is not independent
+
+`tests/test_167_mode_3_detector.py`'s `_recompute_stray_contact` is a near-verbatim
+reimplementation of the production block — same `face_area` axis map, same
+`pad`-and-slice neighbour construction, same descending-argsort-then-exclude-first
+tie-break, same accumulation. AC1, AC2 and `test_spacing_is_read_from_the_header`
+all compare production against it, so a systematic defect shared by both — a swapped
+axis mapping, or C6's tie-break — passes all three.
+
+**Prescribed fix:**
+
+- `test_spacing_is_read_from_the_header` **must assert a hand-computed literal** and
+  must not call the helper at all: its construction is 9 face-adjacent voxels across
+  axis 0 at spacing `(0.5, 1.0, 3.0)`, so the face area is
+  `zooms[1] * zooms[2] == 1.0 * 3.0` and the expected value is **27.0 mm²**, with
+  `stray_contact_label == 2`. Put the arithmetic (`9 faces × 1.0 mm × 3.0 mm`) in
+  the comment. This is the one test whose whole subject is the axis→face-area
+  mapping, and it is the one the shared helper made blind.
+- **AC1 and AC2 additionally assert the measured literals** on the committed
+  fixture — `750.0` mm² and label `22` (measured 2026-09-20; the fixture is pinned
+  under **Asserts against**, so the literals are stable and a moved fixture fails
+  loudly). The recomputation stays beside them: the two answer different questions,
+  the literal from first principles and the recomputation against a refactor. With
+  both, neither AC is a mirror.
+- Correct `_recompute_stray_contact`'s docstring: it is a **parallel recomputation
+  from the fixture's own array**, not an independent derivation, and the
+  from-first-principles evidence lives in the literals above. Give it the same
+  documented tie-break as C6 (explicit `sorted` key, not `argsort`) so it stops
+  carrying the same latent gap, and note there that the tie case itself is covered
+  by C6's new test, which uses literals only.
+
+### Decisions & Trade-offs — appended 2026-09-20
+
+- **This correction is a reconciliation widening, not a design change.** Every
+  acceptance criterion, every Assumption and every original Authorised-paths entry
+  above stands; six files join **May change**, three files already declared gain
+  prescriptions their original reasons missed, and two review findings are fixed in
+  code and tests this item already owns.
+- **The failure list is empirical and complete.** A full suite run on this branch
+  (2026-09-20, validation round 1) yields exactly **19 failures**, in the files
+  C2/C4/C5 name — `test_103` (1), `test_126` (9 parametrisations), `test_119` (1),
+  `test_120` (1), `test_123` (1), `test_147` (1), `test_166` (1), `test_151` (2),
+  `test_136` (1), `test_098` (1). They were enumerated by running the suite, not by
+  reasoning about which files "look related"; the builder re-runs it and any file it
+  names that is still undeclared is a further dated correction, not a silent edit.
+- **The lesson, and what the next sweep must do differently.** Adding a field to a
+  widely-serialised dataclass moves **per-record** leaf-path enumerations and every
+  **digest taken over the shape** — not only the corpus-wide aggregate. This spec's
+  original sweep tracked the catalogue's 138-entry total through five files and
+  found every file pinning *that number*; it missed a per-record count of 94 in
+  `test_103`, its companion `(26, 94)` in `test_126`, and three sha256 digests over
+  the leaf-path *set* which name no count at all and so match no count-shaped grep.
+  The rule this pays for: **enumerate every pin over the shape, not only over the
+  total** — a count of one record's leaves, a digest of the path set, a per-mode or
+  per-bucket distribution — and grep for the hash of the shape as well as for its
+  size. It is the same class as the value-surface lesson item 166 recorded
+  (`docs/aide/insights.md`, item 166, 2026-09-20), one level up: values, then
+  shapes, then totals.
+- **Left open:** whether the three copies of the leaf-path-digest assertion
+  (`test_119` AC27, `test_120` AC12, `test_123` AC49) should be one. They are the
+  same comparison written three times against one fixture, so every leaf-path change
+  pays three test-reads for one fact; collapsing them would rewrite three merged
+  items' provenance and is not this item's to do.
