@@ -1751,7 +1751,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ **D2** Further selected modes, optional: refined as far as wanted and signed off at their
   queue's checkpoint, to the bar or to a recorded intermediate state. Selected
   2026-09-18: mode 3 (split) — its split operator and corpus case. *(Item 166)*
-- 🔍 **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
+- ✅ **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
 - 📋 **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
   with date and outcome in the specification module. *(Item 168)*
 - 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
