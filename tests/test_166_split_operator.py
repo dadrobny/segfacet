@@ -343,8 +343,7 @@ def test_bounds_stays_silent_on_the_donor():
     case = _split_case_dict()
     fixture_path = CORPUS_DIR / case["seg_fixture"]
     donor_img = nib.load(str(fixture_path))
-    config = bundled_default_config()
-    geometry = compute_label_geometry(donor_img, 22, config)
+    geometry = compute_label_geometry(donor_img, 22)
 
     lumbar = DEFAULT_BOUNDS["lumbar"]
     assert lumbar["min_volume_mm3"] <= geometry.physical_volume_mm3 <= lumbar["max_volume_mm3"]
