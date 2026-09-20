@@ -347,6 +347,7 @@ reasoning; each names what was run.
 - `tests/test_145_eight_hypothesised_modes.py` — `_GEOMETRIC_CORPUS_MODE_IDS` gains `3` and its comment stops saying mode 3 carries no case
 - `tests/test_149_conformance_report.py` — case counts `15` → `16` and `11` → `12`
 - `tests/test_151_stage30_validation.py` — both `== 15` case-count assertions become `16`
+- `tests/test_120_leave_one_out_offset.py` — reconciliation (added 2026-09-20, Correction): its AC24 block is a **second, independently-authored pin of the same corpus-wide detection totals `test_057` pins** — its own `_corpus_cohort_metrics()` helper over the whole manifest, then `metrics.sensitivity == 8/9`, a hardcoded `expected_sensitivity` per-mode dict, `sum(m.n_cases …) == 9`, and the ratio in the test's own name
 
 **Asserts against:**
 
@@ -400,6 +401,12 @@ Stale by omission rather than red, and reconciled anyway:
 Conditional:
 
 14. `tests/test_123_recalibrate_and_regenerate.py` — `test_ac45_interior_corpus_ceiling_is_2_510990` maxes the interior spline offset over every corpus case. Measured 2026-09-20, the split case's interior offsets peak at **0.678 mm**, well under the pinned ceiling, so no edit is expected; the file is declared only so a surprise is not a scope violation.
+
+**Found after authoring (Correction — 2026-09-20). Belongs to the first group
+above — red without the edit — and is numbered onward rather than inserted, so
+entries 1–14 keep the numbers they were authored with:**
+
+15. `tests/test_120_leave_one_out_offset.py` — the AC24 block (lines 722–775 on this tree, 2026-09-20) re-derives `_corpus_cohort_metrics()` over the whole committed manifest and pins the corpus-wide totals a second time, independently of entry 12's `test_057`. Four assertions plus the test's own name go stale; the full site-by-site prescription, and why mode 3's per-mode entry is `1.0`, are in **Correction — 2026-09-20** below.
 
 **Covered automatically — no edit and no new test:**
 
@@ -459,3 +466,203 @@ To be updated during implementation.
 
 - **Left open:** whether `fuse` should gain a *bridged* variant so mode 2 is decided by its own signal rather than by co-detections (roadmap Stage 32's menu, "Mode 2 fused"). This item builds mode 3's converse operator and deliberately does not touch mode 2 — the two are separate maintainer selections, and mode 2 was not selected for queue-022.
 - **Left open:** whether `donated_fraction` should eventually be calibrated against real split failures rather than against the synthetic corpus's `fragmentation` threshold. A1's 0.4 is a synthetic-corpus calibration only; roadmap Stage 21 re-calibrates thresholds on real GT.
+
+- **2026-09-20 — the reconciliation list was widened by one file, pre-build; the
+  deliverable is unchanged.** `tests/test_120_leave_one_out_offset.py` was
+  added to **Authorised paths → May change** and to the "existing tests to
+  reconcile" block as entry 15 (**Correction — 2026-09-20**). No acceptance
+  criterion, implementation step or assumption moved, and no originally
+  authored Authorised-paths entry was altered: what the item builds is exactly
+  what it was specified to build, and only the set of files it must carry
+  across its own change grew. **Why one grep of the obvious file was not
+  enough:** the surface — the corpus's cohort-wide detection totals — is pinned
+  **twice, by two independently authored tests in two modules**. Entry 12's
+  `tests/test_057_acceptance_stage7.py` owns the claim by subject (Stage 7
+  acceptance, overall corpus sensitivity) and was found by reading that
+  subject; `tests/test_120_leave_one_out_offset.py` is item 120's
+  leave-one-out-offset module, which re-derives the same cohort metrics under
+  its own AC24 for a reason unrelated to its module title, with its own
+  private copy of the `_corpus_cohort_metrics()` helper and no import of or
+  reference to `test_057`. Nothing in the file's name, its item, or the
+  surface's obvious owner points at it, and the two copies share no identifier
+  a grep of one would surface from the other — so the honest rule is that a
+  spec touching a **corpus-wide aggregate** greps the tree for the *measured
+  quantity* (`compute_cohort_metrics`, `sensitivity`, `n_cases` totals), not
+  for the file that plainly owns it. The same defect class is already on the
+  record for item 164 (`docs/aide/insights.md`, item 164, 2026-09-20).
+
+## Correction — 2026-09-20
+
+**Appended, not a rewrite.** Everything above stands as authored on 2026-09-20.
+This section records one **completeness defect in the reconciliation list**,
+found **before any build** by the test-writer while deriving the tests from the
+criteria above, and prescribes what it adds. **No acceptance criterion, no
+implementation step, no assumption, no `Asserts against` entry and no
+originally authored `May change` entry is changed by it, and the deliverable is
+unchanged** — a split operator, one committed corpus case, and mode 3's
+authored expected firing, exactly as specified. What grew is only the set of
+files this item must carry across its own change.
+
+### 1. `tests/test_120_leave_one_out_offset.py` pins the same corpus totals a second time
+
+**The gap.** The Testing Strategy's "existing tests to reconcile" block named
+14 files; `tests/test_120_leave_one_out_offset.py::test_ac24_corpus_pipeline_detection_is_eight_of_nine`
+is a fifteenth, named in neither that block nor **Authorised paths**. Verified
+on this tree 2026-09-20, lines 722–775: the test builds its **own**
+`_corpus_cohort_metrics()` helper (a private copy, lines 729–747 — it does not
+import `test_057`'s) over every case in `load_manifest()`, then asserts
+
+```python
+assert metrics.sensitivity == pytest.approx(8.0 / 9.0)
+expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+...
+assert sum(m.n_cases for m in metrics.per_mode) == 9
+```
+
+This is the same surface entry 12 caught on `tests/test_057_acceptance_stage7.py`
+(`test_overall_corpus_sensitivity_is_…`, ratio `8/9` → `9/10`); `test_120` was
+simply missed. The new split case makes the corpus **ten** expected-failure
+records, **nine** of them caught, and adds mode 3 to the per-mode breakdown, so
+all three assertions plus the test's own name — which carries the ratio in its
+identifier — go stale. The file is outside the originally declared Authorised
+paths, so without this correction the builder would be unauthorised to touch
+the very test the change turns red.
+
+**The resolution.** `tests/test_120_leave_one_out_offset.py` is added under
+**Authorised paths → May change**, and entry **15** of the reconcile block
+points here. The edits, prescribed site by site so the test-writer decides
+nothing:
+
+- **(a) Section banner, line 723.** `# AC24: The corpus's pipeline-detection
+  count is 6 of 8` → `# AC24: The corpus's pipeline-detection count is 9 of
+  10`. Note this banner is **already stale on the current tree** (it says 6 of
+  8 while the test below it asserts 8/9 — items 132 and 150 moved the ratio and
+  left the banner); correcting it is not needed to make the suite green, and it
+  is prescribed only because this item is editing the block anyway.
+
+- **(b) The rename, line 750.** `test_ac24_corpus_pipeline_detection_is_eight_of_nine`
+  → `test_ac24_corpus_pipeline_detection_is_nine_of_ten`. **Yes — follow
+  `test_057`'s new name for consistency**: the test-writer's already-committed
+  reconciliation (commit `da68784`) renamed
+  `test_overall_corpus_sensitivity_is_eight_of_nine_not_over_claimed` to
+  `…_is_nine_of_ten_not_over_claimed`, and the two tests pin the same ratio, so
+  they should spell it the same way. The `test_ac24_` prefix and the
+  `corpus_pipeline_detection` subject are **kept** — the prefix is item **120**'s
+  AC24, which is this test's true provenance, and renaming it to an item-166 AC
+  number would falsify that. (Consequence, already on the record: `aide scope`'s
+  §6 traceability check attributes a test in a changed file to the *changing*
+  item, so it will read `ac24` as an AC item 166 does not have. That is the
+  known framework gap captured at `docs/aide/insights.md`, item 164,
+  2026-09-20 — not a defect in this rename, and not a reason to renumber.)
+
+- **(c) The rename is safe — checked, not assumed.** Grepped `tests/` and
+  `src/` on 2026-09-20 for `test_ac24_corpus_pipeline_detection`: the only hit
+  is its own definition. No module calls it by identifier the way
+  `tests/test_132_monotonicity_against_traversal_order.py` (line 540) calls
+  `test_057`'s renamed function. The two tests that read `test_120`'s **source
+  text** — `tests/test_123_recalibrate_and_regenerate.py::test_ac34_retired_test_names_absent_from_test_120_source`
+  and its AC50 sibling (lines 1135–1145) — name only
+  `test_ac29_reference_verse_v1_unchanged`,
+  `test_ac16_default_max_offset_mm_still_15` and a nine-key field set, none of
+  them this test. `tests/test_126_golden_retirement.py`'s `test_120` name lists
+  (lines 442–444, 507–508) name AC17/AC23/AC25/AC26 only.
+  `tests/test_127_committed_artifact_tolerance.py` (line 49) names the *file*,
+  not a test in it. So no third file needs an edit for the rename.
+
+- **(d) The docstring.** Keep the existing history chain verbatim (6/8 → 7/8 →
+  8/9, with its item-132 and item-150 provenance) and **append** one dated
+  line: re-measured 2026-09-20 (item 166) — mode 3's `split` case is the tenth
+  expected-failure record and is caught, so overall sensitivity is 9/10 and the
+  per-mode breakdown gains mode 3 at 1.0.
+
+- **(e) The overall ratio, line 765.** `pytest.approx(8.0 / 9.0)` →
+  `pytest.approx(9.0 / 10.0)`. Derived, not copied from `test_057`:
+  `metrics.sensitivity` is `_safe_rate(counts.tp, counts.tp + counts.fn)`
+  (`src/segfacet/eval/metrics.py`, `compute_cohort_metrics`) — an
+  **outcome**-based ratio. The split case's manifest entry carries
+  `expected_verdict="flagged-for-review"` (Implementation Step 4) and the
+  measured pipeline verdict is `flagged-for-review` (the Description's
+  measurement), so `Outcome.from_flags(True, True)` makes it a **TP**: ten
+  expected-failure records, nine TP, the overlap case (mode 15) still the only
+  FN.
+
+- **(f) The per-mode dict, line 767.** Add `3: 1.0`, keeping key order:
+  `expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}`.
+  **`1.0` — and the reasoning matters, because this metric is not the one in
+  (e).** Per-mode `sensitivity` is `n_caught_by_designated_rule / n_cases`
+  (`src/segfacet/eval/metrics.py`, `_per_mode_entry`), the **strict** signal,
+  not the outcome ratio. `segfacet.eval.outcome.classify_outcome` sets
+  `caught_by_designated_rule` True only when some actual finding's `rule_id` is
+  in the case's `expected_rule_ids` **and** that finding's labels intersect
+  `expected_labels`. For the split case both hold: Implementation Step 4
+  authors `expected_rule_ids=frozenset({"fragmentation"})` and
+  `expected_labels=frozenset({23})` (A4), and the measured firing is exactly
+  one `fragmentation` finding on label 23. So `n_cases == 1`,
+  `n_caught_by_designated_rule == 1`, and the entry is `1.0`. The loop's
+  `assert entry.n_cases > 0` is satisfied for the same reason.
+
+  **So yes: the `fragmentation` co-detection does count as a detection for this
+  metric — and that is not in tension with A6.** The metric reads the *case's*
+  `expected_rule_ids`, i.e. what the committed fixture is authored to fire, not
+  mode 3's `SPECIFICATION[3].intended_rules`, i.e. what mode 3 is *supposed* to
+  be detected by (still `bounds` + `reference_delta`, untouched). They are
+  deliberately different objects scored by different code: the eval harness
+  asks "did the pipeline raise the rule this fixture predicts", while
+  `traceability.bar_conditions` asks "is that rule one of the mode's own". This
+  is precisely why **AC9 keeps conditions 2–5 unmet while this entry reads
+  1.0** — a 1.0 here is not a claim that mode 3 is detected by its own signal,
+  and nothing in this correction weakens AC9. Had the `Expectation` instead
+  named mode 3's own `bounds`/`reference_delta`, neither fires without a
+  reference, this entry would be `0.0`, and the case would additionally fail
+  `offending_labels_match` (A4).
+
+  Corroboration, not derivation: the test-writer's committed reconciliation of
+  entry 12 (commit `da68784`) added `3` to `test_057`'s
+  `_PIPELINE_DETECTABLE_MODES`, so
+  `test_ac9_pipeline_detectable_mode_sensitivity_is_one[3]` independently
+  asserts the same `1.0` through the same `_per_mode_entry` path.
+
+- **(g) The record total, line 772.** `sum(m.n_cases for m in metrics.per_mode) == 9`
+  → `== 10`. `_compute_per_mode` groups only records with
+  `outcome.expected_failure is True`; the split case expects
+  `flagged-for-review`, so it contributes exactly one.
+
+- **(h) Unchanged, and must stay so:** lines 773–775 —
+  `mode_six.n_cases == 1` (mode 6's other case, `remove_level_relabel`, still
+  expects `"pass"` and is still not an expected-failure record) and the mode-10
+  all-zero assertion (mode 10 still has no corpus case). The helper at lines
+  729–747 also needs **no** edit: it derives its case list from
+  `load_manifest()` live, so the new case appears on its own.
+
+### 2. The sweep for a third pin of the same surface — none found
+
+Because two files had now been found pinning corpus-wide detection totals, the
+whole of `tests/` was swept on 2026-09-20 for the measured quantity rather than
+for the obvious owner: `compute_cohort_metrics`, `sensitivity ==`, `n_cases`,
+`per_mode`, the ratio in every form (`8/9`, `8.0 / 9.0`, `eight_of`, `nine_of`)
+and cross-references to `test_120` / `test_ac24`. **Exactly three modules build
+cohort metrics over the committed manifest, and there is no third pin:**
+
+- `tests/test_057_acceptance_stage7.py` — entry 12, already prescribed and
+  already reconciled in commit `da68784`.
+- `tests/test_120_leave_one_out_offset.py` — this correction.
+- `tests/test_116_ras_native_corpus.py::test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one`
+  (lines ~455–489) — builds the same full-manifest cohort but asserts **only**
+  mode **0**'s entry (`n_cases > 0`, `sensitivity == 1.0`) and the crop case's
+  own `Outcome.TRUE_POSITIVE`. No corpus-wide total and no exact mode-set
+  equality, so a new mode-3 record cannot move it. The file is already under
+  **May change** for `_ITEM_150_NEW_CASES`, and **needs no further edit**.
+
+Cleared as not pinning this surface: `tests/test_091_stage14_acceptance.py`
+(`per_mode_sensitivity` and `metrics.n_cases == len(held_cases)` are derived
+from whichever cohort is passed, and the cohorts are purpose-built stand-ins,
+not the committed corpus); and `tests/test_054_metrics.py`,
+`tests/test_055_calibrate.py`, `tests/test_056_eval_report.py`,
+`tests/test_096_run_manifest.py`, `tests/test_099_per_mode_metrics.py`,
+`tests/test_101_per_mode_cohort.py`, `tests/test_153_eval_harness_rekey.py` —
+all hand-built or empty cohorts with no corpus dependency.
+
+**Insight inbox.** The `gap` entry the test-writer appended to
+`docs/aide/insights.md` (item 166, 2026-09-20) records this same finding. It is
+left **exactly as written and unticked** — a captured claim is immutable — and
+is **resolved in-item** by this correction.
