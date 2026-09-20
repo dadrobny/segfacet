@@ -511,7 +511,7 @@ def _build_exercise(
                 if strongest_rung is None or rung_strength[edge.evidence_rung] < rung_strength[strongest_rung]:
                     strongest_rung = edge.evidence_rung
 
-        if strongest_rung is None or strongest_rung == "synthetic-demonstrable":
+        if strongest_rung is None or strongest_rung == evidence_rungs[0]:
             # No edge names the rule at all, or the specification's own
             # strongest claim is that the corpus demonstrates it -- a hole
             # by design (Step 4; no derivable reason).
@@ -983,8 +983,7 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                     "rule_id": r.rule_id,
                     "state": r.state,
                     "exercised_by": [
-                        {"corpus": corpus, "case_id": case_id}
-                        for corpus, case_id in r.exercised_by
+                        [corpus, case_id] for corpus, case_id in r.exercised_by
                     ],
                     "reason": r.reason,
                     "reason_modes": list(r.reason_modes),

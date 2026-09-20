@@ -317,10 +317,10 @@
     "rules": {
       "border": {
         "exercised_by": [
-          {
-            "case_id": "crop_at_border",
-            "corpus": "geometric"
-          }
+          [
+            "geometric",
+            "crop_at_border"
+          ]
         ],
         "reason": "",
         "reason_modes": [],
@@ -341,14 +341,14 @@
       },
       "coverage": {
         "exercised_by": [
-          {
-            "case_id": "fuse_adjacent",
-            "corpus": "geometric"
-          },
-          {
-            "case_id": "remove_level",
-            "corpus": "geometric"
-          }
+          [
+            "geometric",
+            "fuse_adjacent"
+          ],
+          [
+            "geometric",
+            "remove_level"
+          ]
         ],
         "reason": "",
         "reason_modes": [],
@@ -357,18 +357,18 @@
       },
       "fragmentation": {
         "exercised_by": [
-          {
-            "case_id": "fragment",
-            "corpus": "geometric"
-          },
-          {
-            "case_id": "fuse_adjacent",
-            "corpus": "geometric"
-          },
-          {
-            "case_id": "inject_islands",
-            "corpus": "geometric"
-          }
+          [
+            "geometric",
+            "fragment"
+          ],
+          [
+            "geometric",
+            "fuse_adjacent"
+          ],
+          [
+            "geometric",
+            "inject_islands"
+          ]
         ],
         "reason": "",
         "reason_modes": [],
@@ -377,18 +377,18 @@
       },
       "intensity": {
         "exercised_by": [
-          {
-            "case_id": "degenerate_uniform",
-            "corpus": "intensity"
-          },
-          {
-            "case_id": "implausible_metal",
-            "corpus": "intensity"
-          },
-          {
-            "case_id": "implausible_soft_tissue",
-            "corpus": "intensity"
-          }
+          [
+            "intensity",
+            "degenerate_uniform"
+          ],
+          [
+            "intensity",
+            "implausible_metal"
+          ],
+          [
+            "intensity",
+            "implausible_soft_tissue"
+          ]
         ],
         "reason": "",
         "reason_modes": [],
@@ -406,18 +406,18 @@
       },
       "mislabel": {
         "exercised_by": [
-          {
-            "case_id": "crop_at_border",
-            "corpus": "geometric"
-          },
-          {
-            "case_id": "displace",
-            "corpus": "geometric"
-          },
-          {
-            "case_id": "relabel_swap",
-            "corpus": "geometric"
-          }
+          [
+            "geometric",
+            "crop_at_border"
+          ],
+          [
+            "geometric",
+            "displace"
+          ],
+          [
+            "geometric",
+            "relabel_swap"
+          ]
         ],
         "reason": "",
         "reason_modes": [],
@@ -426,10 +426,10 @@
       },
       "overlap": {
         "exercised_by": [
-          {
-            "case_id": "force_overlap",
-            "corpus": "geometric"
-          }
+          [
+            "geometric",
+            "force_overlap"
+          ]
         ],
         "reason": "",
         "reason_modes": [],
@@ -451,10 +451,10 @@
       },
       "sequence": {
         "exercised_by": [
-          {
-            "case_id": "sequence_break",
-            "corpus": "geometric"
-          }
+          [
+            "geometric",
+            "sequence_break"
+          ]
         ],
         "reason": "",
         "reason_modes": [],

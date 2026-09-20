@@ -506,6 +506,41 @@ attests Stage 20 criteria 3–5 with evidence.
   pre-existing base defect would hand it to an item that did not land 139's
   deliverable, which is exactly the hand-off item 150's comment wrote to
   prevent.
+- **D4 (added 2026-09-20 — validation round 1 defect fix: `exercised_by`'s
+  JSON shape, not its content, was wrong):** `_build_exercise` built
+  `exercised_by` correctly throughout — `{rule_id: [(corpus, case_id), …]}`,
+  inverted from `ConformanceCase.measured_firing` exactly per Step 4 — and
+  `render_markdown` read those tuples correctly too (the committed Markdown
+  was never wrong). The defect was in `matrix_to_dict`, which serialised each
+  pair as a keyed object (`{"corpus": corpus, "case_id": case_id}`) rather
+  than the ordered pair Step 4 and AC3 both describe. A consumer that
+  destructures a JSON array positionally — `tuple(pair)`, or `for corpus,
+  case_id in pair` — got the two dict *keys* back (the literal strings
+  `"corpus"`/`"case_id"`) instead of the values: a `dict` of exactly two keys
+  unpacks into two variables with no error, so the wrong shape produced wrong
+  values silently rather than a crash. This also broke the intensity
+  adversarial fixture at setup: narrowing the intensity manifest is supposed
+  to make `intensity` unexercised, but the mis-shaped `exercised_by` fed
+  `_measured_firing_intensity` a case id of literal `"case_id"`, which the
+  narrowed manifest (correctly) does not contain, raising instead of
+  reporting `unexercised`. Fixed by serialising each pair as a plain
+  `[corpus, case_id]` list, matching how `unspecified_cases`' *own* consumers
+  read it (by key, never positionally) is a different, correctly-matched
+  contract and was not touched. No other `exercised_by`/pair-shaped field in
+  this module carried the same mismatch (checked: `cases`, `by_rule`,
+  `unspecified_cases`, `rule_attribution` each pass a shape their own readers
+  already destructure correctly).
+- **D5 (added 2026-09-20 — validation round 1 defect fix: a retyped rung
+  literal violated A3):** the unexercised-reason branch compared
+  `strongest_rung` against the hardcoded string `"synthetic-demonstrable"`
+  rather than deriving the demonstrable rung from the live
+  `failure_modes.EVIDENCE_RUNGS` vocabulary the rest of `_build_exercise`
+  already reads (A3; `tests/test_147_specification_is_the_record.py`
+  ::`test_ac2_one_source_for_rung_vocabulary` enforces this repo-wide).
+  Fixed by comparing against `evidence_rungs[0]` — the strongest rung by
+  `EVIDENCE_RUNGS`'s own "strongest-first" ordering, the same ordering
+  `rung_strength` (built two lines above from the same tuple) already
+  assumes. No other rung string was retyped in this module (checked).
 - **Left open:** whether the additive `exercise` section warrants a
   `SCHEMA_VERSION` bump to `"1.2"`. Not taken here —
   `tests/test_149_conformance_report.py::test_ac2_schema_version_bumped_to_1_1`
