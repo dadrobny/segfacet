@@ -1744,7 +1744,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ First-class detector ids on multi-detector rules, referenced by the
   specification's intended-rule edges, so "a detector serves no other mode" is
   checked mechanically (prerequisite of D1's condition 4). *(Item 164)*
-- 📋 **D1** The MVP mode: at least one maintainer-selected mode brought to the
+- 🚧 **D1** The MVP mode: at least one maintainer-selected mode brought to the
   fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 165)*
 - 📋 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
   queue's checkpoint, to the bar or to a recorded intermediate state. Selected
