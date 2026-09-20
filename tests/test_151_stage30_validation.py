@@ -447,12 +447,15 @@ def test_adv_ac11_offset_exactly_at_threshold_does_not_count_as_above():
 
 
 def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
+    # 17 -> 18: item 167 (docs/aide/items/167-mode-3s-own-feature-and-
+    # detector.md, Correction 2026-09-20, C4) adds mode 3's third edge
+    # (fragmentation, via the new neighbour_contact evidence).
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 17, total_edges
+    assert total_edges == 18, total_edges
 
 
 # =========================================================================== #
@@ -1133,11 +1136,28 @@ def test_adv_ac35_status_counts_parser_rejects_missing_clause():
 
 
 def test_adv_ac35_status_counts_parser_rejects_off_by_one():
-    text = "derived status counts over 16 modes: validated 7, implemented 3, specified 0, proposed 7"
+    # Item 167 (Correction 2026-09-20, C4): the old literal ("validated 7")
+    # was a hardcoded guess that happened to equal live+1 before this item;
+    # item 167 moved mode 3 to "validated", taking the live count itself to
+    # 7, so the literal stopped perturbing anything and the control passed
+    # by coincidence with live state rather than by construction. Build the
+    # perturbed clause from the live derivation instead, so it can never
+    # coincide with live state again.
+    live_n, live_counts = _live_status_counts()
+    text = (
+        f"derived status counts over {live_n} modes: "
+        f"validated {live_counts['validated'] + 1}, "
+        f"implemented {live_counts['implemented']}, "
+        f"specified {live_counts['specified']}, "
+        f"proposed {live_counts['proposed']}"
+    )
     match = _STATUS_COUNTS_RE.search(text)
     assert match is not None
-    n, validated, *_rest = (int(g) for g in match.groups())
-    _live_n, live_counts = _live_status_counts()
+    n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
+    assert n == live_n
+    assert implemented == live_counts["implemented"]
+    assert specified == live_counts["specified"]
+    assert proposed == live_counts["proposed"]
     assert validated != live_counts["validated"]
 
 

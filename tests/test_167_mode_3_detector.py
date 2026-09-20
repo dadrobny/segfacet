@@ -17,7 +17,9 @@ Plus exactly the nine adversarial cases the Testing Strategy names:
 ``fuse-adjacent-stays-silent``, ``inject-islands-stays-silent``,
 ``single-component-label-is-the-sentinel``, ``absence-tolerant-detector``,
 ``existing-detectors-unchanged``, ``record-is-not-mutated`` and
-``spacing-is-read-from-the-header``.
+``spacing-is-read-from-the-header``, plus one more named by the item's
+Correction (2026-09-20, C6): ``largest-component-tie-is-broken-by-
+ascending-id``.
 """
 
 from __future__ import annotations
@@ -72,10 +74,26 @@ def _manifest_case(case_id):
 
 
 def _recompute_stray_contact(data: np.ndarray, zooms) -> dict:
-    """Independently of ``segfacet.features.components``, recompute for every
-    non-zero label in *data* the maximum 6-neighbour face-contact area
-    between any of that label's connected components **other than its
-    largest** and any single other non-zero label.
+    """A parallel recomputation, from the fixture's own array, of
+    ``segfacet.features.components``'s neighbour-contact block -- not an
+    independent derivation: it shares the same face-area axis map, the same
+    pad-and-slice neighbour construction, and (below) the same documented
+    tie-break as the production code, so it can confirm a refactor but
+    cannot by itself catch a defect shared by both (item 167, Correction
+    2026-09-20, C7). The from-first-principles evidence lives in the
+    hand-computed literals in ``test_ac1``/``test_ac2``/
+    ``test_spacing_is_read_from_the_header`` instead. The tie-break case
+    itself -- two equal-size components, only one face-adjacent -- is
+    covered by
+    ``test_largest_component_tie_is_broken_by_ascending_id``, which uses
+    literals only and does not call this helper.
+
+    For every non-zero label in *data*, recomputes the maximum 6-neighbour
+    face-contact area between any of that label's connected components
+    **other than its largest** (components ordered by descending voxel
+    count, ties broken by ascending component id) and any single other
+    non-zero label (ties among equally-contacting labels broken by lowest
+    label id).
 
     Returns ``{label: (area_mm2, other_label)}``, using ``0`` as the
     other-label sentinel when the maximum is ``0.0`` (single-component label,
@@ -104,7 +122,14 @@ def _recompute_stray_contact(data: np.ndarray, zooms) -> dict:
             results[label] = (0.0, 0)
             continue
         sizes = ndi.sum(mask, labelled, index=np.arange(1, n_components + 1))
-        component_ids_desc = [int(i) for i in (np.argsort(sizes)[::-1] + 1)]
+        # Descending voxel count, ties broken by ascending component id --
+        # the same explicit, stable ordering as
+        # segfacet.features.components (item 167, C6/C7); the first is
+        # "the largest" and is excluded below.
+        counts_by_id = [(int(i), float(sizes[i - 1])) for i in range(1, n_components + 1)]
+        component_ids_desc = [
+            cid for cid, _count in sorted(counts_by_id, key=lambda pair: (-pair[1], pair[0]))
+        ]
 
         best_area = 0.0
         best_other = 0
@@ -120,8 +145,13 @@ def _recompute_stray_contact(data: np.ndarray, zooms) -> dict:
                     count = int(np.count_nonzero(selected == other_label))
                     area_by_other[other_label] = area_by_other.get(other_label, 0.0) + count * area
             if area_by_other:
-                local_other = max(area_by_other, key=lambda k: area_by_other[k])
+                # Among contacting labels of equal area, the lowest label id
+                # wins (item 167, C6).
+                local_other = max(area_by_other, key=lambda k: (area_by_other[k], -k))
                 local_area = area_by_other[local_other]
+                # Strict >: across components, the earlier (lower-id, per
+                # the ordering above) component's contact wins an area tie
+                # (item 167, C6).
                 if local_area > best_area:
                     best_area, best_other = local_area, local_other
         results[label] = (best_area, best_other)
@@ -204,6 +234,10 @@ def test_ac1_feature_measures_the_split():
     config = bundled_default_config()
     info = compute_components(seg_img, 23, config)
     assert info.stray_contact_area_mm2 == pytest.approx(expected_area)
+    # Measured 2026-09-20 (Correction C7): the committed split fixture's
+    # own value, pinned as a from-first-principles literal alongside the
+    # recomputation above -- neither is a mirror of the other.
+    assert info.stray_contact_area_mm2 == pytest.approx(750.0)
 
 
 # =========================================================================== #
@@ -223,6 +257,10 @@ def test_ac2_feature_names_the_claiming_label():
     config = bundled_default_config()
     info = compute_components(seg_img, 23, config)
     assert info.stray_contact_label == expected_other
+    # Measured 2026-09-20 (Correction C7): the committed split fixture's
+    # own value, pinned as a from-first-principles literal alongside the
+    # recomputation above -- neither is a mirror of the other.
+    assert info.stray_contact_label == 22
 
     # The background sentinel for a label with no stray contact (AC2's
     # second half): every other present label in the same fixture.
@@ -503,6 +541,17 @@ def test_record_is_not_mutated():
 
 
 def test_spacing_is_read_from_the_header():
+    """The one test whose whole subject is the axis->face-area mapping, so
+    it must not go through ``_recompute_stray_contact`` (item 167,
+    Correction 2026-09-20, C7): that helper shares production's axis map,
+    and a systematic defect in either would pass unnoticed if the other
+    were compared against it. Asserts a hand-computed literal instead.
+
+    The stray component (label 1, voxels at x=5) is a 1x3x3 slab whose
+    9 voxels each face label 2 (at x=6) across the x axis (axis 0). Face
+    area for an axis-0 contact is spacing[1] * spacing[2] = 1.0 * 3.0 mm,
+    so the expected total is 9 faces * 1.0 mm * 3.0 mm = 27.0 mm^2.
+    """
     spacing = (0.5, 1.0, 3.0)
     shape = (10, 3, 3)
     data = np.zeros(shape, dtype=LABEL_DTYPE)
@@ -511,11 +560,46 @@ def test_spacing_is_read_from_the_header():
     data[6, :, :] = 2  # label 2, face-adjacent to the stray component only
     img = nib.Nifti1Image(data, affine_from_spacing(spacing))
 
-    expected_area, expected_other = _recompute_stray_contact(data, img.header.get_zooms())[1]
-    assert expected_area > 0.0, "expected the synthetic construction to produce contact"
-    assert expected_other == 2
+    config = bundled_default_config()
+    info = compute_components(img, 1, config)
+    assert info.stray_contact_area_mm2 == pytest.approx(27.0)
+    assert info.stray_contact_label == 2
+
+
+# =========================================================================== #
+# Named adversarial case: largest-component-tie-is-broken-by-ascending-id
+# =========================================================================== #
+
+
+def test_largest_component_tie_is_broken_by_ascending_id():
+    """Item 167, Correction 2026-09-20, C6: two of label 1's components tie
+    for largest (3 voxels each). The documented policy -- descending voxel
+    count, ties broken by ascending component id -- excludes the *first*
+    (lower-id) component as "the largest" and considers the second
+    (higher-id) one, which is the one that actually touches label 2.
+
+    Failure mode guarded: under the opposite (or an unstable) tie-break, the
+    *contacting* (higher-id) component would be the one excluded instead,
+    and ``stray_contact_area_mm2`` would silently read 0.0 -- the detector
+    going quiet on exactly the split it exists to catch.
+
+    Construction (isotropic 1mm spacing, so every face has area 1.0 mm^2):
+    label 1 has two 3-voxel line components, separated by a background gap
+    -- the first (positions 0-2, lower id) touches nothing; the second
+    (positions 4-6, higher id) has its last voxel (position 6) face-adjacent
+    to a single voxel of label 2 (position 7). One contacting face -> the
+    hand-computed expected area is 1.0 mm^2, naming label 2.
+    """
+    shape = (9, 1, 1)
+    data = np.zeros(shape, dtype=LABEL_DTYPE)
+    data[0:3, 0, 0] = 1  # component A (lower id) -- 3 voxels, touches nothing
+    data[4:7, 0, 0] = 1  # component B (higher id) -- 3 voxels, ties A's size
+    data[7, 0, 0] = 2  # label 2, face-adjacent to component B's last voxel only
+    img = nib.Nifti1Image(data, affine_from_spacing((1.0, 1.0, 1.0)))
 
     config = bundled_default_config()
     info = compute_components(img, 1, config)
-    assert info.stray_contact_area_mm2 == pytest.approx(expected_area)
+    assert info.component_count == 2
+    assert info.component_sizes == [3, 3]
+    assert info.stray_contact_area_mm2 == pytest.approx(1.0)
     assert info.stray_contact_label == 2

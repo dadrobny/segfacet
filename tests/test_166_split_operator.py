@@ -366,9 +366,16 @@ def test_bounds_stays_silent_on_the_donor():
 # =========================================================================== #
 
 
-def test_mode_3_intended_rules_unchanged():
+def test_mode_3_proxy_edges_unchanged():
     """A6: if a later hand authored the co-detection as an edge instead,
-    condition 4 and ``derive_status`` would both move on a proxy rule."""
+    condition 4 and ``derive_status`` would both move on a proxy rule.
+
+    Item 167 (docs/aide/items/167-mode-3s-own-feature-and-detector.md,
+    Correction 2026-09-20, C4): item 166 itself added no edge to mode 3 --
+    that claim still holds and is preserved below as the subset check.
+    Item 167 added the third, non-proxy edge (fragmentation, via the new
+    neighbour_contact evidence), so the exact-equality claim this test used
+    to make is corrected here rather than left red."""
     rule_ids = {edge.rule_id for edge in failure_modes.SPECIFICATION[3].intended_rules}
-    assert rule_ids == {"bounds", "reference_delta"}
-    assert "fragmentation" not in rule_ids
+    assert {"bounds", "reference_delta"} <= rule_ids
+    assert rule_ids == {"bounds", "reference_delta", "fragmentation"}

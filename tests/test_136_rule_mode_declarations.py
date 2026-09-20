@@ -789,11 +789,18 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     A5), but neither of the two figures this test still pins: the 86-entry
     ``()`` bucket and the 0-entry ``("rule_unmapped",)`` bucket are untouched
     by that movement (measured against item 148's own regenerated artifact) --
-    this test re-verifies both hold, it does not re-measure them."""
+    this test re-verifies both hold, it does not re-measure them.
+
+    Reconciled again (item 167, 2026-09-20, Correction C4): the catalogue
+    gains two entries (``stray_contact_area_mm2``, ``stray_contact_label``),
+    moving the total 138 -> 140. Both new entries carry the fragmentation
+    rule's ``mode_evidence``, so they land in neither the ``()`` bucket nor
+    the ``("rule_unmapped",)`` bucket: ``stayed_empty`` stays 86 and
+    ``stayed_rule_unmapped`` stays 0 (re-measured, not assumed)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 138
+    assert len(entries) == 140
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())

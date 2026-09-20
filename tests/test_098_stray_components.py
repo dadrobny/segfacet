@@ -419,10 +419,12 @@ def test_ac7_all_four_fields_match_hand_computation():
 # =========================================================================== #
 
 
-def test_ac8_dict_key_set_is_exactly_six_plus_four():
+def test_ac8_dict_key_set_is_exactly_the_components_block_field_set():
     seg = _multi_component_anisotropic_img()
     info = compute_components(seg, label=1, config=_config())
     d = components_to_dict(info)
+    # Six pre-098 keys + item 098's four + item 167's two
+    # (stray_contact_area_mm2, stray_contact_label) = twelve in all.
     expected_keys = {
         "component_count",
         "component_sizes",
@@ -434,6 +436,8 @@ def test_ac8_dict_key_set_is_exactly_six_plus_four():
         "stray_component_sizes",
         "stray_volume_mm3",
         "stray_volume_fraction",
+        "stray_contact_area_mm2",
+        "stray_contact_label",
     }
     assert set(d.keys()) == expected_keys
 

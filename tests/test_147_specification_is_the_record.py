@@ -1202,7 +1202,9 @@ def test_ac25_matrix_note_names_the_specification_not_a_retired_constant(matrix)
 _EXPECTED_DERIVED_STATUS = {
     1: "validated",     # fragment fires fragmentation's Fragmentation: detector
     2: "implemented",   # fuse_adjacent fires coverage/fragmentation, neither mode 2's own
-    3: "implemented",   # no corpus case
+    3: "validated",     # item 167: split fires fragmentation via the new
+                         # neighbour_contact edge (stray_contact_area_mm2 /
+                         # stray_contact_label), 2026-09-20
     4: "validated",
     5: "proposed",
     6: "validated",     # remove_level fires coverage (remove_level_relabel expects {})
