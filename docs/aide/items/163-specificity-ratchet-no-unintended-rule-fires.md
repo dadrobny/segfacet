@@ -231,7 +231,7 @@ returns for AC4's violation.
 
 **Adversarial case beyond the AC tests — exactly one:**
 
-- `unspecified-case-is-not-exempt` — with one mode's `corpus_cases` emptied
+- `unspecified-case-is-not-exempt`: with one mode's `corpus_cases` emptied
   (item 149's `matrix_mode6_corpus_cases_emptied` idiom, a patched
   `SPECIFICATION`), the affected manifest case's record turns
   `expected_source == "unspecified"` and **fails** AC3's recomputation rather
