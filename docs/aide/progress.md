@@ -1743,15 +1743,15 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   stay tracked by their Stage 20 bullets.
 - ✅ First-class detector ids on multi-detector rules, referenced by the
   specification's intended-rule edges, so "a detector serves no other mode" is
-  checked mechanically (prerequisite of D1's condition 4). *(Item 162)*
-- ✅ **D1** The MVP mode: at least one maintainer-selected mode brought to the
-  fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 163)*
-- ✅ **D2** Further selected modes, optional: refined as far as wanted and signed off at their
+  checked mechanically (prerequisite of D1's condition 4). *(Item 164)*
+- 📋 **D1** The MVP mode: at least one maintainer-selected mode brought to the
+  fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 165)*
+- 📋 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
   queue's checkpoint, to the bar or to a recorded intermediate state. Selected
-  2026-09-18: mode 3 (split) — its split operator and corpus case. *(Item 164)*
-- 📋 **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 165)*
+  2026-09-18: mode 3 (split) — its split operator and corpus case. *(Item 166)*
+- 📋 **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
 - 📋 **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
-  with date and outcome in the specification module. *(Item 166)*
+  with date and outcome in the specification module. *(Item 168)*
 - 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
