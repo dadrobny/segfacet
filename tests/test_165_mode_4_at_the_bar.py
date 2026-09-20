@@ -261,7 +261,7 @@ def test_proxy_detector_never_decides_the_mode(monkeypatch, cached_catalogue):
 
 def test_uncatalogued_detector_path_fails_condition_3(monkeypatch, cached_catalogue):
     import segfacet.traceability as traceability
-    from segfacet.heuristics.rule import RuleDetector, iter_rules
+    from segfacet.heuristics.rule import ConsumedPath, RuleDetector, iter_rules
 
     fragmentation_rule = next(r for r in iter_rules() if r.rule_id == "fragmentation")
     bogus_path = "per_label.{label}.components.zzz_uncatalogued_165"
@@ -271,7 +271,25 @@ def test_uncatalogued_detector_path_fails_condition_3(monkeypatch, cached_catalo
         else detector
         for detector in fragmentation_rule.mode_declaration.detectors
     )
-    new_declaration = dc.replace(fragmentation_rule.mode_declaration, detectors=new_detectors)
+    # item 164's cross-validation requires every signal_paths element to be
+    # the path of a role=='signal' ConsumedPath in the same declaration, so
+    # widening the detector alone raises before bar_conditions() is ever
+    # reached. Add a matching ConsumedPath -- ascending by path, alongside
+    # the existing entries -- to keep the declaration internally valid. The
+    # bogus path still names no catalogue entry, so build_catalogue(strict=
+    # True) does not cover it and condition 3 must still report it unmet.
+    new_consumed_paths = tuple(
+        sorted(
+            fragmentation_rule.mode_declaration.consumed_paths
+            + (ConsumedPath(path=bogus_path, role="signal"),),
+            key=lambda cp: cp.path,
+        )
+    )
+    new_declaration = dc.replace(
+        fragmentation_rule.mode_declaration,
+        consumed_paths=new_consumed_paths,
+        detectors=new_detectors,
+    )
     monkeypatch.setattr(fragmentation_rule, "mode_declaration", new_declaration)
 
     result = traceability.bar_conditions(4, catalogue=cached_catalogue)
