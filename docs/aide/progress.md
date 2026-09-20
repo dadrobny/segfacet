@@ -993,7 +993,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   the §6 modes carry a definition and a discriminator. See
   [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.2.
   ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 163. *(Item 140)*
-- 🚧 Specificity assertion — no unintended rule may fire — as a ratchet whose allowlist is
+- 🔍 Specificity assertion — no unintended rule may fire — as a ratchet whose allowlist is
   each corpus case's `expected_firing` in the specification (Stage 32 D0). *(Item 163)*
 - ✅ Reachability hole closed *with its mechanism named per mode*: mode 8 is
   single-channel-unobservable, mode 1's ladder is FOV-capped, mode 4's cause TBD. Made
@@ -1743,7 +1743,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ First-class detector ids on multi-detector rules, referenced by the
   specification's intended-rule edges, so "a detector serves no other mode" is
   checked mechanically (prerequisite of D1's condition 4). *(Item 162)*
-- 🚧 **D1** The MVP mode: at least one maintainer-selected mode brought to the
+- 🔍 **D1** The MVP mode: at least one maintainer-selected mode brought to the
   fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 163)*
 - 📋 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
   queue's checkpoint, to the bar or to a recorded intermediate state. Selected
