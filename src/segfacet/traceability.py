@@ -102,6 +102,14 @@ every declared detector carrying no ``mode_less_reason`` of its own is named
 by at least one edge. This module still does not touch
 ``eval/severity_ladder.py``.
 
+And, new in item 165, :func:`bar_conditions` reports conditions 1-5 of the
+roadmap's Stage 32 "fully specified end to end" bar (:data:`BAR_CONDITIONS`)
+for one mode, each recomputed live over this module's own ``build_matrix``
+output rather than authored anywhere -- one :class:`BarCondition` per
+condition. Condition 6, the maintainer's sign-off, is deliberately **not**
+computed here: it is a person's decision, not a derivable fact, and item
+168's deliverable.
+
 Determinism contract
 ---------------------
 :func:`build_matrix` never mutates any input; two calls return equal,
