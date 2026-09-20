@@ -67,15 +67,31 @@ An unclassified or dropped ``consumed_paths`` entry is folded in from
 matrix-level ``conformance.conformant`` flag alongside the per-case agreement
 count.
 
+And, new in item 162, two **exercise directions** over the same two inputs:
+per registered rule (:func:`segfacet.heuristics.rule.iter_rules`), whether it
+is exercised by >=1 case across **both** committed corpus manifests -- re-keyed
+from the conformance report's own ``measured_firing`` (:data:`ExerciseReport`,
+A2: no second corpus drive) -- or unexercised with a reason **derived** from
+the strongest :data:`segfacet.failure_modes.EVIDENCE_RUNGS` entry among the
+``SPECIFICATION[*].intended_rules`` edges naming it; and per registered
+perturbation operator (:func:`segfacet.synth.perturbation.perturbation_names`),
+whether it is used by >=1 :data:`segfacet.synth.corpus.CASE_RECIPE` entry, or
+recorded unused with an authored reason
+(:data:`UNUSED_OPERATOR_REASONS`, empty on this tree). Both directions score
+their own completeness the same way every other direction here does: a record
+that is neither exercised/used nor reasoned is a named hole, and the
+direction's ``complete`` flag turns false.
+
 Scope fence
 -----------
 This module *reports*. It decides no disposition, changes no rule,
 threshold, extractor, verdict, report schema, or CLI behaviour, and
-regenerates neither of item 103's catalogue artifacts. It builds **no**
-per-rule or per-operator corpus-**exercise** columns -- item 139's
-deliverable, re-specified against this output, stays Stage 20's. It adopts
-no specificity ratchet (item 140) and does not touch
-``eval/severity_ladder.py`` (item 141).
+regenerates neither of item 103's catalogue artifacts. It adds no corpus
+case, attaches no reference to any harness path, edits no ``ModeSpec``, and
+authors no reason a rule's specification edges do not already carry (the
+sole authored string is an unused operator's reason, and it ships empty). It
+adopts no specificity ratchet (item 163) and no detector ids (item 164), and
+does not touch ``eval/severity_ladder.py``.
 
 Determinism contract
 ---------------------
@@ -115,6 +131,16 @@ __all__ = ["build_matrix", "matrix_to_dict", "render_markdown", "main"]
 
 SCHEMA_VERSION = "1.1"
 
+#: Item 162's two closed exercise-state vocabularies.
+EXERCISE_STATES: Tuple[str, ...] = ("exercised", "unexercised")
+OPERATOR_STATES: Tuple[str, ...] = ("used", "unused")
+
+#: The sole authored string in the exercise feature (A4): a deliberately
+#: unused operator's reason. Empty on this tree -- all registered operators
+#: are used, measured 2026-09-18 -- so the recorded branch is reachable and
+#: tested only adversarially.
+UNUSED_OPERATOR_REASONS: Dict[str, str] = {}
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
 MD_PATH = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.md"
@@ -141,7 +167,12 @@ _NOTE = (
     "committed manifests through the specification's expected firing set and "
     "the live measured firing set: read `conformance.disagreements` and "
     "`conformance.unspecified_cases` for the live answer, never assume "
-    "`conformant`."
+    "`conformant`. "
+    "The `exercise` section (item 162) reports, per registered rule and per "
+    "registered perturbation operator, whether it is exercised/used by >=1 "
+    "committed corpus case or recorded unexercised/unused with a reason: "
+    "read `directions.rule_exercise`/`directions.operator_exercise` for the "
+    "live answer, never assume either is complete."
 )
 
 _FEATURE_QUALIFIER = (
@@ -256,6 +287,31 @@ class ConformanceReport:
 
 
 @dataclass(frozen=True)
+class RuleExercise:
+    rule_id: str
+    state: str
+    exercised_by: Tuple[Tuple[str, str], ...]
+    reason: str
+    reason_modes: Tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class OperatorExercise:
+    name: str
+    state: str
+    cases: Tuple[str, ...]
+    reason: str
+
+
+@dataclass(frozen=True)
+class ExerciseReport:
+    rules: Tuple[RuleExercise, ...]
+    operators: Tuple[OperatorExercise, ...]
+    rule_direction: DirectionReport
+    operator_direction: DirectionReport
+
+
+@dataclass(frozen=True)
 class TraceabilityMatrix:
     schema_version: str
     primary_source: str
@@ -268,6 +324,7 @@ class TraceabilityMatrix:
     corpus_designated_unregistered_rule_ids: Tuple[str, ...]
     classification_conflicts: Tuple[str, ...]
     conformance: ConformanceReport
+    exercise: ExerciseReport
 
 
 # =========================================================================== #
@@ -400,6 +457,114 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
         conformant=disagree_count == 0,
         disagreements=disagreements,
         unspecified_cases=tuple(sorted(unspecified_cases)),
+    )
+
+
+def _build_exercise(
+    conformance: ConformanceReport, failure_modes_module
+) -> ExerciseReport:
+    """Item 162's two exercise directions -- rules and operators -- built from
+    inputs the rest of :func:`build_matrix` already paid for: the just-built
+    *conformance* report's per-case measured firing (A2: no second corpus
+    drive) and a fresh read of the rule/operator registries and
+    ``CASE_RECIPE``."""
+    from segfacet.heuristics.rule import iter_rules
+    from segfacet.synth.corpus import CASE_RECIPE
+    from segfacet.synth.perturbation import perturbation_names
+
+    specification = failure_modes_module.SPECIFICATION
+    evidence_rungs = failure_modes_module.EVIDENCE_RUNGS
+    rung_strength = {rung: index for index, rung in enumerate(evidence_rungs)}
+
+    # rule_id -> sorted [(corpus, case_id), ...] whose measured_firing names it.
+    exercised_by_rule: Dict[str, list] = {}
+    for case in conformance.cases:
+        for rule_id in case.measured_firing:
+            exercised_by_rule.setdefault(rule_id, []).append((case.corpus, case.case_id))
+
+    rule_records: list = []
+    for rule in iter_rules():
+        rule_id = rule.rule_id
+        pairs = tuple(sorted(set(exercised_by_rule.get(rule_id, ()))))
+        if pairs:
+            rule_records.append(
+                RuleExercise(
+                    rule_id=rule_id,
+                    state="exercised",
+                    exercised_by=pairs,
+                    reason="",
+                    reason_modes=(),
+                )
+            )
+            continue
+
+        # Unexercised: derive the reason from the strongest specification
+        # rung among every intended_rules edge naming this rule, across
+        # every mode (A3, Step 4).
+        edge_modes: list = []
+        strongest_rung: Optional[str] = None
+        for mode_id, mode_spec in specification.items():
+            for edge in mode_spec.intended_rules:
+                if edge.rule_id != rule_id:
+                    continue
+                edge_modes.append(mode_id)
+                if strongest_rung is None or rung_strength[edge.evidence_rung] < rung_strength[strongest_rung]:
+                    strongest_rung = edge.evidence_rung
+
+        if strongest_rung is None or strongest_rung == "synthetic-demonstrable":
+            # No edge names the rule at all, or the specification's own
+            # strongest claim is that the corpus demonstrates it -- a hole
+            # by design (Step 4; no derivable reason).
+            reason = ""
+            reason_modes: Tuple[int, ...] = ()
+        else:
+            reason = strongest_rung
+            reason_modes = tuple(sorted(set(edge_modes)))
+
+        rule_records.append(
+            RuleExercise(
+                rule_id=rule_id,
+                state="unexercised",
+                exercised_by=(),
+                reason=reason,
+                reason_modes=reason_modes,
+            )
+        )
+
+    rule_holes = tuple(sorted(r.rule_id for r in rule_records if r.state == "unexercised" and not r.reason))
+    rule_direction = DirectionReport(complete=not rule_holes, holes=rule_holes)
+
+    cases_by_operator: Dict[str, list] = {}
+    for entry in CASE_RECIPE:
+        cases_by_operator.setdefault(entry.perturbation, []).append(entry.case_id)
+
+    operator_records: list = []
+    for name in perturbation_names():
+        case_ids = tuple(sorted(cases_by_operator.get(name, ())))
+        if case_ids:
+            operator_records.append(
+                OperatorExercise(name=name, state="used", cases=case_ids, reason="")
+            )
+        else:
+            operator_records.append(
+                OperatorExercise(
+                    name=name,
+                    state="unused",
+                    cases=(),
+                    reason=UNUSED_OPERATOR_REASONS.get(name, ""),
+                )
+            )
+
+    operator_holes = tuple(
+        sorted(o.name for o in operator_records if o.state == "unused" and not o.reason)
+    )
+    operator_direction = DirectionReport(complete=not operator_holes, holes=operator_holes)
+
+    return ExerciseReport(
+        rules=tuple(rule_records),
+        operators=tuple(operator_records),
+        rule_direction=rule_direction,
+        operator_direction=operator_direction,
     )
 
 
@@ -678,6 +843,7 @@ def build_matrix() -> TraceabilityMatrix:
 
     classification_conflicts = tuple(path_classification_conflicts())
     conformance = _build_conformance(failure_modes_module)
+    exercise = _build_exercise(conformance, failure_modes_module)
     if classification_conflicts:
         conformance = ConformanceReport(
             cases=conformance.cases,
@@ -700,6 +866,7 @@ def build_matrix() -> TraceabilityMatrix:
         corpus_designated_unregistered_rule_ids=unregistered_designated,
         classification_conflicts=classification_conflicts,
         conformance=conformance,
+        exercise=exercise,
     )
 
 
@@ -784,6 +951,14 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 "complete": matrix.rule_to_mode.complete,
                 "holes": list(matrix.rule_to_mode.holes),
             },
+            "rule_exercise": {
+                "complete": matrix.exercise.rule_direction.complete,
+                "holes": list(matrix.exercise.rule_direction.holes),
+            },
+            "operator_exercise": {
+                "complete": matrix.exercise.operator_direction.complete,
+                "holes": list(matrix.exercise.operator_direction.holes),
+            },
         },
         "corpus_designated_unregistered_rule_ids": list(
             matrix.corpus_designated_unregistered_rule_ids
@@ -801,6 +976,30 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 {"corpus": corpus, "case_id": case_id}
                 for corpus, case_id in matrix.conformance.unspecified_cases
             ],
+        },
+        "exercise": {
+            "rules": {
+                r.rule_id: {
+                    "rule_id": r.rule_id,
+                    "state": r.state,
+                    "exercised_by": [
+                        {"corpus": corpus, "case_id": case_id}
+                        for corpus, case_id in r.exercised_by
+                    ],
+                    "reason": r.reason,
+                    "reason_modes": list(r.reason_modes),
+                }
+                for r in matrix.exercise.rules
+            },
+            "operators": {
+                o.name: {
+                    "name": o.name,
+                    "state": o.state,
+                    "cases": list(o.cases),
+                    "reason": o.reason,
+                }
+                for o in matrix.exercise.operators
+            },
         },
     }
 
@@ -948,6 +1147,49 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
             lines.append(f"- {corpus}/{case_id}")
     else:
         lines.append("- (none)")
+
+    lines.extend(
+        [
+            "",
+            "## Rule corpus exercise",
+            "",
+            f"Direction complete: {matrix.exercise.rule_direction.complete}. "
+            f"Holes: {', '.join(matrix.exercise.rule_direction.holes) if matrix.exercise.rule_direction.holes else 'none'}.",
+            "",
+            "| Rule | State | Exercised by | Reason | Reason modes |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    for r in matrix.exercise.rules:
+        cells = [
+            r.rule_id,
+            r.state,
+            ", ".join(f"{corpus}/{case_id}" for corpus, case_id in r.exercised_by) or "(none)",
+            r.reason or "(none)",
+            ", ".join(str(m) for m in r.reason_modes) or "(none)",
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Operator corpus exercise",
+            "",
+            f"Direction complete: {matrix.exercise.operator_direction.complete}. "
+            f"Holes: {', '.join(matrix.exercise.operator_direction.holes) if matrix.exercise.operator_direction.holes else 'none'}.",
+            "",
+            "| Operator | State | Cases | Reason |",
+            "|---|---|---|---|",
+        ]
+    )
+    for o in matrix.exercise.operators:
+        cells = [
+            o.name,
+            o.state,
+            ", ".join(o.cases) or "(none)",
+            o.reason or "(none)",
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
 
     return "\n".join(lines) + "\n"
 

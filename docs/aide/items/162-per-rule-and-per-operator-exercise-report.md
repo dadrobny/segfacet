@@ -424,8 +424,26 @@ attests Stage 20 criteria 3–5 with evidence.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- **D1 (`reason_modes` is every naming edge, not just the strongest-rung
+  ones):** AC5 reads "the sorted mode ids `m` carrying such an edge" over
+  "every `SPECIFICATION[m].intended_rules` edge whose `rule_id` is that
+  rule" — the antecedent is the whole edge set, not the subset at the
+  winning rung. Implemented as: collect every mode id with any edge naming
+  the rule, take the strongest rung across that same set for `reason`, and
+  report all of those mode ids as `reason_modes`. On this tree every
+  unexercised rule's edges are single-rung per rule (`bounds` and
+  `reference_delta` only ever carry `needs-real-data`; `intensity_reference_delta`
+  likewise), so the two readings coincide today; the distinction only bites
+  if a future rule ever carries edges at two different rungs across modes.
+- **D2 (a hole's `reason_modes` is empty, matching its empty `reason`):**
+  neither AC4 nor AC5 specifies `reason_modes` for the two hole shapes (no
+  naming edge at all; strongest edge is `synthetic-demonstrable`). Both are
+  implemented as `reason_modes = ()`, kept in lockstep with the empty
+  `reason` — a hole record carries no derived content in either field,
+  which is what "no derivable reason" (Description) means for the mode list
+  too. No registered rule takes this path on this tree — the
+  `demonstrable-rule-unexercised-is-a-hole` adversarial case is what
+  exercises it, via a specification monkeypatch.
 - **Left open:** whether the additive `exercise` section warrants a
   `SCHEMA_VERSION` bump to `"1.2"`. Not taken here —
   `tests/test_149_conformance_report.py::test_ac2_schema_version_bumped_to_1_1`

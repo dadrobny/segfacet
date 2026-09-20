@@ -210,9 +210,257 @@
         "7"
       ]
     },
+    "operator_exercise": {
+      "complete": true,
+      "holes": []
+    },
+    "rule_exercise": {
+      "complete": true,
+      "holes": []
+    },
     "rule_to_mode": {
       "complete": true,
       "holes": []
+    }
+  },
+  "exercise": {
+    "operators": {
+      "crop_at_border": {
+        "cases": [
+          "crop_at_border"
+        ],
+        "name": "crop_at_border",
+        "reason": "",
+        "state": "used"
+      },
+      "displace": {
+        "cases": [
+          "displace"
+        ],
+        "name": "displace",
+        "reason": "",
+        "state": "used"
+      },
+      "force_overlap": {
+        "cases": [
+          "force_overlap"
+        ],
+        "name": "force_overlap",
+        "reason": "",
+        "state": "used"
+      },
+      "fragment": {
+        "cases": [
+          "fragment"
+        ],
+        "name": "fragment",
+        "reason": "",
+        "state": "used"
+      },
+      "fuse": {
+        "cases": [
+          "fuse_adjacent"
+        ],
+        "name": "fuse",
+        "reason": "",
+        "state": "used"
+      },
+      "identity": {
+        "cases": [
+          "clean_control"
+        ],
+        "name": "identity",
+        "reason": "",
+        "state": "used"
+      },
+      "inject_islands": {
+        "cases": [
+          "inject_islands"
+        ],
+        "name": "inject_islands",
+        "reason": "",
+        "state": "used"
+      },
+      "relabel_swap": {
+        "cases": [
+          "relabel_swap"
+        ],
+        "name": "relabel_swap",
+        "reason": "",
+        "state": "used"
+      },
+      "remove_level": {
+        "cases": [
+          "remove_level"
+        ],
+        "name": "remove_level",
+        "reason": "",
+        "state": "used"
+      },
+      "remove_level_relabel": {
+        "cases": [
+          "remove_level_relabel"
+        ],
+        "name": "remove_level_relabel",
+        "reason": "",
+        "state": "used"
+      },
+      "sequence_break": {
+        "cases": [
+          "sequence_break"
+        ],
+        "name": "sequence_break",
+        "reason": "",
+        "state": "used"
+      }
+    },
+    "rules": {
+      "border": {
+        "exercised_by": [
+          {
+            "case_id": "crop_at_border",
+            "corpus": "geometric"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "border",
+        "state": "exercised"
+      },
+      "bounds": {
+        "exercised_by": [],
+        "reason": "needs-real-data",
+        "reason_modes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "rule_id": "bounds",
+        "state": "unexercised"
+      },
+      "coverage": {
+        "exercised_by": [
+          {
+            "case_id": "fuse_adjacent",
+            "corpus": "geometric"
+          },
+          {
+            "case_id": "remove_level",
+            "corpus": "geometric"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "coverage",
+        "state": "exercised"
+      },
+      "fragmentation": {
+        "exercised_by": [
+          {
+            "case_id": "fragment",
+            "corpus": "geometric"
+          },
+          {
+            "case_id": "fuse_adjacent",
+            "corpus": "geometric"
+          },
+          {
+            "case_id": "inject_islands",
+            "corpus": "geometric"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "fragmentation",
+        "state": "exercised"
+      },
+      "intensity": {
+        "exercised_by": [
+          {
+            "case_id": "degenerate_uniform",
+            "corpus": "intensity"
+          },
+          {
+            "case_id": "implausible_metal",
+            "corpus": "intensity"
+          },
+          {
+            "case_id": "implausible_soft_tissue",
+            "corpus": "intensity"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "intensity",
+        "state": "exercised"
+      },
+      "intensity_reference_delta": {
+        "exercised_by": [],
+        "reason": "needs-real-data",
+        "reason_modes": [
+          16
+        ],
+        "rule_id": "intensity_reference_delta",
+        "state": "unexercised"
+      },
+      "mislabel": {
+        "exercised_by": [
+          {
+            "case_id": "crop_at_border",
+            "corpus": "geometric"
+          },
+          {
+            "case_id": "displace",
+            "corpus": "geometric"
+          },
+          {
+            "case_id": "relabel_swap",
+            "corpus": "geometric"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "mislabel",
+        "state": "exercised"
+      },
+      "overlap": {
+        "exercised_by": [
+          {
+            "case_id": "force_overlap",
+            "corpus": "geometric"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "overlap",
+        "state": "exercised"
+      },
+      "reference_delta": {
+        "exercised_by": [],
+        "reason": "needs-real-data",
+        "reason_modes": [
+          1,
+          2,
+          3,
+          4,
+          8
+        ],
+        "rule_id": "reference_delta",
+        "state": "unexercised"
+      },
+      "sequence": {
+        "exercised_by": [
+          {
+            "case_id": "sequence_break",
+            "corpus": "geometric"
+          }
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "sequence",
+        "state": "exercised"
+      }
     }
   },
   "features": {
@@ -781,7 +1029,7 @@
       "title": "Out-of-order label sequence"
     }
   },
-  "note": "Generated by `python -m segfacet.traceability` (item 138; re-pointed at src/segfacet/failure_modes.py as its primary source by item 149). Do not hand-edit this document -- edit the authored failure-mode specification in src/segfacet/failure_modes.py (every mode's title, status, per-edge evidence rung, mechanism sentence and per-corpus-case expected firing set is read live from it) or the underlying rule/catalogue sources this matrix also derives from, then regenerate. mode -> rule and rule -> mode each report their own completeness and name every hole: read the `complete`/`holes` fields rather than assuming either is complete. Since item 146 a mode may legitimately carry no rule -- a `proposed` entry in segfacet.failure_modes.SPECIFICATION is listed and defined but deliberately unimplemented -- and it appears as a mode -> rule hole. feature -> rule is deliberately incomplete -- see the `features.read_by_no_rule.qualifier` field. The `conformance` section (item 149) drives every corpus case in both committed manifests through the specification's expected firing set and the live measured firing set: read `conformance.disagreements` and `conformance.unspecified_cases` for the live answer, never assume `conformant`.",
+  "note": "Generated by `python -m segfacet.traceability` (item 138; re-pointed at src/segfacet/failure_modes.py as its primary source by item 149). Do not hand-edit this document -- edit the authored failure-mode specification in src/segfacet/failure_modes.py (every mode's title, status, per-edge evidence rung, mechanism sentence and per-corpus-case expected firing set is read live from it) or the underlying rule/catalogue sources this matrix also derives from, then regenerate. mode -> rule and rule -> mode each report their own completeness and name every hole: read the `complete`/`holes` fields rather than assuming either is complete. Since item 146 a mode may legitimately carry no rule -- a `proposed` entry in segfacet.failure_modes.SPECIFICATION is listed and defined but deliberately unimplemented -- and it appears as a mode -> rule hole. feature -> rule is deliberately incomplete -- see the `features.read_by_no_rule.qualifier` field. The `conformance` section (item 149) drives every corpus case in both committed manifests through the specification's expected firing set and the live measured firing set: read `conformance.disagreements` and `conformance.unspecified_cases` for the live answer, never assume `conformant`. The `exercise` section (item 162) reports, per registered rule and per registered perturbation operator, whether it is exercised/used by >=1 committed corpus case or recorded unexercised/unused with a reason: read `directions.rule_exercise`/`directions.operator_exercise` for the live answer, never assume either is complete.",
   "primary_source": "src/segfacet/failure_modes.py",
   "rules": {
     "border": {
