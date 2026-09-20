@@ -460,6 +460,8 @@ anatomy-classification signal … Detector A serves NO failure mode").
 - `tests/test_151_stage30_validation.py` — reconciliation: the `edge_rungs` equality and the `(rule_id, detector, evidence_rung)` unpack.
 - `tests/test_026_rule_engine_core.py` — reconciliation: the `from_dict` "reconstructs all fields" round-trip, which must now cover `detector_id`.
 - `tests/test_035_report_integration.py` — reconciliation sweep of the finding-definition assertions against the new optional property.
+- `tests/test_145_eight_hypothesised_modes.py` — reconciliation (added 2026-09-20, Correction 1): constructs `IntendedRule(detector="")` and reads `edge.detector` at 8 sites, two of which join the edge's prose to a finding's `reason` and one of which rests on the retired empty-detector state.
+- `tests/test_146_ninth_mode_and_first_proposed.py` — reconciliation (added 2026-09-20, Correction 1): one `IntendedRule(detector="")` construction.
 
 **Asserts against:**
 
@@ -541,6 +543,69 @@ a claim this item contradicts:
    (the `required` set and `additionalProperties is False` around line 103) are
    expected to pass unchanged under A5; sweep the file for any assertion over
    the definition's **properties** key set, which would not.
+7. `tests/test_145_eight_hypothesised_modes.py` *(added 2026-09-20, Correction
+   1)* — 8 sites, and **three of them need more than the keyword rename**. In
+   file order:
+   - **Line ~221, `_detector_alternatives(detector)`** — a helper that splits
+     an `IntendedRule.detector` prose string on `" / "` so a `reason` prefix
+     test can ask "one of these". **Delete the helper**: `detector_ids` is
+     already a tuple, so there is nothing to split, and its only caller (the
+     AC20 test below) stops joining on prose.
+   - **Lines ~1071–1075, `test_ac18_mislabel_detector_leading_tags_differ`,
+     catalogue half only** — asserts
+     `mislabel_edges[0].detector.startswith(_MISLABEL_TAG.rstrip())` and
+     `_MISALIGN_TAG.strip() not in mislabel_edges[0].detector`. This is a
+     **semantic** claim (mode 9's edge names the ordering detector and not the
+     spline-offset one) expressed as a prose-tag prefix join — the exact shape
+     this item retires. **Narrow to the id join**: assert
+     `mislabel_edges[0].detector_ids == ("ordering",)` and
+     `"spline_offset" not in mislabel_edges[0].detector_ids`, dropping the two
+     tag imports from that half only. The first half of the same test — the
+     four `f.reason.startswith(_MISALIGN_TAG / _MISLABEL_TAG)` assertions over
+     findings from the `displace` and `relabel_swap` cases (lines ~1035–1058) —
+     is about a finding's **reason** text, which this item does not touch, and
+     **stays exactly as it is**.
+   - **Lines ~1166–1167,
+     `test_ac20_detector_names_the_detector_that_actually_fired`** —
+     `assert edge.detector` becomes `assert edge.detector_ids`, and the
+     `any(f.reason.startswith(alternative) ...)` join over
+     `_detector_alternatives(edge.detector)` becomes
+     `any(f.detector_id in edge.detector_ids for f in matching)`. Same claim,
+     keyed on the declared id this item ships instead of on the message tag.
+     Update the docstring's first reconciliation bullet (the `" / "` composite
+     paragraph) to say the edge carries ids; leave its second bullet (the
+     named-but-unfired opt-in detectors) standing, since that premise is
+     unchanged.
+   - **Line ~1206,
+     `test_ac20_an_empty_detector_never_belongs_to_a_rule_that_fired`** — its
+     premise is **retired by this item, not renamed**. It skips every edge with
+     a truthy `detector` and ends `assert checked, "expected >=1 edge authored
+     with no detector name"`; step 7 re-points all ten `detector=""` edges to
+     non-empty id tuples (A2), so `checked` would be 0 and the test goes red on
+     its own guard. **Narrow, not delete**, to the stronger post-164 state it
+     becomes: rename it
+     `test_ac20_no_edge_is_authored_without_a_detector_id`, drop the `corpus`
+     fixture parameter and the per-case drive entirely (it no longer needs
+     either), and assert `edge.detector_ids` for every edge of every mode in
+     `_GEOMETRIC_CORPUS_MODE_IDS`, keeping the `checked` counter and retitling
+     its message. Its docstring records the date, that item 164 retired the
+     empty-detector state, and that AC5/AC7 above are where the claim now lives
+     in full.
+   - **Line ~1465,
+     `test_adv_intended_rule_for_a_rule_not_declaring_the_mode_fails_ac5_check`**
+     — `IntendedRule(rule_id="border", detector="", ...)` → `detector_ids=()`.
+     Mechanical. The edge is a deliberately-broken copy fed to the AC5
+     predicate, which reads `rule_id` only, so an empty tuple is the faithful
+     translation and must still construct (step 6 permits it; emptiness is a
+     scored hole, not a construction error).
+8. `tests/test_146_ninth_mode_and_first_proposed.py` *(added 2026-09-20,
+   Correction 1)* — **1 site, purely mechanical**. Line ~1615, in
+   `test_adv_mode13_with_intended_rules_is_legal_at_construction_but_flagged`:
+   `IntendedRule(rule_id="__item146_adv_mode13_edge__", detector="", ...)` →
+   `detector_ids=()`. Same reasoning as item 7's last bullet. The file's other
+   `detector` occurrences (a docstring at ~1069, the fake rule id
+   `"__item146_fake_mode13_detector__"` at ~1177) are not the field and are
+   left alone.
 
 **Untouched and must stay green:** `tests/test_163_specificity_ratchet.py`.
 Nothing in this item edits an `expected_firing`, a corpus case or a rule's
@@ -601,6 +666,17 @@ attestation.
 
 To be updated during implementation.
 
+- **2026-09-20 — the reconciliation surface widened; the deliverable did not.**
+  The "existing tests to reconcile" list authored above missed two files
+  (`tests/test_145_eight_hypothesised_modes.py`,
+  `tests/test_146_ninth_mode_and_first_proposed.py`); Correction 1 below adds
+  them. Caught by the test-writer **before any build**, which is where a
+  reconciliation gap is cheap — the alternative was a red suite on validation
+  round 1 with the diff already written. No acceptance criterion, implementation
+  step, assumption or `Asserts against` entry changes: the item still delivers
+  exactly the mechanism AC1–AC14 describe. What widened is the set of files that
+  must be carried across the rename with it.
+
 - **Left open:** whether item 162's `exercise` report narrows from per-rule rows
   to per-detector ones. Item 162's spec notes it downstream of this item, but no
   consumer in queue-022 reads a per-detector exercise row, and narrowing it
@@ -624,3 +700,63 @@ To be updated during implementation.
   instead). That is a third conformance direction with its own reconciliation
   burden, and it is a maintainer's call about where a detector's mode claim is
   authored, not one this item should settle from inside.
+
+## Correction — 2026-09-20
+
+**Appended, not a rewrite.** Everything above stands as authored on 2026-09-20;
+this section records one completeness defect found **before any build**, by the
+test-writer while deriving the tests from the criteria above, and what it adds.
+No acceptance criterion, implementation step, assumption or `Asserts against`
+entry is changed by it.
+
+### 1. Two more files read `IntendedRule.detector` and were in neither list
+
+**The gap.** The Testing Strategy's "existing tests to reconcile" block named
+six files; a re-grep of `tests/` for `detector=` and `.detector` on this tree on
+2026-09-20 returns **two more** —
+`tests/test_145_eight_hypothesised_modes.py` (8 sites) and
+`tests/test_146_ninth_mode_and_first_proposed.py` (1 site). Neither was listed
+for reconciliation and neither appeared under **Authorised paths → May change**,
+so the builder would have been unauthorised to touch the very files step 6's
+rename turns red. (The six originally listed have since been updated by the
+test-writer in commit `c344226`, which is why the grep now returns exactly these
+two.) Both go red the moment step 6 lands: the rename removes the field they
+construct and read.
+
+**The resolution.** Both files are added under **Authorised paths → May
+change**, and entries 7 and 8 of the "existing tests to reconcile" block state
+each edit site by site. Three of the nine sites need **more than the mechanical
+`detector=""` → `detector_ids=()` / `.detector` → `.detector_ids` rename**, and
+the reconcile entries prescribe each so the builder decides nothing:
+
+- **`_detector_alternatives`** (`test_145`, ~line 221) exists only to split an
+  `IntendedRule.detector` prose string on `" / "`. A tuple needs no splitting —
+  **the helper is deleted** along with its single caller's use of it.
+- **`test_ac18_mislabel_detector_leading_tags_differ`'s catalogue half**
+  (`test_145`, ~lines 1071–1075) joins the mode-9 edge to `mislabel`'s message
+  tag constants by prefix (`edge.detector.startswith(_MISLABEL_TAG.rstrip())`).
+  That is the same class of defect as `test_144`'s
+  `test_ac13_detector_may_be_empty` — a semantic claim carried on prose — and it
+  is **narrowed to the id join** `detector_ids == ("ordering",)` plus
+  `"spline_offset" not in detector_ids`. The test's other half, four
+  `f.reason.startswith(...)` assertions over findings, is about a finding's
+  reason text, is untouched by this item, and **stays as authored**.
+- **`test_ac20_an_empty_detector_never_belongs_to_a_rule_that_fired`**
+  (`test_145`, ~line 1206) is the one whose **premise this item retires**, and
+  the one a keyword rename would silently break: it skips every edge with a
+  truthy detector and then asserts it checked at least one, but step 7 leaves
+  **no** edge with an empty `detector_ids` (A2 gives each of the ten
+  `detector=""` edges its rule's full detector set), so the counter reaches its
+  guard at zero. It is **narrowed, not deleted**, into the stronger state that
+  replaces it — every edge names at least one detector id — losing its corpus
+  drive in the process.
+
+The remaining six sites (`test_145`'s AC20 main test at ~1166–1167 beyond its
+join, and its construction at ~1465; `test_146`'s construction at ~1615) are the
+mechanical rename.
+
+**Insight inbox.** The `gap` entry the test-writer appended to
+`docs/aide/insights.md` (item 164, 2026-09-20) records this same finding; it is
+left verbatim and unticked as a captured claim, and is **resolved in-item** by
+this correction.
+
