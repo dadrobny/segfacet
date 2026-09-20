@@ -86,8 +86,10 @@ from segfacet.synth.regression import loaded_seg_image
 #: other case (remove_level_relabel) designates no rule and expects "pass", so
 #: it is not an expected-failure record at all; mode 10 ("skipped level
 #: label") has no corpus case; the crop case files under failure_mode 0 with
-#: the fov_truncation condition.
-_PIPELINE_DETECTABLE_MODES = (1, 2, 4, 6, 9)
+#: the fov_truncation condition. Item 166 (2026-09-20) added mode 3
+#: (split): its case designates fragmentation as a co-detection and is
+#: caught by plain run_qc.
+_PIPELINE_DETECTABLE_MODES = (1, 2, 3, 4, 6, 9)
 #: Modes documented as structurally invisible to the plain pipeline (overlap,
 #: mode 15 since item 150's 2026-09-15 catalogue revision).
 _RECONSTRUCTED_RECORD_MODES = (15,)
@@ -183,17 +185,18 @@ def test_reconstructed_record_modes_are_not_over_claimed_as_caught(mode):
     assert entry.sensitivity == 0.0
 
 
-def test_overall_corpus_sensitivity_is_eight_of_nine_not_over_claimed():
-    """Updated 2026-09-14 (item 150), unchanged by its 2026-09-15 catalogue
-    revision: overall cohort sensitivity
-    (TP / (TP + FN)) is 8/9 over the re-organised corpus -- nine
+def test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed():
+    """Updated 2026-09-20 (item 166): overall cohort sensitivity
+    (TP / (TP + FN)) is 9/10 over the corpus -- ten
     expected-failure records (the fov_truncation condition case files under
     failure_mode 0 and still expects a verdict; remove_level_relabel expects
-    "pass" and is not an expected-failure record), eight caught, the one
+    "pass" and is not an expected-failure record), nine caught, the one
     reconstructed-record mode (overlap, mode 15) missed -- not 1.0
-    (Assumptions). Was 7/8 from item 132 to item 150, 6/8 before item 132."""
+    (Assumptions). Was 8/9 from item 150 to item 166 (mode 3's split case
+    added the tenth expected-failure record and is caught), 7/8 from item
+    132 to item 150, 6/8 before item 132."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(8.0 / 9.0)
+    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
 
 
 # =========================================================================== #

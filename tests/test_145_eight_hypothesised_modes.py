@@ -86,11 +86,12 @@ _PROPOSED_MODE_IDS = (5, 7, 10, 11, 12, 13, 14)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
-#: fixture and ``_manifest_case`` resolve against. Modes 3 and 8 are
-#: specified but carry no case; mode 16's three cases are in the intensity
+#: fixture and ``_manifest_case`` resolve against. Mode 8 is specified but
+#: carries no case; mode 3 gained its ``split`` case at item 166
+#: (2026-09-20); mode 16's three cases are in the intensity
 #: corpus; the proposed entries (mode 10 among them since the maintainer
 #: narrowed it to a skipped label) carry none.
-_GEOMETRIC_CORPUS_MODE_IDS = (1, 2, 4, 6, 9, 15)
+_GEOMETRIC_CORPUS_MODE_IDS = (1, 2, 3, 4, 6, 9, 15)
 
 #: The condition the sign-off retired failure mode 6 into.
 _FOV_CONDITION_ID = "fov_truncation"

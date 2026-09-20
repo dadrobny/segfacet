@@ -344,7 +344,7 @@ def _all_manifest_case_keys():
 
 def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
-    assert len(keys) == 15, keys
+    assert len(keys) == 16, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -360,7 +360,7 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.unspecified_cases == ()
     assert matrix.conformance.disagreements == ()
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
-    assert matrix.conformance.agree_count == 15
+    assert matrix.conformance.agree_count == 16
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):

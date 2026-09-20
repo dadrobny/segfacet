@@ -577,7 +577,7 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 #: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
     "mislabel": (1, 9),  # displace (1), relabel_swap (9)
-    "fragmentation": (1, 2, 4),  # fragment (1), fuse_adjacent (2), islands (4)
+    "fragmentation": (1, 2, 3, 4),  # fragment (1), fuse_adjacent (2), split (3), islands (4)
     "coverage": (2, 6),  # fuse_adjacent (2), remove_level (6)
     "sequence": (9,),  # sequence_break
     "overlap": (15,),  # force_overlap

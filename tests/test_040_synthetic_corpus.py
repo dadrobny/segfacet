@@ -112,8 +112,12 @@ _VALID_RECONSTRUCTIONS = {
 # FOV-truncation *condition* case, which carries no mode. Together they must
 # still partition every mode the corpus uses -- AC8's ``else`` branch is what
 # enforces that.
+#
+# Item 166 (2026-09-20) added mode 3 (split): a co-detection-only case
+# (fragmentation fires on the receiving label), pipeline-detected like the
+# rest.
 _RECONSTRUCTED_MODES = {15}
-_PIPELINE_ONLY_MODES = {0, 1, 2, 4, 6, 9}
+_PIPELINE_ONLY_MODES = {0, 1, 2, 3, 4, 6, 9}
 
 _CASE_ID_RE = re.compile(r"^[a-z0-9_]+$")
 

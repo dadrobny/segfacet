@@ -314,6 +314,7 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
         ("coverage", 2),  # fuse_adjacent fires coverage alongside fragmentation
         ("fragmentation", 2),  # ... and fragmentation, neither declaring mode 2
         ("mislabel", 1),  # displace is detected only as a co-detection
+        ("fragmentation", 3),  # split fires fragmentation on the receiving label (item 166)
     }
 
     measured_co_detections = set()

@@ -369,7 +369,12 @@ def test_ac9_sagittal_c_curve_signed_angles():
 # longer head-to-foot than it is left-to-right -- so it is excluded by name
 # rather than by loosening the 0.996 threshold, which would stop the threshold
 # testing anything on the other cases.
-_FUSED_BODY_SPAN_EXCLUSIONS = {("fuse_adjacent", 22)}
+#
+# ``split`` (added by item 166, 2026-09-20) is the converse: label 22 donates
+# an end-slab to label 23, so the receiving label 23 now spans two
+# disconnected bodies and its principal axis is cranio-caudal for the same
+# reason. Excluded by name, not by loosening the threshold.
+_FUSED_BODY_SPAN_EXCLUSIONS = {("fuse_adjacent", 22), ("split", 23)}
 
 
 def test_ac10_principal_axis_within_0996_of_left_right_on_every_golden():
@@ -409,10 +414,12 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
 
     ``fuse_adjacent`` joins the two pre-existing exceptions (item 150,
     2026-09-14): its label 22 spans two vertebral bodies, so its principal
-    axis is cranio-caudal by construction. The case count is derived from the
+    axis is cranio-caudal by construction. ``split`` (item 166, 2026-09-20)
+    joins them for the converse reason: label 23 receives the donated slab
+    and spans two bodies. The case count is derived from the
     manifest rather than hard-coded, so a new corpus case is covered by
     default instead of silently slipping past a frozen number."""
-    exceptions = {"inject_islands", "force_overlap", "fuse_adjacent"}
+    exceptions = {"inject_islands", "force_overlap", "fuse_adjacent", "split"}
     cases = load_manifest()["cases"]
     assert exceptions <= {c["case_id"] for c in cases}, (
         "named principal-axis exception(s) are not in the corpus manifest"

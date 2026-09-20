@@ -306,10 +306,11 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
 #: Corpus cases added *after* this item measured the pre-item tables below,
 #: so this item never recorded values for them. Added by item 150
 #: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
-#: coverage for modes 2 and 4. A pre-item table is deliberately not extended
+#: coverage for modes 2 and 4, and by item 166 (2026-09-20) for mode 3's
+#: ``split`` case. A pre-item table is deliberately not extended
 #: with values the item it belongs to never measured; instead each sweep pins
-#: the uncovered set exactly, so a *third* uncovered case still fails.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel"}
+#: the uncovered set exactly, so a *fourth* uncovered case still fails.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
 
 
 def _cases_covered_by(table, manifest):

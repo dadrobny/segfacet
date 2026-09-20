@@ -768,10 +768,11 @@ def test_ac25_manifest_pipeline_detected_mode_count_is_five():
     # detection="pipeline" but designating no rule) and 9 (relabel swap,
     # sequence break); mode 10 ("skipped level label") has no corpus case,
     # the crop case is a failure_mode-0 condition case, and overlap
-    # (reconstructed_record) is mode 15.
+    # (reconstructed_record) is mode 15. Item 166 (2026-09-20) added mode 3
+    # (split, detection="pipeline", co-detected via fragmentation).
     modes = _pipeline_detected_modes_excluding_clean_control()
-    assert len(modes) == 5, modes
-    assert modes == {1, 2, 4, 6, 9}
+    assert len(modes) == 6, modes
+    assert modes == {1, 2, 3, 4, 6, 9}
 
 
 def test_ac25_agrees_with_test_040_mode_sets():
