@@ -222,7 +222,7 @@ def test_ac3_every_mode_row_title_authored_status_and_edge_rungs_match_specifica
         assert row.title == mode_spec.name
         assert row.authored_status == mode_spec.status
         expected_edges = tuple(
-            (rule.rule_id, rule.detector, rule.evidence_rung)
+            (rule.rule_id, tuple(rule.detector_ids), rule.evidence_rung)
             for rule in mode_spec.intended_rules
         )
         assert row.edge_rungs == expected_edges
@@ -539,7 +539,7 @@ def test_ac14_attribution_matches_independent_recomputation_from_measured_sets(
 def test_ac14_no_analytic_edge_carries_the_strongest_rung(matrix):
     for row in matrix.modes:
         attribution = dict(row.rule_attribution)
-        for rule_id, detector, evidence_rung in row.edge_rungs:
+        for rule_id, detector_ids, evidence_rung in row.edge_rungs:
             if attribution.get(rule_id) == "analytic":
                 assert evidence_rung != "synthetic-demonstrable", (row.mode, rule_id)
 

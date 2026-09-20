@@ -98,16 +98,20 @@ def _mode_record(payload: dict, mode: int) -> dict:
 
 def _edge_rung_tuples(record: dict):
     """Normalise a mode record's ``edge_rungs`` to a list of
-    ``(rule_id, detector, evidence_rung)`` tuples, accepting either a list
-    of 3-element sequences or a list of dicts carrying those three keys."""
+    ``(rule_id, detector_ids, evidence_rung)`` tuples -- ``detector_ids``
+    itself normalised to a tuple -- accepting either a list of 3-element
+    sequences or a list of dicts carrying those three keys (item 164 widened
+    the middle element from a ``str`` to an id tuple)."""
     entries = record["edge_rungs"]
     tuples = []
     for entry in entries:
         if isinstance(entry, dict):
-            tuples.append((entry["rule_id"], entry["detector"], entry["evidence_rung"]))
+            tuples.append(
+                (entry["rule_id"], tuple(entry["detector_ids"]), entry["evidence_rung"])
+            )
         else:
-            rule_id, detector, evidence_rung = entry
-            tuples.append((rule_id, detector, evidence_rung))
+            rule_id, detector_ids, evidence_rung = entry
+            tuples.append((rule_id, tuple(detector_ids), evidence_rung))
     return tuples
 
 
@@ -390,10 +394,13 @@ def test_ac1_primary_source_named_in_note_and_both_artifacts(matrix):
 
 
 def test_ac2_schema_version_bumped_to_1_1(matrix):
+    """Reconciled by item 164 (A6): the schema bumped again, 1.1 -> 1.2,
+    when ``edge_rungs``' middle element widened from ``str`` to an id
+    tuple and the two detector directions were added."""
     import segfacet.traceability as traceability
 
-    assert traceability.SCHEMA_VERSION == "1.1"
-    assert matrix["schema_version"] == "1.1"
+    assert traceability.SCHEMA_VERSION == "1.2"
+    assert matrix["schema_version"] == "1.2"
 
 
 # =========================================================================== #
@@ -523,7 +530,7 @@ def test_ac6_edge_rungs_equal_specification_intended_rules_exactly(mode, matrix)
 
     record = _mode_record(matrix, mode)
     expected = [
-        (rule.rule_id, rule.detector, rule.evidence_rung)
+        (rule.rule_id, tuple(rule.detector_ids), rule.evidence_rung)
         for rule in failure_modes_module.SPECIFICATION[mode].intended_rules
     ]
     actual = _edge_rung_tuples(record)
