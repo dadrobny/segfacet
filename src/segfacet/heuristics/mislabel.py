@@ -98,6 +98,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -274,6 +275,24 @@ class MislabelRule(Rule):
                 ),
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="ordering",
+                description=_MISLABEL_TAG,
+                signal_paths=(
+                    "stage3.monotonic_consistency.non_monotonic_pairs[]",
+                ),
+            ),
+            RuleDetector(
+                detector_id="spline_offset",
+                description=_MISALIGN_TAG,
+                mode_less_reason=(
+                    "the offset from the spinal curve is an "
+                    "anatomy-classification signal (spondylolisthesis, "
+                    "scoliosis), not a failure mode -- item-150 sign-off"
+                ),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -418,6 +437,7 @@ class MislabelRule(Rule):
                             f"(threshold {max_offset:.1f} mm)."
                         ),
                         labels=frozenset({label}),
+                        detector_id="spline_offset",
                     )
                 )
         return findings
@@ -465,6 +485,7 @@ class MislabelRule(Rule):
                     labels=frozenset(
                         {x for x in (la, lb) if x is not None}
                     ),
+                    detector_id="ordering",
                 )
             )
         return findings

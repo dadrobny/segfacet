@@ -49,12 +49,19 @@ class Finding:
         segmentation map).  Empty ``frozenset`` for a case-level finding with
         no specific label attribution.  Any iterable is coerced to a
         ``frozenset``; duplicates are silently deduplicated.
+    detector_id:
+        The rule-local id (item 164) of the detector branch that produced
+        this finding, joined with ``rule_id`` to identify it uniquely (ids
+        are not globally unique). Defaults to ``""`` so every pre-item-164
+        ``Finding(...)`` construction still works and a report written
+        before this item still loads via :meth:`from_dict`.
     """
 
     rule_id: str
     severity: Severity
     reason: str
     labels: FrozenSet[int] = field(default_factory=frozenset)
+    detector_id: str = ""
 
     def __post_init__(self) -> None:
         # Validate non-empty rule_id.
@@ -93,6 +100,7 @@ class Finding:
         """
         return {
             "rule_id": self.rule_id,
+            "detector_id": self.detector_id,
             "severity": self.severity.label,
             "reason": self.reason,
             "labels": sorted(self.labels),
@@ -129,4 +137,5 @@ class Finding:
             severity=severity,
             reason=d["reason"],
             labels=frozenset(d.get("labels", [])),
+            detector_id=d.get("detector_id", ""),
         )

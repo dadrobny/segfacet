@@ -304,6 +304,7 @@ __all__ = [
     "RUNG_LABELS",
     "derive_status",
     "derive_mode_rung",
+    "modes_for_detector",
     "measured_firing",
     "case_agrees",
     "specification_conflicts",
@@ -425,11 +426,15 @@ class CandidateFeature:
 @dataclasses.dataclass(frozen=True)
 class IntendedRule:
     """One mode <-> rule edge, carrying the **per-edge evidence rung**
-    (AC13, gate 3 decision 3). ``detector`` names the specific detector
-    within a rule that has several; may be empty."""
+    (AC13, gate 3 decision 3). ``detector_ids`` (item 164) names the
+    first-class detector id(s) -- declared on the named rule's
+    ``RuleModeDeclaration.detectors`` -- that this edge attributes the mode
+    to; a tuple, since a rule's several detectors may all serve the same
+    edge. May be empty at construction (a scored hole, AC7/AC13), but every
+    shipped edge in :data:`SPECIFICATION` carries at least one (AC5)."""
 
     rule_id: str
-    detector: str
+    detector_ids: Tuple[str, ...]
     evidence_rung: str
 
 
@@ -626,6 +631,33 @@ class ModeSpec:
                     f"ModeSpec {self.id}: an intended rule has an empty 'rule_id' "
                     f"({rule!r})."
                 )
+            if not isinstance(rule.detector_ids, tuple):
+                raise ValueError(
+                    f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                    f"'detector_ids' must be a tuple, got "
+                    f"{type(rule.detector_ids).__name__}."
+                )
+            previous_detector_id: Optional[str] = None
+            for detector_id in rule.detector_ids:
+                if not isinstance(detector_id, str) or not detector_id:
+                    raise ValueError(
+                        f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                        f"'detector_ids' elements must be non-empty str, got "
+                        f"{detector_id!r}."
+                    )
+                if previous_detector_id is not None and detector_id == previous_detector_id:
+                    raise ValueError(
+                        f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                        f"'detector_ids' must not contain duplicates, got "
+                        f"{detector_id!r} twice."
+                    )
+                if previous_detector_id is not None and detector_id < previous_detector_id:
+                    raise ValueError(
+                        f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                        f"'detector_ids' must be ascending, but {detector_id!r} "
+                        f"follows {previous_detector_id!r}."
+                    )
+                previous_detector_id = detector_id
             if rule.evidence_rung not in EVIDENCE_RUNGS:
                 raise ValueError(
                     f"ModeSpec {self.id}: intended rule {rule.rule_id!r} has "
@@ -841,17 +873,17 @@ _MODE_1 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="fragmentation",
-            detector="Fragmentation:",
+            detector_ids=("components",),
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -965,12 +997,12 @@ _MODE_2 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1057,12 +1089,12 @@ _MODE_3 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1121,17 +1153,17 @@ _MODE_4 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="fragmentation",
-            detector="Rogue island(s):",
+            detector_ids=("islands",),
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1276,10 +1308,7 @@ _MODE_6 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="coverage",
-            detector=(
-                "Missing interior level(s): / Incomplete coverage (span): / "
-                "Below expected count:"
-            ),
+            detector_ids=("count_shortfall", "incomplete_span", "missing_interior"),
             evidence_rung="synthetic-demonstrable",
         ),
     ),
@@ -1431,7 +1460,7 @@ _MODE_8 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1495,12 +1524,12 @@ _MODE_9 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="sequence",
-            detector="Non-continuous label sequence:",
+            detector_ids=("discontinuity",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="mislabel",
-            detector="Vertebra ordering inconsistent with label:",
+            detector_ids=("ordering",),
             evidence_rung="synthetic-demonstrable",
         ),
     ),
@@ -1812,7 +1841,7 @@ _MODE_15 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="overlap",
-            detector="Overlapping segments:",
+            detector_ids=("overlapping_segments",),
             evidence_rung="structurally-unobservable",
         ),
     ),
@@ -1891,15 +1920,12 @@ _MODE_16 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="intensity",
-            detector=(
-                "Implausible intensity (too low): / (too high): / "
-                "(degenerate/uniform):"
-            ),
+            detector_ids=("degenerate", "too_high", "too_low"),
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
             rule_id="intensity_reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -2371,6 +2397,24 @@ def derive_mode_rung(mode: ModeSpec) -> Optional[str]:
     )
 
 
+def modes_for_detector(rule_id: str, detector_id: str) -> Tuple[int, ...]:
+    """Which modes *detector_id* (of *rule_id*) serves, derived from
+    :data:`SPECIFICATION` alone (item 164, A1): the ascending tuple of mode
+    ids for which some mode's ``IntendedRule`` edge names ``rule_id`` and
+    carries ``detector_id`` in its ``detector_ids``. A detector declares no
+    modes of its own -- this is the sole source of that fact, recomputed on
+    every call from the live specification, never cached or authored a
+    second time on the rule."""
+    return tuple(
+        sorted(
+            mode_id
+            for mode_id, mode_spec in SPECIFICATION.items()
+            for edge in mode_spec.intended_rules
+            if edge.rule_id == rule_id and detector_id in edge.detector_ids
+        )
+    )
+
+
 def specification_conflicts(
     modes: Optional[Iterable[ModeSpec]] = None,
 ) -> Tuple[str, ...]:
@@ -2636,7 +2680,7 @@ def specification_to_dict() -> dict:
                 "intended_rules": [
                     {
                         "rule_id": rule.rule_id,
-                        "detector": rule.detector,
+                        "detector_ids": list(rule.detector_ids),
                         "evidence_rung": rule.evidence_rung,
                     }
                     for rule in mode.intended_rules
@@ -2765,7 +2809,7 @@ def render_markdown() -> str:
         if not mode["intended_rules"]:
             lines.append("- (none)")
         for rule in mode["intended_rules"]:
-            detector = rule["detector"] or "(none)"
+            detector = ", ".join(rule["detector_ids"]) or "(none)"
             lines.append(
                 f"- `{rule['rule_id']}` (detector: {detector}) -- evidence rung: "
                 f"{rule['evidence_rung']}"

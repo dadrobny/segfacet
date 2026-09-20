@@ -34,6 +34,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -158,6 +159,13 @@ class OverlapRule(Rule):
                 role="signal",
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="overlapping_segments",
+                description=_OVERLAP_TAG,
+                signal_paths=("overlaps[].overlap_voxels",),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -232,6 +240,7 @@ class OverlapRule(Rule):
                         f"{label_b} ({name_b}) share {voxels} voxel(s)."
                     ),
                     labels=labels,
+                    detector_id="overlapping_segments",
                 )
             )
 

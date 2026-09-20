@@ -199,6 +199,7 @@ def format_contract_inputs() -> dict:
     findings = [
         {
             "rule_id": "format_contract",
+            "detector_id": "format_contract_detector",
             "severity": "flagged-for-review",
             "reason": "format-contract synthetic finding",
             "labels": [7],

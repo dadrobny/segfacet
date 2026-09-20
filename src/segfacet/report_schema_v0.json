@@ -110,6 +110,10 @@
           "description": "Identifier of the rule that produced this finding (e.g. 'bounds').",
           "minLength": 1
         },
+        "detector_id": {
+          "type": "string",
+          "description": "Rule-local id (item 164) of the detector branch that produced this finding; optional, empty for a report written before this item."
+        },
         "severity": {
           "type": "string",
           "description": "Severity level of this finding.",

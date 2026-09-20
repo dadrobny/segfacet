@@ -57,6 +57,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -131,10 +132,13 @@ class ReferenceDeltaRule(Rule):
     # reference_default.json) track 21 per-label features. That set spans
     # physical_volume_mm3 and extent_{x,y,z}_mm -- the same magnitude
     # features "bounds" targets verbatim (modes 1-4), here measured against a
-    # cohort instead of hand-set bounds -- and also spline_offset_mm, read
-    # from stage3.per_label_offsets[].offset_mm. Because the reference is per
-    # level, a vertebra whose geometry does not fit the level it is named is
-    # also mode 8's (semantic mislabelling) single-channel proxy.
+    # cohort instead of hand-set bounds. Because the reference is per level, a
+    # vertebra whose geometry does not fit the level it is named is also mode
+    # 8's (semantic mislabelling) single-channel proxy. Mode 1 is re-anchored
+    # onto per_label.{label}.components.fragmentation_index (item 154,
+    # feature_docs.MODE_ANCHOR_PATHS) and mislabel's offset paths are
+    # bookkeeping serving no mode (item-150 sign-off); this declaration rests
+    # on SPECIFICATION[1].intended_rules alone, not on either premise.
     mode_declaration = RuleModeDeclaration(
         modes=(1, 2, 3, 4, 8),
         evidence=(
@@ -231,6 +235,25 @@ class ReferenceDeltaRule(Rule):
             ConsumedPath(
                 path="reference_delta.{label}.out_of_range_features[]",
                 role="signal",
+            ),
+        ),
+        detectors=(
+            RuleDetector(
+                detector_id="distance",
+                description=_DISTANCE_TAG,
+                signal_paths=("reference_delta.{label}.distribution_distance",),
+            ),
+            RuleDetector(
+                detector_id="out_of_range",
+                description=_OUT_OF_RANGE_TAG,
+                signal_paths=("reference_delta.{label}.out_of_range_features[]",),
+            ),
+            RuleDetector(
+                detector_id="robust_z",
+                description=_ROBUST_Z_TAG,
+                signal_paths=(
+                    "reference_delta.{label}.features.physical_volume_mm3.robust_z",
+                ),
             ),
         ),
     )
@@ -335,6 +358,7 @@ class ReferenceDeltaRule(Rule):
                                 f"threshold {max_distribution_distance:.2f}."
                             ),
                             labels=frozenset({label}),
+                            detector_id="distance",
                         )
                     )
 
@@ -359,6 +383,7 @@ class ReferenceDeltaRule(Rule):
                                     f"band=({lower_pct}, {upper_pct}))."
                                 ),
                                 labels=frozenset({label}),
+                                detector_id="out_of_range",
                             )
                         )
 
@@ -382,6 +407,7 @@ class ReferenceDeltaRule(Rule):
                                     f"threshold {max_robust_z:.2f}."
                                 ),
                                 labels=frozenset({label}),
+                                detector_id="robust_z",
                             )
                         )
 

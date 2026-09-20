@@ -664,7 +664,40 @@ attestation.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **2026-09-20 — implementation notes.** Built exactly per the Implementation
+  Steps, with two small judgement calls not otherwise pinned by the spec:
+  - **`fragmentation`'s detector `signal_paths` overlap.** Both `components`
+    and `islands` declare all five of the rule's signal paths
+    (`component_count`, `component_sizes[]`, `fragmentation_index`,
+    `largest_component_fraction`, `stray_component_sizes[]`) rather than a
+    strict partition, because `evaluate()`'s island branch reads
+    `fragmentation_index`/`largest_component_fraction` for its message and
+    the fragmentation branch reads `component_count`/`component_sizes` for
+    its message — each detector genuinely reads what it declares. AC4 asks
+    only that the *union* equal the rule's signal-path set, which permits
+    overlap ("a path read by two detectors is claimed by both", Description).
+  - **`RuleModeDeclaration.detectors` validation order.** The per-detector
+    `signal_paths` check runs after the existing `consumed_paths` loop (so
+    the signal-path set it validates against is already built), and the
+    outer-tuple-type check gained `"detectors"` alongside `"modes"`/
+    `"evidence"`/`"consumed_paths"` for the same "reject a bare str/list
+    before the element loop" reason those three already had.
+  - Traceability's two new directions (`edge_to_detector`/`detector_to_edge`)
+    reuse the existing `DirectionReport` dataclass rather than a new type:
+    Python dataclasses do not enforce field type annotations at runtime, and
+    the item spec's step 8 says to follow the `mode_to_rule`/`rule_to_mode`
+    pattern "exactly" — introducing a second report shape for two more
+    directions would be exactly the kind of unrequested variation that
+    pattern warns against.
+  - Verified against live state (not just re-derived by eye): `modes_for_detector`
+    reproduces the spec's own worked example exactly —
+    `('fragmentation','islands') -> (4,)`, `('fragmentation','components') -> (1,)`,
+    `('reference_delta','out_of_range') -> (1,2,3,4,8)` — and a fresh
+    `build_matrix()` reports both new directions `complete=True, holes=()` on
+    the unperturbed tree (10 rules, 21 detectors, 3 excused by
+    `mode_less_reason`). All three named adversarial scenarios and AC13/AC14
+    were also exercised by hand against live `build_matrix()` calls before
+    committing, confirming the exact hole tuples the spec's tests assert.
 
 - **2026-09-20 — the reconciliation surface widened; the deliverable did not.**
   The "existing tests to reconcile" list authored above missed two files

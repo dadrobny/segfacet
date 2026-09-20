@@ -68,6 +68,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -229,6 +230,11 @@ class IntensityReferenceDeltaRule(Rule):
                 ),
             ),
         ),
+        detectors=(
+            RuleDetector(detector_id="distance", description=_DISTANCE_TAG),
+            RuleDetector(detector_id="out_of_range", description=_OUT_OF_RANGE_TAG),
+            RuleDetector(detector_id="robust_z", description=_ROBUST_Z_TAG),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -333,6 +339,7 @@ class IntensityReferenceDeltaRule(Rule):
                                 f"threshold {max_distribution_distance:.2f}."
                             ),
                             labels=frozenset({label}),
+                            detector_id="distance",
                         )
                     )
 
@@ -357,6 +364,7 @@ class IntensityReferenceDeltaRule(Rule):
                                     f"band=({lower_pct}, {upper_pct}))."
                                 ),
                                 labels=frozenset({label}),
+                                detector_id="out_of_range",
                             )
                         )
 
@@ -380,6 +388,7 @@ class IntensityReferenceDeltaRule(Rule):
                                     f"threshold {max_robust_z:.2f}."
                                 ),
                                 labels=frozenset({label}),
+                                detector_id="robust_z",
                             )
                         )
 

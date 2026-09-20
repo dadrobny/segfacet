@@ -198,6 +198,14 @@
   },
   "corpus_designated_unregistered_rule_ids": [],
   "directions": {
+    "detector_to_edge": {
+      "complete": true,
+      "holes": []
+    },
+    "edge_to_detector": {
+      "complete": true,
+      "holes": []
+    },
     "mode_to_rule": {
       "complete": false,
       "holes": [
@@ -504,17 +512,25 @@
       "edge_rungs": [
         [
           "fragmentation",
-          "Fragmentation:",
+          [
+            "components"
+          ],
           "synthetic-demonstrable"
         ],
         [
           "bounds",
-          "",
+          [
+            "metric_out_of_range"
+          ],
           "needs-real-data"
         ],
         [
           "reference_delta",
-          "",
+          [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "needs-real-data"
         ]
       ],
@@ -650,7 +666,9 @@
       "edge_rungs": [
         [
           "overlap",
-          "Overlapping segments:",
+          [
+            "overlapping_segments"
+          ],
           "structurally-unobservable"
         ]
       ],
@@ -692,12 +710,20 @@
       "edge_rungs": [
         [
           "intensity",
-          "Implausible intensity (too low): / (too high): / (degenerate/uniform):",
+          [
+            "degenerate",
+            "too_high",
+            "too_low"
+          ],
           "synthetic-demonstrable"
         ],
         [
           "intensity_reference_delta",
-          "",
+          [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "needs-real-data"
         ]
       ],
@@ -734,12 +760,18 @@
       "edge_rungs": [
         [
           "bounds",
-          "",
+          [
+            "metric_out_of_range"
+          ],
           "needs-real-data"
         ],
         [
           "reference_delta",
-          "",
+          [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "needs-real-data"
         ]
       ],
@@ -776,12 +808,18 @@
       "edge_rungs": [
         [
           "bounds",
-          "",
+          [
+            "metric_out_of_range"
+          ],
           "needs-real-data"
         ],
         [
           "reference_delta",
-          "",
+          [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "needs-real-data"
         ]
       ],
@@ -825,17 +863,25 @@
       "edge_rungs": [
         [
           "fragmentation",
-          "Rogue island(s):",
+          [
+            "islands"
+          ],
           "synthetic-demonstrable"
         ],
         [
           "bounds",
-          "",
+          [
+            "metric_out_of_range"
+          ],
           "needs-real-data"
         ],
         [
           "reference_delta",
-          "",
+          [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "needs-real-data"
         ]
       ],
@@ -907,7 +953,11 @@
       "edge_rungs": [
         [
           "coverage",
-          "Missing interior level(s): / Incomplete coverage (span): / Below expected count:",
+          [
+            "count_shortfall",
+            "incomplete_span",
+            "missing_interior"
+          ],
           "synthetic-demonstrable"
         ]
       ],
@@ -956,7 +1006,11 @@
       "edge_rungs": [
         [
           "reference_delta",
-          "",
+          [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "needs-real-data"
         ]
       ],
@@ -998,12 +1052,16 @@
       "edge_rungs": [
         [
           "sequence",
-          "Non-continuous label sequence:",
+          [
+            "discontinuity"
+          ],
           "needs-real-data"
         ],
         [
           "mislabel",
-          "Vertebra ordering inconsistent with label:",
+          [
+            "ordering"
+          ],
           "synthetic-demonstrable"
         ]
       ],
@@ -1256,5 +1314,5 @@
       "rule_id": "sequence"
     }
   },
-  "schema_version": "1.1"
+  "schema_version": "1.2"
 }

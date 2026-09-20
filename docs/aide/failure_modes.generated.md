@@ -34,9 +34,9 @@ Mechanism: No shipped rule decides this mode in general: it needs a ground-truth
 
 Intended rules:
 
-- `fragmentation` (detector: Fragmentation:) -- evidence rung: synthetic-demonstrable
-- `bounds` (detector: (none)) -- evidence rung: needs-real-data
-- `reference_delta` (detector: (none)) -- evidence rung: needs-real-data
+- `fragmentation` (detector: components) -- evidence rung: synthetic-demonstrable
+- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
+- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -71,8 +71,8 @@ Mechanism: Observable from the label map via proxies, still to be proven: a fuse
 
 Intended rules:
 
-- `bounds` (detector: (none)) -- evidence rung: needs-real-data
-- `reference_delta` (detector: (none)) -- evidence rung: needs-real-data
+- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
+- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -104,8 +104,8 @@ Mechanism: No corpus case and no detector of its own: the label-map proxy is the
 
 Intended rules:
 
-- `bounds` (detector: (none)) -- evidence rung: needs-real-data
-- `reference_delta` (detector: (none)) -- evidence rung: needs-real-data
+- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
+- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -135,9 +135,9 @@ Mechanism: fragmentation's Rogue island(s): detector serves this mode end-to-end
 
 Intended rules:
 
-- `fragmentation` (detector: Rogue island(s):) -- evidence rung: synthetic-demonstrable
-- `bounds` (detector: (none)) -- evidence rung: needs-real-data
-- `reference_delta` (detector: (none)) -- evidence rung: needs-real-data
+- `fragmentation` (detector: islands) -- evidence rung: synthetic-demonstrable
+- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
+- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -200,7 +200,7 @@ Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels wi
 
 Intended rules:
 
-- `coverage` (detector: Missing interior level(s): / Incomplete coverage (span): / Below expected count:) -- evidence rung: synthetic-demonstrable
+- `coverage` (detector: count_shortfall, incomplete_span, missing_interior) -- evidence rung: synthetic-demonstrable
 
 Corpus cases:
 
@@ -263,7 +263,7 @@ Mechanism: Single-channel-observable only where the mislabelled vertebra's geome
 
 Intended rules:
 
-- `reference_delta` (detector: (none)) -- evidence rung: needs-real-data
+- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -293,8 +293,8 @@ Mechanism: Two detectors serve this mode: sequence fires on relationships.out_of
 
 Intended rules:
 
-- `sequence` (detector: Non-continuous label sequence:) -- evidence rung: needs-real-data
-- `mislabel` (detector: Vertebra ordering inconsistent with label:) -- evidence rung: synthetic-demonstrable
+- `sequence` (detector: discontinuity) -- evidence rung: needs-real-data
+- `mislabel` (detector: ordering) -- evidence rung: synthetic-demonstrable
 
 Corpus cases:
 
@@ -469,7 +469,7 @@ Mechanism: A single-channel integer label map cannot assign two labels to one vo
 
 Intended rules:
 
-- `overlap` (detector: Overlapping segments:) -- evidence rung: structurally-unobservable
+- `overlap` (detector: overlapping_segments) -- evidence rung: structurally-unobservable
 
 Corpus cases:
 
@@ -499,8 +499,8 @@ Mechanism: The committed intensity corpus demonstrates this mode end-to-end thre
 
 Intended rules:
 
-- `intensity` (detector: Implausible intensity (too low): / (too high): / (degenerate/uniform):) -- evidence rung: synthetic-demonstrable
-- `intensity_reference_delta` (detector: (none)) -- evidence rung: needs-real-data
+- `intensity` (detector: degenerate, too_high, too_low) -- evidence rung: synthetic-demonstrable
+- `intensity_reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 

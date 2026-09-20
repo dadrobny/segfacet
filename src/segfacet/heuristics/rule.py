@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import re
 from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
 
 from segfacet.heuristics.finding import Finding
@@ -39,10 +40,15 @@ __all__ = [
     "iter_rules",
     "RuleModeDeclaration",
     "ConsumedPath",
+    "RuleDetector",
     "PATH_ROLES",
     "declaration_for",
     "iter_rule_declarations",
 ]
+
+#: Detector ids are rule-local slugs (item 164): lowercase, starting with a
+#: letter, ascii letters/digits/underscore only.
+_DETECTOR_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 #: The closed vocabulary of per-path roles a rule may declare (item 148).
 #:
@@ -86,6 +92,38 @@ class ConsumedPath:
     path: str
     role: str
     reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
+class RuleDetector:
+    """One branch of a rule's ``evaluate`` that decides independently
+    whether to emit a finding (item 164).
+
+    ``detector_id`` is a rule-local slug (validated
+    ``^[a-z][a-z0-9_]*$`` by :class:`RuleModeDeclaration`); it is joined with
+    the rule's own ``rule_id`` everywhere a detector is referenced, since ids
+    are not globally unique (``reference_delta`` and
+    ``intensity_reference_delta`` both declare ``out_of_range``, for one).
+    ``description`` is a one-line human-readable label. ``signal_paths`` is
+    the subset of the rule's own ``signal``-classified
+    :class:`ConsumedPath` paths this detector reads (the union across a
+    rule's detectors must equal its full signal-path set, AC4).
+    ``mode_less_reason``, when non-empty, records why this detector
+    deliberately serves no failure mode (excusing it from the
+    ``detector_to_edge`` conformance direction in
+    :mod:`segfacet.traceability`) -- distinct from the rule-level
+    ``RuleModeDeclaration.mode_less_reason``, since a single rule may declare
+    modes overall while one of its detectors serves none.
+
+    A detector declares **no** modes of its own (A1): which modes it serves
+    is derived from ``segfacet.failure_modes.SPECIFICATION`` by
+    ``modes_for_detector(rule_id, detector_id)``, never authored here.
+    """
+
+    detector_id: str
+    description: str
+    signal_paths: Tuple[str, ...] = ()
+    mode_less_reason: str = ""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -147,6 +185,7 @@ class RuleModeDeclaration:
     mode_less_reason: str = ""
     pending_reason: str = ""
     consumed_paths: Tuple[ConsumedPath, ...] = ()
+    detectors: Tuple[RuleDetector, ...] = ()
 
     def __post_init__(self) -> None:
         # Outer type checks first (item 147): a bare ``str`` is itself an
@@ -156,7 +195,7 @@ class RuleModeDeclaration:
         # mutable in place on a frozen dataclass. Both are rejected here,
         # naming the field and saying a tuple is required, before the
         # element loops (which still enforce element types).
-        for field_name in ("modes", "evidence", "consumed_paths"):
+        for field_name in ("modes", "evidence", "consumed_paths", "detectors"):
             value = getattr(self, field_name)
             if not isinstance(value, tuple):
                 raise ValueError(
@@ -265,6 +304,58 @@ class RuleModeDeclaration:
                     f"'path', but {element.path!r} follows {previous_path!r}."
                 )
             previous_path = element.path
+
+        # Per-detector validation (item 164). A detector's signal_paths must
+        # each be the path of a 'signal'-role ConsumedPath in this same
+        # declaration -- checked against the consumed_paths already walked
+        # above.
+        signal_path_set = {
+            cp.path for cp in self.consumed_paths if cp.role == "signal"
+        }
+        previous_detector_id: Optional[str] = None
+        for element in self.detectors:
+            if not isinstance(element, RuleDetector):
+                raise ValueError(
+                    f"RuleModeDeclaration: 'detectors' elements must be "
+                    f"RuleDetector, got {type(element).__name__} ({element!r})."
+                )
+            detector_id = element.detector_id
+            if (
+                not isinstance(detector_id, str)
+                or not detector_id
+                or not _DETECTOR_ID_RE.match(detector_id)
+            ):
+                raise ValueError(
+                    f"RuleModeDeclaration: 'detectors' entry has invalid "
+                    f"detector_id {detector_id!r} -- must be a non-empty string "
+                    f"matching {_DETECTOR_ID_RE.pattern!r}."
+                )
+            if previous_detector_id is not None and detector_id == previous_detector_id:
+                raise ValueError(
+                    f"RuleModeDeclaration: 'detectors' must not contain "
+                    f"duplicate detector_id, got {detector_id!r} twice."
+                )
+            if previous_detector_id is not None and detector_id < previous_detector_id:
+                raise ValueError(
+                    f"RuleModeDeclaration: 'detectors' must be ascending by "
+                    f"'detector_id', but {detector_id!r} follows "
+                    f"{previous_detector_id!r}."
+                )
+            previous_detector_id = detector_id
+
+            if not isinstance(element.signal_paths, tuple):
+                raise ValueError(
+                    f"RuleModeDeclaration: detector {detector_id!r} 'signal_paths' "
+                    f"must be a tuple, got {type(element.signal_paths).__name__}."
+                )
+            for signal_path in element.signal_paths:
+                if signal_path not in signal_path_set:
+                    raise ValueError(
+                        f"RuleModeDeclaration: detector {detector_id!r} "
+                        f"signal_paths element {signal_path!r} is not the path "
+                        f"of a ConsumedPath in this declaration carrying "
+                        f"role=='signal'."
+                    )
 
 
 class Rule(abc.ABC):

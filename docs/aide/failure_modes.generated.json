@@ -104,17 +104,25 @@
       "id": 1,
       "intended_rules": [
         {
-          "detector": "Fragmentation:",
+          "detector_ids": [
+            "components"
+          ],
           "evidence_rung": "synthetic-demonstrable",
           "rule_id": "fragmentation"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "metric_out_of_range"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "bounds"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "reference_delta"
         }
@@ -180,12 +188,18 @@
       "id": 2,
       "intended_rules": [
         {
-          "detector": "",
+          "detector_ids": [
+            "metric_out_of_range"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "bounds"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "reference_delta"
         }
@@ -232,12 +246,18 @@
       "id": 3,
       "intended_rules": [
         {
-          "detector": "",
+          "detector_ids": [
+            "metric_out_of_range"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "bounds"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "reference_delta"
         }
@@ -286,17 +306,25 @@
       "id": 4,
       "intended_rules": [
         {
-          "detector": "Rogue island(s):",
+          "detector_ids": [
+            "islands"
+          ],
           "evidence_rung": "synthetic-demonstrable",
           "rule_id": "fragmentation"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "metric_out_of_range"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "bounds"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "reference_delta"
         }
@@ -397,7 +425,11 @@
       "id": 6,
       "intended_rules": [
         {
-          "detector": "Missing interior level(s): / Incomplete coverage (span): / Below expected count:",
+          "detector_ids": [
+            "count_shortfall",
+            "incomplete_span",
+            "missing_interior"
+          ],
           "evidence_rung": "synthetic-demonstrable",
           "rule_id": "coverage"
         }
@@ -477,7 +509,11 @@
       "id": 8,
       "intended_rules": [
         {
-          "detector": "",
+          "detector_ids": [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "reference_delta"
         }
@@ -535,12 +571,16 @@
       "id": 9,
       "intended_rules": [
         {
-          "detector": "Non-continuous label sequence:",
+          "detector_ids": [
+            "discontinuity"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "sequence"
         },
         {
-          "detector": "Vertebra ordering inconsistent with label:",
+          "detector_ids": [
+            "ordering"
+          ],
           "evidence_rung": "synthetic-demonstrable",
           "rule_id": "mislabel"
         }
@@ -730,7 +770,9 @@
       "id": 15,
       "intended_rules": [
         {
-          "detector": "Overlapping segments:",
+          "detector_ids": [
+            "overlapping_segments"
+          ],
           "evidence_rung": "structurally-unobservable",
           "rule_id": "overlap"
         }
@@ -797,12 +839,20 @@
       "id": 16,
       "intended_rules": [
         {
-          "detector": "Implausible intensity (too low): / (too high): / (degenerate/uniform):",
+          "detector_ids": [
+            "degenerate",
+            "too_high",
+            "too_low"
+          ],
           "evidence_rung": "synthetic-demonstrable",
           "rule_id": "intensity"
         },
         {
-          "detector": "",
+          "detector_ids": [
+            "distance",
+            "out_of_range",
+            "robust_z"
+          ],
           "evidence_rung": "needs-real-data",
           "rule_id": "intensity_reference_delta"
         }

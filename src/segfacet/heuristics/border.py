@@ -48,6 +48,7 @@ from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -215,6 +216,24 @@ class BorderRule(Rule):
                 ),
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="expected_end",
+                description=_EXPECTED_END_TAG,
+                mode_less_reason=(
+                    "records the FOV-truncation CONDITION (item 150), not a "
+                    "failure mode -- same disposition as the rule overall"
+                ),
+            ),
+            RuleDetector(
+                detector_id="unexpected_clip",
+                description=_UNEXPECTED_CLIP_TAG,
+                mode_less_reason=(
+                    "records the FOV-truncation CONDITION (item 150), not a "
+                    "failure mode -- same disposition as the rule overall"
+                ),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -299,6 +318,7 @@ class BorderRule(Rule):
                             f"{faces_text}."
                         ),
                         labels=frozenset({label_int}),
+                        detector_id="unexpected_clip",
                     )
                 )
             elif report_expected_ends:
@@ -317,6 +337,7 @@ class BorderRule(Rule):
                             f"{faces_text}."
                         ),
                         labels=frozenset({label_int}),
+                        detector_id="expected_end",
                     )
                 )
 

@@ -68,6 +68,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -330,6 +331,29 @@ class FragmentationRule(Rule):
                 ),
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="components",
+                description=_FRAGMENTATION_TAG,
+                signal_paths=(
+                    "per_label.{label}.components.component_count",
+                    "per_label.{label}.components.component_sizes[]",
+                    "per_label.{label}.components.fragmentation_index",
+                    "per_label.{label}.components.largest_component_fraction",
+                ),
+            ),
+            RuleDetector(
+                detector_id="islands",
+                description=_ISLAND_TAG,
+                signal_paths=(
+                    "per_label.{label}.components.component_count",
+                    "per_label.{label}.components.component_sizes[]",
+                    "per_label.{label}.components.fragmentation_index",
+                    "per_label.{label}.components.largest_component_fraction",
+                    "per_label.{label}.components.stray_component_sizes[]",
+                ),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -471,6 +495,7 @@ class FragmentationRule(Rule):
                         severity=severity,
                         reason=reason,
                         labels=frozenset({label_int}),
+                        detector_id="components",
                     )
                 )
 
@@ -503,6 +528,7 @@ class FragmentationRule(Rule):
                                 f"fragmentation_index={index_for_reason}"
                             ),
                             labels=frozenset({label_int}),
+                            detector_id="islands",
                         )
                     )
             else:
@@ -536,6 +562,7 @@ class FragmentationRule(Rule):
                                 f"fragmentation_index={index_for_reason}"
                             ),
                             labels=frozenset({label_int}),
+                            detector_id="islands",
                         )
                     )
 

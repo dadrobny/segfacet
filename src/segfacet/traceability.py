@@ -93,8 +93,13 @@ sole authored string is an unused operator's reason, and it ships empty). The
 specificity ratchet (item 163) -- no unintended rule may fire, and none may
 go silent, without the change being authored in ``SPECIFICATION``/
 ``CONDITIONS`` -- is enforced by ``tests/test_163_specificity_ratchet.py``
-over this module's ``conformance`` report; the module itself adopts none. It
-adopts no detector ids (item 164), and does not touch
+over this module's ``conformance`` report; the module itself adopts none.
+Item 164 added two further scored directions, ``edge_to_detector`` and
+``detector_to_edge``, over the same first-class detector ids: whether every
+``SPECIFICATION[*].intended_rules`` edge names only detector ids the named
+rule actually declares (``RuleModeDeclaration.detectors``), and whether
+every declared detector carrying no ``mode_less_reason`` of its own is named
+by at least one edge. This module still does not touch
 ``eval/severity_ladder.py``.
 
 Determinism contract
@@ -133,7 +138,7 @@ from typing import Dict, Mapping, Optional, Sequence, Set, Tuple
 
 __all__ = ["build_matrix", "matrix_to_dict", "render_markdown", "main"]
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 #: Item 162's two closed exercise-state vocabularies.
 EXERCISE_STATES: Tuple[str, ...] = ("exercised", "unexercised")
@@ -229,7 +234,7 @@ class ModeRecord:
     title: str
     status: str
     authored_status: str
-    edge_rungs: Tuple[Tuple[str, str, str], ...]
+    edge_rungs: Tuple[Tuple[str, Tuple[str, ...], str], ...]
     rung: str
     mechanism: str
     rules: Tuple[str, ...]
@@ -329,6 +334,8 @@ class TraceabilityMatrix:
     classification_conflicts: Tuple[str, ...]
     conformance: ConformanceReport
     exercise: ExerciseReport
+    edge_to_detector: DirectionReport
+    detector_to_edge: DirectionReport
 
 
 # =========================================================================== #
@@ -572,6 +579,72 @@ def _build_exercise(
     )
 
 
+def _build_detector_directions(
+    failure_modes_module,
+) -> Tuple[DirectionReport, DirectionReport]:
+    """Item 164's two conformance directions over first-class detector ids,
+    scored in both directions between :data:`segfacet.failure_modes.
+    SPECIFICATION`'s ``IntendedRule.detector_ids`` edges and each registered
+    rule's ``RuleModeDeclaration.detectors``.
+
+    ``edge_to_detector`` -- every edge must name only declared detector ids,
+    and at least one: a hole is ``(mode_id, rule_id, detector_id)`` for a
+    named-but-undeclared id, or ``(mode_id, rule_id, "")`` when the edge's
+    ``detector_ids`` is empty (there is no id to name, so ``""`` is the
+    sentinel third element).
+
+    ``detector_to_edge`` -- every declared detector carrying no
+    ``mode_less_reason`` of its own must be named by >=1 edge: a hole is
+    ``(rule_id, detector_id)``.
+
+    Ids are joined per-rule, never by bare slug (``reference_delta`` and
+    ``intensity_reference_delta`` both declare ``out_of_range``): every
+    lookup below is keyed by ``(rule_id, detector_id)`` or scoped to one
+    rule's own declared set.
+    """
+    from segfacet.heuristics.rule import iter_rule_declarations
+
+    specification = failure_modes_module.SPECIFICATION
+
+    declared_by_rule: Dict[str, Set[str]] = {}
+    mode_less_by_rule_detector: Dict[Tuple[str, str], bool] = {}
+    for rule_id, decl in iter_rule_declarations():
+        detectors = decl.detectors if decl is not None else ()
+        declared_by_rule[rule_id] = {d.detector_id for d in detectors}
+        for d in detectors:
+            mode_less_by_rule_detector[(rule_id, d.detector_id)] = bool(d.mode_less_reason)
+
+    edge_to_detector_holes: list = []
+    named_by_edge: Set[Tuple[str, str]] = set()
+    for mode_id, mode_spec in specification.items():
+        for edge in mode_spec.intended_rules:
+            declared = declared_by_rule.get(edge.rule_id, set())
+            if not edge.detector_ids:
+                edge_to_detector_holes.append((mode_id, edge.rule_id, ""))
+                continue
+            for detector_id in edge.detector_ids:
+                named_by_edge.add((edge.rule_id, detector_id))
+                if detector_id not in declared:
+                    edge_to_detector_holes.append((mode_id, edge.rule_id, detector_id))
+    edge_to_detector_holes = tuple(sorted(edge_to_detector_holes))
+    edge_to_detector = DirectionReport(
+        complete=not edge_to_detector_holes, holes=edge_to_detector_holes
+    )
+
+    detector_to_edge_holes = tuple(
+        sorted(
+            (rule_id, detector_id)
+            for (rule_id, detector_id), mode_less in mode_less_by_rule_detector.items()
+            if not mode_less and (rule_id, detector_id) not in named_by_edge
+        )
+    )
+    detector_to_edge = DirectionReport(
+        complete=not detector_to_edge_holes, holes=detector_to_edge_holes
+    )
+
+    return edge_to_detector, detector_to_edge
+
+
 def build_matrix() -> TraceabilityMatrix:
     """Assemble the full :class:`TraceabilityMatrix`.
 
@@ -799,7 +872,7 @@ def build_matrix() -> TraceabilityMatrix:
         # blank indistinguishable from a failed lookup.
         rung = derived_rung or ""
         edge_rungs = tuple(
-            (rule.rule_id, rule.detector, rule.evidence_rung)
+            (rule.rule_id, tuple(rule.detector_ids), rule.evidence_rung)
             for rule in mode_spec.intended_rules
         )
         modes.append(
@@ -848,6 +921,7 @@ def build_matrix() -> TraceabilityMatrix:
     classification_conflicts = tuple(path_classification_conflicts())
     conformance = _build_conformance(failure_modes_module)
     exercise = _build_exercise(conformance, failure_modes_module)
+    edge_to_detector, detector_to_edge = _build_detector_directions(failure_modes_module)
     if classification_conflicts:
         conformance = ConformanceReport(
             cases=conformance.cases,
@@ -871,6 +945,8 @@ def build_matrix() -> TraceabilityMatrix:
         classification_conflicts=classification_conflicts,
         conformance=conformance,
         exercise=exercise,
+        edge_to_detector=edge_to_detector,
+        detector_to_edge=detector_to_edge,
     )
 
 
@@ -963,6 +1039,14 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 "complete": matrix.exercise.operator_direction.complete,
                 "holes": list(matrix.exercise.operator_direction.holes),
             },
+            "edge_to_detector": {
+                "complete": matrix.edge_to_detector.complete,
+                "holes": [list(hole) for hole in matrix.edge_to_detector.holes],
+            },
+            "detector_to_edge": {
+                "complete": matrix.detector_to_edge.complete,
+                "holes": [list(hole) for hole in matrix.detector_to_edge.holes],
+            },
         },
         "corpus_designated_unregistered_rule_ids": list(
             matrix.corpus_designated_unregistered_rule_ids
@@ -1038,8 +1122,8 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
         attribution_by_rule = dict(m.rule_attribution)
         rules_cell = ", ".join(f"{rid} ({attribution_by_rule[rid]})" for rid in m.rules)
         edge_rungs_cell = "; ".join(
-            f"{rule_id} ({detector or 'no detector named'}): {evidence_rung}"
-            for rule_id, detector, evidence_rung in m.edge_rungs
+            f"{rule_id} ({', '.join(detector_ids) or 'no detector named'}): {evidence_rung}"
+            for rule_id, detector_ids, evidence_rung in m.edge_rungs
         )
         cells = [
             str(m.mode),
@@ -1193,6 +1277,44 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
             o.reason or "(none)",
         ]
         lines.append("| " + " | ".join(cells) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Edge -> detector",
+            "",
+            f"Direction complete: {matrix.edge_to_detector.complete}. "
+            f"Holes: {len(matrix.edge_to_detector.holes)}.",
+            "",
+        ]
+    )
+    if matrix.edge_to_detector.holes:
+        for mode_id, rule_id, detector_id in matrix.edge_to_detector.holes:
+            lines.append(
+                f"- mode {mode_id}, rule `{rule_id}`: names undeclared "
+                f"detector id {detector_id or '(empty detector_ids)'!r}."
+            )
+    else:
+        lines.append("- (none)")
+
+    lines.extend(
+        [
+            "",
+            "## Detector -> edge",
+            "",
+            f"Direction complete: {matrix.detector_to_edge.complete}. "
+            f"Holes: {len(matrix.detector_to_edge.holes)}.",
+            "",
+        ]
+    )
+    if matrix.detector_to_edge.holes:
+        for rule_id, detector_id in matrix.detector_to_edge.holes:
+            lines.append(
+                f"- rule `{rule_id}`, detector `{detector_id}`: declared but "
+                f"named by no specification edge."
+            )
+    else:
+        lines.append("- (none)")
 
     return "\n".join(lines) + "\n"
 
