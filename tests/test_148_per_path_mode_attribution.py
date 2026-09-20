@@ -207,7 +207,14 @@ def test_ac2_field_set_and_default_and_backward_compatible_construction():
     from segfacet.heuristics.rule import RuleModeDeclaration
 
     names = {f.name for f in dataclasses.fields(RuleModeDeclaration)}
-    assert names == {"modes", "evidence", "mode_less_reason", "pending_reason", "consumed_paths"}
+    assert names == {
+        "modes",
+        "evidence",
+        "mode_less_reason",
+        "pending_reason",
+        "consumed_paths",
+        "detectors",
+    }
 
     # Every existing standalone construction shape still constructs, and
     # defaults consumed_paths to ().
@@ -460,7 +467,12 @@ def test_ac7_not_read_cannot_hide_an_observed_path(monkeypatch, shipped_catalogu
             key=lambda cp: cp.path,
         )
     )
-    replacement = dataclasses.replace(decl, consumed_paths=new_paths)
+    # detectors=() (item 164, 2026-09-20): path_classification_conflicts()
+    # reads no detector at all, only consumed_paths roles, so dropping the
+    # carried-over detectors here only avoids an unrelated signal_paths
+    # cross-validation on the rebuilt declaration -- it changes nothing the
+    # checker below observes.
+    replacement = dataclasses.replace(decl, consumed_paths=new_paths, detectors=())
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     conflicts = catalogue.path_classification_conflicts()

@@ -145,7 +145,9 @@ def test_ac1_field_names():
     """Reconciled (item 148, 2026-09-04): ``RuleModeDeclaration`` gains
     ``consumed_paths`` (the per-path signal/bookkeeping/not-read
     classification), additively -- see
-    ``tests/test_148_per_path_mode_attribution.py``'s own AC2."""
+    ``tests/test_148_per_path_mode_attribution.py``'s own AC2. Reconciled
+    (item 164, 2026-09-20): ``RuleModeDeclaration`` gains ``detectors``
+    (the rule's first-class detector ids), additively."""
     names = {f.name for f in dataclasses.fields(rule_mod.RuleModeDeclaration)}
     assert names == {
         "modes",
@@ -153,6 +155,7 @@ def test_ac1_field_names():
         "mode_less_reason",
         "pending_reason",
         "consumed_paths",
+        "detectors",
     }
 
 

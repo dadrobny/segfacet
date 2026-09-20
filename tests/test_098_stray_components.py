@@ -845,6 +845,12 @@ def test_ac14_every_golden_still_validates_against_schema():
 #: therefore built from the live ``_DEFAULT_MAX_OFFSET_MM`` rather than a
 #: hardcoded ``15.0``, so this snapshot tracks the recalibrated threshold
 #: without a second guess at its numeric value.
+#: Item 164 (2026-09-20, Correction 2) adds ``detector_id`` to
+#: ``Finding.to_dict()``, so each finding below gains its emitting site's
+#: detector id: ``displace`` -> ``spline_offset``; ``fragment`` ->
+#: ``components``; ``inject_islands`` -> ``islands``; ``relabel_swap`` ->
+#: ``ordering``; ``remove_level`` -> ``missing_interior``; ``crop_at_border``
+#: -> ``unexpected_clip`` (border) and ``spline_offset`` (mislabel).
 _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     "clean_control": {"verdict": "pass", "findings": []},
     "displace": {
@@ -852,6 +858,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "mislabel",
+                "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -867,6 +874,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "fragmentation",
+                "detector_id": "components",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -882,6 +890,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "fragmentation",
+                "detector_id": "islands",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -901,6 +910,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "mislabel",
+                "detector_id": "ordering",
                 "severity": "flagged-for-review",
                 "labels": [21, 22],
                 "reason": (
@@ -916,6 +926,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "coverage",
+                "detector_id": "missing_interior",
                 "severity": "flagged-for-review",
                 "labels": [],
                 "reason": (
@@ -930,6 +941,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "border",
+                "detector_id": "unexpected_clip",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -939,6 +951,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             },
             {
                 "rule_id": "mislabel",
+                "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (

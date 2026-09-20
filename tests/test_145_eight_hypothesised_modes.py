@@ -1177,11 +1177,14 @@ def test_ac20_no_edge_is_authored_without_a_detector_id():
     a corpus-driven "checked >= 1" guard would reach zero. See AC5/AC7."""
     import segfacet.failure_modes as fm
 
+    checked = 0
     for mode in fm.iter_modes():
         if mode.id not in _GEOMETRIC_CORPUS_MODE_IDS:
             continue
         for edge in mode.intended_rules:
             assert edge.detector_ids, (mode.id, edge.rule_id)
+            checked += 1
+    assert checked, "expected >=1 intended-rule edge across the geometric-corpus modes"
 
 
 # =========================================================================== #
