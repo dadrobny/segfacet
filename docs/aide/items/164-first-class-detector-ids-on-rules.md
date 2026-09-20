@@ -462,6 +462,10 @@ anatomy-classification signal … Detector A serves NO failure mode").
 - `tests/test_035_report_integration.py` — reconciliation sweep of the finding-definition assertions against the new optional property.
 - `tests/test_145_eight_hypothesised_modes.py` — reconciliation (added 2026-09-20, Correction 1): constructs `IntendedRule(detector="")` and reads `edge.detector` at 8 sites, two of which join the edge's prose to a finding's `reason` and one of which rests on the retired empty-detector state.
 - `tests/test_146_ninth_mode_and_first_proposed.py` — reconciliation (added 2026-09-20, Correction 1): one `IntendedRule(detector="")` construction.
+- `tests/test_136_rule_mode_declarations.py` — reconciliation (added 2026-09-20, Correction 2): pins `RuleModeDeclaration`'s **closed field set**, which step 2's `detectors` field widens.
+- `tests/test_148_per_path_mode_attribution.py` — reconciliation (added 2026-09-20, Correction 2): pins the same closed field set, and builds an AC7 fixture by `dataclasses.replace` over a live declaration, which step 2's `signal_paths` cross-validation now constrains.
+- `tests/test_089_fov_aware_coverage_border.py` — reconciliation (added 2026-09-20, Correction 2): pins whole coverage/border **finding dicts** against a shared literal, which step 4's `detector_id` key widens.
+- `tests/test_098_stray_components.py` — reconciliation (added 2026-09-20, Correction 2): defines `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`, the pinned finding-dict literal the entry above compares against.
 
 **Asserts against:**
 
@@ -606,6 +610,82 @@ a claim this item contradicts:
    `detector` occurrences (a docstring at ~1069, the fake rule id
    `"__item146_fake_mode13_detector__"` at ~1177) are not the field and are
    left alone.
+9. `tests/test_136_rule_mode_declarations.py::test_ac1_field_names`
+   *(added 2026-09-20, Correction 2)* — asserts
+   `{f.name for f in dataclasses.fields(RuleModeDeclaration)}` equals the
+   **closed** set `{"modes", "evidence", "mode_less_reason", "pending_reason",
+   "consumed_paths"}`. Step 2 adds a sixth field. **Widen the set to include
+   `"detectors"`** and nothing else, and extend the docstring's existing
+   reconciliation note (it already records item 148's `consumed_paths`) with
+   the same sentence for item 164's `detectors`. The claim is *closed field
+   set* — "these fields and no others" — and it survives intact: the set stays
+   exhaustive and a seventh field still fails it.
+10. `tests/test_148_per_path_mode_attribution.py` *(added 2026-09-20,
+    Correction 2)* — **two tests, and the second is not mechanical**:
+    - `test_ac2_field_set_and_default_and_backward_compatible_construction`
+      (~line 210) carries the identical closed field-set pin. **Same widening
+      as entry 9**, for the same reason; the three backward-compatible
+      constructions below it are unaffected (`detectors` defaults to `()`).
+    - `test_ac7_not_read_cannot_hide_an_observed_path` (~line 429) builds its
+      adversarial fixture with
+      `dataclasses.replace(decl, consumed_paths=new_paths)`, flipping one
+      demonstrably-read path to `role="not-read"`. `replace` carries the
+      original `detectors` across unchanged, so the rebuilt declaration now
+      trips step 2's cross-validation — measured on this tree the target pair
+      is `bounds` / an `extent_*_mm` path, and construction raises
+      *"'metric_out_of_range' signal_paths element '…extent_x_mm' is not the
+      path of a ConsumedPath … role=='signal'"*. **The shipped `bounds`
+      declaration is correct; the fixture is what must be repaired.** Pass
+      **`detectors=()`** in that one `dataclasses.replace` call, and say so in
+      a one-line comment naming why. Rationale, and why the test's own claim
+      is carried across rather than weakened: AC7's subject is
+      `segfacet.catalogue.path_classification_conflicts()`, which reads a
+      declaration's `consumed_paths` roles and the catalogue's per-rule
+      evidence and **reads no detector at all** (measured 2026-09-20: no
+      occurrence of `detector` in `src/segfacet/catalogue.py`). Dropping the
+      detectors from the *probe* declaration therefore changes nothing the
+      checker observes; the probe still classifies an `observed` path
+      `not-read`, and the assertion that a conflict naming both the rule and
+      the path is reported is unchanged. The alternative — rebuilding each
+      detector with the flipped path filtered out of its `signal_paths` —
+      produces the same observable at the cost of code that re-derives a
+      declaration the test never inspects.
+    - **Do not touch `test_ac6_extra_classified_path_and_both_directions_...`**
+      (~line 409), which uses the same `replace` idiom: it is measured green on
+      the built branch and is outside this reconciliation.
+11. `tests/test_089_fov_aware_coverage_border.py::test_ac16_committed_corpus_coverage_and_border_findings_unchanged`
+    *(added 2026-09-20, Correction 2)* — compares **whole finding dicts**
+    (`fresh == pinned`) for the `coverage`/`border` subset of every committed
+    corpus case, against `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`, imported from
+    `tests/test_098_stray_components.py`. Step 4 adds `detector_id` to
+    `Finding.to_dict()`, so the fresh dicts carry a key the literal does not
+    (measured: `'detector_id': 'missing_interior'` on `remove_level`).
+    **Update the pinned literal, not the comparison** — the same shape as this
+    item's already-correct `tests/golden/report_format_contract.json`
+    reconciliation, where the hand-built finding literal gains the key rather
+    than the assertion learning to ignore it. Add a `"detector_id"` entry to
+    **every** finding in the constant, each taken from the `Finding(...)` site
+    that emits that reason tag (verified in
+    `src/segfacet/heuristics/` 2026-09-20): `displace` → `"spline_offset"`;
+    `fragment` → `"components"`; `inject_islands` → `"islands"`;
+    `relabel_swap` → `"ordering"`; `remove_level` → `"missing_interior"`;
+    `crop_at_border` → `"unexpected_clip"` (border) and `"spline_offset"`
+    (mislabel). All seven, not only the two a raw-dict comparison reads, so the
+    snapshot stays a faithful record of what the pipeline emits and the next
+    raw-dict reader does not meet a half-updated literal. Record the change as
+    a dated `#:` note above the constant, in the convention the file already
+    uses for its item-120 and item-132 amendments. The test's claim — *the
+    FOV-restriction alters no committed case's coverage/border output* — is
+    carried across exactly: the comparison stays whole-dict equality, now over
+    a key the emitting rule genuinely sets, so a changed verdict, label set,
+    reason **or detector attribution** still fails it.
+    **No other reader of that literal moves** (measured 2026-09-20): the
+    remaining consumers project it through `_finding_summary`
+    (rule_id/severity/labels/reason) in `test_098` and `test_132`, through
+    `_face_insensitive_findings` (rule_id/severity/labels triples) in
+    `test_108`, or compare `verdict` only (`test_090`, `test_094`);
+    `test_105` and `test_135` assert only that the constant's **name** appears
+    in the source. All are immune to an added key.
 
 **Untouched and must stay green:** `tests/test_163_specificity_ratchet.py`.
 Nothing in this item edits an `expected_firing`, a corpus case or a rule's
@@ -710,6 +790,27 @@ attestation.
   exactly the mechanism AC1–AC14 describe. What widened is the set of files that
   must be carried across the rename with it.
 
+- **2026-09-20 — the reconciliation surface widened a second time; the
+  deliverable still did not.** Validation round 1 on the built branch found
+  three further files red, in four tests; Correction 2 below adds them. The
+  list is now **empirically complete**: a full suite run on the built branch
+  yields exactly those four failures and no others, so the reconciliation set
+  is measured rather than inferred. Still no acceptance criterion,
+  implementation step, assumption or `Asserts against` entry changes.
+  **The lesson, for the next item that renames or extends a shared type.**
+  Correction 1 was derived by grepping for `IntendedRule.detector`, and a
+  keyword grep could not have found any of these three: they break on two
+  *other* surfaces this item changes — a new **field** on a shared dataclass
+  (`RuleModeDeclaration.detectors`, which closed field-set pins assert
+  against, and which cross-validates a fixture built by
+  `dataclasses.replace`) and a new **key** in a serialised dict
+  (`Finding.to_dict()`, which pinned finding-dict literals assert against).
+  Neither surface mentions the renamed name anywhere. So: **when an item adds
+  a field to a shared dataclass or a key to a serialised dict, the
+  reconciliation surface is every test that pins that type's field set or that
+  type's serialised output — and it is found by running the suite, not by
+  grepping the renamed name.**
+
 - **Left open:** whether item 162's `exercise` report narrows from per-rule rows
   to per-detector ones. Item 162's spec notes it downstream of this item, but no
   consumer in queue-022 reads a per-detector exercise row, and narrowing it
@@ -792,4 +893,100 @@ mechanical rename.
 `docs/aide/insights.md` (item 164, 2026-09-20) records this same finding; it is
 left verbatim and unticked as a captured claim, and is **resolved in-item** by
 this correction.
+
+## Correction 2 — 2026-09-20
+
+**Appended, not a rewrite.** Everything above stands as authored — the original
+acceptance criteria, the original **Authorised paths** entries, and Correction 1
+included. This section records a **second** completeness defect in the same
+place Correction 1 widened (the set of files this item must carry across its own
+change), found by **validation round 1 on the built branch**, plus one minor
+review finding on a reconciliation Correction 1 already prescribed. **No
+acceptance criterion is in dispute and the deliverable does not change.**
+
+### 1. Three more files break, on two surfaces a grep cannot reach
+
+**The gap.** A full suite run on the built branch gives **exactly four failures
+in three files** — the whole remaining breakage, measured rather than grepped:
+
+| Test | Surface it pins |
+| --- | --- |
+| `tests/test_136_rule_mode_declarations.py::test_ac1_field_names` | `RuleModeDeclaration`'s closed field set |
+| `tests/test_148_per_path_mode_attribution.py::test_ac2_field_set_and_default_and_backward_compatible_construction` | the same closed field set |
+| `tests/test_148_per_path_mode_attribution.py::test_ac7_not_read_cannot_hide_an_observed_path` | a `dataclasses.replace` fixture over a live declaration |
+| `tests/test_089_fov_aware_coverage_border.py::test_ac16_committed_corpus_coverage_and_border_findings_unchanged` | whole `coverage`/`border` finding dicts |
+
+**Why Correction 1 missed them, and the general lesson.** Correction 1 was
+derived by grepping `tests/` for `IntendedRule.detector`. None of these three
+files mentions that field. They break on two *other* surfaces this item changes:
+
+- a new **field** on a shared dataclass — step 2's
+  `RuleModeDeclaration.detectors` — which any test pinning that dataclass's
+  **field set** asserts against, and whose new `signal_paths` cross-validation
+  constrains any fixture rebuilt with `dataclasses.replace` over a live
+  declaration; and
+- a new **key** in a serialised dict — step 4's `detector_id` in
+  `Finding.to_dict()` — which any test pinning a **finding-dict literal**
+  asserts against.
+
+A keyword grep for the renamed name cannot find either. Stated plainly for the
+next item: **when an item adds a field to a shared dataclass or a key to a
+serialised dict, the reconciliation surface is every test that pins that type's
+field set or that type's serialised output, and it is found by running the
+suite, not by grepping the renamed name.**
+
+**The resolution.** Four files are added under **Authorised paths → May
+change** — the three that fail, plus
+`tests/test_098_stray_components.py`, which is where the fourth failure's fix
+actually lands: `test_089`'s AC16 compares against
+`_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`, a literal **defined in `test_098` and
+imported**, so the authorised list must name the file the diff will touch.
+Entries 9–11 of the Testing Strategy's "existing tests to reconcile" block
+prescribe each edit site by site, so the test-writer decides nothing. Two of the
+four need more than a set-widening:
+
+- **`test_148`'s AC7 fixture** is repaired by passing **`detectors=()`** to its
+  one `dataclasses.replace(decl, consumed_paths=new_paths)` call. **The claim is
+  carried across, not weakened**, and that matters here specifically: AC7 exists
+  to prove that classifying a path `not-read` cannot hide a path the rule
+  demonstrably reads. Its subject is
+  `segfacet.catalogue.path_classification_conflicts()`, which reads a
+  declaration's `consumed_paths` roles and the catalogue's per-rule evidence
+  and **reads no detector at all** (measured 2026-09-20: `detector` does not
+  occur in `src/segfacet/catalogue.py`). So the probe still flips an `observed`
+  path to `not-read` on a live declaration, and still asserts the conflict
+  naming both the rule and that path is reported — nothing about the hiding
+  claim is relaxed. What `detectors=()` removes is only an unrelated
+  cross-field constraint that the *probe's* rebuilt declaration would otherwise
+  have to satisfy. The shipped `bounds` declaration is correct and is not
+  touched.
+- **`test_089`'s AC16** is repaired by updating the **pinned literal**, not the
+  comparison — every finding in `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS` gains its
+  emitting site's `detector_id`. The comparison stays whole-dict equality, so a
+  changed verdict, label set, reason or detector attribution still fails it. No
+  other reader of that literal moves; entry 11 records the measurement.
+
+### 2. The `checked` counter on `test_145`'s AC20 replacement, restated
+
+Correction 1's entry 7 prescribed narrowing
+`test_ac20_an_empty_detector_never_belongs_to_a_rule_that_fired` into
+`test_ac20_no_edge_is_authored_without_a_detector_id`, **"keeping the `checked`
+counter and retitling its message"**. The replacement landed **without** the
+counter and without its terminal guard: it is now a bare nested loop over
+`_GEOMETRIC_CORPUS_MODE_IDS`, which would pass having asserted nothing if that
+id set were ever narrowed or emptied — this repo's number-one defect class per
+[`REVIEW.md`](../../../REVIEW.md), and the very guard the predecessor carried.
+
+**Restated unambiguously.** `tests/test_145_eight_hypothesised_modes.py::test_ac20_no_edge_is_authored_without_a_detector_id`
+initialises `checked = 0` before the loop, increments it once per edge asserted,
+and ends with a terminal guard whose message now describes what it counts rather
+than the retired empty-detector premise:
+
+```
+assert checked, "expected >=1 intended-rule edge across the geometric-corpus modes"
+```
+
+Everything else about the landed test — its name, its docstring, the dropped
+`corpus` fixture parameter, the per-edge `assert edge.detector_ids` — stands as
+Correction 1 prescribed.
 
