@@ -59,7 +59,7 @@
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
-| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 📋     |
+| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -1013,7 +1013,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   specification first. See
   [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §9.
   ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 162. *(Item 139)*
-- 📋 Per-rule and per-operator corpus-exercise report across both corpora, re-authored
+- 🚧 Per-rule and per-operator corpus-exercise report across both corpora, re-authored
   against the signed-off specification (Stage 32 D0). *(Item 162)*
 - ⏸️ The mode-1 severity-ladder base (`tests/test_100_severity_ladder.py`, Stage 18)
   widened so mode 1's metric swing is set by the
@@ -1720,7 +1720,7 @@ changes here.**
 
 ---
 
-## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — 📋
+## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — 🚧
 
 **Goal.** The specification documents all sixteen modes without committing to implement
 them (2026-09-15: validated 1, 4, 6, 9, 15, 16; implemented 2, 3, 8; proposed 5, 7,
@@ -1740,7 +1740,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   specificity-ratchet deliverables (allowlist derived from each case's `expected_firing`)
   re-specified against the specification and built at the head of the first queue; they
   stay tracked by their Stage 20 bullets.
-- 📋 First-class detector ids on multi-detector rules, referenced by the
+- 🚧 First-class detector ids on multi-detector rules, referenced by the
   specification's intended-rule edges, so "a detector serves no other mode" is
   checked mechanically (prerequisite of D1's condition 4). *(Item 162)*
 - 📋 **D1** The MVP mode: at least one maintainer-selected mode brought to the
