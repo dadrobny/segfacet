@@ -234,6 +234,12 @@ Public API
 ----------
 ``ModeSpec``, ``CandidateFeature``, ``IntendedRule``, ``CorpusCaseExpectation``
     Frozen dataclasses (the schema).
+``ModeSignOff`` / ``SIGN_OFF_OUTCOMES``
+    The frozen per-mode maintainer sign-off record (item 168, roadmap Stage
+    32 bar condition 6) and its closed, two-member outcome vocabulary.
+``MODE_SIGN_OFFS`` / ``mode_sign_off(mode_id) -> Optional[ModeSignOff]``
+    The read-only mapping of recorded sign-offs, keyed by mode id -- shipped
+    empty until a person resolves the gate -- and its accessor.
 ``SPECIFICATION``
     The immutable, ascending-by-id seed (a ``MappingProxyType``).
 ``iter_modes() -> Iterator[ModeSpec]``
@@ -277,12 +283,17 @@ The changes are the "Taxonomy as signed off" section above, applied in
 this module, the rule declarations, both committed corpora and
 ``feature_docs.MODE_ANCHOR_PATHS``; the eval-harness re-key, the vision.md
 §6 re-issue and the new rules the review asked for are follow-up items.
+
+A per-mode sign-off (roadmap Stage 32 bar condition 6, item 168) is a
+separate record from the one above: it lives in :data:`MODE_SIGN_OFFS`, not
+in this docstring.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from pathlib import Path
 from types import MappingProxyType
 from typing import Dict, FrozenSet, Iterable, Iterator, Mapping, Optional, Tuple
@@ -292,6 +303,10 @@ __all__ = [
     "CandidateFeature",
     "IntendedRule",
     "CorpusCaseExpectation",
+    "SIGN_OFF_OUTCOMES",
+    "ModeSignOff",
+    "MODE_SIGN_OFFS",
+    "mode_sign_off",
     "SPECIFICATION",
     "ConditionSpec",
     "CONDITIONS",
@@ -323,7 +338,7 @@ __all__ = [
     "MD_PATH",
 ]
 
-SCHEMA_VERSION = "2.1"
+SCHEMA_VERSION = "2.2"
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
@@ -448,6 +463,53 @@ class CorpusCaseExpectation:
     corpus: str
     expected_firing: Tuple[str, ...]
     reason: str
+
+
+#: The closed, two-member outcome vocabulary a :class:`ModeSignOff` may
+#: record (item 168). There is deliberately no third "declined" member --
+#: see the item spec's Decisions & Trade-offs.
+SIGN_OFF_OUTCOMES: Tuple[str, ...] = ("at-the-bar", "intermediate-state")
+
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+@dataclasses.dataclass(frozen=True)
+class ModeSignOff:
+    """One maintainer sign-off of a mode (item 168, roadmap Stage 32 bar
+    condition 6): the mode id, the resolution date of the human gate that
+    recorded it, the chosen outcome and the maintainer's note. Only a person
+    may create one -- see :data:`MODE_SIGN_OFFS`, shipped empty."""
+
+    mode_id: int
+    date: str
+    outcome: str
+    note: str
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.mode_id, bool)
+            or not isinstance(self.mode_id, int)
+            or self.mode_id < 1
+        ):
+            raise ValueError(
+                f"ModeSignOff {self.mode_id!r}: 'mode_id' must be an int >= 1, got "
+                f"{self.mode_id!r}."
+            )
+        if not isinstance(self.date, str) or not _ISO_DATE_RE.match(self.date):
+            raise ValueError(
+                f"ModeSignOff {self.mode_id}: 'date' must match YYYY-MM-DD, got "
+                f"{self.date!r}."
+            )
+        if self.outcome not in SIGN_OFF_OUTCOMES:
+            raise ValueError(
+                f"ModeSignOff {self.mode_id}: 'outcome' {self.outcome!r} is not a "
+                f"member of SIGN_OFF_OUTCOMES {SIGN_OFF_OUTCOMES}."
+            )
+        if not isinstance(self.note, str) or not self.note:
+            raise ValueError(
+                f"ModeSignOff {self.mode_id}: 'note' must be a non-empty str, got "
+                f"{self.note!r}."
+            )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2190,6 +2252,39 @@ CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
 )
 
 
+#: The maintainer sign-off record per mode (item 168, roadmap Stage 32 bar
+#: condition 6). **Ships empty**: that is the honest state while the human
+#: gate ("Stage 32 selected-mode sign-off", ``docs/aide/progress.md``) is
+#: still ``⏳ Awaiting`` -- no agent may add an entry here (AC11). Once,
+#: and only once, a person resolves the gate, one ``ModeSignOff`` per
+#: signed mode is added here, keyed by its own ``mode_id``.
+MODE_SIGN_OFFS: Mapping[int, ModeSignOff] = MappingProxyType({})
+
+
+def _validate_sign_offs(
+    sign_offs: Mapping[int, ModeSignOff] = MODE_SIGN_OFFS,
+) -> None:
+    """Raise ``ValueError`` for a key of *sign_offs* absent from
+    :data:`SPECIFICATION`, or one disagreeing with its record's own
+    ``mode_id``. Takes the mapping as its first positional argument,
+    defaulting to :data:`MODE_SIGN_OFFS`, so a test can exercise it over a
+    constructed mapping without touching the shipped one."""
+    for key, record in sign_offs.items():
+        if key not in SPECIFICATION:
+            raise ValueError(
+                f"MODE_SIGN_OFFS: key {key!r} is not a mode id in SPECIFICATION "
+                f"(ids: {sorted(SPECIFICATION)!r})."
+            )
+        if record.mode_id != key:
+            raise ValueError(
+                f"MODE_SIGN_OFFS: key {key!r} disagrees with its record's own "
+                f"mode_id {record.mode_id!r}."
+            )
+
+
+_validate_sign_offs()
+
+
 def iter_conditions() -> Iterator[ConditionSpec]:
     """Yield the conditions in ascending ``id`` order. Takes no argument."""
     for condition_id in sorted(CONDITIONS):
@@ -2213,6 +2308,14 @@ def iter_modes() -> Iterator[ModeSpec]:
     for mode_id in sorted(SPECIFICATION):
         yield SPECIFICATION[mode_id]
 
+
+def mode_sign_off(mode_id: int) -> Optional[ModeSignOff]:
+    """The maintainer sign-off recorded for *mode_id*, or ``None``.
+
+    ``None`` means *not signed off* -- never *signed off with nothing
+    recorded*: a mode either has a full :class:`ModeSignOff` in
+    :data:`MODE_SIGN_OFFS` or it has none at all."""
+    return MODE_SIGN_OFFS.get(mode_id)
 
 
 # =========================================================================== #
@@ -2743,6 +2846,15 @@ def specification_to_dict() -> dict:
                 "status_derived": derive_status(mode),
                 "derived_rung": derive_mode_rung(mode),
                 "provenance": mode.provenance,
+                "sign_off": (
+                    None
+                    if mode_sign_off(mode.id) is None
+                    else {
+                        "date": mode_sign_off(mode.id).date,
+                        "outcome": mode_sign_off(mode.id).outcome,
+                        "note": mode_sign_off(mode.id).note,
+                    }
+                ),
             }
         )
     conditions = []
@@ -2826,6 +2938,15 @@ def render_markdown() -> str:
         lines.append(f"- Status, derived (live): {mode['status_derived']}")
         rung = mode["derived_rung"] if mode["derived_rung"] is not None else "none"
         lines.append(f"- Derived rung (strongest edge, live): {rung}")
+        sign_off = mode["sign_off"]
+        if sign_off is None:
+            lines.append("- Maintainer sign-off: (none recorded)")
+        else:
+            lines.append(
+                "- Maintainer sign-off: "
+                f"{sign_off['date']} -- {sign_off['outcome']} -- "
+                f"{_md_escape(sign_off['note'])}"
+            )
         lines.append("")
         lines.append("Candidate features:")
         lines.append("")

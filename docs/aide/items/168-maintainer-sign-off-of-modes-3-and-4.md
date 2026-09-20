@@ -666,6 +666,33 @@ has recorded one.
 
 To be updated during implementation.
 
+- **2026-09-20, Half A implemented.** Built exactly the mechanism the spec
+  describes: `SIGN_OFF_OUTCOMES`, the frozen `ModeSignOff` dataclass
+  (`mode_id`, `date`, `outcome`, `note`, in that order, each validated with a
+  `ValueError` naming the offending field), `MODE_SIGN_OFFS` as a
+  `MappingProxyType({})` validated at import by `_validate_sign_offs()` (which
+  takes the mapping as its first positional argument, defaulting to
+  `MODE_SIGN_OFFS`, per the test-writer's flagged interface requirement),
+  `mode_sign_off()`, the per-mode `"sign_off"` JSON key and the
+  `- Maintainer sign-off:` Markdown bullet, `SCHEMA_VERSION` "2.1" -> "2.2",
+  and the module-docstring pointer sentence. `MODE_SIGN_OFFS` ships empty, as
+  A2 requires; no `ModeSignOff` record was added for mode 3, mode 4 or any
+  other mode, and no `aide gate` command was run. Both generated artifacts
+  were regenerated via `python -m segfacet.failure_modes`; a second
+  regeneration is a byte-identical no-op. Confirmed by direct measurement
+  (not assumed): the docstring's `Sign-off` section still matches exactly one
+  `^Signed off: YYYY-MM-DD -- …$` line via the same regex
+  `tests/test_150_maintainer_sign_off.py::_sign_off_match` uses, the added
+  pointer sentence sits in a separate paragraph so it does not extend that
+  match, and the outcome text's `<count> entries` phrase is unchanged
+  ("giving sixteen entries") -- so `test_151`'s `test_ac29_…` still resolves
+  to `len(SPECIFICATION) == 16`. `specification_to_dict()["schema_version"]`
+  is `"2.2"` and the top-level payload key set is unchanged
+  (`{"schema_version", "note", "modes", "conditions",
+  "vision_seed_disposition"}`), so `test_152`'s
+  `test_ac14_committed_json_top_level_shape_is_unchanged` stays green because
+  `sign_off` is a per-mode key, not a top-level one.
+
 - **Left open:** whether condition 6 should ever become a sixth
   `BarCondition` in `traceability.BAR_CONDITIONS`, computed as
   `mode_sign_off(mode_id) is not None`. Not done here: it would change the
