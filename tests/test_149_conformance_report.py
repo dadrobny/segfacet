@@ -1274,19 +1274,28 @@ def test_adv_ac32_matrix_to_dict_mutation_does_not_leak_into_a_later_call(raw_ma
 
 # =========================================================================== #
 # AC33: no exercise columns are built (scope fence)
+#
+# Narrowed 2026-09-20 (item 162, AC13): AC33 originally fenced item 139's
+# whole per-rule/per-operator exercise deliverable out of this module ("item
+# 139's deliverable is observably absent"). Item 162 lands that deliverable
+# (AC6/AC8 require exactly the `rule_exercise`/`operator_exercise` keys this
+# fence used to forbid), so the fence's premise expires by design. One claim
+# of AC33 survives and is worth keeping: an exercise record names which cases
+# exercise it and never a stored scalar count -- item 162's own AC13. Both
+# guards below are narrowed to that one token.
 # =========================================================================== #
 
 
-def test_ac33_no_per_rule_or_per_operator_exercise_column_in_either_artifact():
+def test_ac33_no_exercise_count_scalar_in_either_artifact():
     json_text = _COMMITTED_JSON.read_text(encoding="utf-8")
     md_text = _COMMITTED_MD.read_text(encoding="utf-8")
-    for forbidden_token in ("exercise_count", "operator_exercise", "corpus_exercise", "exercise column"):
+    for forbidden_token in ("exercise_count",):
         assert forbidden_token not in json_text, forbidden_token
         assert forbidden_token not in md_text, forbidden_token
 
 
-def test_ac33_traceability_module_defines_no_exercise_derivation():
+def test_ac33_traceability_module_derives_no_exercise_count():
     source = (_REPO_ROOT / "src" / "segfacet" / "traceability.py").read_text(encoding="utf-8")
-    for forbidden_token in ("exercise_count", "operator_exercise", "corpus_exercise"):
+    for forbidden_token in ("exercise_count",):
         assert forbidden_token not in source, forbidden_token
 

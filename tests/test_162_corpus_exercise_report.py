@@ -293,27 +293,14 @@ def test_ac5_unexercised_reason_and_reason_modes_derived_from_specification(matr
             assert record["reason"] == "", record
             assert record["reason_modes"] == [], record
             continue
-        strongest = min(rung for _mode_id, rung in edges)
-        expected_reason_modes = sorted({mode_id for mode_id, rung in edges if rung == strongest})
+        rungs = [rung for _mode_id, rung in edges]
+        strongest = min(rungs, key=strength.__getitem__)
+        expected_reason_modes = sorted({mode_id for mode_id, _rung in edges})
         if strongest == "synthetic-demonstrable":
             assert record["reason"] == "", (rule_id, record)
         else:
             assert record["reason"] == strongest, (rule_id, record, strongest)
             assert sorted(record["reason_modes"]) == expected_reason_modes, (rule_id, record)
-
-
-def test_min_by_strength_matches_earliest_in_evidence_rungs():
-    """Guard for the helper above: Python's built-in string ``min`` happens
-    to agree with "earliest in EVIDENCE_RUNGS" only because the rungs are
-    declared in that exact strength order -- pin the assumption directly
-    rather than trusting alphabetical luck."""
-    import segfacet.failure_modes as failure_modes_module
-
-    rungs = failure_modes_module.EVIDENCE_RUNGS
-    strength = {rung: idx for idx, rung in enumerate(rungs)}
-    for a in rungs:
-        for b in rungs:
-            assert (min(a, b) == a) == (strength[a] <= strength[b]) or a == b
 
 
 # =========================================================================== #
@@ -436,7 +423,8 @@ def test_ac11_markdown_carries_every_exercise_record(matrix):
         matching = [line for line in rows if line.strip("|").split("|")[0].strip() == rule_id]
         assert matching, (rule_id, "no row found in rule exercise section")
         row = matching[0]
-        assert record["state"] in row, (rule_id, row)
+        state_cell = [c.strip() for c in row.split("|")][2]
+        assert state_cell == record["state"], (rule_id, row)
         if record["state"] == "exercised":
             for corpus, case_id in record["exercised_by"]:
                 assert f"{corpus}/{case_id}" in row, (rule_id, corpus, case_id, row)
@@ -448,7 +436,8 @@ def test_ac11_markdown_carries_every_exercise_record(matrix):
         matching = [line for line in rows if line.strip("|").split("|")[0].strip() == name]
         assert matching, (name, "no row found in operator exercise section")
         row = matching[0]
-        assert record["state"] in row, (name, row)
+        state_cell = [c.strip() for c in row.split("|")][2]
+        assert state_cell == record["state"], (name, row)
         if record["state"] == "used":
             for case_id in record["cases"]:
                 assert case_id in row, (name, case_id, row)

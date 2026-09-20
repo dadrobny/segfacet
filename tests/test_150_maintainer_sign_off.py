@@ -1004,11 +1004,16 @@ def test_adv_ac12_a_stale_artifact_and_a_vacuous_loop_are_both_caught():
 # Block 5 -- housekeeping (AC13-AC15)
 # =========================================================================== #
 
-#: The four Stage-20 deliverables this gate holds. **A dated claim** (D3): the
-#: first item that lands any of 139-142 must list this test file under its
-#: "Authorised paths -> May change" and update this test. Recorded here so that
-#: item's author does not discover it as a red suite.
-_HELD_ITEMS = (139, 140, 141, 142)
+#: The four Stage-20 deliverables this gate holds, mapped to the leading icon
+#: each bullet must now carry. **2026-09-18:** items 139, 140 and 142 were
+#: retired at the queue-022 boundary and re-queued as items 162, 163 and 169
+#: respectively, so their bullets now lead with ``❌``. Item 141 keeps ``⏸️``:
+#: its work moved to Stage 31 (item 154) and was not re-queued, so it remains
+#: genuinely held. **A dated claim** (D3): the first item that lands any of
+#: 139-142 must list this test file under its "Authorised paths -> May change"
+#: and update this test. Recorded here so that item's author does not
+#: discover it as a red suite.
+_HELD_ITEMS = {139: "❌", 140: "❌", 141: "⏸️", 142: "❌"}
 
 
 def _stage_20_section(text: str) -> list:
@@ -1024,8 +1029,8 @@ def _stage_20_section(text: str) -> list:
     return lines[start:end]
 
 
-@pytest.mark.parametrize("item", _HELD_ITEMS)
-def test_ac13_the_four_held_stage_20_items_are_still_deferred(item):
+@pytest.mark.parametrize("item, icon", sorted(_HELD_ITEMS.items()))
+def test_ac13_each_stage_20_held_item_bullet_carries_its_recorded_icon(item, icon):
     """Located by the deliverable's own ``*(Item NNN)*`` marker and walked back
     to the bullet that owns it -- not by scanning the file for the icon."""
     section = _stage_20_section(_PROGRESS_MD.read_text(encoding="utf-8"))
@@ -1042,8 +1047,8 @@ def test_ac13_the_four_held_stage_20_items_are_still_deferred(item):
         f"could not find the bullet owning {marker} in Stage 20"
     )
     bullet = section[bullet_start]
-    assert bullet.startswith("- ⏸️"), (
-        f"the Stage 20 deliverable for item {item} must still carry ⏸️ as its "
+    assert bullet.startswith(f"- {icon}"), (
+        f"the Stage 20 deliverable for item {item} must carry {icon!r} as its "
         f"leading bullet icon; it reads: {bullet[:80]!r}"
     )
 
