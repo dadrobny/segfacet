@@ -1746,7 +1746,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   checked mechanically (prerequisite of D1's condition 4). *(Item 162)*
 - ✅ **D1** The MVP mode: at least one maintainer-selected mode brought to the
   fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 163)*
-- 📋 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
+- 🚧 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
   queue's checkpoint, to the bar or to a recorded intermediate state. Selected
   2026-09-18: mode 3 (split) — its split operator and corpus case. *(Item 164)*
 - 📋 **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 165)*
