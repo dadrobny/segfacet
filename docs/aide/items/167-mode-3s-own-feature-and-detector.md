@@ -422,6 +422,12 @@ with `.venv/bin/python`; each names what was measured.
 - `tests/test_098_stray_components.py` — only if the suite names it; its assertions over the components key set are subset-shaped and are expected to stay green
 - `tests/test_103_feature_catalogue.py` — only if the suite names it; its `_RULE_MODE_MAP` is corpus-derived and this item changes no `Expectation`
 - `tests/test_149_conformance_report.py` — only if the suite names it; its case counts are unchanged, no case being added
+- `tests/test_126_golden_retirement.py` — appended 2026-09-20 (correction C1/C2): `test_ac22_documented_2694_evidence_still_verifies_unchanged`'s companion `(26, 94)` pin moves
+- `tests/test_147_specification_is_the_record.py` — appended 2026-09-20 (correction C1/C2): its own `_EXPECTED_DERIVED_STATUS[3]`, a second copy of the map named above
+- `tests/test_119_curve_formulation.py` — appended 2026-09-20 (correction C1/C3): no edit expected; declared because its AC27 digest assertion is a consumer of the fixture bumped below
+- `tests/test_120_leave_one_out_offset.py` — appended 2026-09-20 (correction C1/C3): no edit expected; same, for its AC12
+- `tests/test_123_recalibrate_and_regenerate.py` — appended 2026-09-20 (correction C1/C3): no edit expected; same, for its AC49
+- `tests/corpus/119_pre_119_digests.json` — appended 2026-09-20 (correction C1/C3): `catalogue_leaf_path_set_sha256` recomputed, per the standing obligation item 121 recorded
 
 **Asserts against:**
 
@@ -951,3 +957,56 @@ axis mapping, or C6's tie-break — passes all three.
   same comparison written three times against one fixture, so every leaf-path change
   pays three test-reads for one fact; collapsing them would rewrite three merged
   items' provenance and is not this item's to do.
+
+### Builder — production half of the correction, 2026-09-20
+
+Applied C1/C4/C6 (production scope only; C2/C3/C5/C7's test edits are the
+test-writer's).
+
+- **C6 tie-break, `src/segfacet/features/components.py`.** Replaced
+  `xp.argsort(component_counts)[::-1]` with an explicit
+  `sorted(counts_by_id, key=lambda pair: (-pair[1], pair[0]))` over
+  `(component_id, count)` pairs — descending voxel count, ties broken by
+  ascending component id, backend-independent (no NumPy/CuPy sort-kind
+  dependency), the `mislabel.py::_dominant_direction` form. Made the
+  contacting-label maximum explicit as
+  `max(area_by_other, key=lambda k: (area_by_other[k], -k))` instead of
+  inheriting `xp.unique`'s ascending order by accident. The pre-existing
+  strict `>` across components is now commented as the ascending-id
+  tie-break site it always was. Policy stated in all three places C6
+  requires: the `Attributes` entries for `stray_contact_area_mm2` and
+  `stray_contact_label` in `ComponentsInfo`'s docstring, an inline comment at
+  the sort and at the `max`, and the `computation` string of both
+  `FEATURE_DOCS` entries in `src/segfacet/feature_docs.py`.
+- **Verified no committed value moved.** `compute_components` on the
+  committed `split` fixture, label 23, still measures
+  `stray_contact_area_mm2 == 750.0` / `stray_contact_label == 22` — the tie
+  never fires on any committed corpus case, exactly as C6 predicted.
+  Constructed a synthetic two-equal-size-component case by hand (two
+  3-voxel components under the same label, only the higher-id one
+  face-adjacent to a second label): the policy excludes the lower-id
+  (first-built) component and counts the contact on the higher-id one,
+  confirming ascending-id-loses / higher-id-with-contact-counted behaves as
+  documented.
+- **C4 digest bump, `tests/corpus/119_pre_119_digests.json`.** Regenerated
+  by hand per C3's three mechanical steps (`segfacet.catalogue.main`, sort
+  leaf `path` values, sha256 the newline-joined list): 138 → 140 leaf paths
+  (the two new `stray_contact_*` fields, already present from the
+  pre-correction implementation), digest
+  `31d1e90…73c5cd` → `5af84d70fc244abbd28f471be60e22cfba892c702258316e49a08bc5a19a8189`.
+  Wrote the file by hand with `\n` bytes, same one-key/two-space-indent/
+  trailing-newline shape; `.gitattributes`' existing `text eol=lf` pin needed
+  no change.
+- **Regenerated every `docs/aide/*.generated.*` artifact** via its own
+  `python -m` entry point (`segfacet.catalogue`, `segfacet.traceability`,
+  `segfacet.failure_modes`, `segfacet.golden_evidence`) to pick up the C6
+  wording change. Only `feature_catalogue.generated.{json,md}` moved — the
+  two `computation` strings that now state the tie-break policy — and only
+  those four lines; the leaf-path *set* is unchanged by a docs-only edit
+  (confirmed: `traceability`/`failure_modes`/`golden_evidence` regeneration
+  produced no diff at all, meaning those artifacts already reflected the
+  pre-correction feature addition and carry no tie-break-policy prose of
+  their own).
+- **No production edit was needed for C1/C2/C3/C5/C7 beyond the digest
+  bump** — those are test-only reconciliations per the correction, left to
+  the test-writer.

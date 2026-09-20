@@ -1193,13 +1193,13 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
         ),
         'per_label.{label}.components.stray_contact_area_mm2': FeatureDoc(
             measures="Neighbour-label contact area: how much of a label's non-dominant material is pressed against another label -- mode 3's (split vertebra segment) discriminating signal (item 167).",
-            computation="Maximum, over every component in component_sizes[1:] (every component but the dominant one), of that component's 6-neighbour face-contact voxel count with any single other non-zero label, times the per-axis face area from the header zooms.",
+            computation="Maximum, over every component in component_sizes[1:] (every component but the dominant one), of that component's 6-neighbour face-contact voxel count with any single other non-zero label, times the per-axis face area from the header zooms. Tie-break policy (item 167): components ordered by descending voxel count, ties broken by ascending component id, so the dominant one excluded is unambiguous; among contacting labels of equal area, the lowest label id wins.",
             units='mm^2',
             scale_sensitivity='scales with spacing',
         ),
         'per_label.{label}.components.stray_contact_label': FeatureDoc(
             measures='The other label id carrying the interface at stray_contact_area_mm2 (item 167).',
-            computation='argmax over other labels of face-contact area with the maximal stray component; 0 (background sentinel) when stray_contact_area_mm2 == 0.0.',
+            computation='argmax over other labels of face-contact area with the maximal stray component; 0 (background sentinel) when stray_contact_area_mm2 == 0.0. Tie-break policy (item 167): components ordered by descending voxel count, ties broken by ascending component id; among contacting labels of equal area, the lowest label id wins.',
             units='',
             scale_sensitivity='identifier',
         ),

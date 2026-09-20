@@ -142,11 +142,19 @@ class ComponentsInfo:
         mode 3's (*split vertebra segment*) discriminating signal: a
         substantial stray piece pressed against the label that claimed it,
         as opposed to a detached-but-untouching stray (mode 2) or a small
-        own-label island (mode 4).
+        own-label island (mode 4). Tie-break policy (item 167): components
+        are ordered by descending voxel count, ties broken by ascending
+        component id, and the first of that order is the label's largest and
+        is excluded from this search; among contacting labels of equal area,
+        the lowest label id wins.
     stray_contact_label:
         The other label id carrying the interface at ``stray_contact_area_mm2``
         (item 167). ``0`` — the background sentinel — whenever
         ``stray_contact_area_mm2 == 0.0``, so the field is always numeric.
+        Same tie-break policy as ``stray_contact_area_mm2``: components
+        ordered by descending voxel count, ties broken by ascending
+        component id, and among contacting labels of equal area the lowest
+        label id wins.
     """
 
     component_count: int
@@ -279,8 +287,17 @@ def compute_components(
         # Descending-size component ids (not just sizes): id at each rank,
         # so the dominant id can be excluded and the rest inspected in the
         # array they actually occupy.
-        order_desc = [int(i) for i in xp.argsort(component_counts)[::-1]]
-        component_ids_desc = [idx + 1 for idx in order_desc]
+        # Tie-break policy (item 167): components are ordered by descending
+        # voxel count, ties broken by ascending component id -- an explicit
+        # `sorted(...)` key, not `xp.argsort(...)[::-1]`, whose default sort
+        # kind is not stable and so is implementation-dependent under a tie
+        # (in NumPy or CuPy alike). The first of this order is excluded as
+        # the label's largest component.
+        counts_by_id = [(idx + 1, int(component_counts[idx])) for idx in range(n_components)]
+        component_ids_desc = [
+            comp_id
+            for comp_id, _count in sorted(counts_by_id, key=lambda pair: (-pair[1], pair[0]))
+        ]
 
         # Per-axis face area from the header zooms -- never a hardcoded or
         # assumed-isotropic axis.
@@ -312,8 +329,16 @@ def compute_components(
                         area_by_other.get(other_label, 0.0) + count * area
                     )
             if area_by_other:
-                local_other = max(area_by_other, key=lambda k: area_by_other[k])
+                # Tie-break policy (item 167): among contacting labels of
+                # equal area, the lowest label id wins -- stated explicitly
+                # rather than inherited from xp.unique's ascending order and
+                # dict insertion order.
+                local_other = max(area_by_other, key=lambda k: (area_by_other[k], -k))
                 local_area = area_by_other[local_other]
+                # Strict `>` (not `>=`) across components: under the
+                # descending-count/ascending-id order above, this keeps the
+                # lowest-id component's contact on an area tie between
+                # components (item 167).
                 if local_area > stray_contact_area_mm2:
                     stray_contact_area_mm2 = local_area
                     stray_contact_label = local_other
