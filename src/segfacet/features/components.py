@@ -26,6 +26,13 @@ diagonal or edge neighbours) and computes:
   arithmetic complement of that field so the two are always consistent by
   construction rather than by a second, independently-rounded computation
   (item 098).
+* **stray_contact_area_mm2** — the maximum, over every stray component, of
+  that component's 6-neighbour face-contact area (mm²) with any single
+  other non-zero label; mode 3's (*split vertebra segment*) discriminating
+  signal (item 167).
+* **stray_contact_label** — the other label id carrying that maximal
+  interface, or the ``0`` background sentinel when
+  ``stray_contact_area_mm2 == 0.0`` (item 167).
 
 "Stray" means **every connected component of a label other than its single
 largest (dominant) one** — the exact ``component_sizes[1:]`` population. A
@@ -54,7 +61,7 @@ Public API
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import nibabel as nib
@@ -126,6 +133,20 @@ class ComponentsInfo:
         ``1.0 - largest_component_fraction`` — the arithmetic complement of
         ``largest_component_fraction``, so the two always sum to ``1.0``
         by construction (item 098). ``0.0`` for a single-component label.
+    stray_contact_area_mm2:
+        Neighbour-label contact area (item 167): the maximum, over every
+        connected component of this label **other than its largest**, of
+        that component's 6-neighbour face-contact area (mm²) with any
+        single other non-zero label. ``0.0`` for a single-component label,
+        or when no stray component touches another label at all. This is
+        mode 3's (*split vertebra segment*) discriminating signal: a
+        substantial stray piece pressed against the label that claimed it,
+        as opposed to a detached-but-untouching stray (mode 2) or a small
+        own-label island (mode 4).
+    stray_contact_label:
+        The other label id carrying the interface at ``stray_contact_area_mm2``
+        (item 167). ``0`` — the background sentinel — whenever
+        ``stray_contact_area_mm2 == 0.0``, so the field is always numeric.
     """
 
     component_count: int
@@ -137,6 +158,8 @@ class ComponentsInfo:
     stray_component_sizes: List[int]
     stray_volume_mm3: float
     stray_volume_fraction: float
+    stray_contact_area_mm2: float
+    stray_contact_label: int
 
 
 # --------------------------------------------------------------------------- #
@@ -243,6 +266,58 @@ def compute_components(
     stray_volume_mm3: float = float(sum(component_volumes_mm3[1:]))
     stray_volume_fraction: float = 1.0 - largest_component_fraction
 
+    # Neighbour-label contact area (item 167): the maximum, over every
+    # connected component of this label OTHER THAN ITS LARGEST, of that
+    # component's 6-neighbour face-contact area with any single other
+    # non-zero label. A single-component label short-circuits to (0.0, 0).
+    # Reuses `data` (the full label map), `labelled` (this label's own
+    # component labelling) and `component_counts` (unsorted, ids 1..n) --
+    # no second labelling pass.
+    stray_contact_area_mm2: float = 0.0
+    stray_contact_label: int = 0
+    if n_components > 1:
+        # Descending-size component ids (not just sizes): id at each rank,
+        # so the dominant id can be excluded and the rest inspected in the
+        # array they actually occupy.
+        order_desc = [int(i) for i in xp.argsort(component_counts)[::-1]]
+        component_ids_desc = [idx + 1 for idx in order_desc]
+
+        # Per-axis face area from the header zooms -- never a hardcoded or
+        # assumed-isotropic axis.
+        face_area = {
+            0: float(zooms[1]) * float(zooms[2]),
+            1: float(zooms[0]) * float(zooms[2]),
+            2: float(zooms[0]) * float(zooms[1]),
+        }
+        padded = xp.pad(data, 1, mode="constant", constant_values=0)
+        neighbour_slices = []
+        for axis in range(3):
+            pos = [slice(1, -1)] * 3
+            pos[axis] = slice(2, None)
+            neg = [slice(1, -1)] * 3
+            neg[axis] = slice(0, -2)
+            neighbour_slices.append((tuple(pos), face_area[axis]))
+            neighbour_slices.append((tuple(neg), face_area[axis]))
+
+        for comp_id in component_ids_desc[1:]:
+            comp_mask = labelled == comp_id
+            area_by_other: Dict[int, float] = {}
+            for sl, area in neighbour_slices:
+                selected = padded[sl][comp_mask]
+                for other_label in [int(v) for v in xp.unique(selected)]:
+                    if other_label == 0 or other_label == label:
+                        continue
+                    count = int(xp.count_nonzero(selected == other_label))
+                    area_by_other[other_label] = (
+                        area_by_other.get(other_label, 0.0) + count * area
+                    )
+            if area_by_other:
+                local_other = max(area_by_other, key=lambda k: area_by_other[k])
+                local_area = area_by_other[local_other]
+                if local_area > stray_contact_area_mm2:
+                    stray_contact_area_mm2 = local_area
+                    stray_contact_label = local_other
+
     return ComponentsInfo(
         component_count=n_components,
         component_sizes=component_sizes,
@@ -253,4 +328,6 @@ def compute_components(
         stray_component_sizes=stray_component_sizes,
         stray_volume_mm3=stray_volume_mm3,
         stray_volume_fraction=stray_volume_fraction,
+        stray_contact_area_mm2=stray_contact_area_mm2,
+        stray_contact_label=stray_contact_label,
     )

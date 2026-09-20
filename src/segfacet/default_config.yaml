@@ -129,6 +129,18 @@ rules:
       # fallback under item 090's reference-mode default).
       island_min_voxels: 50
       severity: flagged-for-review
+      # Neighbour-contact area threshold (item 167, mode 3 -- split vertebra
+      # segment), documented here as a COMMENT ONLY for the same config_hash
+      # stability reason as the source switch above -- a new parsed key
+      # would move config_hash in every report. Code-side default supplied
+      # via heuristics/fragmentation.py::DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2
+      # (100.0 mm^2). Fires strictly above this value on a label's
+      # stray_contact_area_mm2 (the max inter-label face-contact area over
+      # that label's non-largest connected components). Calibrated on the
+      # synthetic corpus only: the only firing value measures 750.0 mm^2,
+      # every non-firing value measures 0.0.
+      #
+      # neighbour_contact_area_mm2_threshold: 100.0
 
   # ------------------------------------------------------------------ #
   # coverage (item 029) -- missing-level / incomplete-span detector.

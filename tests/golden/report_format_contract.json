@@ -70,7 +70,9 @@
           "stray_component_count": 0,
           "stray_component_sizes": [],
           "stray_volume_mm3": 0.0,
-          "stray_volume_fraction": 0.0
+          "stray_volume_fraction": 0.0,
+          "stray_contact_area_mm2": 0.0,
+          "stray_contact_label": 0
         },
         "centroid": {
           "centroid_voxel": [

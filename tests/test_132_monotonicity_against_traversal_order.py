@@ -624,18 +624,28 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # =========================================================================== #
 
 # Item 167 (2026-09-20): two new leaf paths join `components`
-# (`stray_contact_area_mm2`, `stray_contact_label`), neither ingested into
-# the reference vocabulary nor sourced from a placeholder driver; both are
-# numeric and vary across the committed corpora (0.0/0 everywhere except one
-# label at 750.0/22), so both derive "varies" (`observed_range._derive_verdict`).
-# 138 -> 140 total, "varies" 83 -> 85.
+# (`stray_contact_area_mm2`, `stray_contact_label`). Corrected against the
+# built catalogue (the item spec's Testing Strategy predicted both would
+# land in "varies", 83 -> 85; that prediction was wrong and is corrected
+# here, not transcribed): `observed_range`'s "corpus" driver population for
+# this leaf is a fixed, smaller demo corpus (source: clean, fragmented,
+# missing_level, overlaps, sequence_break, single_label) that does NOT
+# include the `split` corpus-manifest case where the two fields are
+# non-zero (that is a separate sweep, item 167's own AC3, over
+# `segfacet.synth.corpus.load_manifest()`/`load_intensity_manifest()`, not
+# this catalogue driver's population). Both fields therefore measure a flat
+# 0.0 across this driver's population (span 0.0, magnitude 0.0, not
+# informative) and no reference-population value either, so both derive
+# "constant-synthetic" (`observed_range._derive_verdict`'s final rule), not
+# "varies". 138 -> 140 total, "constant-synthetic" 4 -> 6, "varies" unchanged
+# at 83.
 _PRE_ITEM_OBSERVED_SUMMARY = {
-    "constant-synthetic": 4,
+    "constant-synthetic": 6,
     "degenerate": 0,
     "non-numeric": 39,
     "placeholder": 12,
     "unobserved": 0,
-    "varies": 85,
+    "varies": 83,
 }
 
 

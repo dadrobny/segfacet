@@ -1053,19 +1053,31 @@ _MODE_3 = ModeSpec(
         "part of it."
     ),
     mechanism=(
-        "No detector of its own (item 167's): the label-map proxy is the "
-        "split vertebra reading under its level's volume/extent range "
-        "(bounds, per_label.{label}.geometry.physical_volume_mm3; "
-        "reference_delta, "
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both needs-real-data. The neighbour that takes the part reads over "
-        "its range, which is mode 2's proxy, so on a real case the two "
-        "modes' proxy signals co-occur. The corpus case split donates 40% "
-        "of label 22 (L3)'s stacking-axis extent to label 23 (L4), so what "
-        "fires today is fragmentation's Fragmentation: detector "
-        "(per_label.{label}.components.fragmentation_index) on the "
-        "receiving label -- mode 1's detector co-detecting, recorded, not "
-        "this mode's own."
+        "Its own detector as of item 167: fragmentation's neighbour_contact "
+        "detector fires on per_label.{label}.components.stray_contact_area_mm2 "
+        "-- the maximum, over a label's non-largest connected components, of "
+        "that component's 6-neighbour face-contact area with any single "
+        "other non-zero label -- strictly above "
+        "DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both "
+        "committed corpora (2026-09-20): the only firing value is 750.0 mm^2 "
+        "(label 23 against label 22 on the split case, +650.0 above "
+        "threshold) and every other label of every other case measures "
+        "0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), "
+        "whose contacting components are each label's largest, and "
+        "fuse_adjacent (mode 2, this mode's converse), whose absorbed "
+        "neighbour is detached but touches nothing. On the split corpus "
+        "case, label 23 now carries two findings: fragmentation's "
+        "Fragmentation: detector (per_label.{label}.components."
+        "fragmentation_index) -- mode 1's detector co-detecting, because "
+        "label 23 now spans two disconnected bodies -- and this mode's own "
+        "Neighbour contact: detector. A secondary, needs-real-data proxy "
+        "remains: the split vertebra reading under its level's "
+        "volume/extent range (bounds, "
+        "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
+        "reference_delta.{label}.features.physical_volume_mm3.robust_z). "
+        "The neighbour that takes the part reads over its range, which is "
+        "mode 2's proxy, so on a real case the two modes' proxy signals "
+        "co-occur."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1078,7 +1090,7 @@ _MODE_3 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="neighbour_label_contact_area_mm2",
+            path="per_label.{label}.components.stray_contact_area_mm2",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1101,6 +1113,11 @@ _MODE_3 = ModeSpec(
             detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
+        IntendedRule(
+            rule_id="fragmentation",
+            detector_ids=("neighbour_contact",),
+            evidence_rung="synthetic-demonstrable",
+        ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
@@ -1108,15 +1125,20 @@ _MODE_3 = ModeSpec(
             corpus="geometric",
             expected_firing=("fragmentation",),
             reason=(
-                "pipeline-detected by a co-detection only, measured live via "
+                "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-20): "
                 "the split donates a contiguous end-slab (40% of label 22's "
                 "stacking-axis extent) to label 23, so label 23 now spans "
                 "two disconnected bodies (fragmentation, Fragmentation:, "
                 "mode 1's detector -- detector id components) on the "
-                "receiving label. Neither of this mode's own intended rules "
-                "(bounds, reference_delta) fires without a reference, so "
-                "the case does not validate mode 3."
+                "receiving label, AND now carries this mode's own "
+                "Neighbour contact: finding (detector id neighbour_contact, "
+                "item 167): stray_contact_area_mm2=750.0 against label 22, "
+                "strictly above the 100.0 mm^2 threshold. Both findings "
+                "share rule_id fragmentation, so the rule-id-granular "
+                "expected_firing set is unchanged at one element -- AC8/A3 "
+                "of item 167. Neither of the two needs-real-data intended "
+                "rules (bounds, reference_delta) fires without a reference."
             ),
         ),
     ),

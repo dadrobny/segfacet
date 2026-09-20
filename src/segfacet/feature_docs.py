@@ -1191,6 +1191,18 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
+        'per_label.{label}.components.stray_contact_area_mm2': FeatureDoc(
+            measures="Neighbour-label contact area: how much of a label's non-dominant material is pressed against another label -- mode 3's (split vertebra segment) discriminating signal (item 167).",
+            computation="Maximum, over every component in component_sizes[1:] (every component but the dominant one), of that component's 6-neighbour face-contact voxel count with any single other non-zero label, times the per-axis face area from the header zooms.",
+            units='mm^2',
+            scale_sensitivity='scales with spacing',
+        ),
+        'per_label.{label}.components.stray_contact_label': FeatureDoc(
+            measures='The other label id carrying the interface at stray_contact_area_mm2 (item 167).',
+            computation='argmax over other labels of face-contact area with the maximal stray component; 0 (background sentinel) when stray_contact_area_mm2 == 0.0.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
         'per_label.{label}.components.stray_volume_fraction': FeatureDoc(
             measures="Fraction of the label's total volume that is non-dominant.",
             computation='stray_volume_mm3 / total physical_volume_mm3.',

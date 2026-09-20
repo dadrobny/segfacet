@@ -89,27 +89,28 @@ Corpus cases:
 - Severity: flagged-for-review
 - Provenance: hypothesised
 - Status, authored: specified
-- Status, derived (live): implemented
-- Derived rung (strongest edge, live): needs-real-data
+- Status, derived (live): validated
+- Derived rung (strongest edge, live): synthetic-demonstrable
 
 Candidate features:
 
 - `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
 - `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
-- `hypothesised` candidate path: `neighbour_label_contact_area_mm2`
+- `hypothesised` candidate path: `per_label.{label}.components.stray_contact_area_mm2`
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
 - `hypothesised` candidate path: `metric_change_under_merge_candidate`
 
-Mechanism: No detector of its own (item 167's): the label-map proxy is the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both needs-real-data. The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur. The corpus case split donates 40% of label 22 (L3)'s stacking-axis extent to label 23 (L4), so what fires today is fragmentation's Fragmentation: detector (per_label.{label}.components.fragmentation_index) on the receiving label -- mode 1's detector co-detecting, recorded, not this mode's own.
+Mechanism: Its own detector as of item 167: fragmentation's neighbour_contact detector fires on per_label.{label}.components.stray_contact_area_mm2 -- the maximum, over a label's non-largest connected components, of that component's 6-neighbour face-contact area with any single other non-zero label -- strictly above DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both committed corpora (2026-09-20): the only firing value is 750.0 mm^2 (label 23 against label 22 on the split case, +650.0 above threshold) and every other label of every other case measures 0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose absorbed neighbour is detached but touches nothing. On the split corpus case, label 23 now carries two findings: fragmentation's Fragmentation: detector (per_label.{label}.components.fragmentation_index) -- mode 1's detector co-detecting, because label 23 now spans two disconnected bodies -- and this mode's own Neighbour contact: detector. A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.
 
 Intended rules:
 
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
 - `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
+- `fragmentation` (detector: neighbour_contact) -- evidence rung: synthetic-demonstrable
 
 Corpus cases:
 
-- `split` (geometric): expected firing = [fragmentation]; agrees with live measurement: True. pipeline-detected by a co-detection only, measured live via segfacet.synth.regression.pipeline_findings (2026-09-20): the split donates a contiguous end-slab (40% of label 22's stacking-axis extent) to label 23, so label 23 now spans two disconnected bodies (fragmentation, Fragmentation:, mode 1's detector -- detector id components) on the receiving label. Neither of this mode's own intended rules (bounds, reference_delta) fires without a reference, so the case does not validate mode 3.
+- `split` (geometric): expected firing = [fragmentation]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-20): the split donates a contiguous end-slab (40% of label 22's stacking-axis extent) to label 23, so label 23 now spans two disconnected bodies (fragmentation, Fragmentation:, mode 1's detector -- detector id components) on the receiving label, AND now carries this mode's own Neighbour contact: finding (detector id neighbour_contact, item 167): stray_contact_area_mm2=750.0 against label 22, strictly above the 100.0 mm^2 threshold. Both findings share rule_id fragmentation, so the rule-id-granular expected_firing set is unchanged at one element -- AC8/A3 of item 167. Neither of the two needs-real-data intended rules (bounds, reference_delta) fires without a reference.
 
 ## Mode 4 (1.3, sub-mode of 1): Islands (disconnected components)
 

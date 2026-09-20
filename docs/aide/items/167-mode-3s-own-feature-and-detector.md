@@ -591,8 +591,47 @@ later item, not a correction to this one.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented per spec, all eleven Acceptance Criteria measured live against the
+built code before commit (not transcribed from the spec's predictions):
 
+- AC1/AC2 measured `750.0` mm² / label `22` on the `split` fixture, matching
+  the spec's literal.
+- AC3/AC7 swept both committed manifests (16 cases, every label): the firing
+  set is exactly `{("geometric", "split", 23)}`, matching A1/A3 exactly.
+- AC4/AC5/AC6/AC8/AC10/AC11 all measured live against the built
+  `FragmentationRule.mode_declaration`, `SPECIFICATION[3]`,
+  `measured_firing`, `pipeline_findings` and `bar_conditions(3)`:
+  `bar_conditions(3)` now reads `(True, True, True, True, True)` with
+  condition 4's `subjects == ("fragmentation/neighbour_contact",)`.
+- AC9 confirmed via `build_catalogue(strict=True)`: both new leaf paths carry
+  `observed.corpus.covered is True`.
+- **Correction to the Testing Strategy's own prediction (2026-09-20,
+  reconciliation, not a design change):** the Testing Strategy's "What new
+  values this change emits" section predicted both new leaf paths would
+  derive catalogue verdict `"varies"` (83 → 85 in `observed_summary`). Measured
+  against the built catalogue, both instead derive `"constant-synthetic"` (4 →
+  6; `"varies"` stays at 83). Reason: `observed_range`'s "corpus" driver for
+  this leaf reads a fixed, smaller demo-corpus population (source: clean,
+  fragmented, missing_level, overlaps, sequence_break, single_label) that does
+  **not** include the `split` corpus-manifest case where the two fields are
+  non-zero — that population is distinct from AC3/AC7's own sweep over
+  `segfacet.synth.corpus.load_manifest()` /
+  `load_intensity_manifest()`. Corrected in
+  `tests/test_132_monotonicity_against_traversal_order.py`'s
+  `_PRE_ITEM_OBSERVED_SUMMARY` (an Authorised path for exactly this
+  reconciliation) rather than left as a stale prediction. The other four named
+  predictions (`test_137`'s `mode1_count` 13→14, `mode2_count` 14→15, the
+  `("rule_mode_map","rule_declaration")` bucket 6→7 and the
+  `("rule_bookkeeping",)` bucket 19→20) were all measured correct as
+  authored — no edit needed there.
+- Step 9's Stage 30 amendment used the CLI (`aide progress amend 30
+  --criterion 1|3`), re-measuring both clauses live rather than transcribing
+  A6's prediction: criterion 1 now reads validated 7 / implemented 2 /
+  specified 0 / proposed 7 over 16 modes, validated-through-pipeline 6 /
+  through-reconstructed-only 1; criterion 3 now reads mode rung counts
+  synthetic-demonstrable 6 / needs-real-data 2 / structurally-unobservable 1 /
+  none 7, per-edge rung counts over 18 edges: synthetic-demonstrable 6 /
+  needs-real-data 11 / structurally-unobservable 1.
 - **Left open:** whether the two unbuilt candidate paths
   (`spline_leave_one_out_shape_change`, `metric_change_under_merge_candidate`) should
   ever be built for mode 3. The first candidate measured separates the corpus
