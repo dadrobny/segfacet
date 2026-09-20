@@ -349,6 +349,9 @@ reasoning; each names what was run.
 - `tests/test_151_stage30_validation.py` — both `== 15` case-count assertions become `16`
 - `tests/test_120_leave_one_out_offset.py` — reconciliation (added 2026-09-20, Correction): its AC24 block is a **second, independently-authored pin of the same corpus-wide detection totals `test_057` pins** — its own `_corpus_cohort_metrics()` helper over the whole manifest, then `metrics.sensitivity == 8/9`, a hardcoded `expected_sensitivity` per-mode dict, `sum(m.n_cases …) == 9`, and the ratio in the test's own name
 
+- `tests/report_format_fixture.py` — reconciliation (added 2026-09-20, Correction 2 §1): its plain round float literals collide with a float the new corpus case emits, failing `test_126`'s fixture/corpus disjointness guard
+- `tests/golden/report_format_contract.json` — reconciliation (added 2026-09-20, Correction 2 §1): the committed contract regenerated from the fixture above, only via `.venv/bin/python -m tests.report_format_fixture`
+
 **Asserts against:**
 
 - `src/segfacet/heuristics/fragmentation.py` — AC8's measured firing is this rule's `Fragmentation:` detector (`components`); the rule and its threshold are read, never changed
@@ -407,6 +410,25 @@ above — red without the edit — and is numbered onward rather than inserted, 
 entries 1–14 keep the numbers they were authored with:**
 
 15. `tests/test_120_leave_one_out_offset.py` — the AC24 block (lines 722–775 on this tree, 2026-09-20) re-derives `_corpus_cohort_metrics()` over the whole committed manifest and pins the corpus-wide totals a second time, independently of entry 12's `test_057`. Four assertions plus the test's own name go stale; the full site-by-site prescription, and why mode 3's per-mode entry is `1.0`, are in **Correction — 2026-09-20** below.
+
+**Found by validation round 1 (Correction 2 — 2026-09-20). Also the first
+group — red without the edit — and numbered onward, so entries 1–15 keep the
+numbers they were authored with:**
+
+16. `tests/report_format_fixture.py` + `tests/golden/report_format_contract.json`
+    — `tests/test_126_golden_retirement.py::test_adv_format_fixture_floats_do_not_appear_in_any_fresh_corpus_report`
+    fails with `overlap == {3.0}`: the fixture's plain round float literals are
+    not distinctive in the sense that guard requires, and the new `split` case
+    emits a `3.0`. A latent item-126 defect this item exposed rather than
+    caused. The site-by-site prescription, the class sweep and the regeneration
+    rule are in **Correction 2 — 2026-09-20 §1** below; `test_126` itself needs
+    no edit.
+17. `docs/aide/golden-decision-table.md` — entry 8 above named the Section-1
+    row (already carried on this tree) but not the matching bullet in
+    `## Divergences from the roadmap's working assumption`, which
+    `test_105::test_ac13_divergences_section_names_exactly_the_keep_rows`
+    requires of every `keep` row. The bullet is prescribed in **Correction 2 —
+    2026-09-20 §2** below; the file was already authorised.
 
 **Covered automatically — no edit and no new test:**
 
@@ -516,6 +538,34 @@ for it.
   quantity* (`compute_cohort_metrics`, `sensitivity`, `n_cases` totals), not
   for the file that plainly owns it. The same defect class is already on the
   record for item 164 (`docs/aide/insights.md`, item 164, 2026-09-20).
+
+- **2026-09-20 — this is the second reconciliation widening on this item, and
+  the deliverable is still unchanged.** `## Correction 2 — 2026-09-20` adds
+  `tests/report_format_fixture.py` and
+  `tests/golden/report_format_contract.json` to **Authorised paths → May
+  change** after validation round 1, and prescribes the fixture's plain round
+  float literals away. No acceptance criterion, Assumption, Implementation
+  Step, `Asserts against` entry or previously authored `May change` entry
+  moved. **The lesson is a different one from Correction 1's, and it is the
+  one worth carrying forward: a corpus-wide *value* surface can be pinned by a
+  test that names no corpus file at all.** Correction 1's miss was a second
+  *file* pinning an aggregate the obvious owner's name would not surface;
+  this one is
+  `tests/test_126_golden_retirement.py::test_adv_format_fixture_floats_do_not_appear_in_any_fresh_corpus_report`,
+  which asserts the hand-written format fixture's distinctive float literals
+  are **disjoint from every float a fresh walk of the whole committed corpus
+  emits**. What it pins is therefore the corpus's *value* surface: a new case
+  turns it red by emitting a number, with nothing in the change's file list,
+  its case set, its mode set or its aggregates to point at it. Neither earlier
+  sweep could have found it — the authoring sweep searched the surfaces this
+  change *touches*, and Correction 1's sweep searched for a measured quantity
+  by name (`compute_cohort_metrics`, `sensitivity`, `n_cases`) — because both
+  searched **names**, and this test names only the fixture module. So the rule
+  a reconciliation sweep needs, stated for the next spec: for a change that
+  adds a corpus case, ask what new **values** it emits and grep for assertions
+  whose subject is freshly computed output compared against a *literal set* (a
+  disjointness, a membership, an exact-value ratchet), not only for the files
+  and aggregates the change touches.
 
 ## Correction — 2026-09-20
 
@@ -692,3 +742,248 @@ all hand-built or empty cohorts with no corpus dependency.
 `docs/aide/insights.md` (item 166, 2026-09-20) records this same finding. It is
 left **exactly as written and unticked** — a captured claim is immutable — and
 is **resolved in-item** by this correction.
+
+## Correction 2 — 2026-09-20
+
+**Appended, not a rewrite.** Everything above stands exactly as written: every
+acceptance criterion, every Assumption, every Implementation Step, every
+`Asserts against` entry, every originally authored `May change` entry, and the
+whole of `## Correction — 2026-09-20`. **No acceptance criterion is in dispute
+and the deliverable does not change** — a `split` operator, one committed
+geometric corpus case, and mode 3's authored expected firing, exactly as
+specified. This section resolves the one validation-round-1 failure that needs
+the spec's authority before anyone may fix it, and folds two smaller
+instructions into the same set so the fix dispatches once.
+
+**Validation round 1 (2026-09-20) returned three failures:**
+
+1. `tests/test_126_golden_retirement.py::test_adv_format_fixture_floats_do_not_appear_in_any_fresh_corpus_report`
+   — **§1 below.** It needs two files this item is not authorised to touch.
+2. `tests/test_105_golden_decision_table.py::test_ac13_divergences_section_names_exactly_the_keep_rows`
+   — **§2 below.** The file is already authorised; the prescription is what was
+   missing.
+3. `tests/test_166_split_operator.py::test_bounds_stays_silent_on_the_donor`
+   calls `compute_label_geometry(donor_img, 22, config)` against the real
+   signature `compute_label_geometry(seg_img, label, *, backend=None)` — a
+   plain test bug inside this item's **own** already-authorised test module.
+   It needs no spec change and is not discussed further here.
+
+§3 records a zero-margin observation the reviewer and the validator both
+raised, and prescribes the one-line comment the reviewer suggested.
+
+### 1. The report-format fixture's plain round float literals
+
+**What fails, and what it guards.**
+`tests/test_126_golden_retirement.py::test_adv_format_fixture_floats_do_not_appear_in_any_fresh_corpus_report`
+(lines 1236–1268 on this tree) collects every float in
+`tests/report_format_fixture.py`'s `format_contract_inputs()`, drops the three
+values the guard exempts by design — `0.0`, `0.5`, `1.0`, which real reports
+legitimately emit as zero extents, midpoint offsets and unit axis components —
+and asserts the remainder is **disjoint** from every float a fresh
+`build_report_for_case` walk of the whole committed manifest emits. That
+disjointness is item 126's contract: the hand-written, feature-value-free
+format fixture must use literals unlike anything a real extractor produces, so
+the committed `tests/golden/report_format_contract.json` pins the report
+*format* and cannot be invalidated by a feature retune. It now fails with
+`overlap == {3.0}`, because the new `split` case emits a float `3.0` and
+`tests/report_format_fixture.py` line 122 uses `"centroid_voxel": [3.0, 3.0, 3.0]`.
+
+**This is a latent defect item 126 left, which item 166 exposed rather than
+caused.** The module's own constants — `_LONG_DECIMAL_FLOAT = 106.98418277680141`
+and `_NEAR_ZERO_FLOAT = 1e-12` — were chosen for exactly this property. But
+lines 122–123 (`[3.0, 3.0, 3.0]`, `[6.0, 6.0, _NEAR_ZERO_FLOAT]`), and three
+further sites named below, use plain round numbers instead. **`3.0` and `6.0`
+were never distinctive in the sense the guard requires**; they simply had not
+yet collided with a real value. Any corpus case added at any time could have
+done this, and the ones still uncollided can do it tomorrow. Item 166's role is
+to have been the case that arrived first.
+
+**Measured on this tree, 2026-09-20** (`.venv/bin/python`, the same
+`segfacet.synth.golden.build_report_for_case` walk the guard performs, over all
+twelve committed manifest cases including the new `split` case):
+
+- the fixture's float literals are
+  `{-2.5, 0.0, 1e-12, 0.5, 1.0, 2.5, 3.0, 6.0, 12.0, 106.98418277680141}`;
+- the guard's `distinctive_floats` is therefore
+  `{-2.5, 1e-12, 2.5, 3.0, 6.0, 12.0, 106.98418277680141}`;
+- a fresh walk emits **948** distinct floats, and the intersection is exactly
+  `{3.0}`;
+- `6.0`, `12.0`, `2.5` and `-2.5` are **not** in the fresh set today. They are
+  the same class as `3.0` — plain round values the guard treats as distinctive
+  while an extractor may plausibly emit them — and are prescribed away below,
+  so this correction closes the class rather than patching the one collision.
+
+Integer literals in the module (`voxel_count: 42`, `component_sizes: [42]`,
+`overlap_voxels: 3`, `label: 7`) are **not** at risk: `_collect_floats` gathers
+only `float` instances, and an `int` is never one.
+
+**Authorised paths → May change gains two entries** (appended; no existing
+entry is altered):
+
+- `tests/report_format_fixture.py` — the sole source of the format contract;
+  its plain round float literals are what collide with the new corpus case
+- `tests/golden/report_format_contract.json` — the committed contract the line
+  above regenerates; four consumer tests compare it byte-for-byte
+
+**The prescribed fix, site by site, so the fix dispatch decides nothing.**
+
+- **(a) The constants block, lines 49–57.** Keep `_INTEGRAL_FLOAT = 1.0`,
+  `_LONG_DECIMAL_FLOAT = 106.98418277680141` and `_NEAR_ZERO_FLOAT = 1e-12`
+  **unchanged** — the first is guard-exempt by design and carries the integral
+  rendering shape; the other two are named by
+  `test_126::test_ac10_key_order_key_set_and_float_rendering_asserted_explicitly`.
+  Change `_NEGATIVE_FLOAT` from `-2.5` to **`-84.62037195428361`**, keeping the
+  negative rendering shape and losing the round value. Add two constants in the
+  module's own pattern:
+
+  ```python
+  _SECOND_DECIMAL_FLOAT = 53.47129068415773
+  _THIRD_DECIMAL_FLOAT = 27.31460592837104
+  ```
+
+  and extend the block's comment (lines 49–53) to state the invariant the next
+  author must keep: **every float literal in this module is either `0.0`, `0.5`
+  or `1.0` — the three values `test_126`'s guard exempts because real reports
+  legitimately emit them — or one of the named long-decimal / exponent-form
+  constants. No plain round float is ever written here directly.**
+
+- **(b) `bbox_voxel`, lines 93–95.** `x_max`, `y_max`, `z_max`: `6.0` →
+  `_SECOND_DECIMAL_FLOAT`. The three `*_min` stay `0.0`.
+
+- **(c) `bbox_physical`, lines 98–100.** `x_max`, `y_max`, `z_max`: `12.0` →
+  `_THIRD_DECIMAL_FLOAT`. The three `*_min` stay `0.0`.
+
+- **(d) `centroid_voxel`, line 122.** `[3.0, 3.0, 3.0]` →
+  `[_SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT]`.
+  **This is the one site failing today.**
+
+- **(e) `centroid_mm`, line 123.** `[6.0, 6.0, _NEAR_ZERO_FLOAT]` →
+  `[_THIRD_DECIMAL_FLOAT, _THIRD_DECIMAL_FLOAT, _NEAR_ZERO_FLOAT]`.
+
+- **(f) `per_label_offsets[0]["offset_mm"]`, line 159.** `2.5` →
+  `_SECOND_DECIMAL_FLOAT`. Keep the existing
+  `# offset_mm is schema-constrained to >= 0` comment; `53.47129068415773`
+  satisfies it.
+
+- **(g) Nothing else moves.** Every remaining float literal is already either
+  guard-exempt (`0.0` at the bbox minima, `stray_volume_mm3`,
+  `stray_volume_fraction`, `cv_spacing`, `sagittal_curvature_deg`,
+  `principal_axis[0..1]`, `u_values[0]`; `0.5` at `closest_u` and `u_values[1]`;
+  `_INTEGRAL_FLOAT`) or one of the named distinctive constants. The four sites
+  that read `_NEGATIVE_FLOAT` (`extent_y_mm`, `dx_mm`,
+  `coronal_tangent_angles_deg`, `deviations_mm`) pick up (a)'s new value with
+  no edit of their own.
+
+**Why these three values — checked, not asserted.** Measured on this tree
+2026-09-20 against the 948-float fresh walk: none of `53.47129068415773`,
+`27.31460592837104`, `-84.62037195428361` appears in it, each is repr-stable
+(`repr(float(repr(x))) == repr(x)`, so the serialised JSON text round-trips
+exactly), and the post-fix `distinctive_floats` is
+`{-84.62037195428361, 1e-12, 27.31460592837104, 53.47129068415773, 106.98418277680141}`
+with an **empty** intersection against the fresh set. The substituted inputs
+were serialised through `serialize_report_json` and validated against
+`src/segfacet/report_schema_v0.json`: **schema OK.** The schema constrains none
+of these sites beyond type — `bbox` carries no min/max ordering rule, the
+extents and tangent-angle and deviation arrays are unbounded `number`s, and the
+only `minimum: 0` in play (`offset_mm`, `offset_voxel`) is satisfied.
+
+**The regeneration rule, stated because getting it wrong is itself a defect.**
+`tests/golden/report_format_contract.json` regenerates **only** via
+
+```
+.venv/bin/python -m tests.report_format_fixture
+```
+
+**never from a test** — item 111's write-and-skip prohibition, carried forward
+by item 126 AC11, whose static half is enforced by
+`tests/committed_artifact_guard.py` (its `tests/golden/*.json` allowlist entry,
+ground `hand-written-literals`, which the prescription above keeps true) and by
+`test_126::test_ac11_consumer_source_has_no_skip_or_write_branch`. **The
+builder runs it**, once, by hand, after the fixture edit, and **commits the
+regenerated contract in the same change as the fixture** — the two are compared
+byte-for-byte by `test_016_features_json.py`, `test_022_stage3_serialisation.py`,
+`test_126::test_ac9_fixture_text_is_reproduced_by_the_builder_module_alone` and
+`test_135_stage29_validation.py`, so a fixture edit without the regenerated
+contract is red in four places, and a hand-edited contract is red in the same
+four. No `.gitattributes` edit is needed: `tests/golden/*.json text eol=lf`
+(line 69) already covers it, and the module already writes with `write_bytes`.
+
+**Does `tests/test_126_golden_retirement.py` itself need an edit? No — read on
+this tree, 2026-09-20, before answering.**
+
+- The guard stands as authored. Its exempt set `(0.0, 0.5, 1.0)` is **correct**,
+  and widening it to admit `3.0`/`6.0`/`12.0` would blunt precisely the coupling
+  check item 126 built — those are values a real extractor emits, which is the
+  whole reason the fixture must not use them. The defect is in the fixture, and
+  that is where it is fixed.
+- `test_ac10_key_order_key_set_and_float_rendering_asserted_explicitly`
+  (line 348) requires `"1e-12"` or `"106.98418277680141"` to appear in
+  **`test_016`/`test_022`'s** source, not in the fixture's; both constants are
+  kept unchanged by (a), and that test does not read this module at all.
+- `test_ac9_fixture_builder_module_exists_and_imports_no_extractor` passes
+  unchanged: the prescription adds literals, no imports.
+- `test_ac8_*`, `test_ac21_*`, `test_ac23_*` and `test_ac24_*` are about paths,
+  decision-table rows and `.gitattributes` pins, none of which move.
+
+**And no other consumer needs an edit.** `test_016`, `test_022` and `test_135`
+compare `format_contract_text()` against the committed file rather than
+pinning any value from it; `test_111_golden_guard.py` and
+`committed_artifact_guard.py` key on the path and the `tests/golden/*.json`
+glob. Grepped `tests/` and `src/` on 2026-09-20 for `106.98418277680141`: the
+only hits are the fixture itself, the `test_126` line above, and
+`tests/test_042_golden_determinism.py:482`, which uses the same number in a
+hand-built numeric-tolerance example unrelated to this module and unaffected by
+this change. **So editing `tests/report_format_fixture.py` and committing the
+regenerated contract is sufficient.**
+
+### 2. `docs/aide/golden-decision-table.md` — the missing divergences bullet
+
+`docs/aide/golden-decision-table.md` is **already** under **Authorised paths →
+May change**, and already carries the Section-1 `keep` row for
+`tests/corpus/fixtures/split_seg.nii.gz` (line 184 on this tree). What is
+missing is the matching entry in `## Divergences from the roadmap's working
+assumption`, which `test_105::test_ac13_divergences_section_names_exactly_the_keep_rows`
+requires of **every** `keep` row — it asserts each keep fixture's path appears
+verbatim in that section's body — and which every other `keep` input fixture,
+including the two item 150 added, has.
+
+Prescribed, in the shape the existing entries use, placed immediately after the
+`tests/corpus/fixtures/remove_level_relabel_seg.nii.gz` bullet (line ~295) so
+the geometric fixtures stay together and ahead of the intensity group:
+
+```
+- `tests/corpus/fixtures/split_seg.nii.gz` — input fixture, not a
+  report snapshot (added by item 166, 2026-09-20).
+```
+
+Nothing else in that document moves: the Section-1 row stands as committed, no
+`disposition`, `rationale`, `evidence` or `replacement guarantee` cell changes,
+and the retirement execution log is untouched.
+
+### 3. The donor's zero margin against `min_extent_z_mm` — an appended note to A1
+
+**A1 stands exactly as written; this is a note beside it, not a correction of
+it.** A1 records that a `donated_fraction` of 0.5 fires `bounds` on the donor
+and 0.4 does not. What it does not record is **how close 0.4 is**: measured on
+the built fixture, donor label 22's `extent_z_mm` is exactly **15.0 mm**
+against `bounds.DEFAULT_BOUNDS["lumbar"]["min_extent_z_mm"] == 15.0`, and
+`bounds` stays silent **only because the comparison is strict** — `if value < lo`,
+`src/segfacet/heuristics/bounds.py:480`. The margin is **zero**. Both the
+reviewer and the validator flagged it.
+
+**The reviewer judged it not a defect and ranked it a nit, and this spec
+records that reasoning rather than re-opening it.** The equality is exact
+integer-voxel arithmetic — 15 remaining slices at spacing `[1.0, 1.0, 1.0]` —
+not floating-point luck, so it cannot drift by a ULP; and three independent
+tests catch a real drift: this item's `bounds-stays-silent-on-the-donor` case
+(which recomputes the range from `DEFAULT_BOUNDS` rather than pinning A1's
+numbers), AC8's measured-equals-expected firing set, and item 163's specificity
+ratchet.
+
+**Prescribed, as the reviewer suggested:** a one-line comment at
+`src/segfacet/synth/component_shape.py`'s `donated_fraction: float = 0.4`
+default (line 313 on this tree) recording that 0.4 leaves the donor's
+`extent_z` at exactly the lumbar `min_extent_z_mm` of 15.0 mm — a zero margin
+held by the strict `<` — and that raising the default fires `bounds` (A1). That
+file is already under **May change**. No behaviour change, no threshold change,
+no acceptance criterion, and nothing in AC8 or AC9 moves.
