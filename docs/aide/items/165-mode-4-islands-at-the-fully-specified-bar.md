@@ -447,7 +447,24 @@ Stage 32's acceptance from a clean clone with its own venv.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+**Implemented as specified**, with no deviation from the Implementation
+Steps. `bar_conditions(mode_id, catalogue=None)` was added to
+`src/segfacet/traceability.py`, computing condition 4 before condition 3
+(Step 6) since condition 3 quantifies over condition 4's qualifying
+`"rule/detector"` pairs. `BarCondition.subjects` for condition 3 is the
+sorted checked paths when met and the sorted unmet paths when not (Step 7),
+so an adversarial uncatalogued path is named directly rather than buried
+among the paths that did pass. Condition 5's `subjects` (not spelled out by
+name in the Implementation Steps, which only say "reuse `derive_status`")
+is the one-element tuple `(derived_status,)` — `("validated",)` on this
+tree — so AC7's "every subject occurs in detail" holds without inventing an
+unrelated subject. Manually verified on this tree per the spec's Validation
+section: all five conditions return `met=True` for mode 4, condition 4
+names `fragmentation/islands`, and condition 3 names the five
+`per_label.{label}.components.*` paths — matching the Description's
+measured table exactly. `import segfacet.traceability` alone still pulls no
+`numpy`/`scipy`/`nibabel` into `sys.modules` (verified against
+`tests/test_159_prerequisite_test_and_import_defects.py` AC2's contract).
 
 - **Left open:** whether `island_distance_from_main_body_mm` is extracted,
   catalogued and read by the `islands` detector to *grade* an island finding

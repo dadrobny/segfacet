@@ -136,9 +136,55 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Set, Tuple
 
-__all__ = ["build_matrix", "matrix_to_dict", "render_markdown", "main"]
+__all__ = [
+    "build_matrix",
+    "matrix_to_dict",
+    "render_markdown",
+    "main",
+    "BarCondition",
+    "bar_conditions",
+    "BAR_CONDITIONS",
+    "PROXY_RULE_IDS",
+]
 
 SCHEMA_VERSION = "1.2"
+
+#: Item 165: the generic volume proxies the roadmap's Stage 32 condition 4
+#: parenthetical names as never qualifying as "a detector that decides the
+#: mode" -- applied in ``bar_conditions`` in addition to the single-mode
+#: test, so a later narrowing of these edges to one mode cannot silently
+#: clear the bar (A5).
+PROXY_RULE_IDS: Tuple[str, ...] = ("bounds", "reference_delta")
+
+#: Item 165: the bar a mode must clear to count as "fully specified end to
+#: end", quoted verbatim from ``docs/aide/roadmap.md`` Stage 32's "What
+#: 'fully specified end to end' means" section. Condition 6 (maintainer
+#: sign-off) is deliberately excluded -- it is a person's act, item 168's,
+#: and no agent can compute it.
+BAR_CONDITIONS: Tuple[Tuple[int, str], ...] = (
+    (
+        1,
+        "Its specification entry is complete and confirmed by the maintainer "
+        "(definition, discriminator, scope, observability, severity, "
+        "candidate features, intended rules, corpus cases).",
+    ),
+    (
+        2,
+        "At least one committed synthetic fixture expresses the mode, and its "
+        "expected firing set names at least one of the mode's own intended "
+        "rules and agrees with the measured firing.",
+    ),
+    (
+        3,
+        "Every feature path that detector reads is extracted and catalogued.",
+    ),
+    (
+        4,
+        "At least one detector decides the mode and serves no other mode -- "
+        "the generic volume proxies (bounds, reference_delta) do not count.",
+    ),
+    (5, "Its status derives validated."),
+)
 
 #: Item 162's two closed exercise-state vocabularies.
 EXERCISE_STATES: Tuple[str, ...] = ("exercised", "unexercised")
@@ -318,6 +364,20 @@ class ExerciseReport:
     operators: Tuple[OperatorExercise, ...]
     rule_direction: DirectionReport
     operator_direction: DirectionReport
+
+
+@dataclass(frozen=True)
+class BarCondition:
+    """One of the fully-specified bar's five mechanically-checkable
+    conditions (item 165), recomputed live for one mode. ``subjects`` is
+    what the verdict turned on -- case ids, feature paths, or
+    ``"rule/detector"`` pairs -- so a caller never has to parse ``detail``;
+    ``detail`` is a human-readable sentence naming those same subjects."""
+
+    number: int
+    met: bool
+    subjects: Tuple[str, ...]
+    detail: str
 
 
 @dataclass(frozen=True)
@@ -948,6 +1008,154 @@ def build_matrix() -> TraceabilityMatrix:
         edge_to_detector=edge_to_detector,
         detector_to_edge=detector_to_edge,
     )
+
+
+# =========================================================================== #
+# bar_conditions (item 165)
+# =========================================================================== #
+
+
+def bar_conditions(mode_id: int, catalogue=None) -> Tuple[BarCondition, ...]:
+    """The fully-specified bar's conditions 1-5 (``BAR_CONDITIONS``),
+    recomputed live for *mode_id* against ``failure_modes.SPECIFICATION``,
+    the rule registry and the feature catalogue. Condition 6 (maintainer
+    sign-off) is never computed here -- it is item 168's.
+
+    *catalogue* lets a caller pass an already-built
+    ``segfacet.catalogue.build_catalogue(strict=True)`` result (expensive to
+    build) rather than paying for a fresh one on every call; ``None`` builds
+    one. A *mode_id* absent from ``SPECIFICATION`` raises ``KeyError`` from
+    the plain dict lookup below -- no hand-written guard.
+
+    Pure reader: never mutates ``SPECIFICATION``, the rule registry or the
+    catalogue, and decides no disposition, changes no rule, threshold or
+    fixture (Scope fence, item 165 Description)."""
+    from segfacet import failure_modes as failure_modes_module
+    from segfacet.catalogue import build_catalogue
+    from segfacet.heuristics.rule import iter_rules
+
+    mode = failure_modes_module.SPECIFICATION[mode_id]
+
+    if catalogue is None:
+        catalogue = build_catalogue(strict=True)
+
+    # Condition 1 -- entry completeness (A2: the "confirmed by the
+    # maintainer" half is condition 6's).
+    completeness_fields = (
+        "definition",
+        "discriminator",
+        "scope",
+        "observability",
+        "severity",
+        "candidate_features",
+        "intended_rules",
+        "corpus_cases",
+    )
+    non_empty_fields = tuple(
+        field for field in completeness_fields if getattr(mode, field)
+    )
+    condition_1 = BarCondition(
+        number=1,
+        met=len(non_empty_fields) == len(completeness_fields),
+        subjects=non_empty_fields,
+        detail=(
+            "Specification entry completeness (maintainer confirmation is "
+            f"condition 6's, item 168's sign-off): non-empty fields "
+            f"{non_empty_fields}."
+        ),
+    )
+
+    # Condition 2 -- a committed fixture expresses the mode.
+    own_rule_ids = {edge.rule_id for edge in mode.intended_rules}
+    all_cases_agree = all(
+        failure_modes_module.case_agrees(case) for case in mode.corpus_cases
+    )
+    intersecting_case_ids = tuple(
+        case.case_id
+        for case in mode.corpus_cases
+        if case.expected_firing and own_rule_ids.intersection(case.expected_firing)
+    )
+    condition_2 = BarCondition(
+        number=2,
+        met=all_cases_agree and bool(intersecting_case_ids),
+        subjects=intersecting_case_ids,
+        detail=(
+            "Corpus case(s) expressing the mode via its own intended rule(s), "
+            f"agreeing with measured firing: {intersecting_case_ids}."
+        ),
+    )
+
+    # Condition 4 -- computed before condition 3, since condition 3
+    # quantifies over condition 4's qualifying detectors (Implementation
+    # Step 6).
+    qualifying_pairs = tuple(
+        sorted(
+            f"{edge.rule_id}/{detector_id}"
+            for edge in mode.intended_rules
+            if edge.rule_id not in PROXY_RULE_IDS
+            for detector_id in edge.detector_ids
+            if failure_modes_module.modes_for_detector(edge.rule_id, detector_id)
+            == (mode_id,)
+        )
+    )
+    condition_4 = BarCondition(
+        number=4,
+        met=bool(qualifying_pairs),
+        subjects=qualifying_pairs,
+        detail=(
+            "Non-proxy detector(s) (bounds/reference_delta excluded as "
+            f"generic volume proxies) serving this mode alone: {qualifying_pairs}."
+        ),
+    )
+
+    # Condition 3 -- every signal path the qualifying detector(s) read is
+    # extracted (observed.corpus.covered) and catalogued (A4).
+    checked_paths: Set[str] = set()
+    for pair in qualifying_pairs:
+        rule_id, detector_id = pair.split("/", 1)
+        rule = next(r for r in iter_rules() if r.rule_id == rule_id)
+        detector = next(
+            d
+            for d in rule.mode_declaration.detectors
+            if d.detector_id == detector_id
+        )
+        checked_paths.update(detector.signal_paths)
+
+    catalogue_entries_by_path = {entry.path: entry for entry in catalogue.entries}
+    unmet_paths = tuple(
+        sorted(
+            path
+            for path in checked_paths
+            if not (
+                path in catalogue_entries_by_path
+                and catalogue_entries_by_path[path].observed.corpus.covered is True
+            )
+        )
+    )
+    condition_3_subjects = unmet_paths if unmet_paths else tuple(sorted(checked_paths))
+    condition_3 = BarCondition(
+        number=3,
+        met=bool(checked_paths) and not unmet_paths,
+        subjects=condition_3_subjects,
+        detail=(
+            "Every signal path the deciding detector(s) read, extracted and "
+            f"catalogued (observed.corpus.covered): {condition_3_subjects}."
+        ),
+    )
+
+    # Condition 5 -- status derives validated.
+    derived_status = failure_modes_module.derive_status(mode)
+    condition_5 = BarCondition(
+        number=5,
+        met=derived_status == "validated",
+        subjects=(derived_status,),
+        detail=(
+            "Derived lifecycle status "
+            f"(segfacet.failure_modes.derive_status): {derived_status!r}."
+        ),
+    )
+
+    return (condition_1, condition_2, condition_3, condition_4, condition_5)
 
 
 # =========================================================================== #
