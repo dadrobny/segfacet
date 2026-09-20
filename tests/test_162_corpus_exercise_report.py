@@ -183,7 +183,24 @@ def matrix_intensity_corpus_not_read(monkeypatch):
     """Drop ``implausible_metal``, ``implausible_soft_tissue`` and
     ``degenerate_uniform`` from what the generator's intensity-manifest
     loader returns -- proving the rule direction reads the live intensity
-    corpus rather than only ``tests/corpus/manifest.json``."""
+    corpus rather than only ``tests/corpus/manifest.json``.
+
+    Narrowing the loader alone collides with ``derive_status``'s pre-existing
+    per-mode walk (``build_matrix`` -> ``derive_status`` -> ``_demonstrates``
+    -> ``case_agrees`` -> ``measured_firing``): mode 16 declares exactly
+    these three case ids as its own ``corpus_cases``, and
+    ``measured_firing`` raises for a case id absent from the manifest it
+    resolves against, rather than degrading. So the specification is
+    narrowed the same way, everywhere it names one of the dropped ids -- a
+    corpus without these cases is one whose specification would not declare
+    them either. That narrowing is what ``_build_exercise`` (the module
+    under test) reads to explain an unexercised rule, never what flips
+    ``intensity`` to unexercised in the first place -- that is the loader
+    patch above, read by ``_build_conformance``'s per-case measured firing.
+    """
+    import dataclasses as dc
+
+    import segfacet.failure_modes as failure_modes_module
     from segfacet.synth import intensity as intensity_module
     import segfacet.traceability as traceability
 
@@ -194,6 +211,21 @@ def matrix_intensity_corpus_not_read(monkeypatch):
     narrowed_manifest = {**original_manifest, "cases": remaining_cases}
 
     monkeypatch.setattr(intensity_module, "load_intensity_manifest", lambda *a, **k: narrowed_manifest)
+
+    original_spec = failure_modes_module.SPECIFICATION
+    patched_spec = dict(original_spec)
+    narrowed_mode_ids = []
+    for mode_id, mode_spec in original_spec.items():
+        kept_cases = tuple(c for c in mode_spec.corpus_cases if c.case_id not in dropped)
+        if kept_cases != mode_spec.corpus_cases:
+            patched_spec[mode_id] = dc.replace(mode_spec, corpus_cases=kept_cases)
+            narrowed_mode_ids.append(mode_id)
+    # Only mode 16 declares any of the three dropped (intensity-only) case
+    # ids -- if a future specification edit adds a second, this fixture's
+    # assumption needs re-checking rather than silently narrowing it too.
+    assert narrowed_mode_ids == [16], narrowed_mode_ids
+    monkeypatch.setattr(failure_modes_module, "SPECIFICATION", patched_spec)
+
     return traceability.matrix_to_dict(traceability.build_matrix())
 
 
