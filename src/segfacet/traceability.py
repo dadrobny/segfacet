@@ -89,9 +89,13 @@ threshold, extractor, verdict, report schema, or CLI behaviour, and
 regenerates neither of item 103's catalogue artifacts. It adds no corpus
 case, attaches no reference to any harness path, edits no ``ModeSpec``, and
 authors no reason a rule's specification edges do not already carry (the
-sole authored string is an unused operator's reason, and it ships empty). It
-adopts no specificity ratchet (item 163) and no detector ids (item 164), and
-does not touch ``eval/severity_ladder.py``.
+sole authored string is an unused operator's reason, and it ships empty). The
+specificity ratchet (item 163) -- no unintended rule may fire, and none may
+go silent, without the change being authored in ``SPECIFICATION``/
+``CONDITIONS`` -- is enforced by ``tests/test_163_specificity_ratchet.py``
+over this module's ``conformance`` report; the module itself adopts none. It
+adopts no detector ids (item 164), and does not touch
+``eval/severity_ladder.py``.
 
 Determinism contract
 ---------------------

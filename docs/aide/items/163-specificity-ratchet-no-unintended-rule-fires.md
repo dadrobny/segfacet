@@ -291,7 +291,19 @@ criteria 3–5.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **No production code beyond the one docstring clause.** Verified before
+  editing: `_build_conformance` (with `expected_source` in
+  `{"specification", "specification-condition", "manifest-clean-control", "unspecified"}`)
+  and `build_matrix()` already exist exactly as A1/A2 describe, and
+  `tests/test_163_specificity_ratchet.py` (committed by the test-writer) calls
+  only that live surface plus `segfacet.failure_modes.measured_firing`,
+  `segfacet.synth.corpus.load_manifest`, and
+  `segfacet.synth.intensity.load_intensity_manifest`. Implementation is
+  therefore exactly Implementation Step 1: re-pointing the scope-fence clause
+  in `src/segfacet/traceability.py` so it names the guard
+  (`tests/test_163_specificity_ratchet.py`) instead of reading as pending; the
+  detector-ids clause (item 164) and the `eval/severity_ladder.py` clause are
+  left untouched. No new function, schema, or artifact regeneration.
 
 - **Left open:** whether `synth.regression.verify_case` should be tightened
   from "the designated rules fired" to exact-set equality against the
