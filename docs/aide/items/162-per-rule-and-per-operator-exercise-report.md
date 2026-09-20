@@ -165,6 +165,23 @@ attests Stage 20's criteria with evidence.
   table row in the document whose first cell equals that `rule_id` is that
   rule's declaration row.
 
+- [ ] **AC13 (added 2026-09-20): the exercise report records membership, never
+  a stored count — item 149's AC33 fence, narrowed to the claim that survives.**
+  The token `exercise_count` appears nowhere in
+  `docs/aide/traceability_matrix.generated.json`, nowhere in
+  `docs/aide/traceability_matrix.generated.md` and nowhere in
+  `src/segfacet/traceability.py`: every exercise record names the cases that
+  exercise it (`exercised_by` for a rule, `cases` for an operator), from which
+  any count is recomputable, and no scalar count is stored anywhere (**G7** —
+  measured on every regeneration, never transcribed).
+
+- [ ] **AC14 (added 2026-09-20): item 150's Stage-20 held-items gate asserts
+  each bullet's true leading icon.** Read from `docs/aide/progress.md` as
+  committed, the Stage 20 deliverable bullet owning the `*(Item NNN)*` marker
+  starts with `- ❌` for items 139, 140 and 142 — their numbers were retired at
+  the queue-022 boundary (2026-09-18) — and with `- ⏸️` for item 141, whose
+  work moved to Stage 31 (item 154) and was not re-queued.
+
 ## Assumptions
 
 - **A1 (this item extends item 149's module and its two committed artifacts):**
@@ -291,6 +308,14 @@ attests Stage 20's criteria with evidence.
     `.venv/bin/python -m segfacet.traceability` — and check the result against
     the Description's 2026-09-18 measurement, investigating (never silencing)
     any divergence.
+11. **Narrow item 149's AC33 fence** in `tests/test_149_conformance_report.py`
+    (added 2026-09-20; exact wording under `## Correction — 2026-09-20`):
+    forbid only `"exercise_count"`, rename both guards to say so, and record
+    the narrowing in a dated comment above the block.
+12. **Update item 150's held-items pin** in
+    `tests/test_150_maintainer_sign_off.py` (added 2026-09-20): replace the
+    `_HELD_ITEMS` tuple with the icon each bullet must now carry, and assert
+    that icon rather than `⏸️` unconditionally.
 
 ## Authorised paths
 
@@ -300,6 +325,8 @@ attests Stage 20's criteria with evidence.
 - `docs/aide/traceability_matrix.generated.json` — the regenerated report, now carrying `exercise` (AC1–AC9).
 - `docs/aide/traceability_matrix.generated.md` — its rendered form, now carrying the two exercise sections (AC10, AC11, AC12).
 - `tests/test_162_corpus_exercise_report.py` — this item's test module.
+- `tests/test_149_conformance_report.py` — **added 2026-09-20.** AC13 narrows item 149's AC33 fence, whose premise ("item 139's deliverable is observably absent") this item expires by landing that deliverable: AC6/AC8 require the very `operator_exercise` key the fence forbids.
+- `tests/test_150_maintainer_sign_off.py` — **added 2026-09-20.** AC14 updates the held-items pin, discharging the dated handover item 150 recorded above `_HELD_ITEMS` itself ("the first item that lands any of 139-142 must list this test file under its 'Authorised paths -> May change' and update this test").
 
 **Asserts against:**
 
@@ -310,7 +337,14 @@ attests Stage 20's criteria with evidence.
 - `tests/corpus/manifest.json` — the eleven geometric cases, reached through `build_matrix().conformance` (AC3). Read-only: no case is added, removed or edited.
 - `tests/corpus/intensity/manifest.json` — the four intensity cases, same path and same AC. Read-only — the adversarial `intensity-corpus-is-read` case removes cases from what the *generator loads*, via a monkeypatched loader, never from the committed file.
 - `tests/test_138_traceability_matrix.py` — not edited; AC12 pins the whole-document `_row_for_rule` invariant it depends on (A6), and its schema-hygiene tests re-run against the grown artifacts as the standing guard.
-- `tests/test_149_conformance_report.py` — not edited; its float-leaf test is what discharges the `no-float-leaf` allowlist ground AC9/AC10 rely on (A7), and its `SCHEMA_VERSION == "1.1"` pin is why the version is left alone (Decisions).
+<!-- 2026-09-20: the `tests/test_149_conformance_report.py` bullet that stood
+     here has moved to **May change** (AC13). Its original text is preserved
+     verbatim under `## Correction — 2026-09-20`; it is removed from this list
+     rather than annotated in place because `aide scope` reads Asserts against
+     as pinned-not-changed and would report every AC13 edit as a contradiction.
+     The claims it carried are unchanged and still hold: the float-leaf test
+     still discharges the `no-float-leaf` ground (A7), and `SCHEMA_VERSION`
+     stays `"1.1"`. -->
 - `tests/committed_artifact_guard.py` — the `ALLOWLIST` entries that make AC9/AC10 legitimate byte comparisons; read-only, with no entry added and no ground added.
 
 ## Testing Strategy
@@ -373,6 +407,16 @@ checked against this tree on 2026-09-18:
   prefix and this machine's hostname in either artifact. The new section is
   strings and integers only and carries no date (step 8). **Verify, do not
   edit.**
+
+- **Superseded 2026-09-20 — two merged items' test files DO require editing,
+  and a third pair of corrections lands in this item's own module.** The
+  sweep above missed `tests/test_149_conformance_report.py`'s AC33 fence and
+  `tests/test_150_maintainer_sign_off.py`'s held-items pin, both of which
+  contradict this item's criteria on this tree. Read
+  `## Correction — 2026-09-20` below before writing or re-deriving any test;
+  it names the four cases the test-writer must land and supersedes this list's
+  "none requires editing" for those two files only. The other two entries
+  (`tests/test_138_traceability_matrix.py`) stand as written.
 
 No test anywhere pins the per-rule firing membership, the operator registry's
 used/unused split, or the artifacts' section count, so nothing else changes
@@ -444,9 +488,176 @@ attests Stage 20 criteria 3–5 with evidence.
   too. No registered rule takes this path on this tree — the
   `demonstrable-rule-unexercised-is-a-hole` adversarial case is what
   exercises it, via a specification monkeypatch.
+- **D3 (added 2026-09-20 — why this item edits two merged items' test
+  files):** both guards were written *about* this item's deliverable, not
+  about their own. Item 149's AC33 fenced item 139's deliverable out of the
+  module it was extending, and named it as such ("item 139's deliverable is
+  observably absent"); item 150 recorded, in the comment directly above
+  `_HELD_ITEMS`, that the first item landing any of items 139–142 must widen
+  its own Authorised paths to include that file and update the test. Item 162
+  is the item both of them named. Neither edit weakens what its author was
+  guarding: AC33's surviving claim (no stored exercise **count**) is kept and
+  tightened onto one token, and item 150's pin keeps item 141, the one
+  deliverable still genuinely held. Leaving either alone is not an option —
+  no implementation can satisfy AC6/AC8 and keep AC33's `operator_exercise`
+  token out of the JSON, and the held-items pin is red on this tree
+  regardless of what this item builds, because the queue-022 planning commit
+  flipped three icons the pin asserts. Handing the second one off as a
+  pre-existing base defect would hand it to an item that did not land 139's
+  deliverable, which is exactly the hand-off item 150's comment wrote to
+  prevent.
 - **Left open:** whether the additive `exercise` section warrants a
   `SCHEMA_VERSION` bump to `"1.2"`. Not taken here —
   `tests/test_149_conformance_report.py::test_ac2_schema_version_bumped_to_1_1`
   pins `"1.1"` in both the module and the payload, and no consumer reads the
   version at all, so a bump would buy an edit to a merged item's test and
   nothing else. It belongs with the next change that actually breaks a reader.
+
+## Correction — 2026-09-20
+
+**Appended, not a rewrite.** Everything above stands as authored on
+2026-09-18; this section records what validation round 1 found wrong with it
+and what replaces it. Four corrections, two of them spec defects that no
+implementation could have satisfied.
+
+### 1. `tests/test_149_conformance_report.py` — AC33's fence has expired
+
+**The conflict.** `test_ac33_no_per_rule_or_per_operator_exercise_column_in_either_artifact`
+and `test_ac33_traceability_module_defines_no_exercise_derivation` assert that
+the literal tokens `"exercise_count"`, `"operator_exercise"`, `"corpus_exercise"`
+(and `"exercise column"`, artifacts only) appear **nowhere** in either
+committed artifact or in `src/segfacet/traceability.py`. AC6 and AC8 above
+require exactly the keys `payload["directions"]["rule_exercise"]` and
+`payload["directions"]["operator_exercise"]`. This was item 149's "this is a
+later item's deliverable" fence, and item 162 **is** that later item — its own
+AC33 text says so ("item 139's deliverable is observably absent"). The fence's
+premise expires by design when this item lands, so the spec's original claim
+that this file is "not edited" cannot hold.
+
+**The resolution.** Narrowed, not deleted — one claim of item 149's AC33
+survives this item and is worth keeping: an exercise record states *which*
+cases exercise it, never a stored scalar count, which is what **G7**
+("measured on every regeneration, never transcribed") asks of it, and what
+this item's own design already does (`exercised_by`, `cases`; no count field
+anywhere in steps 3–9). AC13 pins that surviving claim. Concretely, in
+`tests/test_149_conformance_report.py`:
+
+- The block comment above the two guards becomes a dated record of the
+  narrowing, naming item 162 as the item that expired the rest:
+  item 149's AC33 fenced item 139's whole deliverable out of this module;
+  item 162 lands it (AC6/AC8), so only the no-stored-count half remains.
+- `test_ac33_no_per_rule_or_per_operator_exercise_column_in_either_artifact`
+  is renamed `test_ac33_no_exercise_count_scalar_in_either_artifact` and its
+  `forbidden_token` loop narrows from the four tokens to exactly
+  `("exercise_count",)`. The two `read_text` reads, the two asserts and the
+  failure message are otherwise unchanged.
+- `test_ac33_traceability_module_defines_no_exercise_derivation` is renamed
+  `test_ac33_traceability_module_derives_no_exercise_count` and its loop
+  narrows the same way, over the same module source read.
+- Nothing else in the file changes. The renames are safe: no `progress.md`
+  attestation, queue or item spec cites either name (grepped 2026-09-20), and
+  item 128 is the house precedent for renaming a merged item's test when its
+  subject narrows.
+
+**The Authorised-paths bullet this displaces**, preserved verbatim as
+authored on 2026-09-18 under **Asserts against**:
+
+```
+- `tests/test_149_conformance_report.py` — not edited; its float-leaf test is what discharges the `no-float-leaf` allowlist ground AC9/AC10 rely on (A7), and its `SCHEMA_VERSION == "1.1"` pin is why the version is left alone (Decisions).
+```
+
+Both of its substantive claims still hold — `test_ac21_…_no_float_leaf` still
+discharges the `no-float-leaf` ground (A7), and `SCHEMA_VERSION` is still left
+at `"1.1"` (Left open, above). Only "not edited" is false, and the path is
+therefore listed under **May change** instead: a path may not sit in both
+lists, and `aide scope` reads Asserts against as pinned-not-changed, so
+leaving it there would fail this item's scope check on the AC13 edit with no
+spec-side fix visible.
+
+### 2. `tests/test_150_maintainer_sign_off.py` — the held-items pin is stale
+
+**The conflict.** `_HELD_ITEMS = (139, 140, 141, 142)` and
+`test_ac13_the_four_held_stage_20_items_are_still_deferred` assert that each
+of those items' Stage 20 deliverable bullet still leads with `⏸️`. Measured on
+this tree 2026-09-20: items 139, 140 and 142 lead with `❌` and carry
+"**Number retired, 2026-09-18:** the deliverable is re-queued as item
+162/163/169"; only item 141 still leads with `⏸️`. Three of the four
+parametrisations are red.
+
+**Why it is item 162's to discharge, not a base-branch defect to hand off.**
+Item 150 wrote the hand-off itself, in the comment directly above
+`_HELD_ITEMS`: *"**A dated claim** (D3): the first item that lands any of
+139-142 must list this test file under its 'Authorised paths -> May change'
+and update this test. Recorded here so that item's author does not discover it
+as a red suite."* Item 162 is the item landing item 139's deliverable. The
+icons were flipped by queue-022's planning commit rather than by this branch,
+but the discharge was addressed to this item by name.
+
+**The resolution.** The pin is updated, not dropped — item 141 remains
+genuinely held, and a Stage-20 bullet silently losing its icon is still worth
+catching. Concretely:
+
+- `_HELD_ITEMS` is replaced by a mapping from item number to the leading icon
+  its bullet must now carry — `{139: "❌", 140: "❌", 141: "⏸️", 142: "❌"}` —
+  and its comment gains a dated line recording the 2026-09-18 retirement, the
+  successor item for each of the three, and that item 141 keeps `⏸️` because
+  its work moved to Stage 31 (item 154) and was not re-queued.
+- `test_ac13_the_four_held_stage_20_items_are_still_deferred` is renamed
+  `test_ac13_each_stage_20_held_item_bullet_carries_its_recorded_icon`,
+  parametrised over that mapping's items, and its final assertion becomes
+  `bullet.startswith(f"- {icon}")` with the icon taken from the mapping. The
+  marker lookup, the walk back to the owning bullet and the
+  exactly-one-marker assertion are unchanged — the located line is still the
+  bullet that owns the item's `*(Item NNN)*` marker, never a file-wide icon
+  scan.
+- Nothing else in the file changes, and `docs/aide/progress.md` is **not**
+  edited: the document is right and the test was stale.
+
+### 3. AC5's test computes the narrower quantity, and by the wrong ordering
+
+`tests/test_162_corpus_exercise_report.py::test_ac5_unexercised_reason_and_reason_modes_derived_from_specification`
+as committed has two defects against the spec above. It must be re-derived so
+that, for each unexercised rule:
+
+- `strongest` is the edge rung **earliest in `EVIDENCE_RUNGS`**, taken with
+  the index ordering the test already builds and then never uses
+  (`min(rungs, key=strength.__getitem__)`), not Python's alphabetical `min`
+  over the rung strings. The two disagree on this tree: alphabetically
+  `"needs-real-data" < "structurally-unobservable" < "synthetic-demonstrable"`,
+  while the declared strength order is `synthetic-demonstrable` (0),
+  `needs-real-data` (1), `structurally-unobservable` (2). A rule carrying both
+  a demonstrable and a needs-real-data edge would be scored
+  `needs-real-data` — reading as reasoned where the production module
+  correctly reports a hole.
+- `expected_reason_modes` is **every** mode id carrying an edge that names the
+  rule, per **D1** above, not the subset whose rung equals `strongest`. The
+  narrower set agrees with production only because every unexercised rule's
+  edges happen to sit at one rung on this tree, which is the coincidence D1
+  says not to rely on.
+
+Both are test-side only: `src/segfacet/traceability.py` already derives
+`strongest_rung` by `rung_strength` index and collects `edge_modes` over every
+naming edge (verified 2026-09-20), so no production change follows from this
+correction.
+
+### 4. `test_min_by_strength_matches_earliest_in_evidence_rungs` is dropped
+
+That test names no acceptance criterion and no Testing-Strategy case, so
+`aide scope` flags it under §6, and it earns neither. Its whole subject is
+whether alphabetical `min` may stand in for strength order — a question that
+exists only because of correction 3's defect and disappears with it. Its own
+claim is also false on this tree (for `a = "synthetic-demonstrable"`,
+`b = "needs-real-data"` its assertion is `False == True`), so it cannot be
+promoted to a case as written. Delete it; no replacement, and no
+Testing-Strategy entry is added for it. The property it was reaching for is
+covered where it belongs — AC5's test now computes the index ordering
+explicitly, and `demonstrable-rule-unexercised-is-a-hole` is the adversarial
+case that fails if the ordering is ever inverted.
+
+### What this correction does not change
+
+No acceptance criterion AC1–AC12 is reworded, no assumption is withdrawn, and
+no implementation step 1–10 is altered. `docs/aide/progress.md` is not edited,
+no human gate is raised (A8 still holds — both conflicts are resolved from
+committed state on this tree), and neither `src/segfacet/failure_modes.py` nor
+`src/segfacet/heuristics/rule.py` is touched.
