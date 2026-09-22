@@ -1035,7 +1035,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   detection count honestly requires a mode↔rule story that is not yet defined. See
   [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md).
   ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 169. *(Item 142)*
-- 📋 Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
+- 🚧 Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
   (Stage 32 D3). *(Item 169)*
 
 > **Why those four now read ⏸️ rather than 📋** *(queue-020 boundary,
@@ -1769,7 +1769,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - [ ] At least one mode in the specification meets all six conditions of "fully specified
   end to end" in [`roadmap.md`](roadmap.md), each checked against live state: the committed
   fixture's measured firing agrees with its expected set, the deciding detector serves no
-  other mode, and the status derives `validated` (**G2**).
+  other mode, and the status derives `validated` (**G2**). *(not attested 2026-09-22, item 169: modes 3 and 4 both carry a maintainer sign-off dated 2026-09-22 at outcome="intermediate-state", not "at-the-bar"; conditions 1-5 hold live for both (recomputed via `traceability.bar_conditions`), but condition 6 requires an "at-the-bar" sign-off, so no mode meets all six conditions and the set of modes at the bar is empty)*
 - [x] Every mode this stage refined carries a maintainer sign-off with date and outcome in
   the specification module (**G8**). *(Item 169 AC11: tests/test_168_maintainer_sign_off.py and tests/test_165_mode_4_at_the_bar.py pass in full in the clean clone (18 + 11 = 29 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. sorted(MODE_SIGN_OFFS) == [3, 4], matching the modes queue-022 selected for refinement (mode 3 split, mode 4 islands). Mode 3: date=2026-09-22, outcome=intermediate-state. Mode 4: date=2026-09-22, outcome=intermediate-state.)*
 - [x] Every mode not refined keeps a complete specification entry and is reported at its
