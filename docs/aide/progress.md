@@ -1770,8 +1770,8 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   end to end" in [`roadmap.md`](roadmap.md), each checked against live state: the committed
   fixture's measured firing agrees with its expected set, the deciding detector serves no
   other mode, and the status derives `validated` (**G2**).
-- [ ] Every mode this stage refined carries a maintainer sign-off with date and outcome in
-  the specification module (**G8**).
+- [x] Every mode this stage refined carries a maintainer sign-off with date and outcome in
+  the specification module (**G8**). *(Item 169 AC11: tests/test_168_maintainer_sign_off.py and tests/test_165_mode_4_at_the_bar.py pass in full in the clean clone (18 + 11 = 29 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. sorted(MODE_SIGN_OFFS) == [3, 4], matching the modes queue-022 selected for refinement (mode 3 split, mode 4 islands). Mode 3: date=2026-09-22, outcome=intermediate-state. Mode 4: date=2026-09-22, outcome=intermediate-state.)*
 - [ ] Every mode not refined keeps a complete specification entry and is reported at its
   derived status in `docs/aide/failure_modes.generated.md`; a mode left at `proposed`,
   `specified` or `implemented` is an accepted end state, and a mode with no entry or no
