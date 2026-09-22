@@ -47,7 +47,7 @@
 | 17    | Foreign-Convention Interop & Orientation-Safe Image Layer               | G2, G6          | ✅     |
 | 18    | Failure-Mode-Specific Metric Surface                                    | G2, G7          | ✅     |
 | 19    | Generated Feature & Rule Catalogue + Steering Review                    | G7, G8          | ✅     |
-| 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | 🚧     |
+| 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | ✅     |
 | 21    | Real-GT Perturbation Corpus                                             | G3, G7          | 📋     |
 | 22    | *(placeholder)* Unified `(scan, seg)` Extraction                    | —              | 📋     |
 | 23    | *(placeholder)* Multivariate Normative Model                          | G3              | 📋     |
@@ -59,7 +59,7 @@
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
-| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 📋     |
+| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -244,6 +244,7 @@ may resolve one._
 | Spinal curve model — the deformity envelope the fit must represent without flagging it. How much scoliotic / kyphotic curvature is normal anatomy the model must follow, versus deviation it must report; and the accepted false-negative cost of a stiffer fit | 119, 120, 121, 123, 125 | ✅ Approved (2026-08-27) | Adopt item 118's proposal: smoothing_spline at s = n_points, chord-length u, leave-one-out evaluation, and max_offset_mm raised 15.0 -> 25.0. Envelope set above the 21.073357 mm leave-one-out ceiling measured across VerSe19 GT including the most coronally-deviated cases, and below the ~5 mm leave-one-out separation a small displacement produces. Accepted cost: a genuine displacement smaller than the envelope may be missed. Expected to be revised into separate normal and scoliotic envelopes later -- see docs/spinal-curve-model.md. *(Superseded 2026-08-29 by a second human decision during item 123: terminal vertebrae (first/last of each subject's ordered sequence) are excluded from the mislabel rule and threshold derivation, and the shipped threshold is `max_offset_mm = 13.0` (interior-only p99 12.91 mm at T10, real 80-subject VerSe19 cohort). Full record in `docs/reference-build.md`'s rebuild records and item 123's spec Decisions log.)* |
 | Stage 30 failure-mode specification sign-off — the maintainer reads [`failure_modes.generated.md`](failure_modes.generated.md) entry by entry (raised over the ten-entry item-149 rendering; the review re-organised it on 2026-09-14 and 2026-09-15 into sixteen modes plus the FOV-truncation condition, and all sixteen are what is signed; definition, discriminator, expected firing sets, severity, observability, per-edge evidence rungs, lifecycle status, provenance) and either accepts the rendering or names the entries to change. The date and outcome are then recorded in `src/segfacet/failure_modes.py`'s own docstring, the `feature_docs.py::STATUS_OVERRIDES` precedent | 139, 140, 141, 142 | ✅ Approved (2026-09-15) | Reviewed and approved the 16-mode failure-mode catalogue (item 150, revised 2026-09-15, commit ce0c6ec); walkthrough in docs/aide/items/150-maintainer-sign-off-of-the-specification.md |
 | Stage 31 D1 — `vision.md` §6 re-issued as v4: the maintainer reads the draft (PR #77, branch `docs/vision-v4-section-6`) and either accepts it or names the passages to change. What it asks: §6 as principles plus a pointer to `segfacet.failure_modes.SPECIFICATION` with no numbered list, the five observability classes, the FOV-truncation condition as a first-class concept, `validated` as the item-150 sign-off defined it, `scope` / `parent` / one defect per mode, the mode → rule direction scored, and the evidence-rungs example corrected to a single rank descent | 152 | ✅ Approved (2026-09-16) | Accepted the v4 section 6 at 7d800a2 on PR #77 |
+| Stage 32 selected-mode sign-off — the maintainer reads modes 3 (split vertebra segment) and 4 (islands, disconnected components) as rendered in [`failure_modes.generated.md`](failure_modes.generated.md) and, for each, either signs it off at the fully-specified bar, signs it off at a recorded intermediate state, or names what must change first. Roadmap Stage 32's bar condition 6. The decision brief is in [`items/168-maintainer-sign-off-of-modes-3-and-4.md`](items/168-maintainer-sign-off-of-modes-3-and-4.md): both modes clear `traceability.bar_conditions` 1–5 live (measured 2026-09-20), and the open judgements are whether `fragmentation` is the right home for mode 3's `neighbour_contact` detector, the rule-id-granular co-detection on the `split` case, mode 4's unbuilt `island_distance_from_main_body_mm` grading, and item 167's four `Left open` notes. The date and outcome are then recorded as one `ModeSignOff` per mode in `src/segfacet/failure_modes.py`'s `MODE_SIGN_OFFS` | 168, 169 | ✅ Approved (2026-09-22) | Both modes signed off at a recorded intermediate state, not at the bar. Modes 3 and 4 clear bar conditions 1-5 live (measured 2026-09-20) but the maintainer review of 2026-09-22 (insights.md entries dated 2026-09-22) names what must change before either is signed at the bar: the geometric corpus base is five non-touching axis-aligned boxes, so mode 3's neighbour_contact threshold has no evidence (the only firing value is the fixture's maximum cross-section, every other reading is structurally 0.0); neighbour_contact moves out of fragmentation into its own rule; the split case is re-authored at ~20 percent on a lordotic base with a second own-label sub-type; mode 4's island_distance_from_main_body_mm grading is described but unbuilt. These land as queue 023. Item 169 attests Stage 32 with criterion 1 open and closes Stage 20. |
 
 ---
 
@@ -950,7 +951,7 @@ verifies they agree, and no document records which failure mode each feature ser
 
 ---
 
-## Stage 20 — Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness (G2, G7) — 🚧
+## Stage 20 — Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness (G2, G7) — ✅
 
 **Goal.** Close the gap between "the suite is green" and "the rules are specific".
 Measured 2026-07-25 on the committed corpus: **10 rules registered and enabled, 4 ever
@@ -986,12 +987,15 @@ rule(s) and any features they need; features may be added alone, modes and rules
 - ✅ The four mode-less rules (`bounds`, `intensity`, `reference_delta`,
   `intensity_reference_delta`) mapped to §6 modes, or recorded as targeting none with a
   reason — the root close of Stage 19's G8 shortfall. *(Item 137)*
-- ⏸️ Specificity assertion — no unintended rule may fire — adopted as a ratchet.
+- ❌ Specificity assertion — no unintended rule may fire — adopted as a ratchet.
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. The ratchet's first
   real case is mode 6's corpus case firing `mislabel` alongside `border` (measured
   2026-09-03), and whether that is a true positive or cross-talk is not decidable before
   the §6 modes carry a definition and a discriminator. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.2. *(Item 140)*
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.2.
+  ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 163. *(Item 140)*
+- ✅ Specificity assertion — no unintended rule may fire — as a ratchet whose allowlist is
+  each corpus case's `expected_firing` in the specification (Stage 32 D0). *(Item 163)*
 - ✅ Reachability hole closed *with its mechanism named per mode*: mode 8 is
   single-channel-unobservable, mode 1's ladder is FOV-capped, mode 4's cause TBD. Made
   detectable where the mechanism allows, recorded where it does not. Not both silent.
@@ -1000,7 +1004,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   every committed golden (max `6.8e-04` mm vs a 15.0 mm threshold) and on real VerSe GT
   (mean `2.9e-05` mm), so no field of view produces a non-zero offset and the FOV-headroom
   remedy named here could not have worked. Mode 8 stays this stage's to record. *(Item 138)*
-- ⏸️ Per-rule **and per-operator** corpus-exercise reporting (the registered `fuse` operator
+- ❌ Per-rule **and per-operator** corpus-exercise reporting (the registered `fuse` operator
   generates no corpus case at all).
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. The item's spec was
   authored and is preserved at [`items/139-per-rule-and-per-operator.md`](items/139-per-rule-and-per-operator.md),
@@ -1008,21 +1012,31 @@ rule(s) and any features they need; features may be added alone, modes and rules
   across both corpora, and `intensity_reference_delta` is driven by nothing because no
   harness attaches a reference. Its "unexercised, with reason" records need a mode
   specification first. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §9. *(Item 139)*
-- ⏸️ The mode-1 severity-ladder base (`tests/test_100_severity_ladder.py`, Stage 18)
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §9.
+  ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 162. *(Item 139)*
+- ✅ Per-rule and per-operator corpus-exercise report across both corpora, re-authored
+  against the signed-off specification (Stage 32 D0). *(Item 162)*
+- ❌ The mode-1 severity-ladder base (`tests/test_100_severity_ladder.py`, Stage 18)
   widened so mode 1's metric swing is set by the
   perturbation rather than the fixture's FOV walls — the recorded root cause of mode 6's
   Stage-18 specificity shortfall.
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. This turns on
   mode-1-vs-mode-6 semantics, which is the discriminator field the §6 modes do not yet
   carry. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.1. *(Item 141)*
-- ⏸️ Stage 20 end-to-end validation: traceability artifact regenerated from a clean tree,
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.1.
+  **Landed as item 154, 2026-09-22 (item 169):** the ladder margins and mode-1 anchor
+  were re-measured in [item 154](items/154-re-measure-the-ladders-and-mode-1s-anchor.md)
+  as Stage 31's eval-harness re-key, so this bullet is superseded rather than shipped
+  under its own number. *(Item 141)*
+- ❌ Stage 20 end-to-end validation: traceability artifact regenerated from a clean tree,
   the specificity assertion driven over every corpus case, the cross-mode margins
   re-measured, and the end-to-end detection count stated honestly here.
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. Stating the
   detection count honestly requires a mode↔rule story that is not yet defined. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md). *(Item 142)*
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md).
+  ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 169. *(Item 142)*
+- ✅ Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
+  (Stage 32 D3). *(Item 169)*
 
 > **Why those four now read ⏸️ rather than 📋** *(queue-020 boundary,
 > 2026-09-03)*. Their prose had said Deferred since 2026-09-03 while their status
@@ -1059,6 +1073,18 @@ rule(s) and any features they need; features may be added alone, modes and rules
 > or above, with `proposed` entries reported as unimplemented; mode numbers in
 > this section's text are the pre-sign-off ids (mapping in Stage 30's note).
 
+> **Items 139, 140 and 142 re-queued under new numbers** *(queue-022,
+> 2026-09-18)*. The deliverables return to 📋 as the 2026-09-03 note above said
+> they would, but not under the old numbers — the old bullets read ❌ (number
+> retired, not deliverable dropped) and a new 📋 bullet follows each: `aide check` reports an item
+> number declared in two queues as an error, and all three are declared in
+> queue-019. So **139 → 162** and **140 → 163** lead
+> [`queue/queue-022.md`](queue/queue-022.md), and **142 → 169** closes it. This
+> supersedes "keep their numbers" above.
+> Item 141's bullet was resolved ❌ on 2026-09-22 by item 169 — its work landed
+> in Stage 31 as [item 154](items/154-re-measure-the-ladders-and-mode-1s-anchor.md)
+> and is not re-queued.
+
 **Acceptance.**
 
 - [x] Every §6 failure mode has ≥1 rule **and** a recorded evidence rung — never silent *(Full suite run 2026-09-02 (.venv/bin/python -m pytest -q): 6900 passed, 60 skipped (all pre-known env-gated), 0 failed; test_ac1_all_ten_rules_declared_and_not_pending passed)* *(Validation round 2, 2026-09-02: .venv/bin/python -m pytest -q -> 7006 passed, 60 skipped (all pre-known env-gated), 0 failed. Verified mode->rule direction directly: json.load(traceability_matrix.generated.json)['directions']['mode_to_rule'] == {complete: True, holes: []}; every one of the 8 mode rows in the generated markdown carries a rung (synthetic-demonstrable x6, structurally-unobservable for mode 8). Covered by test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule, test_ac11_mode_rule_lists_are_derived_from_shipped_declarations, test_ac12_mode_rung_is_member_of_closed_vocabulary, test_ac13_mode8_rung_and_mechanism_name_the_single_channel_mechanism, test_ac14_mode8_not_pipeline_detected_names_reconstructed_case, test_ac15_rung_and_pipeline_detected_cross_check, test_ac16_modes_one_and_four_are_synthetic_demonstrable, test_ac17_mode7_rung_records_its_own_cap (item 138).)*
@@ -1067,12 +1093,13 @@ rule(s) and any features they need; features may be added alone, modes and rules
   (**G2**).
 - [x] Every registered rule maps to ≥1 §6 mode or is recorded as mode-less with a reason. *(Full suite run 2026-09-02: test_ac2_ac3_analytic_rule_declares_mode_two_only[bounds] passed)*
   - **2026-09-02** → Full suite run 2026-09-02 (.venv/bin/python -m pytest -q): 6900 passed, 0 failed. Combined with item 136's six corpus-derived declarations, item 137 disposes the remaining four rules (bounds, reference_delta -> mode 2 analytic; intensity, intensity_reference_delta -> mode-less with recorded reason), verified by test_ac1_all_ten_rules_declared_and_not_pending, test_ac2_ac3_analytic_rule_declares_mode_two_only[bounds/reference_delta], and test_ac5_mode_less_rule_declares_no_modes_not_pending[intensity/intensity_reference_delta] — every registered rule now maps to >=1 mode or is recorded mode-less with a reason.
-- [ ] Every registered rule is exercised by ≥1 case or recorded as unexercised with a *(Full suite run 2026-09-02: test_ac2_ac3_analytic_rule_declares_mode_two_only[reference_delta] passed)*
+- [x] Every registered rule is exercised by ≥1 case or recorded as unexercised with a *(Full suite run 2026-09-02: test_ac2_ac3_analytic_rule_declares_mode_two_only[reference_delta] passed)* *(Item 169 AC4: tests/test_162_corpus_exercise_report.py passes in full in the clean clone (18 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Live measurement from segfacet.traceability.build_matrix().exercise in the clone: 10 registered rules -- 7 exercised (border, coverage, fragmentation, intensity, mislabel, overlap, sequence), 3 unexercised with reason needs-real-data (bounds: modes 1,2,3,4; reference_delta: modes 1,2,3,4,8; intensity_reference_delta: mode 16); 12 registered operators, all used (crop_at_border, displace, force_overlap, fragment, fuse, identity, inject_islands, relabel_swap, remove_level, remove_level_relabel, sequence_break, split). Both DirectionReports read complete=True, holes=().)*
   - **2026-09-02** → retracted: Retracting an attestation-mapping error: this criterion (every registered rule exercised by >=1 case or recorded unexercised with reason) was mistakenly ticked by positional mismapping to item 137's AC3 test; per-rule corpus-exercise reporting is Item 139's future deliverable, not verified by item 137's tests.
   reason (**G2**).
-- [ ] The specificity assertion is enforced for every corpus case. *(Full suite run 2026-09-02: test_ac4_mode_two_declaration_is_analytic_with_named_mechanism passed for both rules)*
+- [x] The specificity assertion is enforced for every corpus case. *(Full suite run 2026-09-02: test_ac4_mode_two_declaration_is_analytic_with_named_mechanism passed for both rules)* *(Validated 2026-09-20: .venv/bin/python -m pytest -n auto -> 8967 passed, 63 skipped (all pre-known env-gated), 0 failed, full suite. tests/test_163_specificity_ratchet.py -v run standalone -> 21 passed: AC2 (test_ac2_ratchet_measured_equals_expected, parametrised over all 15 committed corpus cases: 11 geometric + 4 intensity, ids confirmed by --collect-only) asserts set(measured_firing)==set(expected_firing) per case via traceability.build_matrix().conformance.cases, one test per case id -- the specificity assertion enforced for every corpus case. AC4/AC6 confirm the comparison actually catches an unintended firing and a silenced rule (not vacuous); AC1 confirms no case is exempt from the loop. (closes Stage 20 criterion 4, item 163 AC2 annotation).)* *(Item 169 AC3: tests/test_163_specificity_ratchet.py passes in full in the clean clone (22 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Live measurement from segfacet.traceability.build_matrix().conformance in the clone: 16 cases driven -- 12 geometric (clean_control, crop_at_border, displace, force_overlap, fragment, fuse_adjacent, inject_islands, relabel_swap, remove_level, remove_level_relabel, sequence_break, split) and 4 intensity (clean_hu, degenerate_uniform, implausible_metal, implausible_soft_tissue); 0 cases disagree. The driven case-id set equals the union of both committed manifests' case_id values.)*
   - **2026-09-02** → retracted: Retracting an attestation-mapping error: this criterion (specificity assertion enforced for every corpus case) was mistakenly ticked by positional mismapping to item 137's AC4 test; the specificity assertion is Item 140's future deliverable, not yet built, so this criterion does not hold.
-- [ ] The end-to-end detection count is stated honestly here rather than implied (**G7**). *(Full suite run 2026-09-02: test_ac5_mode_less_rule_declares_no_modes_not_pending passed for both rules)*
+  - **2026-09-20** → retracted: Attested from inside item 163, but item 163's own spec assigns this attestation elsewhere: its Dependencies section records that item 169 'drives it from a clean clone and attests Stage 20 criteria 3-5'. AC2's *(closes Stage 20 criterion 4)* annotation marks which deliverable makes the criterion true, not permission for this item to tick it -- item 162 carried the identical *(closes Stage 20 criterion 3)* annotation one item earlier in this same queue and deliberately left criterion 3 unticked for the same reason. The substance now holds (tests/test_163_specificity_ratchet.py drives set(measured_firing)==set(expected_firing) over all 15 committed corpus cases, with AC4/AC6 proving the comparison is not vacuous), but it was measured in the working checkout, not the clean-clone replay this stage's attestations are routed through after the 2026-09-02 mismapping retractions. Leaving criterion 4 ticked while 3 and 5 stay open would also make the stage's record incoherent.
+- [x] The end-to-end detection count is stated honestly here rather than implied (**G7**). *(Full suite run 2026-09-02: test_ac5_mode_less_rule_declares_no_modes_not_pending passed for both rules)* *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
   - **2026-09-02** → retracted: Retracting an attestation-mapping error: this criterion (end-to-end detection count stated honestly) was mistakenly ticked using item 137's AC5 test as evidence by positional mismapping; that test verifies mode-less declarations, not this stage-level claim, which remains open (Item 142).
 
 > **Not required:** feature→rule completeness. Unwired features are a designed state.
@@ -1589,12 +1616,14 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   four-state vocabulary and a provenance; `implemented` and `validated` are derived from
   live state, and a hand-set status that disagrees with the registry or the corpus fails
   a test naming the mode (**G8**).
+  - **2026-09-20** → Item 167 (2026-09-20): mode 3 gains fragmentation's neighbour_contact detector, moving it from implemented to validated. Re-measured live: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7; validated through a pipeline-detected case 6, through a reconstructed record only 1.
 - [x] For every corpus case across both committed corpora, the measured firing set equals *(AC8 measured all 15 manifest cases (11 geometric + 4 intensity) in clone 6464b2e: every measured firing set equals expected; matrix.conformance.agree_count=15, unspecified_cases=(), disagreements=(); AC10/AC11 mode6_crop_at_border expects {border, mislabel} with reason, measured label 22 touches_anterior=True, offset_mm=17.507 (>13.0 max), is_terminal=False; clean_control label 22 touches_anterior=False. Reading D2 (clean, condition-less cases scored against the empty set) and D3 (mode6_crop_at_border is the fov_truncation condition's fixture, no longer a Stage 20 gate-3 co-detection claim))*
   the specification's expected firing set, and `mode6_crop_at_border` expects
   `{border, mislabel}` with a recorded reason (**G2**).
 - [x] Every mode ↔ rule edge carries an authored evidence rung and every mode's rung is *(AC12 all 17 IntendedRule edges carry an evidence_rung in EVIDENCE_RUNGS; AC13 derive_mode_rung matches an independent per-mode recomputation and the committed rendering/matrix row for all 16 modes, weakening a mode's strongest edge changes its derived rung; AC14 10 analytic edges (bounds+reference_delta on modes 1-4, reference_delta on mode 8, intensity_reference_delta on mode 16), measured live in clone 6464b2e, none rung synthetic-demonstrable; AC15/AC16 mode 15 (reading D3: criterion 3's 'mode 8') derives structurally-unobservable, mechanism states the single-channel invariant, mode8_force_overlap: extract_feature_record overlaps=[], pipeline_findings=[], reconstructed_findings=['overlap'], manifest detection=reconstructed_record; derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 17 edges: synthetic-demonstrable 5, needs-real-data 11, structurally-unobservable 1)*
   derived from its edges; the analytic-only edges are rendered as such, and mode 8's rung
   names the single-channel mechanism (**G2**).
+  - **2026-09-20** → Item 167 (2026-09-20): mode 3's new fragmentation/neighbour_contact edge is synthetic-demonstrable, moving its derived rung from needs-real-data/none to synthetic-demonstrable and adding one edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7; per-edge rung counts over 18 edges: synthetic-demonstrable 6, needs-real-data 11, structurally-unobservable 1.
 - [x] `failure_modes.generated.{md,json}` and the traceability matrix regenerate *(AC2/AC7 clean-clone regeneration in clone 6464b2e: failure_modes.generated.{json,md} and traceability_matrix.generated.{json,md} cmp exit 0 against committed copies, a second independent regeneration cmp-identical to the first; feature_catalogue.generated.md cmp-identical, .json accepted by assert_matches_committed_artifact and also byte-identical; AC3 matrix primary_source == src/segfacet/failure_modes.py, resolves to the loaded module, per-mode title/authored_status/edge_rungs match SPECIFICATION, row key set == set(SPECIFICATION); AC4 JSON/Markdown notes name the module, modes/conditions lists equal specification_to_dict() live; AC5 matrix header carries both 'Stage-18 metric anchor paths' and 'Rule signal read paths', anchor_paths equals MODE_ANCHOR_PATHS, columns differ for modes 6/8/9/16; AC6 every stage18-metric-anchor candidate renders under the anchor label only, no rule read path under it. Reading D4 (matrix renders the two labelled columns; the specification's own rendering labels anchors only and its 'primary source' reading is via its note + specification_to_dict() equality))*
   byte-identically from a clean tree, name the specification as their primary source, and
   render the metric anchor path and the rule's read paths as separately labelled columns.
@@ -1700,7 +1729,7 @@ changes here.**
 
 ---
 
-## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — 📋
+## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — 🚧
 
 **Goal.** The specification documents all sixteen modes without committing to implement
 them (2026-09-15: validated 1, 4, 6, 9, 15, 16; implemented 2, 3, 8; proposed 5, 7,
@@ -1720,10 +1749,17 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   specificity-ratchet deliverables (allowlist derived from each case's `expected_firing`)
   re-specified against the specification and built at the head of the first queue; they
   stay tracked by their Stage 20 bullets.
-- 📋 **D1** The MVP mode: at least one maintainer-selected mode brought to the
-  fully-specified bar and signed off.
-- 📋 **D2** Further selected modes, optional: refined as far as wanted and signed off at their
-  queue's checkpoint, to the bar or to a recorded intermediate state.
+- ✅ First-class detector ids on multi-detector rules, referenced by the
+  specification's intended-rule edges, so "a detector serves no other mode" is
+  checked mechanically (prerequisite of D1's condition 4). *(Item 164)*
+- ✅ **D1** The MVP mode: at least one maintainer-selected mode brought to the
+  fully-specified bar and signed off. Selected 2026-09-18: mode 4 (islands). *(Item 165)*
+- ✅ **D2** Further selected modes, optional: refined as far as wanted and signed off at their
+  queue's checkpoint, to the bar or to a recorded intermediate state. Selected
+  2026-09-18: mode 3 (split) — its split operator and corpus case. *(Item 166)*
+- ✅ **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
+- ✅ **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
+  with date and outcome in the specification module. *(Item 168)*
 - 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
@@ -1734,16 +1770,16 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - [ ] At least one mode in the specification meets all six conditions of "fully specified
   end to end" in [`roadmap.md`](roadmap.md), each checked against live state: the committed
   fixture's measured firing agrees with its expected set, the deciding detector serves no
-  other mode, and the status derives `validated` (**G2**).
-- [ ] Every mode this stage refined carries a maintainer sign-off with date and outcome in
-  the specification module (**G8**).
-- [ ] Every mode not refined keeps a complete specification entry and is reported at its
+  other mode, and the status derives `validated` (**G2**). *(not attested 2026-09-22, item 169: modes 3 and 4 both carry a maintainer sign-off dated 2026-09-22 at outcome="intermediate-state", not "at-the-bar"; conditions 1-5 hold live for both (recomputed via `traceability.bar_conditions`), but condition 6 requires an "at-the-bar" sign-off, so no mode meets all six conditions and the set of modes at the bar is empty)*
+- [x] Every mode this stage refined carries a maintainer sign-off with date and outcome in
+  the specification module (**G8**). *(Item 169 AC11: tests/test_168_maintainer_sign_off.py and tests/test_165_mode_4_at_the_bar.py pass in full in the clean clone (18 + 11 = 29 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. sorted(MODE_SIGN_OFFS) == [3, 4], matching the modes queue-022 selected for refinement (mode 3 split, mode 4 islands). Mode 3: date=2026-09-22, outcome=intermediate-state. Mode 4: date=2026-09-22, outcome=intermediate-state.)*
+- [x] Every mode not refined keeps a complete specification entry and is reported at its
   derived status in `docs/aide/failure_modes.generated.md`; a mode left at `proposed`,
   `specified` or `implemented` is an accepted end state, and a mode with no entry or no
-  status is not (**G2**).
-- [ ] The specificity assertion is enforced for every corpus case across both corpora, and
+  status is not (**G2**). *(Item 169 AC12: tests/test_151_stage30_validation.py::test_ac3_every_mode_row_title_authored_status_and_edge_rungs_match_specification and ::test_ac18_status_matches_independent_recomputation_and_committed_rendering pass in the clean clone (2 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Every one of the 16 SPECIFICATION modes appears in docs/aide/failure_modes.generated.md at its derived status (validated 7, implemented 2, proposed 7); none renders without a status.)*
+- [x] The specificity assertion is enforced for every corpus case across both corpora, and
   every registered rule and operator is exercised by a case or recorded as unexercised with
-  a reason (**G2**, Stage 20 criteria 3–4).
-- [ ] The end-to-end detection count is recorded here per lifecycle status and per evidence
+  a reason (**G2**, Stage 20 criteria 3–4). *(Item 169 AC3/AC4: tests/test_163_specificity_ratchet.py (22 passed) and tests/test_162_corpus_exercise_report.py (18 passed) pass in full in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Specificity: 16/16 committed corpus cases (12 geometric + 4 intensity) agree, 0 disagreements. Exercise: 10 registered rules -- 7 exercised, 3 unexercised with reason (bounds, reference_delta, intensity_reference_delta, all needs-real-data); 12 registered operators, all used; both DirectionReports read complete=True, holes=().)*
+- [x] The end-to-end detection count is recorded here per lifecycle status and per evidence
   rung, as measured numbers with what they were measured on, naming the modes refined and
-  the modes left as documented drafts (**G7**, Stage 20 criterion 5).
+  the modes left as documented drafts (**G7**, Stage 20 criterion 5). *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*

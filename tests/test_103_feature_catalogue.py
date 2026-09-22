@@ -371,7 +371,11 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # 93 -> 94: item 123 (docs/aide/items/123-recalibrate-and-regenerate-
     # downstream-artifacts.md, AC48) adds one leaf path,
     # stage3.per_label_offsets[].is_terminal.
-    assert len(paths) == 94
+    # 94 -> 96: item 167 (docs/aide/items/167-mode-3s-own-feature-and-
+    # detector.md, Correction 2026-09-20, C2) adds two leaf paths,
+    # per_label.{label}.components.stray_contact_area_mm2 and
+    # per_label.{label}.components.stray_contact_label.
+    assert len(paths) == 96
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):
@@ -577,7 +581,7 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 #: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
     "mislabel": (1, 9),  # displace (1), relabel_swap (9)
-    "fragmentation": (1, 2, 4),  # fragment (1), fuse_adjacent (2), islands (4)
+    "fragmentation": (1, 2, 3, 4),  # fragment (1), fuse_adjacent (2), split (3), islands (4)
     "coverage": (2, 6),  # fuse_adjacent (2), remove_level (6)
     "sequence": (9,),  # sequence_break
     "overlap": (15,),  # force_overlap

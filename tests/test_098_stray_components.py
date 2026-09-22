@@ -419,10 +419,12 @@ def test_ac7_all_four_fields_match_hand_computation():
 # =========================================================================== #
 
 
-def test_ac8_dict_key_set_is_exactly_six_plus_four():
+def test_ac8_dict_key_set_is_exactly_the_components_block_field_set():
     seg = _multi_component_anisotropic_img()
     info = compute_components(seg, label=1, config=_config())
     d = components_to_dict(info)
+    # Six pre-098 keys + item 098's four + item 167's two
+    # (stray_contact_area_mm2, stray_contact_label) = twelve in all.
     expected_keys = {
         "component_count",
         "component_sizes",
@@ -434,6 +436,8 @@ def test_ac8_dict_key_set_is_exactly_six_plus_four():
         "stray_component_sizes",
         "stray_volume_mm3",
         "stray_volume_fraction",
+        "stray_contact_area_mm2",
+        "stray_contact_label",
     }
     assert set(d.keys()) == expected_keys
 
@@ -845,6 +849,12 @@ def test_ac14_every_golden_still_validates_against_schema():
 #: therefore built from the live ``_DEFAULT_MAX_OFFSET_MM`` rather than a
 #: hardcoded ``15.0``, so this snapshot tracks the recalibrated threshold
 #: without a second guess at its numeric value.
+#: Item 164 (2026-09-20, Correction 2) adds ``detector_id`` to
+#: ``Finding.to_dict()``, so each finding below gains its emitting site's
+#: detector id: ``displace`` -> ``spline_offset``; ``fragment`` ->
+#: ``components``; ``inject_islands`` -> ``islands``; ``relabel_swap`` ->
+#: ``ordering``; ``remove_level`` -> ``missing_interior``; ``crop_at_border``
+#: -> ``unexpected_clip`` (border) and ``spline_offset`` (mislabel).
 _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     "clean_control": {"verdict": "pass", "findings": []},
     "displace": {
@@ -852,6 +862,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "mislabel",
+                "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -867,6 +878,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "fragmentation",
+                "detector_id": "components",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -882,6 +894,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "fragmentation",
+                "detector_id": "islands",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -901,6 +914,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "mislabel",
+                "detector_id": "ordering",
                 "severity": "flagged-for-review",
                 "labels": [21, 22],
                 "reason": (
@@ -916,6 +930,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "coverage",
+                "detector_id": "missing_interior",
                 "severity": "flagged-for-review",
                 "labels": [],
                 "reason": (
@@ -930,6 +945,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "findings": [
             {
                 "rule_id": "border",
+                "detector_id": "unexpected_clip",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
@@ -939,6 +955,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             },
             {
                 "rule_id": "mislabel",
+                "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (

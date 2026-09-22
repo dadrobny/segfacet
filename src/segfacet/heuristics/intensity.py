@@ -72,6 +72,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -194,6 +195,29 @@ class IntensityRule(Rule):
                 ),
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="degenerate",
+                description=_DEGENERATE_TAG,
+                signal_paths=(
+                    "image_features.per_label.{label}.first_order.std",
+                ),
+            ),
+            RuleDetector(
+                detector_id="too_high",
+                description=_HIGH_TAG,
+                signal_paths=(
+                    "image_features.per_label.{label}.first_order.median",
+                ),
+            ),
+            RuleDetector(
+                detector_id="too_low",
+                description=_LOW_TAG,
+                signal_paths=(
+                    "image_features.per_label.{label}.first_order.median",
+                ),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -289,6 +313,7 @@ class IntensityRule(Rule):
                             f"{min_plausible_hu:.2f})."
                         ),
                         labels=frozenset({label}),
+                        detector_id="too_low",
                     )
                 )
 
@@ -305,6 +330,7 @@ class IntensityRule(Rule):
                             f"{max_plausible_hu:.2f})."
                         ),
                         labels=frozenset({label}),
+                        detector_id="too_high",
                     )
                 )
 
@@ -319,6 +345,7 @@ class IntensityRule(Rule):
                             f"max_degenerate_std={max_degenerate_std:.2f} HU."
                         ),
                         labels=frozenset({label}),
+                        detector_id="degenerate",
                     )
                 )
 

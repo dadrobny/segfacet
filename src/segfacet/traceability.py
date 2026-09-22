@@ -67,15 +67,48 @@ An unclassified or dropped ``consumed_paths`` entry is folded in from
 matrix-level ``conformance.conformant`` flag alongside the per-case agreement
 count.
 
+And, new in item 162, two **exercise directions** over the same two inputs:
+per registered rule (:func:`segfacet.heuristics.rule.iter_rules`), whether it
+is exercised by >=1 case across **both** committed corpus manifests -- re-keyed
+from the conformance report's own ``measured_firing`` (:data:`ExerciseReport`,
+A2: no second corpus drive) -- or unexercised with a reason **derived** from
+the strongest :data:`segfacet.failure_modes.EVIDENCE_RUNGS` entry among the
+``SPECIFICATION[*].intended_rules`` edges naming it; and per registered
+perturbation operator (:func:`segfacet.synth.perturbation.perturbation_names`),
+whether it is used by >=1 :data:`segfacet.synth.corpus.CASE_RECIPE` entry, or
+recorded unused with an authored reason
+(:data:`UNUSED_OPERATOR_REASONS`, empty on this tree). Both directions score
+their own completeness the same way every other direction here does: a record
+that is neither exercised/used nor reasoned is a named hole, and the
+direction's ``complete`` flag turns false.
+
 Scope fence
 -----------
 This module *reports*. It decides no disposition, changes no rule,
 threshold, extractor, verdict, report schema, or CLI behaviour, and
-regenerates neither of item 103's catalogue artifacts. It builds **no**
-per-rule or per-operator corpus-**exercise** columns -- item 139's
-deliverable, re-specified against this output, stays Stage 20's. It adopts
-no specificity ratchet (item 140) and does not touch
-``eval/severity_ladder.py`` (item 141).
+regenerates neither of item 103's catalogue artifacts. It adds no corpus
+case, attaches no reference to any harness path, edits no ``ModeSpec``, and
+authors no reason a rule's specification edges do not already carry (the
+sole authored string is an unused operator's reason, and it ships empty). The
+specificity ratchet (item 163) -- no unintended rule may fire, and none may
+go silent, without the change being authored in ``SPECIFICATION``/
+``CONDITIONS`` -- is enforced by ``tests/test_163_specificity_ratchet.py``
+over this module's ``conformance`` report; the module itself adopts none.
+Item 164 added two further scored directions, ``edge_to_detector`` and
+``detector_to_edge``, over the same first-class detector ids: whether every
+``SPECIFICATION[*].intended_rules`` edge names only detector ids the named
+rule actually declares (``RuleModeDeclaration.detectors``), and whether
+every declared detector carrying no ``mode_less_reason`` of its own is named
+by at least one edge. This module still does not touch
+``eval/severity_ladder.py``.
+
+And, new in item 165, :func:`bar_conditions` reports conditions 1-5 of the
+roadmap's Stage 32 "fully specified end to end" bar (:data:`BAR_CONDITIONS`)
+for one mode, each recomputed live against ``failure_modes.SPECIFICATION``,
+the rule registry and the feature catalogue rather than authored anywhere --
+one :class:`BarCondition` per condition. Condition 6, the maintainer's sign-off, is deliberately **not**
+computed here: it is a person's decision, not a derivable fact, and item
+168's deliverable.
 
 Determinism contract
 ---------------------
@@ -111,9 +144,65 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Set, Tuple
 
-__all__ = ["build_matrix", "matrix_to_dict", "render_markdown", "main"]
+__all__ = [
+    "build_matrix",
+    "matrix_to_dict",
+    "render_markdown",
+    "main",
+    "BarCondition",
+    "bar_conditions",
+    "BAR_CONDITIONS",
+    "PROXY_RULE_IDS",
+]
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
+
+#: Item 165: the generic volume proxies the roadmap's Stage 32 condition 4
+#: parenthetical names as never qualifying as "a detector that decides the
+#: mode" -- applied in ``bar_conditions`` in addition to the single-mode
+#: test, so a later narrowing of these edges to one mode cannot silently
+#: clear the bar (A5).
+PROXY_RULE_IDS: Tuple[str, ...] = ("bounds", "reference_delta")
+
+#: Item 165: the bar a mode must clear to count as "fully specified end to
+#: end", quoted verbatim from ``docs/aide/roadmap.md`` Stage 32's "What
+#: 'fully specified end to end' means" section. Condition 6 (maintainer
+#: sign-off) is deliberately excluded -- it is a person's act, item 168's,
+#: and no agent can compute it.
+BAR_CONDITIONS: Tuple[Tuple[int, str], ...] = (
+    (
+        1,
+        "Its specification entry is complete and confirmed by the maintainer "
+        "(definition, discriminator, scope, observability, severity, "
+        "candidate features, intended rules, corpus cases).",
+    ),
+    (
+        2,
+        "At least one committed synthetic fixture expresses the mode, and its "
+        "expected firing set names at least one of the mode's own intended "
+        "rules and agrees with the measured firing.",
+    ),
+    (
+        3,
+        "Every feature path that detector reads is extracted and catalogued.",
+    ),
+    (
+        4,
+        "At least one detector decides the mode and serves no other mode -- "
+        "the generic volume proxies (bounds, reference_delta) do not count.",
+    ),
+    (5, "Its status derives validated."),
+)
+
+#: Item 162's two closed exercise-state vocabularies.
+EXERCISE_STATES: Tuple[str, ...] = ("exercised", "unexercised")
+OPERATOR_STATES: Tuple[str, ...] = ("used", "unused")
+
+#: The sole authored string in the exercise feature (A4): a deliberately
+#: unused operator's reason. Empty on this tree -- all registered operators
+#: are used, measured 2026-09-18 -- so the recorded branch is reachable and
+#: tested only adversarially.
+UNUSED_OPERATOR_REASONS: Dict[str, str] = {}
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
@@ -141,7 +230,12 @@ _NOTE = (
     "committed manifests through the specification's expected firing set and "
     "the live measured firing set: read `conformance.disagreements` and "
     "`conformance.unspecified_cases` for the live answer, never assume "
-    "`conformant`."
+    "`conformant`. "
+    "The `exercise` section (item 162) reports, per registered rule and per "
+    "registered perturbation operator, whether it is exercised/used by >=1 "
+    "committed corpus case or recorded unexercised/unused with a reason: "
+    "read `directions.rule_exercise`/`directions.operator_exercise` for the "
+    "live answer, never assume either is complete."
 )
 
 _FEATURE_QUALIFIER = (
@@ -194,7 +288,7 @@ class ModeRecord:
     title: str
     status: str
     authored_status: str
-    edge_rungs: Tuple[Tuple[str, str, str], ...]
+    edge_rungs: Tuple[Tuple[str, Tuple[str, ...], str], ...]
     rung: str
     mechanism: str
     rules: Tuple[str, ...]
@@ -256,6 +350,45 @@ class ConformanceReport:
 
 
 @dataclass(frozen=True)
+class RuleExercise:
+    rule_id: str
+    state: str
+    exercised_by: Tuple[Tuple[str, str], ...]
+    reason: str
+    reason_modes: Tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class OperatorExercise:
+    name: str
+    state: str
+    cases: Tuple[str, ...]
+    reason: str
+
+
+@dataclass(frozen=True)
+class ExerciseReport:
+    rules: Tuple[RuleExercise, ...]
+    operators: Tuple[OperatorExercise, ...]
+    rule_direction: DirectionReport
+    operator_direction: DirectionReport
+
+
+@dataclass(frozen=True)
+class BarCondition:
+    """One of the fully-specified bar's five mechanically-checkable
+    conditions (item 165), recomputed live for one mode. ``subjects`` is
+    what the verdict turned on -- case ids, feature paths, or
+    ``"rule/detector"`` pairs -- so a caller never has to parse ``detail``;
+    ``detail`` is a human-readable sentence naming those same subjects."""
+
+    number: int
+    met: bool
+    subjects: Tuple[str, ...]
+    detail: str
+
+
+@dataclass(frozen=True)
 class TraceabilityMatrix:
     schema_version: str
     primary_source: str
@@ -268,6 +401,9 @@ class TraceabilityMatrix:
     corpus_designated_unregistered_rule_ids: Tuple[str, ...]
     classification_conflicts: Tuple[str, ...]
     conformance: ConformanceReport
+    exercise: ExerciseReport
+    edge_to_detector: DirectionReport
+    detector_to_edge: DirectionReport
 
 
 # =========================================================================== #
@@ -401,6 +537,180 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
         disagreements=disagreements,
         unspecified_cases=tuple(sorted(unspecified_cases)),
     )
+
+
+def _build_exercise(
+    conformance: ConformanceReport, failure_modes_module
+) -> ExerciseReport:
+    """Item 162's two exercise directions -- rules and operators -- built from
+    inputs the rest of :func:`build_matrix` already paid for: the just-built
+    *conformance* report's per-case measured firing (A2: no second corpus
+    drive) and a fresh read of the rule/operator registries and
+    ``CASE_RECIPE``."""
+    from segfacet.heuristics.rule import iter_rules
+    from segfacet.synth.corpus import CASE_RECIPE
+    from segfacet.synth.perturbation import perturbation_names
+
+    specification = failure_modes_module.SPECIFICATION
+    evidence_rungs = failure_modes_module.EVIDENCE_RUNGS
+    rung_strength = {rung: index for index, rung in enumerate(evidence_rungs)}
+
+    # rule_id -> sorted [(corpus, case_id), ...] whose measured_firing names it.
+    exercised_by_rule: Dict[str, list] = {}
+    for case in conformance.cases:
+        for rule_id in case.measured_firing:
+            exercised_by_rule.setdefault(rule_id, []).append((case.corpus, case.case_id))
+
+    rule_records: list = []
+    for rule in iter_rules():
+        rule_id = rule.rule_id
+        pairs = tuple(sorted(set(exercised_by_rule.get(rule_id, ()))))
+        if pairs:
+            rule_records.append(
+                RuleExercise(
+                    rule_id=rule_id,
+                    state="exercised",
+                    exercised_by=pairs,
+                    reason="",
+                    reason_modes=(),
+                )
+            )
+            continue
+
+        # Unexercised: derive the reason from the strongest specification
+        # rung among every intended_rules edge naming this rule, across
+        # every mode (A3, Step 4).
+        edge_modes: list = []
+        strongest_rung: Optional[str] = None
+        for mode_id, mode_spec in specification.items():
+            for edge in mode_spec.intended_rules:
+                if edge.rule_id != rule_id:
+                    continue
+                edge_modes.append(mode_id)
+                if strongest_rung is None or rung_strength[edge.evidence_rung] < rung_strength[strongest_rung]:
+                    strongest_rung = edge.evidence_rung
+
+        if strongest_rung is None or strongest_rung == evidence_rungs[0]:
+            # No edge names the rule at all, or the specification's own
+            # strongest claim is that the corpus demonstrates it -- a hole
+            # by design (Step 4; no derivable reason).
+            reason = ""
+            reason_modes: Tuple[int, ...] = ()
+        else:
+            reason = strongest_rung
+            reason_modes = tuple(sorted(set(edge_modes)))
+
+        rule_records.append(
+            RuleExercise(
+                rule_id=rule_id,
+                state="unexercised",
+                exercised_by=(),
+                reason=reason,
+                reason_modes=reason_modes,
+            )
+        )
+
+    rule_holes = tuple(sorted(r.rule_id for r in rule_records if r.state == "unexercised" and not r.reason))
+    rule_direction = DirectionReport(complete=not rule_holes, holes=rule_holes)
+
+    cases_by_operator: Dict[str, list] = {}
+    for entry in CASE_RECIPE:
+        cases_by_operator.setdefault(entry.perturbation, []).append(entry.case_id)
+
+    operator_records: list = []
+    for name in perturbation_names():
+        case_ids = tuple(sorted(cases_by_operator.get(name, ())))
+        if case_ids:
+            operator_records.append(
+                OperatorExercise(name=name, state="used", cases=case_ids, reason="")
+            )
+        else:
+            operator_records.append(
+                OperatorExercise(
+                    name=name,
+                    state="unused",
+                    cases=(),
+                    reason=UNUSED_OPERATOR_REASONS.get(name, ""),
+                )
+            )
+
+    operator_holes = tuple(
+        sorted(o.name for o in operator_records if o.state == "unused" and not o.reason)
+    )
+    operator_direction = DirectionReport(complete=not operator_holes, holes=operator_holes)
+
+    return ExerciseReport(
+        rules=tuple(rule_records),
+        operators=tuple(operator_records),
+        rule_direction=rule_direction,
+        operator_direction=operator_direction,
+    )
+
+
+def _build_detector_directions(
+    failure_modes_module,
+) -> Tuple[DirectionReport, DirectionReport]:
+    """Item 164's two conformance directions over first-class detector ids,
+    scored in both directions between :data:`segfacet.failure_modes.
+    SPECIFICATION`'s ``IntendedRule.detector_ids`` edges and each registered
+    rule's ``RuleModeDeclaration.detectors``.
+
+    ``edge_to_detector`` -- every edge must name only declared detector ids,
+    and at least one: a hole is ``(mode_id, rule_id, detector_id)`` for a
+    named-but-undeclared id, or ``(mode_id, rule_id, "")`` when the edge's
+    ``detector_ids`` is empty (there is no id to name, so ``""`` is the
+    sentinel third element).
+
+    ``detector_to_edge`` -- every declared detector carrying no
+    ``mode_less_reason`` of its own must be named by >=1 edge: a hole is
+    ``(rule_id, detector_id)``.
+
+    Ids are joined per-rule, never by bare slug (``reference_delta`` and
+    ``intensity_reference_delta`` both declare ``out_of_range``): every
+    lookup below is keyed by ``(rule_id, detector_id)`` or scoped to one
+    rule's own declared set.
+    """
+    from segfacet.heuristics.rule import iter_rule_declarations
+
+    specification = failure_modes_module.SPECIFICATION
+
+    declared_by_rule: Dict[str, Set[str]] = {}
+    mode_less_by_rule_detector: Dict[Tuple[str, str], bool] = {}
+    for rule_id, decl in iter_rule_declarations():
+        detectors = decl.detectors if decl is not None else ()
+        declared_by_rule[rule_id] = {d.detector_id for d in detectors}
+        for d in detectors:
+            mode_less_by_rule_detector[(rule_id, d.detector_id)] = bool(d.mode_less_reason)
+
+    edge_to_detector_holes: list = []
+    named_by_edge: Set[Tuple[str, str]] = set()
+    for mode_id, mode_spec in specification.items():
+        for edge in mode_spec.intended_rules:
+            declared = declared_by_rule.get(edge.rule_id, set())
+            if not edge.detector_ids:
+                edge_to_detector_holes.append((mode_id, edge.rule_id, ""))
+                continue
+            for detector_id in edge.detector_ids:
+                named_by_edge.add((edge.rule_id, detector_id))
+                if detector_id not in declared:
+                    edge_to_detector_holes.append((mode_id, edge.rule_id, detector_id))
+    edge_to_detector_holes = tuple(sorted(edge_to_detector_holes))
+    edge_to_detector = DirectionReport(
+        complete=not edge_to_detector_holes, holes=edge_to_detector_holes
+    )
+
+    detector_to_edge_holes = tuple(
+        sorted(
+            (rule_id, detector_id)
+            for (rule_id, detector_id), mode_less in mode_less_by_rule_detector.items()
+            if not mode_less and (rule_id, detector_id) not in named_by_edge
+        )
+    )
+    detector_to_edge = DirectionReport(
+        complete=not detector_to_edge_holes, holes=detector_to_edge_holes
+    )
+
+    return edge_to_detector, detector_to_edge
 
 
 def build_matrix() -> TraceabilityMatrix:
@@ -630,7 +940,7 @@ def build_matrix() -> TraceabilityMatrix:
         # blank indistinguishable from a failed lookup.
         rung = derived_rung or ""
         edge_rungs = tuple(
-            (rule.rule_id, rule.detector, rule.evidence_rung)
+            (rule.rule_id, tuple(rule.detector_ids), rule.evidence_rung)
             for rule in mode_spec.intended_rules
         )
         modes.append(
@@ -678,6 +988,8 @@ def build_matrix() -> TraceabilityMatrix:
 
     classification_conflicts = tuple(path_classification_conflicts())
     conformance = _build_conformance(failure_modes_module)
+    exercise = _build_exercise(conformance, failure_modes_module)
+    edge_to_detector, detector_to_edge = _build_detector_directions(failure_modes_module)
     if classification_conflicts:
         conformance = ConformanceReport(
             cases=conformance.cases,
@@ -700,7 +1012,158 @@ def build_matrix() -> TraceabilityMatrix:
         corpus_designated_unregistered_rule_ids=unregistered_designated,
         classification_conflicts=classification_conflicts,
         conformance=conformance,
+        exercise=exercise,
+        edge_to_detector=edge_to_detector,
+        detector_to_edge=detector_to_edge,
     )
+
+
+# =========================================================================== #
+# bar_conditions (item 165)
+# =========================================================================== #
+
+
+def bar_conditions(mode_id: int, catalogue=None) -> Tuple[BarCondition, ...]:
+    """The fully-specified bar's conditions 1-5 (``BAR_CONDITIONS``),
+    recomputed live for *mode_id* against ``failure_modes.SPECIFICATION``,
+    the rule registry and the feature catalogue. Condition 6 (maintainer
+    sign-off) is never computed here -- it is item 168's.
+
+    *catalogue* lets a caller pass an already-built
+    ``segfacet.catalogue.build_catalogue(strict=True)`` result (expensive to
+    build) rather than paying for a fresh one on every call; ``None`` builds
+    one. A *mode_id* absent from ``SPECIFICATION`` raises ``KeyError`` from
+    the plain dict lookup below -- no hand-written guard.
+
+    Pure reader: never mutates ``SPECIFICATION``, the rule registry or the
+    catalogue, and decides no disposition, changes no rule, threshold or
+    fixture (Scope fence, item 165 Description)."""
+    from segfacet import failure_modes as failure_modes_module
+    from segfacet.catalogue import build_catalogue
+    from segfacet.heuristics.rule import iter_rules
+
+    mode = failure_modes_module.SPECIFICATION[mode_id]
+
+    if catalogue is None:
+        catalogue = build_catalogue(strict=True)
+
+    # Condition 1 -- entry completeness (A2: the "confirmed by the
+    # maintainer" half is condition 6's).
+    completeness_fields = (
+        "definition",
+        "discriminator",
+        "scope",
+        "observability",
+        "severity",
+        "candidate_features",
+        "intended_rules",
+        "corpus_cases",
+    )
+    non_empty_fields = tuple(
+        field for field in completeness_fields if getattr(mode, field)
+    )
+    condition_1 = BarCondition(
+        number=1,
+        met=len(non_empty_fields) == len(completeness_fields),
+        subjects=non_empty_fields,
+        detail=(
+            "Specification entry completeness (maintainer confirmation is "
+            f"condition 6's, item 168's sign-off): non-empty fields "
+            f"{non_empty_fields}."
+        ),
+    )
+
+    # Condition 2 -- a committed fixture expresses the mode.
+    own_rule_ids = {edge.rule_id for edge in mode.intended_rules}
+    all_cases_agree = all(
+        failure_modes_module.case_agrees(case) for case in mode.corpus_cases
+    )
+    intersecting_case_ids = tuple(
+        case.case_id
+        for case in mode.corpus_cases
+        if case.expected_firing and own_rule_ids.intersection(case.expected_firing)
+    )
+    condition_2 = BarCondition(
+        number=2,
+        met=all_cases_agree and bool(intersecting_case_ids),
+        subjects=intersecting_case_ids,
+        detail=(
+            "Corpus case(s) expressing the mode via its own intended rule(s), "
+            f"agreeing with measured firing: {intersecting_case_ids}."
+        ),
+    )
+
+    # Condition 4 -- computed before condition 3, since condition 3
+    # quantifies over condition 4's qualifying detectors (Implementation
+    # Step 6).
+    qualifying_pairs = tuple(
+        sorted(
+            f"{edge.rule_id}/{detector_id}"
+            for edge in mode.intended_rules
+            if edge.rule_id not in PROXY_RULE_IDS
+            for detector_id in edge.detector_ids
+            if failure_modes_module.modes_for_detector(edge.rule_id, detector_id)
+            == (mode_id,)
+        )
+    )
+    condition_4 = BarCondition(
+        number=4,
+        met=bool(qualifying_pairs),
+        subjects=qualifying_pairs,
+        detail=(
+            "Non-proxy detector(s) (bounds/reference_delta excluded as "
+            f"generic volume proxies) serving this mode alone: {qualifying_pairs}."
+        ),
+    )
+
+    # Condition 3 -- every signal path the qualifying detector(s) read is
+    # extracted (observed.corpus.covered) and catalogued (A4).
+    checked_paths: Set[str] = set()
+    for pair in qualifying_pairs:
+        rule_id, detector_id = pair.split("/", 1)
+        rule = next(r for r in iter_rules() if r.rule_id == rule_id)
+        detector = next(
+            d
+            for d in rule.mode_declaration.detectors
+            if d.detector_id == detector_id
+        )
+        checked_paths.update(detector.signal_paths)
+
+    catalogue_entries_by_path = {entry.path: entry for entry in catalogue.entries}
+    unmet_paths = tuple(
+        sorted(
+            path
+            for path in checked_paths
+            if not (
+                path in catalogue_entries_by_path
+                and catalogue_entries_by_path[path].observed.corpus.covered is True
+            )
+        )
+    )
+    condition_3_subjects = unmet_paths if unmet_paths else tuple(sorted(checked_paths))
+    condition_3 = BarCondition(
+        number=3,
+        met=bool(checked_paths) and not unmet_paths,
+        subjects=condition_3_subjects,
+        detail=(
+            "Every signal path the deciding detector(s) read, extracted and "
+            f"catalogued (observed.corpus.covered): {condition_3_subjects}."
+        ),
+    )
+
+    # Condition 5 -- status derives validated.
+    derived_status = failure_modes_module.derive_status(mode)
+    condition_5 = BarCondition(
+        number=5,
+        met=derived_status == "validated",
+        subjects=(derived_status,),
+        detail=(
+            "Derived lifecycle status "
+            f"(segfacet.failure_modes.derive_status): {derived_status!r}."
+        ),
+    )
+
+    return (condition_1, condition_2, condition_3, condition_4, condition_5)
 
 
 # =========================================================================== #
@@ -784,6 +1247,22 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 "complete": matrix.rule_to_mode.complete,
                 "holes": list(matrix.rule_to_mode.holes),
             },
+            "rule_exercise": {
+                "complete": matrix.exercise.rule_direction.complete,
+                "holes": list(matrix.exercise.rule_direction.holes),
+            },
+            "operator_exercise": {
+                "complete": matrix.exercise.operator_direction.complete,
+                "holes": list(matrix.exercise.operator_direction.holes),
+            },
+            "edge_to_detector": {
+                "complete": matrix.edge_to_detector.complete,
+                "holes": [list(hole) for hole in matrix.edge_to_detector.holes],
+            },
+            "detector_to_edge": {
+                "complete": matrix.detector_to_edge.complete,
+                "holes": [list(hole) for hole in matrix.detector_to_edge.holes],
+            },
         },
         "corpus_designated_unregistered_rule_ids": list(
             matrix.corpus_designated_unregistered_rule_ids
@@ -801,6 +1280,29 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 {"corpus": corpus, "case_id": case_id}
                 for corpus, case_id in matrix.conformance.unspecified_cases
             ],
+        },
+        "exercise": {
+            "rules": {
+                r.rule_id: {
+                    "rule_id": r.rule_id,
+                    "state": r.state,
+                    "exercised_by": [
+                        [corpus, case_id] for corpus, case_id in r.exercised_by
+                    ],
+                    "reason": r.reason,
+                    "reason_modes": list(r.reason_modes),
+                }
+                for r in matrix.exercise.rules
+            },
+            "operators": {
+                o.name: {
+                    "name": o.name,
+                    "state": o.state,
+                    "cases": list(o.cases),
+                    "reason": o.reason,
+                }
+                for o in matrix.exercise.operators
+            },
         },
     }
 
@@ -836,8 +1338,8 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
         attribution_by_rule = dict(m.rule_attribution)
         rules_cell = ", ".join(f"{rid} ({attribution_by_rule[rid]})" for rid in m.rules)
         edge_rungs_cell = "; ".join(
-            f"{rule_id} ({detector or 'no detector named'}): {evidence_rung}"
-            for rule_id, detector, evidence_rung in m.edge_rungs
+            f"{rule_id} ({', '.join(detector_ids) or 'no detector named'}): {evidence_rung}"
+            for rule_id, detector_ids, evidence_rung in m.edge_rungs
         )
         cells = [
             str(m.mode),
@@ -946,6 +1448,87 @@ def render_markdown(matrix: TraceabilityMatrix) -> str:
     if matrix.conformance.unspecified_cases:
         for corpus, case_id in matrix.conformance.unspecified_cases:
             lines.append(f"- {corpus}/{case_id}")
+    else:
+        lines.append("- (none)")
+
+    lines.extend(
+        [
+            "",
+            "## Rule corpus exercise",
+            "",
+            f"Direction complete: {matrix.exercise.rule_direction.complete}. "
+            f"Holes: {', '.join(matrix.exercise.rule_direction.holes) if matrix.exercise.rule_direction.holes else 'none'}.",
+            "",
+            "| Rule | State | Exercised by | Reason | Reason modes |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    for r in matrix.exercise.rules:
+        cells = [
+            r.rule_id,
+            r.state,
+            ", ".join(f"{corpus}/{case_id}" for corpus, case_id in r.exercised_by) or "(none)",
+            r.reason or "(none)",
+            ", ".join(str(m) for m in r.reason_modes) or "(none)",
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Operator corpus exercise",
+            "",
+            f"Direction complete: {matrix.exercise.operator_direction.complete}. "
+            f"Holes: {', '.join(matrix.exercise.operator_direction.holes) if matrix.exercise.operator_direction.holes else 'none'}.",
+            "",
+            "| Operator | State | Cases | Reason |",
+            "|---|---|---|---|",
+        ]
+    )
+    for o in matrix.exercise.operators:
+        cells = [
+            o.name,
+            o.state,
+            ", ".join(o.cases) or "(none)",
+            o.reason or "(none)",
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## Edge -> detector",
+            "",
+            f"Direction complete: {matrix.edge_to_detector.complete}. "
+            f"Holes: {len(matrix.edge_to_detector.holes)}.",
+            "",
+        ]
+    )
+    if matrix.edge_to_detector.holes:
+        for mode_id, rule_id, detector_id in matrix.edge_to_detector.holes:
+            lines.append(
+                f"- mode {mode_id}, rule `{rule_id}`: names undeclared "
+                f"detector id {detector_id or '(empty detector_ids)'!r}."
+            )
+    else:
+        lines.append("- (none)")
+
+    lines.extend(
+        [
+            "",
+            "## Detector -> edge",
+            "",
+            f"Direction complete: {matrix.detector_to_edge.complete}. "
+            f"Holes: {len(matrix.detector_to_edge.holes)}.",
+            "",
+        ]
+    )
+    if matrix.detector_to_edge.holes:
+        for rule_id, detector_id in matrix.detector_to_edge.holes:
+            lines.append(
+                f"- rule `{rule_id}`, detector `{detector_id}`: declared but "
+                f"named by no specification edge."
+            )
     else:
         lines.append("- (none)")
 

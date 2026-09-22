@@ -234,6 +234,12 @@ Public API
 ----------
 ``ModeSpec``, ``CandidateFeature``, ``IntendedRule``, ``CorpusCaseExpectation``
     Frozen dataclasses (the schema).
+``ModeSignOff`` / ``SIGN_OFF_OUTCOMES``
+    The frozen per-mode maintainer sign-off record (item 168, roadmap Stage
+    32 bar condition 6) and its closed, two-member outcome vocabulary.
+``MODE_SIGN_OFFS`` / ``mode_sign_off(mode_id) -> Optional[ModeSignOff]``
+    The read-only mapping of recorded sign-offs, keyed by mode id -- shipped
+    empty until a person resolves the gate -- and its accessor.
 ``SPECIFICATION``
     The immutable, ascending-by-id seed (a ``MappingProxyType``).
 ``iter_modes() -> Iterator[ModeSpec]``
@@ -277,12 +283,17 @@ The changes are the "Taxonomy as signed off" section above, applied in
 this module, the rule declarations, both committed corpora and
 ``feature_docs.MODE_ANCHOR_PATHS``; the eval-harness re-key, the vision.md
 §6 re-issue and the new rules the review asked for are follow-up items.
+
+A per-mode sign-off (roadmap Stage 32 bar condition 6, item 168) is a
+separate record from the one above: it lives in :data:`MODE_SIGN_OFFS`, not
+in this docstring.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import json
+import re
 from pathlib import Path
 from types import MappingProxyType
 from typing import Dict, FrozenSet, Iterable, Iterator, Mapping, Optional, Tuple
@@ -292,6 +303,10 @@ __all__ = [
     "CandidateFeature",
     "IntendedRule",
     "CorpusCaseExpectation",
+    "SIGN_OFF_OUTCOMES",
+    "ModeSignOff",
+    "MODE_SIGN_OFFS",
+    "mode_sign_off",
     "SPECIFICATION",
     "ConditionSpec",
     "CONDITIONS",
@@ -304,6 +319,7 @@ __all__ = [
     "RUNG_LABELS",
     "derive_status",
     "derive_mode_rung",
+    "modes_for_detector",
     "measured_firing",
     "case_agrees",
     "specification_conflicts",
@@ -322,7 +338,7 @@ __all__ = [
     "MD_PATH",
 ]
 
-SCHEMA_VERSION = "2.1"
+SCHEMA_VERSION = "2.2"
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
@@ -425,11 +441,15 @@ class CandidateFeature:
 @dataclasses.dataclass(frozen=True)
 class IntendedRule:
     """One mode <-> rule edge, carrying the **per-edge evidence rung**
-    (AC13, gate 3 decision 3). ``detector`` names the specific detector
-    within a rule that has several; may be empty."""
+    (AC13, gate 3 decision 3). ``detector_ids`` (item 164) names the
+    first-class detector id(s) -- declared on the named rule's
+    ``RuleModeDeclaration.detectors`` -- that this edge attributes the mode
+    to; a tuple, since a rule's several detectors may all serve the same
+    edge. May be empty at construction (a scored hole, AC7/AC13), but every
+    shipped edge in :data:`SPECIFICATION` carries at least one (AC5)."""
 
     rule_id: str
-    detector: str
+    detector_ids: Tuple[str, ...]
     evidence_rung: str
 
 
@@ -443,6 +463,53 @@ class CorpusCaseExpectation:
     corpus: str
     expected_firing: Tuple[str, ...]
     reason: str
+
+
+#: The closed, two-member outcome vocabulary a :class:`ModeSignOff` may
+#: record (item 168). There is deliberately no third "declined" member --
+#: see the item spec's Decisions & Trade-offs.
+SIGN_OFF_OUTCOMES: Tuple[str, ...] = ("at-the-bar", "intermediate-state")
+
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+@dataclasses.dataclass(frozen=True)
+class ModeSignOff:
+    """One maintainer sign-off of a mode (item 168, roadmap Stage 32 bar
+    condition 6): the mode id, the resolution date of the human gate that
+    recorded it, the chosen outcome and the maintainer's note. Only a person
+    may create one -- see :data:`MODE_SIGN_OFFS`, shipped empty."""
+
+    mode_id: int
+    date: str
+    outcome: str
+    note: str
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.mode_id, bool)
+            or not isinstance(self.mode_id, int)
+            or self.mode_id < 1
+        ):
+            raise ValueError(
+                f"ModeSignOff {self.mode_id!r}: 'mode_id' must be an int >= 1, got "
+                f"{self.mode_id!r}."
+            )
+        if not isinstance(self.date, str) or not _ISO_DATE_RE.match(self.date):
+            raise ValueError(
+                f"ModeSignOff {self.mode_id}: 'date' must match YYYY-MM-DD, got "
+                f"{self.date!r}."
+            )
+        if self.outcome not in SIGN_OFF_OUTCOMES:
+            raise ValueError(
+                f"ModeSignOff {self.mode_id}: 'outcome' {self.outcome!r} is not a "
+                f"member of SIGN_OFF_OUTCOMES {SIGN_OFF_OUTCOMES}."
+            )
+        if not isinstance(self.note, str) or not self.note:
+            raise ValueError(
+                f"ModeSignOff {self.mode_id}: 'note' must be a non-empty str, got "
+                f"{self.note!r}."
+            )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -626,6 +693,33 @@ class ModeSpec:
                     f"ModeSpec {self.id}: an intended rule has an empty 'rule_id' "
                     f"({rule!r})."
                 )
+            if not isinstance(rule.detector_ids, tuple):
+                raise ValueError(
+                    f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                    f"'detector_ids' must be a tuple, got "
+                    f"{type(rule.detector_ids).__name__}."
+                )
+            previous_detector_id: Optional[str] = None
+            for detector_id in rule.detector_ids:
+                if not isinstance(detector_id, str) or not detector_id:
+                    raise ValueError(
+                        f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                        f"'detector_ids' elements must be non-empty str, got "
+                        f"{detector_id!r}."
+                    )
+                if previous_detector_id is not None and detector_id == previous_detector_id:
+                    raise ValueError(
+                        f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                        f"'detector_ids' must not contain duplicates, got "
+                        f"{detector_id!r} twice."
+                    )
+                if previous_detector_id is not None and detector_id < previous_detector_id:
+                    raise ValueError(
+                        f"ModeSpec {self.id}: intended rule {rule.rule_id!r} "
+                        f"'detector_ids' must be ascending, but {detector_id!r} "
+                        f"follows {previous_detector_id!r}."
+                    )
+                previous_detector_id = detector_id
             if rule.evidence_rung not in EVIDENCE_RUNGS:
                 raise ValueError(
                     f"ModeSpec {self.id}: intended rule {rule.rule_id!r} has "
@@ -841,17 +935,17 @@ _MODE_1 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="fragmentation",
-            detector="Fragmentation:",
+            detector_ids=("components",),
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -965,12 +1059,12 @@ _MODE_2 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1021,15 +1115,31 @@ _MODE_3 = ModeSpec(
         "part of it."
     ),
     mechanism=(
-        "No corpus case and no detector of its own: the label-map proxy is "
-        "the split vertebra reading under its level's volume/extent range "
-        "(bounds, per_label.{label}.geometry.physical_volume_mm3; "
-        "reference_delta, "
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both needs-real-data. The neighbour that takes the part reads over "
-        "its range, which is mode 2's proxy, so on a real case the two "
-        "modes' proxy signals co-occur. A split fixture (part of one label "
-        "reassigned to its neighbour) is not yet authored."
+        "Its own detector as of item 167: fragmentation's neighbour_contact "
+        "detector fires on per_label.{label}.components.stray_contact_area_mm2 "
+        "-- the maximum, over a label's non-largest connected components, of "
+        "that component's 6-neighbour face-contact area with any single "
+        "other non-zero label -- strictly above "
+        "DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both "
+        "committed corpora (2026-09-20): the only firing value is 750.0 mm^2 "
+        "(label 23 against label 22 on the split case, +650.0 above "
+        "threshold) and every other label of every other case measures "
+        "0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), "
+        "whose contacting components are each label's largest, and "
+        "fuse_adjacent (mode 2, this mode's converse), whose absorbed "
+        "neighbour is detached but touches nothing. On the split corpus "
+        "case, label 23 now carries two findings: fragmentation's "
+        "Fragmentation: detector (per_label.{label}.components."
+        "fragmentation_index) -- mode 1's detector co-detecting, because "
+        "label 23 now spans two disconnected bodies -- and this mode's own "
+        "Neighbour contact: detector. A secondary, needs-real-data proxy "
+        "remains: the split vertebra reading under its level's "
+        "volume/extent range (bounds, "
+        "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
+        "reference_delta.{label}.features.physical_volume_mm3.robust_z). "
+        "The neighbour that takes the part reads over its range, which is "
+        "mode 2's proxy, so on a real case the two modes' proxy signals "
+        "co-occur."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1042,7 +1152,7 @@ _MODE_3 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="neighbour_label_contact_area_mm2",
+            path="per_label.{label}.components.stray_contact_area_mm2",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1057,16 +1167,43 @@ _MODE_3 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
+        IntendedRule(
+            rule_id="fragmentation",
+            detector_ids=("neighbour_contact",),
+            evidence_rung="synthetic-demonstrable",
+        ),
     ),
-    corpus_cases=(),
+    corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="split",
+            corpus="geometric",
+            expected_firing=("fragmentation",),
+            reason=(
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-20): "
+                "the split donates a contiguous end-slab (40% of label 22's "
+                "stacking-axis extent) to label 23, so label 23 now spans "
+                "two disconnected bodies (fragmentation, Fragmentation:, "
+                "mode 1's detector -- detector id components) on the "
+                "receiving label, AND now carries this mode's own "
+                "Neighbour contact: finding (detector id neighbour_contact, "
+                "item 167): stray_contact_area_mm2=750.0 against label 22, "
+                "strictly above the 100.0 mm^2 threshold. Both findings "
+                "share rule_id fragmentation, so the rule-id-granular "
+                "expected_firing set is unchanged at one element -- AC8/A3 "
+                "of item 167. Neither of the two needs-real-data intended "
+                "rules (bounds, reference_delta) fires without a reference."
+            ),
+        ),
+    ),
     severity="flagged-for-review",
     status="specified",
     provenance="hypothesised",
@@ -1121,17 +1258,17 @@ _MODE_4 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="fragmentation",
-            detector="Rogue island(s):",
+            detector_ids=("islands",),
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
             rule_id="bounds",
-            detector="",
+            detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1276,10 +1413,7 @@ _MODE_6 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="coverage",
-            detector=(
-                "Missing interior level(s): / Incomplete coverage (span): / "
-                "Below expected count:"
-            ),
+            detector_ids=("count_shortfall", "incomplete_span", "missing_interior"),
             evidence_rung="synthetic-demonstrable",
         ),
     ),
@@ -1431,7 +1565,7 @@ _MODE_8 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1495,12 +1629,12 @@ _MODE_9 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="sequence",
-            detector="Non-continuous label sequence:",
+            detector_ids=("discontinuity",),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
             rule_id="mislabel",
-            detector="Vertebra ordering inconsistent with label:",
+            detector_ids=("ordering",),
             evidence_rung="synthetic-demonstrable",
         ),
     ),
@@ -1812,7 +1946,7 @@ _MODE_15 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="overlap",
-            detector="Overlapping segments:",
+            detector_ids=("overlapping_segments",),
             evidence_rung="structurally-unobservable",
         ),
     ),
@@ -1891,15 +2025,12 @@ _MODE_16 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="intensity",
-            detector=(
-                "Implausible intensity (too low): / (too high): / "
-                "(degenerate/uniform):"
-            ),
+            detector_ids=("degenerate", "too_high", "too_low"),
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
             rule_id="intensity_reference_delta",
-            detector="",
+            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -2121,6 +2252,78 @@ CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
 )
 
 
+#: The maintainer sign-off record per mode (item 168, roadmap Stage 32 bar
+#: condition 6). Shipped empty by item 168's Half A while the human gate
+#: ("Stage 32 selected-mode sign-off", ``docs/aide/progress.md``) was still
+#: ``⏳ Awaiting`` -- no agent may add an entry here on its own (AC11). The
+#: gate was resolved ``✅ Approved (2026-09-22)``, and these two records are
+#: its Half B, keyed by their own ``mode_id`` and dated with the gate row's
+#: resolution date. Both are ``intermediate-state``: conditions 1-5 held
+#: live when signed, and the maintainer review of 2026-09-22
+#: (``docs/aide/insights.md``, entries dated 2026-09-22) names what must
+#: change before either mode is signed at the bar.
+MODE_SIGN_OFFS: Mapping[int, ModeSignOff] = MappingProxyType(
+    {
+        3: ModeSignOff(
+            mode_id=3,
+            date="2026-09-22",
+            outcome="intermediate-state",
+            note=(
+                "Signed at a recorded intermediate state, not at the bar. "
+                "The neighbour_contact detector's 100 mm^2 threshold has no "
+                "evidence: the geometric corpus base is five non-touching "
+                "axis-aligned boxes, so its one firing value (750 mm^2) is the "
+                "fixture's maximum cross-section and every other reading is "
+                "structurally 0.0. Before signing at the bar: neighbour_contact "
+                "moves out of fragmentation into its own rule; the split case "
+                "is re-authored at ~20 percent of the body on a lordotic base, "
+                "with a second sub-type where the split part carries its own "
+                "label. Maintainer review of 2026-09-22; lands as queue 023."
+            ),
+        ),
+        4: ModeSignOff(
+            mode_id=4,
+            date="2026-09-22",
+            outcome="intermediate-state",
+            note=(
+                "Signed at a recorded intermediate state, not at the bar. "
+                "Conditions 1-5 hold live (inject_islands fires fragmentation's "
+                "islands detector alone), but the entry's discriminator "
+                "describes a grading by the island's distance from the main "
+                "body that the code does not perform -- "
+                "island_distance_from_main_body_mm is unbuilt -- and the "
+                "corpus base the fixture sits on is replaced by a lordotic one. "
+                "Maintainer review of 2026-09-22; lands as queue 023."
+            ),
+        ),
+    }
+)
+
+
+def _validate_sign_offs(
+    sign_offs: Mapping[int, ModeSignOff] = MODE_SIGN_OFFS,
+) -> None:
+    """Raise ``ValueError`` for a key of *sign_offs* absent from
+    :data:`SPECIFICATION`, or one disagreeing with its record's own
+    ``mode_id``. Takes the mapping as its first positional argument,
+    defaulting to :data:`MODE_SIGN_OFFS`, so a test can exercise it over a
+    constructed mapping without touching the shipped one."""
+    for key, record in sign_offs.items():
+        if key not in SPECIFICATION:
+            raise ValueError(
+                f"MODE_SIGN_OFFS: key {key!r} is not a mode id in SPECIFICATION "
+                f"(ids: {sorted(SPECIFICATION)!r})."
+            )
+        if record.mode_id != key:
+            raise ValueError(
+                f"MODE_SIGN_OFFS: key {key!r} disagrees with its record's own "
+                f"mode_id {record.mode_id!r}."
+            )
+
+
+_validate_sign_offs()
+
+
 def iter_conditions() -> Iterator[ConditionSpec]:
     """Yield the conditions in ascending ``id`` order. Takes no argument."""
     for condition_id in sorted(CONDITIONS):
@@ -2144,6 +2347,14 @@ def iter_modes() -> Iterator[ModeSpec]:
     for mode_id in sorted(SPECIFICATION):
         yield SPECIFICATION[mode_id]
 
+
+def mode_sign_off(mode_id: int) -> Optional[ModeSignOff]:
+    """The maintainer sign-off recorded for *mode_id*, or ``None``.
+
+    ``None`` means *not signed off* -- never *signed off with nothing
+    recorded*: a mode either has a full :class:`ModeSignOff` in
+    :data:`MODE_SIGN_OFFS` or it has none at all."""
+    return MODE_SIGN_OFFS.get(mode_id)
 
 
 # =========================================================================== #
@@ -2368,6 +2579,24 @@ def derive_mode_rung(mode: ModeSpec) -> Optional[str]:
     return min(
         (rule.evidence_rung for rule in mode.intended_rules),
         key=lambda rung: _RUNG_STRENGTH[rung],
+    )
+
+
+def modes_for_detector(rule_id: str, detector_id: str) -> Tuple[int, ...]:
+    """Which modes *detector_id* (of *rule_id*) serves, derived from
+    :data:`SPECIFICATION` alone (item 164, A1): the ascending tuple of mode
+    ids for which some mode's ``IntendedRule`` edge names ``rule_id`` and
+    carries ``detector_id`` in its ``detector_ids``. A detector declares no
+    modes of its own -- this is the sole source of that fact, recomputed on
+    every call from the live specification, never cached or authored a
+    second time on the rule."""
+    return tuple(
+        sorted(
+            mode_id
+            for mode_id, mode_spec in SPECIFICATION.items()
+            for edge in mode_spec.intended_rules
+            if edge.rule_id == rule_id and detector_id in edge.detector_ids
+        )
     )
 
 
@@ -2636,7 +2865,7 @@ def specification_to_dict() -> dict:
                 "intended_rules": [
                     {
                         "rule_id": rule.rule_id,
-                        "detector": rule.detector,
+                        "detector_ids": list(rule.detector_ids),
                         "evidence_rung": rule.evidence_rung,
                     }
                     for rule in mode.intended_rules
@@ -2656,6 +2885,15 @@ def specification_to_dict() -> dict:
                 "status_derived": derive_status(mode),
                 "derived_rung": derive_mode_rung(mode),
                 "provenance": mode.provenance,
+                "sign_off": (
+                    None
+                    if mode_sign_off(mode.id) is None
+                    else {
+                        "date": mode_sign_off(mode.id).date,
+                        "outcome": mode_sign_off(mode.id).outcome,
+                        "note": mode_sign_off(mode.id).note,
+                    }
+                ),
             }
         )
     conditions = []
@@ -2739,6 +2977,15 @@ def render_markdown() -> str:
         lines.append(f"- Status, derived (live): {mode['status_derived']}")
         rung = mode["derived_rung"] if mode["derived_rung"] is not None else "none"
         lines.append(f"- Derived rung (strongest edge, live): {rung}")
+        sign_off = mode["sign_off"]
+        if sign_off is None:
+            lines.append("- Maintainer sign-off: (none recorded)")
+        else:
+            lines.append(
+                "- Maintainer sign-off: "
+                f"{sign_off['date']} -- {sign_off['outcome']} -- "
+                f"{_md_escape(sign_off['note'])}"
+            )
         lines.append("")
         lines.append("Candidate features:")
         lines.append("")
@@ -2765,7 +3012,7 @@ def render_markdown() -> str:
         if not mode["intended_rules"]:
             lines.append("- (none)")
         for rule in mode["intended_rules"]:
-            detector = rule["detector"] or "(none)"
+            detector = ", ".join(rule["detector_ids"]) or "(none)"
             lines.append(
                 f"- `{rule['rule_id']}` (detector: {detector}) -- evidence rung: "
                 f"{rule['evidence_rung']}"

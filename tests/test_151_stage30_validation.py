@@ -222,7 +222,7 @@ def test_ac3_every_mode_row_title_authored_status_and_edge_rungs_match_specifica
         assert row.title == mode_spec.name
         assert row.authored_status == mode_spec.status
         expected_edges = tuple(
-            (rule.rule_id, rule.detector, rule.evidence_rung)
+            (rule.rule_id, tuple(rule.detector_ids), rule.evidence_rung)
             for rule in mode_spec.intended_rules
         )
         assert row.edge_rungs == expected_edges
@@ -344,7 +344,7 @@ def _all_manifest_case_keys():
 
 def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
-    assert len(keys) == 15, keys
+    assert len(keys) == 16, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -360,7 +360,7 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.unspecified_cases == ()
     assert matrix.conformance.disagreements == ()
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
-    assert matrix.conformance.agree_count == 15
+    assert matrix.conformance.agree_count == 16
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
@@ -447,12 +447,15 @@ def test_adv_ac11_offset_exactly_at_threshold_does_not_count_as_above():
 
 
 def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
+    # 17 -> 18: item 167 (docs/aide/items/167-mode-3s-own-feature-and-
+    # detector.md, Correction 2026-09-20, C4) adds mode 3's third edge
+    # (fragmentation, via the new neighbour_contact evidence).
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 17, total_edges
+    assert total_edges == 18, total_edges
 
 
 # =========================================================================== #
@@ -539,7 +542,7 @@ def test_ac14_attribution_matches_independent_recomputation_from_measured_sets(
 def test_ac14_no_analytic_edge_carries_the_strongest_rung(matrix):
     for row in matrix.modes:
         attribution = dict(row.rule_attribution)
-        for rule_id, detector, evidence_rung in row.edge_rungs:
+        for rule_id, detector_ids, evidence_rung in row.edge_rungs:
             if attribution.get(rule_id) == "analytic":
                 assert evidence_rung != "synthetic-demonstrable", (row.mode, rule_id)
 
@@ -1081,9 +1084,14 @@ def _live_validated_split(detection_by_case_id):
 
 
 def test_ac35_status_counts_note_matches_live_derivation():
+    # Item 167 (A6): `aide progress amend` *appends* a dated correction under
+    # the ticked box rather than rewriting it, so the section can carry more
+    # than one status-counts clause -- the superseded one first, the current
+    # attestation last. Read the LAST match, not the first.
     section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    match = _STATUS_COUNTS_RE.search(section)
-    assert match, "Stage 30's criterion-1 evidence note carries no status-counts clause yet"
+    matches = list(_STATUS_COUNTS_RE.finditer(section))
+    assert matches, "Stage 30's criterion-1 evidence note carries no status-counts clause yet"
+    match = matches[-1]
     n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
     live_n, live_counts = _live_status_counts()
     assert n == live_n
@@ -1094,9 +1102,11 @@ def test_ac35_status_counts_note_matches_live_derivation():
 
 
 def test_ac35_rung_counts_note_matches_live_derivation():
+    # Item 167 (A6): read the LAST appended clause, per the note above.
     section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    match = _RUNG_COUNTS_RE.search(section)
-    assert match, "Stage 30's criterion-3 evidence note carries no rung-counts clause yet"
+    matches = list(_RUNG_COUNTS_RE.finditer(section))
+    assert matches, "Stage 30's criterion-3 evidence note carries no rung-counts clause yet"
+    match = matches[-1]
     sd, nrd, su, none_, total_edges, e_sd, e_nrd, e_su = (int(g) for g in match.groups())
     mode_counts, live_total_edges, edge_counts = _live_rung_counts()
     assert sd == mode_counts["synthetic-demonstrable"]
@@ -1110,9 +1120,11 @@ def test_ac35_rung_counts_note_matches_live_derivation():
 
 
 def test_ac35_validated_split_note_matches_live_derivation(detection_by_case_id):
+    # Item 167 (A6): read the LAST appended clause, per the note above.
     section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    match = _VALIDATED_SPLIT_RE.search(section)
-    assert match, "Stage 30's criterion-1 evidence note carries no validated-split clause yet"
+    matches = list(_VALIDATED_SPLIT_RE.finditer(section))
+    assert matches, "Stage 30's criterion-1 evidence note carries no validated-split clause yet"
+    match = matches[-1]
     pipeline_detected, reconstructed_only = (int(g) for g in match.groups())
     live_pipeline, live_reconstructed = _live_validated_split(detection_by_case_id)
     assert pipeline_detected == live_pipeline
@@ -1124,11 +1136,28 @@ def test_adv_ac35_status_counts_parser_rejects_missing_clause():
 
 
 def test_adv_ac35_status_counts_parser_rejects_off_by_one():
-    text = "derived status counts over 16 modes: validated 7, implemented 3, specified 0, proposed 7"
+    # Item 167 (Correction 2026-09-20, C4): the old literal ("validated 7")
+    # was a hardcoded guess that happened to equal live+1 before this item;
+    # item 167 moved mode 3 to "validated", taking the live count itself to
+    # 7, so the literal stopped perturbing anything and the control passed
+    # by coincidence with live state rather than by construction. Build the
+    # perturbed clause from the live derivation instead, so it can never
+    # coincide with live state again.
+    live_n, live_counts = _live_status_counts()
+    text = (
+        f"derived status counts over {live_n} modes: "
+        f"validated {live_counts['validated'] + 1}, "
+        f"implemented {live_counts['implemented']}, "
+        f"specified {live_counts['specified']}, "
+        f"proposed {live_counts['proposed']}"
+    )
     match = _STATUS_COUNTS_RE.search(text)
     assert match is not None
-    n, validated, *_rest = (int(g) for g in match.groups())
-    _live_n, live_counts = _live_status_counts()
+    n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
+    assert n == live_n
+    assert implemented == live_counts["implemented"]
+    assert specified == live_counts["specified"]
+    assert proposed == live_counts["proposed"]
     assert validated != live_counts["validated"]
 
 

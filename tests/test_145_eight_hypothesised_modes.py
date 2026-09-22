@@ -86,11 +86,12 @@ _PROPOSED_MODE_IDS = (5, 7, 10, 11, 12, 13, 14)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
-#: fixture and ``_manifest_case`` resolve against. Modes 3 and 8 are
-#: specified but carry no case; mode 16's three cases are in the intensity
+#: fixture and ``_manifest_case`` resolve against. Mode 8 is specified but
+#: carries no case; mode 3 gained its ``split`` case at item 166
+#: (2026-09-20); mode 16's three cases are in the intensity
 #: corpus; the proposed entries (mode 10 among them since the maintainer
 #: narrowed it to a skipped label) carry none.
-_GEOMETRIC_CORPUS_MODE_IDS = (1, 2, 4, 6, 9, 15)
+_GEOMETRIC_CORPUS_MODE_IDS = (1, 2, 3, 4, 6, 9, 15)
 
 #: The condition the sign-off retired failure mode 6 into.
 _FOV_CONDITION_ID = "fov_truncation"
@@ -101,7 +102,7 @@ _FOV_CONDITION_ID = "fov_truncation"
 _EXPECTED_DERIVED_STATUS = {
     1: "validated",
     2: "implemented",
-    3: "implemented",
+    3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
     6: "validated",
@@ -216,17 +217,6 @@ def _condition(fm, condition_id: str):
     )
     assert condition is not None, condition_id
     return condition
-
-
-def _detector_alternatives(detector: str) -> tuple:
-    """An ``IntendedRule.detector`` may name several detectors of one rule,
-    separated by ``" / "`` (``fragmentation``'s two, ``coverage``'s two,
-    ``intensity``'s three). Split them so a prefix test asks "one of these",
-    not "this exact composite string", which no finding reason can ever
-    start with."""
-    parts = tuple(part.strip() for part in detector.split(" / ") if part.strip())
-    assert parts, detector
-    return parts
 
 
 def _live_declared_rule_ids(mode_id: int) -> set:
@@ -1068,11 +1058,8 @@ def test_ac18_mislabel_detector_leading_tags_differ(corpus):
         if edge.rule_id == "mislabel"
     ]
     assert len(mislabel_edges) == 1, mislabel_edges
-    assert mislabel_edges[0].detector.startswith(_MISLABEL_TAG.rstrip()), (
-        mislabel_edges[0].detector,
-        _MISLABEL_TAG,
-    )
-    assert _MISALIGN_TAG.strip() not in mislabel_edges[0].detector
+    assert mislabel_edges[0].detector_ids == ("ordering",), mislabel_edges[0].detector_ids
+    assert "spline_offset" not in mislabel_edges[0].detector_ids
 
 
 # =========================================================================== #
@@ -1135,18 +1122,17 @@ def test_ac20_detector_names_the_detector_that_actually_fired(corpus):
     manifest and would raise on the intensity cases, so only the modes whose
     cases live there are iterated.
 
-    Two reconciliations for the item-150 sign-off:
+    Reconciled for item 164: ``detector`` was a prose string naming several
+    detectors of one rule separated by ``" / "``; ``detector_ids`` is the
+    tuple that replaces it, so the fired detector is found by membership
+    rather than a prefix join.
 
-    * A ``detector`` may name several detectors of one rule separated by
-      ``" / "`` (``fragmentation``'s two, ``coverage``'s two), so the prefix
-      test asks for one of the alternatives rather than the whole composite
-      string, which no finding reason can start with.
-    * "an edge that fired nothing carries an empty detector" is no longer
-      true in that direction: an edge may name detectors that fire on none
-      of its mode's cases (mode 6's ``coverage`` edge also names the opt-in
-      span/count detectors, which ship **disabled**). The contrapositive is what survives and is asserted -- an edge
-      whose ``detector`` is empty fired nothing -- which still catches an
-      unnamed detector that does fire.
+    "an edge that fired nothing carries an empty detector" is no longer
+    true in that direction: an edge may name detectors that fire on none
+    of its mode's cases (mode 6's ``coverage`` edge also names the opt-in
+    span/count detectors, which ship **disabled**). The contrapositive is what survives and is asserted -- an edge
+    whose ``detector_ids`` is empty fired nothing -- which still catches an
+    unnamed detector that does fire.
     """
     import segfacet.failure_modes as fm
 
@@ -1163,17 +1149,14 @@ def test_ac20_detector_names_the_detector_that_actually_fired(corpus):
         for edge in mode.intended_rules:
             if edge.rule_id in fired_rule_ids:
                 checked_fired += 1
-                assert edge.detector, (mode.id, edge.rule_id)
-                alternatives = _detector_alternatives(edge.detector)
+                assert edge.detector_ids, (mode.id, edge.rule_id)
                 matching = [f for f in fired_findings if f.rule_id == edge.rule_id]
                 assert any(
-                    f.reason.startswith(alternative)
-                    for f in matching
-                    for alternative in alternatives
+                    f.detector_id in edge.detector_ids for f in matching
                 ), (
                     mode.id,
                     edge.rule_id,
-                    alternatives,
+                    edge.detector_ids,
                     [f.reason for f in matching],
                 )
             else:
@@ -1187,27 +1170,22 @@ def test_ac20_detector_names_the_detector_that_actually_fired(corpus):
     assert checked_unfired, "expected >=1 analytic-only edge that fired nothing"
 
 
-def test_ac20_an_empty_detector_never_belongs_to_a_rule_that_fired(corpus):
-    """The surviving direction of the retired "unfired => empty detector"
-    claim, asserted on its own so it cannot be lost in the branch above: an
-    edge authored with no detector name must be one whose rule fires on none
-    of its mode's own corpus cases."""
+def test_ac20_no_edge_is_authored_without_a_detector_id():
+    """Reconciled for item 164 (2026-09-20). Retires the premise of the
+    predecessor this replaces (``test_ac20_an_empty_detector_never_belongs_to_a_rule_that_fired``):
+    step 7 of item 164 gives each of the ten ``detector=""`` edges its rule's
+    full detector set, so no edge is left with an empty ``detector_ids`` and
+    a corpus-driven "checked >= 1" guard would reach zero. See AC5/AC7."""
     import segfacet.failure_modes as fm
 
     checked = 0
     for mode in fm.iter_modes():
         if mode.id not in _GEOMETRIC_CORPUS_MODE_IDS:
             continue
-        fired_rule_ids = set()
-        for case in mode.corpus_cases:
-            _detection, findings, _record = corpus(case.case_id)
-            fired_rule_ids |= {f.rule_id for f in findings}
         for edge in mode.intended_rules:
-            if edge.detector:
-                continue
+            assert edge.detector_ids, (mode.id, edge.rule_id)
             checked += 1
-            assert edge.rule_id not in fired_rule_ids, (mode.id, edge.rule_id)
-    assert checked, "expected >=1 edge authored with no detector name"
+    assert checked, "expected >=1 intended-rule edge across the geometric-corpus modes"
 
 
 # =========================================================================== #
@@ -1462,7 +1440,7 @@ def test_adv_intended_rule_for_a_rule_not_declaring_the_mode_fails_ac5_check():
         "adversarial precondition: 'border' must not declare mode 1"
     )
 
-    bad_edge = fm.IntendedRule(rule_id="border", detector="", evidence_rung="needs-real-data")
+    bad_edge = fm.IntendedRule(rule_id="border", detector_ids=(), evidence_rung="needs-real-data")
     bad_mode = dataclasses.replace(mode, intended_rules=mode.intended_rules + (bad_edge,))
     assert not _ac5_edge_set_matches_registry(bad_mode)
 

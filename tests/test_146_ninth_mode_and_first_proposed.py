@@ -1612,7 +1612,7 @@ def test_adv_mode13_with_intended_rules_is_legal_at_construction_but_flagged(iso
 
     mode13 = fm.SPECIFICATION[13]
     fake_edge = fm.IntendedRule(
-        rule_id="__item146_adv_mode13_edge__", detector="", evidence_rung="needs-real-data"
+        rule_id="__item146_adv_mode13_edge__", detector_ids=(), evidence_rung="needs-real-data"
     )
     contradictory = dataclasses.replace(mode13, intended_rules=(fake_edge,))  # must not raise
     assert contradictory.intended_rules == (fake_edge,)

@@ -728,10 +728,11 @@ _PRE_129_FINDINGS = {
 #: Corpus cases added *after* this item measured the table above, so this
 #: item never recorded a pre-item finding set for them. Added by item 150
 #: (2026-09-14) when the signed-off failure-mode catalogue gained corpus
-#: coverage for modes 2 and 4. The table is deliberately not extended with
+#: coverage for modes 2 and 4, and by item 166 (2026-09-20) for mode 3's
+#: ``split`` case. The table is deliberately not extended with
 #: values item 129 never measured; instead the uncovered set is pinned
-#: exactly, so a *third* uncovered case still fails this test.
-_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel"}
+#: exactly, so a *fourth* uncovered case still fails this test.
+_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel", "split"}
 
 
 def test_ac29_no_corpus_case_changes_findings():

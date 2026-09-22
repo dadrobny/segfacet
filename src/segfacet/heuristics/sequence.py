@@ -35,6 +35,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -161,6 +162,13 @@ class SequenceRule(Rule):
                 role="signal",
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="discontinuity",
+                description=_DISCONTINUITY_TAG,
+                signal_paths=("relationships.out_of_order_labels[]",),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -218,5 +226,6 @@ class SequenceRule(Rule):
                 f"out of anatomical order."
             ),
             labels=resolved_labels,
+            detector_id="discontinuity",
         )
         return [finding]

@@ -110,6 +110,10 @@
           "description": "Identifier of the rule that produced this finding (e.g. 'bounds').",
           "minLength": 1
         },
+        "detector_id": {
+          "type": "string",
+          "description": "Rule-local id (item 164) of the detector branch that produced this finding; optional, empty for a report written before this item."
+        },
         "severity": {
           "type": "string",
           "description": "Severity level of this finding.",
@@ -332,6 +336,16 @@
           "minimum": 0,
           "maximum": 1,
           "description": "Fraction of label volume outside the dominant component -- the complement of largest_component_fraction (item 098)."
+        },
+        "stray_contact_area_mm2": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Neighbour-label contact area (mm^2): the maximum, over every stray component, of that component's 6-neighbour face-contact area with any single other non-zero label (item 167)."
+        },
+        "stray_contact_label": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The other label id carrying the interface at stray_contact_area_mm2, or 0 when stray_contact_area_mm2 == 0.0 (item 167)."
         }
       }
     },

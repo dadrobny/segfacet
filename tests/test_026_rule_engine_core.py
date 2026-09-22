@@ -369,18 +369,21 @@ def test_ac5_to_dict_no_raw_class_names_in_json():
 
 
 def test_ac5_from_dict_reconstructs_all_fields():
-    """AC5: from_dict restores rule_id, severity, reason, and labels exactly."""
+    """AC5: from_dict restores rule_id, severity, reason, labels and
+    detector_id exactly (item 164 added detector_id to the round-trip)."""
     f = Finding(
         rule_id="myrule",
         severity=Severity.FLAG,
         reason="something flagged",
         labels=frozenset({20, 21}),
+        detector_id="probe",
     )
     f2 = Finding.from_dict(f.to_dict())
     assert f2.rule_id == "myrule"
     assert f2.severity == Severity.FLAG
     assert f2.reason == "something flagged"
     assert f2.labels == frozenset({20, 21})
+    assert f2.detector_id == "probe"
 
 
 # =========================================================================== #

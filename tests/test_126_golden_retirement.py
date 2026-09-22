@@ -1029,7 +1029,13 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     carries a stable pointer, see test_105's AC9 test), so the pin now reads
     (26, 94) from the companion this item introduces
     (docs/aide/golden_evidence.generated.json) instead of the row -- still
-    cross-checked against a live build_report_for_case measurement."""
+    cross-checked against a live build_report_for_case measurement.
+
+    (26, 94) -> (26, 96): item 167 (docs/aide/items/167-mode-3s-own-feature-
+    and-detector.md, Correction 2026-09-20, C2) adds two leaf paths
+    (stray_contact_area_mm2, stray_contact_label), both wired by the
+    fragmentation rule's declaration, so the unwired count n stays 26 and
+    only the total m moves."""
     import segfacet.catalogue as catalogue
 
     from segfacet.synth.golden import build_report_for_case
@@ -1039,8 +1045,8 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     assert case_id in companion["cases"], f"{case_id!r} missing from the companion"
     entry = companion["cases"][case_id]
     documented_n, documented_m = entry["unwired_leaf_paths"], entry["total_leaf_paths"]
-    assert (documented_n, documented_m) == (26, 94), (
-        f"{case_id!r}'s documented evidence has moved off the pinned 26/94 "
+    assert (documented_n, documented_m) == (26, 96), (
+        f"{case_id!r}'s documented evidence has moved off the pinned 26/96 "
         f"value: {documented_n}/{documented_m}"
     )
 

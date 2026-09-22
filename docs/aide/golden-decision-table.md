@@ -181,6 +181,7 @@ signed text.
 | tests/corpus/fixtures/force_overlap_seg.nii.gz | The force_overlap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice), and is also read by test_094's AC3 loader-invariance snapshot. | tests/test_040_synthetic_corpus.py, tests/test_094_tptbox_image_layer.py | n/a | keep | — |
 | tests/corpus/fixtures/fuse_adjacent_seg.nii.gz | The fuse_adjacent corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/remove_level_relabel_seg.nii.gz | The remove_level_relabel corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/split_seg.nii.gz | The split corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/intensity/manifest.json | The Stage-8 intensity corpus index (case ids, scan/seg fixture paths, expected finding metadata) is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
 | tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz | The clean-HU intensity fixture scan is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
 | tests/corpus/intensity/fixtures/clean_spine_seg.nii.gz | The intensity corpus's shared clean spine segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
@@ -293,6 +294,8 @@ with the reason it earns its keep rather than following Group A:
   report snapshot (added by item 150, 2026-09-14).
 - `tests/corpus/fixtures/remove_level_relabel_seg.nii.gz` — input fixture,
   not a report snapshot (added by item 150, 2026-09-14).
+- `tests/corpus/fixtures/split_seg.nii.gz` — input fixture, not a
+  report snapshot (added by item 166, 2026-09-20).
 - `tests/corpus/intensity/manifest.json` — an input index, not a report
   snapshot; generator reproducibility only.
 - `tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz` — input fixture, not

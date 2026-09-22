@@ -163,6 +163,10 @@ def components_to_dict(c: "ComponentsInfo") -> dict:
     and ``stray_volume_fraction`` (item 098) are emitted verbatim from the
     dataclass, with ``stray_component_sizes`` shallow-copied per the same
     no-aliasing contract as ``component_sizes``.
+
+    ``stray_contact_area_mm2`` and ``stray_contact_label`` (item 167) are
+    emitted verbatim from the dataclass -- mode 3's neighbour-contact signal
+    and its bookkeeping label.
     """
     return {
         "component_count": c.component_count,
@@ -175,6 +179,8 @@ def components_to_dict(c: "ComponentsInfo") -> dict:
         "stray_component_sizes": list(c.stray_component_sizes),
         "stray_volume_mm3": float(c.stray_volume_mm3),
         "stray_volume_fraction": float(c.stray_volume_fraction),
+        "stray_contact_area_mm2": float(c.stray_contact_area_mm2),
+        "stray_contact_label": int(c.stray_contact_label),
     }
 
 

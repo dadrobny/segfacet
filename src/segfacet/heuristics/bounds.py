@@ -33,6 +33,7 @@ from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -352,6 +353,22 @@ class BoundsRule(Rule):
                 ),
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="metric_out_of_range",
+                description=(
+                    "one per-metric [min, max] bound test over volume/"
+                    "extent, below-min and above-max are the two directions "
+                    "of one decision (A3)"
+                ),
+                signal_paths=(
+                    "per_label.{label}.geometry.extent_x_mm",
+                    "per_label.{label}.geometry.extent_y_mm",
+                    "per_label.{label}.geometry.extent_z_mm",
+                    "per_label.{label}.geometry.physical_volume_mm3",
+                ),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -479,6 +496,7 @@ class BoundsRule(Rule):
                         severity=severity,
                         reason=reason,
                         labels=frozenset({label_int}),
+                        detector_id="metric_out_of_range",
                     ))
                 elif value > hi:
                     if from_reference:
@@ -499,6 +517,7 @@ class BoundsRule(Rule):
                         severity=severity,
                         reason=reason,
                         labels=frozenset({label_int}),
+                        detector_id="metric_out_of_range",
                     ))
 
         return findings

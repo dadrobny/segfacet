@@ -58,6 +58,7 @@ from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
+    RuleDetector,
     RuleModeDeclaration,
     register_rule,
 )
@@ -180,6 +181,23 @@ class CoverageRule(Rule):
                 role="signal",
             ),
         ),
+        detectors=(
+            RuleDetector(
+                detector_id="count_shortfall",
+                description=_COUNT_SHORTFALL_TAG,
+                signal_paths=("relationships.present_levels[]",),
+            ),
+            RuleDetector(
+                detector_id="incomplete_span",
+                description=_INCOMPLETE_SPAN_TAG,
+                signal_paths=("relationships.present_levels[]",),
+            ),
+            RuleDetector(
+                detector_id="missing_interior",
+                description=_MISSING_INTERIOR_TAG,
+                signal_paths=("relationships.missing_levels[]",),
+            ),
+        ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
@@ -248,6 +266,7 @@ class CoverageRule(Rule):
                         f"observed present-level span."
                     ),
                     labels=frozenset(),
+                    detector_id="missing_interior",
                 )
             )
 
@@ -309,6 +328,7 @@ class CoverageRule(Rule):
                             f"present span."
                         ),
                         labels=frozenset(),
+                        detector_id="incomplete_span",
                     )
                 )
 
@@ -329,6 +349,7 @@ class CoverageRule(Rule):
                             f"{minimum}."
                         ),
                         labels=frozenset(),
+                        detector_id="count_shortfall",
                     )
                 )
 

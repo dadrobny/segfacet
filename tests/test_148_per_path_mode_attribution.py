@@ -207,7 +207,14 @@ def test_ac2_field_set_and_default_and_backward_compatible_construction():
     from segfacet.heuristics.rule import RuleModeDeclaration
 
     names = {f.name for f in dataclasses.fields(RuleModeDeclaration)}
-    assert names == {"modes", "evidence", "mode_less_reason", "pending_reason", "consumed_paths"}
+    assert names == {
+        "modes",
+        "evidence",
+        "mode_less_reason",
+        "pending_reason",
+        "consumed_paths",
+        "detectors",
+    }
 
     # Every existing standalone construction shape still constructs, and
     # defaults consumed_paths to ().
@@ -460,7 +467,12 @@ def test_ac7_not_read_cannot_hide_an_observed_path(monkeypatch, shipped_catalogu
             key=lambda cp: cp.path,
         )
     )
-    replacement = dataclasses.replace(decl, consumed_paths=new_paths)
+    # detectors=() (item 164, 2026-09-20): path_classification_conflicts()
+    # reads no detector at all, only consumed_paths roles, so dropping the
+    # carried-over detectors here only avoids an unrelated signal_paths
+    # cross-validation on the rebuilt declaration -- it changes nothing the
+    # checker below observes.
+    replacement = dataclasses.replace(decl, consumed_paths=new_paths, detectors=())
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     conflicts = catalogue.path_classification_conflicts()
@@ -1056,8 +1068,10 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
 
 
 def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_catalogue):
+    # Item 167 (2026-09-20): two new `components` leaf paths
+    # (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
     cat = shipped_catalogue
-    assert len(cat.entries) == 138
+    assert len(cat.entries) == 140
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}

@@ -50,11 +50,17 @@ GOLDEN_PATH = Path(__file__).parent / "golden" / "report_format_contract.json"
 #: an integral value, a long non-terminating decimal, a negative value, and
 #: a near-zero exponent-form value. Deliberately distinct from any value a
 #: real extractor would plausibly emit (see item 126's "floats don't leak
-#: into a fresh report" adversarial test).
+#: into a fresh report" adversarial test). Invariant (item 166, Correction 2,
+#: 2026-09-20): every float literal in this module is either `0.0`, `0.5` or
+#: `1.0` -- the three values the guard exempts because real reports
+#: legitimately emit them -- or one of the named long-decimal / exponent-form
+#: constants below. No plain round float is ever written here directly.
 _INTEGRAL_FLOAT = 1.0
 _LONG_DECIMAL_FLOAT = 106.98418277680141
-_NEGATIVE_FLOAT = -2.5
+_NEGATIVE_FLOAT = -84.62037195428361
 _NEAR_ZERO_FLOAT = 1e-12
+_SECOND_DECIMAL_FLOAT = 53.47129068415773
+_THIRD_DECIMAL_FLOAT = 27.31460592837104
 
 
 def format_contract_inputs() -> dict:
@@ -90,14 +96,14 @@ def format_contract_inputs() -> dict:
         "extent_y_mm": _NEGATIVE_FLOAT,
         "extent_z_mm": _NEAR_ZERO_FLOAT,
         "bbox_voxel": {
-            "x_min": 0.0, "x_max": 6.0,
-            "y_min": 0.0, "y_max": 6.0,
-            "z_min": 0.0, "z_max": 6.0,
+            "x_min": 0.0, "x_max": _SECOND_DECIMAL_FLOAT,
+            "y_min": 0.0, "y_max": _SECOND_DECIMAL_FLOAT,
+            "z_min": 0.0, "z_max": _SECOND_DECIMAL_FLOAT,
         },
         "bbox_physical": {
-            "x_min": 0.0, "x_max": 12.0,
-            "y_min": 0.0, "y_max": 12.0,
-            "z_min": 0.0, "z_max": 12.0,
+            "x_min": 0.0, "x_max": _THIRD_DECIMAL_FLOAT,
+            "y_min": 0.0, "y_max": _THIRD_DECIMAL_FLOAT,
+            "z_min": 0.0, "z_max": _THIRD_DECIMAL_FLOAT,
         },
         "touches_inferior": False,
         "touches_superior": True,
@@ -117,10 +123,16 @@ def format_contract_inputs() -> dict:
         "stray_component_sizes": [],
         "stray_volume_mm3": 0.0,
         "stray_volume_fraction": 0.0,
+        # Item 167: the components block's two newest leaf fields. 0.0/0 are
+        # both outside the distinctive-float set item 166's Correction 2
+        # protects (see this module's invariant comment) -- introducing a
+        # plain round float here is deliberately safe.
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
     }
     centroid = {
-        "centroid_voxel": [3.0, 3.0, 3.0],
-        "centroid_mm": [6.0, 6.0, _NEAR_ZERO_FLOAT],
+        "centroid_voxel": [_SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT],
+        "centroid_mm": [_THIRD_DECIMAL_FLOAT, _THIRD_DECIMAL_FLOAT, _NEAR_ZERO_FLOAT],
     }
 
     features = {
@@ -156,7 +168,7 @@ def format_contract_inputs() -> dict:
                     "label": 7,
                     "level_name": "L3",
                     "closest_u": 0.5,
-                    "offset_mm": 2.5,  # offset_mm is schema-constrained to >= 0
+                    "offset_mm": _SECOND_DECIMAL_FLOAT,  # offset_mm is schema-constrained to >= 0
                     "offset_voxel": _INTEGRAL_FLOAT,
                     "dx_mm": _NEGATIVE_FLOAT,
                     "dy_mm": _NEAR_ZERO_FLOAT,
@@ -199,6 +211,7 @@ def format_contract_inputs() -> dict:
     findings = [
         {
             "rule_id": "format_contract",
+            "detector_id": "format_contract_detector",
             "severity": "flagged-for-review",
             "reason": "format-contract synthetic finding",
             "labels": [7],

@@ -148,7 +148,7 @@ def _mode4_kwargs(**overrides) -> dict:
         intended_rules=(
             fm.IntendedRule(
                 rule_id="fragmentation",
-                detector="",
+                detector_ids=(),
                 evidence_rung="synthetic-demonstrable",
             ),
         ),
@@ -933,7 +933,7 @@ def test_ac13_evidence_rungs_vocabulary():
 def test_ac13_rung_outside_vocabulary_raises_naming_mode_and_rule_id():
     import segfacet.failure_modes as fm
 
-    bad_rule = fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="not-a-rung")
+    bad_rule = fm.IntendedRule(rule_id="fragmentation", detector_ids=(), evidence_rung="not-a-rung")
     kwargs = _mode4_kwargs(intended_rules=(bad_rule,))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
@@ -945,7 +945,7 @@ def test_ac13_rung_outside_vocabulary_raises_naming_mode_and_rule_id():
 def test_ac13_empty_rule_id_raises_naming_mode_and_rule_id():
     import segfacet.failure_modes as fm
 
-    bad_rule = fm.IntendedRule(rule_id="", detector="", evidence_rung="synthetic-demonstrable")
+    bad_rule = fm.IntendedRule(rule_id="", detector_ids=(), evidence_rung="synthetic-demonstrable")
     kwargs = _mode4_kwargs(intended_rules=(bad_rule,))
     with pytest.raises(ValueError) as excinfo:
         fm.ModeSpec(**kwargs)
@@ -953,12 +953,17 @@ def test_ac13_empty_rule_id_raises_naming_mode_and_rule_id():
     assert "4" in message
 
 
-def test_ac13_detector_may_be_empty():
+def test_ac13_detector_ids_may_be_empty_at_construction():
+    """Narrowed by item 164: the field is ``detector_ids``, and an empty
+    tuple is no longer read as "the rule as a whole" -- it is a scored hole
+    in ``segfacet.traceability``'s ``edge_to_detector`` direction
+    (item 164's AC7), never enforced here. ``ModeSpec`` construction itself
+    still accepts it."""
     import segfacet.failure_modes as fm
 
-    rule = fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="synthetic-demonstrable")
+    rule = fm.IntendedRule(rule_id="fragmentation", detector_ids=(), evidence_rung="synthetic-demonstrable")
     mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=(rule,)))
-    assert mode.intended_rules[0].detector == ""
+    assert mode.intended_rules[0].detector_ids == ()
 
 
 @pytest.mark.parametrize(
@@ -967,7 +972,7 @@ def test_ac13_detector_may_be_empty():
 def test_ac13_each_rung_member_is_accepted(rung):
     import segfacet.failure_modes as fm
 
-    rule = fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung=rung)
+    rule = fm.IntendedRule(rule_id="fragmentation", detector_ids=(), evidence_rung=rung)
     mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=(rule,)))
     assert mode.intended_rules[0].evidence_rung == rung
 
@@ -976,8 +981,8 @@ def test_adv_duplicate_rule_id_within_intended_rules_rejected():
     import segfacet.failure_modes as fm
 
     rules = (
-        fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="synthetic-demonstrable"),
-        fm.IntendedRule(rule_id="fragmentation", detector="", evidence_rung="needs-real-data"),
+        fm.IntendedRule(rule_id="fragmentation", detector_ids=(), evidence_rung="synthetic-demonstrable"),
+        fm.IntendedRule(rule_id="fragmentation", detector_ids=(), evidence_rung="needs-real-data"),
     )
     kwargs = _mode4_kwargs(intended_rules=rules)
     with pytest.raises(ValueError) as excinfo:
@@ -1056,9 +1061,9 @@ def test_ac14_derive_mode_rung_is_the_strongest_edge():
     import segfacet.failure_modes as fm
 
     rules = (
-        fm.IntendedRule(rule_id="a", detector="", evidence_rung="structurally-unobservable"),
-        fm.IntendedRule(rule_id="b", detector="", evidence_rung="needs-real-data"),
-        fm.IntendedRule(rule_id="c", detector="", evidence_rung="synthetic-demonstrable"),
+        fm.IntendedRule(rule_id="a", detector_ids=(), evidence_rung="structurally-unobservable"),
+        fm.IntendedRule(rule_id="b", detector_ids=(), evidence_rung="needs-real-data"),
+        fm.IntendedRule(rule_id="c", detector_ids=(), evidence_rung="synthetic-demonstrable"),
     )
     mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=rules, corpus_cases=()))
     assert fm.derive_mode_rung(mode) == "synthetic-demonstrable"
@@ -1068,17 +1073,17 @@ def test_ac14_weakening_the_strongest_edge_changes_the_derived_rung():
     import segfacet.failure_modes as fm
 
     rules = (
-        fm.IntendedRule(rule_id="a", detector="", evidence_rung="structurally-unobservable"),
-        fm.IntendedRule(rule_id="b", detector="", evidence_rung="needs-real-data"),
-        fm.IntendedRule(rule_id="c", detector="", evidence_rung="synthetic-demonstrable"),
+        fm.IntendedRule(rule_id="a", detector_ids=(), evidence_rung="structurally-unobservable"),
+        fm.IntendedRule(rule_id="b", detector_ids=(), evidence_rung="needs-real-data"),
+        fm.IntendedRule(rule_id="c", detector_ids=(), evidence_rung="synthetic-demonstrable"),
     )
     mode = fm.ModeSpec(**_mode4_kwargs(intended_rules=rules, corpus_cases=()))
     before = fm.derive_mode_rung(mode)
 
     weakened_rules = (
-        fm.IntendedRule(rule_id="a", detector="", evidence_rung="structurally-unobservable"),
-        fm.IntendedRule(rule_id="b", detector="", evidence_rung="needs-real-data"),
-        fm.IntendedRule(rule_id="c", detector="", evidence_rung="needs-real-data"),
+        fm.IntendedRule(rule_id="a", detector_ids=(), evidence_rung="structurally-unobservable"),
+        fm.IntendedRule(rule_id="b", detector_ids=(), evidence_rung="needs-real-data"),
+        fm.IntendedRule(rule_id="c", detector_ids=(), evidence_rung="needs-real-data"),
     )
     mode2 = fm.ModeSpec(**_mode4_kwargs(intended_rules=weakened_rules, corpus_cases=()))
     after = fm.derive_mode_rung(mode2)

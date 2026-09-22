@@ -722,7 +722,7 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
 
 
 # =========================================================================== #
-# AC24: The corpus's pipeline-detection count is 6 of 8
+# AC24: The corpus's pipeline-detection count is 9 of 10
 # =========================================================================== #
 
 
@@ -747,7 +747,7 @@ def _corpus_cohort_metrics():
     return compute_cohort_metrics(evaluation, failure_modes=FAILURE_MODE_NAMES)
 
 
-def test_ac24_corpus_pipeline_detection_is_eight_of_nine():
+def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     """Item 132 judges monotonicity against a traversal-ordered reference
     fit, which newly detects the relabel-swap case -- corpus sensitivity
     rose from 6/8 to 7/8. Re-measured 2026-09-14 under the item-150
@@ -760,16 +760,19 @@ def test_ac24_corpus_pipeline_detection_is_eight_of_nine():
     4 (islands), 6 (remove_level), 9 (relabel swap, sequence break) and
     15 (overlap, the miss). Mode 6's other case, remove_level_relabel, is
     not an expected-failure record, so mode 6 scores exactly one case; mode
-    10 ("skipped level label") has no corpus case and scores none."""
+    10 ("skipped level label") has no corpus case and scores none.
+    Re-measured 2026-09-20 (item 166) -- mode 3's `split` case is the tenth
+    expected-failure record and is caught, so overall sensitivity is 9/10
+    and the per-mode breakdown gains mode 3 at 1.0."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(8.0 / 9.0)
+    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
 
-    expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+    expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
-    assert sum(m.n_cases for m in metrics.per_mode) == 9
+    assert sum(m.n_cases for m in metrics.per_mode) == 10
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

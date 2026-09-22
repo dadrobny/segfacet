@@ -98,16 +98,20 @@ def _mode_record(payload: dict, mode: int) -> dict:
 
 def _edge_rung_tuples(record: dict):
     """Normalise a mode record's ``edge_rungs`` to a list of
-    ``(rule_id, detector, evidence_rung)`` tuples, accepting either a list
-    of 3-element sequences or a list of dicts carrying those three keys."""
+    ``(rule_id, detector_ids, evidence_rung)`` tuples -- ``detector_ids``
+    itself normalised to a tuple -- accepting either a list of 3-element
+    sequences or a list of dicts carrying those three keys (item 164 widened
+    the middle element from a ``str`` to an id tuple)."""
     entries = record["edge_rungs"]
     tuples = []
     for entry in entries:
         if isinstance(entry, dict):
-            tuples.append((entry["rule_id"], entry["detector"], entry["evidence_rung"]))
+            tuples.append(
+                (entry["rule_id"], tuple(entry["detector_ids"]), entry["evidence_rung"])
+            )
         else:
-            rule_id, detector, evidence_rung = entry
-            tuples.append((rule_id, detector, evidence_rung))
+            rule_id, detector_ids, evidence_rung = entry
+            tuples.append((rule_id, tuple(detector_ids), evidence_rung))
     return tuples
 
 
@@ -390,10 +394,13 @@ def test_ac1_primary_source_named_in_note_and_both_artifacts(matrix):
 
 
 def test_ac2_schema_version_bumped_to_1_1(matrix):
+    """Reconciled by item 164 (A6): the schema bumped again, 1.1 -> 1.2,
+    when ``edge_rungs``' middle element widened from ``str`` to an id
+    tuple and the two detector directions were added."""
     import segfacet.traceability as traceability
 
-    assert traceability.SCHEMA_VERSION == "1.1"
-    assert matrix["schema_version"] == "1.1"
+    assert traceability.SCHEMA_VERSION == "1.2"
+    assert matrix["schema_version"] == "1.2"
 
 
 # =========================================================================== #
@@ -523,7 +530,7 @@ def test_ac6_edge_rungs_equal_specification_intended_rules_exactly(mode, matrix)
 
     record = _mode_record(matrix, mode)
     expected = [
-        (rule.rule_id, rule.detector, rule.evidence_rung)
+        (rule.rule_id, tuple(rule.detector_ids), rule.evidence_rung)
         for rule in failure_modes_module.SPECIFICATION[mode].intended_rules
     ]
     actual = _edge_rung_tuples(record)
@@ -761,14 +768,15 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     actual_keys = {(c["corpus"], c["case_id"]) for c in cases}
     expected_keys = _all_manifest_case_keys()
     assert actual_keys == expected_keys
-    # 15 since the item-150 sign-off added the fuse_adjacent (mode 2) and
-    # remove_level_relabel (mode 6 under the 2026-09-15 ids) fixtures:
-    # 11 geometric + 4 intensity.
+    # 16 since the item-150 sign-off added the fuse_adjacent (mode 2) and
+    # remove_level_relabel (mode 6 under the 2026-09-15 ids) fixtures, and
+    # item 166 (2026-09-20) added the split (mode 3) fixture:
+    # 12 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
-    assert len(cases) == 15, len(cases)
+    assert len(cases) == 16, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
     intensity = [c for c in cases if c["corpus"] == "intensity"]
-    assert len(geometric) == len(_geometric_manifest_cases()) == 11, len(geometric)
+    assert len(geometric) == len(_geometric_manifest_cases()) == 12, len(geometric)
     assert len(intensity) == len(_intensity_manifest_cases()) == 4, len(intensity)
     for case in cases:
         for key in ("corpus", "case_id", "mode", "expected_firing", "measured_firing", "agrees", "expected_source"):
@@ -1274,19 +1282,28 @@ def test_adv_ac32_matrix_to_dict_mutation_does_not_leak_into_a_later_call(raw_ma
 
 # =========================================================================== #
 # AC33: no exercise columns are built (scope fence)
+#
+# Narrowed 2026-09-20 (item 162, AC13): AC33 originally fenced item 139's
+# whole per-rule/per-operator exercise deliverable out of this module ("item
+# 139's deliverable is observably absent"). Item 162 lands that deliverable
+# (AC6/AC8 require exactly the `rule_exercise`/`operator_exercise` keys this
+# fence used to forbid), so the fence's premise expires by design. One claim
+# of AC33 survives and is worth keeping: an exercise record names which cases
+# exercise it and never a stored scalar count -- item 162's own AC13. Both
+# guards below are narrowed to that one token.
 # =========================================================================== #
 
 
-def test_ac33_no_per_rule_or_per_operator_exercise_column_in_either_artifact():
+def test_ac33_no_exercise_count_scalar_in_either_artifact():
     json_text = _COMMITTED_JSON.read_text(encoding="utf-8")
     md_text = _COMMITTED_MD.read_text(encoding="utf-8")
-    for forbidden_token in ("exercise_count", "operator_exercise", "corpus_exercise", "exercise column"):
+    for forbidden_token in ("exercise_count",):
         assert forbidden_token not in json_text, forbidden_token
         assert forbidden_token not in md_text, forbidden_token
 
 
-def test_ac33_traceability_module_defines_no_exercise_derivation():
+def test_ac33_traceability_module_derives_no_exercise_count():
     source = (_REPO_ROOT / "src" / "segfacet" / "traceability.py").read_text(encoding="utf-8")
-    for forbidden_token in ("exercise_count", "operator_exercise", "corpus_exercise"):
+    for forbidden_token in ("exercise_count",):
         assert forbidden_token not in source, forbidden_token
 
