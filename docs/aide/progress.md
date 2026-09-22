@@ -47,7 +47,7 @@
 | 17    | Foreign-Convention Interop & Orientation-Safe Image Layer               | G2, G6          | ✅     |
 | 18    | Failure-Mode-Specific Metric Surface                                    | G2, G7          | ✅     |
 | 19    | Generated Feature & Rule Catalogue + Steering Review                    | G7, G8          | ✅     |
-| 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | 🚧     |
+| 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | ✅     |
 | 21    | Real-GT Perturbation Corpus                                             | G3, G7          | 📋     |
 | 22    | *(placeholder)* Unified `(scan, seg)` Extraction                    | —              | 📋     |
 | 23    | *(placeholder)* Multivariate Normative Model                          | G3              | 📋     |
@@ -951,7 +951,7 @@ verifies they agree, and no document records which failure mode each feature ser
 
 ---
 
-## Stage 20 — Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness (G2, G7) — 🚧
+## Stage 20 — Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness (G2, G7) — ✅
 
 **Goal.** Close the gap between "the suite is green" and "the rules are specific".
 Measured 2026-07-25 on the committed corpus: **10 rules registered and enabled, 4 ever
@@ -1035,7 +1035,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   detection count honestly requires a mode↔rule story that is not yet defined. See
   [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md).
   ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 169. *(Item 142)*
-- 🔍 Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
+- ✅ Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
   (Stage 32 D3). *(Item 169)*
 
 > **Why those four now read ⏸️ rather than 📋** *(queue-020 boundary,
