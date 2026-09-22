@@ -570,7 +570,176 @@ record of what was true on 2026-09-22.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+**Rig (AC1).** Clean clone at
+`/tmp/claude-1005/-mnt-data-spine-codes-SegFACET/954f1565-db96-4372-a5d1-22b92ab8fdff/scratchpad/clone169`,
+created with `git clone <working checkout> <clone>` and checked out onto this
+branch. Bootstrapped with `python <clone>/.aide/scripts/aide.py --repo <clone>
+env --bootstrap` — `aide env: bootstrap done (ok: venv is Python 3.11; `import
+segfacet` succeeds; `import pytest` succeeds)`. `segfacet.__file__` from the
+clone's own venv (`<clone>/.venv/bin/python -P -c "import segfacet; print(segfacet.__file__)"`)
+resolved to `<clone>/src/segfacet/__init__.py` — under the clone, not the
+working checkout. Clone `HEAD` at clone time: `2c4b62bcf2dcad5f37ec88273a74eae432b06df2`,
+equal to this branch's tip at that moment.
+
+**Artifacts (AC2).** All six regeneration commands ran with rc 0 from the
+clone's venv, output into a scratch directory. 27 byte comparisons (7 doc
+artifacts + 2 manifests + 18 named fixture files: 11 geometric `.nii.gz` +
+5 intensity fixtures, matching each manifest's `case_id` set), all equal:
+`docs/aide/failure_modes.generated.{json,md}`,
+`docs/aide/traceability_matrix.generated.{json,md}`,
+`docs/aide/feature_catalogue.generated.{json,md}`,
+`docs/aide/golden_evidence.generated.json`, `tests/corpus/manifest.json` +
+every named fixture, `tests/corpus/intensity/manifest.json` + every named
+fixture. Zero mismatches.
+
+**AC3 (Stage 20 criterion 4 / Stage 32 criterion 4).**
+`tests/test_163_specificity_ratchet.py -v` in the clone: 22 passed, 0 failed.
+`traceability.build_matrix().conformance` in the clone: 16 cases driven — 12
+geometric (`clean_control`, `crop_at_border`, `displace`, `force_overlap`,
+`fragment`, `fuse_adjacent`, `inject_islands`, `relabel_swap`, `remove_level`,
+`remove_level_relabel`, `sequence_break`, `split`) and 4 intensity
+(`clean_hu`, `degenerate_uniform`, `implausible_metal`,
+`implausible_soft_tissue`); 0 cases disagree. This set equals the union of
+both committed manifests' `case_id` values (16 cases named in the two
+manifests: 12 + 4).
+
+**AC4 (Stage 20 criterion 3 / Stage 32 criterion 4).**
+`tests/test_162_corpus_exercise_report.py -v` in the clone: 18 passed, 0
+failed. `build_matrix().exercise` in the clone: 10 registered rules — 7
+exercised (`border`, `coverage`, `fragmentation`, `intensity`, `mislabel`,
+`overlap`, `sequence`), 3 unexercised with reason `needs-real-data`
+(`bounds`: modes 1,2,3,4; `reference_delta`: modes 1,2,3,4,8;
+`intensity_reference_delta`: mode 16); 12 registered operators, all `used`
+(`crop_at_border`, `displace`, `force_overlap`, `fragment`, `fuse`,
+`identity`, `inject_islands`, `relabel_swap`, `remove_level`,
+`remove_level_relabel`, `sequence_break`, `split`). Both `DirectionReport`s
+read `complete=True, holes=()`. Every number matches the Description's
+2026-09-22 starting point exactly — no divergence.
+
+**AC5 (cross-mode margins).** `score_harness(run_severity_harness())` in the
+clone reproduced every recorded value exactly: `displace inf`, `fragment
+inf`, `inject_islands 112.037…` (rounds to the recorded `112.0`),
+`relabel_swap inf`, `remove_level inf`, `crop_at_border 0.358518…` (rounds to
+`0.3585`), `sequence_break inf`, `force_overlap 1.038626…` (rounds to
+`1.038`); `passed=True`. Couplings: `crop_at_border →
+unanchored_foreground_fraction 2.7892…` (rounds to `2.79`), `force_overlap →
+unanchored_foreground_fraction 0.9628…` (rounds to `0.9629`). No divergence
+from `RECORDED_MARGINS` / `KNOWN_CROSS_MODE_COUPLINGS`. Operators registered
+in `synth` with no ladder entry (main or supplementary): `identity` (the
+clean-control no-op — never had one), `remove_level_relabel` (a corpus-case
+variant of `remove_level`, not its own ladder — never had one), and `split`
+(item 166's operator, added 2026-09-18, after item 154's 2026-09-16
+measurement — the new, expected gap per A9). Only the `split` gap is a new
+finding; it is appended to `insights.md` as a `gap` entry per AC5's
+instruction. `fuse` has its own `SUPPLEMENTARY_LADDERS` entry outside the
+eight cross-mode ladders, so it is not "no ladder".
+
+**AC9 (the bar, recomputed live).** For every mode in `SPECIFICATION`, `mode
+4`'s five conditions all read `met=True` (deciding detector
+`fragmentation/islands`) and `mode 3`'s five conditions all read `met=True`
+(deciding detector confirmed by `test_167`/`test_165`'s own coverage, not
+independently re-measured here since AC9 only requires the per-mode
+predicate). `fm.MODE_SIGN_OFFS` = `{3: intermediate-state, 4:
+intermediate-state}` — neither carries `outcome="at-the-bar"`, so the set of
+modes meeting all six conditions is empty. **No mode is at the bar** — the
+planned outcome per the Description and A2.
+
+**AC11 (Stage 32 criterion 2).** `tests/test_168_maintainer_sign_off.py` (18
+passed) and `tests/test_165_mode_4_at_the_bar.py` (11 passed) in the clone —
+29 passed, 0 failed. `sorted(MODE_SIGN_OFFS) == [3, 4]`, equal to the modes
+queue-022 selected for refinement (mode 3 split, mode 4 islands). Mode 3:
+`date=2026-09-22, outcome=intermediate-state`. Mode 4: `date=2026-09-22,
+outcome=intermediate-state`.
+
+**AC12 (Stage 32 criterion 3).**
+`tests/test_151_stage30_validation.py::test_ac3_every_mode_row_title_authored_status_and_edge_rungs_match_specification`
+and `::test_ac18_status_matches_independent_recomputation_and_committed_rendering`
+in the clone: 2 passed, 0 failed. Live derivation: 16 modes, `validated 7,
+implemented 2, specified 0, proposed 7`; every mode appears in
+`docs/aide/failure_modes.generated.md` at its derived status, none absent,
+none status-less.
+
+**AC6–AC8 (the three clauses, Stage 20 criterion 5 / Stage 32 criterion 5).**
+Live from `segfacet.failure_modes` in the clone: `derived status counts over
+16 modes: validated 7, implemented 2, specified 0, proposed 7`. `derived mode
+rung counts: synthetic-demonstrable 6, needs-real-data 2,
+structurally-unobservable 1, none 7`. `modes refined by stage 32: 3, 4; at
+the fully-specified bar: none; left as documented drafts: 14` (`14 = 16 -
+len({3, 4})`). Written verbatim into both Stage 20 criterion 5's and Stage 32
+criterion 5's `aide progress accept` evidence text, per Implementation Step
+9. All three clauses match the Description's 2026-09-22 starting point
+exactly.
+
+**AC13 (Stage 20's held bullet).** The `*(Item 141)*` bullet's leading icon
+flipped `⏸️ → ❌`, with a dated (`2026-09-22`) pointer naming item 154 and
+recording that its work landed there as Stage 31's eval-harness re-key
+(item 154's own file name:
+`items/154-re-measure-the-ladders-and-mode-1s-anchor.md`). No other Stage 20
+deliverable bullet reads `⏸️` (confirmed: zero `⏸️` bullets remain anywhere in
+`progress.md`). `tests/test_150_maintainer_sign_off.py`'s `_HELD_ITEMS[141]`
+moved `"⏸️" → "❌"` in the same commit, with its guiding comment updated to
+record the change, per that module's own note.
+
+**AC14 (bookkeeping verbs).** In ascending stage/criterion order:
+`aide progress accept 20 --criterion 3/4/5`, then `aide progress accept 32
+--criterion 2/3/4/5`, each with the evidence text recorded above (verified
+against the `progress.md` diff — each command ticked exactly the criterion
+named and appended exactly the evidence text passed). Stage 32 criterion 1
+stayed unticked; the hand-written annotation
+`*(not attested 2026-09-22, item 169: modes 3 and 4 both carry a maintainer
+sign-off dated 2026-09-22 at outcome="intermediate-state", not
+"at-the-bar"; conditions 1-5 hold live for both (recomputed via
+`traceability.bar_conditions`), but condition 6 requires an "at-the-bar"
+sign-off, so no mode meets all six conditions and the set of modes at the
+bar is empty)*` was appended to the end of its box's last line by hand. One
+`gap` `insights.md` entry names `stage 32 criterion 1`, both sign-off
+outcomes (`intermediate-state` for both modes 3 and 4), and that the
+remedial work is queue 023's. Two further `gap` entries were appended: A5's
+unmarked Stage 32 `D0`/`D3` bullets, and A9's `split`-operator ladder gap.
+Stage 20 criteria 1 and 2 were left untouched (A3).
+
+**AC15 (environment).** `aide env`: `OK (venv is Python 3.11; import segfacet
+succeeds; import pytest succeeds)`, exit 0. `aide env --profile pyradiomics`:
+`NOT satisfied (ModuleNotFoundError: No module named 'radiomics')`, exit 1.
+`aide env --profile docker`: `NOT satisfied`, exit 1. `aide env --profile
+gpu`: `NOT satisfied (ModuleNotFoundError: No module named 'cupy')`, exit 1.
+`progress.md`'s Environment-Gated Capability Verification table carries no
+row naming Stage 32 (verified by reading its rows); left unchanged. Stage 32
+introduced no gated capability, and no replay criterion above depends on a
+profile.
+
+**AC16 (`aide check`).** After the bookkeeping: `aide check: OK (8
+warning(s))` — 1 assumptions-block warning, 2 awaiting-a-decision warnings
+(gates 1 and 2), 5 retracted-criterion warnings (Stage 20 criteria 1, 3, 4
+twice, 5). Identical to the 2026-09-22 baseline recorded in the Description,
+both before and after this item's bookkeeping — no new warning, no error.
+Re-verified in the clone at the final commit with the same result.
+
+**AC17 (full suite, fresh clone of the final commit).** Clone brought up to
+the branch tip (`python <clone>/.aide/scripts/aide.py --repo <clone> sync
+--item 169`); `segfacet.__file__` re-resolved under the clone. Final commit:
+`0346da1e546db31402742001db2d713b71007a89`. Full configured suite (`tests` +
+`.aide/scripts/tests`, per `pyproject.toml`'s `testpaths`), run in the
+foreground with `pytest -n auto -q` (one call, under the timeout — the suite
+completed in 338.84s / 5m39s, not the ~28 minutes a non-parallel run takes):
+**9091 passed, 66 skipped, 0 failed.** Every skip is a pre-known
+environment-gated skip: Docker CLI/daemon not available (`test_066`,
+`test_069`, `test_070`), CuPy/GPU not available (`test_072`, `test_073`,
+`test_074`, `test_075`), PyRadiomics not importable (`test_features_radiomics`),
+no real VerSe19 cohort mounted (`SEGFACET_VERSE_COHORT`; `test_084`,
+`test_088`, `test_091`, `test_118`, `test_125`), no real SPINEPS fixture
+(`SEGFACET_SPINEPS_FIXTURE`; `test_097`), and no pinned pre-098 shape for
+three operators (`test_108`). No skip is recorded as verification of
+anything above — each replay criterion's evidence is the named node-id run
+in the clone (AC3, AC4, AC11, AC12), not this full-suite pass. The clone was
+deleted after this run.
+
+**Stage 32 stays 🚧 (A2).** This item's own deliverable bullet lives in Stage
+20 (`*(Item 169)*`); Stage 32's `D0`/`D3` bullets carry no item marker (A5),
+so `aide progress set 169 in-progress` moved only the Stage 20 bullet. Stage
+32's rollup is driven by its acceptance boxes, and criterion 1 stays open —
+consistent with the stage staying 🚧, per queue-022's own item-169 entry and
+gate 7's resolution text.
 
 - **Left open:** whether Stage 32's D0 and D3 deliverable bullets should carry
   `*(Item NNN)*` markers so the stage's rollup tracks its own items. Both are
