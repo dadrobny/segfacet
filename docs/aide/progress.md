@@ -1776,9 +1776,9 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   derived status in `docs/aide/failure_modes.generated.md`; a mode left at `proposed`,
   `specified` or `implemented` is an accepted end state, and a mode with no entry or no
   status is not (**G2**). *(Item 169 AC12: tests/test_151_stage30_validation.py::test_ac3_every_mode_row_title_authored_status_and_edge_rungs_match_specification and ::test_ac18_status_matches_independent_recomputation_and_committed_rendering pass in the clean clone (2 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Every one of the 16 SPECIFICATION modes appears in docs/aide/failure_modes.generated.md at its derived status (validated 7, implemented 2, proposed 7); none renders without a status.)*
-- [ ] The specificity assertion is enforced for every corpus case across both corpora, and
+- [x] The specificity assertion is enforced for every corpus case across both corpora, and
   every registered rule and operator is exercised by a case or recorded as unexercised with
-  a reason (**G2**, Stage 20 criteria 3–4).
+  a reason (**G2**, Stage 20 criteria 3–4). *(Item 169 AC3/AC4: tests/test_163_specificity_ratchet.py (22 passed) and tests/test_162_corpus_exercise_report.py (18 passed) pass in full in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Specificity: 16/16 committed corpus cases (12 geometric + 4 intensity) agree, 0 disagreements. Exercise: 10 registered rules -- 7 exercised, 3 unexercised with reason (bounds, reference_delta, intensity_reference_delta, all needs-real-data); 12 registered operators, all used; both DirectionReports read complete=True, holes=().)*
 - [ ] The end-to-end detection count is recorded here per lifecycle status and per evidence
   rung, as measured numbers with what they were measured on, naming the modes refined and
   the modes left as documented drafts (**G7**, Stage 20 criterion 5).
