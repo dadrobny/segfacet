@@ -1007,13 +1007,14 @@ def test_adv_ac12_a_stale_artifact_and_a_vacuous_loop_are_both_caught():
 #: The four Stage-20 deliverables this gate holds, mapped to the leading icon
 #: each bullet must now carry. **2026-09-18:** items 139, 140 and 142 were
 #: retired at the queue-022 boundary and re-queued as items 162, 163 and 169
-#: respectively, so their bullets now lead with ``❌``. Item 141 keeps ``⏸️``:
-#: its work moved to Stage 31 (item 154) and was not re-queued, so it remains
-#: genuinely held. **A dated claim** (D3): the first item that lands any of
-#: 139-142 must list this test file under its "Authorised paths -> May change"
-#: and update this test. Recorded here so that item's author does not
-#: discover it as a red suite.
-_HELD_ITEMS = {139: "❌", 140: "❌", 141: "⏸️", 142: "❌"}
+#: respectively, so their bullets now lead with ``❌``. **2026-09-22 (item
+#: 169):** item 141's bullet also flips to ``❌`` -- its work moved to Stage 31
+#: (item 154) and is recorded there as superseded rather than shipped under
+#: its own number, closing Stage 20's last ``⏸️`` bullet. **A dated claim**
+#: (D3): the first item that lands any of 139-142 must list this test file
+#: under its "Authorised paths -> May change" and update this test. Recorded
+#: here so that item's author does not discover it as a red suite.
+_HELD_ITEMS = {139: "❌", 140: "❌", 141: "❌", 142: "❌"}
 
 
 def _stage_20_section(text: str) -> list:
