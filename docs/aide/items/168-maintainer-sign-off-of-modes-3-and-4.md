@@ -666,6 +666,26 @@ has recorded one.
 
 To be updated during implementation.
 
+- **2026-09-22 — Half B recorded.** The gate was resolved `✅ Approved
+  (2026-09-22)` by the maintainer with both modes at
+  `outcome = "intermediate-state"`, and `MODE_SIGN_OFFS` now carries one
+  record per mode dated with the gate row's resolution date (AC12). Neither
+  mode is signed at the bar although both cleared `bar_conditions` 1–5 live
+  on 2026-09-20: the maintainer's review of 2026-09-22 (`docs/aide/insights.md`,
+  entries dated 2026-09-22) names what must change first — mode 3's
+  `neighbour_contact` threshold has no evidence on a corpus whose five bodies
+  never touch, `neighbour_contact` moves out of `fragmentation` into a rule of
+  its own, the `split` case is re-authored at ~20 % on a lordotic base with an
+  own-label sub-type, and mode 4's discriminator describes a distance grading
+  the code does not perform. Those changes are queue 023's, not this item's
+  ("Not a change to either mode", above). Both artifacts were regenerated with
+  `.venv/bin/python -m segfacet.failure_modes`. One test of this item's own
+  module, `test_resolution_coherence_is_not_vacuous`, had pinned the
+  pre-resolution state on both sides (an empty mapping in direction 1, an
+  awaiting gate in direction 2) — its comment already said the direction
+  "needs re-deriving, not skipping" once a person resolved the gate — and was
+  re-derived to flip each side away from the live state instead.
+
 - **2026-09-20, Half A implemented.** Built exactly the mechanism the spec
   describes: `SIGN_OFF_OUTCOMES`, the frozen `ModeSignOff` dataclass
   (`mode_id`, `date`, `outcome`, `note`, in that order, each validated with a

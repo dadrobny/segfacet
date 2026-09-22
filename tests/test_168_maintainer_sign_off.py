@@ -430,40 +430,51 @@ def test_at_the_bar_claim_over_a_failing_mode(cached_catalogue):
 def test_resolution_coherence_is_not_vacuous():
     """AC11's if-and-only-if, re-run with the two sides forced to disagree in
     each direction, must fail both times -- otherwise it is satisfied by
-    both sides being false and asserts nothing at all."""
+    both sides agreeing by accident and asserts nothing at all.
+
+    Each direction flips ONE side away from whatever is live (the gate was
+    ``⏳`` with an empty mapping until 2026-09-22 and ``✅ Approved`` with two
+    records after), so the test is derived from live state, never from a
+    literal of it.
+    """
     import segfacet.failure_modes as fm
 
     aide = _aide_module()
     lines = _progress_lines()
     _index, gate = _sign_off_gate(aide, lines)
+    live_resolved = gate.kind != "awaiting"
 
-    # Direction 1: gate no longer "awaiting", shipped mapping still empty.
-    resolved_lines = _with_status_cell(aide, lines, gate, "✅ Approved (2026-09-21)")
-    _, resolved_gate = _sign_off_gate(aide, resolved_lines)
-    assert resolved_gate.kind != "awaiting"
-    assert bool(fm.MODE_SIGN_OFFS) != (resolved_gate.kind != "awaiting"), (
-        "AC11's predicate must fail once the gate is resolved while "
-        "MODE_SIGN_OFFS stays empty"
+    # Direction 1: the gate flipped to the opposite kind, shipped mapping live.
+    flipped_cell = "⏳ Awaiting" if live_resolved else "✅ Approved (2026-09-21)"
+    flipped_lines = _with_status_cell(aide, lines, gate, flipped_cell)
+    _, flipped_gate = _sign_off_gate(aide, flipped_lines)
+    assert (flipped_gate.kind != "awaiting") is not live_resolved, (
+        f"the flipped Status cell {flipped_cell!r} did not change the gate's "
+        f"kind away from the live {gate.kind!r}"
+    )
+    assert bool(fm.MODE_SIGN_OFFS) != (flipped_gate.kind != "awaiting"), (
+        "AC11's predicate must fail once the gate's resolution is flipped "
+        "while MODE_SIGN_OFFS stays as shipped"
     )
 
-    # Direction 2: a non-empty mapping (local only, never MODE_SIGN_OFFS)
-    # against the live, still-awaiting gate.
-    fake_mode_id = sorted(fm.SPECIFICATION)[0]
-    fake_mapping = {
-        fake_mode_id: fm.ModeSignOff(
-            mode_id=fake_mode_id,
-            date="2026-09-20",
-            outcome=fm.SIGN_OFF_OUTCOMES[0],
-            note="local-only, never assigned into MODE_SIGN_OFFS",
-        )
-    }
-    assert gate.kind == "awaiting", (
-        "the live gate is expected to still read awaiting; if a person has "
-        "resolved it this direction needs re-deriving, not skipping"
-    )
-    assert bool(fake_mapping) != (gate.kind != "awaiting"), (
-        "AC11's predicate must fail for a non-empty local mapping while the "
-        "live gate is still awaiting"
+    # Direction 2: the mapping flipped (local only, never MODE_SIGN_OFFS)
+    # against the live gate.
+    if fm.MODE_SIGN_OFFS:
+        flipped_mapping = {}
+    else:
+        fake_mode_id = sorted(fm.SPECIFICATION)[0]
+        flipped_mapping = {
+            fake_mode_id: fm.ModeSignOff(
+                mode_id=fake_mode_id,
+                date="2026-09-20",
+                outcome=fm.SIGN_OFF_OUTCOMES[0],
+                note="local-only, never assigned into MODE_SIGN_OFFS",
+            )
+        }
+    assert bool(flipped_mapping) is not bool(fm.MODE_SIGN_OFFS)
+    assert bool(flipped_mapping) != live_resolved, (
+        "AC11's predicate must fail for a mapping whose emptiness is flipped "
+        "against the live gate"
     )
 
 

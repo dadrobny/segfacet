@@ -2253,12 +2253,51 @@ CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
 
 
 #: The maintainer sign-off record per mode (item 168, roadmap Stage 32 bar
-#: condition 6). **Ships empty**: that is the honest state while the human
-#: gate ("Stage 32 selected-mode sign-off", ``docs/aide/progress.md``) is
-#: still ``⏳ Awaiting`` -- no agent may add an entry here (AC11). Once,
-#: and only once, a person resolves the gate, one ``ModeSignOff`` per
-#: signed mode is added here, keyed by its own ``mode_id``.
-MODE_SIGN_OFFS: Mapping[int, ModeSignOff] = MappingProxyType({})
+#: condition 6). Shipped empty by item 168's Half A while the human gate
+#: ("Stage 32 selected-mode sign-off", ``docs/aide/progress.md``) was still
+#: ``⏳ Awaiting`` -- no agent may add an entry here on its own (AC11). The
+#: gate was resolved ``✅ Approved (2026-09-22)``, and these two records are
+#: its Half B, keyed by their own ``mode_id`` and dated with the gate row's
+#: resolution date. Both are ``intermediate-state``: conditions 1-5 held
+#: live when signed, and the maintainer review of 2026-09-22
+#: (``docs/aide/insights.md``, entries dated 2026-09-22) names what must
+#: change before either mode is signed at the bar.
+MODE_SIGN_OFFS: Mapping[int, ModeSignOff] = MappingProxyType(
+    {
+        3: ModeSignOff(
+            mode_id=3,
+            date="2026-09-22",
+            outcome="intermediate-state",
+            note=(
+                "Signed at a recorded intermediate state, not at the bar. "
+                "The neighbour_contact detector's 100 mm^2 threshold has no "
+                "evidence: the geometric corpus base is five non-touching "
+                "axis-aligned boxes, so its one firing value (750 mm^2) is the "
+                "fixture's maximum cross-section and every other reading is "
+                "structurally 0.0. Before signing at the bar: neighbour_contact "
+                "moves out of fragmentation into its own rule; the split case "
+                "is re-authored at ~20 percent of the body on a lordotic base, "
+                "with a second sub-type where the split part carries its own "
+                "label. Maintainer review of 2026-09-22; lands as queue 023."
+            ),
+        ),
+        4: ModeSignOff(
+            mode_id=4,
+            date="2026-09-22",
+            outcome="intermediate-state",
+            note=(
+                "Signed at a recorded intermediate state, not at the bar. "
+                "Conditions 1-5 hold live (inject_islands fires fragmentation's "
+                "islands detector alone), but the entry's discriminator "
+                "describes a grading by the island's distance from the main "
+                "body that the code does not perform -- "
+                "island_distance_from_main_body_mm is unbuilt -- and the "
+                "corpus base the fixture sits on is replaced by a lordotic one. "
+                "Maintainer review of 2026-09-22; lands as queue 023."
+            ),
+        ),
+    }
+)
 
 
 def _validate_sign_offs(
