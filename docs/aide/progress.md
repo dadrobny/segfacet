@@ -1035,7 +1035,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   detection count honestly requires a mode↔rule story that is not yet defined. See
   [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md).
   ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 169. *(Item 142)*
-- 🚧 Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
+- 🔍 Stage 20 end-to-end validation, run with Stage 32's own at the close of queue-022
   (Stage 32 D3). *(Item 169)*
 
 > **Why those four now read ⏸️ rather than 📋** *(queue-020 boundary,
