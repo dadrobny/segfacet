@@ -1081,8 +1081,9 @@ rule(s) and any features they need; features may be added alone, modes and rules
 > queue-019. So **139 → 162** and **140 → 163** lead
 > [`queue/queue-022.md`](queue/queue-022.md), and **142 → 169** closes it. This
 > supersedes "keep their numbers" above.
-> Item 141's bullet keeps ⏸️ — its work moved to Stage 31 (item 154) and is not
-> re-queued.
+> Item 141's bullet was resolved ❌ on 2026-09-22 by item 169 — its work landed
+> in Stage 31 as [item 154](items/154-re-measure-the-ladders-and-mode-1s-anchor.md)
+> and is not re-queued.
 
 **Acceptance.**
 

@@ -748,3 +748,13 @@ gate 7's resolution text.
   a stage's rollup should say when its deliverables shipped and an acceptance
   criterion did not hold, which is a framework question rather than this item's;
   it is captured to `insights.md` instead.
+
+- **2026-09-22 → review finding fixed:** this item's diff flipped Stage 20's
+  item-141 deliverable bullet (progress.md ~line 1019) from ⏸️ to ❌ with a
+  dated pointer to item 154, but left the queue-022 planning blockquote note
+  further down the same section (progress.md ~line 1084, added 2026-09-18)
+  reading "Item 141's bullet keeps ⏸️ — its work moved to Stage 31 (item 154)
+  and is not re-queued," which the flip made false. Amended that sentence to
+  state the bullet was resolved ❌ on 2026-09-22 by this item, with a pointer
+  to item 154, its work having landed in Stage 31 — no other text in the note
+  changed, and no acceptance box or bullet icon was touched.
