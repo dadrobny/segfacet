@@ -320,7 +320,8 @@ def test_ac7_rung_count_clause_equals_live_derivation():
 # =========================================================================== #
 
 _REFINED_BAR_DRAFTS_RE = re.compile(
-    r"modes refined by stage 32: ([0-9, ]+); at the fully-specified bar: (\S+); "
+    r"modes refined by stage 32: ([0-9, ]+); "
+    r"at the fully-specified bar: ([0-9, ]+|none); "
     r"left as documented drafts: (\d+)"
 )
 
