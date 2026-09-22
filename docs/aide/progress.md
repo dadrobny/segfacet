@@ -1779,6 +1779,6 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - [x] The specificity assertion is enforced for every corpus case across both corpora, and
   every registered rule and operator is exercised by a case or recorded as unexercised with
   a reason (**G2**, Stage 20 criteria 3–4). *(Item 169 AC3/AC4: tests/test_163_specificity_ratchet.py (22 passed) and tests/test_162_corpus_exercise_report.py (18 passed) pass in full in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Specificity: 16/16 committed corpus cases (12 geometric + 4 intensity) agree, 0 disagreements. Exercise: 10 registered rules -- 7 exercised, 3 unexercised with reason (bounds, reference_delta, intensity_reference_delta, all needs-real-data); 12 registered operators, all used; both DirectionReports read complete=True, holes=().)*
-- [ ] The end-to-end detection count is recorded here per lifecycle status and per evidence
+- [x] The end-to-end detection count is recorded here per lifecycle status and per evidence
   rung, as measured numbers with what they were measured on, naming the modes refined and
-  the modes left as documented drafts (**G7**, Stage 20 criterion 5).
+  the modes left as documented drafts (**G7**, Stage 20 criterion 5). *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
