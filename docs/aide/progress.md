@@ -1016,14 +1016,18 @@ rule(s) and any features they need; features may be added alone, modes and rules
   ❌ **Number retired, 2026-09-18:** the deliverable is re-queued as item 162. *(Item 139)*
 - ✅ Per-rule and per-operator corpus-exercise report across both corpora, re-authored
   against the signed-off specification (Stage 32 D0). *(Item 162)*
-- ⏸️ The mode-1 severity-ladder base (`tests/test_100_severity_ladder.py`, Stage 18)
+- ❌ The mode-1 severity-ladder base (`tests/test_100_severity_ladder.py`, Stage 18)
   widened so mode 1's metric swing is set by the
   perturbation rather than the fixture's FOV walls — the recorded root cause of mode 6's
   Stage-18 specificity shortfall.
   ⚠️ **Deferred, 2026-09-03:** queue-019 was cut short after item 138. This turns on
   mode-1-vs-mode-6 semantics, which is the discriminator field the §6 modes do not yet
   carry. See
-  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.1. *(Item 141)*
+  [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §4.1.
+  **Landed as item 154, 2026-09-22 (item 169):** the ladder margins and mode-1 anchor
+  were re-measured in [item 154](items/154-re-measure-the-ladders-and-mode-1s-anchor.md)
+  as Stage 31's eval-harness re-key, so this bullet is superseded rather than shipped
+  under its own number. *(Item 141)*
 - ❌ Stage 20 end-to-end validation: traceability artifact regenerated from a clean tree,
   the specificity assertion driven over every corpus case, the cross-mode margins
   re-measured, and the end-to-end detection count stated honestly here.
@@ -1088,7 +1092,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
   (**G2**).
 - [x] Every registered rule maps to ≥1 §6 mode or is recorded as mode-less with a reason. *(Full suite run 2026-09-02: test_ac2_ac3_analytic_rule_declares_mode_two_only[bounds] passed)*
   - **2026-09-02** → Full suite run 2026-09-02 (.venv/bin/python -m pytest -q): 6900 passed, 0 failed. Combined with item 136's six corpus-derived declarations, item 137 disposes the remaining four rules (bounds, reference_delta -> mode 2 analytic; intensity, intensity_reference_delta -> mode-less with recorded reason), verified by test_ac1_all_ten_rules_declared_and_not_pending, test_ac2_ac3_analytic_rule_declares_mode_two_only[bounds/reference_delta], and test_ac5_mode_less_rule_declares_no_modes_not_pending[intensity/intensity_reference_delta] — every registered rule now maps to >=1 mode or is recorded mode-less with a reason.
-- [ ] Every registered rule is exercised by ≥1 case or recorded as unexercised with a *(Full suite run 2026-09-02: test_ac2_ac3_analytic_rule_declares_mode_two_only[reference_delta] passed)*
+- [x] Every registered rule is exercised by ≥1 case or recorded as unexercised with a *(Full suite run 2026-09-02: test_ac2_ac3_analytic_rule_declares_mode_two_only[reference_delta] passed)* *(Item 169 AC4: tests/test_162_corpus_exercise_report.py passes in full in the clean clone (18 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. Live measurement from segfacet.traceability.build_matrix().exercise in the clone: 10 registered rules -- 7 exercised (border, coverage, fragmentation, intensity, mislabel, overlap, sequence), 3 unexercised with reason needs-real-data (bounds: modes 1,2,3,4; reference_delta: modes 1,2,3,4,8; intensity_reference_delta: mode 16); 12 registered operators, all used (crop_at_border, displace, force_overlap, fragment, fuse, identity, inject_islands, relabel_swap, remove_level, remove_level_relabel, sequence_break, split). Both DirectionReports read complete=True, holes=().)*
   - **2026-09-02** → retracted: Retracting an attestation-mapping error: this criterion (every registered rule exercised by >=1 case or recorded unexercised with reason) was mistakenly ticked by positional mismapping to item 137's AC3 test; per-rule corpus-exercise reporting is Item 139's future deliverable, not verified by item 137's tests.
   reason (**G2**).
 - [ ] The specificity assertion is enforced for every corpus case. *(Full suite run 2026-09-02: test_ac4_mode_two_declaration_is_analytic_with_named_mechanism passed for both rules)* *(Validated 2026-09-20: .venv/bin/python -m pytest -n auto -> 8967 passed, 63 skipped (all pre-known env-gated), 0 failed, full suite. tests/test_163_specificity_ratchet.py -v run standalone -> 21 passed: AC2 (test_ac2_ratchet_measured_equals_expected, parametrised over all 15 committed corpus cases: 11 geometric + 4 intensity, ids confirmed by --collect-only) asserts set(measured_firing)==set(expected_firing) per case via traceability.build_matrix().conformance.cases, one test per case id -- the specificity assertion enforced for every corpus case. AC4/AC6 confirm the comparison actually catches an unintended firing and a silenced rule (not vacuous); AC1 confirms no case is exempt from the loop. (closes Stage 20 criterion 4, item 163 AC2 annotation).)*
