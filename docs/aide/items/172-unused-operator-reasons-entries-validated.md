@@ -208,5 +208,13 @@ because this item's Asserts-against list includes
   `conformance.conformant`? That would put them in the generated artifact
   and not only in the suite. It waits for a consumer that reads the matrix
   and needs them there. No item in queue-023 is such a consumer.
-
-To be updated during implementation.
+- **D2 (builder, 2026-09-23): message wording carries the operator name via
+  `repr()` and is not otherwise pinned.** Each message starts with
+  `UNUSED_OPERATOR_REASONS entry 'name' ...` so a substring match on the bare
+  name always succeeds (AC1/AC2), and a used-operator message lists the
+  offending `CASE_RECIPE` case ids, sorted and comma-joined (A4).
+- **D3 (builder, 2026-09-23): `_cases_by_operator()` is the shared helper
+  named in Implementation Step 1**, returning `Dict[str, list]` exactly as
+  `_build_exercise`'s former inline loop built it; `_build_exercise` now
+  calls it instead of rebuilding the dict inline, and its output is
+  unchanged.
