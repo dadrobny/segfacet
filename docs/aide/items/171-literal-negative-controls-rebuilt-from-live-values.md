@@ -341,7 +341,15 @@ items to reconcile.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Builder confirmation (2026-09-23): no `src/segfacet/` change.** Re-read the
+  spec's Description, Acceptance Criteria and Implementation Steps against
+  the committed `tests/test_171_literal_negative_controls.py` and the five
+  rebuilt target modules (0d2326c). Every AC (AC1–AC6) exercises a test
+  function under a monkeypatch of test-visible or library-level names
+  (`_live_status_counts`, `pipeline_verdict_label`, `pipeline_findings`,
+  `_derived_home`, `PER_MODE_METRIC_SPECS`, `MODE_LADDER_DISPOSITIONS`) — no
+  AC asks for new or changed production behaviour, and the Description states
+  directly that nothing under `source_dir` changes. No `src/` edit was made.
 
 - **Left open:** a standing check for the class, such as an AST lint in the
   suite or in `aide check` that flags a literal-built wrong input compared
