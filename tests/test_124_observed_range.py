@@ -360,7 +360,12 @@ def test_ac5_only_the_targeted_path_is_flagged_degenerate(observed_range_module)
 
 
 def test_ac6_constant_synthetic_dy_mm_not_degenerate(full_catalogue):
-    entry = _entry(full_catalogue, "stage3.per_label_offsets[].dy_mm")
+    # Re-derived 2026-09-23 (item 173): on the axis-aligned box base the curve
+    # was lateral only, so dy_mm (A-P) was the legitimately-constant path. The
+    # lordotic base curves in the sagittal plane with no lateral curve, so the
+    # constant path is now dx_mm (L-R) and dy_mm varies. The name records the
+    # box-base path.
+    entry = _entry(full_catalogue, "stage3.per_label_offsets[].dx_mm")
     assert entry.observed.verdict == "constant-synthetic"
     assert entry.observed.verdict != "degenerate"
 

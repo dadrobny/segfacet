@@ -237,7 +237,9 @@ def test_ac1_feature_measures_the_split():
     # Measured 2026-09-20 (Correction C7): the committed split fixture's
     # own value, pinned as a from-first-principles literal alongside the
     # recomputation above -- neither is a mirror of the other.
-    assert info.stray_contact_area_mm2 == pytest.approx(750.0)
+    # Re-measured 2026-09-23 on item 173's lordotic base: 775.0 (750.0 on
+    # the box base).
+    assert info.stray_contact_area_mm2 == pytest.approx(775.0)
 
 
 # =========================================================================== #

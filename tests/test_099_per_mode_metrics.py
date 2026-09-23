@@ -547,7 +547,10 @@ def test_ac7_mode2_matches_min_fragmentation_index_over_per_label():
 def test_ac7_mode2_mode2_fragment_is_half():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(_RECORDS["fragment"])
-    assert _value(result, 2) == pytest.approx(0.5, abs=1e-9)
+    # 0.5 on the box base; 0.5257903494176372 on item 173's lordotic base
+    # (2026-09-23), where the 1-voxel cut through a tilted body no longer
+    # leaves two equal halves. The name records the box-base value.
+    assert _value(result, 2) == pytest.approx(0.5257903494176372, abs=1e-9)
 
 
 def test_ac7_mode2_clean_control_is_one():
@@ -654,7 +657,10 @@ def test_ac9_mode4_relabel_swap_is_04():
         candidate=_ARRAYS["relabel_swap"],
         gt=_GT_ARRAY,
     )
-    assert _value(result, 4) == pytest.approx(0.4, abs=1e-9)
+    # 0.4 (two of five equal boxes) on the box base; the lordotic bodies'
+    # voxel counts differ slightly (item 173, 2026-09-23). The name records
+    # the box-base value.
+    assert _value(result, 4) == pytest.approx(0.4003837543971858, abs=1e-9)
 
 
 def test_ac9_mode4_sequence_break_is_zero_relabel_target_absent_from_gt():
@@ -677,7 +683,9 @@ def test_ac9_mode4_unrestricted_variant_would_give_02_on_sequence_break():
     denom = np.count_nonzero(gt_fg)
     unrestricted_mask = gt_fg & (cand != 0) & (cand != _GT_ARRAY)
     unrestricted = np.count_nonzero(unrestricted_mask) / denom
-    assert unrestricted == pytest.approx(0.2, abs=1e-9)
+    # 0.2 on the box base; 0.19955228653661655 on item 173's lordotic base
+    # (2026-09-23). The name records the box-base value.
+    assert unrestricted == pytest.approx(0.19955228653661655, abs=1e-9)
 
 
 def test_ac9_mode4_clean_control_is_zero():
@@ -836,7 +844,9 @@ def test_ac14_mode8_plain_extract_feature_record_is_zero(cid):
 def test_ac14_mode8_reconstructed_overlaps_is_1950():
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(_MODE8_RECORD)
-    assert _value(result, 8) == pytest.approx(1950.0, abs=1e-9)
+    # 1950 on the box base; 1085 on item 173's lordotic base (2026-09-23).
+    # The name records the box-base value.
+    assert _value(result, 8) == pytest.approx(1085.0, abs=1e-9)
 
 
 def test_ac14_mode8_matches_hand_formula():
@@ -883,23 +893,25 @@ _OWN_CASE = {
 # independently verified against the already-shipped primitives each metric
 # is built from (extract_feature_record / compute_overlap / BorderRule)
 # before this test file was written -- unchanged by the re-key (A5).
+# Re-measured 2026-09-23 (item 173): the moved cells are the lordotic base's
+# fresh values (the box-base values are recorded in item 173's Decisions).
 _EXPECTED_ISOLATION_MATRIX = {
     "unanchored_foreground_fraction": {
         "clean_control": 0.0,
-        "displace": 0.1456,
+        "displace": 0.14814776607487337,
         "fragment": 0.0,
-        "inject_islands": 0.000288,
+        "inject_islands": 0.000278531417312275,
         "relabel_swap": 0.0,
         "remove_level": 0.0,
-        "crop_at_border": 0.12,
+        "crop_at_border": 0.1429485129517109,
         "sequence_break": 0.0,
-        "force_overlap": 0.1232,
+        "force_overlap": 0.07515190278221938,
     },
     "min_dominant_component_fraction": {
         "clean_control": 1.0,
         "displace": 1.0,
-        "fragment": 0.5,
-        "inject_islands": 0.9985620706183096,
+        "fragment": 0.5257903494176372,
+        "inject_islands": 0.9986128236744759,
         "relabel_swap": 1.0,
         "remove_level": 1.0,
         "crop_at_border": 1.0,
@@ -922,11 +934,11 @@ _EXPECTED_ISOLATION_MATRIX = {
         "displace": 0.0,
         "fragment": 0.0,
         "inject_islands": 0.0,
-        "relabel_swap": 0.4,
+        "relabel_swap": 0.4003837543971858,
         "remove_level": 0.0,
         "crop_at_border": 0.0,
         "sequence_break": 0.0,
-        "force_overlap": 0.0208,
+        "force_overlap": 0.011192836584585865,
     },
     "missing_level_count": {
         "clean_control": 0.0,
@@ -970,7 +982,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 0.0,
         "crop_at_border": 0.0,
         "sequence_break": 0.0,
-        "force_overlap": 1950.0,
+        "force_overlap": 1085.0,
     },
 }
 
@@ -1299,7 +1311,9 @@ def test_ac23_missing_candidate_only():
         entry = result.per_mode[mode - 1]
         assert entry.value is None, mode
         assert isinstance(entry.detail, str) and entry.detail
-    assert result.per_mode[2 - 1].value == pytest.approx(0.5, abs=1e-9)
+    # fragment's fragmentation index: 0.5 on the box base, 0.5257903494176372
+    # on item 173's lordotic base (2026-09-23).
+    assert result.per_mode[2 - 1].value == pytest.approx(0.5257903494176372, abs=1e-9)
 
 
 def test_ac23_missing_gt_only():

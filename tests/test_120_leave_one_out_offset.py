@@ -718,7 +718,9 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     report = build_report_for_case(border_case)
     offsets = report["features"]["stage3"]["per_label_offsets"]
     entry = next(o for o in offsets if o["label"] == 22)
-    assert entry["offset_mm"] == pytest.approx(17.507, abs=0.05)
+    # 17.507 on the box base; re-measured 18.0256 on item 173's lordotic base
+    # (2026-09-23).
+    assert entry["offset_mm"] == pytest.approx(18.0256, abs=0.05)
 
 
 # =========================================================================== #

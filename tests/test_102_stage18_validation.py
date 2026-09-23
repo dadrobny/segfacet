@@ -449,10 +449,12 @@ def test_ac9_attribution_lands_on_mode_1(block_c):
     assert comparison["attributed_metric_name"] == "unanchored_foreground_fraction"
 
     mode1 = _per_mode_by_metric(block_c["comparison_doc"], "unanchored_foreground_fraction")
-    assert mode1["value_a"] == pytest.approx(0.079264)
-    assert mode1["value_b"] == pytest.approx(0.0784)
-    assert mode1["delta"] == pytest.approx(-0.000864, abs=1e-6)
-    assert mode1["normalised_delta"] == pytest.approx(-0.000864, abs=1e-6)
+    # Re-measured 2026-09-23 on item 173's lordotic base (box base: 0.079264,
+    # 0.0784, -0.000864, -0.000864).
+    assert mode1["value_a"] == pytest.approx(0.08327062954602459)
+    assert mode1["value_b"] == pytest.approx(0.08242412841735641)
+    assert mode1["delta"] == pytest.approx(-0.0008465011286681728, abs=1e-6)
+    assert mode1["normalised_delta"] == pytest.approx(-0.0008465011286681728, abs=1e-6)
     assert mode1["worsened"] is False
 
 
@@ -570,7 +572,8 @@ def test_adv_swapped_runs_flip_sign_still_attributes_to_mode_1(block_c, tmp_path
     doc = json.loads((out_compare / "per_mode_comparison.json").read_text(encoding="utf-8"))
     assert doc["comparison"]["attributed_mode"] == 1
     mode1 = _per_mode_by_metric(doc, "unanchored_foreground_fraction")
-    assert mode1["normalised_delta"] == pytest.approx(0.000864, abs=1e-6)
+    # 0.000864 on the box base; re-measured 2026-09-23 on item 173's lordotic base.
+    assert mode1["normalised_delta"] == pytest.approx(0.0008465011286681728, abs=1e-6)
     assert mode1["worsened"] is True
 
 
@@ -779,7 +782,9 @@ _EXPECTED_SEVERITY_KINDS = dict(
 _EXPECTED_MARGINS = dict(
     zip(
         _LADDER_OPERATORS,
-        (math.inf, math.inf, 112.037, math.inf, math.inf, 0.3585, math.inf, 1.0386),
+        # Re-measured 2026-09-23 on item 173's lordotic base (box base:
+        # 112.037, 0.3585, 1.0386).
+        (math.inf, math.inf, 118.4907, math.inf, math.inf, 0.3253, math.inf, 1.7418),
     )
 )
 

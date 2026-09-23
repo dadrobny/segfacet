@@ -83,6 +83,14 @@ def _clean():
     return build_clean_spine()
 
 
+def _ac27_input(name):
+    """AC27's operator input: ``_clean()`` for every operator but
+    ``force_overlap``, which gets the L1-L3 span (item 173, see AC27)."""
+    if name == "force_overlap":
+        return build_clean_spine(levels=("L1", "L2", "L3"))
+    return _clean()
+
+
 def _findings(labelmap):
     case_result, _block = run_qc(labelmap, bundled_default_config())
     return case_result.findings
@@ -654,8 +662,13 @@ def test_ac27_unspecified_target_is_seed_deterministic_and_self_consistent(
 ):
     """AC27: two apply(seed=3) calls with no explicit target select the same
     target (identical output arrays), and the designated rule fires for the
-    label(s)/level actually recorded in result.expectation."""
-    clean = _clean()
+    label(s)/level actually recorded in result.expectation.
+
+    ``force_overlap`` runs on ``build_clean_spine(levels=("L1", "L2", "L3"))``
+    (2026-09-23, item 173): on the lordotic base the operator overlaps 20->21
+    and 21->22 only, and the maintainer declined to fix it on 2026-09-23, so
+    its input is a span on which every pair it can draw overlaps."""
+    clean = _ac27_input(name)
     clean_data = np.asanyarray(clean.seg_img.dataobj)
     r1 = make_operator().apply(clean.seg_img, seed=3)
     r2 = make_operator().apply(clean.seg_img, seed=3)

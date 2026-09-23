@@ -72,12 +72,26 @@ _LABEL_L3 = 22
 # (verified empirically -- see item 049 stage-6 test-fix notes), plus four
 # subjects spread well above it (spacing_z = 1.5, 2.0, 3.0, 4.0mm) so p99
 # sits well above clean_control's value too.
+#
+# Re-derived 2026-09-23 (item 173, fence clause b): the paragraph above
+# describes the axis-aligned box base. On the lordotic base clean_control is
+# built at curve amplitude 0.0mm, and the rotated-box voxelisation no longer
+# has that floor. The cohort keeps its shape -- an exact clean_control match,
+# two finer-z subjects at the same parameters, and subjects spread above --
+# with two moves: rows 1-3 take clean_control's amplitude (0.0, was 6/3/9),
+# and the spacing_z = 2.0 row drops its amplitude 8.0 -> 0.0, because at
+# (2.0, 0.0) the in-sample spline offsets sit *below* clean_control's
+# (label 22: 0.277 vs 0.344 mm) while every other row sits at or above them,
+# so p1 brackets spline_offset_mm from below. Measured on 2026-09-23: with
+# the old rows, clean_control read out of range on extent_x_mm (L2, L4),
+# physical_volume_mm3 (L4) and spline_offset_mm (L2-L4); with these rows it
+# reads in range on every feature at every level.
 _BRACKETING_COHORT_PARAMS = (
-    (1.0, 6.0),   # exact clean_control match
-    (0.5, 3.0),   # floor tie
-    (0.25, 9.0),  # floor tie
+    (1.0, 0.0),   # exact clean_control match
+    (0.5, 0.0),   # finer z, same amplitude
+    (0.25, 0.0),  # finer z, same amplitude
     (1.5, 4.0),
-    (2.0, 8.0),
+    (2.0, 0.0),   # in-sample spline offsets below clean_control's
     (3.0, 1.0),
     (4.0, 12.0),
 )

@@ -1448,7 +1448,10 @@ def _interior_offset_ceiling_over_corpus(exclude_case_ids=frozenset()):
 
 def test_ac45_interior_corpus_ceiling_is_2_510990():
     ceiling = _interior_offset_ceiling_over_corpus(exclude_case_ids=_THRESHOLD_CARRYING_CASES)
-    assert ceiling == pytest.approx(2.510990, abs=1e-6)
+    # 2.510990 on the box base (relabel_swap); re-measured 5.624555 on item
+    # 173's lordotic base (2026-09-23, still relabel_swap, label 23). The name
+    # records the box-base value.
+    assert ceiling == pytest.approx(5.624555, abs=1e-6)
 
 
 def test_ac45_threshold_exceeds_the_interior_ceiling():
@@ -1675,7 +1678,13 @@ def test_adv_exactly_four_level_mask_yields_zero_offsets_not_a_crash(tmp_path):
     """Item 120's held-out estimator at its fallback boundary: with exactly
     four levels, k = min(3, n-1) = 3 leaves the smoothing term no freedom, so
     every held-out offset_mm reads 0.0. Pinned here so a future estimator
-    change is visible (not fixed by this item)."""
+    change is visible (not fixed by this item). The exact held-out offset is
+    a structural zero, so any non-zero reading is fit and closest-point
+    residue that depends on the input coordinates: below 1e-9 mm on the box
+    base, up to 1.27e-8 mm on item 173's lordotic base (L2 7.7e-9, L3
+    1.27e-8, measured 2026-09-23), hence the 1e-6 mm bound, still more than
+    five orders of magnitude below any genuine offset this estimator yields
+    on the clean base."""
     rr = _load_tool()
     cohort_root = tmp_path / "cohort"
     cohort_root.mkdir()
@@ -1699,7 +1708,7 @@ def test_adv_exactly_four_level_mask_yields_zero_offsets_not_a_crash(tmp_path):
         if offset is None:
             continue
         swept = True
-        assert offset.mean == pytest.approx(0.0, abs=1e-9)
+        assert offset.mean == pytest.approx(0.0, abs=1e-6)
     assert swept, "expected at least one level's spline_offset_mm in the four-level build"
 
 

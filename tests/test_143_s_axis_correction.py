@@ -173,27 +173,17 @@ def test_ac2_caudal_order_holds_for_every_span_and_spacing(kwargs):
 # =========================================================================== #
 
 
-def test_ac3_mirror_plus_relabel_reproduces_the_array_exactly():
-    clean = build_clean_spine()
-    data = np.asanyarray(clean.seg_img.dataobj)
-    n = len(clean.labels)
-    remap: Dict[int, int] = {clean.labels[i]: clean.labels[n - 1 - i] for i in range(n)}
-
-    mirrored = data[:, :, ::-1]
-    relabelled = np.zeros_like(mirrored)
-    for old_label, new_label in remap.items():
-        relabelled[mirrored == old_label] = new_label
-
-    assert np.array_equal(relabelled, data), (
-        "mirroring the array along S and reversing the label<->level "
-        "assignment does not reproduce the original array -- the correction "
-        "appears to have reshaped the spine, not just relabelled it"
-    )
+# ``test_ac3_mirror_plus_relabel_reproduces_the_array_exactly`` was retired
+# on 2026-09-23 (item 173, fence clause c): its sole subject was that the
+# axis-aligned box spine is S-mirror-symmetric, so mirroring the array along
+# S and reversing the label<->level assignment reproduced it exactly. The
+# lordotic base's per-level tilts are asymmetric by design (L1 -8 deg ...
+# L5 +35 deg), so the property has no lordotic counterpart.
 
 
-_EXPECTED_DEFAULT_SHAPE = (66, 55, 215)
+_EXPECTED_DEFAULT_SHAPE = (61, 86, 193)
 _EXPECTED_DEFAULT_SPACING = (1.0, 1.0, 1.0)
-_EXPECTED_DEFAULT_VOXEL_COUNTS = {20: 18750, 21: 18750, 22: 18750, 23: 18750, 24: 18750}
+_EXPECTED_DEFAULT_VOXEL_COUNTS = {20: 19437, 21: 19375, 22: 19437, 23: 19344, 24: 19344}
 
 
 def test_ac3_shape_spacing_affine_and_voxel_counts_are_unaffected_by_the_correction():
@@ -205,7 +195,14 @@ def test_ac3_shape_spacing_affine_and_voxel_counts_are_unaffected_by_the_correct
     along the stacking axis, per the module docstring's stated 25/30/25 mm
     body and 15 mm margin/gap, at 1.0 mm isotropic spacing --
     2*15 + 5*25 + 4*15 = 215 (S/I), 2*15 + 30 + 6 = 66 (L/R, +6 vox default
-    curve amplitude), 2*15 + 25 = 55 (A/P); each body 30*25*25 = 18750 vox^3."""
+    curve amplitude), 2*15 + 25 = 55 (A/P); each body 30*25*25 = 18750 vox^3.
+
+    Re-derived 2026-09-23 (item 173, fence clause b): the closed-form box
+    product above describes the axis-aligned box base. On the lordotic base
+    the shape is the centroid span plus the worst-case rotated half-extent
+    plus the margin per axis, and voxel_counts are counted from the array,
+    so the expected values are the fresh default build's: shape
+    (61, 86, 193), counts 19 437 / 19 375 / 19 437 / 19 344 / 19 344."""
     clean = build_clean_spine()
     assert clean.shape == _EXPECTED_DEFAULT_SHAPE
     assert clean.spacing == _EXPECTED_DEFAULT_SPACING
@@ -311,16 +308,19 @@ def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
     ]
 
 
+#: Re-measured 2026-09-23 on item 173's lordotic base (box base: 160.0 for
+#: every case, 142.0 for force_overlap), mirroring test_131's re-measured
+#: ``_PRE_ITEM_NET_ADVANCE_S_MM``.
 _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
-    "clean_control": 160.0,
-    "displace": 160.0,
-    "fragment": 160.0,
-    "inject_islands": 160.0,
-    "relabel_swap": 160.0,
-    "remove_level": 160.0,
-    "crop_at_border": 160.0,
-    "sequence_break": 160.0,
-    "force_overlap": 142.0,
+    "clean_control": 131.97402926021348,
+    "displace": 131.97402926021348,
+    "fragment": 131.97402926021348,
+    "inject_islands": 131.97402926021348,
+    "relabel_swap": 131.97402926021348,
+    "remove_level": 131.97402926021348,
+    "crop_at_border": 131.97402926021348,
+    "sequence_break": 131.97402926021348,
+    "force_overlap": 121.97402926021348,
 }
 
 

@@ -36,15 +36,15 @@ today's `fit_centroid_spline`, but with SciPy's `splprep` smoothing parameter
 **Consequence:** the fit is no longer forced through every centroid, so a
 genuinely displaced vertebra can separate from the curve — at the cost of
 also no longer being a perfect pass-through fit for clean GT (the sparse-count
-in-sample pass-through bound moves from effectively `0` mm to `~0.55` mm; see
+in-sample pass-through bound moves from effectively `0` mm to `~0.43` mm; see
 Evidence). Item 119 inherits this: `stage3.per_label_offsets[].offset_mm` will
 no longer read as `0.0` on the goldens (that regeneration is item 123's job,
 already anticipated by this item's Testing Strategy).
 
 **Evidence:** `lsq_bspline_fixed_knots` and `polynomial_per_plane` both show a
 larger in-sample separation margin than `smoothing_spline` on a synthetic
-single-vertebra displacement (`1.873170` mm and `-0.244683` mm smallest margin
-respectively, against `smoothing_spline`'s `0.140882` mm — `lsq_bspline_fixed_knots`
+single-vertebra displacement (`1.932846` mm and `-0.312875` mm smallest margin
+respectively, against `smoothing_spline`'s `0.103863` mm — `lsq_bspline_fixed_knots`
 is in fact negative, meaning it still re-absorbs the point at small
 displacements), but both fail badly on **real** VerSe19 anatomy: their
 in-sample max pass-through on the cohort's most coronally-deviated
@@ -76,8 +76,8 @@ stiffer, fixed-knot alternatives at that scale.
 **Evidence:** on the synthetic clean-GT sweep (spanning the minimum-supported
 level count up through a full lumbar span, over several spacings including
 an anisotropic one), `smoothing_spline`'s in-sample max pass-through is
-`0.552139` mm — numerically identical to `lsq_bspline_fixed_knots`'s
-`0.552139` mm at the same grid point, confirming the
+`0.434581` mm — numerically identical to `lsq_bspline_fixed_knots`'s
+`0.434581` mm at the same grid point, confirming the
 degenerate-to-single-segment behaviour at the sweep's smallest multi-level
 count. The differentiation instead shows up at the larger, real vertebra
 counts the VerSe cohort provides (see Family).
@@ -100,9 +100,9 @@ consistency machinery.
 
 **Evidence:** the shared parameterisation is directly why `smoothing_spline`
 and `lsq_bspline_fixed_knots` reach numerically identical clean-GT pass-through
-figures at `n = 5` (`0.552139` mm, both) — they are evaluated at the same `u`
+figures at `n = 5` (`0.434581` mm, both) — they are evaluated at the same `u`
 nodes derived the same way; `polynomial_per_plane`'s own-domain reparameterisation
-instead reaches `0.548571` mm at the same grid point, a different (and, on
+instead reaches `0.457755` mm at the same grid point, a different (and, on
 real GT, far worse — `27.859506` mm) fit entirely.
 
 ### Breaking circularity
@@ -130,11 +130,11 @@ gets a chance to bend the curve toward itself. This means the family decision
 in-sample separation strength.
 
 **Evidence:** in leave-one-out mode, the smallest recorded separation margin
-at a 5 mm synthetic displacement is `4.999144` mm for `smoothing_spline` and
-`4.999936` mm for `interpolating_cubic` — both essentially equal to the
+at a 5 mm synthetic displacement is `4.920550` mm for `smoothing_spline` and
+`4.992063` mm for `interpolating_cubic` — both essentially equal to the
 displacement itself, regardless of family. In in-sample mode, by contrast,
-`interpolating_cubic`'s smallest margin is `-0.0000232` mm (no separation at
-all — the motivating bug) and `smoothing_spline`'s is only `0.140882` mm.
+`interpolating_cubic`'s smallest margin is `-0.0000195` mm (no separation at
+all — the motivating bug) and `smoothing_spline`'s is only `0.103863` mm.
 Leave-one-out is therefore what actually fixes Stage 28's circularity problem;
 the family choice matters for a different criterion (real-anatomy fidelity).
 
@@ -163,7 +163,7 @@ GT case (including the cohort's most coronally-deviated, genuinely scoliotic
 cases) under the chosen `smoothing_spline` family is `21.073357` mm —
 comfortably below the proposed `25.0` mm envelope, while still above the
 leave-one-out separation margin measured for even a small (5 mm) synthetic
-displacement (`4.999144` mm smallest margin, i.e. a leave-one-out offset that
+displacement (`4.920550` mm smallest margin, i.e. a leave-one-out offset that
 tracks displacement almost 1:1 once real-curvature noise is set aside). The
 `25.0` mm envelope is therefore set above the noise floor real anatomy
 produces, not below the smallest detectable synthetic displacement — the gate
@@ -176,22 +176,38 @@ Every `Key` below is a dot-separated path into a freshly generated
 
 | Key | Value | Units | Source |
 |---|---|---|---|
-| candidates.interpolating_cubic.clean_pass_through.in_sample.max_mm | 0.0000138 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
-| candidates.smoothing_spline.clean_pass_through.in_sample.max_mm | 0.552139 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
-| candidates.lsq_bspline_fixed_knots.clean_pass_through.in_sample.max_mm | 0.552139 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
-| candidates.polynomial_per_plane.clean_pass_through.in_sample.max_mm | 0.548571 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
-| candidates.interpolating_cubic.separation.smallest_margin_mm.in_sample | -0.0000232 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
-| candidates.smoothing_spline.separation.smallest_margin_mm.in_sample | 0.140882 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
-| candidates.lsq_bspline_fixed_knots.separation.smallest_margin_mm.in_sample | -0.244683 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
-| candidates.polynomial_per_plane.separation.smallest_margin_mm.in_sample | 1.873170 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
-| candidates.smoothing_spline.separation.smallest_margin_mm.leave_one_out | 4.999144 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), leave-one-out |
-| candidates.interpolating_cubic.separation.smallest_margin_mm.leave_one_out | 4.999936 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), leave-one-out |
+| candidates.interpolating_cubic.clean_pass_through.in_sample.max_mm | 0.0000115 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
+| candidates.smoothing_spline.clean_pass_through.in_sample.max_mm | 0.434581 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
+| candidates.lsq_bspline_fixed_knots.clean_pass_through.in_sample.max_mm | 0.434581 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
+| candidates.polynomial_per_plane.clean_pass_through.in_sample.max_mm | 0.457755 | mm | synthetic clean-GT sweep (level counts 2/3/5 x 3 spacings incl. anisotropic) |
+| candidates.interpolating_cubic.separation.smallest_margin_mm.in_sample | -0.0000195 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
+| candidates.smoothing_spline.separation.smallest_margin_mm.in_sample | 0.103863 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
+| candidates.lsq_bspline_fixed_knots.separation.smallest_margin_mm.in_sample | -0.312875 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
+| candidates.polynomial_per_plane.separation.smallest_margin_mm.in_sample | 1.932846 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), in-sample |
+| candidates.smoothing_spline.separation.smallest_margin_mm.leave_one_out | 4.920550 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), leave-one-out |
+| candidates.interpolating_cubic.separation.smallest_margin_mm.leave_one_out | 4.992063 | mm | synthetic separation sweep (T1-T8, displacements 5/10/20 mm), leave-one-out |
 | candidates.smoothing_spline.verse_scoliotic.max_pass_through_mm.in_sample | 2.099807 | mm | VerSe19 real GT (n=80 discovered, 17 selected as coronally deviated), in-sample |
 | candidates.lsq_bspline_fixed_knots.verse_scoliotic.max_pass_through_mm.in_sample | 17.675639 | mm | VerSe19 real GT (n=80 discovered, 17 selected as coronally deviated), in-sample |
 | candidates.polynomial_per_plane.verse_scoliotic.max_pass_through_mm.in_sample | 27.859506 | mm | VerSe19 real GT (n=80 discovered, 17 selected as coronally deviated), in-sample |
 | candidates.interpolating_cubic.verse_scoliotic.max_pass_through_mm.in_sample | 0.0000422 | mm | VerSe19 real GT (n=80 discovered, 17 selected as coronally deviated), in-sample |
 | candidates.smoothing_spline.verse_scoliotic.max_pass_through_mm.leave_one_out | 21.073357 | mm | VerSe19 real GT (n=80 discovered, 17 selected as coronally deviated), leave-one-out |
 | candidates.smoothing_spline.determinism.compared_samples | 100 | samples | synthetic determinism run (two independent fits, same input) |
+
+> **Re-measured (2026-09-23, item 173):** the ten non-VerSe mm rows above were
+> re-measured after `build_clean_spine` became the lordotic base (item 173).
+> Previous values, on the axis-aligned box base, in table order:
+> `interpolating_cubic` clean pass-through `0.0000138`, `smoothing_spline`
+> `0.552139`, `lsq_bspline_fixed_knots` `0.552139`, `polynomial_per_plane`
+> `0.548571`; in-sample separation `interpolating_cubic` `-0.0000232`,
+> `smoothing_spline` `0.140882`, `lsq_bspline_fixed_knots` `-0.244683`,
+> `polynomial_per_plane` `1.873170`; leave-one-out separation
+> `smoothing_spline` `4.999144`, `interpolating_cubic` `4.999936`. The five
+> VerSe19 rows are measured on real anatomy, never read `build_clean_spine`,
+> and did not move. The choice is unaffected because the family was chosen on
+> those VerSe19 rows, and every sign and the in-sample separation ordering on
+> the synthetic rows is unchanged. The one ordering that flipped,
+> `polynomial_per_plane` now above `smoothing_spline` on clean pass-through,
+> is read by no choice or threshold in this document.
 
 **Non-degeneracy check** (used for `degenerate_inputs`, both fixtures, every
 evaluated candidate: `raised: false`, `degenerate: false`): a fit is

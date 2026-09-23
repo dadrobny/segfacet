@@ -572,6 +572,111 @@ To be updated during implementation.
   the geometry. The feature is an axis, and item 121 demoted it, so this item
   compares it without sign (Correction, part 3) and does not change the
   feature.
+- **Reconciliation record (2026-09-23, builder, second pass after the
+  Correction).** Every value below was measured fresh on this branch. Box-base
+  values not quoted here are in the files as of commit `d054c98`.
+  - **Curve-model re-measurement (Correction part 2).** Two runs of
+    `scripts/compare_curve_candidates.py` with no VerSe cohort gave identical
+    `candidates` blocks. Fresh values: `interpolating_cubic` clean
+    pass-through 1.1450798611788938e-05; `smoothing_spline` 0.43458129896917025;
+    `lsq_bspline_fixed_knots` 0.43458129896917114; `polynomial_per_plane`
+    0.4577550398566493; in-sample separation `interpolating_cubic`
+    -1.953287316705293e-05, `smoothing_spline` 0.10386267167625829,
+    `lsq_bspline_fixed_knots` -0.31287547231229595, `polynomial_per_plane`
+    1.9328463500464323; leave-one-out `smoothing_spline` 4.920549648197529,
+    `interpolating_cubic` 4.992062592706033; `compared_samples` 100. Every
+    value is within 1e-6 mm of the Correction's table.
+    `docs/spinal-curve-model.md` was updated per the Correction's procedure.
+  - **Renames (Correction).** `test_119` AC8 is now
+    `test_ac8_clean_gt_sweep_exceeds_0_4mm_but_stays_under_0_44mm` (bracket
+    (0.4, 0.44], measured 0.434581). `test_121` AC5 is now
+    `test_ac5_clean_control_sagittal_tilts_vary_across_levels`.
+  - **Clause (d), as prescribed.** `test_121` AC5's principal-axis half and
+    AC10 now compare the axis to L-R without sign within 1e-12. The doubling-back
+    adversarial moved to the sagittal plane. `test_123`'s four-level adversarial
+    is now `abs=1e-6`. The fresh residue is 7.7e-9 mm at L2 and 1.27e-8 mm at
+    L3. That is below the 1e-7 hand-back bound, and 1e-6 is about 79 times the
+    larger value (the Correction's "about 130 times" used the L2 value only).
+  - **Clause (b), per the Correction.** `test_038` AC27 `[force_overlap]` runs
+    on `build_clean_spine(levels=("L1", "L2", "L3"))`. Seed 3 draws (21, 22)
+    there.
+  - **Retired (clause c).**
+    `tests/test_143_s_axis_correction.py::test_ac3_mirror_plus_relabel_reproduces_the_array_exactly`.
+    It pinned the box spine's S-mirror symmetry, which the asymmetric tilts
+    break.
+  - **Re-derived (clause b).**
+    - `test_049` `_BRACKETING_COHORT_PARAMS`: rows 1–3 now use amplitude 0.0
+      (was 6/3/9), and the spacing_z 2.0 row now uses amplitude 0.0 (was 8.0).
+      Its in-sample offsets sit below clean_control's, so p1 still brackets.
+    - `test_039` AC8: a swap now carries each body's own count
+      (label 21 gets clean 22's count and vice versa). Before, the five box
+      bodies had equal counts.
+    - `test_112` AC6: the trim cut moved 50→40, because GT foreground now ends
+      at axis-0 index 45.
+    - `test_124` AC6: the constant-synthetic path moved `dy_mm`→`dx_mm`,
+      because the curve is now sagittal. The test name still says `dy_mm`.
+    - `test_143` AC3 shape: `(66, 55, 215)`→`(61, 86, 193)`. Counts moved from
+      18 750 each to 19 437 / 19 375 / 19 437 / 19 344 / 19 344, taken from
+      the array.
+  - **Moved literals (clause a), old→new.**
+    - `test_098`/`test_102` reason snapshots:
+      - fragment `[9000, 9000]`/0.5 → `[9796, 8835]`/0.52579.
+      - inject_islands `[18750, 27]`/0.9985620706183096 →
+        `[19437, 27]`/0.9986128236744759.
+      - displace offset 18.7 → 17.6 mm.
+      - crop_at_border offset 17.5 → 18.0 mm.
+    - `test_099`:
+      - fragment index 0.5 → 0.5257903494176372 (AC7, AC23).
+      - relabel_swap 0.4 → 0.4003837543971858.
+      - unrestricted 0.2 → 0.19955228653661655.
+      - overlap 1950 → 1085.
+      - AC15 matrix cells: displace 0.1456 → 0.14814776607487337;
+        inject_islands 0.000288 → 0.000278531417312275; crop_at_border 0.12
+        → 0.1429485129517109; force_overlap 0.1232 → 0.07515190278221938 and
+        0.0208 → 0.011192836584585865; fragment 0.5 → 0.5257903494176372;
+        inject_islands 0.9985620706183096 → 0.9986128236744759;
+        relabel_swap 0.4 → 0.4003837543971858; overlap 1950 → 1085.
+      - Diagonal dominance still holds.
+    - `test_100` AC19: 1950 → 1085.
+    - `test_102`:
+      - AC9 value_a 0.079264 → 0.08327062954602459.
+      - AC9 value_b 0.0784 → 0.08242412841735641.
+      - AC9 delta and normalised_delta -0.000864 → -0.0008465011286681728, and
+        the swapped run's value is the same with the sign flipped.
+      - AC16 margins: inject_islands 112.037 → 118.4907; crop_at_border
+        0.3585 → 0.3253; force_overlap 1.0386 → 1.7418.
+    - `test_120` AC23: 17.507 → 18.0256.
+    - `test_123` AC45 interior ceiling: 2.510990 → 5.624555 (relabel_swap,
+      now label 23; still below the 13.0 mm threshold).
+    - `test_129` AC28 remove_level offsets: 8.999e-05 / 7.67e-08 / 7.67e-08 /
+      8.978e-05 → 7.595758137565312e-05 / 8.717388010901323e-07 /
+      2.8611762188838856e-07 / 7.745963365341523e-05.
+    - `test_131`:
+      - `_PRE_ITEM_TANGENT_ANGLES_DEG`, `_PRE_ITEM_NET_ADVANCE_S_MM`
+        (-160/-142 → -131.97402926021348/-121.97402926021348),
+        `_PRE_ITEM_INTER_TANGENT_ANGLES_DEG` and
+        `_PRE_ITEM_OTHER_CURVATURE_FIELDS` were re-measured whole. Every
+        case's `curvature_plane` moved coronal→sagittal, except
+        crop_at_border, which was already sagittal.
+      - AC4 relabel_swap: `[3.2953, 177.6490, 175.2184, 1.4658, 22.0118]` →
+        `[2.4934, 174.7774, 176.1799, 13.5824, 68.7966]`. The fold still
+        differs by more than 1°.
+      - AC17 tangent range 0.0–8.1652 → 0.254105–33.9343, and inter range
+        3.83716–7.59031 → 7.32060–19.74878.
+      - `test_143` imports these tables. Its AC6 magnitudes moved
+        160/142 → 131.97402926021348/121.97402926021348.
+    - `test_132` `_PRE_ITEM_U_VALUES`: re-measured whole.
+    - `test_167` AC1: 750.0 → 775.0.
+  - **Names that still record the box-base value.** `test_099`'s
+    `..._is_half`, `..._is_04`, `..._would_give_02` and `..._is_1950`,
+    `test_100`'s `..._1950`, `test_123`'s `..._is_2_510990` and `test_124`'s
+    `..._dy_mm` keep their names. Validation step 5 authorises only the
+    Correction's two renames. Each literal carries a dated comment giving the
+    fresh value.
+  - **No firing moved.** No corpus `expected_firing` changed, and no operator
+    file was touched. Two out-of-scope findings went to `insights.md`
+    (item 173, 2026-09-23): the stale margins in `heuristics/mislabel.py`'s
+    docstring, and the platform-fragile coronal row of relabel_swap.
 
 ## Correction — 2026-09-23
 
