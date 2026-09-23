@@ -547,7 +547,8 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
 
 
 def _cases_by_operator() -> Dict[str, list]:
-    """Operator name -> sorted list of ``CASE_RECIPE`` case ids using it.
+    """Operator name -> list of ``CASE_RECIPE`` case ids using it, in
+    ``CASE_RECIPE`` order; callers sort.
     Shared by :func:`_build_exercise` and :func:`operator_reason_conflicts`
     (item 172) so the two cannot drift on what "used" means. Imports
     ``CASE_RECIPE`` from ``segfacet.synth.corpus`` inside the function body
