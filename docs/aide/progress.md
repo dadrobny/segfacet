@@ -1822,14 +1822,15 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 
 - 📋 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
   and specification-regeneration fixtures, literal negative controls rebuilt from live
-  values, and `UNUSED_OPERATOR_REASONS` entries validated.
+  values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Items 170, 171, 172)*
 - 📋 **D1** The lordotic geometric base, with both manifests regenerated and the
   2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
   status report's corpus section re-keyed off the generated specification.
+  *(Items 173, 178, 179)*
 - 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
   `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
   renumbered, `displace` mostly left-right, `force_overlap` retired or declared
-  multi-channel, and `fragment` parked.
+  multi-channel, and `fragment` parked. *(Items 174, 175, 176, 177)*
 - 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
