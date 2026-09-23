@@ -16,6 +16,9 @@ Adversarial cases (Testing Strategy):
 - ``non-lumbar-span-is-untilted``: a span outside the lumbar table stays flat.
 - ``single-steepest-body-fits``: the steepest single-level span still fits
   its own worst-case half-extent with no neighbour to widen the grid.
+- ``coarse-spacing-keeps-every-level``: every requested level keeps at least
+  one voxel, even when a fallback voxel lands on one already claimed, or a
+  later body's box overwrites an earlier fallback voxel.
 
 Fixture paths are resolved through the corpora's own ``load_manifest`` /
 ``load_intensity_manifest`` plus their ``CORPUS_DIR`` / ``INTENSITY_CORPUS_DIR``
@@ -323,3 +326,33 @@ def test_single_steepest_body_fits():
     geometry = label_record["geometry"]
     for key in touch_keys:
         assert geometry[key] is False, key
+
+
+# =========================================================================== #
+# Adversarial case: coarse-spacing-keeps-every-level
+# =========================================================================== #
+
+
+@pytest.mark.parametrize(
+    "levels,spacing,expected_labels",
+    [
+        (("L1", "L2", "L3"), (20.0, 20.0, 60.0), {20, 21, 22}),
+        (("L1", "L2", "L3"), (20.0, 20.0, 66.0), {20, 21, 22}),
+        (("L1", "L2", "L3"), (20.0, 20.0, 100.0), {20, 21, 22}),
+        (
+            ("L1", "L2", "L3", "L4", "L5"),
+            (20.0, 20.0, 60.0),
+            {20, 21, 22, 23, 24},
+        ),
+    ],
+    ids=["l1_l3_60mm", "l1_l3_66mm", "l1_l3_100mm", "l1_l5_60mm"],
+)
+def test_coarse_spacing_keeps_every_level(levels, spacing, expected_labels):
+    """A later body's box fill, or a fallback landing on an already-claimed
+    voxel, must not drop a requested level: every label of the build keeps
+    at least one voxel in the returned array (Correction 2026-09-23,
+    section 1)."""
+    clean = build_clean_spine(levels=levels, spacing=spacing)
+    array = np.asanyarray(clean.seg_img.dataobj)
+    for label in expected_labels:
+        assert np.count_nonzero(array == label) > 0, label
