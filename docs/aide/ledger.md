@@ -34,3 +34,4 @@ _One row per item, newest last._
 | 169 | 022 | 32 | validate-stage | merged | 19 | 11 | 5 | 2 | 0 | 2 | 0 | 1.59.2 | 2026-09-22 |
 | 170 | 023 | 33 | maintenance | merged | 7 | 12 | 19 | 1 | 0 | 0 | 0 | 2.1.0 | 2026-09-23 |
 | 171 | 023 | 33 | maintenance | merged | 6 | 7 | 8 | 2 | 0 | 0 | 1 | 2.1.0 | 2026-09-23 |
+| 172 | 023 | 33 | maintenance | merged | 4 | 5 | 4 | 2 | 0 | 1 | 0 | 2.1.0 | 2026-09-23 |
