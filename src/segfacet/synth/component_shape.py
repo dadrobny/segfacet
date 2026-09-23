@@ -23,6 +23,13 @@ failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
   from every label (including the target) by >= 1 empty voxel. Drives the
   island-kind ``"Rogue island(s):"`` finding while the target's dominant
   body stays above the fragmentation-index threshold.
+* :class:`SplitPerturbation` (``"split"``, item 166, re-authored by item
+  174) -- mode 3 sub-type (a): the target's neighbour-facing cap, the
+  smallest whole-slice run holding at least ``donated_fraction`` of its
+  voxels, is relabelled onto the adjacent neighbour.
+* :class:`SplitOwnLabelPerturbation` (``"split_own_label"``, item 174) --
+  mode 3 sub-type (b): the same caudal cap gets a label of its own (the
+  target's), and every label cranial to it shifts up one level (l -> l - 1).
 
 Implemented strictly against the unchanged item-036 contract (``Perturbation``,
 ``Expectation``, ``PerturbationResult``, ``register_perturbation``,
@@ -53,6 +60,7 @@ __all__ = [
     "FragmentPerturbation",
     "FusePerturbation",
     "SplitPerturbation",
+    "SplitOwnLabelPerturbation",
     "InjectIslandsPerturbation",
 ]
 
@@ -108,6 +116,55 @@ def _require_present(label: int, labels: Sequence[int], *, what: str) -> None:
             f"{what} {label!r} is not present in the segmentation image. "
             f"Available non-zero labels: {list(labels)}."
         )
+
+
+def _neighbour_facing_cap(
+    data: np.ndarray,
+    target: int,
+    neighbour: int,
+    fraction: float,
+    axis: int,
+) -> Tuple[np.ndarray, Tuple[int, int]]:
+    """The target's cap facing *neighbour* along stacking axis *axis* (item 174).
+
+    The side is the end of the target nearer the neighbour, chosen by
+    comparing the two labels' mean stacking-axis index. The cap is the
+    smallest number of whole stacking-axis slices, counted from that end,
+    whose target-voxel count is at least ``fraction * N`` (N = the target's
+    voxel count) -- so it never falls short of the fraction and the cut is a
+    single S-I plane.
+
+    Returns ``(cap_mask, (lo, hi))``: the boolean mask of the target's voxels
+    in the cap, and the cap's inclusive stacking-axis index range. Raises
+    :class:`FacetInputError` when *fraction* is not strictly inside (0, 1) or
+    when the cap would take every slice of the target.
+    """
+    if not 0.0 < fraction < 1.0:
+        raise FacetInputError(
+            f"donated_fraction={fraction!r} must lie strictly inside (0, 1)."
+        )
+    target_mask = data == target
+    target_idx = np.nonzero(target_mask)[axis]
+    neighbour_idx = np.nonzero(data == neighbour)[axis]
+    mins, maxs = _label_bbox(data, target)
+    axis_min, axis_max = int(mins[axis]), int(maxs[axis])
+
+    counts = np.bincount(target_idx - axis_min, minlength=axis_max - axis_min + 1)
+    toward_high = float(neighbour_idx.mean()) > float(target_idx.mean())
+    if toward_high:
+        counts = counts[::-1]
+    k = int(np.searchsorted(np.cumsum(counts), fraction * target_idx.size)) + 1
+    if k >= counts.size:
+        raise FacetInputError(
+            f"donated_fraction={fraction!r} of target label {target!r} would "
+            f"take all {counts.size} of its stacking-axis slices, leaving the "
+            "target no voxels."
+        )
+
+    lo, hi = (axis_max - k + 1, axis_max) if toward_high else (axis_min, axis_min + k - 1)
+    slab = np.zeros_like(target_mask)
+    slab[tuple(slice(lo, hi + 1) if a == axis else slice(None) for a in range(3))] = True
+    return target_mask & slab, (lo, hi)
 
 
 # --------------------------------------------------------------------------- #
@@ -288,19 +345,18 @@ class FusePerturbation(Perturbation):
 
 @register_perturbation
 class SplitPerturbation(Perturbation):
-    """Donate a contiguous end-slab of one label to its adjacent neighbour.
+    """Relabel one label's neighbour-facing cap onto its adjacent neighbour.
 
-    Registered under ``"split"``. Mode 3's converse of :class:`FusePerturbation`:
-    instead of absorbing the whole neighbour, only a contiguous end-slab of the
-    target's own voxels -- on the side facing the neighbour along the
-    affine-resolved stacking axis (item 116, via
-    :func:`segfacet.synth.axes.si_axis`) -- is relabelled onto the neighbour.
-    Nothing is deleted or created: the foreground mask is unchanged and
-    exactly one label's voxels change hands, leaving the target a single
-    connected component and the neighbour spanning two disconnected bodies
-    (drives the fragmentation-kind finding on the *receiving* label -- see the
-    item 166 spec's Assumptions for why the co-detection is filed under mode 3
-    without moving mode 3's own ``intended_rules``).
+    Registered under ``"split"``: mode 3 sub-type (a), part of a vertebra
+    carries a neighbouring vertebra's label (item 166; re-authored by item
+    174, 2026-09-23). The cap is the part of the target beyond one S-I cut on
+    the side facing the neighbour along the affine-resolved stacking axis
+    (item 116, via :func:`segfacet.synth.axes.si_axis`): the smallest number
+    of whole slices holding at least ``donated_fraction`` of the target's
+    **voxels** (not of its stacking-axis span). Nothing is deleted or created:
+    the foreground mask is unchanged and exactly one label's voxels change
+    hands, leaving the target a single connected component and the neighbour
+    spanning two disconnected bodies, the cap touching the donor.
     """
 
     name = "split"
@@ -310,11 +366,11 @@ class SplitPerturbation(Perturbation):
         *,
         target_label: Optional[int] = None,
         neighbour_label: Optional[int] = None,
-        # 0.4 leaves the donor's extent_z at exactly the lumbar
-        # min_extent_z_mm of 15.0 mm -- a zero margin held by bounds.py's
-        # strict `<` (Correction 2, item 166, 2026-09-20). Raising this
-        # default fires `bounds` on the donor (A1).
-        donated_fraction: float = 0.4,
+        # A voxel fraction of the target (item 174, A1). Measured 2026-09-23
+        # on the lordotic default base, L4 -> L5 at 0.2: the cap is 9 of L4's
+        # 32 slices (4 030 of 19 344 voxels); the donor keeps 15 314 mm3
+        # with extents 31 / 31 / 23 mm, inside the lumbar bounds.
+        donated_fraction: float = 0.2,
     ):
         self._target_label = target_label
         self._neighbour_label = neighbour_label
@@ -350,43 +406,11 @@ class SplitPerturbation(Perturbation):
 
         data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
         axis = si_axis(labelmap.affine)
-
-        target_mask = data == target
         mins, maxs = _label_bbox(data, target)
-        axis_min, axis_max = int(mins[axis]), int(maxs[axis])
-        span = axis_max - axis_min + 1
-
-        k = int(round(self._donated_fraction * span))
-        if k <= 0 or k >= span:
-            raise FacetInputError(
-                f"SplitPerturbation: donated_fraction={self._donated_fraction!r} "
-                f"applied to target label {target!r}'s stacking-axis span of "
-                f"{span} voxels would donate {k} voxels, which is either empty "
-                "or would leave the target no voxels."
-            )
-
-        target_coords = np.argwhere(target_mask)
-        neighbour_coords = np.argwhere(data == neighbour)
-        target_mean = float(target_coords[:, axis].mean())
-        neighbour_mean = float(neighbour_coords[:, axis].mean())
-
-        if neighbour_mean > target_mean:
-            slab_lo, slab_hi = axis_max - k + 1, axis_max
-        else:
-            slab_lo, slab_hi = axis_min, axis_min + k - 1
-
-        slab_idx = tuple(
-            slice(slab_lo, slab_hi + 1) if a == axis else slice(None)
-            for a in range(3)
+        n_target = int(np.count_nonzero(data == target))
+        donate_mask, (slab_lo, slab_hi) = _neighbour_facing_cap(
+            data, target, neighbour, self._donated_fraction, axis
         )
-        slab_mask_full = np.zeros_like(target_mask)
-        slab_mask_full[slab_idx] = True
-        donate_mask = target_mask & slab_mask_full
-        if not donate_mask.any():
-            raise FacetInputError(
-                f"SplitPerturbation: donated_fraction={self._donated_fraction!r} "
-                f"produced an empty donation slab for target label {target!r}."
-            )
         data[donate_mask] = neighbour
 
         out_img = _new_image(data, labelmap)
@@ -398,13 +422,94 @@ class SplitPerturbation(Perturbation):
             expected_labels=frozenset({neighbour}),
             expected_verdict="flagged-for-review",
             detail=(
-                f"split: donated {self._donated_fraction!r} of target label "
-                f"{target!r}'s stacking-axis (array axis {axis}) span "
-                f"(indices {slab_lo}-{slab_hi} of {axis_min}-{axis_max}) to "
-                f"neighbour label {neighbour!r}. The receiving label now spans "
-                "two disconnected bodies, so fragmentation's Fragmentation: "
-                "detector (mode 1's) fires on it -- a co-detection, not mode "
-                "3's own signal."
+                f"split: requested donated_fraction {self._donated_fraction!r} "
+                f"of target label {target!r}'s voxels; relabelled its "
+                f"stacking-axis (array axis {axis}) slices {slab_lo}-{slab_hi} "
+                f"of {int(mins[axis])}-{int(maxs[axis])} "
+                f"({int(np.count_nonzero(donate_mask))} of {n_target} voxels) "
+                f"to neighbour label {neighbour!r}."
+            ),
+        )
+        return PerturbationResult(labelmap=out_img, expectation=expectation)
+
+
+# --------------------------------------------------------------------------- #
+# SplitOwnLabelPerturbation
+# --------------------------------------------------------------------------- #
+
+
+@register_perturbation
+class SplitOwnLabelPerturbation(Perturbation):
+    """Give one label's caudal cap a label of its own, shifting cranial labels.
+
+    Registered under ``"split_own_label"``: mode 3 sub-type (b), part of a
+    vertebra carries a label of its own (item 174, 2026-09-23). The cap faces
+    the next-higher present label (caudal, since ascending labels advance
+    caudally) and is cut by the same rule as :class:`SplitPerturbation`.
+    Every present label ``l <= target`` becomes ``l - 1`` and the cap becomes
+    ``target``: on the lumbar base the rest of L4 reads L3, and L1 reads T12.
+    """
+
+    name = "split_own_label"
+
+    def __init__(
+        self,
+        *,
+        target_label: Optional[int] = None,
+        donated_fraction: float = 0.2,
+    ):
+        self._target_label = target_label
+        self._donated_fraction = float(donated_fraction)
+
+    def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
+        labels = _present_labels(labelmap)
+        if len(labels) < 2:
+            raise FacetInputError(
+                "SplitOwnLabelPerturbation requires at least two present "
+                f"labels; found {labels!r}."
+            )
+        if self._target_label is not None:
+            _require_present(self._target_label, labels, what="target_label")
+            target = self._target_label
+        else:
+            target = _choose_label(labels[:-1], seed)
+        if target == labels[-1]:
+            raise FacetInputError(
+                f"SplitOwnLabelPerturbation: target_label={target!r} is the "
+                "highest present label, so it has no caudal neighbour to cut "
+                "a cap toward."
+            )
+        if labels[0] == 1:
+            raise FacetInputError(
+                "SplitOwnLabelPerturbation: the lowest present label is 1, so "
+                "the cranial shift would relabel it as background."
+            )
+        neighbour = labels[labels.index(target) + 1]
+
+        data = np.asanyarray(labelmap.dataobj)
+        axis = si_axis(labelmap.affine)
+        cap_mask, (lo, hi) = _neighbour_facing_cap(
+            data, target, neighbour, self._donated_fraction, axis
+        )
+        out = np.array(data, copy=True)
+        shift = (data != 0) & (data <= target)
+        out[shift] = data[shift] - 1
+        out[cap_mask] = target
+        out_img = _new_image(out, labelmap)
+
+        expectation = Expectation(
+            failure_mode=3,
+            failure_mode_name=FAILURE_MODE_NAMES[3],
+            expected_rule_ids=frozenset({"bounds"}),
+            expected_labels=frozenset({target}),
+            expected_verdict="flagged-for-review",
+            detail=(
+                f"split_own_label: requested donated_fraction "
+                f"{self._donated_fraction!r} of target label {target!r}'s "
+                f"voxels; its caudal cap, stacking-axis (array axis {axis}) "
+                f"slices {lo}-{hi} ({int(np.count_nonzero(cap_mask))} voxels), "
+                f"keeps label {target!r} and every label <= {target!r} "
+                "elsewhere shifts to label - 1."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)

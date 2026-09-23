@@ -640,3 +640,115 @@ To be updated during implementation.
   shift is an integer −1 (A2), which is the anatomical shift for labels 2–24
   but not across the T13 (28) or L6 (25) slots. The committed case is lumbar,
   so the question waits for a corpus that needs it.
+
+### Implementation (builder, 2026-09-23)
+
+- **Measured values.** Every A4 and A5 value was re-measured on this branch
+  and matches the spec exactly:
+  - The `split` cap is L4's slices 49–57 of 49–80, 4 030 of 19 344 voxels.
+  - Label 24's `stray_contact_area_mm2` is 806.0 against label 23, and its
+    fragmentation index is 0.8276. The donor keeps 15 314 mm³ with extents
+    31/31/23 mm.
+  - `split` fires only `fragmentation.neighbour_contact` [24].
+    `split_own_label` fires `bounds.metric_out_of_range` [23] ×2 (4 030 mm³,
+    extent_z 9 mm) and `coverage.missing_interior` (T13).
+  - Thinner caps read 31 mm² (islands), 155, 248 and 341 mm². The intensity
+    corpus has no stray contact.
+  - The catalogue moves exactly per A3: `bounds`' four paths gain
+    `rule_mode_map` evidence, and the catalogue `.md` is byte-unchanged.
+- **Fraction validation lives in the cap helper.** `_neighbour_facing_cap`
+  raises `FacetInputError` for a fraction outside (0, 1) and for a cap that
+  would take every slice. `split` and `split_own_label` therefore refuse
+  degenerate fractions identically.
+- **`split_own_label` shift.** It reads the input array and writes a copy,
+  so the operator never mutates its input. `shift = (data != 0) & (data <= target)`
+  keeps background at 0.
+- **094 snapshot key set.** The committed snapshot never covered
+  `fuse_adjacent`, `remove_level_relabel` or `split`: it held 15 keys, the
+  pre-item-150 fixtures. The re-capture kept exactly those 15 keys, and
+  their digests were unchanged. It added only
+  `corpus/fixtures/split_own_label_seg.nii.gz|seg`, giving the 16 entries
+  that reconciliation entry 8 names. A full re-capture of both manifests
+  would give 19 keys and contradict that entry.
+- **Closes the item-173 `default_config.yaml` insight.** The
+  `default_config.yaml` comment's 750.0 now reads 806.0 (split, label 24
+  against 23). This closes the `defect` entry in `docs/aide/insights.md`
+  (item 173, 2026-09-23). The tick is left to the feedback loop.
+- **Test reconciliation (step 11).** Each edit carries a dated item-174
+  comment. Values are shown as old → new.
+  - Clause (a), moved literals:
+    - `test_167_mode_3_detector.py`:
+      - `::test_ac1_feature_measures_the_split`: label 23 → 24 in the
+        recomputation and in `compute_components`, and 775.0 → 806.0.
+      - `::test_ac2_feature_names_the_claiming_label`: 23 → 24, and the
+        claiming label 22 → 23.
+      - `::test_ac3_silent_everywhere_else_in_both_corpora`:
+        `("geometric", "split", 23)` → `24`.
+      - `::test_ac6_detector_fires_on_the_split_case`: `frozenset({23})` →
+        `frozenset({24})`.
+    - `test_121_tangent_orientation.py::_FUSED_BODY_SPAN_EXCLUSIONS`:
+      `("split", 23)` → `("split", 24)`. The comment and the sibling
+      docstring follow.
+    - `test_138_traceability_matrix.py::test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corpus`:
+      the witness loses `(3, "bounds")`, and `mixed == set()` →
+      `mixed == {"bounds"}`.
+    - `test_137_mode_less_rule_disposition.py::test_adv_measured_artifact_movement_counts_from_spec`:
+      `("rule_declaration",)` 6 → 2, and `("rule_mode_map", "rule_declaration")`
+      7 → 11.
+    - `test_103_feature_catalogue.py::_RULE_MODE_MAP`: gains
+      `"bounds": (3,)`.
+    - `"split_own_label"` is added to the pinned post-item case sets in five
+      files:
+      - `test_116_ras_native_corpus.py::_ITEM_150_NEW_CASES`
+      - `test_129_…::_ADDED_AFTER_129`
+      - `test_131_…::_ADDED_AFTER_ITEM`
+      - `test_132_…::_ADDED_AFTER_ITEM`
+      - `test_143_…::_ADDED_AFTER_ITEM`
+
+      No pre-item table was extended.
+    - `test_143_s_axis_correction.py::test_ac19_snapshot_covers_all_15_entries_across_both_corpora`:
+      15 → 16.
+    - `test_149_conformance_report.py::test_ac13_…`: `len(cases)` 16 → 17,
+      and geometric 12 → 13.
+    - `test_151_stage30_validation.py`:
+      - `::test_ac8_case_count_equals_summed_manifest_case_count`: 16 → 17.
+      - `::test_ac9_no_unspecified_case_and_matrix_is_fully_conformant`:
+        `agree_count` 16 → 17.
+      - `::test_ac14_recorded_analytic_edge_list`: `(3, "bounds")` removed
+        from the expected analytic list. The Testing Strategy's entry 10 did
+        not name this test. It is in a listed file, and it is the same moved
+        literal as the test_138 witness (entry 4), so clause (a) covers it.
+    - `test_057_acceptance_stage7.py::test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed`:
+      9/10 → 10/11, with a docstring history line. The name is kept.
+    - `test_120_leave_one_out_offset.py::test_ac24_corpus_pipeline_detection_is_nine_of_ten`:
+      sensitivity 9/10 → 10/11, and `sum(n_cases)` 10 → 11. The per-mode
+      dict is unchanged.
+    - `test_105_golden_decision_table.py`:
+      - `::test_ac3_current_tree_has_30_non_py_fixtures`: 23 → 24.
+      - `::test_adv_ac3_empty_header_only_table_fails_with_full_missing_list`:
+        23 → 24.
+    - `test_134_decision_table_evidence_companion.py::_INVENTORY_ADDED_AFTER_126`:
+      gains `tests/corpus/fixtures/split_own_label_seg.nii.gz`.
+    - `test_166_split_operator.py::test_expected_labels_equal_the_fired_labels`:
+      the docstring's `{23}` → `{24}`.
+  - Clause (b), re-derived premises:
+    1. `test_167_mode_3_detector.py::test_ac8_split_case_expected_firing_unmoved`
+       selects mode 3's case by `case_id == "split"` instead of asserting
+       `len(cases) == 1`. The `("fragmentation",)` assertion stays.
+    2. `test_167_mode_3_detector.py::test_existing_detectors_unchanged` runs
+       on an in-memory `SplitPerturbation(target_label=23, neighbour_label=24, donated_fraction=0.4)`
+       of `build_clean_spine().seg_img` through `run_qc` with
+       `bundled_default_config()`. As measured, it gives one `components`
+       finding and no `islands` finding.
+    3. `test_162_corpus_exercise_report.py::matrix_demonstrable_rule_unexercised`
+       and `::test_demonstrable_rule_unexercised_is_a_hole` use
+       `"reference_delta"` instead of `"bounds"`, because `bounds` is now
+       exercised by `split_own_label`.
+
+    Also re-derived: `test_166_split_operator.py::test_bounds_stays_silent_on_the_donor`
+    reads the donor label from the committed case's
+    `perturbation_params["target_label"]` instead of the literal 22.
+  - `test_123_recalibrate_and_regenerate.py` needed no edit. AC45's interior
+    ceiling did not move.
+  - `tests/test_174_split_sub_types.py`, `traceability.py` and `test_163`
+    are untouched.

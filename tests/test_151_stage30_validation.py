@@ -344,7 +344,8 @@ def _all_manifest_case_keys():
 
 def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
-    assert len(keys) == 16, keys
+    # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
+    assert len(keys) == 17, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -360,7 +361,8 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.unspecified_cases == ()
     assert matrix.conformance.disagreements == ()
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
-    assert matrix.conformance.agree_count == 16
+    # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
+    assert matrix.conformance.agree_count == 17
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
@@ -554,10 +556,12 @@ def test_ac14_recorded_analytic_edge_list(matrix):
         for rule_id, attribution in row.rule_attribution
         if attribution == "analytic"
     )
+    # Item 174 (2026-09-23): (3, "bounds") left the analytic list -- mode 3's
+    # split_own_label case designates bounds, so that edge is now corpus.
     for expected in [
         (1, "bounds"), (1, "reference_delta"),
         (2, "bounds"), (2, "reference_delta"),
-        (3, "bounds"), (3, "reference_delta"),
+        (3, "reference_delta"),
         (4, "bounds"), (4, "reference_delta"),
         (8, "reference_delta"),
         (16, "intensity_reference_delta"),

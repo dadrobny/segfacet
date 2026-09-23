@@ -313,7 +313,8 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
 #: ``split`` case. A pre-item table is deliberately not extended
 #: with values the item it belongs to never measured; instead each sweep pins
 #: the uncovered set exactly, so a *fourth* uncovered case still fails.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
 
 
 def _cases_covered_by(table, manifest):

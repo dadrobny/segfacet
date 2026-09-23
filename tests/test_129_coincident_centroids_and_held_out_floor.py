@@ -735,7 +735,8 @@ _PRE_129_FINDINGS = {
 #: ``split`` case. The table is deliberately not extended with
 #: values item 129 never measured; instead the uncovered set is pinned
 #: exactly, so a *fourth* uncovered case still fails this test.
-_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
 
 
 def test_ac29_no_corpus_case_changes_findings():

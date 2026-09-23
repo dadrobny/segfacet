@@ -837,9 +837,11 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     expected = {
         (): 86,
         ("rule_bookkeeping",): 20,
-        ("rule_declaration",): 6,
+        # Item 174 (2026-09-23): bounds' four signal paths gain rule_mode_map
+        # evidence (split_own_label, mode 3), moving 6 -> 2 and 7 -> 11.
+        ("rule_declaration",): 2,
         ("rule_mode_less", "rule_condition_signal"): 6,
-        ("rule_mode_map", "rule_declaration"): 7,
+        ("rule_mode_map", "rule_declaration"): 11,
         ("rule_bookkeeping", "rule_not_read"): 4,
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,

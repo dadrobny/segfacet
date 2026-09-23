@@ -765,16 +765,22 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     10 ("skipped level label") has no corpus case and scores none.
     Re-measured 2026-09-20 (item 166) -- mode 3's `split` case is the tenth
     expected-failure record and is caught, so overall sensitivity is 9/10
-    and the per-mode breakdown gains mode 3 at 1.0."""
+    and the per-mode breakdown gains mode 3 at 1.0.
+    Re-measured 2026-09-23 (item 174) -- mode 3's `split_own_label` case is
+    the eleventh expected-failure record and is caught, so overall
+    sensitivity is 10/11; mode 3 stays at 1.0 over two cases. The test name
+    keeps the old value."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
+    # Item 174 (2026-09-23): 9/10 -> 10/11.
+    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
 
     expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
-    assert sum(m.n_cases for m in metrics.per_mode) == 10
+    # Item 174 (2026-09-23): 10 -> 11.
+    assert sum(m.n_cases for m in metrics.per_mode) == 11
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

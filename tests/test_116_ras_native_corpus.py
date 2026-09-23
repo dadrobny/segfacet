@@ -371,12 +371,14 @@ def _rule_label_pairs(findings) -> list:
 _MANIFEST_CASES = load_manifest()["cases"]
 _REFERENCE_SHA = _reference_sha()
 
-#: Cases item 150 (2026-09-14) and item 166 (2026-09-20) added to the
-#: corpus; no pre-migration golden exists for them at
+#: Cases item 150 (2026-09-14), item 166 (2026-09-20) and item 174
+#: (2026-09-23, ``split_own_label``) added to the corpus; no pre-migration golden exists for them at
 #: ``_REFERENCE_GOLDEN_SHA``, so the identity comparison below runs over the
 #: original nine only. Asserted present so the exclusion cannot silently
 #: widen.
-_ITEM_150_NEW_CASES = frozenset({"fuse_adjacent", "remove_level_relabel", "split"})
+_ITEM_150_NEW_CASES = frozenset(
+    {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
+)
 assert _ITEM_150_NEW_CASES <= {c["case_id"] for c in _MANIFEST_CASES}
 _REFERENCE_MANIFEST_CASES = [
     c for c in _MANIFEST_CASES if c["case_id"] not in _ITEM_150_NEW_CASES

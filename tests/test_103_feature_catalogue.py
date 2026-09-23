@@ -585,6 +585,8 @@ _RULE_MODE_MAP = {
     "coverage": (2, 6),  # fuse_adjacent (2), remove_level (6)
     "sequence": (9,),  # sequence_break
     "overlap": (15,),  # force_overlap
+    # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
+    "bounds": (3,),  # split_own_label (3)
 }
 
 

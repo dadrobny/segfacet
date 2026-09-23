@@ -215,7 +215,8 @@ def test_ac4_no_clean_case_u_values_move(case_id):
 #: ``split`` case. The table is deliberately not extended with
 #: values item 132 never measured; the uncovered set is pinned exactly
 #: instead, so a *fourth* uncovered case still fails this test.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
 
 
 def test_ac4_pre_item_table_covers_every_non_mode4_manifest_case():

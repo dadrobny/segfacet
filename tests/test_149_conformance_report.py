@@ -770,13 +770,14 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     assert actual_keys == expected_keys
     # 16 since the item-150 sign-off added the fuse_adjacent (mode 2) and
     # remove_level_relabel (mode 6 under the 2026-09-15 ids) fixtures, and
-    # item 166 (2026-09-20) added the split (mode 3) fixture:
-    # 12 geometric + 4 intensity.
+    # item 166 (2026-09-20) added the split (mode 3) fixture; 17 since
+    # item 174 (2026-09-23) added split_own_label (mode 3):
+    # 13 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
-    assert len(cases) == 16, len(cases)
+    assert len(cases) == 17, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
     intensity = [c for c in cases if c["corpus"] == "intensity"]
-    assert len(geometric) == len(_geometric_manifest_cases()) == 12, len(geometric)
+    assert len(geometric) == len(_geometric_manifest_cases()) == 13, len(geometric)
     assert len(intensity) == len(_intensity_manifest_cases()) == 4, len(intensity)
     for case in cases:
         for key in ("corpus", "case_id", "mode", "expected_firing", "measured_firing", "agrees", "expected_source"):

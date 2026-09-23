@@ -286,7 +286,8 @@ def test_ac5_docstrings_state_the_caudal_contract():
 #: ``split`` case. A pre-item table is deliberately not extended
 #: with values the item it belongs to never measured; instead each sweep pins
 #: the uncovered set exactly, so a *fourth* uncovered case still fails.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
 
 
 def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
@@ -839,7 +840,9 @@ def test_ac18_reference_verse_v1_row_reads_unmoved():
 def test_ac19_snapshot_covers_all_15_entries_across_both_corpora():
     snapshot_path = _REPO_ROOT / "tests" / "corpus" / "094_pre_migration_snapshot.json"
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
-    assert len(snapshot) == 15
+    # Item 174 (2026-09-23): 15 -> 16, the snapshot gains
+    # split_own_label_seg.nii.gz.
+    assert len(snapshot) == 16
     assert any("intensity/fixtures" in entry["path"] for entry in snapshot.values())
     assert any(
         "intensity" not in entry["path"] and "corpus/fixtures" in entry["path"]

@@ -607,6 +607,7 @@
           ],
           "measures": "Physical span of the label along image axis x.",
           "mode_evidence": [
+            "rule_mode_map",
             "rule_declaration"
           ],
           "mode_roles": [
@@ -679,6 +680,7 @@
           ],
           "measures": "Physical span of the label along image axis y.",
           "mode_evidence": [
+            "rule_mode_map",
             "rule_declaration"
           ],
           "mode_roles": [
@@ -751,6 +753,7 @@
           ],
           "measures": "Physical span of the label along image axis z.",
           "mode_evidence": [
+            "rule_mode_map",
             "rule_declaration"
           ],
           "mode_roles": [
@@ -824,6 +827,7 @@
           ],
           "measures": "Physical volume of the label.",
           "mode_evidence": [
+            "rule_mode_map",
             "rule_declaration"
           ],
           "mode_roles": [

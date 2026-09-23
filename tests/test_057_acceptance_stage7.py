@@ -186,17 +186,20 @@ def test_reconstructed_record_modes_are_not_over_claimed_as_caught(mode):
 
 
 def test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed():
-    """Updated 2026-09-20 (item 166): overall cohort sensitivity
-    (TP / (TP + FN)) is 9/10 over the corpus -- ten
+    """Updated 2026-09-23 (item 174): overall cohort sensitivity
+    (TP / (TP + FN)) is 10/11 over the corpus -- eleven
     expected-failure records (the fov_truncation condition case files under
     failure_mode 0 and still expects a verdict; remove_level_relabel expects
     "pass" and is not an expected-failure record), nine caught, the one
     reconstructed-record mode (overlap, mode 15) missed -- not 1.0
-    (Assumptions). Was 8/9 from item 150 to item 166 (mode 3's split case
+    (Assumptions). Was 9/10 from item 166 to item 174 (mode 3's
+    split_own_label case added the eleventh expected-failure record and is
+    caught; the test name keeps the old value), 8/9 from item 150 to item 166 (mode 3's split case
     added the tenth expected-failure record and is caught), 7/8 from item
     132 to item 150, 6/8 before item 132."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
+    # Item 174 (2026-09-23): 9/10 -> 10/11.
+    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
 
 
 # =========================================================================== #

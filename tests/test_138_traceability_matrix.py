@@ -1349,12 +1349,13 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # ("vertebra not segmented") carries remove_level, which expects
     # coverage to fire, alongside remove_level_relabel, which expects nothing.
     # Mode 10 ("skipped level label") is proposed and declares no rule.
+    # 2026-09-23, item 174: (3, "bounds") left the witness -- mode 3's
+    # split_own_label case designates bounds, so that edge is now corpus.
     witness = {
         (1, "bounds"),
         (1, "reference_delta"),
         (2, "bounds"),
         (2, "reference_delta"),
-        (3, "bounds"),
         (3, "reference_delta"),
         (4, "bounds"),
         (4, "reference_delta"),
@@ -1384,7 +1385,9 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     for rule_id, tags in by_rule.items():
         assert tags <= {"analytic", "corpus"}, (rule_id, tags)
     mixed = {rule_id for rule_id, tags in by_rule.items() if len(tags) == 2}
-    assert mixed == set(), by_rule
+    # 2026-09-23, item 174: set() -> {"bounds"}. bounds is corpus-attributed
+    # for mode 3 (split_own_label) and analytic for modes 1, 2 and 4.
+    assert mixed == {"bounds"}, by_rule
 
 
 def test_adv_ac20_mistagged_corpus_evidence_changes_no_attribution(matrix_bounds_mistagged_evidence):

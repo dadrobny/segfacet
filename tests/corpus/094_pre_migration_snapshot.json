@@ -419,6 +419,48 @@
       1.0
     ]
   },
+  "corpus/fixtures/split_own_label_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "351f59f73469916b5a6dc8ce00c061b52961184397c06e98ab52736c5b3d5e55",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/split_own_label_seg.nii.gz",
+    "shape": [
+      61,
+      86,
+      193
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "corpus/intensity/fixtures/clean_hu_scan.nii.gz|scan": {
     "affine": [
       [
