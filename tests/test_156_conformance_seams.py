@@ -9,8 +9,10 @@ Covers Acceptance Criteria AC1-AC14:
 - AC2-AC6: the new direction fires under the queue's own perturbations
   (``reference_delta`` widened to ``(1, 2, 3, 4, 6, 8)`` and to the queue's
   ``(1, 2, 5)`` control, ``fragmentation`` widened to ``(1, 2, 4)`` to show
-  the check is unconditional on corpus evidence, and ``bounds`` widened to an
-  out-of-key-set mode to show that direction still reports exactly once).
+  the check is unconditional on corpus evidence, and ``reference_delta``
+  widened to an out-of-key-set mode to show that direction still reports
+  exactly once -- ``bounds`` until item 174, 2026-09-24, whose
+  ``split_own_label`` case gave ``bounds`` a corpus-designated mode 3).
 - AC7-AC10: ``traceability.build_matrix()``'s
   ``corpus_designated_unregistered_rule_ids`` is derived from the two
   committed manifests (geometric ``expected_rule_ids`` + intensity
@@ -153,14 +155,18 @@ def test_ac5_new_message_is_not_read_as_a_rule_to_mode_hole(monkeypatch):
 
 
 def test_ac6_mode_outside_key_set_reported_exactly_once(monkeypatch):
-    rule = _RULES["bounds"]
+    # Item 174 (2026-09-24), re-derived premise: the subject rule must have
+    # no corpus-designated mode, or replacing its declaration adds a second
+    # "corpus designates" message. split_own_label designates bounds for
+    # mode 3, so the subject is now reference_delta (was bounds).
+    rule = _RULES["reference_delta"]
     replacement = dataclasses.replace(rule.mode_declaration, modes=(999,))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     matching = [
         msg
         for msg in catalogue_module.rule_declaration_conflicts()
-        if "bounds" in msg and re.search(r"\b999\b", msg)
+        if "reference_delta" in msg and re.search(r"\b999\b", msg)
     ]
     assert len(matching) == 1, matching
 
@@ -328,19 +334,24 @@ def test_ac13_every_proposed_mode_is_a_mode_to_rule_hole(raw_matrix):
 
 
 def test_adv_known_and_unknown_mode_only_the_unknown_one_is_reported(monkeypatch):
-    """``bounds`` already declares (and mirrors) mode 1. Widening it to
-    ``(1, 999)`` must add only the "outside the key set" message for 999 --
-    mode 1 is already mirrored, so it must gain nothing new."""
+    """``reference_delta`` already declares (and mirrors) mode 1. Widening it
+    to ``(1, 999)`` must add only the "outside the key set" message for 999
+    -- mode 1 is already mirrored, so it must gain nothing new.
+
+    Item 174 (2026-09-24), re-derived premise: the subject was ``bounds``
+    until item 174's ``split_own_label`` case designated ``bounds`` for mode
+    3, which makes narrowing its declaration add a second message.
+    ``reference_delta`` has no corpus-designated mode."""
     baseline = catalogue_module.rule_declaration_conflicts()
 
-    rule = _RULES["bounds"]
+    rule = _RULES["reference_delta"]
     replacement = dataclasses.replace(rule.mode_declaration, modes=(1, 999))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     new_messages = set(catalogue_module.rule_declaration_conflicts()) - set(baseline)
     assert len(new_messages) == 1, new_messages
     (message,) = new_messages
-    assert "bounds" in message
+    assert "reference_delta" in message
     assert "outside" in message
     assert re.search(r"\b999\b", message), message
     # Mode 1 is already mirrored/known, so it must not earn a message of its

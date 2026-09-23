@@ -784,3 +784,12 @@ To be updated during implementation.
     ceiling did not move.
   - `tests/test_174_split_sub_types.py`, `traceability.py` and `test_163`
     are untouched.
+  - Clause (b), Testing Strategy entry 17 (2026-09-24):
+    `test_156_conformance_seams.py::test_ac6_mode_outside_key_set_reported_exactly_once`
+    and `::test_adv_known_and_unknown_mode_only_the_unknown_one_is_reported`
+    swap `"bounds"` → `"reference_delta"` in the `_RULES[...]` lookup and in
+    each message filter. The adversarial docstring and the module docstring's
+    AC2–AC6 line follow, each with a dated item-174 reason. What each test
+    asserts is unchanged. The first full-suite run on this branch found both
+    tests red (2 failed, 9180 passed, 69 skipped). They were handed back and
+    authorised by the spec amendment.
