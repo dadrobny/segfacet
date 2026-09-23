@@ -432,6 +432,25 @@ Adversarial cases, each written once:
   that end holding at least 20 % of L4. This guards a cumulative count taken
   from the low end whatever side the neighbour is on. AC1 and AC2 only
   exercise a caudal neighbour.
+  - **Clarification (2026-09-23, after the builder's contradiction hand-back;
+    the case above stands).** The case is side-agnostic and correct. A test
+    that asserted label 22 sits at the *low* end of the stacking axis
+    contradicted it, and that test is what gets re-derived. On the default
+    base (item 143's S-axis correction, item 173's lordotic base) the stacking
+    axis is array axis 2, and **its index decreases caudally**. Measured on
+    this branch: L5 (24) spans 15–48 (mean 31.43), L4 (23) spans 49–80
+    (mean 64.41) and L3 (22) spans 84–111 (mean 97.40). So AC1/AC2's caudal
+    neighbour exercises L4's **low** end (slices 49–57), and "a cumulative
+    count taken from the low end" is exactly the defect: such a helper passes
+    AC1/AC2 and fails here. This case exercises the **high** end. The test
+    must assert, each recomputed from the input array and never from a literal:
+    `neighbour_mean > target_mean`; `max(donated) == ` the target's max
+    stacking-axis index; the donated indices are one contiguous run; the
+    donated set equals the input label-23 voxels on that run;
+    `len(D) >= 0.2 * N`; and, with the slice farthest from the neighbour being
+    `min(donated)`, `len(D)` minus that slice's label-23 count is `< 0.2 * N`.
+    Measured for reference only (not to be pinned): slices 72–80, 3 875 of
+    19 344 voxels (20.03 %), and 3 069 without slice 72.
 - **`own-label-non-mutating`**: after `SplitOwnLabelPerturbation(target_label=23).apply(base, 0)`,
   the input array is `np.array_equal` to a copy taken before. This guards a
   mutating operator, which would corrupt the shared base that `build_corpus`
