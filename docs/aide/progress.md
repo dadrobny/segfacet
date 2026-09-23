@@ -1841,10 +1841,22 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
   status report's corpus section re-keyed off the generated specification.
   *(Item 179)*
+- 🚧 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
+  `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
+  renumbered, `displace` mostly left-right, `force_overlap` retired or declared
+  multi-channel, and `fragment` parked. *(Item 174)*
 - 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
   `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
   renumbered, `displace` mostly left-right, `force_overlap` retired or declared
-  multi-channel, and `fragment` parked. *(Items 174, 175, 176, 177)*
+  multi-channel, and `fragment` parked. *(Item 175)*
+- 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
+  `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
+  renumbered, `displace` mostly left-right, `force_overlap` retired or declared
+  multi-channel, and `fragment` parked. *(Item 176)*
+- 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
+  `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
+  renumbered, `displace` mostly left-right, `force_overlap` retired or declared
+  multi-channel, and `fragment` parked. *(Item 177)*
 - 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
