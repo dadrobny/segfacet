@@ -21,9 +21,9 @@ Covers Acceptance Criteria AC1-AC27:
   (``make_splprep`` import, no legacy FITPACK wrappers, ``smoothing`` default
   and override, degree clamp, chord-length ``u`` parameterisation).
 - AC7/AC8: item 017's clean-GT fixtures stay within its own 0.5 mm unit
-  tolerance while the synthetic ``build_clean_spine`` sweep exceeds it once,
-  bounded at 0.56 mm and inside stage 28's 1.0 mm acceptance bound -- a
-  matched pair, both directions asserted.
+  tolerance while the synthetic ``build_clean_spine`` sweep exceeds 0.4 mm,
+  bounded at 0.44 mm on the lordotic base (2026-09-23) and inside stage 28's
+  1.0 mm acceptance bound -- a matched pair, both directions asserted.
 - AC9/AC10: a displaced vertebra separates under leave-one-out evaluation but
   not in-sample -- also a matched pair.
 - AC11-AC13: determinism and degenerate/edge-count inputs (2-level, truncated
@@ -355,7 +355,7 @@ def test_ac8_clean_gt_sweep_exceeds_0_4mm_but_stays_under_0_44mm():
     )
     assert overall_max <= 0.44, f"sweep max {overall_max:.6f} mm exceeds the 0.44 mm ceiling"
     # Stage 28's acceptance bound (raised 0.5 -> 1.0 mm on 2026-08-28). Implied
-    # by the 0.56 ceiling above, but asserted in its own right so the criterion
+    # by the 0.44 ceiling above, but asserted in its own right so the criterion
     # the stage is ticked against is checked somewhere rather than inferred.
     assert overall_max < 1.0, (
         f"sweep max {overall_max:.6f} mm breaches stage 28's 1.0 mm pass-through "

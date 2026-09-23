@@ -352,12 +352,22 @@ def build_clean_spine(
             & (np.abs(u) <= _BODY_SIZE_AP_MM / 2.0)
             & (np.abs(v) <= _BODY_SIZE_SI_MM / 2.0)
         )
-        if not inside.any():
-            # A spacing coarser than the body can miss every voxel centre;
-            # keep the label present as the voxel nearest its centroid.
-            inside = np.zeros(grid_shape, dtype=bool)
-            inside[tuple(int(round(c / s)) for c, s in zip((cx, cy, cz), (sx, sy, sz)))] = True
         seg_data[inside] = label
+
+    # Second pass (item 173 correction, 2026-09-23): a spacing coarser than a
+    # body can miss every voxel centre inside its rotated box, and a later
+    # body's box fill can overwrite an earlier body's own claimed voxels --
+    # so this only runs after every box above is written, over labels in
+    # ascending order. Each label left with zero voxels claims the still-
+    # unclaimed (value 0) voxel nearest its centroid in mm; ties go to the
+    # lowest C-order flat index, which is what np.argmin returns first.
+    for label in sorted(labels):
+        if np.any(seg_data == label):
+            continue
+        cx, cy, cz = centroids[labels.index(label)]
+        dist2 = (gx - cx) ** 2 + (gy - cy) ** 2 + (gz - cz) ** 2
+        dist2 = np.where(seg_data == 0, dist2, np.inf)
+        seg_data.flat[np.argmin(dist2)] = label
 
     # Trim to the occupied bounding box plus exactly ``margin_vox`` empty
     # voxels on every face, so the margin holds whatever the rounding.

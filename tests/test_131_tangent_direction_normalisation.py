@@ -851,26 +851,52 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
 
 
 def test_ac21_other_curvature_fields_unmoved():
+    # relabel_swap's coronal_tangent_angles_deg entries at indices 1 and 2 sit
+    # exactly on atan2's +-180 branch cut (the analytic L-R component is pure
+    # summation residue on the lordotic base, which has no lateral curve).
+    # Which side of the cut a platform lands on flips coronal_curvature_deg,
+    # total_curvature_deg and curvature_plane, so those three are not
+    # comparable across platforms for this case. Item 173's
+    # "Correction -- 2026-09-23 (review findings)" part 2 rules on this under
+    # fence clause (d): the coronal angles are still compared, as directions
+    # on the circle, and the other three fields are left as a dated record of
+    # this platform's reading rather than asserted.
     manifest = load_manifest()
     for case in _cases_covered_by(_PRE_ITEM_OTHER_CURVATURE_FIELDS, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
         curv = record["stage3"]["curvature"]
         expected = _PRE_ITEM_OTHER_CURVATURE_FIELDS[case["case_id"]]
-        for key in (
-            "total_curvature_deg",
-            "coronal_curvature_deg",
-            "sagittal_curvature_deg",
-            "coronal_tangent_angles_deg",
-            "sagittal_tangent_angles_deg",
-        ):
+        is_relabel_swap = case["case_id"] == "relabel_swap"
+
+        for key in ("total_curvature_deg", "sagittal_curvature_deg", "sagittal_tangent_angles_deg"):
+            if is_relabel_swap and key == "total_curvature_deg":
+                continue
             assert curv[key] == pytest.approx(expected[key], abs=1e-6), (
                 f"{case['case_id']}.{key} moved: {curv[key]} != {expected[key]}"
             )
-        assert curv["curvature_plane"] == expected["curvature_plane"], (
-            f"{case['case_id']}.curvature_plane moved: "
-            f"{curv['curvature_plane']!r} != {expected['curvature_plane']!r}"
-        )
+
+        if is_relabel_swap:
+            for actual, exp in zip(curv["coronal_tangent_angles_deg"], expected["coronal_tangent_angles_deg"]):
+                circle_delta = abs((actual - exp + 180.0) % 360.0 - 180.0)
+                assert circle_delta <= 1e-6, (
+                    f"{case['case_id']}.coronal_tangent_angles_deg moved: {actual} != {exp} (circle)"
+                )
+        else:
+            assert curv["coronal_tangent_angles_deg"] == pytest.approx(
+                expected["coronal_tangent_angles_deg"], abs=1e-6
+            ), (
+                f"{case['case_id']}.coronal_tangent_angles_deg moved: "
+                f"{curv['coronal_tangent_angles_deg']} != {expected['coronal_tangent_angles_deg']}"
+            )
+            assert curv["coronal_curvature_deg"] == pytest.approx(expected["coronal_curvature_deg"], abs=1e-6), (
+                f"{case['case_id']}.coronal_curvature_deg moved: "
+                f"{curv['coronal_curvature_deg']} != {expected['coronal_curvature_deg']}"
+            )
+            assert curv["curvature_plane"] == expected["curvature_plane"], (
+                f"{case['case_id']}.curvature_plane moved: "
+                f"{curv['curvature_plane']!r} != {expected['curvature_plane']!r}"
+            )
 
 
 # =========================================================================== #

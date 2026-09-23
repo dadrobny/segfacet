@@ -677,6 +677,38 @@ To be updated during implementation.
     file was touched. Two out-of-scope findings went to `insights.md`
     (item 173, 2026-09-23): the stale margins in `heuristics/mislabel.py`'s
     docstring, and the platform-fragile coronal row of relabel_swap.
+- **Builder record (2026-09-23, "Correction — 2026-09-23 (review findings)").**
+  - **Part 1, `src/segfacet/synth/clean_gt.py`.** The fill loop now writes
+    only each body's rotated box; the in-loop fallback was removed. After
+    every box is written and before the trim, a second pass walks
+    `sorted(labels)` and gives each label with zero voxels the still-
+    unclaimed (value-0) voxel nearest its centroid in mm (squared-distance
+    over the full grid via `np.argmin`, so ties resolve to the lowest
+    C-order flat index, `np.argmin`'s own tie-break). Verified: the default
+    build's shape and per-label counts are unchanged, `(61, 86, 193)` /
+    19437, 19375, 19437, 19344, 19344 — no committed fixture regenerates
+    differently. Confirmed by regenerating into temp dirs and byte-diffing
+    against committed: both corpus manifests and fixture trees,
+    `reference_default.json`, and all four `docs/aide/*.generated.*`
+    families (`feature_catalogue`, `failure_modes`, `traceability_matrix`,
+    `golden_evidence`) — every diff empty, so nothing was overwritten. The
+    three L1–L3 coarse-spacing sweeps ((20,20,60), (20,20,66), (20,20,100))
+    and the L1–L5 (20,20,60) sweep from the Correction's table now give
+    every requested label at least one voxel.
+  - **Part 2, `tests/test_131_tangent_direction_normalisation.py::test_ac21_other_curvature_fields_unmoved`.**
+    Joined fence clause (d) as prescribed: for `relabel_swap` only,
+    `coronal_tangent_angles_deg` is compared entry-by-entry as a circle
+    distance (`abs((actual - expected + 180) % 360 - 180) <= 1e-6`);
+    `coronal_curvature_deg`, `total_curvature_deg` and `curvature_plane` are
+    not compared for that case, with a comment naming this Correction
+    section and the branch-cut reason. Every other case (and every other
+    field of `relabel_swap`) keeps the prior direct-equality comparison. The
+    `_PRE_ITEM_OTHER_CURVATURE_FIELDS` table literals are unchanged.
+  - **Part 3, `tests/test_119_curve_formulation.py`.** The AC8 trailing
+    comment now says "Implied by the 0.44 ceiling above". The module
+    docstring's AC7/AC8 bullet now says the sweep "exceeds 0.4 mm, bounded
+    at 0.44 mm on the lordotic base (2026-09-23) and inside stage 28's 1.0 mm
+    acceptance bound". No assertion changed.
 
 ## Correction — 2026-09-23
 
