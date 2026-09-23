@@ -330,15 +330,40 @@ def _h5_pre_item_body(monkeypatch):
 
 
 def _h6_pre_item_body(monkeypatch):
+    # Pre-item form of test_154's test_adv_ac14_rehoming_a_metric_changes_
+    # the_derived_tuple, as it read at commit 68c25bd (before item 171
+    # rebuilt it): the hard-coded "rogue_island_count" literal as the
+    # metric to re-home, plus its final rejection assertion. Loading the
+    # real module (mirroring H1-H5) is what makes this a read of the
+    # production seam rather than a hand-copied literal of it -- a future
+    # edit to test_154's pre-item shape would surface here as an import
+    # error instead of silently drifting apart.
+    _load_module_from_path(
+        _TESTS_DIR / "test_154_ladder_remeasurement.py", "_test_171_adv_test_154"
+    )
     per_mode, severity_ladder = _patch_rogue_island_home_to_1(monkeypatch)
 
-    patched_specs = per_mode.PER_MODE_METRIC_SPECS
+    patched_specs = dict(per_mode.PER_MODE_METRIC_SPECS)
+    patched_specs["rogue_island_count"] = dataclasses.replace(
+        patched_specs["rogue_island_count"], failure_mode=1
+    )
+    monkeypatch.setattr(per_mode, "PER_MODE_METRIC_SPECS", patched_specs)
+
     rehomed_ladders = tuple(
         operator
         for operator in severity_ladder.SEVERITY_LADDERS
         if patched_specs[severity_ladder.SEVERITY_LADDERS[operator].designated_metric].failure_mode
         == 1
     )
+    # Under the AC6 patch, rogue_island_count already lives in mode 1 in
+    # both PER_MODE_METRIC_SPECS and MODE_LADDER_DISPOSITIONS[1].ladders
+    # (both patched consistently by _patch_rogue_island_home_to_1), so
+    # this recomputation equals the live table and the "must differ"
+    # assertion below genuinely raises AssertionError -- this is the
+    # defect the naive patch (PER_MODE_METRIC_SPECS alone) would hide,
+    # since MODE_LADDER_DISPOSITIONS[1].ladders is computed at import and
+    # would then stay stale, making rehomed_ladders differ from it and
+    # this assertion pass instead.
     assert rehomed_ladders != severity_ladder.MODE_LADDER_DISPOSITIONS[1].ladders
 
 
