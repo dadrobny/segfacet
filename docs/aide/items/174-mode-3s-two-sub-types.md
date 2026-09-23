@@ -362,6 +362,7 @@ closed by D5 and D6.
 - `tests/test_166_split_operator.py` — reconciliation (a) and (b): donor label and docstrings.
 - `tests/test_167_mode_3_detector.py` — reconciliation (a) and (b): label pair, contact value, detector inputs.
 - `tests/test_123_recalibrate_and_regenerate.py` — conditional only: A4 measures no move of the interior ceiling.
+- `tests/test_156_conformance_seams.py` — reconciliation (b): the out-of-key-set subject rule (amendment 2026-09-24, Testing Strategy entry 17).
 
 **The reconciliation fence.** It applies to the listed `tests/test_*.py` files
 other than this item's own module. The builder does the reconciliation, after
@@ -560,6 +561,37 @@ change**, and the clause is named.
     5.624555 is predicted not to move, because the new interior offsets peak
     at 4.251 mm (A4). It is declared only so a surprise is a fence edit and
     not a scope violation.
+
+**Amendment (2026-09-24, after the builder's hand-back; entries 1–16 and the
+fence's "three instances" of clause (b) stand as the record the item was
+specified from).** The 2026-09-23 sweep missed one file. It is red without the
+edit, and it adds a fourth clause-(b) instance:
+
+17. `tests/test_156_conformance_seams.py` (b):
+    `test_ac6_mode_outside_key_set_reported_exactly_once` and
+    `test_adv_known_and_unknown_mode_only_the_unknown_one_is_reported` swap
+    `"bounds"` for `"reference_delta"`, in the `_RULES[...]` lookup and in
+    each message filter. Their unstated premise was that the subject rule has
+    no corpus-designated mode. A3 falsifies it for `bounds`: `split_own_label`
+    designates `bounds` for mode 3, so replacing its declared modes adds a
+    second message, "corpus designates failure mode 3 but the declaration
+    does not include it", and in AC6 that message also matches `\b999\b`
+    through its declared-modes list. `reference_delta` has no
+    corpus-designated mode. It declares `(1, 2, 3, 4, 8)`, and
+    `SPECIFICATION[1]` carries a `reference_delta` edge, so the adversarial
+    docstring's "already declares (and mirrors) mode 1" premise holds for it
+    unchanged. Each test keeps what it asserts: exactly one matching message
+    in AC6, and in the adversarial case exactly one new message, which names
+    the rule, says "outside" and names 999. The adversarial docstring and the
+    module docstring's AC2–AC6 line change `bounds` → `reference_delta`, with
+    a dated item-174 comment giving the reason. Measured 2026-09-24 on this
+    branch with a read-only probe that replaced `mode_declaration` in place
+    and restored it: for `bounds`, AC6 matched 2 and the adversarial case
+    added 2 (red); for `reference_delta`, AC6 matched 1 and the adversarial
+    case added 1, the out-of-key-set message. `"reference_delta"` is also a
+    substring of `intensity_reference_delta`. The `\b999\b` filter, and the
+    fact that only the patched rule's messages change, keep the count at
+    one, as the probe measured.
 
 **Covered automatically, no edit.** A full run confirms each of these:
 
