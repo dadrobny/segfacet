@@ -2089,10 +2089,20 @@ def test_ac31_measured_findings_claim_matches_the_live_pipeline_firing_set(matri
 
 
 def test_adv_ac31_measured_findings_claim_overclaiming_a_rule_is_detectable(monkeypatch):
-    """Reproduces the pre-fix mode-2 defect directly: claiming a rule
-    ('bounds', 'reference_delta') fires on the plain-pipeline corpus case
-    when it structurally cannot without an attached reference --
-    demonstrating check (2) above would have failed it."""
+    """Reproduces the SHAPE of the pre-fix mode-2 defect: a mechanism
+    sentence claiming a firing set that names one rule the case does not
+    actually fire -- demonstrating check (2) above would have failed it.
+
+    Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
+    the old literal claim (['bounds', 'fragmentation', 'reference_delta'])
+    sat behind a literal precondition pinning the live firing set on
+    'fragment' ({"fragmentation"}) -- item 173 regenerates 'fragment' on the
+    new corpus base, so a corpus move could put the live firing set onto
+    the literal claim. Build the overclaiming claim from the live firing
+    set plus one extra registered rule instead, so it can never coincide
+    with live state.
+    """
+    from segfacet.heuristics.rule import iter_rules
     from segfacet.synth.corpus import load_manifest
     from segfacet.synth.regression import pipeline_findings
 
@@ -2101,18 +2111,19 @@ def test_adv_ac31_measured_findings_claim_overclaiming_a_rule_is_detectable(monk
     case = cases_by_id["fragment"]
     assert case.get("detection") == "pipeline"
 
-    actual_rule_ids = {f.rule_id for f in pipeline_findings(case)}
-    assert actual_rule_ids == {"fragmentation"}, actual_rule_ids
+    live = {f.rule_id for f in pipeline_findings(case)}
+    assert live, "expected 'fragment' to fire at least one rule"
+    extra = next(r.rule_id for r in iter_rules() if r.rule_id not in live)
+    overclaimed = live | {extra}
+    assert overclaimed != live
 
     overclaiming_mechanism = (
-        "caught independently by bounds' magnitude thresholds, "
-        "fragmentation's component-count checks, and reference_delta's "
-        "cohort-relative scoring on fragment (measured: findings == "
-        "['bounds', 'fragmentation', 'reference_delta'])."
+        "caught independently by every rule named below on fragment "
+        "(measured: findings == [%s])." % ", ".join(sorted(repr(r) for r in overclaimed))
     )
     claim = _parse_measured_findings_claim(overclaiming_mechanism)
-    assert claim == {"bounds", "fragmentation", "reference_delta"}
-    assert claim != actual_rule_ids, (
+    assert claim == overclaimed
+    assert claim != live, (
         "check (2) must fail here: the mechanism claims a firing set the "
         "live pipeline does not produce"
     )

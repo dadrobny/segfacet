@@ -1162,11 +1162,22 @@ def test_adv_ac35_status_counts_parser_rejects_off_by_one():
 
 
 def test_adv_ac35_status_counts_parser_rejects_wrong_n():
-    text = "derived status counts over 15 modes: validated 6, implemented 3, specified 0, proposed 7"
+    # Item 171 (Correction 2026-09-20 class, item 167): the old literal ("15
+    # modes") was a hardcoded guess about the specification's mode count.
+    # Stage 33 grows that count, so a fixed literal could coincide with it
+    # again. Build the perturbed mode count from the live derivation
+    # instead, so it can never coincide with live state.
+    live_n, live_counts = _live_status_counts()
+    text = (
+        f"derived status counts over {live_n + 1} modes: "
+        f"validated {live_counts['validated']}, "
+        f"implemented {live_counts['implemented']}, "
+        f"specified {live_counts['specified']}, "
+        f"proposed {live_counts['proposed']}"
+    )
     match = _STATUS_COUNTS_RE.search(text)
     assert match is not None
     n = int(match.group(1))
-    live_n, _live_counts = _live_status_counts()
     assert n != live_n
 
 
