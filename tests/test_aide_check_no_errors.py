@@ -35,34 +35,11 @@ actually durable: `aide check` reports no error.
 
 from __future__ import annotations
 
-import importlib.util
-from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-AIDE_SCRIPT = REPO_ROOT / ".aide" / "scripts" / "aide.py"
+# The in-process `run_checks` call this test used to make directly now runs
+# at most once per pytest worker, behind the `aide_check_result` session
+# fixture (tests/session_artifacts.py, item 170, insight 2026-09-18).
 
 
-def _aide_check_errors() -> list:
-    """Return `aide check`'s errors as a list of strings.
-
-    Calls ``run_checks`` in-process rather than shelling out to
-    ``aide.py check`` and parsing stdout -- the same in-process pattern
-    ``test_114_documentation_corrections.py``'s retired ``_aide_check_warnings``
-    used, and for the same reason: a subprocess capture is a platform-specific
-    failure mode (the Windows CI runner returned ``proc.stdout is None``
-    despite ``capture_output=True``) that a structured, in-process call simply
-    has no surface for. ``run_checks`` is the same function ``cmd_check``
-    calls, and it returns ``(errors, warnings)`` as structured data -- no
-    stdout, no encoding, nothing to re-parse.
-    """
-    spec = importlib.util.spec_from_file_location("_aide_cli_no_errors", AIDE_SCRIPT)
-    aide = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(aide)  # type: ignore[union-attr]
-    repo_root = aide.find_repo_root(REPO_ROOT)
-    errors, _warnings = aide.run_checks(repo_root, aide.load_config(repo_root))
-    return list(errors)
-
-
-def test_aide_check_reports_no_errors():
-    errors = _aide_check_errors()
-    assert errors == [], f"aide check reported error(s): {errors}"
+def test_aide_check_reports_no_errors(aide_check_result):
+    errors = aide_check_result.errors
+    assert errors == (), f"aide check reported error(s): {errors}"

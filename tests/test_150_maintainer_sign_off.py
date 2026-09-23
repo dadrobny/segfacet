@@ -348,7 +348,7 @@ def _human_gates_section(text: str) -> str:
     return "\n".join(lines[start:end])
 
 
-def test_ac4_aide_check_reports_no_error_and_no_unfilled_slot():
+def test_ac4_aide_check_reports_no_error_and_no_unfilled_slot(aide_check_result):
     """The class-subset pin this name once carried is retired (item 159 A4,
     D-n): see ``tests/test_146_ninth_mode_and_first_proposed.py``'s
     ``test_ac36_aide_check_reports_no_error_and_no_new_warning_class`` for the
@@ -357,9 +357,8 @@ def test_ac4_aide_check_reports_no_error_and_no_unfilled_slot():
     module-independent home in ``tests/test_aide_check_no_errors.py``. The
     unfilled-slot negative below is this test's own and stays (item 159
     keeps it; AC9 drives it via an injected wrapper)."""
-    aide = _aide_module()
-    errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    assert errors == [], errors
+    errors, warnings = aide_check_result.errors, aide_check_result.warnings
+    assert errors == (), errors
 
     assert not [w for w in warnings if "unfilled template slot" in w], (
         "aide check reports an unfilled template slot"
@@ -371,13 +370,13 @@ def test_ac4_aide_check_reports_no_error_and_no_unfilled_slot():
     )
 
 
-def test_ac4_gate_warnings_feed_run_checks():
+def test_ac4_gate_warnings_feed_run_checks(aide_check_result):
     """The seam the adversarial test below rests on: every warning
     ``gate_warnings`` produces for the live progress.md is one ``run_checks``
     reports. Without this the in-memory variant test would assert about a
     function nothing calls."""
     aide = _aide_module()
-    _errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
+    warnings = aide_check_result.warnings
     gate_only = aide.gate_warnings(_progress_lines())
     assert set(gate_only) <= set(warnings), (
         "gate_warnings produced a warning run_checks does not report: "
@@ -810,12 +809,11 @@ def test_adv_ac10_a_facet_bound_to_a_nonexistent_field_is_caught():
 # =========================================================================== #
 
 
-def test_ac11_artifacts_are_byte_identical_to_a_fresh_regeneration(tmp_path):
-    fm = _failure_modes()
-
-    fresh_json = tmp_path / "a.json"
-    fresh_md = tmp_path / "a.md"
-    assert fm.main(["--json", str(fresh_json), "--md", str(fresh_md)]) == 0
+def test_ac11_artifacts_are_byte_identical_to_a_fresh_regeneration(
+    regenerated_failure_modes,
+):
+    assert regenerated_failure_modes.exit_codes == (0, 0)
+    fresh_json, fresh_md = regenerated_failure_modes.json_a, regenerated_failure_modes.md_a
     assert fresh_json.is_file() and fresh_md.is_file()
 
     assert_matches_committed_artifact(fresh_json, _COMMITTED_JSON)
@@ -831,18 +829,20 @@ def test_ac11_artifacts_are_byte_identical_to_a_fresh_regeneration(tmp_path):
         assert not raw.endswith(b"\n\n"), f"{path.name} ends with more than one newline"
 
 
-def test_ac11_two_successive_regenerations_agree_byte_for_byte(tmp_path):
+def test_ac11_two_successive_regenerations_agree_byte_for_byte(
+    regenerated_failure_modes,
+):
     """The run-to-run determinism half: two regenerations into *different*
     paths in one session must agree, independently of the committed copies."""
-    fm = _failure_modes()
-    first_json, first_md = tmp_path / "one.json", tmp_path / "one.md"
-    second_json, second_md = tmp_path / "two.json", tmp_path / "two.md"
-    assert fm.main(["--json", str(first_json), "--md", str(first_md)]) == 0
-    assert fm.main(["--json", str(second_json), "--md", str(second_md)]) == 0
-
-    assert first_json.read_bytes() == second_json.read_bytes()
-    assert first_md.read_bytes() == second_md.read_bytes()
-    assert first_json.read_bytes(), "the regeneration wrote an empty JSON"
+    assert regenerated_failure_modes.exit_codes == (0, 0)
+    first_json = regenerated_failure_modes.json_a.read_bytes()
+    second_json = regenerated_failure_modes.json_b.read_bytes()
+    assert first_json == second_json
+    assert (
+        regenerated_failure_modes.md_a.read_bytes()
+        == regenerated_failure_modes.md_b.read_bytes()
+    )
+    assert first_json, "the regeneration wrote an empty JSON"
 
 
 def test_ac11_specification_to_dict_is_equal_but_not_identical_across_calls():

@@ -73,7 +73,6 @@ import socket
 import subprocess
 
 from run_process import run_utf8
-import importlib.util
 from pathlib import Path
 
 import pytest
@@ -85,7 +84,6 @@ _TESTS_DIR = Path(__file__).resolve().parent
 _DOC_PATH = _REPO_ROOT / "docs" / "aide" / "golden-decision-table.md"
 _COMPANION_PATH = _REPO_ROOT / "docs" / "aide" / "golden_evidence.generated.json"
 _GITATTRIBUTES = _REPO_ROOT / ".gitattributes"
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 
 #: Only ever used below for a retired-row fixture-path suffix match (files
 #: item 126 deleted under their pre-item-157 names), so this stays the
@@ -290,40 +288,11 @@ def test_ac6_gitattributes_effectively_pins_companion_to_lf():
     )
 
 
-# =========================================================================== #
-# AC7: aide check is clean for the new paths
-# =========================================================================== #
-
-
-def _aide_check_warnings() -> list:
-    """Return `aide check`'s warnings as a list of strings.
-
-    Calls `run_checks` in-process rather than shelling out to `aide.py
-    check`: a subprocess naming `aide.py` is exactly what engine 1.21.0's
-    `cli_subprocess_test_warnings` lint flags, so a subprocess-based version
-    of this test would make this module report a warning about itself and
-    could never reach a clean `aide check` (see
-    tests/test_128_relocation_checks.py's identical helper). `run_checks` is
-    the same function `cmd_check` calls; it returns `(errors, warnings)` as
-    structured data, so there is no stdout, no encoding and no subprocess to
-    go wrong.
-    """
-    spec = importlib.util.spec_from_file_location("_aide_cli_134", _AIDE_SCRIPT)
-    aide = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(aide)
-    repo_root = aide.find_repo_root(_REPO_ROOT)
-    _errors, warnings = aide.run_checks(repo_root, aide.load_config(repo_root))
-    return list(warnings)
-
-
-def test_ac7_aide_check_names_neither_new_path():
-    warnings = _aide_check_warnings()
-    offending = [
-        w
-        for w in warnings
-        if "golden_evidence.generated.json" in w or "golden_evidence.py" in w
-    ]
-    assert not offending, f"aide check named a new item-134 path:\n{offending}"
+# test_ac7_aide_check_names_neither_new_path and its _aide_check_warnings
+# helper were removed by item 170 (§6, the per-item warning-set-pinning
+# retirement of 2026-09-16): a whole `aide check` run held to an absence
+# over its warning set is the recurring defect class §6 names. The LF pin
+# itself is still asserted above by test_ac6_gitattributes_effectively_pins_companion_to_lf.
 
 
 # =========================================================================== #

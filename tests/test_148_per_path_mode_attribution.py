@@ -1030,15 +1030,11 @@ def test_ac17_no_rule_evaluate_body_references_declaration_symbols():
 
 
 def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
-    tmp_path, shipped_catalogue
+    shipped_catalogue, regenerated_traceability
 ):
     import segfacet.traceability as traceability
 
-    json_dest = tmp_path / "traceability_matrix.generated.json"
-    md_dest = tmp_path / "traceability_matrix.generated.md"
-    traceability.main(["--json", str(json_dest), "--md", str(md_dest)])
-
-    fresh_json_bytes = json_dest.read_bytes()
+    fresh_json_bytes = regenerated_traceability.json_a.read_bytes()
     assert fresh_json_bytes, "expected a non-empty traceability JSON"
     fresh_payload = json.loads(fresh_json_bytes.decode("utf-8"))
     committed_bytes = _COMMITTED_TRACEABILITY_JSON.read_bytes()
@@ -1046,7 +1042,7 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
     committed_payload = json.loads(committed_bytes.decode("utf-8"))
     assert fresh_payload == committed_payload
 
-    fresh_md_bytes = md_dest.read_bytes()
+    fresh_md_bytes = regenerated_traceability.md_a.read_bytes()
     assert fresh_md_bytes, "expected a non-empty traceability markdown"
     committed_md_bytes = _COMMITTED_TRACEABILITY_MD.read_bytes()
     assert committed_md_bytes, "expected a non-empty committed traceability markdown"

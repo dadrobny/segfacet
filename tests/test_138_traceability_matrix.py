@@ -610,20 +610,16 @@ def test_ac1_public_surface_and_zero_argument_build_matrix(raw_matrix):
 # =========================================================================== #
 
 
-def test_ac2_main_redirects_writes_and_leaves_committed_artifacts_unchanged(tmp_path):
-    import segfacet.traceability as traceability
-
-    before_json = _COMMITTED_JSON.read_bytes()
-    before_md = _COMMITTED_MD.read_bytes()
+def test_ac2_main_redirects_writes_and_leaves_committed_artifacts_unchanged(
+    regenerated_traceability,
+):
+    before_json = regenerated_traceability.committed_json_before
+    before_md = regenerated_traceability.committed_md_before
     assert before_json, "expected a non-empty committed JSON artifact"
     assert before_md, "expected a non-empty committed markdown artifact"
 
-    json_dest = tmp_path / "out.json"
-    md_dest = tmp_path / "out.md"
-    traceability.main(["--json", str(json_dest), "--md", str(md_dest)])
-
-    assert json_dest.exists()
-    assert md_dest.exists()
+    assert regenerated_traceability.json_a.exists()
+    assert regenerated_traceability.md_a.exists()
 
     after_json = _COMMITTED_JSON.read_bytes()
     after_md = _COMMITTED_MD.read_bytes()
@@ -654,17 +650,11 @@ def test_ac2_default_output_paths_are_the_committed_docs_aide_paths(monkeypatch)
 # =========================================================================== #
 
 
-def test_ac3_artifacts_are_byte_reproducible_run_to_run(tmp_path):
-    import segfacet.traceability as traceability
-
-    json_a, md_a = tmp_path / "a.json", tmp_path / "a.md"
-    json_b, md_b = tmp_path / "b.json", tmp_path / "b.md"
-
-    traceability.main(["--json", str(json_a), "--md", str(md_a)])
-    traceability.main(["--json", str(json_b), "--md", str(md_b)])
-
-    bytes_a_json, bytes_b_json = json_a.read_bytes(), json_b.read_bytes()
-    bytes_a_md, bytes_b_md = md_a.read_bytes(), md_b.read_bytes()
+def test_ac3_artifacts_are_byte_reproducible_run_to_run(regenerated_traceability):
+    bytes_a_json = regenerated_traceability.json_a.read_bytes()
+    bytes_b_json = regenerated_traceability.json_b.read_bytes()
+    bytes_a_md = regenerated_traceability.md_a.read_bytes()
+    bytes_b_md = regenerated_traceability.md_b.read_bytes()
     assert bytes_a_json, "expected non-empty JSON output"
     assert bytes_a_md, "expected non-empty markdown output"
 

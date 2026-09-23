@@ -1305,17 +1305,11 @@ def test_ac22_implemented_derives_on_registered_rule_containment(mode_id):
 # =========================================================================== #
 
 
-def test_ac23_regeneration_is_byte_reproducible_run_to_run(tmp_path):
-    import segfacet.failure_modes as fm
-
-    json_a, md_a = tmp_path / "a.json", tmp_path / "a.md"
-    json_b, md_b = tmp_path / "b.json", tmp_path / "b.md"
-
-    fm.main(["--json", str(json_a), "--md", str(md_a)])
-    fm.main(["--json", str(json_b), "--md", str(md_b)])
-
-    bytes_a_json, bytes_b_json = json_a.read_bytes(), json_b.read_bytes()
-    bytes_a_md, bytes_b_md = md_a.read_bytes(), md_b.read_bytes()
+def test_ac23_regeneration_is_byte_reproducible_run_to_run(regenerated_failure_modes):
+    bytes_a_json = regenerated_failure_modes.json_a.read_bytes()
+    bytes_b_json = regenerated_failure_modes.json_b.read_bytes()
+    bytes_a_md = regenerated_failure_modes.md_a.read_bytes()
+    bytes_b_md = regenerated_failure_modes.md_b.read_bytes()
     assert bytes_a_json, "expected non-empty JSON"
     assert bytes_a_md, "expected non-empty markdown"
     assert bytes_a_json == bytes_b_json

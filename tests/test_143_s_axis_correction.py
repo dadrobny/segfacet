@@ -484,15 +484,16 @@ def test_ac11_feature_catalogue_regenerates_byte_identically(tmp_path):
     assert md1.read_bytes() == md2.read_bytes()
 
 
-def test_ac11_traceability_matrix_regenerates_byte_identically(tmp_path):
-    import segfacet.traceability as traceability_module
-
-    json1, md1 = tmp_path / "tm1.json", tmp_path / "tm1.md"
-    json2, md2 = tmp_path / "tm2.json", tmp_path / "tm2.md"
-    assert traceability_module.main(["--json", str(json1), "--md", str(md1)]) == 0
-    assert traceability_module.main(["--json", str(json2), "--md", str(md2)]) == 0
-    assert json1.read_bytes() == json2.read_bytes()
-    assert md1.read_bytes() == md2.read_bytes()
+def test_ac11_traceability_matrix_regenerates_byte_identically(regenerated_traceability):
+    assert regenerated_traceability.exit_codes == (0, 0)
+    assert (
+        regenerated_traceability.json_a.read_bytes()
+        == regenerated_traceability.json_b.read_bytes()
+    )
+    assert (
+        regenerated_traceability.md_a.read_bytes()
+        == regenerated_traceability.md_b.read_bytes()
+    )
 
 
 def test_ac11_golden_evidence_regenerates_byte_identically(tmp_path):
@@ -539,13 +540,11 @@ def test_ac12_feature_catalogue_json_matches_committed(tmp_path):
     )
 
 
-def test_ac12_traceability_matrix_json_matches_committed(tmp_path):
-    import segfacet.traceability as traceability_module
-
-    json_dest, md_dest = tmp_path / "tm.json", tmp_path / "tm.md"
-    assert traceability_module.main(["--json", str(json_dest), "--md", str(md_dest)]) == 0
+def test_ac12_traceability_matrix_json_matches_committed(regenerated_traceability):
+    assert regenerated_traceability.exit_codes == (0, 0)
     assert_matches_committed_artifact(
-        json_dest, _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
+        regenerated_traceability.json_a,
+        _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json",
     )
 
 
@@ -623,16 +622,15 @@ def test_ac15_feature_catalogue_markdown_matches_committed_byte_for_byte(tmp_pat
     assert md_dest.read_bytes() == committed.read_bytes()
 
 
-def test_ac15_traceability_matrix_markdown_matches_committed_byte_for_byte(tmp_path):
-    import segfacet.traceability as traceability_module
-
-    json_dest, md_dest = tmp_path / "tm.json", tmp_path / "tm.md"
-    assert traceability_module.main(["--json", str(json_dest), "--md", str(md_dest)]) == 0
+def test_ac15_traceability_matrix_markdown_matches_committed_byte_for_byte(
+    regenerated_traceability,
+):
+    assert regenerated_traceability.exit_codes == (0, 0)
     committed = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.md"
     # Byte-exact against a committed artifact allowlisted under
     # "no-float-leaf" (item 149) -- see this module's "Shared helpers"
     # section for the ground (zero float leaves).
-    assert md_dest.read_bytes() == committed.read_bytes()
+    assert regenerated_traceability.md_a.read_bytes() == committed.read_bytes()
 
 
 def test_ac15_gitattributes_still_pins_both_markdown_renderings_eol_lf():
