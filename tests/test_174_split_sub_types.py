@@ -300,16 +300,21 @@ def test_cap_faces_a_cranial_neighbour():
     target_mean = float(target_coords[:, axis].mean())
     neighbour_mean = float(neighbour_coords[:, axis].mean())
 
-    assert neighbour_mean < target_mean
-    assert min(donated_axis_indices) == target_coords[:, axis].min()
+    assert neighbour_mean > target_mean
+    assert max(donated_axis_indices) == target_coords[:, axis].max()
 
-    assert int(np.count_nonzero(donated_mask)) >= 0.2 * n
     axis_index_grid = np.indices(input_data.shape)[axis]
-    farthest_slice = max(donated_axis_indices)
+    run_mask = (input_data == 23) & np.isin(axis_index_grid, donated_axis_indices)
+    assert np.array_equal(donated_mask, run_mask)
+
+    donated_count = int(np.count_nonzero(donated_mask))
+    assert donated_count >= 0.2 * n
+
+    farthest_slice = min(donated_axis_indices)
     farthest_count = int(
         np.count_nonzero((input_data == 23) & (axis_index_grid == farthest_slice))
     )
-    assert int(np.count_nonzero(donated_mask)) - farthest_count < 0.2 * n
+    assert donated_count - farthest_count < 0.2 * n
 
 
 # =========================================================================== #
