@@ -371,6 +371,16 @@ Some files must stay byte-unchanged, so they are left off **May change** and
 - every operator module
 - everything under the prototype directory
 
+This section was amended on 2026-09-23, after the builder's hand-back. The
+full record is the `## Correction — 2026-09-23` section at the end of this
+spec. It adds one path
+below and fence clause (d), which applies only to the tests that correction
+names. Nothing else in this section changes.
+
+**May change:**
+
+- `docs/spinal-curve-model.md` — item 118's ten non-VerSe measurements, re-measured on the lordotic base (Correction, part 2).
+
 ## Testing Strategy
 
 The new module is `tests/test_173_lordotic_geometric_base.py`, with one test
@@ -547,3 +557,389 @@ To be updated during implementation.
 - **Left open:** the severity ladder's coverage of `split` and the D2
   operators. This item re-transcribes only the existing ladders on the new
   base (A8). Roadmap Stage 33 D4 re-measures after items 174–177.
+- **Left open (2026-09-23):** `force_overlap` on the full lordotic L1–L5
+  span. An unspecified-target draw of (22, 23) or (23, 24) records an overlap
+  `Expectation` that the operator does not produce (0 voxels).
+  `test_038`'s `test_adv_different_seeds_unspecified_target_stay_self_consistent[force_overlap]`
+  passes only because seeds 1 and 42 draw (21, 22) and (20, 21). The
+  maintainer declined to fix the operator (Correction, part 1). Removing it is
+  the follow-up captured in `docs/aide/insights.md` (item 173, 2026-09-23).
+- **Left open (2026-09-23):** the sign of `principal_axis`.
+  `features/orientation.py::_pca_principal_axis` returns the `eigh`
+  eigenvector with no sign convention. On the lordotic base,
+  `crop_at_border` label 22 reads `[-1.0, …]` where every other entry reads
+  `[1.0, …]`, so a serialised report's `principal_axis` sign can flip with
+  the geometry. The feature is an axis, and item 121 demoted it, so this item
+  compares it without sign (Correction, part 3) and does not change the
+  feature.
+
+## Correction — 2026-09-23
+
+**Appended, not a rewrite.** Everything above stands as authored on
+2026-09-23. The builder stopped part-way and handed back with commit `73bf20f`
+("partial, handed back"). By then the base, both corpora, the reference and
+the derived artifacts were regenerated, and the ladder constants were
+re-transcribed. The suite was red in three places the spec above did not
+authorise. This section records the maintainer's decisions of 2026-09-23 on
+those three and rules on each affected test.
+
+**No acceptance criterion, assumption or implementation step above changes.**
+Three things are added:
+
+- one **May change** path, `docs/spinal-curve-model.md`;
+- fence clause (d), below;
+- the per-test prescriptions below.
+
+**Fence clause (d): a re-decided comparison.** A tolerance or a comparison
+shape may change only for a test this correction names under clause (d), and
+only as prescribed here, with the reason recorded here. It must be the right
+bound for what the test measures. It must never be a bound chosen so the test
+passes. No other test may use clause (d). "Nothing may be skipped,
+`xfail`-marked or loosened in tolerance" still holds everywhere else.
+
+**Validation step 5, amended.** The branch's collected test-id set must equal
+the base's set, plus this item's new tests, minus the retirements listed in
+Decisions, with **two renames** each counted as the old id out and the new id
+in:
+
+- `tests/test_119_curve_formulation.py::test_ac8_clean_gt_sweep_exceeds_half_mm_but_stays_under_0_56mm`
+  becomes `test_ac8_clean_gt_sweep_exceeds_0_4mm_but_stays_under_0_44mm`.
+- `tests/test_121_tangent_orientation.py::test_ac5_clean_control_coronal_tilts_vary_across_levels`
+  becomes `test_ac5_clean_control_sagittal_tilts_vary_across_levels`.
+
+A grep of `tests/` and `src/` on 2026-09-23 found no reference to either old
+identifier outside its own definition, so no third file needs an edit.
+
+### 1. `force_overlap` stops overlapping on the lower lumbar pairs
+
+**Finding.** The builder found this, and the spec-author re-measured it on
+this branch on 2026-09-23. `ForceOverlapPerturbation` shifts the target along
+S by the target's bounding-box gap to the neighbour plus `overlap_depth`, and
+that premise is the axis-aligned box. On the lordotic L1–L5 default base, each
+explicit pair was passed through the reconstructed two-channel stack to
+`detect_overlaps`:
+
+| Pair | Overlap voxels |
+|---|---|
+| 20→21 | 1 085 |
+| 21→22 | 930 |
+| 22→23 | 0 |
+| 23→24 | 0 |
+
+`_choose_adjacent_pair` draws (23, 24) at seed 3, so
+`tests/test_038_coverage_border_overlap_perturbations.py::test_ac27_unspecified_target_is_seed_deterministic_and_self_consistent[force_overlap]`
+fails. The committed corpus case is the explicit 20→21 pair, and it still
+fires.
+
+**Maintainer decision.** "We currently don't have full multi-channel
+segmentation support, so we don't really need a fixture for overlap."
+
+- The operator is not fixed in this item, and no operator file is authorised.
+- The committed `force_overlap` corpus case (20→21) stays.
+- The position and the candidate removal follow-up are captured as the
+  `knowledge` entry on `ForceOverlapPerturbation` in `docs/aide/insights.md`
+  (item 173, 2026-09-23).
+
+**Ruling: re-derive (clause b), not retire.** The test's subject is the
+unspecified-target path. Two `apply(seed=3)` calls must give identical output,
+and the designated rule must fire for the pair recorded in the result's own
+`expectation`. The test's premise was that the operator can overlap every
+adjacent pair of the default base with an S shift, and that was a property
+of the box geometry.
+
+The re-derived premise is an input span on which the operator overlaps every
+pair it can draw. `build_clean_spine(levels=("L1", "L2", "L3"))` is such a
+span. Both of its drawable pairs overlap, at 20→21 (1 302 voxels) and 21→22
+(837 voxels), measured 2026-09-23. Seed 3 draws (21, 22) there, so the
+seed-driven choice is still exercised.
+
+Retirement was rejected. The L1–L3 input keeps both halves of what the test
+asserts, and retiring it would drop the only unspecified-target determinism
+check on an operator that still ships. Prescription:
+
+- The change applies to the `force_overlap` parametrisation only. Its
+  operator input and the `clean_data` passed to `_designated_rule_fires` both
+  come from `build_clean_spine(levels=("L1", "L2", "L3"))`. The other three
+  parametrisations keep `_clean()`. Use a small helper in the test module
+  that maps an operator name to its input. Add no new fixture file.
+- The assertions do not change: same-seed `np.array_equal`, then
+  `_designated_rule_fires`.
+- Add one dated sentence to the docstring. It names the L1–L3 span and gives
+  the reason: on the lordotic base the operator overlaps 20→21 and 21→22 only,
+  and the maintainer declined to fix it on 2026-09-23.
+- The node id does not change.
+
+`test_adv_different_seeds_unspecified_target_stay_self_consistent[force_overlap]`
+is not touched, because it passes and did not move. See the Left open entry
+dated 2026-09-23.
+
+### 2. Item 118's curve-formulation measurements
+
+**Finding.** `scripts/compare_curve_candidates.py` builds its synthetic sweeps
+through `build_clean_spine`. As a result, the ten non-VerSe rows of the
+`## Measurements` table in `docs/spinal-curve-model.md` moved. Four tests
+fail:
+
+- `tests/test_118_curve_formulation_decision.py::test_ac6_non_verse_measurements_reproduce_from_fresh_run`
+- `tests/test_119_curve_formulation.py::test_ac25_test_118_ac6_reproduction_stays_green`
+- `tests/test_130_one_closest_point_search.py::test_ac25_test_118_non_verse_reproduction_stays_green`
+- `tests/test_119_curve_formulation.py::test_ac8_clean_gt_sweep_exceeds_half_mm_but_stays_under_0_56mm`
+
+The first three all read the same table through `test_118`'s helpers.
+
+**Maintainer decision.** "Re-measure, unless it's a lot of rework."
+
+**Assessment: the formulation choice holds, so the re-measurement is
+authorised as fence work.** The spec-author measured these values on this
+branch on 2026-09-23, with
+`.venv/bin/python scripts/compare_curve_candidates.py --out <tmp>` and no
+VerSe cohort:
+
+| Row key, under `candidates.` | Documented (box base) | Measured (lordotic base) |
+|---|---|---|
+| `interpolating_cubic.clean_pass_through.in_sample.max_mm` | 0.0000138 | 0.0000115 |
+| `smoothing_spline.clean_pass_through.in_sample.max_mm` | 0.552139 | 0.434581 |
+| `lsq_bspline_fixed_knots.clean_pass_through.in_sample.max_mm` | 0.552139 | 0.434581 |
+| `polynomial_per_plane.clean_pass_through.in_sample.max_mm` | 0.548571 | 0.457755 |
+| `interpolating_cubic.separation.smallest_margin_mm.in_sample` | -0.0000232 | -0.0000195 |
+| `smoothing_spline.separation.smallest_margin_mm.in_sample` | 0.140882 | 0.103863 |
+| `lsq_bspline_fixed_knots.separation.smallest_margin_mm.in_sample` | -0.244683 | -0.312875 |
+| `polynomial_per_plane.separation.smallest_margin_mm.in_sample` | 1.873170 | 1.932846 |
+| `smoothing_spline.separation.smallest_margin_mm.leave_one_out` | 4.999144 | 4.920550 |
+| `interpolating_cubic.separation.smallest_margin_mm.leave_one_out` | 4.999936 | 4.992063 |
+| `smoothing_spline.determinism.compared_samples` | 100 | 100 |
+
+Checked against the document's own decision logic, subsection by subsection:
+
+- **Family.** `smoothing_spline` was chosen for real-anatomy fidelity, on the
+  VerSe19 rows (2.099807 mm against 17.675639 and 27.859506). Those rows are
+  measured on real ground truth, never read `build_clean_spine`, and do not
+  move.
+- **In-sample separation.** The ordering is unchanged:
+  `polynomial_per_plane` > `smoothing_spline` > `interpolating_cubic` >
+  `lsq_bspline_fixed_knots`. Every sign is unchanged, so
+  `lsq_bspline_fixed_knots` still re-absorbs the point and `smoothing_spline`
+  still separates.
+- **Degrees of freedom.** `smoothing_spline` and `lsq_bspline_fixed_knots`
+  are still numerically identical on the clean sweep (0.434581 both). The
+  worst case is at the same grid point as before: 5 levels, spacing
+  (0.8, 0.8, 1.0), label 22.
+- **Breaking circularity.** The leave-one-out margins, 4.920550 and 4.992063
+  against a 5 mm displacement, are still essentially the displacement for
+  both families.
+- **Deformity envelope.** The proposal is already superseded by item 123's
+  13.0 mm. Its synthetic evidence value moves from 4.999144 to 4.920550, and
+  the argument does not change.
+- **Stage 28's 1.0 mm pass-through bound** still holds at 0.434581.
+- **The only ordering that flips.** `polynomial_per_plane`'s clean
+  pass-through (0.457755) is now above `smoothing_spline`'s (0.434581). On the
+  box base it was below (0.548571 against 0.552139). The document uses this
+  pair only to say that the two fits differ, and no choice or threshold reads
+  their order.
+
+**Procedure for `docs/spinal-curve-model.md` (clause a, applied to a
+document).**
+
+1. Run `.venv/bin/python scripts/compare_curve_candidates.py --out <tmp1>`,
+   then the same with `--out <tmp2>`, with no `--verse-cohort`. Confirm that
+   the two `candidates` blocks are identical.
+2. Replace the `Value` cell of each of the ten non-VerSe mm rows with the
+   fresh value. Use 6 decimal places, except for the two
+   `interpolating_cubic` rows below 1e-3 in magnitude, which keep 3
+   significant figures as they do now. If any fresh value differs from the
+   table above by more than 0.001 mm, the document's own tolerance, stop and
+   hand back.
+3. Leave these untouched:
+   - the five VerSe rows and the `compared_samples` row;
+   - every `Key`, `Units` and `Source` cell;
+   - `## Reproducing these numbers`;
+   - the 2026-08-30 correction blockquote;
+   - `## Revisions to apply when item 119 implements this`.
+4. In `## Decision`, update every quote of a moved value to the same fresh
+   value:
+   - **Family**, Consequence: "~0.55 mm" becomes "~0.43 mm".
+   - **Family**, Evidence: 1.873170, -0.244683 and 0.140882.
+   - **Degrees of freedom**, Evidence: both occurrences of 0.552139.
+   - **Parameterisation**, Evidence: 0.552139 and 0.548571.
+   - **Breaking circularity**, Evidence: 4.999144, 4.999936, -0.0000232 and
+     0.140882.
+   - **Deformity envelope**, Evidence: both occurrences of 4.999144.
+
+   No wording changes beyond the numbers, because every sentence stays true
+   (checked above).
+5. Directly under the table, append one dated blockquote headed
+   `**Re-measured (2026-09-23, item 173):**`. It states:
+   - that the ten rows were re-measured after `build_clean_spine` became the
+     lordotic base;
+   - each row's previous value;
+   - that the VerSe rows are real anatomy and did not move;
+   - in two sentences, why the choice is unaffected.
+
+   Two constraints apply. No line of the blockquote may contain "gate"
+   together with "approved", "resolved" or "signed off" (`test_118` AC3). No
+   line of it may start with `|` (`test_118`'s table parser).
+6. Do not edit `test_118`, `test_119` AC25 or `test_130` AC25. They read the
+   document, and they turn green once step 2 is done.
+7. Do not edit the dated records elsewhere that quote 0.552139: the Stage 28
+   attestation in `docs/aide/progress.md` and the Stage 28 note in
+   `docs/aide/roadmap.md`. They are dated measurements of the box base, and
+   Stage 28's criterion, a 1.0 mm bound, still holds.
+
+**`test_119` AC8 (clauses a and b, and a rename).**
+
+- Rename the test to
+  `test_ac8_clean_gt_sweep_exceeds_0_4mm_but_stays_under_0_44mm`.
+- Assert `overall_max > 0.4` and `overall_max <= 0.44`.
+- Keep the `overall_max < 1.0` assertion and its Stage 28 comment unchanged.
+
+The bracket follows the original's own rule: the floor is the measured
+maximum rounded down to 0.1 mm, and the ceiling is the measured maximum
+rounded up to 0.01 mm. That rule gave 0.5 and 0.56 from 0.552139, and gives
+0.4 and 0.44 from 0.434581. The spec-author measured 0.434581 through the
+test's own loop, at 5 levels, spacing (0.8, 0.8, 1.0) and label 22.
+
+Re-word the docstring and failure messages:
+
+- The recorded value is 0.434581 mm (2026-09-23, lordotic base), and
+  0.552139 mm on the box base.
+- The floor no longer coincides with item 017's 0.5 mm unit tolerance,
+  because the lordotic sweep does not reach it.
+- What the floor pins is unchanged in kind. The sweep's maximum stays four
+  orders of magnitude above the interpolating fit's on the same sweep (about
+  1.1e-5 mm), so a drift back toward interpolation still fails it.
+
+If the fresh measurement falls outside (0.4, 0.44], hand back.
+
+**`test_119` AC9's docstring.** Its parenthetical quote of 4.999144 becomes
+4.920550 (2026-09-23), with 4.999144 kept as the box-base value. The 4.5 mm
+assertion does not move.
+
+### 3. Four failures outside the fence's three clauses
+
+The spec-author re-measured each value below on this branch on 2026-09-23,
+except the one marked builder-reported.
+
+**(i)
+`tests/test_121_tangent_orientation.py::test_ac5_clean_control_coronal_tilts_vary_across_levels`:
+re-derive (clause b), rename, and clause (d) for its principal-axis half.**
+
+The test is evidence that item 121's tangent estimate varies across levels on
+a curved spine, against a `principal_axis` that does not vary. `clean_control`
+curved in the coronal plane only because of the 6 mm lateral hump. The
+lordotic base has none (AC4), so `coronal_deg` is 0.0 at every level within
+4e-14. The curve now lies in the sagittal plane, where the measured
+`sagittal_deg` values are:
+
+| Label | `sagittal_deg` |
+|---|---|
+| 20 | −7.575480 |
+| 21 | −0.241862 |
+| 22 | 8.322515 |
+| 23 | 19.245122 |
+| 24 | 33.589953 |
+
+The spread is 41.165433°. Prescription:
+
+- Rename the test to `test_ac5_clean_control_sagittal_tilts_vary_across_levels`.
+- Assert `sagittal_deg` against `[-7.5755, -0.2419, 8.3225, 19.2451, 33.5900]`
+  within `1e-3`, the unchanged tolerance.
+- Assert the spread against `41.1654` within `1e-3`.
+- Take all of these literals from the builder's fresh run.
+
+The principal-axis half, `len(set(principal_axes)) == 1`, also fails on the
+new base. The five axes differ at the 1e-16 level: labels 20, 22 and 23 carry
+residues up to 3.2e-16 off-axis, while labels 21 and 24 read exactly
+`(1.0, 0.0, 0.0)`. Under clause (d), assert instead that every level's axis
+equals the L-R axis without sign: `abs(axis[0])` is within `1e-12` of 1.0,
+and `abs(axis[1])` and `abs(axis[2])` are each at most `1e-12`. The reason is
+given under (ii).
+
+**(ii)
+`tests/test_121_tangent_orientation.py::test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions`:
+re-decide the comparison (clause d), and keep the name.**
+`tests/test_126_golden_retirement.py` line 510 names this test by its
+identifier.
+
+The test is evidence that PCA's principal axis is the L-R axis on every
+non-exceptional corpus case. On the box base, every covariance matrix was
+exactly diagonal, so `eigh` returned `[1.0, 0.0, 0.0]` bit-exactly. The
+lordotic bodies are rotated about the L-R axis, so their x–y and x–z
+covariance entries are zero only analytically. They reach `eigh` as summation
+residue. The largest off-axis component measured over the non-exceptional
+cases is 4.9e-16.
+
+`_pca_principal_axis` also fixes no eigenvector sign, and `crop_at_border`
+label 22 now reads `[-1.0, -4.9e-16, 6.8e-17]`.
+
+The replacement assertion, for every entry: `abs(axis[0])` is within `1e-12`
+of 1.0, and `abs(axis[1])` and `abs(axis[2])` are each at most `1e-12`.
+
+- **Why `1e-12`.** It is about 2 000 times the measured residue. It is far
+  below the smallest real tilt of the axis the sibling
+  `test_ac10_principal_axis_within_0996_of_left_right_on_every_golden`
+  admits, where a dot of 0.996 allows about 0.09 off-axis.
+- **Why without sign.** The feature is an axis. Its sign carries no meaning
+  under the function's contract, and the sibling test already compares with
+  `abs(dot)`.
+
+The exception set, the manifest-derived count and the non-empty checks do not
+change. Update the docstring to say "exactly the L-R axis, up to summation
+residue and sign", with this date.
+
+**(iii)
+`tests/test_121_tangent_orientation.py::test_adv_doubling_back_contrasted_with_unwrapped_curvature_convention`:
+re-derive (clause b), and keep the name.** The name does not name a plane.
+
+The test contrasts two conventions on the real `relabel_swap` case. Item
+121's per-vertebra angles are wrapped to (−180, 180], and item 122's
+curvature arrays are unwrapped. On the box base the doubling-back showed in
+the coronal plane. On the lordotic base there is no lateral offset, so the
+coronal tangent angles sit at 0 and at −179.99999999999997. That is a
+floating-point boundary reading, not a doubling-back, and the unwrapped
+coronal array no longer leaves the range.
+
+The doubling-back now shows in the sagittal plane, along the lordotic A-P
+path:
+
+- `SpineCurvature.sagittal_tangent_angles_deg` is
+  `[2.4934, -174.7774, -176.1799, -346.4176, -291.2034]`.
+- The wrapped `sagittal_deg` values are
+  `[2.4934, -174.7017, 91.4601, 13.7898, 67.6713]`, all inside the range.
+
+Prescription:
+
+- Switch both halves of the contrast to the sagittal plane.
+  - Every record's `sagittal_deg` lies in (−180, 180].
+  - Some value of `curvature_result.sagittal_tangent_angles_deg` is at most
+    −180 or above 180.
+- The assertion message names the sagittal plane.
+- Re-word the docstrings of this test and of
+  `_mode4_relabel_swap_ordered_centroids`. Replace the retired
+  182.3510 / 184.7816 / 358.5342 coronal figures with the fresh sagittal
+  values, dated.
+- Add no coronal assertion. A reading that sits on the range boundary by
+  floating-point accident is not evidence of either convention.
+
+**(iv)
+`tests/test_123_recalibrate_and_regenerate.py::test_adv_exactly_four_level_mask_yields_zero_offsets_not_a_crash`:
+re-decide the tolerance (clause d), and keep the name.**
+
+The test pins a structural zero. With four levels, each held-out refit is a
+cubic spline, `k = min(3, n − 1) = 3`, with as many coefficients as points,
+so it interpolates, and the exact held-out offset is 0. Any non-zero value is
+residue from the fit and the closest-point search. That residue depends on
+the input coordinates: below 1e-9 mm on the box base, and 7.7e-9 mm on the
+lordotic base (builder-reported, 2026-09-23).
+
+Change `pytest.approx(0.0, abs=1e-9)` to `abs=1e-6`.
+
+- **Why `1e-6` mm.** It is about 130 times the measured residue. It is still
+  more than five orders of magnitude below the smallest genuine offset this
+  estimator produces on the clean base: 0.434581 mm on the in-sample clean
+  sweep (part 2), and the held-out offsets are larger. A real estimator
+  change, which is what the test exists to make visible, would therefore
+  still fail it.
+
+The docstring gains one dated sentence on the residue. If the builder's
+fresh residue exceeds 1e-7 mm, hand back, because the bound would then sit
+less than an order of magnitude above it.
