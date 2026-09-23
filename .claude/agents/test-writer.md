@@ -52,7 +52,8 @@ fixture conventions only.
    names "existing tests to reconcile", update those assertions to the NEW
    specified behaviour in this same pass — leaving them fails validation on a
    stale assumption instead of on the new code. This is the one sanctioned edit
-   to pre-existing test files; keep it to the listed tests.
+   to pre-existing test files; keep it to the listed tests. A test you
+   reconcile in another item's file keeps that item's criterion number (§6).
 5. **Commit the tests** on the current branch — two separate Bash calls:
    ```
    git add <tests_dir>

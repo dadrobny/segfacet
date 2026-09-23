@@ -241,7 +241,7 @@ with `.venv/bin/python`; each names what was measured.
   predating the field is silent rather than raising. Making it required would buy a
   stricter schema and cost nine edits this item does not need.
 
-- **A6 (measured 2026-09-20, engine 1.59.2):** this item must **amend Stage 30's
+- **A6 (measured 2026-09-20, engine 1.59.2, re-checked 2.1.0):** this item must **amend Stage 30's
   attestation in `progress.md`**. `tests/test_151_stage30_validation.py`'s three
   AC35 tests parse Stage 30's evidence notes and compare them against a **live**
   derivation: `derived status counts over 16 modes: validated 6, implemented 3,
@@ -269,7 +269,7 @@ with `.venv/bin/python`; each names what was measured.
   case count at one, so a later item that adds a second case meets the divergence
   deliberately rather than by accident.
 
-- **A8 (engine 1.59.2):** `aide scope` proves this item's diff against the
+- **A8 (engine 1.59.2, re-checked 2.1.0):** `aide scope` proves this item's diff against the
   **Authorised paths** list below; a path listed there and left unchanged is not a
   scope violation, so the conditional reconciliations named below are declared
   whether or not the suite run turns out to need them.

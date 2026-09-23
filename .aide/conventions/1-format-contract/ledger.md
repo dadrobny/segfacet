@@ -26,7 +26,10 @@ project's own ratios and their trend.
   caller's.** The item, its queue, its stage, its kind, how many acceptance
   criteria the spec carries, how many test functions and files the branch
   added against its recorded base, the engine version and the date are all
-  read from the documents, the branch and `.aide/VERSION`. The number of
+  read from the documents, the branch and `.aide/VERSION`. **A test the
+  branch reconciled in another item's test file is that item's and is not
+  counted** — exactly the tests `aide scope` reports as reconciled (§6); one
+  there that traces to neither spec still counts. The number of
   build↔validate rounds and the counts of findings by rank are passed in by
   the role that held them: the orchestrator counted the rounds to enforce the
   cap and classified each finding as it triaged it, and neither number exists
@@ -86,6 +89,13 @@ project's own ratios and their trend.
   and the ranks are its judgement of what a reviewer returned. Passing them at
   the merge is the one moment both are still in hand and a verb is running
   anyway.
+- **Why a reconciled test is not counted.** Until 2.1.0 the Tests cell
+  counted every test function new at the base, so an item that renamed a test
+  in an earlier item's file, as its spec prescribed, was charged with a test
+  that covers the earlier item's criterion — and tests per criterion, the
+  reading the cell exists for, was inflated for exactly the items that
+  reconcile. The cell and `aide scope` read one split, so the test a notice
+  calls reconciled is the test the row leaves out.
 - **Why `-` rather than a fourth reading of a blank.** With the marker
   absent, a project that never switched review on and a run whose reviewer's
   findings were dropped on the floor wrote the identical row — and they are

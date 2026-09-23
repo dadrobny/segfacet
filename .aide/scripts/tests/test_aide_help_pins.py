@@ -90,6 +90,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -759,6 +760,29 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("a spec with no ## Acceptance Criteria heading is a notice and no "
          "warnings",
          "test_aide_traceability::test_a_spec_without_criteria_is_one_notice_not_n_warnings"),
+        # `owning_item` -> `split_reconciled_tests`, which traces the file's
+        # tests against the owner's spec alone (issue #262).
+        ("A test file named test_NNN_<topic>.py for an item other than the "
+         "one scoped is item NNN's",
+         "test_aide_traceability::test_a_test_file_is_owned_by_the_item_its_name_carries"),
+        ("its added tests trace against item NNN's spec instead, and the "
+         "scoped spec is not read for them",
+         "test_aide_traceability::"
+         "test_a_coincident_ac_number_is_not_credited_to_the_scoped_item"),
+        # `others[N].reconciled` -> one `notice:` per owner, not in `traced`.
+        ("The ones that trace are reported as reconciled, in one notice per "
+         "item, and not warned on; the rest warn, naming item NNN's spec",
+         ("test_aide_traceability::"
+          "test_a_rename_inside_another_items_file_is_reconciled_not_warned",
+          "test_aide_traceability::"
+          "test_an_owner_label_traces_and_an_untraced_test_warns_naming_the_owner")),
+        # `specs[owner] is None` -> the test stays in `own`.
+        ("Where item NNN has no spec, or none with an ## Acceptance Criteria "
+         "heading, the file is read as the scoped item's own",
+         ("test_aide_traceability::"
+          "test_an_owner_with_no_spec_leaves_the_file_to_the_scoped_spec",
+          "test_aide_traceability::"
+          "test_an_owner_spec_without_criteria_leaves_the_file_to_the_scoped_spec")),
     ],
 
     # ---------------------------------------------------------------- merge --
@@ -784,6 +808,12 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "this run resolved",
          "test_aide_ledger::"
          "test_merge_writes_the_row_in_the_commit_that_ticks_the_item"),
+        # `_ledger_diff_cells` counts `split_reconciled_tests`'s own plus
+        # untraced, never `others[N].reconciled` (issue #262).
+        ("less the tests `aide scope` reports as reconciled in another item's "
+         "test file, which are that item's",
+         "test_aide_ledger::"
+         "test_a_test_reconciled_in_another_items_file_is_not_counted"),
         # `item_kind`: the title regex, then the inbox pointers, else normal.
         ("its kind \u2014 validate-stage from an item titled `Validate stage "
          "N`, maintenance from an inbox entry ticked with this item's number, "
@@ -987,6 +1017,16 @@ def _verbs() -> List[str]:
     return [v for action in parser._actions
             if isinstance(action, argparse._SubParsersAction)
             for v in action.choices]
+
+
+def test_the_usage_block_names_every_verb_the_parser_has():
+    """The ``Subcommands::`` block at the top of ``aide -h`` is typed by hand,
+    and 1.58.0 added ``ledger`` to the parser without adding it there."""
+    listed = set(re.findall(r"^    python \.aide/scripts/aide\.py (\S+)",
+                            aide.__doc__, flags=re.M))
+    assert listed == set(_verbs()), (
+        f"in the parser, not the usage block: {sorted(set(_verbs()) - listed)}; "
+        f"in the usage block, not the parser: {sorted(listed - set(_verbs()))}")
 
 
 def _described(verb: str) -> bool:

@@ -411,7 +411,7 @@ audit entries, and nothing here is re-checked at a later claim.
   this one). The value is compared to the artifacts only by the
   regenerate-and-compare tests, which reconcile in the same commit.
 
-- **A7 (engine 1.59.2):** `aide scope` proves this item's diff against the
+- **A7 (engine 1.59.2, re-checked 2.1.0):** `aide scope` proves this item's diff against the
   **Authorised paths** list below; a path listed there and left unchanged is
   not a scope violation.
 

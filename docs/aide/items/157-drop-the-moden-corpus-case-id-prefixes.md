@@ -235,7 +235,7 @@ Their `disposition` stays `keep` and no judgement cell changes.
   2026-09-17). Item 155's `kind` field and `corpus_case_kind`, and item 156's
   conformance checks, are the merged state this item builds on, and none of
   them keys on a case-id prefix.
-- **A10 (engine 1.52.1, re-checked 1.59.0): `aide check` is not given a new warning class.** No new
+- **A10 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0): `aide check` is not given a new warning class.** No new
   fixture path is introduced, so the `.gitattributes` lint is unaffected. The
   new test module reads only already-pinned fixtures. `progress.md` is changed
   only through the CLI verbs, because `test_146`/`test_150` go red on a new

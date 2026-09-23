@@ -300,6 +300,153 @@ def test_the_warning_never_turns_a_pass_into_a_fail(tmp_path: Path, capsys):
 
 
 # --------------------------------------------------------------------------- #
+# another item's test file, reconciled on this branch (issue #262)
+# --------------------------------------------------------------------------- #
+#: Item 007 owns `tests/test_007_walker.py`. Its AC20 has no counterpart in
+#: item 042's spec; its AC2 has one, which is the coincidence that used to
+#: credit an `ac2` test in 007's file to 042.
+SPEC_007 = """\
+# Item 007 — The walker
+
+## Acceptance Criteria
+
+- [ ] **AC2: walks.** The walker visits every row.
+- [ ] **AC20: stops.** The walker stops at the end.
+
+## Testing Strategy
+
+- `deep-tree: a nested row is visited once`
+"""
+
+OWNED_BASE = ("def test_ac20_stops_at_eof():\n    assert True\n\n"
+              "def test_ac2_walks():\n    assert True\n")
+
+
+def _init_with_owner(path: Path, owner_spec: str = SPEC_007) -> Path:
+    """Item 042's repo, plus item 007's spec and test file at the base, with
+    042 authorised to change 007's file — the reconcile its spec prescribes."""
+    spec = SPEC.replace("- `tests/test_rules.py` — its tests\n",
+                        "- `tests/test_rules.py` — its tests\n"
+                        "- `tests/test_007_walker.py` — reconciled\n")
+    repo = _init_repo(path, spec=spec)
+    if owner_spec:
+        (repo / "docs" / "aide" / "items" / "007-the-walker.md").write_text(
+            owner_spec, encoding="utf-8")
+    (repo / "tests" / "test_007_walker.py").write_text(OWNED_BASE, encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "item 007"], repo)
+    return repo
+
+
+def _reconcile(repo: Path, owned_source: str) -> None:
+    _run(["git", "switch", "-c", "aide/042-demo-item"], repo)
+    (repo / "tests" / "test_007_walker.py").write_text(owned_source, encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "reconcile 007"], repo)
+
+
+def test_a_test_file_is_owned_by_the_item_its_name_carries():
+    assert aide.owning_item("tests/test_007_walker.py") == 7
+    assert aide.owning_item("tests/unit/test_1234_big.py") == 1234
+    # Padding is the spec filename's: neither of these names item 7.
+    assert aide.owning_item("tests/test_7_walker.py") is None
+    assert aide.owning_item("tests/test_0007_walker.py") is None
+    assert aide.owning_item("tests/test_rules.py") is None
+    assert aide.owning_item("tests/test_007.py") is None
+
+
+def test_a_rename_inside_another_items_file_is_reconciled_not_warned(
+        tmp_path: Path, capsys):
+    """The consumer's case: 042 renames 007's `ac20` test. The number is
+    007's AC20 and 042 has none — reconciliation, never a warning."""
+    repo = _init_with_owner(tmp_path / "repo")
+    _reconcile(repo, OWNED_BASE.replace("test_ac20_stops_at_eof",
+                                        "test_ac20_stops_at_the_last_row"))
+    rc = aide.main(["--repo", str(repo), "scope"])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    assert ("notice: reconciled 1 test(s) in item 007's test files "
+            "(docs/aide/items/007-the-walker.md)") in out
+    assert "warning" not in out, out
+
+
+def test_a_coincident_ac_number_is_not_credited_to_the_scoped_item(
+        tmp_path: Path, capsys):
+    """`ac1` exists in 042's spec and not in 007's: a test in 007's file
+    naming it traces to nothing, and the warning names 007's spec."""
+    repo = _init_with_owner(tmp_path / "repo")
+    _reconcile(repo, OWNED_BASE + "\ndef test_ac1_parses():\n    assert True\n")
+    rc = aide.main(["--repo", str(repo), "scope"])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    assert ("warning: tests/test_007_walker.py::test_ac1_parses names no AC "
+            "number and no Testing Strategy case of "
+            "docs/aide/items/007-the-walker.md") in out
+    assert "item 007's test file" in out
+    assert "reconciled" not in out
+    assert "1 traceability warning(s)" in out
+
+
+def test_an_owner_label_traces_and_an_untraced_test_warns_naming_the_owner(
+        tmp_path: Path, capsys):
+    repo = _init_with_owner(tmp_path / "repo")
+    _reconcile(repo, OWNED_BASE + "\ndef test_deep_tree():\n    assert True\n"
+                                  "\ndef test_misc():\n    assert True\n")
+    assert aide.main(["--repo", str(repo), "scope"]) == 0
+    out = capsys.readouterr().out
+    assert "notice: reconciled 1 test(s) in item 007's test files" in out
+    assert "test_007_walker.py::test_misc names no AC number" in out
+    assert "docs/aide/items/007-the-walker.md" in out
+    assert out.count("warning:") == 1
+
+
+def test_an_owner_with_no_spec_leaves_the_file_to_the_scoped_spec(
+        tmp_path: Path, capsys):
+    """No 007 spec to read against: today's reading, so `ac2` traces to
+    042's AC2 and `ac20` warns against 042's spec."""
+    repo = _init_with_owner(tmp_path / "repo", owner_spec="")
+    _reconcile(repo, OWNED_BASE.replace("test_ac20_stops_at_eof", "test_ac20_x")
+                     .replace("test_ac2_walks", "test_ac2_y"))
+    assert aide.main(["--repo", str(repo), "scope"]) == 0
+    out = capsys.readouterr().out
+    assert "reconciled" not in out
+    assert ("warning: tests/test_007_walker.py::test_ac20_x names no AC number "
+            "and no Testing Strategy case of docs/aide/items/042-demo-item.md "
+            "— a test") in out
+    assert out.count("warning:") == 1
+
+
+def test_an_owner_spec_without_criteria_leaves_the_file_to_the_scoped_spec(
+        tmp_path: Path, capsys):
+    repo = _init_with_owner(tmp_path / "repo", owner_spec=SPEC_007.replace(
+        "## Acceptance Criteria", "## Criteria"))
+    _reconcile(repo, OWNED_BASE.replace("test_ac20_stops_at_eof", "test_ac20_x"))
+    assert aide.main(["--repo", str(repo), "scope"]) == 0
+    out = capsys.readouterr().out
+    assert "reconciled" not in out
+    assert "test_ac20_x names no AC number and no Testing Strategy case of docs/aide/items/042-demo-item.md" in out
+
+
+def test_a_file_named_for_the_scoped_item_is_its_own(tmp_path: Path, capsys):
+    """`test_042_…` is 042's own file: read against 042's spec as ever."""
+    repo = _init_repo(tmp_path / "repo",
+                      spec=SPEC.replace("`tests/test_rules.py`", "`tests/*.py`"))
+    _run(["git", "switch", "-c", "aide/042-demo-item"], repo)
+    (repo / "tests" / "test_042_walker.py").write_text(
+        "def test_ac1_parses():\n    pass\n\ndef test_other():\n    pass\n",
+        encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "work"], repo)
+    assert aide.main(["--repo", str(repo), "scope"]) == 0
+    out = capsys.readouterr().out
+    assert "reconciled" not in out
+    assert ("warning: tests/test_042_walker.py::test_other names no AC number "
+            "and no Testing Strategy case of docs/aide/items/042-demo-item.md "
+            "— a test") in out
+    assert out.count("warning:") == 1
+
+
+# --------------------------------------------------------------------------- #
 # claim: the interface-pin line
 # --------------------------------------------------------------------------- #
 def test_interface_pins_skip_the_three_shapes_that_are_not_the_signal():

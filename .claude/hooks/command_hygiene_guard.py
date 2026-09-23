@@ -31,6 +31,7 @@ Design rules:
 """
 
 import json
+import os
 import re
 import sys
 
@@ -216,8 +217,8 @@ def _blank_single_quoted(cmd):
 
 
 def _framework_local_path():
-    """``[framework] local_path`` from ``.aide/loop/loop.local.toml`` (cwd =
-    repo root), or None.
+    """``[framework] local_path`` from ``.aide/local.toml`` (cwd = repo root),
+    or None.
 
     The documented framework-update workflow operates on a second repo (the
     framework clone), which structurally needs a directory-targeting git
@@ -226,17 +227,21 @@ def _framework_local_path():
     clone's path here gives it a narrow carve-out from rule 1 instead of
     leaving the workflow a dead end.
 
-    Read from the **personal, gitignored** loop config, never from the shared
-    ``aide.toml`` — a machine-specific filesystem path has no business in a
-    committed file (the same principle ``aide.toml``'s own ``[validation]``
-    section states for its profiles). Copy
-    ``.aide/loop/loop.local.toml.example`` to ``.aide/loop/loop.local.toml``
-    and add a ``[framework]`` section with ``local_path`` to set this up
-    per-machine; nothing here is shared or committed.
+    Read from the **personal, gitignored** per-machine config, never from the
+    shared ``aide.toml`` — a machine-specific filesystem path has no business
+    in a committed file (the same principle ``aide.toml``'s own
+    ``[validation]`` section states for its profiles). Copy
+    ``.aide/local.toml.example`` to ``.aide/local.toml`` and add a
+    ``[framework]`` section with ``local_path`` to set this up per-machine;
+    nothing here is shared or committed.
+
+    Before 2.0.0 this file was ``.aide/loop/loop.local.toml``, beside the
+    retired supervisor. An ``install.py --update`` moves it; a copy left at
+    the old path is not read (`_legacy_local_config_note`).
     """
     try:
         with open(
-            ".aide/loop/loop.local.toml", encoding="utf-8"
+            ".aide/local.toml", encoding="utf-8"
         ) as fh:
             text = fh.read()
     except OSError:
@@ -252,8 +257,35 @@ def _framework_local_path():
     return None
 
 
+def _legacy_local_config_note():
+    """One sentence when the per-machine config is still at its pre-2.0.0 path.
+
+    Both readers above open ``.aide/local.toml`` and nothing else, so a
+    consumer who copied the framework's files by hand — or whose
+    ``install.py --update`` could not perform the move — has a declaration
+    that is simply never read, and a denial that reads as "you did not declare
+    it" over a file where they plainly did. This is the one place that names
+    the actual repair, and it is appended to the denial rather than logged
+    anywhere: the denial is what the session sees.
+
+    Empty when there is nothing to say, including when both files exist — the
+    new one is being read, so the answer to "why is my declaration ignored" is
+    that it is in the wrong copy, which is what the installer's own conflict
+    line says in full.
+    """
+    try:
+        if (os.path.isfile(os.path.join(".aide", "loop", "loop.local.toml"))
+                and not os.path.exists(os.path.join(".aide", "local.toml"))):
+            return (" Note: .aide/loop/loop.local.toml is no longer read as of "
+                    "2.0.0 — move it to .aide/local.toml (its [loop] table is "
+                    "no longer read either and may be deleted).")
+    except OSError:
+        pass
+    return ""
+
+
 def _hygiene_extra_repos():
-    """``[hygiene] extra_repos`` from ``.aide/loop/loop.local.toml``, as a list.
+    """``[hygiene] extra_repos`` from ``.aide/local.toml``, as a list.
 
     One project can legitimately span two repos developed together — a library
     and a sibling programme repo, say. Without a declaration the guard refuses
@@ -275,7 +307,7 @@ def _hygiene_extra_repos():
     ``[framework] local_path``.
     """
     try:
-        with open(".aide/loop/loop.local.toml", encoding="utf-8") as fh:
+        with open(".aide/local.toml", encoding="utf-8") as fh:
             text = fh.read()
     except OSError:
         return []
@@ -454,7 +486,7 @@ def violations(cmd):
     #    declared repo — `[framework] local_path` (the documented
     #    framework-update workflow) or one of `[hygiene] extra_repos` (a
     #    project that legitimately spans several repos). Both are sourced from
-    #    the personal .aide/loop/loop.local.toml, never aide.toml. Two
+    #    the personal .aide/local.toml, never aide.toml. Two
     #    different repos in one command stay blocked even when both are
     #    declared — see `_git_repo_override_all_declared`.
     #    The path VALUES are scanned on `data`, not the raw `cmd`: quotes must
@@ -464,9 +496,9 @@ def violations(cmd):
     #    `git -C <declared> commit -F - <<'EOF'` shape the body-blanking above
     #    exists to allow.
     has_override = bool(_GIT_REPO_OVERRIDE_TRIGGER_RE.search(bare))
-    if re.match(r"\s*cd\s", cmd) or (
-        has_override and not _git_repo_override_all_declared(data)
-    ):
+    cd_prefix = bool(re.match(r"\s*cd\s", cmd))
+    undeclared = has_override and not _git_repo_override_all_declared(data)
+    if cd_prefix or undeclared:
         found.append(
             "Drop the `cd` prefix, and drop `-C`/`--git-dir`/`--work-tree`/"
             "`GIT_DIR=`/`GIT_WORK_TREE=` — all four point git at a repo other "
@@ -474,12 +506,18 @@ def violations(cmd):
             "breaks allow-list matching. Run the bare command. (Exception: "
             "every repo-override path in the command targeting the SAME "
             "declared repo — [framework] local_path, or one of "
-            "[hygiene] extra_repos, in .aide/loop/loop.local.toml, a personal, "
-            "gitignored file; copy .aide/loop/loop.local.toml.example to set "
+            "[hygiene] extra_repos, in .aide/local.toml, a personal, "
+            "gitignored file; copy .aide/local.toml.example to set "
             "it up. Two different repos in one command stay blocked even when "
             "both are declared.) For the aide CLI against a declared repo, no "
             "cd is needed either: run that repo's own install with an explicit "
             "root, `python <repo>/.aide/scripts/aide.py --repo <repo> <verb>`."
+            # The note is about a declaration that is not being read, so it
+            # rides only a denial that reading it could have lifted: an
+            # undeclared override with no `cd` prefix. A `cd` prefix is
+            # refused whatever the config says, so on a command carrying
+            # both the note would be advice about a file that cannot help.
+            + (_legacy_local_config_note() if undeclared and not cd_prefix else "")
         )
 
     # 2. One command per Bash call — `&&`, `||`, `;` sequencing isn't

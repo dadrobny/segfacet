@@ -489,7 +489,7 @@ entries, unrelated.
   committed manifest, or a stage decision already recorded in `roadmap.md` /
   `progress.md`. Nothing needs a person's decision or an out-of-band
   prerequisite, so no row is added to `progress.md`'s `## Human gates` table.
-- **A12 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide check`'s `.gitattributes` lint resolves a
+- **A12 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `aide check`'s `.gitattributes` lint resolves a
   fixture path through the test's AST; both artifact paths are already pinned
   (A1), so it stays silent for this item with no `.gitattributes` edit.
 - **A13 (control cases are labelled, not judged):** the geometric

@@ -316,7 +316,7 @@ anatomy-classification signal … Detector A serves NO failure mode").
   firing set; the queue's own human gate over mode rendering is item 168's. No
   row is added to `progress.md`'s `## Human gates` table.
 
-- **A10 (engine 1.59.2):** `aide scope`'s §6 check reports a test naming neither
+- **A10 (engine 1.59.2, re-checked 2.1.0):** `aide scope`'s §6 check reports a test naming neither
   an acceptance criterion nor a Testing-Strategy case, and `_CASE_LABEL_RE` reads
   a case label only on a bullet closed by a **colon** — so the three cases below
   are written as `` - `label`: description `` and nothing else is written.

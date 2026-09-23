@@ -73,6 +73,13 @@ entire loop, indefinitely.
   posture (§1 → vision.md) are known; a test with no criterion and no named
   case behind it is a test nobody asked for — `aide scope` warns on one
   (`aide scope -h` states the grammar).
+- **An item's tests live in `test_NNN_<topic>.py` under `tests_dir`, NNN
+  its item number, unless the project has a reason to diverge.** The file
+  name is what says whose criteria a test covers once a later item edits the
+  file, so `aide scope` reads another item's file against that item's spec
+  (`aide scope -h`). **A test reconciled in another item's file keeps that
+  item's criterion number** — the number is its provenance; renumbering it to
+  the reconciling item's criteria claims a criterion that item never wrote.
 - **A consumer test never hand-builds a producer's serialised form.** It
   obtains the form from the producer's code, or from a fixture the producer's
   item ships, and asserts on what it reads — so when the shape changes, one
@@ -182,6 +189,15 @@ silence as partial throughout — not only on the pin.
   on a test the branch added whose name carries neither, the counter-gate the
   loop lacked, reported as a warning first so a consumer lives with it
   before it gates anything.
+- **Why the test file names its item.** On engine 1.59.2 a consumer's item
+  renamed a test in an earlier item's file, as its spec prescribed; `aide
+  scope` read the renamed `ac20` against the reconciling item's spec, which
+  has no AC20, and reported the prescribed reconcile as a test nobody asked
+  for — while six other reconciled files passed only because their numbers
+  (AC2, AC5, AC6) happened to exist in both specs, silently credited to the
+  wrong item. Renumbering the test to fit would have falsified where it came
+  from; the file name is the one place its owner is readable without the
+  spec that wrote it.
 - **The hand-built form.** Consumers on the same engines saw one item's tests
   invalidated by the next: the consumer's test carried a literal of the
   producer's JSON, so every legitimate change to the producer went red in a

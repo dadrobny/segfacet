@@ -15,6 +15,7 @@ Subcommands::
     python .aide/scripts/aide.py queue start NNN       # create the queue branch (--specs for specs-)
     python .aide/scripts/aide.py queue tidy NNN        # mark a superseded queue as completed
     python .aide/scripts/aide.py insights list|tick|archive|resolve  # the insight inbox
+    python .aide/scripts/aide.py ledger abandon NNN --rounds N  # the ledger row for an item that never merged
     python .aide/scripts/aide.py claim [--queue NNN]   # pick + claim the next 📋 item
     python .aide/scripts/aide.py merge NNN [--base R]  # merge a validated item per git.mode
     python .aide/scripts/aide.py env                   # venv existence / import check + bootstrap
@@ -6258,14 +6259,19 @@ def item_kind(repo_root: Path, config, number: int,
     return "normal"
 
 
-def _ledger_diff_cells(repo_root: Path, config, branch: Optional[str],
+def _ledger_diff_cells(repo_root: Path, config, number: int,
+                       branch: Optional[str],
                        base: Optional[str]) -> Tuple[str, str]:
-    """``(tests added, files changed)`` for *branch* against *base*.
+    """``(tests added, files changed)`` for item *number*'s *branch* against
+    *base*.
 
     Both blank when the diff cannot be taken — no branch left, no base
     recorded, a ref git cannot resolve. The counting is `aide scope`'s
     (`added_test_functions`), read from the branch tip rather than the working
-    tree so the answer does not depend on what happens to be checked out.
+    tree so the answer does not depend on what happens to be checked out; and
+    so is the split — a test `aide scope` reports as reconciled in another
+    item's test file (`split_reconciled_tests`) is that item's, not a test
+    this one added.
     """
     if not branch or not base:
         return "", ""
@@ -6280,7 +6286,9 @@ def _ledger_diff_cells(repo_root: Path, config, branch: Optional[str],
     changed = [line.strip() for line in diff.stdout.splitlines() if line.strip()]
     added = added_test_functions(repo_root, config, changed, merge_base,
                                  renamed_paths(repo_root, merge_base), ref=branch)
-    return str(len(added)), str(len(changed))
+    own, others = split_reconciled_tests(repo_root, config, added, number)
+    tests = len(own) + sum(len(o.untraced) for o in others.values())
+    return str(tests), str(len(changed))
 
 
 def ledger_cells(repo_root: Path, config, number: int, outcome: str,
@@ -6312,7 +6320,7 @@ def ledger_cells(repo_root: Path, config, number: int, outcome: str,
         if _AC_HEADING_RE.search(spec_text):
             criteria = str(len(spec_acceptance_numbers(spec_text)))
     queue = _item_queue_number(repo_root, config, number)
-    tests, files = _ledger_diff_cells(repo_root, config, branch, base)
+    tests, files = _ledger_diff_cells(repo_root, config, number, branch, base)
     cells = {
         "Item": f"{number:03d}",
         "Queue": f"{queue:03d}" if queue is not None else "",
@@ -8701,25 +8709,109 @@ def added_test_functions(repo_root: Path, config, changed: List[str],
     return out
 
 
+def _traces_to(name: str, ac_numbers: List[int], labels: List[str]) -> bool:
+    """*name* carries one of *ac_numbers* (`ac3`) or one of *labels*."""
+    low = name.lower()
+    if any(int(n) in set(ac_numbers) for n in _AC_TOKEN_RE.findall(low)):
+        return True
+    return any(lbl.lower().replace("-", "_") in low for lbl in labels)
+
+
 def traceability_warnings(added: List[Tuple[str, str]], ac_numbers: List[int],
-                          labels: List[str], rel_spec: str) -> List[str]:
+                          labels: List[str], rel_spec: str,
+                          owner: Optional[int] = None) -> List[str]:
     """§6: a test the item adds names the criterion (`ac3`) or the Testing
     Strategy case it covers; one that names neither is a test nobody asked
     for. A warning, never a FAIL: the rule is new and a consumer lives with
-    the report before it gates anything."""
-    wanted = set(ac_numbers)
-    keys = [lbl.lower().replace("-", "_") for lbl in labels]
-    out: List[str] = []
+    the report before it gates anything.
+
+    *owner* is set when the tests sit in another item's test file and
+    *rel_spec* is that item's spec (`split_reconciled_tests`), and the warning
+    then says whose file it is — the branch carries it, the spec it is read
+    against is not the one being scoped."""
+    where = (f" — in item {owner:03d}'s test file, which this branch changed"
+             if owner is not None else "")
+    return [f"warning: {rel}::{name} names no AC number and no Testing "
+            f"Strategy case of {rel_spec}{where} — a test the spec did not ask "
+            f"for (conventions.md §6)"
+            for rel, name in added if not _traces_to(name, ac_numbers, labels)]
+
+
+#: `test_007_walker.py` — a test file named for the item that owns it. The
+#: digits are confirmed against the spec filename's own zero-padding
+#: (`_item_spec_glob`), so `test_7_x.py` and `test_0007_x.py` name no item,
+#: exactly as `7-x.md` and `0007-x.md` name no spec (`item_spec_number`).
+_OWNED_TEST_FILE_RE = re.compile(r"test_(\d+)_")
+
+
+def owning_item(rel: str) -> Optional[int]:
+    """The item number a test file's name says owns it, or None."""
+    m = _OWNED_TEST_FILE_RE.match(PurePosixPath(rel).name)
+    if not m:
+        return None
+    number = int(m.group(1))
+    return number if f"{number:03d}" == m.group(1) else None
+
+
+class ReconciledTests(NamedTuple):
+    """The added tests in one other item's test files, split against its spec."""
+    spec: str                          # that item's spec, repo-relative
+    reconciled: List[Tuple[str, str]]  # traced to its criteria or cases
+    untraced: List[Tuple[str, str]]    # traced to neither
+
+
+def split_reconciled_tests(repo_root: Path, config,
+                           added: List[Tuple[str, str]], number: int,
+                           ) -> Tuple[List[Tuple[str, str]], Dict[int, ReconciledTests]]:
+    """``(own, others)``: *added* split by the item whose test file each sits in.
+
+    A test in ``test_NNN_…py`` for an item other than *number* was reconciled
+    there by this branch — a rename or edit this item's spec prescribed — and
+    its criterion number is that item's (§6). So it is traced against **that
+    item's spec**, never *number*'s: tracing it against the scoped spec both
+    reported a prescribed reconcile as unrequested and silently credited an
+    ``ac2`` to whichever item happened to have an AC2 too (issue #262). The
+    traced ones are ``others[N].reconciled``; the rest still name nothing
+    anyone asked for and are ``others[N].untraced``.
+
+    A file whose owner has no spec, one that cannot be read, or one with no
+    ``## Acceptance Criteria`` heading is not resolved to that owner and
+    stays in *own* — today's reading, against the scoped spec. An owner
+    whose spec cannot be checked is not one to credit a test to, and staying
+    in *own* keeps the test counted by the ledger and warned on by `scope`.
+    `aide scope` and the ledger's tests-added cell both read this split, so
+    the tests one reports as reconciled are exactly the ones the other does
+    not count.
+    """
+    idir = docs_dir(repo_root, config) / "items"
+    specs: Dict[int, Optional[Tuple[str, List[int], List[str]]]] = {}
+    own: List[Tuple[str, str]] = []
+    others: Dict[int, ReconciledTests] = {}
     for rel, name in added:
-        low = name.lower()
-        if any(int(n) in wanted for n in _AC_TOKEN_RE.findall(low)):
+        owner = owning_item(rel)
+        if owner is None or owner == number:
+            own.append((rel, name))
             continue
-        if any(key in low for key in keys):
+        if owner not in specs:
+            specs[owner] = None
+            found = item_spec_paths(idir, owner)
+            if found:
+                try:
+                    text = found[0].read_text(encoding=_ENCODING)
+                except (OSError, UnicodeDecodeError):
+                    text = ""
+                if _AC_HEADING_RE.search(text):
+                    specs[owner] = (found[0].relative_to(repo_root).as_posix(),
+                                    spec_acceptance_numbers(text),
+                                    testing_strategy_labels(text))
+        if specs[owner] is None:
+            own.append((rel, name))
             continue
-        out.append(f"warning: {rel}::{name} names no AC number and no Testing "
-                   f"Strategy case of {rel_spec} — a test the spec did not ask "
-                   f"for (conventions.md §6)")
-    return out
+        rel_spec, acs, labels = specs[owner]
+        bucket = others.setdefault(owner, ReconciledTests(rel_spec, [], []))
+        traced = _traces_to(name, acs, labels)
+        (bucket.reconciled if traced else bucket.untraced).append((rel, name))
+    return own, others
 
 
 def _scope_base_ref(repo_root: Path, config, explicit: Optional[str]) -> str:
@@ -8816,16 +8908,22 @@ def cmd_scope(args: argparse.Namespace) -> int:
     traced: List[str] = []
     added = added_test_functions(repo_root, config, changed, mb.stdout.strip(),
                                  renamed_paths(repo_root, mb.stdout.strip()))
+    own, others = split_reconciled_tests(repo_root, config, added, number)
     if _tests_dir_rel(repo_root, config) is None:
         print("notice: tests_dir lies outside the repository — traceability "
               "not checked")
-    elif added and _AC_HEADING_RE.search(spec_text) is None:
+    elif own and _AC_HEADING_RE.search(spec_text) is None:
         print(f"notice: {rel_spec} has no '## Acceptance Criteria' heading — "
               "traceability not checked")
-    elif added:
+    elif own:
         traced = traceability_warnings(
-            added, spec_acceptance_numbers(spec_text),
+            own, spec_acceptance_numbers(spec_text),
             testing_strategy_labels(spec_text), rel_spec)
+    for owner, split in sorted(others.items()):
+        if split.reconciled:
+            print(f"notice: reconciled {len(split.reconciled)} test(s) in item "
+                  f"{owner:03d}'s test files ({split.spec})")
+        traced += traceability_warnings(split.untraced, [], [], split.spec, owner)
     for line in traced:
         print(line)
     note = f", {len(traced)} traceability warning(s)" if traced else ""
@@ -9811,7 +9909,9 @@ def register_git_subcommands(sub) -> None:
             "this item's number, else normal \u2014 how many acceptance "
             "criteria its spec "
             "carries, how many test functions and files the branch added "
-            "against the base this run resolved, the engine version and "
+            "against the base this run resolved \u2014 less the tests "
+            "`aide scope` reports as reconciled in another item's test file, "
+            "which are that item's \u2014 the engine version and "
             "today's date. The exceptions are --rounds and --findings, which "
             "no document holds and only the caller has.\n"
             "\n"
@@ -9966,6 +10066,15 @@ def register_git_subcommands(sub) -> None:
             "the base is an edit, not an addition, and is not checked, a "
             "renamed file being read under its old name; a spec with no "
             "## Acceptance Criteria heading is a notice and no warnings.\n"
+            "\n"
+            "A test file named test_NNN_<topic>.py for an item other than the "
+            "one scoped is item NNN's, changed here to reconcile it: its added "
+            "tests trace against item NNN's spec instead, and the scoped spec "
+            "is not read for them. The ones that trace are reported as "
+            "reconciled, in one notice per item, and not warned on; the rest "
+            "warn, naming item NNN's spec. Where item NNN has no spec, or none "
+            "with an ## Acceptance Criteria heading, the file is read as the "
+            "scoped item's own.\n"
             "\n"
             "Exit 0: in scope, or nothing to check (a queue branch). 1: "
             "something changed outside it. 2: could not check (no spec, no "
