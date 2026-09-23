@@ -447,7 +447,12 @@ instead of 33 across the suite.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Builder confirmation (2026-09-23):** per the spec's own Implementation
+  Steps, this item changes nothing under `source_dir`. Verified via `git diff
+  HEAD~2 --stat` against the test-writer's commit (f78afca): every touched
+  path is under `tests/` (`tests/session_artifacts.py`, `tests/conftest.py`,
+  and the list M/R modules plus `tests/test_170_session_fixtures.py`); no
+  `src/segfacet/**` path appears. No production code was written or needed.
 
 - **Left open:** the four patched-I/O `main` tests in A4. A shared run cannot
   carry their patch. Stubbing `specification_to_dict`/`render_markdown`
