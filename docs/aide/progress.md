@@ -1,8 +1,9 @@
 <!-- aide-template: progress 1 -->
 # FACET — Progress Tracker
 
-> **Status:** v3.1 · **Created:** 2026-06-24 · **Re-issued:** 2026-09-15 against
-> [`roadmap.md`](roadmap.md) v3.1 (incremental: Stages 31–32 added, Stages 20 and 30
+> **Status:** v3.2 · **Created:** 2026-06-24 · **Re-issued:** 2026-09-22 against
+> [`roadmap.md`](roadmap.md) v3.2 (incremental: Stage 33 added, every existing status
+> carried over unchanged; v3.1 of 2026-09-15 added Stages 31–32, Stages 20 and 30
 > annotated after item 150's sign-off, every existing status and attestation carried over
 > unchanged; v3 of 2026-09-03 added Stage 30 and summary rows for Stages 28–30)
 > Step 3 of the AIDE loop. Derived from [`vision.md`](vision.md) and
@@ -60,6 +61,7 @@
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
+| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -112,6 +114,15 @@
 > [`roadmap.md`](roadmap.md): **30 (item 151) → 31 → 32 (with Stage 20's remainder) → 27
 > → 21 → 16**.
 
+> **Stage 33 scoped 2026-09-22** (queue-022 boundary feedback loop, after gate 7 signed
+> modes 3 and 4 off at an intermediate state). Queue-022's review found the geometric
+> corpus cannot express what the rules decide: five non-touching axis-aligned boxes,
+> fixtures that do not express their mode, and rules serving a mode by another's signal.
+> Stage 33 rebuilds the base as a lordotic L1–L5, re-authors those fixtures, re-homes the
+> rules, and re-signs **modes 3 and 4 at the bar**. Its close attests Stage 32's
+> criterion 1, so Stage 32 stays 🚧 until then. Run order, stated once at the top of
+> [`roadmap.md`](roadmap.md): **33 → 27 → 21 → 16**.
+
 ## Two kinds of "done" — implementation vs. validation
 
 This tracker separates two claims that are easy to conflate:
@@ -141,13 +152,13 @@ shipped"). See "Two kinds of done" above._
 | Objective                                    | Delivered by                                             | Status |
 | -------------------------------------------- | -------------------------------------------------------- | ------ |
 | G1 Detect empty / trivially-failed           | Stage 1                                                  | ✅     |
-| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stage 32; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16)* | 🚧     |
+| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16)* | 🚧     |
 | G3 Distinguish failure from variation        | Stages 6, 7, 12*(real grounding: Stage 14)*            | 🚧     |
 | G4 Per-case and cohort reports               | Stage 1 (ext. 2–4); cohort characterisation: Stage 18   | ✅     |
 | G5 Deploy on XNAT*(deferred)*              | Stage 9*(real session data: Stage 15)*                 | 🚧     |
 | G6 Portable / GPU*(deferred)*              | Stage 10                                                 | ✅     |
-| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32*(eval-harness re-key: Stage 31; real data: Stages 14, 16)* | 🚧     |
-| G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32 (per-mode sign-off); classification arm: Stage 11*(deferred)* | 🚧     |
+| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16)* | 🚧     |
+| G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | 🚧     |
 
 **Why each 🚧 objective is not yet ✅** _(one line each — the detail lives in the
 linked row/stage, not here):_
@@ -1783,3 +1794,65 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - [x] The end-to-end detection count is recorded here per lifecycle status and per evidence
   rung, as measured numbers with what they were measured on, naming the modes refined and
   the modes left as documented drafts (**G7**, Stage 20 criterion 5). *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
+
+> **Criterion 1 moves with Stage 33** *(2026-09-22)*. Gate 7 signed modes 3 and 4 off at a
+> recorded intermediate state, and the review behind that outcome is Stage 33's scope.
+> Stage 33's closing validation re-runs D3 on the re-grounded corpus and attests criterion
+> 1 here. So D3 stays 📋 until then, even though item 169 ran it once on queue-022's
+> corpus. A ✅ on D3 would roll this stage up to ✅ with criterion 1 unmet.
+
+---
+
+# Stage scoped 2026-09-22 (after queue-022's maintainer review)
+
+> Numbered for stability; **runs before Stages 27, 21 and 16**. Full statement in
+> [`roadmap.md`](roadmap.md).
+
+---
+
+## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 📋
+
+**Goal.** Rebuild the geometric corpus base as a lordotic L1–L5, re-author the fixtures that
+do not express their mode, re-home the rules the queue-022 review named (`insights.md`,
+entries dated 2026-09-22), and bring **modes 3 and 4** to an **at-the-bar** sign-off. That
+sign-off closes Stage 32's criterion 1 as well as this stage. Modes 2 and 6 are
+re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
+
+**Deliverables.**
+
+- 📋 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
+  and specification-regeneration fixtures, literal negative controls rebuilt from live
+  values, and `UNUSED_OPERATOR_REASONS` entries validated.
+- 📋 **D1** The lordotic geometric base, with both manifests regenerated and the
+  2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
+  status report's corpus section re-keyed off the generated specification.
+- 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
+  `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
+  renumbered, `displace` mostly left-right, `force_overlap` retired or declared
+  multi-channel, and `fragment` parked.
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- 📋 **D4** The bar checker's condition 2 made existential and detector-granular, the
+  severity-ladder constants re-measured including the split operators, and a generated
+  `docs/aide/rules.generated.md`.
+- 📋 **D5** Modes 3 and 4 re-signed by the maintainer at the bar (human gate), with the
+  outcome written to `MODE_SIGN_OFFS`.
+- 📋 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
+  Stage 32's criterion 1.
+
+**Acceptance.**
+
+- [ ] Modes 3 and 4 each meet all six conditions of Stage 32's "fully specified end to end",
+  checked against live state on the lordotic corpus. Each carries a maintainer sign-off at
+  `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**).
+- [ ] No committed corpus case is attributed to a mode or condition that its label map does
+  not express, and every case's measured firing equals its expected set, across both
+  corpora (**G2**, **G7**).
+- [ ] No rule declares a mode through a detector that reads another mode's signal. Condition
+  4 of the bar is checked mechanically at detector granularity (**G2**, **G8**).
+- [ ] A label map holding both T12 and L1, and no T13, produces no missing-level finding
+  (**G2**).
+- [ ] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
+  as measured numbers with what they were measured on (**G7**).
