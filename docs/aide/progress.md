@@ -1823,7 +1823,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - ✅ **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
   and specification-regeneration fixtures, literal negative controls rebuilt from live
   values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Item 170)*
-- 🚧 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
+- 🔍 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
   and specification-regeneration fixtures, literal negative controls rebuilt from live
   values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Item 171)*
 - 📋 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
