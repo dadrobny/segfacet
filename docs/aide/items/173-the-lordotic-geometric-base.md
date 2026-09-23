@@ -1048,3 +1048,228 @@ Change `pytest.approx(0.0, abs=1e-9)` to `abs=1e-6`.
 The docstring gains one dated sentence on the residue. If the builder's
 fresh residue exceeds 1e-7 mm, hand back, because the bound would then sit
 less than an order of magnitude above it.
+
+## Correction — 2026-09-23 (review findings)
+
+**Appended, not a rewrite.** Everything above, including the first
+`## Correction — 2026-09-23`, stands as written. Validation round 1 passed on
+commit `437a0d6`. The in-loop reviewer then raised two blocking findings in
+scope for this item and one minor one. This section rules on all three. The
+spec-author measured every value below on this branch on 2026-09-23 with
+throwaway probes that are not committed.
+
+**No acceptance criterion or assumption above changes.** Four things are
+added:
+
+- one amended builder behaviour, part 1 (Implementation step 1);
+- one adversarial case, part 1 (Testing Strategy);
+- one more test under fence clause (d), part 2;
+- one authorised comment and docstring edit, part 3.
+
+**Authorised paths do not change.** `src/segfacet/synth/clean_gt.py` and
+`tests/test_173_lordotic_geometric_base.py` are already listed under
+**May change**. `tests/test_131_tangent_direction_normalisation.py` and
+`tests/test_119_curve_formulation.py` fall under `tests/*.py` and its fence.
+Clause (d) is extended below by name, as that clause requires.
+
+### 1. The coarse-spacing fallback drops a level
+
+**Finding.** `build_clean_spine` fills each body in turn. When a body's
+rotated box contains no voxel centre, it writes one voxel at
+`round(centroid / spacing)`. Nothing checks whether that voxel is already
+claimed, or whether a later body's fill overwrites it. The label then ends
+with 0 voxels, and nothing reports it. On this branch's builder:
+
+| Levels | Spacing (mm) | Voxel count per label |
+|---|---|---|
+| L1–L3 | (20, 20, 60) | 20: 0, 21: 1, 22: 1 |
+| L1–L3 | (20, 20, 66) | 20: 0, 21: 1, 22: 1 |
+| L1–L3 | (20, 20, 100) | 20: 1, 21: 0, 22: 1 |
+
+A sweep over x and y spacings in {1, 10, 20, 30, 40} mm, S-I spacings in
+{1, 10, 20, 33, 40, 60, 66, 100} mm, and the spans L1–L3, L1–L5 and L4–L5
+found 99 builds that drop at least one label. No committed caller is among
+them. The default build, the reference cohort's spacings, and `test_092`'s
+(20, 20, 20) all fill every label from its own box. `coarse-spacing-margin`
+asserts only that `per_label` is non-empty, so it cannot see a dropped label.
+
+**Ruling: every requested level is present with at least one voxel, at any
+spacing. The builder does not raise.**
+
+- **Why presence and not an error.** The fallback exists to keep the label
+  present, as its comment says, and A3 already requires the build to hold at
+  any spacing. Presence is always achievable, so no input needs an error. The
+  grid keeps at least one empty voxel of margin on every face, outside every
+  box, so an unclaimed voxel always exists. An error would also turn coarse
+  builds that work today into failures.
+- **Why a second pass, and not "the nearest unclaimed voxel" inside the
+  existing loop.** The reviewer proposed choosing the nearest unclaimed voxel
+  at the moment a body falls back. That variant was measured over the same
+  sweep and still drops labels. On L1–L5 at (20, 20, 60) it drops 20 and 22,
+  and 24 builds fail in total. The cause is that a later body's box fill
+  overwrites an earlier body's fallback voxel. The second pass below dropped
+  no label anywhere in the sweep, and left the default build
+  `np.array_equal` to the current one.
+
+**Implementation step 1, amended (builder, `src/segfacet/synth/clean_gt.py`).**
+
+1. The fill loop writes each body's rotated box and nothing else. Remove the
+   in-loop fallback.
+2. After every box is written, and before the trim, make a second pass over
+   the labels in ascending order. For each label with no voxel in the array,
+   write it into one voxel:
+   - The voxel must be unclaimed (value 0) at that moment.
+   - It is the unclaimed voxel whose centre, `index · spacing`, lies nearest
+     that label's centroid by Euclidean distance in mm.
+   - Ties go to the lowest C-order flat index, which is what `np.argmin`
+     returns first.
+3. `voxel_counts` stays counted from the array.
+4. Re-word the comment at the fallback. It should say what the second pass
+   guarantees (every requested label keeps at least one voxel) and why it
+   runs after all fills (a later box can overwrite an earlier voxel).
+5. A build in which every body claims at least one voxel from its own box
+   must come out byte-identical. That covers every committed caller. If
+   regenerating shows any change to a committed corpus fixture, a manifest,
+   `reference_default.json` or a `docs/aide/*.generated.*` file, hand back.
+   The guards already exist: AC5, `test_116` AC10/AC11, `test_143` AC11–AC13,
+   and `test_131`'s
+   `test_ac20_fresh_default_reference_matches_committed`.
+
+**Testing Strategy, amended (test-writer,
+`tests/test_173_lordotic_geometric_base.py`).** One adversarial case is
+added. Every case listed earlier stays as it is.
+
+- **`coarse-spacing-keeps-every-level`**: parametrised over four builds:
+  `build_clean_spine(levels=("L1", "L2", "L3"), spacing=s)` for `s` equal to
+  `(20.0, 20.0, 60.0)`, `(20.0, 20.0, 66.0)` and `(20.0, 20.0, 100.0)`, and
+  `build_clean_spine(levels=("L1", "L2", "L3", "L4", "L5"), spacing=(20.0, 20.0, 60.0))`.
+  For every label of the requested levels, `np.count_nonzero(array == label)`
+  is greater than 0. The array is the returned `seg_img`'s. The expected
+  label sets are literals, `{20, 21, 22}` and `{20, 21, 22, 23, 24}`. They
+  are not read from `voxel_counts`, which comes from the module under test.
+  Each build guards a failure mode:
+  - The three L1–L3 builds guard a fallback voxel that lands on a voxel
+    already claimed. Today they drop label 20, label 20 and label 21 in turn.
+  - The L1–L5 build guards a later body's box overwriting an earlier body's
+    fallback voxel. This is the failure the in-loop "nearest unclaimed" fix
+    leaves open: that variant drops labels 20 and 22 here.
+
+### 2. Fence clause (d), extended: `test_131` AC21's `relabel_swap` coronal row
+
+**Finding.** `_PRE_ITEM_OTHER_CURVATURE_FIELDS["relabel_swap"]` in
+`tests/test_131_tangent_direction_normalisation.py` pins
+`coronal_tangent_angles_deg` as `[0.0, -180.0, -180.0, 0.0, 0.0]` and
+`coronal_curvature_deg` as `180.0`, at `abs=1e-6`.
+
+At indices 1 and 2, the direction-normalised tangent's L-R component is pure
+summation residue, −4.26e-16 and −5.82e-16. Its S component is −0.9958 and
+−0.9978. So `atan2` sits on its branch cut, and the ±180 is decided by the
+sign of the residue. The lordotic base has no lateral curve (AC4), so the
+analytic L-R component is 0. The insight entry dated 2026-09-23 on the
+`relabel_swap` coronal row records this.
+
+A flipped residue does more than turn −180 into +180. All four sign
+combinations of the two residues were passed through
+`features/orientation.py::_signed_plane_angles_deg`:
+
+| Residue signs (index 1, index 2) | Unwrapped coronal array | `coronal_curvature_deg` |
+|---|---|---|
+| (−, −), this platform | `[0, -180, -180, 0, 0]` | 180 |
+| (+, +) | `[0, 180, 180, 0, 0]` | 180 |
+| (+, −) | `[0, 180, 180, 360, 360]` | 360 |
+| (−, +) | `[0, -180, -180, -360, -360]` | 360 |
+
+When the signs are mixed, `coronal_curvature_deg` is 360. That exceeds
+`sagittal_curvature_deg` (348.91102), so `total_curvature_deg` becomes 360
+and `curvature_plane` becomes `"coronal"`. A platform with mixed residue
+signs therefore fails AC21 on three fields beyond the angle list.
+
+CI runs Linux, Windows and macOS on two numpy majors, so this is a platform
+dependence in the suite. Clause (d) exists for exactly this case.
+
+**Ruling:
+`tests/test_131_tangent_direction_normalisation.py::test_ac21_other_curvature_fields_unmoved`
+joins clause (d), and its name does not change.** The prescription applies
+to the `relabel_swap` case only.
+
+- **`coronal_tangent_angles_deg`: compare as angles on the circle.** The
+  lengths must be equal. For each index `i`, assert
+  `abs((actual[i] - expected[i] + 180.0) % 360.0 - 180.0) <= 1e-6`. The table
+  literal stays `[0.0, -180.0, -180.0, 0.0, 0.0]`. All four rows of the
+  table above pass this, and a real change of direction does not.
+- **`coronal_curvature_deg`, `total_curvature_deg` and `curvature_plane`: not
+  compared for this case.** Their values are set by the residue signs, so no
+  literal holds on every platform. Keep the table entries as the dated record
+  of this platform's reading. Mark them with a comment that points to this
+  section and names the reason, and skip them in the comparison.
+- **Everything else stays as it is.** For `relabel_swap`,
+  `sagittal_tangent_angles_deg` and `sagittal_curvature_deg` are still
+  compared at `abs=1e-6`. No sagittal entry is within 3.8° of the branch cut.
+  The other eight cases are compared on every field exactly as before.
+
+**Why this is the right comparison.** AC21 is evidence that item 131 changed
+nothing but `tangent_angles_deg`.
+
+- The coronal angles of `relabel_swap` are directions, and the circle
+  comparison still fails if any direction moves.
+- The three skipped fields keep their evidence of being unmoved on the eight
+  other cases, where nothing sits on the branch cut.
+- The skip is not a loosened tolerance. The three fields cannot be measured
+  independently of the platform.
+
+The production side, a sweep and plane that change with residue sign, is
+`features/orientation.py`'s. That file is not in this item's scope, so it is
+recorded as a dated line under the existing insight entry and not fixed
+here.
+
+**Other entries on the ±180 boundary: none that any test pins.** The probe
+covered every geometric corpus case, in both planes. It checked
+`SpineCurvature`'s raw `atan2`, looking for entries within 1e-6 of ±180, and
+item 121's wrapped per-vertebra `coronal_deg` and `sagittal_deg`, looking for
+entries within 1e-3 of ±180.
+
+- **The only hits are `relabel_swap` labels 21 and 22 in the coronal
+  plane.** The `SpineCurvature` hits are the row ruled on above.
+- **Item 121's per-vertebra `coronal_deg` for those two labels reads
+  −179.99999999999997 and −179.99999999996305.** No test pins it. The first
+  Correction's (iii) moved `test_121`'s doubling-back test to the sagittal
+  plane and added no coronal assertion. `test_121`'s range check near line
+  822 runs on the hand-built `_mode4_relabel_swap_shape`, not on the corpus.
+- **`tangent_angles_deg` and `inter_tangent_angles_deg` have no branch
+  cut.** They come from `acos`. That covers `test_131` AC4, AC5 and AC7, and
+  `test_143` AC8.
+- **The feature catalogue's observed range for the curvature fields is not
+  affected.** It is taken over `catalogue.py`'s own synthetic records (clean,
+  fragmented, missing_level, overlaps, sequence_break), which do not include
+  `relabel_swap`.
+
+### 3. `test_119` AC8's stale 0.56 mm quotes (minor)
+
+The first Correction moved AC8's ceiling from 0.56 to 0.44 mm. Two passages
+in `tests/test_119_curve_formulation.py` still quote the old value. Both are
+authorised under fence clause (a), as prose that follows a moved literal:
+
+- AC8's trailing comment, "Implied by the 0.56 ceiling above", becomes
+  "Implied by the 0.44 ceiling above".
+- The module docstring's AC7/AC8 bullet says the sweep "exceeds it once,
+  bounded at 0.56 mm", where "it" is item 017's 0.5 mm tolerance. Re-word it
+  to say the sweep exceeds 0.4 mm and is bounded at 0.44 mm on the lordotic
+  base (2026-09-23), inside stage 28's 1.0 mm bound. It no longer exceeds
+  0.5 mm, as the first Correction records.
+
+No assertion changes.
+
+### Who does what
+
+- **test-writer:** adds `coarse-spacing-keeps-every-level` to
+  `tests/test_173_lordotic_geometric_base.py`. It fails against the current
+  builder.
+- **builder:** makes the second-pass fallback change in `clean_gt.py`
+  (part 1). The builder also makes the two existing-test edits, as step 9
+  reconciliation, in the same way it made the first Correction's clause (d)
+  edits: the clause (d) comparison in `test_131` AC21 (part 2) and the
+  comment and docstring edit in `test_119` (part 3). The builder records each
+  in Decisions.
+- **Validation step 5:** the four new parametrised ids of
+  `coarse-spacing-keeps-every-level` count as this item's new tests. No id
+  is renamed or retired.
