@@ -61,7 +61,7 @@
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
-| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 📋     |
+| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 🚧     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -1810,7 +1810,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 ---
 
-## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 📋
+## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 🚧
 
 **Goal.** Rebuild the geometric corpus base as a lordotic L1–L5, re-author the fixtures that
 do not express their mode, re-home the rules the queue-022 review named (`insights.md`,
@@ -1820,9 +1820,15 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 
 **Deliverables.**
 
+- 🚧 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
+  and specification-regeneration fixtures, literal negative controls rebuilt from live
+  values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Item 170)*
 - 📋 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
   and specification-regeneration fixtures, literal negative controls rebuilt from live
-  values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Items 170, 171, 172)*
+  values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Item 171)*
+- 📋 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
+  and specification-regeneration fixtures, literal negative controls rebuilt from live
+  values, and `UNUSED_OPERATOR_REASONS` entries validated. *(Item 172)*
 - 📋 **D1** The lordotic geometric base, with both manifests regenerated and the
   2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
   status report's corpus section re-keyed off the generated specification.
