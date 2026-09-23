@@ -16,9 +16,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 50.0,
-              "maximum": 50.0,
-              "minimum": 44.0,
+              "magnitude": 45.0,
+              "maximum": 45.0,
+              "minimum": 45.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -28,7 +28,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 6.0
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -65,8 +65,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 21.0,
-              "maximum": 21.0,
+              "magnitude": 15.0,
+              "maximum": 15.0,
               "minimum": 15.0,
               "population": "corpus",
               "source": [
@@ -77,7 +77,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 6.0
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -114,9 +114,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 39.0,
-              "maximum": 39.0,
-              "minimum": 39.0,
+              "magnitude": 70.0,
+              "maximum": 70.0,
+              "minimum": 42.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -126,7 +126,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.0
+              "span": 28.0
             },
             "numeric": true,
             "reference": {
@@ -163,8 +163,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 15.0,
-              "maximum": 15.0,
+              "magnitude": 46.0,
+              "maximum": 46.0,
               "minimum": 15.0,
               "population": "corpus",
               "source": [
@@ -175,7 +175,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.0
+              "span": 31.0
             },
             "numeric": true,
             "reference": {
@@ -212,9 +212,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 199.0,
-              "maximum": 199.0,
-              "minimum": 39.0,
+              "magnitude": 177.0,
+              "maximum": 177.0,
+              "minimum": 42.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -224,7 +224,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 160.0
+              "span": 135.0
             },
             "numeric": true,
             "reference": {
@@ -261,8 +261,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 175.0,
-              "maximum": 175.0,
+              "magnitude": 150.0,
+              "maximum": 150.0,
               "minimum": 15.0,
               "population": "corpus",
               "source": [
@@ -273,7 +273,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 160.0
+              "span": 135.0
             },
             "numeric": true,
             "reference": {
@@ -310,9 +310,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 50.0,
-              "maximum": 50.0,
-              "minimum": 44.0,
+              "magnitude": 45.0,
+              "maximum": 45.0,
+              "minimum": 45.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -322,7 +322,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 6.0
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -359,8 +359,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 21.0,
-              "maximum": 21.0,
+              "magnitude": 15.0,
+              "maximum": 15.0,
               "minimum": 15.0,
               "population": "corpus",
               "source": [
@@ -371,7 +371,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 6.0
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -408,9 +408,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 39.0,
-              "maximum": 39.0,
-              "minimum": 39.0,
+              "magnitude": 70.0,
+              "maximum": 70.0,
+              "minimum": 42.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -420,7 +420,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.0
+              "span": 28.0
             },
             "numeric": true,
             "reference": {
@@ -457,8 +457,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 15.0,
-              "maximum": 15.0,
+              "magnitude": 46.0,
+              "maximum": 46.0,
               "minimum": 15.0,
               "population": "corpus",
               "source": [
@@ -469,7 +469,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.0
+              "span": 31.0
             },
             "numeric": true,
             "reference": {
@@ -506,9 +506,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 199.0,
-              "maximum": 199.0,
-              "minimum": 39.0,
+              "magnitude": 177.0,
+              "maximum": 177.0,
+              "minimum": 42.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -518,7 +518,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 160.0
+              "span": 135.0
             },
             "numeric": true,
             "reference": {
@@ -555,8 +555,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 175.0,
-              "maximum": 175.0,
+              "magnitude": 150.0,
+              "maximum": 150.0,
               "minimum": 15.0,
               "population": "corpus",
               "source": [
@@ -567,7 +567,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 160.0
+              "span": 135.0
             },
             "numeric": true,
             "reference": {
@@ -620,9 +620,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 30.0,
-              "maximum": 30.0,
-              "minimum": 30.0,
+              "magnitude": 31.0,
+              "maximum": 31.0,
+              "minimum": 31.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -692,8 +692,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 25.0,
-              "maximum": 25.0,
+              "magnitude": 34.0,
+              "maximum": 34.0,
               "minimum": 25.0,
               "population": "corpus",
               "source": [
@@ -704,7 +704,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.0
+              "span": 9.0
             },
             "numeric": true,
             "reference": {
@@ -764,8 +764,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 25.0,
-              "maximum": 25.0,
+              "magnitude": 34.0,
+              "maximum": 34.0,
               "minimum": 25.0,
               "population": "corpus",
               "source": [
@@ -776,7 +776,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.0
+              "span": 9.0
             },
             "numeric": true,
             "reference": {
@@ -837,9 +837,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 18000.0,
+              "magnitude": 19437.0,
+              "maximum": 19437.0,
+              "minimum": 18383.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -849,7 +849,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 750.0
+              "span": 1054.0
             },
             "numeric": true,
             "reference": {
@@ -1291,9 +1291,9 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 18000.0,
+              "magnitude": 19437.0,
+              "maximum": 19437.0,
+              "minimum": 18383.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -1303,7 +1303,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 750.0
+              "span": 1054.0
             },
             "numeric": true,
             "reference": {
@@ -1443,9 +1443,9 @@
               "count": 26,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 9000.0,
+              "magnitude": 19437.0,
+              "maximum": 19437.0,
+              "minimum": 8773.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -1455,7 +1455,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 9750.0
+              "span": 10664.0
             },
             "numeric": true,
             "reference": {
@@ -1501,9 +1501,9 @@
               "count": 26,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 9000.0,
+              "magnitude": 19437.0,
+              "maximum": 19437.0,
+              "minimum": 8773.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -1513,7 +1513,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 9750.0
+              "span": 10664.0
             },
             "numeric": true,
             "reference": {
@@ -1571,7 +1571,7 @@
               "informative": true,
               "magnitude": 1.0,
               "maximum": 1.0,
-              "minimum": 0.5,
+              "minimum": 0.522766,
               "population": "corpus",
               "source": [
                 "clean",
@@ -1581,7 +1581,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.5
+              "span": 0.477234
             },
             "numeric": true,
             "reference": {
@@ -1646,7 +1646,7 @@
               "informative": true,
               "magnitude": 1.0,
               "maximum": 1.0,
-              "minimum": 0.5,
+              "minimum": 0.522766,
               "population": "corpus",
               "source": [
                 "clean",
@@ -1656,7 +1656,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.5
+              "span": 0.477234
             },
             "numeric": true,
             "reference": {
@@ -1816,9 +1816,9 @@
               "count": 1,
               "covered": true,
               "informative": true,
-              "magnitude": 9000.0,
-              "maximum": 9000.0,
-              "minimum": 9000.0,
+              "magnitude": 8773.0,
+              "maximum": 8773.0,
+              "minimum": 8773.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -2010,8 +2010,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 0.5,
-              "maximum": 0.5,
+              "magnitude": 0.477234,
+              "maximum": 0.477234,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -2022,7 +2022,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 0.5
+              "span": 0.477234
             },
             "numeric": true,
             "reference": {
@@ -2059,8 +2059,8 @@
               "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 9000.0,
-              "maximum": 9000.0,
+              "magnitude": 8773.0,
+              "maximum": 8773.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -2071,7 +2071,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 9000.0
+              "span": 8773.0
             },
             "numeric": true,
             "reference": {
@@ -2118,9 +2118,9 @@
               "count": 75,
               "covered": true,
               "informative": true,
-              "magnitude": 187.0,
-              "maximum": 187.0,
-              "minimum": 27.0,
+              "magnitude": 163.402,
+              "maximum": 163.402,
+              "minimum": 28.133,
               "population": "corpus",
               "source": [
                 "clean",
@@ -2130,7 +2130,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 160.0
+              "span": 135.269
             },
             "numeric": true,
             "reference": {
@@ -2167,9 +2167,9 @@
               "count": 75,
               "covered": true,
               "informative": true,
-              "magnitude": 187.0,
-              "maximum": 187.0,
-              "minimum": 27.0,
+              "magnitude": 163.402,
+              "maximum": 163.402,
+              "minimum": 28.133,
               "population": "corpus",
               "source": [
                 "clean",
@@ -2179,7 +2179,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 160.0
+              "span": 135.269
             },
             "numeric": true,
             "reference": {
@@ -2591,9 +2591,9 @@
               "count": 19,
               "covered": true,
               "informative": true,
-              "magnitude": 160.0,
-              "maximum": 160.0,
-              "minimum": 40.05,
+              "magnitude": 134.161,
+              "maximum": 134.161,
+              "minimum": 32.6952,
               "population": "corpus",
               "source": [
                 "clean",
@@ -2603,7 +2603,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 119.95
+              "span": 101.465
             },
             "numeric": true,
             "reference": {
@@ -3149,9 +3149,9 @@
               "count": 1,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 18750.0,
+              "magnitude": 19437.0,
+              "maximum": 19437.0,
+              "minimum": 19437.0,
               "population": "corpus",
               "source": [
                 "overlaps"
@@ -3266,10 +3266,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": true,
-              "magnitude": 0.673278,
-              "maximum": 0.673278,
-              "minimum": -0.309177,
+              "informative": false,
+              "magnitude": 0.0,
+              "maximum": 0.0,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3278,7 +3278,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.982455
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -3292,7 +3292,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "varies"
+            "verdict": "constant-synthetic"
           },
           "origin": "record",
           "path": "stage3.per_label_offsets[].dx_mm",
@@ -3328,10 +3328,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
+              "informative": true,
+              "magnitude": 0.339971,
+              "maximum": 0.151338,
+              "minimum": -0.339971,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3340,7 +3340,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 0.491309
             },
             "numeric": true,
             "reference": {
@@ -3354,7 +3354,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
           "path": "stage3.per_label_offsets[].dy_mm",
@@ -3391,9 +3391,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.0209399,
-              "maximum": 0.0209399,
-              "minimum": -0.0209399,
+              "magnitude": 0.0531917,
+              "maximum": 0.0497259,
+              "minimum": -0.0531917,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3402,7 +3402,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0418798
+              "span": 0.102918
             },
             "numeric": true,
             "reference": {
@@ -3645,9 +3645,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.673278,
-              "maximum": 0.673278,
-              "minimum": 7.67113e-08,
+              "magnitude": 0.343588,
+              "maximum": 0.343588,
+              "minimum": 2.86118e-07,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3656,7 +3656,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.673277
+              "span": 0.343588
             },
             "numeric": true,
             "reference": {
@@ -3704,9 +3704,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.673278,
-              "maximum": 0.673278,
-              "minimum": 7.67113e-08,
+              "magnitude": 0.343588,
+              "maximum": 0.343588,
+              "minimum": 2.86118e-07,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3715,7 +3715,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.673277
+              "span": 0.343588
             },
             "numeric": true,
             "reference": {
@@ -3759,10 +3759,10 @@
             "corpus": {
               "count": 5,
               "covered": true,
-              "informative": true,
-              "magnitude": 16.3304,
-              "maximum": 16.3304,
-              "minimum": 15.2646,
+              "informative": false,
+              "magnitude": 0.0,
+              "maximum": 0.0,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3771,7 +3771,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 1.06578
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -3785,7 +3785,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "varies"
+            "verdict": "constant-synthetic"
           },
           "origin": "record",
           "path": "stage3.curvature.coronal_curvature_deg",
@@ -3807,10 +3807,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": true,
-              "magnitude": 8.1652,
-              "maximum": 8.1652,
-              "minimum": -8.1652,
+              "informative": false,
+              "magnitude": 0.0,
+              "maximum": 0.0,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3819,7 +3819,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.3304
+              "span": 0.0
             },
             "numeric": true,
             "reference": {
@@ -3833,7 +3833,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "varies"
+            "verdict": "constant-synthetic"
           },
           "origin": "record",
           "path": "stage3.curvature.coronal_tangent_angles_deg[]",
@@ -3904,9 +3904,9 @@
               "count": 19,
               "covered": true,
               "informative": true,
-              "magnitude": 7.59031,
-              "maximum": 7.59031,
-              "minimum": 3.83716,
+              "magnitude": 19.7488,
+              "maximum": 19.7488,
+              "minimum": 7.3206,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3915,7 +3915,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 3.75315
+              "span": 12.4282
             },
             "numeric": true,
             "reference": {
@@ -3951,10 +3951,10 @@
             "corpus": {
               "count": 5,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
+              "informative": true,
+              "magnitude": 41.8885,
+              "maximum": 41.8885,
+              "minimum": 41.1436,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3963,7 +3963,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 0.744932
             },
             "numeric": true,
             "reference": {
@@ -3977,7 +3977,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
           "path": "stage3.curvature.sagittal_curvature_deg",
@@ -3999,10 +3999,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
+              "informative": true,
+              "magnitude": 33.9343,
+              "maximum": 33.9343,
+              "minimum": -7.95422,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4011,7 +4011,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 41.8885
             },
             "numeric": true,
             "reference": {
@@ -4025,7 +4025,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
           "path": "stage3.curvature.sagittal_tangent_angles_deg[]",
@@ -4048,9 +4048,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 8.1652,
-              "maximum": 8.1652,
-              "minimum": 0.0,
+              "magnitude": 33.9343,
+              "maximum": 33.9343,
+              "minimum": 0.254105,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4059,7 +4059,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 8.1652
+              "span": 33.6802
             },
             "numeric": true,
             "reference": {
@@ -4096,9 +4096,9 @@
               "count": 5,
               "covered": true,
               "informative": true,
-              "magnitude": 16.3304,
-              "maximum": 16.3304,
-              "minimum": 15.2646,
+              "magnitude": 41.8885,
+              "maximum": 41.8885,
+              "minimum": 41.1436,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4107,7 +4107,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 1.06578
+              "span": 0.744932
             },
             "numeric": true,
             "reference": {
@@ -4146,9 +4146,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 1.44071,
-              "maximum": 1.44071,
-              "minimum": 1.38308,
+              "magnitude": 1.53846,
+              "maximum": 1.53846,
+              "minimum": 1.47046,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4157,7 +4157,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0576282
+              "span": 0.0679981
             },
             "numeric": true,
             "reference": {
@@ -4294,7 +4294,7 @@
               "informative": true,
               "magnitude": 1.0,
               "maximum": 1.0,
-              "minimum": 0.0,
+              "minimum": -2.90281e-16,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4388,9 +4388,9 @@
               "count": 72,
               "covered": true,
               "informative": true,
-              "magnitude": 1.0,
-              "maximum": 1.0,
-              "minimum": -0.142013,
+              "magnitude": 0.999991,
+              "maximum": 0.999991,
+              "minimum": -0.138382,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4399,7 +4399,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 1.14201
+              "span": 1.13837
             },
             "numeric": true,
             "reference": {
@@ -4435,54 +4435,6 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": true,
-              "magnitude": 8.16437,
-              "maximum": 8.16437,
-              "minimum": -8.16437,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 16.3287
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_orientations[].spline_tangent_coronal_deg",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "degrees(atan2(t_A, t_S)) of spline_tangent, wrapped to (-180, 180] and deliberately not unwrapped, the same convention as spline_tangent_coronal_deg. Positive means the curve tilts anterior. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Signed sagittal (A-S plane) tilt of the fitted spinal curve at this vertebra's own closest point on it -- an orientation proxy, not a vertebral coordinate system. Varies across levels where principal_axis is measured constant on the committed corpus.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
               "informative": false,
               "magnitude": 0.0,
               "maximum": 0.0,
@@ -4510,6 +4462,54 @@
               "span": null
             },
             "verdict": "constant-synthetic"
+          },
+          "origin": "record",
+          "path": "stage3.per_label_orientations[].spline_tangent_coronal_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "unwired",
+          "units": "degrees"
+        },
+        {
+          "computation": "degrees(atan2(t_A, t_S)) of spline_tangent, wrapped to (-180, 180] and deliberately not unwrapped, the same convention as spline_tangent_coronal_deg. Positive means the curve tilts anterior. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Signed sagittal (A-S plane) tilt of the fitted spinal curve at this vertebra's own closest point on it -- an orientation proxy, not a vertebral coordinate system. Varies across levels where principal_axis is measured constant on the committed corpus.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 24,
+              "covered": true,
+              "informative": true,
+              "magnitude": 33.9342,
+              "maximum": 33.9342,
+              "minimum": -7.9542,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 41.8884
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
           },
           "origin": "record",
           "path": "stage3.per_label_orientations[].spline_tangent_sagittal_deg",
@@ -4710,9 +4710,9 @@
               "count": 5,
               "covered": true,
               "informative": true,
-              "magnitude": 0.350915,
-              "maximum": 0.350915,
-              "minimum": 0.00186336,
+              "magnitude": 0.324242,
+              "maximum": 0.324242,
+              "minimum": 0.0454739,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4721,7 +4721,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.349052
+              "span": 0.278768
             },
             "numeric": true,
             "reference": {
@@ -4758,9 +4758,9 @@
               "count": 19,
               "covered": true,
               "informative": true,
-              "magnitude": 26.5337,
-              "maximum": 26.5337,
-              "minimum": -13.2668,
+              "magnitude": 20.8066,
+              "maximum": 20.8066,
+              "minimum": -12.0763,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4769,7 +4769,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 39.8005
+              "span": 32.883
             },
             "numeric": true,
             "reference": {
@@ -4806,9 +4806,9 @@
               "count": 5,
               "covered": true,
               "informative": true,
-              "magnitude": 53.4663,
-              "maximum": 53.4663,
-              "minimum": 40.1247,
+              "magnitude": 45.5703,
+              "maximum": 45.5703,
+              "minimum": 34.2181,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4817,7 +4817,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 13.3416
+              "span": 11.3522
             },
             "numeric": true,
             "reference": {
@@ -4902,9 +4902,9 @@
               "count": 19,
               "covered": true,
               "informative": true,
-              "magnitude": 80.0,
-              "maximum": 80.0,
-              "minimum": 40.05,
+              "magnitude": 66.3769,
+              "maximum": 66.3769,
+              "minimum": 32.6952,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4913,7 +4913,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 39.95
+              "span": 33.6817
             },
             "numeric": true,
             "reference": {
@@ -4958,9 +4958,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 750000000.0,
-              "maximum": 750000000.0,
-              "minimum": 0.284906,
+              "magnitude": 961000000.0,
+              "maximum": 961000000.0,
+              "minimum": 0.823529,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4969,7 +4969,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 750000000.0
+              "span": 961000000.0
             },
             "numeric": true,
             "reference": {
@@ -5150,9 +5150,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.431016,
-              "maximum": 0.431016,
-              "minimum": 2.99771e-05,
+              "magnitude": 0.218387,
+              "maximum": 0.218387,
+              "minimum": 2.57051e-05,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5161,7 +5161,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.430986
+              "span": 0.218362
             },
             "numeric": true,
             "reference": {
@@ -5198,9 +5198,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.309886,
-              "maximum": 0.309886,
-              "minimum": 7.67114e-08,
+              "magnitude": 0.160233,
+              "maximum": 0.160233,
+              "minimum": 8.71739e-07,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5209,7 +5209,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.309885
+              "span": 0.160232
             },
             "numeric": true,
             "reference": {
@@ -5246,9 +5246,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.234021,
-              "maximum": 0.234021,
-              "minimum": 4.22856e-05,
+              "magnitude": 0.121301,
+              "maximum": 0.121301,
+              "minimum": 3.55346e-05,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5257,7 +5257,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.233979
+              "span": 0.121265
             },
             "numeric": true,
             "reference": {
@@ -5294,9 +5294,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 363392.0,
-              "maximum": 363392.0,
-              "minimum": 0.284906,
+              "magnitude": 110802.0,
+              "maximum": 110802.0,
+              "minimum": 0.246649,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5305,7 +5305,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 363392.0
+              "span": 110801.0
             },
             "numeric": true,
             "reference": {
@@ -5342,9 +5342,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 60.0998,
-              "maximum": 60.0998,
-              "minimum": 40.0998,
+              "magnitude": 49.9355,
+              "maximum": 49.9355,
+              "minimum": 33.0946,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5353,7 +5353,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 19.9999
+              "span": 16.8409
             },
             "numeric": true,
             "reference": {
@@ -5390,9 +5390,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 60.0998,
-              "maximum": 60.0998,
-              "minimum": 40.05,
+              "magnitude": 49.9355,
+              "maximum": 49.9355,
+              "minimum": 33.0946,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5401,7 +5401,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 20.0498
+              "span": 16.8409
             },
             "numeric": true,
             "reference": {
@@ -5438,8 +5438,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 19.9002,
-              "maximum": 19.9002,
+              "magnitude": 16.4415,
+              "maximum": 16.4415,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5449,7 +5449,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 19.9002
+              "span": 16.4415
             },
             "numeric": true,
             "reference": {
@@ -5486,8 +5486,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 39800500.0,
-              "maximum": 39800500.0,
+              "magnitude": 32883000.0,
+              "maximum": 32883000.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5497,7 +5497,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 39800500.0
+              "span": 32883000.0
             },
             "numeric": true,
             "reference": {
@@ -5534,9 +5534,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 18375.0,
+              "magnitude": 19416.3,
+              "maximum": 19416.3,
+              "minimum": 18863.5,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5545,7 +5545,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 375.0
+              "span": 552.833
             },
             "numeric": true,
             "reference": {
@@ -5582,9 +5582,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 18750.0,
-              "maximum": 18750.0,
-              "minimum": 18375.0,
+              "magnitude": 19437.0,
+              "maximum": 19437.0,
+              "minimum": 18863.5,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5593,7 +5593,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 375.0
+              "span": 573.5
             },
             "numeric": true,
             "reference": {
@@ -5630,8 +5630,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 375.0,
-              "maximum": 375.0,
+              "magnitude": 480.5,
+              "maximum": 480.5,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5641,7 +5641,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 375.0
+              "span": 480.5
             },
             "numeric": true,
             "reference": {
@@ -5678,8 +5678,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 750000000.0,
-              "maximum": 750000000.0,
+              "magnitude": 961000000.0,
+              "maximum": 961000000.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5689,7 +5689,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 750000000.0
+              "span": 961000000.0
             },
             "numeric": true,
             "reference": {

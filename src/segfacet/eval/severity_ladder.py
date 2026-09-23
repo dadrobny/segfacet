@@ -247,7 +247,7 @@ _BASE_PARAMS: Mapping[str, Any] = MappingProxyType(
     {
         "levels": tuple(DEFAULT_LEVELS),
         "spacing": (1.0, 1.0, 1.0),
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
     }
 )
 
@@ -1329,18 +1329,23 @@ def score_harness(
 # run this was transcribed from. Item 154 re-measured every value below from
 # a clean tree on 2026-09-16 (see this module's item 154 provenance entries
 # below) -- every measured value came out identical to item 153's carried-
-# over ones, but each is now a fresh transcription, not a carry-over.
+# over ones, but each is now a fresh transcription, not a carry-over. Item
+# 173 replaced the corpus base with a lordotic L1-L5 (tilted bodies, 8 mm
+# disc gap, no lateral curve) and re-transcribed every value below from one
+# fresh run on 2026-09-23 (the item 173 spec's Decisions log holds the
+# printed run).
 # --------------------------------------------------------------------------- #
 
 #: The provenance shared by every item-154 re-measurement below: one harness
 #: run, on the geometric corpus's own default base
 #: (:data:`segfacet.synth.corpus._DEFAULT_BASE_PARAMS`), dated the day of
-#: the re-measurement. See the item 154 spec's Decisions section for the
-#: full printed run this was transcribed from.
+#: the re-measurement. Last re-measured by item 173 on the lordotic base;
+#: see the item 173 spec's Decisions section for the full printed run this
+#: was transcribed from.
 _MEASUREMENT_PROVENANCE = MeasurementProvenance(
     corpus="geometric",
     base_params=dict(_BASE_PARAMS),
-    measured_on="2026-09-16",
+    measured_on="2026-09-23",
 )
 
 #: Two measured cross-mode couplings. ``crop_at_border`` ->
@@ -1348,7 +1353,8 @@ _MEASUREMENT_PROVENANCE = MeasurementProvenance(
 #: module docstring and the item's Assumptions): ``crop_at_border``,
 #: ``displace`` and ``force_overlap`` all translate a body rigidly, so all
 #: three put candidate foreground over GT background -- and the ``displace``
-#: ladder is FOV-capped (~19.8 mm max ``displacement_mm`` on this base) while
+#: ladder is FOV-capped (~20.5 mm max ``displacement_mm`` for label 22 on
+#: the lordotic base, measured 2026-09-23) while
 #: ``crop_at_border``'s scales linearly with the number of cropped labels, so
 #: it *exceeds* the strict bar (response > 1.0), exactly as predicted.
 #: ``force_overlap`` -> ``unanchored_foreground_fraction`` was **not**
@@ -1356,39 +1362,42 @@ _MEASUREMENT_PROVENANCE = MeasurementProvenance(
 #: and is recorded here per the item's instruction to call out any
 #: additional measured coupling in the Decisions log: ``force_overlap``
 #: shifts the whole target body by ``gap + overlap_depth`` voxels along the
-#: stacking axis, and the constant 15 mm inter-body gap dominates that
-#: shift, so most of ``force_overlap``'s ``unanchored_foreground_fraction``
-#: response is a rigid-translation artefact largely independent of
-#: ``overlap_depth`` -- its span nearly matches the ``displace`` ladder's own
-#: full swing (measured response 0.9629, margin only ~1.039), even though
+#: stacking axis, and the bounding-box gap between labels 20 and 21 (7
+#: voxels on the lordotic base: the 8 mm disc gap, narrowed by L1's tilt)
+#: dominates that shift, so much of ``force_overlap``'s
+#: ``unanchored_foreground_fraction`` response is a rigid-translation
+#: artefact largely independent of ``overlap_depth`` -- over half the
+#: ``displace`` ladder's own full swing (measured response 0.5741, margin
+#: ~1.742, 2026-09-23), even though
 #: ``force_overlap``'s own designated metric (``overlapping_voxel_count``)
 #: remains a clean, strictly specific isolator.
 KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
     CrossModeCoupling(
         ladder_operator="crop_at_border",
         foreign_metric="unanchored_foreground_fraction",
-        recorded_response=2.79,
+        recorded_response=3.075,
         cause=(
             "crop_at_border rigidly translates each cropped body toward the "
             "FOV face (like displace/force_overlap), placing candidate "
             "foreground over GT background; crop_at_border's "
             "n_affected_labels axis scales this linearly across 3 rungs "
-            "while the displace ladder is capped by the FOV (~19.8mm max "
-            "displacement_mm on this base)."
+            "while the displace ladder is capped by the FOV (~20.5mm max "
+            "displacement_mm for label 22 on the lordotic base)."
         ),
         provenance=_MEASUREMENT_PROVENANCE,
     ),
     CrossModeCoupling(
         ladder_operator="force_overlap",
         foreign_metric="unanchored_foreground_fraction",
-        recorded_response=0.9629,
+        recorded_response=0.5742,
         cause=(
             "force_overlap shifts the whole target body by gap + "
-            "overlap_depth voxels along the stacking axis; the constant "
-            "15mm inter-body gap dominates that shift, so most of the "
-            "unanchored-foreground signal is a rigid-translation artefact "
-            "largely independent of overlap_depth, nearly matching the "
-            "displace ladder's own full swing."
+            "overlap_depth voxels along the stacking axis; the 7-voxel "
+            "bounding-box gap between labels 20 and 21 on the lordotic base "
+            "(the 8mm disc gap, narrowed by L1's tilt) dominates that "
+            "shift, so much of the unanchored-foreground signal is a "
+            "rigid-translation artefact largely independent of "
+            "overlap_depth, over half the displace ladder's own full swing."
         ),
         provenance=_MEASUREMENT_PROVENANCE,
     ),
@@ -1397,18 +1406,19 @@ KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
 #: Every ladder's measured margin (``1.0 / max_{f != designated} response``),
 #: rounded down to 4 significant figures (``math.inf`` kept as-is where the
 #: measured max foreign response is exactly ``0.0``). Re-measured by item 154
-#: from a clean tree on 2026-09-16 (see :data:`RECORDED_MARGIN_PROVENANCE`);
-#: every value came out identical to item 153's carried-over ones.
+#: from a clean tree on 2026-09-16, then re-transcribed by item 173 from one
+#: fresh run on the lordotic base on 2026-09-23 (see
+#: :data:`RECORDED_MARGIN_PROVENANCE`).
 RECORDED_MARGINS: Mapping[str, float] = MappingProxyType(
     {
         "displace": math.inf,
         "fragment": math.inf,
-        "inject_islands": 112.0,
+        "inject_islands": 118.4,
         "relabel_swap": math.inf,
         "remove_level": math.inf,
-        "crop_at_border": 0.3585,
+        "crop_at_border": 0.3253,
         "sequence_break": math.inf,
-        "force_overlap": 1.038,
+        "force_overlap": 1.741,
     }
 )
 

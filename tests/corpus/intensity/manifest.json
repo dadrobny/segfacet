@@ -2,7 +2,7 @@
   "cases": [
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -54,7 +54,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -96,7 +96,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -138,7 +138,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",

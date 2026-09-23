@@ -137,7 +137,7 @@ _BASE_SCAN_FIXTURE_NAME: str = "base_scan.nii.gz"
 _DEFAULT_BASE_PARAMS: Dict[str, Any] = {
     "levels": ["L1", "L2", "L3", "L4", "L5"],
     "spacing": [1.0, 1.0, 1.0],
-    "curve_amplitude_mm": 6.0,
+    "curve_amplitude_mm": 0.0,
 }
 
 

@@ -2,7 +2,7 @@
   "cases": [
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -35,7 +35,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -74,7 +74,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -90,7 +90,7 @@
       },
       "case_id": "fragment",
       "condition": "",
-      "detail": "fragment: split label 22 into 2 pieces via interior slab cut(s) at stacking-axis (array axis 2) index(es) [107].",
+      "detail": "fragment: split label 22 into 2 pieces via interior slab cut(s) at stacking-axis (array axis 2) index(es) [98].",
       "detection": "pipeline",
       "expected_labels": [
         22
@@ -113,7 +113,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -152,7 +152,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -193,7 +193,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -230,7 +230,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -270,7 +270,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -307,7 +307,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -323,7 +323,7 @@
       },
       "case_id": "force_overlap",
       "condition": "",
-      "detail": "force_overlap: shifted label 20 by -18 voxel(s) along the stacking axis (array axis 2) toward neighbour label 21, reassigning the contested overhang from 21 to 20.",
+      "detail": "force_overlap: shifted label 20 by -10 voxel(s) along the stacking axis (array axis 2) toward neighbour label 21, reassigning the contested overhang from 21 to 20.",
       "detection": "reconstructed_record",
       "expected_labels": [
         20,
@@ -348,7 +348,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -389,7 +389,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -424,7 +424,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -440,7 +440,7 @@
       },
       "case_id": "split",
       "condition": "",
-      "detail": "split: donated 0.4 of target label 22's stacking-axis (array axis 2) span (indices 95-104 of 95-119) to neighbour label 23. The receiving label now spans two disconnected bodies, so fragmentation's Fragmentation: detector (mode 1's) fires on it -- a co-detection, not mode 3's own signal.",
+      "detail": "split: donated 0.4 of target label 22's stacking-axis (array axis 2) span (indices 84-94 of 84-111) to neighbour label 23. The receiving label now spans two disconnected bodies, so fragmentation's Fragmentation: detector (mode 1's) fires on it -- a co-detection, not mode 3's own signal.",
       "detection": "pipeline",
       "expected_labels": [
         23

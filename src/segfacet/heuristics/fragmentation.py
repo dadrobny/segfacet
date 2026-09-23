@@ -106,9 +106,10 @@ DEFAULT_ISLAND_MIN_VOXELS: int = 50
 DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2: float = 100.0
 """Fire when a label's stray-component contact area (mm^2) with a
 neighbouring label strictly exceeds this value (item 167, mode 3 -- split
-vertebra segment). Calibrated on the synthetic corpus only: the only firing
-value measures 750.0 mm^2 (+650.0 above threshold) and every non-firing
-value measures 0.0 (-100.0 below it). Documented as a comment only in
+vertebra segment). Calibrated on the synthetic corpus only: measured
+2026-09-23 on the lordotic base (item 173), the only firing value is
+775.0 mm^2 (+675.0 above threshold) and every non-firing value measures
+0.0 (-100.0 below it). Documented as a comment only in
 ``default_config.yaml`` -- a new parsed key would move ``config_hash`` in
 every report (item 048/090's house pattern)."""
 
@@ -303,8 +304,10 @@ class FragmentationRule(Rule):
             "second. The per-mode evidence claims are the per-edge rungs in "
             "segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 167 adds "
             "mode 3 (split vertebra segment): the split manifest case "
-            "measures a 750.0 mm^2 stray-component contact between labels "
-            "22 and 23, none of the other fifteen committed corpus cases "
+            "measures a 775.0 mm^2 stray-component contact between labels "
+            "22 and 23 (+675.0 above the 100.0 mm^2 threshold; measured "
+            "2026-09-23 on item 173's lordotic base), none of the other "
+            "fifteen committed corpus cases "
             "(both manifests, every label) measures more than 0.0 mm^2 -- "
             "the Neighbour contact: detector.",
         ),
