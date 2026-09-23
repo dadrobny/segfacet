@@ -7,7 +7,7 @@ points here, and a runtime may automate the pointer.
 A project may legitimately span more than one repo — a library and a sibling
 programme repo, or a consumer and the framework clone it updates from. `aide.toml`
 never records where those live; `[framework] local_path` and `[hygiene] extra_repos`
-in the personal, gitignored `.aide/loop/loop.local.toml` do (§3, and the file's own
+in the personal, gitignored `.aide/local.toml` do (§3, and the file's own
 comments).
 
 Acting on a declared sibling has approved command shapes and needs no `cd`:

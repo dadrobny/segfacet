@@ -240,7 +240,7 @@ out/
 
 # --- AIDE framework (managed by aide-loop install.py) ---
 .aide/**/__pycache__/
-.aide/loop/loop.local.toml
+.aide/local.toml
 .aide-merge
 docs/aide/status/
 docs/aide/permissions/*.jsonl

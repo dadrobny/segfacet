@@ -6,7 +6,7 @@ description: >-
   Criteria, Assumptions, Implementation Steps, Testing Strategy, Dependencies,
   Decisions log — then commits it on the item branch. Does NOT write production
   code or tests.
-model: claude-opus-5
+model: claude-opus-5-5
 effort: high
 skills:
   - aide-document-format

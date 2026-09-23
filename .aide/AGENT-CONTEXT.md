@@ -101,7 +101,7 @@ because the decision is not derivable from the work.
 
 A repository's own instructions bind for work inside it. A runtime loads
 instruction files for the working directory's repo only; a declared sibling
-(`.aide/loop/loop.local.toml`) — the framework clone included — gets nothing,
+(`.aide/local.toml`) — the framework clone included — gets nothing,
 and nothing announces the gap. So read that repo's instruction file first,
 before editing, committing to, or otherwise acting on it. Where two repos' rules
 disagree about a file, the repo that owns the file wins.

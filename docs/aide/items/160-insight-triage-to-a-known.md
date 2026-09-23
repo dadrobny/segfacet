@@ -225,7 +225,7 @@ the inbox and archives" means the entries that `parse_insights` returns for
   `defect`/`gap` captured after this measurement and before the builder runs
   is disposed of by the same rules, logged in Decisions, and left out of the
   frozen table (no spec amendment is needed for it).
-- **A3 (engine 1.52.1, re-checked 1.59.0):** `aide insights tick N --pointer P` on an
+- **A3 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `aide insights tick N --pointer P` on an
   **unticked** entry flips the checkbox and writes ` → P` on the entry line.
   It adds no date and no trail line. On an **already-ticked** entry it
   appends `  - **<today>** → P` as a trail line
@@ -277,7 +277,7 @@ the inbox and archives" means the entries that `parse_insights` returns for
   half duplicates S27, which is re-homed to Stage 32's mode 9 input. Its
   per-path perturbation harness half has no stage or mode home. Ticking the
   whole entry would drop that half from the open inbox.
-- **A8 (engine 1.52.1, re-checked 1.59.0):** The test loads `.aide/scripts/aide.py` through
+- **A8 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** The test loads `.aide/scripts/aide.py` through
   `importlib`, as `tests/test_aide_check_no_errors.py` already does, and uses
   `parse_insights(text)`. Each returned `InsightEntry` has `.type`, `.source`
   (provenance text, or `None` for a bare date), `.date`, `.text` (the claim

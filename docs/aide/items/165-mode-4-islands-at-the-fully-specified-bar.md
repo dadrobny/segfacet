@@ -230,7 +230,7 @@ The one decision that *could* have changed firing —
   `per_label.{label}.components.*` paths; `IntendedRule.detector_ids` is a
   tuple. No interface is pinned ahead of its implementation in this spec.
 
-- **A7 (engine 1.59.0):** `loop.clarify = "assume"` in `aide.toml`, so A2–A5
+- **A7 (engine 1.59.0, re-checked 2.1.0):** `loop.clarify = "assume"` in `aide.toml`, so A2–A5
   are defensible defaults recorded for audit at the queue boundary rather than
   questions put to the maintainer. Stage 32's "items are interactive by
   design" is honoured by item 168's gate, which is where a person reads modes

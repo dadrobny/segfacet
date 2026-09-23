@@ -246,7 +246,7 @@ attests Stage 20's criteria with evidence.
   registry or a committed manifest. Nothing needs a person's decision or an
   out-of-band prerequisite, so no row is added to `progress.md`'s
   `## Human gates` table.
-- **A9 (engine 1.59.2):** `aide check`'s `.gitattributes` lint resolves a
+- **A9 (engine 1.59.2, re-checked 2.1.0):** `aide check`'s `.gitattributes` lint resolves a
   fixture path through the test's AST; both artifact paths are already pinned
   (A1), so it stays silent for this item with no `.gitattributes` edit.
 

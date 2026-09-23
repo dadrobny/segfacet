@@ -170,17 +170,17 @@ of its own in `progress.md`.
   pins state derived live, which a later legitimate change turns red. It
   also went red twice in this queue. Leaving it open means item 160 or 161
   meets it again on its first `aide progress set`.
-- **A7 (engine 1.52.1, re-checked 1.59.0):** `aide progress set` splitting a shared `*(Items A,
+- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `aide progress set` splitting a shared `*(Items A,
   B)*` bullet into copies with identical prose, and the warning that
   follows, is engine behaviour. This item does not change it. Item 159's own
   D5 bullet in `progress.md` is attributed to item 159 alone (measured
   2026-09-17), so its status changes cannot trigger that split. If a split
   happens anyway, the builder rewords each copy for its own item rather than
   re-pinning a class.
-- **A8 (engine 1.52.1, re-checked 1.59.0):** `aide insights tick N --pointer P` on an entry
+- **A8 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `aide insights tick N --pointer P` on an entry
   that is already ticked appends a dated trail line and does not re-tick
   (`aide insights -h`). The trail lines in step 5 rely on this.
-- **A9 (engine 1.52.1, re-checked 1.59.0):** `run_checks(repo_root, config)` returns
+- **A9 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `run_checks(repo_root, config)` returns
   `(errors, warnings)` as lists of strings. AC7–AC9 inject a warning by
   wrapping the `_aide_module()` loader in the target module, or an
   equivalent seam, so that its `run_checks` appends to the live result.

@@ -102,6 +102,13 @@ entire loop, indefinitely.
   posture (§1 → vision.md) are known; a test with no criterion and no named
   case behind it is a test nobody asked for — `aide scope` warns on one
   (`aide scope -h` states the grammar).
+- **An item's tests live in `test_NNN_<topic>.py` under `tests_dir`, NNN
+  its item number, unless the project has a reason to diverge.** The file
+  name is what says whose criteria a test covers once a later item edits the
+  file, so `aide scope` reads another item's file against that item's spec
+  (`aide scope -h`). **A test reconciled in another item's file keeps that
+  item's criterion number** — the number is its provenance; renumbering it to
+  the reconciling item's criteria claims a criterion that item never wrote.
 - **A consumer test never hand-builds a producer's serialised form.** It
   obtains the form from the producer's code, or from a fixture the producer's
   item ships, and asserts on what it reads — so when the shape changes, one

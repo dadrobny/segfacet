@@ -598,6 +598,33 @@ def test_abandon_with_no_branch_left_blanks_the_two_diff_cells(tmp_path: Path):
     assert row["ACs"] == "2"
 
 
+def test_a_test_reconciled_in_another_items_file_is_not_counted(tmp_path: Path):
+    """Issue #262: the tests `aide scope` reports as reconciled — traced to
+    item 026's spec, in 026's own file — are 026's and not counted on 027's
+    row; one in the same file that traces to nothing still is."""
+    repo = _init_repo(tmp_path / "repo")
+    (repo / "docs" / "aide" / "items" / "026-walker.md").write_text(
+        "# Item 026 — Walker\n\n## Acceptance Criteria\n\n- [ ] **AC9: walks.**\n",
+        encoding="utf-8")
+    (repo / "tests" / "test_026_walker.py").write_text(
+        "def test_ac9_old():\n    assert True\n", encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "item 026"], repo)
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    (repo / "tests" / "test_026_walker.py").write_text(
+        "def test_ac9_new():\n    assert True\n\n"
+        "def test_unasked():\n    assert True\n", encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "reconcile 026"], repo)
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test",
+                      "--rounds", "1"]) == 0
+    (row,) = _rows(repo)
+    # test_ac1_bounds (027's own) + test_unasked; test_ac9_new is 026's.
+    assert (row["Tests"], row["Files"]) == ("2", "3")
+
+
 # --------------------------------------------------------------------------- #
 # [loop] review — what the three finding cells say when nobody reviewed
 # --------------------------------------------------------------------------- #

@@ -35,7 +35,7 @@ Design rules:
   sibling's rules are not surfaced, exactly as before this hook existed.
 - **Declaration-driven, no new configuration.** The repos come from
   ``[framework] local_path`` and ``[hygiene] extra_repos`` in the personal,
-  gitignored ``.aide/loop/loop.local.toml`` — already the machine's answer to
+  gitignored ``.aide/local.toml`` — already the machine's answer to
   "which repos does this project legitimately span". The instruction filename
   comes from the adapter's own ``default-context.json``, so the hook names the
   file the runtime actually loads without hard-coding it twice.
@@ -70,7 +70,7 @@ _PATH_KEYS = {
 
 
 def _declared_repo_paths():
-    """Every repo declared in ``.aide/loop/loop.local.toml``, as written.
+    """Every repo declared in ``.aide/local.toml``, as written.
 
     Delegates to the command-hygiene guard, which already owns this parse and
     has the test suite pinning its edge cases (a malformed array grants
@@ -254,7 +254,7 @@ def _render(repo_root, instruction_path):
     """
     return (
         "You are about to act inside `" + str(repo_root) + "`, a **separate "
-        "repository** declared in `.aide/loop/loop.local.toml`. A runtime loads "
+        "repository** declared in `.aide/local.toml`. A runtime loads "
         "instruction files for the working directory's repository only, so this "
         "repository's own instructions are **not** in context.\n\n"
         "**Read `" + str(instruction_path) + "` before continuing.** It governs "
@@ -286,7 +286,7 @@ def main():
         return
 
     # Two different bases, deliberately. A declared repo path is relative to
-    # wherever `.aide/loop/loop.local.toml` was just read from — the process cwd,
+    # wherever `.aide/local.toml` was just read from — the process cwd,
     # which the runtime sets to the project root. A path inside a Bash command is
     # relative to the session's cwd, which the payload reports and which need not
     # be the same directory.

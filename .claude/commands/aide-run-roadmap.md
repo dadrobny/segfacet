@@ -57,10 +57,10 @@ fresh session per batch.
 > points; and a parent-session death (usage-limit cutoff or restart) **lost the
 > in-flight background subagent's state**. Net: it produced little reliable work.
 > The single-session, git-commit-as-checkpoint model below is what replaced it —
-> unattended long runs are instead handled by an *external* supervisor that
-> relaunches this gated command (`.aide/loop/loop.py`, personal config in the
-> gitignored `loop.local.toml`), with
-> git commits + the resume logic below providing durable, restartable state.
+> unattended long runs are instead a matter of relaunching this gated command
+> from *outside* the framework (any scheduler; see `execution-surfaces.md` for
+> the launch contract), with git commits + the resume logic below providing
+> durable, restartable state.
 
 ## Determine current state first (resumable)
 

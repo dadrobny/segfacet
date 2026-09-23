@@ -282,7 +282,7 @@ item 161 attests it against both. So no AC carries a *(closes …)* annotation.
   `per_mode_metric` evidence). They are regenerated through each module's
   `main()`, written with `\n`, and the existing fresh-vs-committed tests keep
   holding.
-- **A9 (engine 1.52.1, re-checked 1.59.0).** Item 153 is merged (✅), so nothing blocks the claim.
+- **A9 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0).** Item 153 is merged (✅), so nothing blocks the claim.
   `aide scope` proves the authorised paths below.
 
 ## Implementation Steps

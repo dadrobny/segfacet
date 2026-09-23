@@ -264,7 +264,7 @@ around._
 
 ## Assumptions
 
-- **A1 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `aide gate approve|decline <n> --evidence "…"` writes
+- **A1 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `aide gate approve|decline <n> --evidence "…"` writes
   the Status cell as exactly `f"{icon} ({YYYY-MM-DD})"` with icon
   `✅ Approved` / `❌ Declined`, and writes the note into the row's fourth cell,
   rejecting a note containing `|` or a newline (`set_gate_status`,
@@ -272,11 +272,11 @@ around._
   changes the rendering, AC2's test re-derives the expected cell by calling
   `set_gate_status` rather than pinning the literal, so it tracks the engine
   instead of breaking on it.
-- **A2 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** a `## Human gates` row is four cells
+- **A2 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** a `## Human gates` row is four cells
   (`Gate | Blocks | Status | Decision`), the Blocks cell accepts bare item
   numbers, and `blocking_gates()` treats every kind other than `approved` —
   including `declined` — as still blocking. AC1/AC3 rest on this.
-- **A3 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0):** `run_checks` emits the human-gate warning
+- **A3 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `run_checks` emits the human-gate warning
   `progress.md:<n>: human gate <k> (…) is awaiting a decision — blocks …` for an
   unresolved gate and nothing for a resolved one; the unfilled-slot lint
   (`template_residue_errors`) scans every `*.md` under `docs/aide/` for a bare

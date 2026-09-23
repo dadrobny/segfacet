@@ -212,7 +212,7 @@ reasoning; each names what was run.
   direction silent: its co-detection exemption applies precisely to a rule that
   fires on a mode's case **without** being one of that mode's intended rules.
 
-- **A7 (engine 1.59.2):** `aide scope` proves this item's diff against the
+- **A7 (engine 1.59.2, re-checked 2.1.0):** `aide scope` proves this item's diff against the
   **Authorised paths** list below; a path listed there and left unchanged is not
   a scope violation, so the conditional reconciliations named below
   (`tests/test_123_recalibrate_and_regenerate.py` in particular) are declared

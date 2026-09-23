@@ -8,7 +8,7 @@ description: >-
   shape its producer never pinned, a dependency aside pointing the wrong way.
   Produces findings for a human to arbitrate. Does NOT edit specs, code, or
   tests.
-model: claude-opus-5
+model: claude-opus-5-5
 effort: high
 ---
 

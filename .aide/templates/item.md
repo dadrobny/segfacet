@@ -105,13 +105,14 @@ glob is the carve-out rather than a double-listing._
 
 ## Testing Strategy
 
-_Name the test module. One test per AC is written without being asked for;
-beyond that, list each adversarial case this item needs, as a label and the
-failure mode it guards — `empty-input: the walker yields nothing rather than
-raising`. The test-writer writes the AC tests and the cases listed here, and
-no others (conventions.md §6), so a case with no failure mode behind it is
-left out. A test of a producer's output reads that output through the
-producer's code or fixture, never a hand-built copy._
+_Name the test module (conventions.md §6 says what to call it). One test per
+AC is written without being asked for; beyond that, list each adversarial
+case this item needs, as a label and the failure mode it guards —
+`empty-input: the walker yields nothing rather than raising`. The
+test-writer writes the AC tests and the cases listed here, and no others
+(conventions.md §6), so a case with no failure mode behind it is left out.
+A test of a producer's output reads that output through the producer's code
+or fixture, never a hand-built copy._
 
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 
