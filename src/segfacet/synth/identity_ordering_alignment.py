@@ -12,7 +12,11 @@ the offending label(s):
 * :class:`DisplacePerturbation` (``"displace"``) -- translates a target
   vertebra's whole mask off the fitted spinal curve (along the two array axes
   that are NOT the stacking axis, resolved from the target volume's own
-  affine -- item 116) while keeping its label. Targets the misalignment
+  affine -- item 116) while keeping its label. With ``ap_angle_deg`` set
+  (item 177) the translation is resolved anatomically instead -- mostly
+  toward the right face, partly toward anterior -- which is the committed
+  corpus fixture's form; the diagonal default is kept for the severity
+  ladder. Targets the misalignment
   detector of
   :class:`~segfacet.heuristics.mislabel.MislabelRule` (item 033, Detector A,
   which serves no failure mode; the case is filed under specification mode 1,
@@ -60,7 +64,7 @@ import numpy as np
 import nibabel as nib
 
 from segfacet.io import FacetInputError
-from segfacet.synth.axes import non_stacking_axes
+from segfacet.synth.axes import non_stacking_axes, resolve_face
 from segfacet.synth.perturbation import (
     Expectation,
     FAILURE_MODE_NAMES,
@@ -77,9 +81,8 @@ __all__ = [
 ]
 
 # Default translation magnitude (mm) for `displace`, split across the two
-# in-plane axes -- comfortably clears the default 15.0 mm mislabel threshold
-# for the item-036 clean GT (verified: isotropic ~18.9 mm, anisotropic
-# (1,1,3) ~16.4 mm; see the item spec's Assumptions).
+# in-plane axes -- clears the mislabel spline-offset threshold (13.0 mm since
+# item 123; the item-039 spec measured it against the then 15.0 mm).
 _DEFAULT_DISPLACEMENT_MM: float = 18.0
 
 # Default replacement label for `sequence_break` -- T13 (label 28), whose
@@ -120,9 +123,13 @@ def _new_image(data: np.ndarray, labelmap: nib.Nifti1Image) -> nib.Nifti1Image:
     """Build a fresh image with *data* and the input's affine.
 
     Never mutates the caller's array; *data* must already be a private copy.
+    The explicit ``dtype=`` (item 177) lets an ``int64`` input -- what
+    :func:`segfacet.synth.regression.loaded_seg_image` returns -- through
+    nibabel's refusal; for any other dtype it is what the header already
+    takes from the array, so the output is unchanged.
     """
     affine = np.array(labelmap.affine, copy=True)
-    return nib.Nifti1Image(data, affine)
+    return nib.Nifti1Image(data, affine, dtype=data.dtype)
 
 
 def _label_bbox(data: np.ndarray, label: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -162,6 +169,16 @@ class DisplacePerturbation(Perturbation):
     docstring. Rejects an explicit target not present, or a
     ``displacement_mm`` too large to fit inside the field of view with the
     required margin.
+
+    ``ap_angle_deg`` (item 177): ``None`` (default) is the diagonal form
+    above, byte for byte -- the severity ladder applies it. With a value
+    ``theta``, the shift is resolved anatomically from the affine
+    (:func:`segfacet.synth.axes.resolve_face`): ``round(displacement_mm *
+    cos(theta) / spacing)`` voxels toward the **right** face and
+    ``round(displacement_mm * sin(theta) / spacing)`` toward the
+    **anterior** face, nothing along the stacking axis; the shift may point
+    toward index 0, so the 1-voxel inset is checked at both ends of every
+    axis. This is the corpus ``displace`` fixture's form (mostly left-right).
     """
 
     name = "displace"
@@ -171,14 +188,21 @@ class DisplacePerturbation(Perturbation):
         *,
         target_label: Optional[int] = None,
         displacement_mm: float = _DEFAULT_DISPLACEMENT_MM,
+        ap_angle_deg: Optional[float] = None,
     ):
         if displacement_mm <= 0:
             raise FacetInputError(
                 f"DisplacePerturbation requires displacement_mm > 0, got "
                 f"{displacement_mm!r}."
             )
+        if ap_angle_deg is not None and not math.isfinite(ap_angle_deg):
+            raise FacetInputError(
+                f"DisplacePerturbation requires a finite ap_angle_deg, got "
+                f"{ap_angle_deg!r}."
+            )
         self._target_label = target_label
         self._displacement_mm = float(displacement_mm)
+        self._ap_angle_deg = None if ap_angle_deg is None else float(ap_angle_deg)
 
     def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
         labels = _present_labels(labelmap)
@@ -194,6 +218,26 @@ class DisplacePerturbation(Perturbation):
         else:
             target = _choose_label(labels, seed)
 
+        if self._ap_angle_deg is not None:
+            data, detail = self._shift_lateral(labelmap, target)
+        else:
+            data, detail = self._shift_diagonal(labelmap, target)
+        out_img = _new_image(data, labelmap)
+
+        expectation = Expectation(
+            failure_mode=1,
+            failure_mode_name=FAILURE_MODE_NAMES[1],
+            expected_rule_ids=frozenset({"mislabel"}),
+            expected_labels=frozenset({target}),
+            expected_verdict="flagged-for-review",
+            detail=detail,
+        )
+        return PerturbationResult(labelmap=out_img, expectation=expectation)
+
+    def _shift_diagonal(
+        self, labelmap: nib.Nifti1Image, target: int
+    ) -> Tuple[np.ndarray, str]:
+        """The default form: diagonal along the two non-stacking array axes."""
         data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
         shape = data.shape
         zooms = labelmap.header.get_zooms()[:3]
@@ -227,25 +271,60 @@ class DisplacePerturbation(Perturbation):
 
         data[mask] = 0
         data[new_coords[:, 0], new_coords[:, 1], new_coords[:, 2]] = target
-        out_img = _new_image(data, labelmap)
-
-        expectation = Expectation(
-            failure_mode=1,
-            failure_mode_name=FAILURE_MODE_NAMES[1],
-            expected_rule_ids=frozenset({"mislabel"}),
-            expected_labels=frozenset({target}),
-            expected_verdict="flagged-for-review",
-            detail=(
-                f"displace: translated label {target} by ({da_vox}, "
-                f"{db_vox}) voxels along (array axis {axis_a}, array axis "
-                f"{axis_b}) -- the two non-stacking axes -- off the spinal "
-                "curve defined by the remaining vertebrae. Caught by plain "
-                "run_qc's held-out per-label spline offset (item 120), "
-                "which measures the target against a curve it did not "
-                "shape."
-            ),
+        return data, (
+            f"displace: translated label {target} by ({da_vox}, "
+            f"{db_vox}) voxels along (array axis {axis_a}, array axis "
+            f"{axis_b}) -- the two non-stacking axes -- off the spinal "
+            "curve defined by the remaining vertebrae. Caught by plain "
+            "run_qc's held-out per-label spline offset (item 120), "
+            "which measures the target against a curve it did not "
+            "shape."
         )
-        return PerturbationResult(labelmap=out_img, expectation=expectation)
+
+    def _shift_lateral(
+        self, labelmap: nib.Nifti1Image, target: int
+    ) -> Tuple[np.ndarray, str]:
+        """The anatomical (item 177) form: right by cos, anterior by sin."""
+        data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
+        shape = data.shape
+        zooms = labelmap.header.get_zooms()[:3]
+        lr_axis, lr_side = resolve_face(labelmap.affine, "right")
+        ap_axis, ap_side = resolve_face(labelmap.affine, "anterior")
+
+        theta = math.radians(self._ap_angle_deg)
+        r_vox = int(round(self._displacement_mm * math.cos(theta) / float(zooms[lr_axis])))
+        a_vox = int(round(self._displacement_mm * math.sin(theta) / float(zooms[ap_axis])))
+        shift = [0, 0, 0]
+        shift[lr_axis] = r_vox if lr_side == "high" else -r_vox
+        shift[ap_axis] = a_vox if ap_side == "high" else -a_vox
+
+        coords = np.argwhere(data == target)
+        new_coords = coords + np.array(shift)
+        # Keep >= 1 voxel inset from both faces of every axis: the resolved
+        # side may point the shift toward index 0.
+        if (new_coords.min(axis=0) < 1).any() or (
+            new_coords.max(axis=0) > np.array(shape) - 2
+        ).any():
+            raise FacetInputError(
+                f"DisplacePerturbation: displacement_mm="
+                f"{self._displacement_mm!r} at ap_angle_deg="
+                f"{self._ap_angle_deg!r} is too large for target label "
+                f"{target!r} to fit inside the field of view with a "
+                "1-voxel margin from every face; reduce displacement_mm."
+            )
+
+        data[data == target] = 0
+        data[new_coords[:, 0], new_coords[:, 1], new_coords[:, 2]] = target
+        return data, (
+            f"displace: translated label {target} by {r_vox} voxels toward "
+            f"the right face (array axis {lr_axis}, {lr_side} end) and "
+            f"{a_vox} voxels toward the anterior face (array axis "
+            f"{ap_axis}, {ap_side} end) -- mostly left-right "
+            f"(ap_angle_deg={self._ap_angle_deg!r}), nothing along the "
+            "stacking axis -- off the spinal curve defined by the "
+            "remaining vertebrae. Caught by plain run_qc's held-out "
+            "per-label spline offset (item 120)."
+        )
 
 
 # --------------------------------------------------------------------------- #

@@ -180,7 +180,11 @@ CASE_RECIPE: List[_RecipeEntry] = [
     _RecipeEntry(
         case_id="displace",
         perturbation="displace",
-        perturbation_params={"target_label": 22},
+        # Item 177 (2026-09-24): mostly left-right -- 14 voxels right, 5
+        # anterior on the 1 mm base. The magnitude is explicit so a change to
+        # the operator's default cannot move this fixture; 14 L-R voxels is
+        # the most the field of view admits with the 1-voxel inset.
+        perturbation_params={"target_label": 22, "displacement_mm": 15.0, "ap_angle_deg": 20.0},
         detection="pipeline",
     ),
     _RecipeEntry(

@@ -507,7 +507,10 @@ def test_ac6_mode1_own_case_exceeds_014():
     result = pm.compute_per_mode_metrics(
         _RECORDS["displace"], candidate=_ARRAYS["displace"], gt=_GT_ARRAY
     )
-    assert _value(result, 1) > 0.14
+    # Item 177 (2026-09-24): displace re-authored mostly left-right; the
+    # metric moves 0.14814776607487337 -> 0.11493031556577983, so the floor
+    # moves 0.14 -> 0.11 (name kept).
+    assert _value(result, 1) > 0.11
 
 
 def test_ac6_mode1_clean_control_vs_itself_is_zero():
@@ -888,6 +891,16 @@ _OWN_CASE = {
     "overlapping_voxel_count": "force_overlap",
 }
 
+# Item 177 (2026-09-24), the maintainer's decision recorded as item 177
+# Decisions R1: in the ``unanchored_foreground_fraction`` row, ``crop_at_border``
+# is excluded from the dominance comparison. Why: ``crop_at_border`` has been a
+# condition case since item 150, and its legacy operator is a translation of
+# the body, so it reads high on the displacement metric (0.14295) -- above the
+# re-authored, mostly-left-right ``displace`` (0.11493). Until when: D3
+# re-homes ``displace`` and D4 re-measures; the exception then ends, and
+# ``test_ac15_dominance_exception_is_exact_and_still_needed`` goes red to say so.
+_DOMINANCE_EXCEPTIONS = {"unanchored_foreground_fraction": frozenset({"crop_at_border"})}
+
 # Frozen literal table -- one row per metric (item 153: keyed by metric
 # name, not the retired legacy mode id), one column per corpus case. Values
 # independently verified against the already-shipped primitives each metric
@@ -898,7 +911,7 @@ _OWN_CASE = {
 _EXPECTED_ISOLATION_MATRIX = {
     "unanchored_foreground_fraction": {
         "clean_control": 0.0,
-        "displace": 0.14814776607487337,
+        "displace": 0.11493031556577983,  # item 177 (2026-09-24): was 0.14814776607487337
         "fragment": 0.0,
         "inject_islands": 0.000278531417312275,
         "relabel_swap": 0.0,
@@ -987,15 +1000,16 @@ _EXPECTED_ISOLATION_MATRIX = {
 }
 
 
-def _is_diagonal_dominant(matrix, baselines, own_case) -> bool:
+def _is_diagonal_dominant(matrix, baselines, own_case, exceptions=_DOMINANCE_EXCEPTIONS) -> bool:
     """True iff, for every mode m, |value[m][own_case[m]] - baseline[m]| is
-    strictly greater than |value[m][j] - baseline[m]| for every other case j."""
+    strictly greater than |value[m][j] - baseline[m]| for every other case j
+    not named in ``exceptions[m]`` (item 177, Decisions R1)."""
     for mode, row in matrix.items():
         base = baselines[mode]
         own = own_case[mode]
         own_dev = abs(row[own] - base)
         for cid, val in row.items():
-            if cid == own:
+            if cid == own or cid in exceptions.get(mode, ()):
                 continue
             if not (own_dev > abs(val - base)):
                 return False
@@ -1052,6 +1066,18 @@ def test_ac15_negative_control_swapping_mode3_row_into_mode2_breaks_dominance():
     corrupted = copy.deepcopy(_EXPECTED_ISOLATION_MATRIX)
     corrupted["min_dominant_component_fraction"] = dict(corrupted["rogue_island_count"])
     assert not _is_diagonal_dominant(corrupted, _EXPECTED_BASELINES, _OWN_CASE)
+
+
+def test_ac15_dominance_exception_is_exact_and_still_needed():
+    """Item 177 (Decisions R1): the exception names exactly one (metric,
+    case) pair, and on the live matrix the excepted cell still out-reads the
+    own cell -- so a widened exception fails, and so does a stale one after
+    D3/D4."""
+    assert _DOMINANCE_EXCEPTIONS == {
+        "unanchored_foreground_fraction": frozenset({"crop_at_border"})
+    }
+    row = _build_actual_matrix(_per_mode())["unanchored_foreground_fraction"]
+    assert row["crop_at_border"] > row["displace"]
 
 
 # =========================================================================== #

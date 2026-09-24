@@ -344,7 +344,9 @@ def _cases_covered_by(table, manifest):
 #: item 173's Decisions log. The "pre-item" names are kept.
 _PRE_ITEM_TANGENT_ANGLES_DEG = {
     "clean_control": [7.5755, 0.2549, 8.338, 19.241, 33.59],
-    "displace": [27.8284, 27.8378, 6.0299, 41.7355, 26.6063],
+    # Item 177 (2026-09-24): displace re-authored mostly left-right; was
+    # [27.8284, 27.8378, 6.0299, 41.7355, 26.6063].
+    "displace": [25.9391, 23.5042, 7.7742, 34.4209, 36.1447],
     "fragment": [7.5789, 0.2563, 8.3458, 19.2424, 33.5914],
     "inject_islands": [7.5527, 0.2444, 8.3384, 19.2305, 33.5758],
     "relabel_swap": [2.4934, 174.7774, 176.1799, 13.5824, 68.7966],
@@ -409,7 +411,9 @@ def test_ac6_every_corpus_case_net_advance_positive():
 
 _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
     "clean_control": [7.320601, 8.592928, 10.902949, 14.349002],
-    "displace": [55.387489, 30.552099, 38.203632, 53.0888],
+    # Item 177 (2026-09-24): displace re-authored mostly left-right; was
+    # [55.387489, 30.552099, 38.203632, 53.0888].
+    "displace": [48.936337, 25.787973, 30.209688, 50.406207],
     "fragment": [7.32261, 8.602036, 10.896665, 14.34894],
     "inject_islands": [7.308494, 8.582631, 10.892096, 14.345307],
     "relabel_swap": [177.270834, 1.402466, 170.23772, 55.214185],
@@ -791,13 +795,18 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
         "sagittal_tangent_angles_deg": [-7.575496, -0.254895, 8.338034, 19.240983, 33.589985],
     },
+    # Item 177 (2026-09-24): displace re-authored mostly left-right, so the
+    # displacement now lies in the coronal plane. Was: total 58.548579,
+    # coronal 49.467784, sagittal 58.548579, plane "sagittal", coronal angles
+    # [23.691377, -20.547581, -2.362148, 22.93499, -25.776407], sagittal
+    # [16.354544, -20.404503, 5.554225, 38.144076, 7.57774].
     "displace": {
-        "total_curvature_deg": 58.548579,
-        "coronal_curvature_deg": 49.467784,
-        "sagittal_curvature_deg": 58.548579,
-        "curvature_plane": "sagittal",
-        "coronal_tangent_angles_deg": [23.691377, -20.547581, -2.362148, 22.93499, -25.776407],
-        "sagittal_tangent_angles_deg": [16.354544, -20.404503, 5.554225, 38.144076, 7.57774],
+        "total_curvature_deg": 56.331544,
+        "coronal_curvature_deg": 56.331544,
+        "sagittal_curvature_deg": 35.478865,
+        "curvature_plane": "coronal",
+        "coronal_tangent_angles_deg": [25.89443, -22.28683, -1.465662, 24.377859, -30.437115],
+        "sagittal_tangent_angles_deg": [1.753769, -8.274653, 7.638103, 27.204212, 23.455504],
     },
     "fragment": {
         "total_curvature_deg": 41.17025,

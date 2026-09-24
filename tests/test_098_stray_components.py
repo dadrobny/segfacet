@@ -859,6 +859,10 @@ def test_ac14_every_golden_still_validates_against_schema():
 #: ``components``; ``inject_islands`` -> ``islands``; ``relabel_swap`` ->
 #: ``ordering``; ``remove_level`` -> ``missing_interior``; ``crop_at_border``
 #: -> ``unexpected_clip`` (border) and ``spline_offset`` (mislabel).
+#: Item 177 (2026-09-24): ``displace`` is re-authored mostly left-right
+#: (14 voxels right, 5 anterior), so its reason's offset moves
+#: "17.6 mm" -> "14.6 mm" (measured 14.615923 mm); direction and verdict
+#: unchanged.
 _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     "clean_control": {"verdict": "pass", "findings": []},
     "displace": {
@@ -871,7 +875,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "labels": [22],
                 "reason": (
                     "Vertebra misaligned from spinal curve: label 22 (L3) "
-                    "centroid lies 17.6 mm off the fitted spinal curve, "
+                    "centroid lies 14.6 mm off the fitted spinal curve, "
                     f"predominantly left-right (threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)."
                 ),
             }

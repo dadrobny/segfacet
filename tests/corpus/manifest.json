@@ -51,7 +51,7 @@
       },
       "case_id": "displace",
       "condition": "",
-      "detail": "displace: translated label 22 by (13, 13) voxels along (array axis 0, array axis 1) -- the two non-stacking axes -- off the spinal curve defined by the remaining vertebrae. Caught by plain run_qc's held-out per-label spline offset (item 120), which measures the target against a curve it did not shape.",
+      "detail": "displace: translated label 22 by 14 voxels toward the right face (array axis 0, high end) and 5 voxels toward the anterior face (array axis 1, high end) -- mostly left-right (ap_angle_deg=20.0), nothing along the stacking axis -- off the spinal curve defined by the remaining vertebrae. Caught by plain run_qc's held-out per-label spline offset (item 120).",
       "detection": "pipeline",
       "expected_labels": [
         22
@@ -65,6 +65,8 @@
       "kind": "failure",
       "perturbation": "displace",
       "perturbation_params": {
+        "ap_angle_deg": 20.0,
+        "displacement_mm": 15.0,
         "target_label": 22
       },
       "reconstruction": null,

@@ -301,7 +301,10 @@ def test_ac5_displaced_interior_level_separates_only_held_out():
 
 
 def test_ac6_mode1_displace_dominant_outlier_exceeds_by_at_least_9mm():
-    """Measured on the item's own branch: 18.719 mm vs 8.701 mm."""
+    """Measured on the item's own branch: 18.719 mm vs 8.701 mm. Item 177
+    (2026-09-24) re-authors ``displace`` mostly left-right: now 14.616 mm vs
+    6.919 mm (gap 7.697178), so the floor moves 9.0 -> 7.5, floored to the
+    half-millimetre as 9.0 floored 9.247 (name kept)."""
     case, centroids, spacing = _mode1_displace_case_and_centroids()
     records = compute_leave_one_out_spline_offsets(centroids, spacing_mm=spacing)
     by_label = {r.label: r.offset_mm for r in records}
@@ -311,7 +314,7 @@ def test_ac6_mode1_displace_dominant_outlier_exceeds_by_at_least_9mm():
 
     sorted_offsets = sorted(by_label.values(), reverse=True)
     assert by_label[target] == sorted_offsets[0]
-    assert by_label[target] - sorted_offsets[1] >= 9.0
+    assert by_label[target] - sorted_offsets[1] >= 7.5  # item 177: was >= 9.0
 
 
 def test_ac6_tie_break_rule_is_documented():
@@ -606,7 +609,12 @@ def test_ac17_threshold_margins_hold_on_corpus():
     mode1_report = build_report_for_case(mode1_case)
     mode1_offsets = mode1_report["features"]["stage3"]["per_label_offsets"]
     displaced = next(o for o in mode1_offsets if o["label"] == 22)
-    assert displaced["offset_mm"] > 15.0, "displaced label 22 must exceed the threshold"
+    # Item 177 (2026-09-24), re-derived premise: "15.0 is the firing
+    # threshold" has been false since item 123 (13.0), and the re-authored
+    # displace (14.616 mm) falls between -- so read the live threshold.
+    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+
+    assert displaced["offset_mm"] > _DEFAULT_MAX_OFFSET_MM, "displaced label 22 must exceed the threshold"
 
 
 # =========================================================================== #
