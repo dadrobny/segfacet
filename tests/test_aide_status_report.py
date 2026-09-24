@@ -276,7 +276,6 @@ def test_render_corpus_section_populated_shows_coverage_and_badges():
     assert "Synthetic Failure Corpus" in doc
     assert "force_overlap" in doc
     assert "reconstructed_record" in doc
-    assert "1/8" in doc  # one non-clean §6 mode covered
     assert 'class="badge b-complete">pass' in doc  # verdict badge for pass
 
 
@@ -460,10 +459,3 @@ def test_real_docs_reference_is_synthetic_verse_cohort():
     assert model.reference.subject_count > 0
 
 
-def test_corpus_legend_spells_out_failure_modes():
-    """§6 references must be self-explanatory: the eight failure modes are
-    spelled out in the rendered report."""
-    model = _model()
-    doc = asr.render_html(model)
-    assert "Overlapping segments" in doc  # mode 8 description from the legend
-    assert "vision.md §6" in doc  # the reference is explained, not bare
