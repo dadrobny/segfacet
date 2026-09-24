@@ -343,11 +343,16 @@ def test_crop_degenerate_fraction_refused(removed_fraction):
 
 
 def test_crop_whole_target_refused():
-    """Guards a returned map that silently lacks its target label."""
+    """Guards a returned map that silently lacks its target label.
+
+    The fraction is derived live from the input array (spec correction,
+    2026-09-24) rather than a literal: every slice but the farthest from
+    the face holds fewer than ``fraction * n`` voxels, so the at-least walk
+    must take every slice.
+    """
     base_img = _default_base()
     base_data = np.asanyarray(base_img.dataobj)
     axis, side = resolve_face(base_img.affine, "inferior")
-    n = int(np.count_nonzero(base_data == 24))
 
     axis_vals = np.argwhere(base_data == 24)[:, axis]
     distinct_indices = np.sort(np.unique(axis_vals))
@@ -355,20 +360,29 @@ def test_crop_whole_target_refused():
         distinct_indices = distinct_indices[::-1]
 
     axis_grid = np.indices(base_data.shape)[axis]
+    counts = [
+        int(np.count_nonzero((base_data == 24) & (axis_grid == idx)))
+        for idx in distinct_indices
+    ]
+    n = sum(counts)
+    c_far = counts[-1]
+    fraction = (n - c_far + 0.5) / n
+    assert 0 < fraction < 1
+
     cumulative = 0
     slices_needed = 0
-    for idx in distinct_indices:
-        cumulative += int(np.count_nonzero((base_data == 24) & (axis_grid == idx)))
+    for count in counts:
+        cumulative += count
         slices_needed += 1
-        if cumulative >= 0.99 * n:
+        if cumulative >= fraction * n:
             break
-    # Reaching 99% needs every slice of label 24 -- the defect this test
-    # guards would silently return a map missing the target altogether.
+    # Reaching `fraction` needs every slice of label 24 -- the defect this
+    # test guards would silently return a map missing the target altogether.
     assert slices_needed == len(distinct_indices)
 
     with pytest.raises(FacetInputError):
         CropFovPerturbation(
-            target_label=24, face="inferior", removed_fraction=0.99
+            target_label=24, face="inferior", removed_fraction=fraction
         ).apply(base_img, 0)
 
 
