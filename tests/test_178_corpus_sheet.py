@@ -63,18 +63,44 @@ def _clean_control_case(manifest: dict) -> dict:
     return matches[0]
 
 
+def _start_on_clean_grid(clean_img: nib.Nifti1Image, case_img: nib.Nifti1Image) -> np.ndarray:
+    """The voxel offset AC2 places a case at, computed from the two affines."""
+    return np.round(
+        (np.linalg.inv(clean_img.affine) @ case_img.affine[:, 3])[:3]
+    ).astype(int)
+
+
 def _placed_on_clean_grid(clean_img: nib.Nifti1Image, case_img: nib.Nifti1Image) -> np.ndarray:
     """The spec's own placement algorithm (AC2), computed independently of
     the module under test."""
     clean_data = np.asanyarray(clean_img.dataobj)
     case_data = np.asanyarray(case_img.dataobj)
-    start = np.round(
-        (np.linalg.inv(clean_img.affine) @ case_img.affine[:, 3])[:3]
-    ).astype(int)
+    start = _start_on_clean_grid(clean_img, case_img)
     placed = np.zeros(clean_data.shape, dtype=case_data.dtype)
     stop = start + np.asarray(case_data.shape[:3])
     placed[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = case_data
     return placed
+
+
+def _covered_on_clean_grid(clean_img: nib.Nifti1Image, case_img: nib.Nifti1Image) -> np.ndarray:
+    """The spec's own ``covered`` algorithm (AC11 amendment), computed
+    independently of the module under test: ``True`` exactly over the slab
+    AC2 writes the case into."""
+    clean_data = np.asanyarray(clean_img.dataobj)
+    case_data = np.asanyarray(case_img.dataobj)
+    start = _start_on_clean_grid(clean_img, case_img)
+    stop = start + np.asarray(case_data.shape[:3])
+    covered = np.zeros(clean_data.shape, dtype=bool)
+    covered[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = True
+    return covered
+
+
+def _rgb_distance(a, b) -> float:
+    """Euclidean distance between the first three components of two RGBA
+    tuples in [0, 1] (spec's "RGB distance", 2026-09-24 amendment)."""
+    a3 = np.asarray(a, dtype=float)[:3]
+    b3 = np.asarray(b, dtype=float)[:3]
+    return float(np.linalg.norm(a3 - b3))
 
 
 def _expected_digest(manifest_path: Path, manifest: dict) -> str:
@@ -120,6 +146,16 @@ def sheet_panels():
 @pytest.fixture(scope="module")
 def committed_manifest():
     return _committed_manifest()
+
+
+@pytest.fixture(scope="module")
+def rendered_figure(tmp_path_factory):
+    """One ``render_sheet`` figure shared by AC13 and AC15 -- written under
+    ``tmp_path_factory``, never ``SHEET_PATH`` (spec Testing Strategy)."""
+    from segfacet.synth import corpus_sheet
+
+    out = tmp_path_factory.mktemp("corpus_sheet_178") / "sheet.png"
+    return corpus_sheet.render_sheet(out=out)
 
 
 # =========================================================================== #
@@ -286,18 +322,12 @@ def test_ac9_nothing_imports_from_the_prototype():
 
 
 # =========================================================================== #
-# Review finding: label % 10 == 0 collides with the background colour
+# AC10: no present label renders as background
 # =========================================================================== #
 
 
-def test_every_present_label_is_distinct_from_background(committed_manifest):
-    # Uses the private _label_colormap() plus the module's own `label % 10`
-    # indexing (mirrored from corpus_sheet.render_sheet's
-    # `cmap(img % 10)` call) -- no public per-label colour lookup exists.
+def test_ac10_no_present_label_renders_as_background(committed_manifest):
     from segfacet.synth import corpus_sheet
-
-    cmap = corpus_sheet._label_colormap()
-    background_rgba = cmap(0)
 
     present_labels = set()
     for case in committed_manifest["cases"]:
@@ -307,18 +337,149 @@ def test_every_present_label_is_distinct_from_background(committed_manifest):
     present_labels.discard(0)
     assert present_labels, "expected at least one nonzero label across the corpus"
 
+    background = np.asarray(corpus_sheet.BACKGROUND_RGBA, dtype=float)
     for label in present_labels:
-        rgba = cmap(label % 10)
-        assert rgba != background_rgba, (
-            f"label {label} (label % 10 == {label % 10}) renders as the "
-            "background colour"
+        rgba = np.asarray(corpus_sheet.label_rgba(label), dtype=float)
+        assert not np.array_equal(rgba, background), (
+            f"label {label} renders as the background colour"
         )
 
-    # Adjacent labels 20..24 must also be pairwise distinct, so a fix that
-    # maps every nonzero label to one single non-background colour cannot
-    # pass either.
-    adjacent_colours = [cmap(label % 10) for label in range(20, 25)]
-    assert len(set(adjacent_colours)) == len(adjacent_colours)
+
+# =========================================================================== #
+# AC11: the outside-FOV masks are the uncovered rays
+# =========================================================================== #
+
+
+def test_ac11_outside_fov_masks_are_the_uncovered_rays(sheet_panels, committed_manifest):
+    clean_case = _clean_control_case(committed_manifest)
+    clean_img = _load_seg_array(clean_case)
+    panels_by_id = {p.case_id: p for p in sheet_panels}
+
+    any_outside_fov = False
+    for case in committed_manifest["cases"]:
+        case_img = _load_seg_array(case)
+        covered = _covered_on_clean_grid(clean_img, case_img)
+        panel = panels_by_id[case["case_id"]]
+
+        expected_sagittal = (~covered).all(axis=0).T
+        expected_coronal = (~covered).all(axis=1).T
+        assert np.array_equal(panel.sagittal_outside_fov, expected_sagittal)
+        assert np.array_equal(panel.coronal_outside_fov, expected_coronal)
+        any_outside_fov = (
+            any_outside_fov or expected_sagittal.any() or expected_coronal.any()
+        )
+
+    # Guard against a vacuous pass on an all-covered corpus.
+    assert any_outside_fov
+
+
+# =========================================================================== #
+# AC12: the outside-FOV colour is distinct
+# =========================================================================== #
+
+
+def test_ac12_outside_fov_colour_is_distinct():
+    from segfacet.synth import corpus_sheet
+
+    label_colours = np.asarray(corpus_sheet.label_rgba(np.arange(1, 10)))
+
+    assert (
+        _rgb_distance(corpus_sheet.OUTSIDE_FOV_RGBA, corpus_sheet.BACKGROUND_RGBA)
+        >= 0.5
+    )
+    for row in label_colours:
+        assert _rgb_distance(corpus_sheet.OUTSIDE_FOV_RGBA, row) >= 0.5
+
+
+# =========================================================================== #
+# AC13: each panel is drawn with outside-FOV and background colours
+# =========================================================================== #
+
+
+def test_ac13_panels_drawn_with_outside_fov_and_background_colours(
+    rendered_figure, sheet_panels, committed_manifest
+):
+    from segfacet.synth import corpus_sheet
+
+    panels_by_id = {p.case_id: p for p in sheet_panels}
+    axes_by_label = {ax.get_label(): ax for ax in rendered_figure.axes}
+
+    background = np.asarray(corpus_sheet.BACKGROUND_RGBA)
+    outside_fov = np.asarray(corpus_sheet.OUTSIDE_FOV_RGBA)
+
+    for case in committed_manifest["cases"]:
+        panel = panels_by_id[case["case_id"]]
+        for view in ("sagittal", "coronal"):
+            ax = axes_by_label[f"{case['case_id']}/{view}"]
+            assert len(ax.images) == 1
+            actual = np.asarray(ax.images[0].get_array())
+
+            v = getattr(panel, view)
+            v_outside_fov = getattr(panel, f"{view}_outside_fov")
+            label_colours = np.asarray(corpus_sheet.label_rgba(v))
+
+            expected = np.where(
+                v_outside_fov[..., None],
+                outside_fov,
+                np.where((v == 0)[..., None], background, label_colours),
+            )
+            assert np.array_equal(actual, expected)
+
+
+# =========================================================================== #
+# AC14: the outline colour is distinct
+# =========================================================================== #
+
+
+def test_ac14_outline_colour_is_distinct():
+    from segfacet.synth import corpus_sheet
+
+    label_colours = np.asarray(corpus_sheet.label_rgba(np.arange(1, 10)))
+
+    assert (
+        _rgb_distance(corpus_sheet.OUTLINE_RGBA, corpus_sheet.BACKGROUND_RGBA) >= 0.5
+    )
+    assert (
+        _rgb_distance(corpus_sheet.OUTLINE_RGBA, corpus_sheet.OUTSIDE_FOV_RGBA) >= 0.5
+    )
+    for row in label_colours:
+        assert _rgb_distance(corpus_sheet.OUTLINE_RGBA, row) >= 0.5
+
+
+# =========================================================================== #
+# AC15: every outline is drawn in the outline colour
+# =========================================================================== #
+
+
+def test_ac15_every_outline_is_drawn_in_the_outline_colour(rendered_figure):
+    from segfacet.synth import corpus_sheet
+
+    axes_by_label = {ax.get_label(): ax for ax in rendered_figure.axes}
+
+    # Guard against a vacuous pass on a sheet with no outline at all.
+    crop_ax = axes_by_label.get("crop_fov_si/sagittal")
+    assert crop_ax is not None
+    assert len(crop_ax.collections) >= 1
+
+    for ax in rendered_figure.axes:
+        for collection in ax.collections:
+            edgecolors = collection.get_edgecolor()
+            assert len(edgecolors) > 0
+            for row in edgecolors:
+                assert np.allclose(row, corpus_sheet.OUTLINE_RGBA)
+
+
+# =========================================================================== #
+# Named adversarial case: adjacent-labels-pairwise-distinct
+# =========================================================================== #
+
+
+def test_adjacent_labels_pairwise_distinct():
+    from segfacet.synth import corpus_sheet
+
+    colours = np.asarray(corpus_sheet.label_rgba(np.arange(20, 25)))
+    unique_rows = {tuple(row) for row in colours}
+    assert len(unique_rows) == len(colours)
 
 
 # =========================================================================== #
