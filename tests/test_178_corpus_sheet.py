@@ -286,6 +286,42 @@ def test_ac9_nothing_imports_from_the_prototype():
 
 
 # =========================================================================== #
+# Review finding: label % 10 == 0 collides with the background colour
+# =========================================================================== #
+
+
+def test_every_present_label_is_distinct_from_background(committed_manifest):
+    # Uses the private _label_colormap() plus the module's own `label % 10`
+    # indexing (mirrored from corpus_sheet.render_sheet's
+    # `cmap(img % 10)` call) -- no public per-label colour lookup exists.
+    from segfacet.synth import corpus_sheet
+
+    cmap = corpus_sheet._label_colormap()
+    background_rgba = cmap(0)
+
+    present_labels = set()
+    for case in committed_manifest["cases"]:
+        seg_img = _load_seg_array(case)
+        data = np.asanyarray(seg_img.dataobj)
+        present_labels |= set(np.unique(data).tolist())
+    present_labels.discard(0)
+    assert present_labels, "expected at least one nonzero label across the corpus"
+
+    for label in present_labels:
+        rgba = cmap(label % 10)
+        assert rgba != background_rgba, (
+            f"label {label} (label % 10 == {label % 10}) renders as the "
+            "background colour"
+        )
+
+    # Adjacent labels 20..24 must also be pairwise distinct, so a fix that
+    # maps every nonzero label to one single non-background colour cannot
+    # pass either.
+    adjacent_colours = [cmap(label % 10) for label in range(20, 25)]
+    assert len(set(adjacent_colours)) == len(adjacent_colours)
+
+
+# =========================================================================== #
 # Named adversarial case: import-matcher-flags-seeded-import
 # =========================================================================== #
 
