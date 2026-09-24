@@ -67,3 +67,8 @@ docs/aide/failure_modes.generated.md text eol=lf
 # any future comparison switches to read_bytes() and reproduces the same
 # Windows-CI-only failure documented above for items 099-101.
 tests/golden/*.json text eol=lf
+
+# Item 178's committed corpus contact sheet -- a binary PNG, not a
+# byte-reproducible fixture (its bytes are not compared anywhere; see the
+# item's spec).
+docs/aide/corpus_sheet.png binary

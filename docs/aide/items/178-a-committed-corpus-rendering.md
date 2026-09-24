@@ -356,8 +356,17 @@ committed sheet. Item 179 is independent of this item.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- **`crop_to_grid` called as `crop_to_grid(clean_img, case_img)`.** The spec's
+  prose (Implementation Steps §1) reads "call
+  `segfacet.synth.corpus.crop_to_grid(clean_img, case_img)`", which,
+  read as `crop_to_grid`'s own signature (`crop_to_grid(img, grid_img)`),
+  crops `clean_img` down to `case_img`'s (possibly smaller) grid. That is the
+  call that validates `case_img` is an integral sub-grid of `clean_img` and
+  raises `FacetInputError` otherwise — the reverse order raises
+  unconditionally for `crop_fov_si`, whose grid is smaller than
+  `clean_control`'s. `sheet_panels()` places the case's own array afterwards
+  with the independent AC2 offset formula, not `crop_to_grid`'s return value;
+  `crop_to_grid`'s call here is validation-only.
 - **Left open:** whether the intensity corpus gets its own sheet. The queue
   line names the geometric cases, and no consumer of an intensity rendering is
   declared.
