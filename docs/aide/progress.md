@@ -1831,7 +1831,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - ✅ **D1** A committed corpus rendering (`docs/aide/corpus_sheet.png`, stale-checked
   against the manifest and fixtures), with the 2026-09-22 prototype absorbed and
   deleted. *(Item 178)*
-- 🚧 **D1** The status report's corpus section re-keyed off the generated
+- 🔍 **D1** The status report's corpus section re-keyed off the generated
   specification. *(Item 179)*
 - ✅ **D2** `split` at a ~20 % cap, plus a new `split_own_label` case for mode 3's
   second sub-type. *(Item 174)*
