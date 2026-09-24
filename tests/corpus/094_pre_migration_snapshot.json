@@ -236,7 +236,7 @@
         1.0
       ]
     ],
-    "data_sha256": "e8d5dfeeb6445bedd2f8522b8dd393a767e440b12df1b6fdf99be26ff5c0bd33",
+    "data_sha256": "aaf0c2c714b6429419572a121bf114ac0178c90c1a18c00e05ff792dd1ea6839",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/displace_seg.nii.gz",

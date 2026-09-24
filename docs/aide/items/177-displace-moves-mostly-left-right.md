@@ -638,3 +638,9 @@ To be updated during implementation.
   `aaf0c2c714b6429419572a121bf114ac0178c90c1a18c00e05ff792dd1ea6839`; shape
   (61, 86, 193), dtype int64, spacing and affine unchanged. Every other test in
   the full suite is green.
+- **B7 (builder, 2026-09-24): 094 snapshot re-captured (Testing Strategy
+  entry 7).** A throwaway script mirroring `test_094`'s reader re-hashed every
+  entry and wrote bytes with `\n`. Only
+  `corpus/fixtures/displace_seg.nii.gz|seg`'s `data_sha256` moved
+  (`e8d5dfee…c0bd33` → `aaf0c2c7…1ea6839`), and the file's diff is that one
+  line. Every other entry came out identical.
