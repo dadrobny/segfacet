@@ -376,3 +376,14 @@ committed sheet. Item 179 is independent of this item.
 - **Left open:** whether the digest should also cover the rendering code
   (A6). No consumer reads the layout, so a stale layout was not worth a
   version constant.
+- **2026-09-24 — `label_rgba()` replaces the bare `cmap(img % 10)` colouring.**
+  Review finding: the fixed 10-entry table (background at index 0, 9 tab10
+  colours at indices 1-9) was indexed by `label % 10`, and label 20 — present
+  in every corpus case — maps to `20 % 10 == 0`, the background index, so it
+  rendered as background in every panel instead of a colour. Fixed by shifting
+  the nonzero range off the background index: `label_rgba()` (public,
+  `render_sheet` draws through it) maps label 0 to background and label `L` to
+  colour index `1 + (L - 1) % 9`, so labels 20-24 (any 9 consecutive nonzero
+  labels) land on distinct indices 1-9 and no nonzero label can land on 0. The
+  colour is still a pure function of the label value, so a relabel still reads
+  as a colour change — it just never lands *on* the background colour anymore.

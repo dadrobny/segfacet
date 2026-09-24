@@ -41,6 +41,7 @@ __all__ = [
     "sheet_panels",
     "input_digest",
     "render_sheet",
+    "label_rgba",
     "main",
 ]
 
@@ -144,8 +145,6 @@ def render_sheet(out: Path = SHEET_PATH, manifest_path: Path = MANIFEST_PATH):
     fig = Figure(figsize=(3 * _COLUMNS, 3.4 * n_rows))
     axes = fig.subplots(n_rows, _COLUMNS, squeeze=False)
 
-    cmap = _label_colormap()
-
     for i, panel in enumerate(panels):
         case_row, col = divmod(i, _COLUMNS)
         case = cases_by_id[panel.case_id]
@@ -162,7 +161,7 @@ def render_sheet(out: Path = SHEET_PATH, manifest_path: Path = MANIFEST_PATH):
         ):
             ax = axes[2 * case_row + row_offset, col]
             ax.imshow(
-                cmap(img % 10),
+                label_rgba(img),
                 origin="lower",
                 interpolation="nearest",
             )
@@ -189,16 +188,26 @@ def render_sheet(out: Path = SHEET_PATH, manifest_path: Path = MANIFEST_PATH):
     return fig
 
 
-def _label_colormap():
-    """One fixed table mapping a label value's ``value % 10`` to a colour,
-    background (0) black, shared by every panel so a relabel reads as a
-    colour change rather than depending on a per-run lookup table."""
+def label_rgba(labels: np.ndarray) -> np.ndarray:
+    """Map a label array to RGBA, background (0) black, every nonzero label
+    to one of 9 tab10 colours via ``1 + (label - 1) % 9`` -- so labels 20-24
+    (any 9 consecutive nonzero labels) are pairwise distinct and no nonzero
+    label ever lands on index 0 the way a bare ``label % 10`` did (a
+    committed corpus case is labelled 20, which mapped to background and
+    rendered invisible in every panel -- fixed 2026-09-24, item 178).
+
+    Colour is still a pure function of the label value, so a relabel still
+    reads as a colour change, just never *to* the background colour."""
     from matplotlib.colors import ListedColormap
     from matplotlib import colormaps
 
     tab10 = colormaps["tab10"]
     colours = ["black"] + [tab10(i) for i in range(9)]
-    return ListedColormap(colours)
+    cmap = ListedColormap(colours)
+
+    labels = np.asarray(labels)
+    index = np.where(labels == 0, 0, 1 + (labels - 1) % 9)
+    return cmap(index)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
