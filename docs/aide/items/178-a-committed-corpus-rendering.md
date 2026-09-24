@@ -246,10 +246,22 @@ No dependency is added.
 
 Some paths stay off **May change** on purpose, so `aide scope` refuses them:
 
-- every other `tests/test_*.py`: the sweep below found nothing to reconcile.
-  A red test elsewhere is a hand-back to spec-author, not an edit.
 - `tests/corpus/**`: the corpus is read, never regenerated here.
 - `src/segfacet/synth/__init__.py`: no re-export (Description).
+
+> **Amended 2026-09-24.** One entry was removed from the head of this list.
+> As first written it read: "every other `tests/test_*.py`: the sweep below
+> found nothing to reconcile. A red test elsewhere is a hand-back to
+> spec-author, not an edit." `aide scope` reads every bullet after the
+> **Asserts against:** label, including this list, as a pinned-not-changed
+> path, and it matches a glob literally, with no "every other". So
+> `tests/test_*.py` also matched this item's own
+> `tests/test_178_corpus_sheet.py`, which is under **May change**, and
+> `aide scope` failed on that file as changed-but-pinned. No bullet replaces
+> the entry. A test file that is not under **May change** is already refused
+> by `aide scope` as unauthorised. Naming each existing test file here would
+> declare as pinned files that this item's tests never read. The intent is
+> unchanged: a red test elsewhere is a hand-back to spec-author, not an edit.
 
 ## Testing Strategy
 
