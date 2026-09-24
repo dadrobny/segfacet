@@ -1845,7 +1845,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
   renumbered, `displace` mostly left-right, `force_overlap` retired or declared
   multi-channel, and `fragment` parked. *(Item 174)*
-- 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
+- 🚧 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
   `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
   renumbered, `displace` mostly left-right, `force_overlap` retired or declared
   multi-channel, and `fragment` parked. *(Item 175)*
