@@ -281,8 +281,20 @@ sheet, but no item in this queue consumes the section.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- Implemented per Implementation Steps 1–4 as written: `FAILURE_MODES_PATH`/
+  `TRACEABILITY_PATH` beside `FEATURE_CATALOGUE_PATH`, `ModeEntry`/
+  `FailureModeSpec` dataclasses, `load_failure_mode_spec` following
+  `load_feature_catalog`'s degrade-to-`None`-never-raise shape (no
+  `schema_version` pin, per A2), and `_render_corpus_section(model, spec)`
+  called from `render_html` as `_render_corpus_section(model, load_failure_mode_spec())`.
+  Verified by hand against the real corpus manifest: 16 legend entries,
+  `8/16` coverage card, `18/18` conformance card — matching A1.
+- The `spec is None` branch (missing/unparseable generated JSON) renders the
+  manifest table and the two manifest-derived cards (Committed cases,
+  Reconstructed-record) plus a `<p class="placeholder">` naming both JSON
+  paths and their two regeneration commands, in place of the legend and the
+  two spec-derived cards — matching the empty-`model.corpus` placeholder's
+  existing degrade style.
 - **Left open:** whether the manifest table should also list the intensity
   corpus's rows (`tests/corpus/intensity/manifest.json`, mode 16). The cards
   already count both corpora through the JSON. The queue line re-keys the

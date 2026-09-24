@@ -740,27 +740,93 @@ def _render_queue_section(model: ReportModel) -> str:
 </section>"""
 
 
-# The eight catalogued segmentation failure modes from the project vision
-# (vision.md §6). Surfaced in the status report so "failure mode N" is
-# self-explanatory without cross-referencing the vision document.
-FAILURE_MODES_LEGEND = {
-    1: "Label not aligned with the vertebra it names",
-    2: "Over-/under-segmentation (fused or fragmented segments)",
-    3: "Disconnected components / islands (tiny rogue segments)",
-    4: "Semantic mislabelling (wrong vertebra identity)",
-    5: "Not all vertebrae segmented (missing level)",
-    6: "Partial vertebra at the image border",
-    7: "Non-continuous label sequence (e.g. L1→T12→L2→L5)",
-    8: "Overlapping segments",
-}
+# The failure-mode specification and traceability conformance, loaded from
+# the generated, code-derived docs/aide/failure_modes.generated.json and
+# traceability_matrix.generated.json (never a hand-typed legend). Stdlib
+# json only, same pattern as load_feature_catalog below (item 179).
+FAILURE_MODES_PATH = AIDE_DIR / "failure_modes.generated.json"
+TRACEABILITY_PATH = AIDE_DIR / "traceability_matrix.generated.json"
 
 
-def _render_corpus_section(model: ReportModel) -> str:
+@dataclass(frozen=True)
+class ModeEntry:
+    id: int
+    name: str
+    status: str
+    case_count: int
+
+
+@dataclass(frozen=True)
+class FailureModeSpec:
+    modes: Tuple[ModeEntry, ...]
+    agree_count: int
+    disagree_count: int
+
+
+def load_failure_mode_spec(
+    failure_modes_path: Path = FAILURE_MODES_PATH,
+    traceability_path: Path = TRACEABILITY_PATH,
+) -> Optional["FailureModeSpec"]:
+    """Load the failure-mode specification and traceability conformance.
+
+    Degrades to ``None`` — never raises — for a missing/unparseable file on
+    either side, or a document whose relevant top-level shape doesn't match
+    (no ``schema_version`` pin: see item 179 Decisions).
+    """
+    try:
+        fm_data = json.loads(failure_modes_path.read_text(encoding="utf-8"))
+        tm_data = json.loads(traceability_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    if not isinstance(fm_data, dict) or not isinstance(tm_data, dict):
+        return None
+
+    raw_modes = fm_data.get("modes")
+    if not isinstance(raw_modes, list):
+        return None
+
+    conformance = tm_data.get("conformance")
+    if not isinstance(conformance, dict):
+        return None
+    agree_count = conformance.get("agree_count")
+    disagree_count = conformance.get("disagree_count")
+    if not isinstance(agree_count, int) or not isinstance(disagree_count, int):
+        return None
+
+    modes: List[ModeEntry] = []
+    for raw_mode in raw_modes:
+        if not isinstance(raw_mode, dict):
+            continue
+        mode_id = raw_mode.get("id")
+        name = raw_mode.get("name")
+        if not isinstance(mode_id, int) or not isinstance(name, str) or not name:
+            continue
+        cases = raw_mode.get("corpus_cases")
+        case_count = len(cases) if isinstance(cases, list) else 0
+        modes.append(
+            ModeEntry(
+                id=mode_id,
+                name=name,
+                status=_str_field(raw_mode, "status_derived"),
+                case_count=case_count,
+            )
+        )
+
+    return FailureModeSpec(
+        modes=tuple(modes),
+        agree_count=agree_count,
+        disagree_count=disagree_count,
+    )
+
+
+def _render_corpus_section(model: ReportModel, spec: Optional["FailureModeSpec"]) -> str:
     """Stage-5 synthetic failure corpus coverage (tests/corpus/manifest.json).
 
-    "Failure mode N" refers to the N-th catalogued segmentation failure mode
-    in the project vision (vision.md §6); the modes are spelled out in the
-    legend so the report is self-contained.
+    "Failure mode N" refers to the N-th mode in the authored specification
+    (``src/segfacet/failure_modes.py``); *spec* (loaded from the generated
+    ``failure_modes.generated.json``/``traceability_matrix.generated.json``)
+    supplies the legend and conformance cards so the report is self-contained.
     """
     if not model.corpus:
         return """
@@ -768,13 +834,12 @@ def _render_corpus_section(model: ReportModel) -> str:
   <h2>Synthetic Failure Corpus</h2>
   <p class="placeholder"><strong>Extension point.</strong> The committed synthetic-failure
   corpus (roadmap Stage 5, item 040) populates here once
-  <code>tests/corpus/manifest.json</code> exists — one row per catalogued
-  segmentation failure mode (project vision §6) plus the clean-GT positive
-  control, with its detection path and expected verdict.</p>
+  <code>tests/corpus/manifest.json</code> exists — one row per mode in the
+  failure-mode specification (<code>src/segfacet/failure_modes.py</code>)
+  plus the clean-GT positive control, with its detection path and expected
+  verdict.</p>
 </section>"""
 
-    modes = {c.failure_mode for c in model.corpus}
-    non_clean_modes = sorted(m for m in modes if m != 0)
     recon = sum(1 for c in model.corpus if c.detection == "reconstructed_record")
     rows = "\n".join(
         f"<tr><td>{c.failure_mode}</td><td>{_esc(c.failure_mode_name)}</td>"
@@ -790,29 +855,56 @@ def _render_corpus_section(model: ReportModel) -> str:
         "<th>Detection</th><th>Expected verdict</th><th>Rule(s)</th></tr>"
         f"{rows}</table>"
     )
+
+    if spec is None:
+        cards_and_legend = f"""<p class="placeholder">The failure-mode specification
+  (<code>{_esc(str(FAILURE_MODES_PATH))}</code>, regenerate with
+  <code>python -m segfacet.failure_modes</code>) or the traceability matrix
+  (<code>{_esc(str(TRACEABILITY_PATH))}</code>, regenerate with
+  <code>python -m segfacet.traceability</code>) is missing or could not be
+  parsed — the legend and conformance cards are unavailable.</p>"""
+        return f"""
+<section id="corpus">
+  <h2>Synthetic Failure Corpus</h2>
+  <div class="cards">
+    <div class="card"><div class="n">{len(model.corpus)}</div><div class="l">Committed cases</div></div>
+    <div class="card"><div class="n">{recon}</div><div class="l">Reconstructed-record</div></div>
+  </div>
+  {cards_and_legend}
+  {table}
+</section>"""
+
+    total = len(spec.modes)
+    covered = sum(1 for m in spec.modes if m.case_count)
+    agree_total = spec.agree_count + spec.disagree_count
     legend_items = "".join(
-        f"<li><strong>{n}</strong> — {_esc(desc)}</li>"
-        for n, desc in sorted(FAILURE_MODES_LEGEND.items())
+        f'<li><strong>{m.id}</strong> — {html.escape(m.name)} '
+        f'<span class="b-pill">{html.escape(m.status)}</span></li>'
+        for m in spec.modes
     )
     legend = (
         '<details class="fold"><summary>What the failure modes are '
-        "(project vision §6) — click to expand</summary>"
+        "(failure_modes.generated.json — click to expand; regenerate with "
+        "python -m segfacet.failure_modes)</summary>"
         f'<ul class="legend">{legend_items}</ul></details>'
     )
     return f"""
 <section id="corpus">
   <h2>Synthetic Failure Corpus</h2>
-  <p class="note">Each of the eight <strong>catalogued segmentation failure modes</strong>
-  from the project vision (vision.md §6, spelled out in the legend below) has ≥1
-  committed synthetic case, plus a clean-GT positive control (mode 0).</p>
+  <p class="note">The legend below is the authored failure-mode specification
+  (<code>src/segfacet/failure_modes.py</code>), with each mode's derived
+  lifecycle status; the table is the committed geometric corpus manifest.
+  Mode-0 rows are the clean control and the FOV-truncation condition's cases.</p>
   <div class="cards">
     <div class="card"><div class="n">{len(model.corpus)}</div><div class="l">Committed cases</div></div>
-    <div class="card"><div class="n">{len(non_clean_modes)}/8</div><div class="l">Failure modes covered</div></div>
+    <div class="card"><div class="n">{covered}/{total}</div><div class="l">Failure modes with a committed case</div></div>
     <div class="card"><div class="n">{recon}</div><div class="l">Reconstructed-record</div></div>
+    <div class="card"><div class="n">{spec.agree_count}/{agree_total}</div><div class="l">Cases whose measured firing equals the expected set</div></div>
   </div>
   {legend}
-  <p><em>Reconstructed-record</em> cases (modes 1/4/8) are pipeline-blind by
-  design and asserted via a reconstructed feature record (see items 038–041).</p>
+  <p><em>Reconstructed-record</em> cases are pipeline-blind by design and
+  asserted via a reconstructed feature record (see items 038–041); the
+  Detection column marks which rows these are.</p>
   {table}
 </section>"""
 
@@ -1165,7 +1257,7 @@ def render_html(model: ReportModel) -> str:
             _render_queue_section(model),
             _render_stage_section(model),
             _render_objectives_section(model),
-            _render_corpus_section(model),
+            _render_corpus_section(model, load_failure_mode_spec()),
             _render_reference_section(model),
             _render_feature_catalog_section(load_feature_catalog(FEATURE_CATALOGUE_PATH)),
             _render_tests_section(model),
