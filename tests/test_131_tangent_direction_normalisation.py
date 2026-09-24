@@ -314,7 +314,14 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
 #: with values the item it belongs to never measured; instead each sweep pins
 #: the uncovered set exactly, so a *fourth* uncovered case still fails.
 #: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_ITEM = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def _cases_covered_by(table, manifest):

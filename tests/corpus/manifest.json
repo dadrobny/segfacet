@@ -502,6 +502,47 @@
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
       "seg_fixture": "fixtures/split_own_label_seg.nii.gz"
+    },
+    {
+      "base": {
+        "curve_amplitude_mm": 0.0,
+        "levels": [
+          "L1",
+          "L2",
+          "L3",
+          "L4",
+          "L5"
+        ],
+        "spacing": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "case_id": "crop_fov_si",
+      "condition": "fov_truncation",
+      "detail": "crop_fov: cropped the volume at the 'inferior' face, removing 35 whole slice(s) to take at least 0.65 of target label 24 (12586 of 19344 voxels removed); output shape (61, 86, 158). Exhibits the FOV-truncation CONDITION, not a failure mode.",
+      "detection": "pipeline",
+      "expected_labels": [
+        24
+      ],
+      "expected_rule_ids": [
+        "bounds"
+      ],
+      "expected_verdict": "flagged-for-review",
+      "failure_mode": 0,
+      "failure_mode_name": "FOV truncation (condition, not a failure mode)",
+      "kind": "condition",
+      "perturbation": "crop_fov",
+      "perturbation_params": {
+        "face": "inferior",
+        "removed_fraction": 0.65,
+        "target_label": 24
+      },
+      "reconstruction": null,
+      "scan_fixture": "fixtures/crop_fov_si_scan.nii.gz",
+      "seed": 0,
+      "seg_fixture": "fixtures/crop_fov_si_seg.nii.gz"
     }
   ],
   "generator": "segfacet.synth.corpus",

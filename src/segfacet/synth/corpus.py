@@ -1,7 +1,7 @@
 """Committed synthetic fixture corpus for the failure-mode specification plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
-Materialises the **thirteen canonical cases** -- item 040's original nine (the
+Materialises the **fourteen canonical cases** -- item 040's original nine (the
 clean control plus one per mode of the vision.md v3 seed list, history ids
 1-8, whose case ids name
 the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
@@ -9,7 +9,9 @@ the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
 field is the authority and the prefix was a second, drifting copy of it) and
 the ``fuse_adjacent`` and ``remove_level_relabel`` cases item 150 added, and
 the ``split`` case item 166 added (2026-09-20), and the ``split_own_label``
-case item 174 added (2026-09-23); each manifest entry's
+case item 174 added (2026-09-23), and the ``crop_fov_si`` case item 175
+added (2026-09-24), a volume crop on a smaller grid carrying its own scan;
+each manifest entry's
 ``failure_mode`` field carries the current mode number, and (item 155) a
 ``kind`` field records which of the three closed values
 (``segfacet.synth.perturbation.CASE_KINDS``: ``"clean_control"``,
@@ -30,7 +32,7 @@ Two public surfaces:
   (:func:`main`), regenerating the committed corpus under
   ``tests/corpus/`` by default.
 
-One of the thirteen cases (mode 15 -- ``force_overlap``) is documented by item 038
+One of the fourteen cases (mode 15 -- ``force_overlap``) is documented by item 038
 as **structurally invisible** to the plain ``run_qc`` pipeline (a
 single-integer label map cannot encode an overlap). This module faithfully
 represents that fact: its manifest entry carries
@@ -71,6 +73,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import nibabel as nib
 import numpy as np
 
+from segfacet.io import FacetInputError
 from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.perturbation import Expectation, get_perturbation
 
@@ -90,6 +93,7 @@ __all__ = [
     "CorpusCase",
     "CASE_RECIPE",
     "RENAMED_CASE_IDS",
+    "crop_to_grid",
     "build_corpus",
     "write_corpus",
     "load_manifest",
@@ -130,8 +134,11 @@ RENAMED_CASE_IDS: Dict[str, str] = {
 }
 
 #: Name of the shared base-scan fixture (every case derives from the same
-#: default clean spine and operators preserve shape/affine -- see the item
-#: spec's "all nine canonical cases share one base scan" Assumption).
+#: default clean spine; a case on the base grid shares this scan -- see the
+#: item 040 spec's "all nine canonical cases share one base scan"
+#: Assumption). A case on a different grid (item 175's ``crop_fov_si``, a
+#: volume crop) carries its own ``<case_id>_scan.nii.gz``: the base scan cut
+#: to its grid by :func:`crop_to_grid`.
 _BASE_SCAN_FIXTURE_NAME: str = "base_scan.nii.gz"
 
 #: The default clean-spine build parameters used by every case's base.
@@ -160,8 +167,8 @@ class _RecipeEntry:
     reconstruction: Optional[str] = None
 
 
-#: The thirteen canonical cases (item 040 spec's case table, then item 150's
-#: two, then item 166's split, then item 174's split_own_label), in table
+#: The fourteen canonical cases (item 040 spec's case table, then item 150's
+#: two, then item 166's split, then item 174's split_own_label, then item 175's crop_fov_si), in table
 #: order.
 CASE_RECIPE: List[_RecipeEntry] = [
     _RecipeEntry(
@@ -258,6 +265,21 @@ CASE_RECIPE: List[_RecipeEntry] = [
         perturbation_params={"target_label": 23, "donated_fraction": 0.2},
         detection="pipeline",
     ),
+    # Item 175 (2026-09-24): the S-I FOV crop -- the volume cut at the
+    # inferior face through L5 (24), removing at least 65 % of its voxels.
+    # A true crop: a smaller grid, so the case carries its own scan. Face and
+    # fraction are written explicitly so a later default change cannot move
+    # the committed fixture.
+    _RecipeEntry(
+        case_id="crop_fov_si",
+        perturbation="crop_fov",
+        perturbation_params={
+            "target_label": 24,
+            "face": "inferior",
+            "removed_fraction": 0.65,
+        },
+        detection="pipeline",
+    ),
 ]
 
 
@@ -281,6 +303,59 @@ class CorpusCase:
     scan_img: nib.Nifti1Image
     seg_img: nib.Nifti1Image
     expectation: Expectation
+
+
+# --------------------------------------------------------------------------- #
+# crop_to_grid (item 175)
+# --------------------------------------------------------------------------- #
+
+
+def crop_to_grid(img: nib.Nifti1Image, grid_img: nib.Nifti1Image) -> nib.Nifti1Image:
+    """Return the sub-block of *img* on *grid_img*'s grid (item 175).
+
+    The block is located from the two affines: ``o = inv(img.affine) @
+    grid_img.affine[:, 3]`` is its start index and ``grid_img.shape`` its
+    size. Returns *img* itself when the grids are identical (equal shape,
+    ``np.allclose`` affines); otherwise a fresh image holding a copy of the
+    data, *img*'s dtype and *grid_img*'s affine.
+
+    Raises
+    ------
+    FacetInputError
+        If the rotation/zoom blocks differ, the offset is not integral within
+        1e-6, or the block leaves *img*'s grid.
+    """
+    shape =tuple(grid_img.shape[:3])
+    if shape == tuple(img.shape[:3]) and np.allclose(img.affine, grid_img.affine):
+        return img
+    if not np.allclose(img.affine[:3, :3], grid_img.affine[:3, :3]):
+        raise FacetInputError(
+            "crop_to_grid: the two images' rotation/zoom blocks differ, so "
+            "one grid is not a sub-grid of the other."
+        )
+    offset = (np.linalg.inv(img.affine) @ grid_img.affine[:, 3])[:3]
+    start = np.round(offset).astype(int)
+    if not np.allclose(offset, start, rtol=0.0, atol=1e-6):
+        raise FacetInputError(
+            f"crop_to_grid: the grid offset {offset.tolist()!r} is not an "
+            "integral voxel index."
+        )
+    stop = start + np.asarray(shape)
+    if np.any(start < 0) or np.any(stop > np.asarray(img.shape[:3])):
+        raise FacetInputError(
+            f"crop_to_grid: the block [{start.tolist()}, {stop.tolist()}) "
+            f"leaves the source grid of shape {tuple(img.shape[:3])!r}."
+        )
+    block = np.asanyarray(img.dataobj)[
+        start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]
+    ]
+    # Explicit dtype: nibabel refuses an int64 array without it, and the
+    # loaded-fixture images the test cohort builders pass are int64.
+    return nib.Nifti1Image(
+        np.array(block, copy=True),
+        np.array(grid_img.affine, copy=True),
+        dtype=block.dtype,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -313,7 +388,9 @@ def build_corpus() -> List[CorpusCase]:
                 base=dict(entry.base),
                 detection=entry.detection,
                 reconstruction=entry.reconstruction,
-                scan_img=clean.scan_img,
+                # Item 175: the base scan on the case's own grid (the base
+                # scan itself for every case that keeps the base grid).
+                scan_img=crop_to_grid(clean.scan_img, result.labelmap),
                 seg_img=result.labelmap,
                 expectation=result.expectation,
             )
@@ -343,9 +420,9 @@ def _save_deterministic(img: nib.Nifti1Image, path: Path) -> None:
 def write_corpus(dest: Path) -> Path:
     """Materialise the corpus under *dest*.
 
-    Writes one shared ``fixtures/base_scan.nii.gz`` (every canonical case
-    derives from the same default clean spine; asserts the base scans are
-    array-equal across cases before deduping) and one
+    Writes one shared ``fixtures/base_scan.nii.gz`` (named by every case whose
+    scan equals the first case's; a case on a different grid writes its own
+    ``fixtures/<case_id>_scan.nii.gz`` -- item 175) and one
     ``fixtures/<case_id>_seg.nii.gz`` per case, plus ``dest/manifest.json``
     (fixture paths relative to *dest*). Deterministic: two successive calls
     (even into different directories) produce byte-identical output for
@@ -362,25 +439,26 @@ def write_corpus(dest: Path) -> Path:
 
     cases = build_corpus()
 
-    # Dedup contract: every case shares the same base scan (perturbations
-    # preserve shape/affine). Assert this before writing just one copy.
+    # Dedup contract (item 175 re-derived item 040's): a case whose scan is
+    # array- and affine-equal to the first case's shares the one base scan;
+    # any other case (a different grid) writes its own scan fixture.
     base_data = np.asanyarray(cases[0].scan_img.dataobj)
     base_affine = np.asarray(cases[0].scan_img.affine)
-    for case in cases[1:]:
-        if not np.array_equal(np.asanyarray(case.scan_img.dataobj), base_data) or not np.array_equal(
-            np.asarray(case.scan_img.affine), base_affine
-        ):
-            raise AssertionError(
-                f"write_corpus: case {case.case_id!r}'s base scan diverges "
-                "from the shared base scan -- the one-base-scan dedup "
-                "contract (item 040 Assumptions) is violated."
-            )
 
     base_scan_path = fixtures_dir / _BASE_SCAN_FIXTURE_NAME
     _save_deterministic(cases[0].scan_img, base_scan_path)
 
     manifest_cases: List[Dict[str, Any]] = []
     for case in cases:
+        scan_data = np.asanyarray(case.scan_img.dataobj)
+        if np.array_equal(scan_data, base_data) and np.array_equal(
+            np.asarray(case.scan_img.affine), base_affine
+        ):
+            scan_fixture_name = _BASE_SCAN_FIXTURE_NAME
+        else:
+            scan_fixture_name = f"{case.case_id}_scan.nii.gz"
+            _save_deterministic(case.scan_img, fixtures_dir / scan_fixture_name)
+
         seg_fixture_name = f"{case.case_id}_seg.nii.gz"
         seg_path = fixtures_dir / seg_fixture_name
         _save_deterministic(case.seg_img, seg_path)
@@ -399,7 +477,7 @@ def write_corpus(dest: Path) -> Path:
             "perturbation_params": case.perturbation_params,
             "seed": case.seed,
             "base": case.base,
-            "scan_fixture": f"{FIXTURES_DIRNAME}/{_BASE_SCAN_FIXTURE_NAME}",
+            "scan_fixture": f"{FIXTURES_DIRNAME}/{scan_fixture_name}",
             "seg_fixture": f"{FIXTURES_DIRNAME}/{seg_fixture_name}",
             "expected_rule_ids": expectation_dict["expected_rule_ids"],
             "expected_labels": expectation_dict["expected_labels"],

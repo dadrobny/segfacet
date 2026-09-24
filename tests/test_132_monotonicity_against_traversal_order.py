@@ -216,7 +216,14 @@ def test_ac4_no_clean_case_u_values_move(case_id):
 #: values item 132 never measured; the uncovered set is pinned exactly
 #: instead, so a *fourth* uncovered case still fails this test.
 #: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_ITEM = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def test_ac4_pre_item_table_covers_every_non_mode4_manifest_case():

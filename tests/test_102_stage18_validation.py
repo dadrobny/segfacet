@@ -43,7 +43,7 @@ import pytest
 
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
 from segfacet import cli
-from segfacet.synth.corpus import load_manifest
+from segfacet.synth.corpus import CORPUS_DIR, load_manifest
 from segfacet.synth.perturbation import FAILURE_MODE_NAMES, get_perturbation
 from segfacet.synth.clean_gt import build_clean_spine
 from test_098_stray_components import (
@@ -204,6 +204,10 @@ def _manifest_case_ids():
 
 @pytest.fixture(scope="module")
 def block_b(tmp_path_factory):
+    # Item 175 (2026-09-24): the premise "one shared scan" no longer holds
+    # (crop_fov_si is a volume crop carrying its own scan), so each case runs
+    # against its own manifest scan_fixture.
+    scan_fixtures = {c["case_id"]: c["scan_fixture"] for c in load_manifest()["cases"]}
     results = {}
     for case_id in _manifest_case_ids():
         out_dir = tmp_path_factory.mktemp(f"block_b_{case_id}")
@@ -212,7 +216,7 @@ def block_b(tmp_path_factory):
                 "run",
                 "--no-reference",
                 "--scan",
-                str(_BASE_SCAN),
+                str(CORPUS_DIR / scan_fixtures[case_id]),
                 "--seg",
                 str(_seg_fixture(case_id)),
                 "--out",

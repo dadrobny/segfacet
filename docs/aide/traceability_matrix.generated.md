@@ -60,12 +60,13 @@ a leaf path no rule reads is inventory, not a gap: the feature record is a delib
 
 ## Conformance — expected vs measured firing
 
-Agree: 17. Disagree: 0. Conformant: True.
+Agree: 18. Disagree: 0. Conformant: True.
 
 | Corpus | Case | Mode | Expected firing | Measured firing | Agrees | Source |
 |---|---|---|---|---|---|---|
 | geometric | clean_control | 0 | (none) | (none) | True | manifest-clean-control |
 | geometric | crop_at_border | 0 | border, mislabel | border, mislabel | True | specification-condition |
+| geometric | crop_fov_si | 0 | bounds | bounds | True | specification-condition |
 | geometric | displace | 1 | mislabel | mislabel | True | specification |
 | geometric | force_overlap | 15 | overlap | overlap | True | specification |
 | geometric | fragment | 1 | fragmentation | fragmentation | True | specification |
@@ -97,7 +98,7 @@ Direction complete: True. Holes: none.
 | Rule | State | Exercised by | Reason | Reason modes |
 |---|---|---|---|---|
 | border | exercised | geometric/crop_at_border | (none) | (none) |
-| bounds | exercised | geometric/split_own_label | (none) | (none) |
+| bounds | exercised | geometric/crop_fov_si, geometric/split_own_label | (none) | (none) |
 | coverage | exercised | geometric/fuse_adjacent, geometric/remove_level, geometric/split_own_label | (none) | (none) |
 | fragmentation | exercised | geometric/fragment, geometric/fuse_adjacent, geometric/inject_islands, geometric/split | (none) | (none) |
 | intensity | exercised | intensity/degenerate_uniform, intensity/implausible_metal, intensity/implausible_soft_tissue | (none) | (none) |
@@ -114,6 +115,7 @@ Direction complete: True. Holes: none.
 | Operator | State | Cases | Reason |
 |---|---|---|---|
 | crop_at_border | used | crop_at_border | (none) |
+| crop_fov | used | crop_fov_si | (none) |
 | displace | used | displace | (none) |
 | force_overlap | used | force_overlap | (none) |
 | fragment | used | fragment | (none) |

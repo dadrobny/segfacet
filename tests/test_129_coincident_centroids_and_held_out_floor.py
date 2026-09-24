@@ -736,7 +736,14 @@ _PRE_129_FINDINGS = {
 #: values item 129 never measured; instead the uncovered set is pinned
 #: exactly, so a *fourth* uncovered case still fails this test.
 #: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
-_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_129 = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def test_ac29_no_corpus_case_changes_findings():

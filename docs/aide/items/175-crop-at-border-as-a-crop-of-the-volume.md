@@ -653,3 +653,69 @@ To be updated during implementation.
   re-measurement or a later corpus item.
 - **Left open:** `bounds` fires on `crop_fov_si` for `extent_z` as well as
   volume (A3). Which of the two D3's gating must suppress is D3's question.
+- **D4: implementation, measured 2026-09-24 (builder).** Every value A3
+  pins re-measured equal: cut of 35 whole slices, 12 586 of 19 344 label-24
+  voxels removed (65.06 %), output shape (61, 86, 158), L5 remnant
+  6 758 mm³; `pipeline_findings` gives exactly two
+  `bounds.metric_out_of_range` findings on [24] (volume 6758 < 8000,
+  `extent_z` 14 < 15), no `border`, no `mislabel`; the corpus cohort gives
+  FPR 0.0 and sensitivity 11/12 with the per-mode dict unchanged (mode 0 at
+  1.0 over two cases). The CLI run with `--no-reference` gives
+  `flagged-for-review` with those two findings; with `base_scan.nii.gz` it
+  exits 1 on the shape mismatch. `segfacet.catalogue` regenerates
+  byte-identically; the corpus, the 094 snapshot and every generated
+  document were each generated twice and byte-compared.
+  - `crop_to_grid` passes an explicit `dtype=` to `Nifti1Image`: the test
+    cohort builders hand it `loaded_seg_image` output, which is `int64`, and
+    nibabel refuses an `int64` array without it. The committed fixtures are
+    byte-identical with and without it.
+  - `CropFovPerturbation` validates `removed_fraction` in the constructor
+    (eager, like `_validate_face_name`), so 0.0 and 1.0 raise before
+    `apply`. The whole-target refusal is decided on the cumulative slice
+    count reaching N.
+  - `write_corpus` still writes `base_scan.nii.gz` from the first case and
+    compares every other case's scan to it; the old "every scan equals the
+    base scan" `AssertionError` is gone, replaced by A6's per-case rule.
+  - The 094 snapshot was extended by a throwaway mirror of `test_094`'s
+    reader: re-dumping the committed 16 keys was first checked
+    byte-identical, the two new keys were added, and the 16 existing
+    entries were asserted unchanged (18 in total; a pure-insertion diff).
+- **D5: test reconciliations (builder, 2026-09-24), under the fence.**
+  Every red test after regeneration was in a listed file; none was
+  retired, renamed, skipped or loosened.
+  - (b) `tests/test_057_acceptance_stage7.py::_build_corpus_cohort`,
+    `tests/test_091_stage14_acceptance.py::_build_corpus_cohort`,
+    `tests/test_116_ras_native_corpus.py::_build_corpus_cohort`,
+    `tests/test_120_leave_one_out_offset.py::_corpus_cohort_metrics`:
+    `gt=gt_img` → `gt=crop_to_grid(gt_img, candidate_img)`.
+    `test_132` AC21/AC22 followed with no edit.
+  - (b) `tests/test_102_stage18_validation.py::block_b`: `--scan _BASE_SCAN`
+    → each case's own manifest `scan_fixture` under `CORPUS_DIR`; `block_a`
+    unchanged.
+  - (b) `tests/test_040_synthetic_corpus.py::test_adv_all_cases_share_exactly_one_scan_fixture`:
+    `len({scan_fixture}) == 1` → a base-grid case names
+    `fixtures/base_scan.nii.gz`, any other case names a scan on its own
+    seg's shape and affine. Name kept; docstring records why.
+  - (a) `tests/test_057_acceptance_stage7.py::test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed`:
+    `10/11` → `11/12`.
+  - (a) `tests/test_120_leave_one_out_offset.py::test_ac24_corpus_pipeline_detection_is_nine_of_ten`:
+    `10/11` → `11/12`, `sum(n_cases) == 11` → `12`.
+  - (a) `tests/test_105_golden_decision_table.py::test_ac3_current_tree_has_30_non_py_fixtures`
+    and `::test_adv_ac3_empty_header_only_table_fails_with_full_missing_list`:
+    `24` → `26`.
+  - (a) `tests/test_134_decision_table_evidence_companion.py::_INVENTORY_ADDED_AFTER_126`:
+    `+ crop_fov_si_seg.nii.gz, crop_fov_si_scan.nii.gz`.
+  - (a) `_ITEM_150_NEW_CASES` (`test_116`), `_ADDED_AFTER_129` (`test_129`),
+    `_ADDED_AFTER_ITEM` (`test_131`, `test_132`, `test_143`): `+ "crop_fov_si"`.
+  - (a) `tests/test_143_s_axis_correction.py::test_ac19_snapshot_covers_all_15_entries_across_both_corpora`:
+    `16` → `18`.
+  - (a) `tests/test_149_conformance_report.py`: `len(cases) == 17` → `18`,
+    geometric `== 13` → `14`.
+  - (a) `tests/test_151_stage30_validation.py`: `len(keys) == 17` → `18`,
+    `agree_count == 17` → `18`.
+  - (a) `tests/test_145_eight_hypothesised_modes.py::test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition`:
+    `["crop_at_border"]` → `["crop_at_border", "crop_fov_si"]`; the comment
+    now reads "only the two FOV crops name a condition".
+  - Prose only: `test_116::test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one`'s
+    docstring no longer calls `crop_at_border` mode 0's only
+    expected-failure record; its assertions are unchanged.

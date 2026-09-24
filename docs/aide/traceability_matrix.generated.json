@@ -1,7 +1,7 @@
 {
   "classification_conflicts": [],
   "conformance": {
-    "agree_count": 17,
+    "agree_count": 18,
     "cases": [
       {
         "agrees": true,
@@ -24,6 +24,19 @@
         "measured_firing": [
           "border",
           "mislabel"
+        ],
+        "mode": 0
+      },
+      {
+        "agrees": true,
+        "case_id": "crop_fov_si",
+        "corpus": "geometric",
+        "expected_firing": [
+          "bounds"
+        ],
+        "expected_source": "specification-condition",
+        "measured_firing": [
+          "bounds"
         ],
         "mode": 0
       },
@@ -269,6 +282,14 @@
         "reason": "",
         "state": "used"
       },
+      "crop_fov": {
+        "cases": [
+          "crop_fov_si"
+        ],
+        "name": "crop_fov",
+        "reason": "",
+        "state": "used"
+      },
       "displace": {
         "cases": [
           "displace"
@@ -381,6 +402,10 @@
       },
       "bounds": {
         "exercised_by": [
+          [
+            "geometric",
+            "crop_fov_si"
+          ],
           [
             "geometric",
             "split_own_label"

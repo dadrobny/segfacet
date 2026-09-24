@@ -64,6 +64,7 @@ from segfacet.synth.coverage_border_overlap import (
 from segfacet.synth.corpus import (
     CASE_RECIPE,
     RENAMED_CASE_IDS,
+    crop_to_grid,
     load_manifest,
     write_corpus,
 )
@@ -371,13 +372,14 @@ def _rule_label_pairs(findings) -> list:
 _MANIFEST_CASES = load_manifest()["cases"]
 _REFERENCE_SHA = _reference_sha()
 
-#: Cases item 150 (2026-09-14), item 166 (2026-09-20) and item 174
-#: (2026-09-23, ``split_own_label``) added to the corpus; no pre-migration golden exists for them at
+#: Cases item 150 (2026-09-14), item 166 (2026-09-20), item 174
+#: (2026-09-23, ``split_own_label``) and item 175 (2026-09-24,
+#: ``crop_fov_si``) added to the corpus; no pre-migration golden exists for them at
 #: ``_REFERENCE_GOLDEN_SHA``, so the identity comparison below runs over the
 #: original nine only. Asserted present so the exclusion cannot silently
 #: widen.
 _ITEM_150_NEW_CASES = frozenset(
-    {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
+    {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label", "crop_fov_si"}
 )
 assert _ITEM_150_NEW_CASES <= {c["case_id"] for c in _MANIFEST_CASES}
 _REFERENCE_MANIFEST_CASES = [
@@ -462,7 +464,13 @@ def _build_corpus_cohort():
         candidate_img = gt_img if case["case_id"] == "clean_control" else loaded_seg_image(case)
         eval_cases.append(
             EvaluationCase(
-                case_id=case["case_id"], gt=gt_img, candidate=candidate_img, expected=case
+                case_id=case["case_id"],
+                # Item 175 (2026-09-24): each case's GT is the clean control
+                # on that case's own grid (crop_fov_si is a volume crop);
+                # clean_control itself for every base-grid case.
+                gt=crop_to_grid(gt_img, candidate_img),
+                candidate=candidate_img,
+                expected=case,
             )
         )
     return eval_cases
@@ -472,8 +480,9 @@ def test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one():
     """AC8 concerns the ``crop_at_border`` case (vision.md Sec.6's old
     mode 6). Since item 150 that case carries ``failure_mode == 0`` plus the
     ``fov_truncation`` condition, so the eval harness groups it under
-    failure_mode 0 -- where it is the only expected-failure record (the
-    clean control expects "pass"). The per-mode entry is checked there, and
+    failure_mode 0 -- where, since item 175 (2026-09-24), it shares the
+    bucket with the ``crop_fov_si`` condition case (the clean control
+    expects "pass"). The per-mode entry is checked there, and
     the crop case's own outcome is pinned so the bucket cannot be satisfied
     by some other case."""
     from segfacet.eval.outcome import Outcome

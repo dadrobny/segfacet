@@ -345,7 +345,8 @@ def _all_manifest_case_keys():
 def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
-    assert len(keys) == 17, keys
+    # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
+    assert len(keys) == 18, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -362,7 +363,8 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.disagreements == ()
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
-    assert matrix.conformance.agree_count == 17
+    # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
+    assert matrix.conformance.agree_count == 18
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):

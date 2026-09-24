@@ -589,9 +589,27 @@ def test_adv_every_seg_fixture_path_is_distinct():
 
 def test_adv_all_cases_share_exactly_one_scan_fixture():
     """Adversarial: every case derives from the same base clean spine, so
-    every case's scan_fixture is the same shared path."""
-    scan_fixtures = {c["scan_fixture"] for c in _cases()}
-    assert len(scan_fixtures) == 1
+    every case on the base grid names the one shared base scan -- no
+    duplicated scan.
+
+    Item 175 (2026-09-24) re-derived the premise "every case shares one
+    scan": ``crop_fov_si`` is a volume crop on a smaller grid and carries its
+    own scan. The guard is kept: a case on ``clean_control``'s grid must name
+    ``fixtures/base_scan.nii.gz``, and any other case must name a scan on its
+    own seg's grid. The name records the pre-item premise (items 173/174
+    precedent)."""
+    reference = nib.load(str(_resolve(_case("clean_control"), "seg_fixture")))
+    for case in _cases():
+        seg = nib.load(str(_resolve(case, "seg_fixture")))
+        on_base_grid = seg.shape == reference.shape and np.array_equal(
+            seg.affine, reference.affine
+        )
+        if on_base_grid:
+            assert case["scan_fixture"] == "fixtures/base_scan.nii.gz", case["case_id"]
+        else:
+            scan = nib.load(str(_resolve(case, "scan_fixture")))
+            assert scan.shape == seg.shape, case["case_id"]
+            assert np.array_equal(scan.affine, seg.affine), case["case_id"]
 
 
 def test_adv_shared_base_scan_byte_identical_to_fresh_clean_spine_scan(tmp_path):

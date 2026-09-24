@@ -287,7 +287,14 @@ def test_ac5_docstrings_state_the_caudal_contract():
 #: with values the item it belongs to never measured; instead each sweep pins
 #: the uncovered set exactly, so a *fourth* uncovered case still fails.
 #: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label"}
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_ITEM = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
@@ -842,7 +849,9 @@ def test_ac19_snapshot_covers_all_15_entries_across_both_corpora():
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     # Item 174 (2026-09-23): 15 -> 16, the snapshot gains
     # split_own_label_seg.nii.gz.
-    assert len(snapshot) == 16
+    # Item 175 (2026-09-24): 16 -> 18, the snapshot gains
+    # crop_fov_si_seg.nii.gz and crop_fov_si_scan.nii.gz.
+    assert len(snapshot) == 18
     assert any("intensity/fixtures" in entry["path"] for entry in snapshot.values())
     assert any(
         "intensity" not in entry["path"] and "corpus/fixtures" in entry["path"]

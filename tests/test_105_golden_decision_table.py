@@ -264,9 +264,11 @@ def test_ac3_current_tree_has_30_non_py_fixtures():
     Item 150 (2026-09-14) added two corpus fixtures (fuse_adjacent,
     remove_level_relabel) = 22. Item 166 (2026-09-20) added one more
     (split) = 23. Item 174 (2026-09-23) added one more (split_own_label)
-    = 24; the test name keeps the old value."""
+    = 24. Item 175 (2026-09-24) added two (crop_fov_si's seg and scan) = 26;
+    the test name keeps the old value."""
     # Item 174 (2026-09-23): 23 -> 24.
-    assert len(_walk_tests_non_py_files()) == 24
+    # Item 175 (2026-09-24): 24 -> 26.
+    assert len(_walk_tests_non_py_files()) == 26
 
 
 def test_ac3_section1_fixture_set_equals_filesystem_walk_both_directions(section1_rows, sections):
@@ -700,7 +702,8 @@ def test_adv_ac3_empty_header_only_table_fails_with_full_missing_list():
     documented_set = {r["fixture"] for r in rows}
     missing = sorted(_walk_tests_non_py_files() - documented_set)
     # Item 174 (2026-09-23): 23 -> 24 (split_own_label_seg.nii.gz).
-    assert len(missing) == 24, "an empty table must not trivially pass on two empty sets"
+    # Item 175 (2026-09-24): 24 -> 26 (crop_fov_si_seg/_scan.nii.gz).
+    assert len(missing) == 26, "an empty table must not trivially pass on two empty sets"
 
 
 def test_adv_ac6_asserted_by_naming_nonexistent_module_is_detectable():

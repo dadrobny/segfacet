@@ -94,7 +94,8 @@ full walkthrough is transcribed in
   per-level-geometry proxy (``reference_delta``).
 * Mode 6 (partial vertebra at the border) becomes the FOV-truncation
   **condition**: ``border`` declares no mode, and ``crop_at_border``
-  is the condition's fixture, still expecting ``{border, mislabel}``.
+  is one of the condition's fixtures, still expecting
+  ``{border, mislabel}`` (item 175 added the second, ``crop_fov_si``).
 * Two observability classes are added, ``needs-ground-truth`` and
   ``needs-external-classifier``; ``bounds`` and ``reference_delta`` are
   declared for every mode their volume/extent signal can proxy.
@@ -2137,13 +2138,19 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "defect of the segmentation."
     ),
     mechanism=(
-        "The border rule records the condition end-to-end on "
+        "Two fixtures express the condition's two forms. The unexpected "
+        "in-plane form: the border rule records the condition end-to-end on "
         "crop_at_border, which crops label 22's anterior face "
         "(per_label.{label}.geometry.touches_anterior), classifying it an "
         "unexpected clip; cropping also displaces the centroid off the "
         "fitted spinal curve, so mislabel's mode-less spline-offset "
         "detector co-fires via stage3.per_label_offsets[].offset_mm. The "
-        "border rule declares no failure mode. The exemptions the condition "
+        "expected cranio-caudal form: crop_fov_si crops the volume at the "
+        "inferior face through label 24 "
+        "(per_label.{label}.geometry.touches_inferior); the border rule "
+        "suppresses that expected FOV-end touch, and bounds fires on the "
+        "truncated remnant's volume and extent. The border rule declares no "
+        "failure mode. The exemptions the condition "
         "grants today: mislabel's spline-offset detector skips terminal "
         "entries (stage3.per_label_offsets[].is_terminal), and coverage's "
         "border-aware span check resolves the covered span through the "
@@ -2174,7 +2181,24 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
                 "anterior image face, and mislabel, because the crop "
                 "displaces the centroid off the fitted spinal curve. Both "
                 "are the condition's recorded signature; neither names a "
-                "failure mode."
+                "failure mode. An anterior clip is the rare crop direction: "
+                "the case is kept for border coverage, not for realism "
+                "(maintainer, 2026-09-24)."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="crop_fov_si",
+            corpus="geometric",
+            expected_firing=("bounds",),
+            reason=(
+                "pipeline-detected; measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-24, "
+                "item 175): the inferior image face cuts label 24 (L5) -- "
+                "the S-I FOV crop, the common form of the condition. border "
+                "suppresses the touch as an expected FOV end, so it does not "
+                "fire; bounds fires on the truncated remnant's volume and "
+                "extent_z. That bounds firing is what the border gating of "
+                "the size rules (roadmap Stage 33 D3) will remove."
             ),
         ),
     ),

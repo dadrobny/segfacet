@@ -19,7 +19,14 @@ for a condition) and the offending label(s):
   overhang, so ``touches_<face>`` becomes ``True`` and
   :class:`~segfacet.heuristics.border.BorderRule` (item 031) fires a
   label-attributed ``"Partial vertebra clipped by FOV:"`` finding (the
-  FOV-truncation condition, not a failure mode).
+  FOV-truncation condition, not a failure mode). It is an in-plane clip
+  made by translation, not a crop of the volume, and is kept because it is
+  the corpus's only ``border`` firing (item 175).
+* :class:`CropFovPerturbation` (``"crop_fov"``, item 175) -- crops the whole
+  volume at a named face (resolved from the affine) with the smallest
+  whole-slice cut removing at least a given fraction of a target label; the
+  output is a smaller grid with a translated affine, so every kept voxel
+  stays at its world position (the FOV-truncation condition).
 * :class:`ForceOverlapPerturbation` (``"force_overlap"``) -- shifts an
   entire target body along the stacking (superior-inferior) axis -- resolved
   from the target volume's own affine (item 116), not a hardcoded index --
@@ -38,7 +45,9 @@ Implemented strictly against the unchanged item-036 contract (``Perturbation``,
 ``synth/component_shape.py`` are not modified (the shared-helper idioms
 below are reimplemented locally to keep this file merge-safe alongside the
 parallel 037/039 work). Every operator is seeded/deterministic, non-mutating
-of the caller's input, and preserves dtype/shape/affine/spacing.
+of the caller's input, and preserves dtype/shape/affine/spacing -- except
+``crop_fov``, which by design returns a smaller grid with a translated affine
+(dtype and spacing preserved).
 """
 
 from __future__ import annotations
@@ -65,6 +74,7 @@ from segfacet.synth.perturbation import (
 __all__ = [
     "RemoveLevelPerturbation",
     "CropAtBorderPerturbation",
+    "CropFovPerturbation",
     "ForceOverlapPerturbation",
 ]
 
@@ -411,6 +421,107 @@ class CropAtBorderPerturbation(Perturbation):
                 "touching, clipping the overhang. Exhibits the FOV-truncation "
                 "CONDITION (item 150: retired failure mode 6), not a failure "
                 "mode; the border rule records it."
+            ),
+        )
+        return PerturbationResult(labelmap=out_img, expectation=expectation)
+
+
+# --------------------------------------------------------------------------- #
+# CropFovPerturbation (item 175)
+# --------------------------------------------------------------------------- #
+
+
+@register_perturbation
+class CropFovPerturbation(Perturbation):
+    """Crop the whole volume at a named image face (item 175).
+
+    Registered under ``"crop_fov"``. The face is resolved from the input's
+    own affine at ``apply()`` time (any of the six faces). The cut is the
+    smallest number of whole slices, counted from the target's face-side
+    extreme, whose target voxel count reaches at least
+    ``removed_fraction x N``; every slice from the face through the last
+    counted slice is removed. The output is a fresh copy of the remaining
+    sub-block of the input grid, its affine translated so every kept voxel
+    keeps its world position -- a true field-of-view crop, not a translation.
+
+    Rejects ``removed_fraction`` outside (0, 1), an input with no labels, an
+    absent target, and a cut that would remove every slice of the target.
+    """
+
+    name = "crop_fov"
+
+    def __init__(
+        self,
+        *,
+        target_label: Optional[int] = None,
+        face: str = "inferior",
+        removed_fraction: float = 0.65,
+    ):
+        _validate_face_name(face)
+        if not 0.0 < removed_fraction < 1.0:
+            raise FacetInputError(
+                "CropFovPerturbation requires 0 < removed_fraction < 1, got "
+                f"{removed_fraction!r}."
+            )
+        self._target_label = target_label
+        self._face = face
+        self._removed_fraction = float(removed_fraction)
+
+    def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
+        axis, side = resolve_face(labelmap.affine, self._face)
+
+        labels = _present_labels(labelmap)
+        if not labels:
+            raise FacetInputError(
+                "CropFovPerturbation requires at least one present label; "
+                "the input segmentation has none."
+            )
+        if self._target_label is not None:
+            _require_present(self._target_label, labels, what="target_label")
+            target = self._target_label
+        else:
+            target = _choose_label(labels, seed)
+
+        data = np.asanyarray(labelmap.dataobj)
+        size = data.shape[axis]
+        counts = np.bincount(np.argwhere(data == target)[:, axis], minlength=size)
+        if side == "high":
+            counts = counts[::-1]
+        n = int(counts.sum())
+        cumulative = np.cumsum(counts)
+        # Slices removed, counted from the face: index of the first slice at
+        # which the cumulative count reaches the fraction, plus one.
+        n_cut = int(np.argmax(cumulative >= self._removed_fraction * n)) + 1
+        if cumulative[n_cut - 1] >= n:
+            raise FacetInputError(
+                f"CropFovPerturbation: removing {self._removed_fraction!r} of "
+                f"target label {target!r} at the {self._face!r} face needs "
+                "every slice of the target -- the crop would delete it."
+            )
+
+        index: List[slice] = [slice(None)] * 3
+        index[axis] = slice(n_cut, None) if side == "low" else slice(0, size - n_cut)
+        cropped = labelmap.slicer[tuple(index)]
+        out_img = nib.Nifti1Image(
+            np.array(np.asanyarray(cropped.dataobj), copy=True),
+            np.array(cropped.affine, copy=True),
+        )
+
+        removed = n - int(np.count_nonzero(np.asanyarray(out_img.dataobj) == target))
+        expectation = Expectation(
+            failure_mode=CLEAN_CONTROL_MODE,
+            failure_mode_name=FOV_TRUNCATION_CONDITION_NAME,
+            condition=FOV_TRUNCATION_CONDITION,
+            expected_rule_ids=frozenset({"bounds"}),
+            expected_labels=frozenset({target}),
+            expected_verdict="flagged-for-review",
+            detail=(
+                f"crop_fov: cropped the volume at the {self._face!r} face, "
+                f"removing {n_cut} whole slice(s) to take at least "
+                f"{self._removed_fraction!r} of target label {target} "
+                f"({removed} of {n} voxels removed); output shape "
+                f"{tuple(int(s) for s in out_img.shape)!r}. Exhibits the "
+                "FOV-truncation CONDITION, not a failure mode."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)

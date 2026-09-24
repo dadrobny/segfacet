@@ -81,7 +81,7 @@ from segfacet.eval.harness import EvaluationCase, evaluate_cohort
 from segfacet.eval.metrics import CohortMetrics, compute_cohort_metrics
 from segfacet.io import FacetInputError
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import load_manifest
+from segfacet.synth.corpus import crop_to_grid, load_manifest
 from segfacet.synth.perturbation import FAILURE_MODE_NAMES, get_perturbation
 from segfacet.synth.regression import loaded_seg_image
 
@@ -333,7 +333,10 @@ def _build_corpus_cohort():
         eval_cases.append(
             EvaluationCase(
                 case_id=case["case_id"],
-                gt=gt_img,
+                # Item 175 (2026-09-24): each case's GT is the clean control
+                # on that case's own grid (crop_fov_si is a volume crop);
+                # clean_control itself for every base-grid case.
+                gt=crop_to_grid(gt_img, candidate_img),
                 candidate=candidate_img,
                 expected=case,
             )

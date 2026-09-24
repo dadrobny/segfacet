@@ -63,7 +63,7 @@ import segfacet.heuristics.mislabel  # noqa: F401 -- triggers MislabelRule regis
 from segfacet.heuristics import run_rules
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import load_manifest
+from segfacet.synth.corpus import crop_to_grid, load_manifest
 from segfacet.synth.golden import build_report_for_case, write_goldens
 from segfacet.synth.regression import (
     loaded_seg_image,
@@ -743,7 +743,15 @@ def _corpus_cohort_metrics():
             gt_img if case["case_id"] == "clean_control" else loaded_seg_image(case)
         )
         eval_cases.append(
-            EvaluationCase(case_id=case["case_id"], gt=gt_img, candidate=candidate_img, expected=case)
+            EvaluationCase(
+                case_id=case["case_id"],
+                # Item 175 (2026-09-24): each case's GT is the clean control
+                # on that case's own grid (crop_fov_si is a volume crop);
+                # clean_control itself for every base-grid case.
+                gt=crop_to_grid(gt_img, candidate_img),
+                candidate=candidate_img,
+                expected=case,
+            )
         )
     evaluation = evaluate_cohort(eval_cases, bundled_default_config())
     return compute_cohort_metrics(evaluation, failure_modes=FAILURE_MODE_NAMES)
@@ -768,11 +776,15 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     and the per-mode breakdown gains mode 3 at 1.0.
     Re-measured 2026-09-23 (item 174) -- mode 3's `split_own_label` case is
     the eleventh expected-failure record and is caught, so overall
-    sensitivity is 10/11; mode 3 stays at 1.0 over two cases. The test name
+    sensitivity is 10/11; mode 3 stays at 1.0 over two cases.
+    Re-measured 2026-09-24 (item 175) -- the `crop_fov_si` condition case is
+    the twelfth expected-failure record and is caught, so overall
+    sensitivity is 11/12; mode 0 stays at 1.0 over two cases. The test name
     keeps the old value."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
-    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
+    # Item 175 (2026-09-24): 10/11 -> 11/12.
+    assert metrics.sensitivity == pytest.approx(11.0 / 12.0)
 
     expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
     for mode, expected in expected_sensitivity.items():
@@ -780,7 +792,8 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
     # Item 174 (2026-09-23): 10 -> 11.
-    assert sum(m.n_cases for m in metrics.per_mode) == 11
+    # Item 175 (2026-09-24): 11 -> 12.
+    assert sum(m.n_cases for m in metrics.per_mode) == 12
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

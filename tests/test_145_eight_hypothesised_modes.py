@@ -884,10 +884,12 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
     expectation = _case(condition, "crop_at_border")
     assert set(case["expected_rule_ids"]) <= set(expectation.expected_firing)
 
-    # Every other manifest case names no condition, so the key is a real
+    # Only the two FOV crops name a condition, so the key is a real
     # discriminator rather than a field that is always set.
+    # Item 175 (2026-09-24): ["crop_at_border"] -> ["crop_at_border",
+    # "crop_fov_si"], in manifest order.
     conditioned = [c["case_id"] for c in _manifest_cases() if c.get("condition")]
-    assert conditioned == ["crop_at_border"], conditioned
+    assert conditioned == ["crop_at_border", "crop_fov_si"], conditioned
 
 
 # =========================================================================== #

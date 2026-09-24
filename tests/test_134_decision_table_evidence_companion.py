@@ -560,13 +560,17 @@ _ITEM_126_INVENTORY_COUNT = 20
 #: Added by item 150 (2026-09-14): corpus segmentations for the signed-off
 #: catalogue's modes 2 and 4. Added by item 166 (2026-09-20): mode 3's split
 #: fixture. Added by item 174 (2026-09-23): mode 3's split_own_label
-#: fixture. Named rather than counted, so a fixture added
+#: fixture. Added by item 175 (2026-09-24): crop_fov_si's seg and scan
+#: fixtures. Named rather than counted, so a fixture added
 #: for any *other* reason still fails this test.
 _INVENTORY_ADDED_AFTER_126 = {
     "tests/corpus/fixtures/fuse_adjacent_seg.nii.gz",
     "tests/corpus/fixtures/remove_level_relabel_seg.nii.gz",
     "tests/corpus/fixtures/split_seg.nii.gz",
     "tests/corpus/fixtures/split_own_label_seg.nii.gz",
+    # Item 175 (2026-09-24): the S-I FOV crop's seg and its own scan.
+    "tests/corpus/fixtures/crop_fov_si_seg.nii.gz",
+    "tests/corpus/fixtures/crop_fov_si_scan.nii.gz",
 }
 
 

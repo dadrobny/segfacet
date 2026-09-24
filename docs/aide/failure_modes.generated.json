@@ -20,7 +20,16 @@
             "border",
             "mislabel"
           ],
-          "reason": "pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-14): border, because the cropped label 22 (L3) touches the anterior image face, and mislabel, because the crop displaces the centroid off the fitted spinal curve. Both are the condition's recorded signature; neither names a failure mode."
+          "reason": "pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-14): border, because the cropped label 22 (L3) touches the anterior image face, and mislabel, because the crop displaces the centroid off the fitted spinal curve. Both are the condition's recorded signature; neither names a failure mode. An anterior clip is the rare crop direction: the case is kept for border coverage, not for realism (maintainer, 2026-09-24)."
+        },
+        {
+          "agrees": true,
+          "case_id": "crop_fov_si",
+          "corpus": "geometric",
+          "expected_firing": [
+            "bounds"
+          ],
+          "reason": "pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-24, item 175): the inferior image face cuts label 24 (L5) -- the S-I FOV crop, the common form of the condition. border suppresses the touch as an expected FOV end, so it does not fire; bounds fires on the truncated remnant's volume and extent_z. That bounds firing is what the border gating of the size rules (roadmap Stage 33 D3) will remove."
         }
       ],
       "definition": "A vertebra at the edge of the imaging field of view is only partially captured: its label touches an image face, its geometry is impacted to a varying degree (overall size, connectedness, shape), and the missing region displaces its measured centroid. Many rules cannot be applied to such a vertebra unless the missing region has little impact. A vertebra at a cranio-caudal FOV end is the expected form; an in-plane (left/right/anterior/posterior) clip is the unexpected form. Retired as failure mode 6 at the item-150 sign-off (2026-09-14): a condition on the case, not a defect of the segmentation.",
@@ -29,7 +38,7 @@
         "coverage"
       ],
       "id": "fov_truncation",
-      "mechanism": "The border rule records the condition end-to-end on crop_at_border, which crops label 22's anterior face (per_label.{label}.geometry.touches_anterior), classifying it an unexpected clip; cropping also displaces the centroid off the fitted spinal curve, so mislabel's mode-less spline-offset detector co-fires via stage3.per_label_offsets[].offset_mm. The border rule declares no failure mode. The exemptions the condition grants today: mislabel's spline-offset detector skips terminal entries (stage3.per_label_offsets[].is_terminal), and coverage's border-aware span check resolves the covered span through the FOV-end labels.",
+      "mechanism": "Two fixtures express the condition's two forms. The unexpected in-plane form: the border rule records the condition end-to-end on crop_at_border, which crops label 22's anterior face (per_label.{label}.geometry.touches_anterior), classifying it an unexpected clip; cropping also displaces the centroid off the fitted spinal curve, so mislabel's mode-less spline-offset detector co-fires via stage3.per_label_offsets[].offset_mm. The expected cranio-caudal form: crop_fov_si crops the volume at the inferior face through label 24 (per_label.{label}.geometry.touches_inferior); the border rule suppresses that expected FOV-end touch, and bounds fires on the truncated remnant's volume and extent. The border rule declares no failure mode. The exemptions the condition grants today: mislabel's spline-offset detector skips terminal entries (stage3.per_label_offsets[].is_terminal), and coverage's border-aware span check resolves the covered span through the FOV-end labels.",
       "name": "FOV truncation (partial vertebra at the image border)",
       "recording_rules": [
         "border"

@@ -125,6 +125,90 @@
       1.0
     ]
   },
+  "corpus/fixtures/crop_fov_si_scan.nii.gz|scan": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        35.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "d23fd8fd2a20a9a306ec49200e0bea2ebdb97049de8e4fdfcf4856eb24f426fc",
+    "dtype": "float64",
+    "integer_labels": false,
+    "path": "corpus/fixtures/crop_fov_si_scan.nii.gz",
+    "shape": [
+      61,
+      86,
+      158
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/crop_fov_si_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        35.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "e1c6b64925eaf8d6e16fa1a003f324aba60799909b7fa9966795728452e3cd44",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/crop_fov_si_seg.nii.gz",
+    "shape": [
+      61,
+      86,
+      158
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "corpus/fixtures/displace_seg.nii.gz|seg": {
     "affine": [
       [
