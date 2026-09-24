@@ -240,6 +240,7 @@ attested by D6.
 - `tests/test_120_leave_one_out_offset.py` — reconciliation (a) AC6 and (b) AC17.
 - `tests/test_131_tangent_direction_normalisation.py` — reconciliation (a): three `displace` rows.
 - `tests/test_132_monotonicity_against_traversal_order.py` — reconciliation (a): the `displace` u-values.
+- `tests/corpus/094_pre_migration_snapshot.json` — regenerated artifact: the `displace_seg` entry's `data_sha256` only (amendment 2026-09-24, Testing Strategy entry 7).
 
 **The reconciliation fence.** It applies to the listed `tests/test_*.py` files
 other than this item's own module. **The builder** does the reconciliation,
@@ -457,6 +458,42 @@ comment quoting "displace 18.7 mm", `src/segfacet/heuristics/mislabel.py`'s
 docstring (A5), and `identity_ordering_alignment.py`'s
 `_DEFAULT_DISPLACEMENT_MM` comment, which still names a 15.0 mm threshold
 (the builder may correct it, since the file is under May change).
+
+**Amendment (2026-09-24, after the builder's hand-back B6; entries 1–6, the
+sweep's scope and the paths kept off May change stand as the record the item
+was specified from).** The 2026-09-24 sweep searched `tests/` for tests naming
+`displace` and for the old values' literals. It missed one test because that
+test names no case and holds no literal. It reads the fixture's content hash
+from a committed snapshot file:
+
+7. **`tests/corpus/094_pre_migration_snapshot.json`**, a regenerated artifact,
+   not a test edit. Red without it:
+   `tests/test_094_tptbox_image_layer.py::test_ac3_fixture_loads_byte_identically_to_pre_migration_snapshot[corpus/fixtures/displace_seg.nii.gz|seg]`,
+   which compares each fixture's loaded-data sha256 against this snapshot.
+   - **What changes.** The builder re-captures only the
+     `corpus/fixtures/displace_seg.nii.gz|seg` entry's `data_sha256` from the
+     regenerated fixture. Measured in B6:
+     `e8d5dfeeb6445bedd2f8522b8dd393a767e440b12df1b6fdf99be26ff5c0bd33` →
+     `aaf0c2c714b6429419572a121bf114ac0178c90c1a18c00e05ff792dd1ea6839`.
+   - **What stays unchanged.** That entry's other fields (`path`,
+     `integer_labels`, `shape` (61, 86, 193), `dtype` `int64`, `spacing`,
+     `affine`) and every other entry stay byte-for-byte unchanged. The
+     re-captured file's diff against the base is that one line.
+   - **Method.** It is the item 143 method, restated as item 173 step 4. A
+     throwaway script mirrors `test_094`'s own reader: it loads each fixture
+     through `segfacet.io.load_volume` with its recorded `integer_labels`,
+     takes `sha256` over `np.ascontiguousarray(data).tobytes()`, and writes
+     `json.dumps(..., indent=2, sort_keys=True).encode() + b"\n"` with
+     `write_bytes`. The script is not committed. Every entry but `displace_seg`
+     must come out identical, and that is also the check on the method. If any
+     other entry moves, hand back to spec-author; do not commit it.
+   - **Line endings.** The file is already pinned `text eol=lf` in
+     `.gitattributes` (line 16, `tests/corpus/094_pre_migration_snapshot.json`),
+     so `.gitattributes` stays off May change. Writing bytes with `\n` keeps it
+     byte-clean on a Windows checkout (CLAUDE.md, Gotchas).
+   - **`tests/test_094_tptbox_image_layer.py` is not edited.** It is not
+     under May change and needs no change. Items 173, 174 and 175 each
+     re-captured this snapshot when they regenerated fixtures.
 
 ## Validation
 
