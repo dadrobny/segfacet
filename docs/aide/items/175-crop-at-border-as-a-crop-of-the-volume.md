@@ -442,6 +442,28 @@ Adversarial cases, each written once:
   base with target 24 raises `FacetInputError`. The test first asserts, from
   the input array, that reaching 99 % needs every slice of label 24. This
   guards a returned map that silently lacks its target label.
+  - **Correction (2026-09-24).** The rule in A2 stands; the fraction 0.99 is
+    wrong. On the default base, label 24 has N = 19 344 voxels over 34 slices,
+    and the cut from the inferior face reaches 0.99199 of N after 32 slices.
+    So 0.99 removes 32 of 34 slices, which is a legal crop, and the test's
+    precondition (`slices_needed == len(distinct_indices)`) fails as 32 == 34.
+    The case now derives its fraction from the live input array instead of a
+    literal, so no change to the corpus can make a literal stop needing every
+    slice. The test computes, from `build_clean_spine().seg_img`:
+    1. `axis, side = resolve_face(affine, "inferior")`.
+    2. The per-slice voxel counts of label 24 along `axis`, over the slices
+       that hold it, ordered from the face side (reversed when `side == "high"`).
+    3. `n` is their sum, and `c_far` is the count on the last slice in that
+       order, the one farthest from the face.
+    4. `fraction = (n - c_far + 0.5) / n`. Every slice but the farthest holds
+       `n - c_far` voxels, which is less than `fraction × n`, so the cut must
+       take every slice. The measured value is 0.99682, with `c_far` = 62.
+
+    It then asserts, in order: `0 < fraction < 1`, so the out-of-range refusal
+    cannot be what fires; the at-least walk of step 2 up to `fraction × n`
+    counts every slice (`slices_needed == len(distinct_indices)`); and
+    `CropFovPerturbation(target_label=24, face="inferior", removed_fraction=fraction).apply(base, 0)`
+    raises `FacetInputError`. The failure mode it guards is unchanged.
 - **`crop-absent-target-refused`**: `target_label=999` raises
   `FacetInputError`. This guards a silent fallback to the seeded choice.
 - **`grid-helper-refuses-non-subgrid`**: `crop_to_grid(default base, grid)`,
