@@ -1350,7 +1350,6 @@
           "documented": true,
           "failure_modes": [
             1,
-            2,
             3,
             4
           ],
@@ -1427,7 +1426,6 @@
           "documented": true,
           "failure_modes": [
             1,
-            2,
             3,
             4
           ],
@@ -1552,7 +1550,6 @@
           "documented": true,
           "failure_modes": [
             1,
-            2,
             3,
             4
           ],
@@ -1628,7 +1625,6 @@
           "documented": true,
           "failure_modes": [
             1,
-            2,
             3,
             4
           ],
@@ -1799,7 +1795,6 @@
           "documented": true,
           "failure_modes": [
             1,
-            2,
             3,
             4
           ],
@@ -1873,7 +1868,6 @@
           "documented": true,
           "failure_modes": [
             1,
-            2,
             3,
             4
           ],
@@ -2516,7 +2510,6 @@
           ],
           "documented": true,
           "failure_modes": [
-            2,
             6
           ],
           "measures": "Canonical levels absent within the observed present-level span.",
@@ -2715,7 +2708,6 @@
           ],
           "documented": true,
           "failure_modes": [
-            2,
             6
           ],
           "measures": "Recognised anatomical levels, in canonical head-to-tail order.",

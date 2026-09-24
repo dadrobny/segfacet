@@ -230,10 +230,14 @@ CASE_RECIPE: List[_RecipeEntry] = [
     # Case ids name the case's perturbation operator, like the cases above
     # (item 157 dropped their stale "modeN_" prefixes); the manifest's
     # failure_mode field is the authority.
+    # Item 176 (2026-09-24): fuse_adjacent is the bridged, renumbered fuse --
+    # one connected label over L3 + L4, with L5 renumbered 23 so the sequence
+    # stays continuous. ``bridged`` is written explicitly so a later change of
+    # the operator's default cannot move the committed fixture.
     _RecipeEntry(
         case_id="fuse_adjacent",
         perturbation="fuse",
-        perturbation_params={"target_label": 22, "neighbour_label": 23},
+        perturbation_params={"target_label": 22, "neighbour_label": 23, "bridged": True},
         detection="pipeline",
     ),
     _RecipeEntry(

@@ -452,7 +452,10 @@ def test_fuse_adjacent_stays_silent():
     seg_img = loaded_seg_image(case)
     config = bundled_default_config()
     info = compute_components(seg_img, 22, config)
-    assert info.component_count > 1, "expected label 22 to carry a detached component"
+    # Item 176 (2026-09-24): premise re-derived -- the bridged fuse leaves
+    # label 22 one connected component over two bodies (was "> 1", a detached
+    # absorbed neighbour), so there is no stray component to measure.
+    assert info.component_count == 1, "expected the fused label 22 to be one component"
     assert info.stray_contact_area_mm2 == 0.0
 
 

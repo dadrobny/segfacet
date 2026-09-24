@@ -88,8 +88,10 @@ from segfacet.synth.regression import loaded_seg_image
 #: label") has no corpus case; the crop case files under failure_mode 0 with
 #: the fov_truncation condition. Item 166 (2026-09-20) added mode 3
 #: (split): its case designates fragmentation as a co-detection and is
-#: caught by plain run_qc.
-_PIPELINE_DETECTABLE_MODES = (1, 2, 3, 4, 6, 9)
+#: caught by plain run_qc. Item 176 (2026-09-24): mode 2 dropped out -- its
+#: only case, fuse_adjacent, is now bridged and renumbered, designates no rule
+#: and expects "pass" (1, 2, 3, 4, 6, 9) -> (1, 3, 4, 6, 9).
+_PIPELINE_DETECTABLE_MODES = (1, 3, 4, 6, 9)
 #: Modes documented as structurally invisible to the plain pipeline (overlap,
 #: mode 15 since item 150's 2026-09-15 catalogue revision).
 _RECONSTRUCTED_RECORD_MODES = (15,)
@@ -191,13 +193,15 @@ def test_reconstructed_record_modes_are_not_over_claimed_as_caught(mode):
 
 
 def test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed():
-    """Updated 2026-09-24 (item 175): overall cohort sensitivity
-    (TP / (TP + FN)) is 11/12 over the corpus -- twelve
+    """Updated 2026-09-24 (item 176): overall cohort sensitivity
+    (TP / (TP + FN)) is 10/11 over the corpus -- eleven
     expected-failure records (the two fov_truncation condition cases file
     under failure_mode 0 and still expect a verdict; remove_level_relabel
-    expects "pass" and is not an expected-failure record), eleven caught, the
-    one reconstructed-record mode (overlap, mode 15) missed -- not 1.0
-    (Assumptions). Was 10/11 from item 174 to item 175 (the crop_fov_si
+    and fuse_adjacent expect "pass" and are not expected-failure records),
+    ten caught, the one reconstructed-record mode (overlap, mode 15) missed
+    -- not 1.0 (Assumptions). Was 11/12 from item 175 to item 176 (the
+    bridged fuse_adjacent became an expected-"pass" case). Was 10/11 from
+    item 174 to item 175 (the crop_fov_si
     condition case added the twelfth expected-failure record and is caught).
     Was 9/10 from item 166 to item 174 (mode 3's
     split_own_label case added the eleventh expected-failure record and is
@@ -207,7 +211,8 @@ def test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed():
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
-    assert metrics.sensitivity == pytest.approx(11.0 / 12.0)
+    # Item 176 (2026-09-24): 11/12 -> 10/11.
+    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
 
 
 # =========================================================================== #

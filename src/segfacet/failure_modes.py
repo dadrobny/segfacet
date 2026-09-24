@@ -1018,13 +1018,13 @@ _MODE_2 = ModeSpec(
         "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
         "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both edges needs-real-data. The corpus case fuse_adjacent absorbs "
-        "label 23 (L4) into 22 (L3) unbridged, so what fires today is "
-        "fragmentation's Fragmentation: detector "
-        "(per_label.{label}.components.fragmentation_index) and coverage's "
-        "interior-gap detector (relationships.missing_levels[]) -- mode 1's "
-        "and mode 6's detectors co-detecting, recorded, not this mode's "
-        "own."
+        "both edges needs-real-data. The corpus case fuse_adjacent (item "
+        "176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label "
+        "over two bodies, with L5 renumbered 23 so the sequence stays "
+        "continuous -- and fires nothing: its signature is the doubled "
+        "inter-centroid spacing around the fused label "
+        "(stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), "
+        "which no shipped rule reads."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1073,16 +1073,18 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_adjacent",
             corpus="geometric",
-            expected_firing=("coverage", "fragmentation"),
+            expected_firing=(),
             reason=(
-                "pipeline-detected by co-detections only, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
-                "the fused label 22 spans two disconnected bodies "
-                "(fragmentation, Fragmentation:, mode 1's detector) and the "
-                "absorbed level L4 is missing from the interior of the span "
-                "(coverage, Missing interior level(s):, mode 6's detector). "
-                "Neither of this mode's own intended rules fires without a "
-                "reference, so the case does not validate mode 2."
+                "fires nothing, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-24, "
+                "item 176): the bridged, renumbered map is one connected "
+                "label 22 over two bodies with a continuous label sequence, "
+                "so no shipped rule fires. Mode 2's own signal is the "
+                "inter-centroid spacing around the fused label "
+                "(stage3.spacing_consistency.spacings_mm[], about 1.5x the "
+                "pitch); no shipped rule reads that spacing, and the rule "
+                "that would is left to a later per-mode queue (roadmap "
+                "Stage 33). An empty expected set never validates a mode."
             ),
         ),
     ),
@@ -1128,8 +1130,9 @@ _MODE_3 = ModeSpec(
         "threshold) and every other label of every other case measures "
         "0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), "
         "whose contacting components are each label's largest, and "
-        "fuse_adjacent (mode 2, this mode's converse), whose absorbed "
-        "neighbour is detached but touches nothing. On the split corpus "
+        "fuse_adjacent (mode 2, this mode's converse), whose fused label is "
+        "a single component, so it has no stray component to measure "
+        "(item 176). On the split corpus "
         "case, label 24 carries this mode's own Neighbour contact: finding "
         "alone: mode 1's Fragmentation: detector (per_label.{label}."
         "components.fragmentation_index) stays silent at 0.8276, above its "

@@ -364,21 +364,17 @@
       },
       "case_id": "fuse_adjacent",
       "condition": "",
-      "detail": "fuse: absorbed neighbour label 23 into target label 22; 23 is no longer present. Mode 2 (fused or split vertebra segments) of the catalogue signed off at item 150; what plain run_qc fires on it today are co-detections -- fragmentation on the two disconnected bodies under one label, coverage on the absorbed level missing from the span -- not mode 2's own bounds / reference_delta proxies, which need a reference.",
+      "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the inter-centroid spacing around the fused label, is read by no shipped rule, so no rule is designated.",
       "detection": "pipeline",
-      "expected_labels": [
-        22
-      ],
-      "expected_rule_ids": [
-        "coverage",
-        "fragmentation"
-      ],
-      "expected_verdict": "flagged-for-review",
+      "expected_labels": [],
+      "expected_rule_ids": [],
+      "expected_verdict": "pass",
       "failure_mode": 2,
       "failure_mode_name": "fused vertebra segments",
       "kind": "failure",
       "perturbation": "fuse",
       "perturbation_params": {
+        "bridged": true,
         "neighbour_label": 23,
         "target_label": 22
       },

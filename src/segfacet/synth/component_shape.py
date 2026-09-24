@@ -12,11 +12,13 @@ failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
   perpendicular to the stacking axis -- resolved from the target volume's own
   affine (item 116), not a hardcoded index -- preserving the label's
   bounding box. Drives the fragmentation-kind ``"fragmentation"`` finding.
-* :class:`FusePerturbation` (``"fuse"``) -- merges an adjacent label pair:
-  the neighbour's voxels are re-labelled onto the target, leaving the target
-  spanning two disconnected bodies. Drives the same fragmentation-kind
-  finding on the surviving label (see the item spec's Assumptions for why
-  the shipped default lumbar ``bounds`` cannot fire on a two-label fuse).
+* :class:`FusePerturbation` (``"fuse"``) -- merges an adjacent label pair.
+  The default (unbridged) form re-labels the neighbour's voxels onto the
+  target, leaving it spanning two disconnected bodies; it is kept for the
+  supplementary severity ladder. ``bridged=True`` (item 176) also fills the
+  gap between the pair and renumbers every caudal label one position up:
+  one connected label over two bodies with a continuous sequence, mode 2's
+  corpus fixture ``fuse_adjacent``.
 * :class:`InjectIslandsPerturbation` (``"inject_islands"``) -- adds one or
   more tiny (default 27-voxel, 3x3x3) disconnected components to a target
   label in verified-empty space, inset from every FOV face and separated
@@ -99,9 +101,11 @@ def _new_image(data: np.ndarray, labelmap: nib.Nifti1Image) -> nib.Nifti1Image:
     Never mutates the caller's array; *data* must already be a private copy.
     Spacing/affine are read only from *labelmap* (matching
     :class:`~segfacet.synth.perturbation.IdentityPerturbation`'s pattern).
+    The explicit ``dtype`` keeps an ``int64`` array (what ``load_case``
+    returns) from being refused by nibabel (item 176).
     """
     affine = np.array(labelmap.affine, copy=True)
-    return nib.Nifti1Image(data, affine)
+    return nib.Nifti1Image(data, affine, dtype=data.dtype)
 
 
 def _label_bbox(data: np.ndarray, label: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -264,15 +268,21 @@ class FragmentPerturbation(Perturbation):
 
 @register_perturbation
 class FusePerturbation(Perturbation):
-    """Merge an adjacent label pair into a single, two-body label.
+    """Merge an adjacent label pair into a single label.
 
-    Registered under ``"fuse"``. The neighbour's voxels are re-labelled onto
-    the target (unbridged -- the physical gap is not filled), leaving the
-    target spanning two disconnected vertebra bodies. Drives the
-    fragmentation-kind finding on the surviving label (filed under
-    specification mode 2, fused vertebra segments, which that finding only
-    co-detects; see the
-    item spec's Assumptions for why not ``bounds``).
+    Registered under ``"fuse"``. The default (``bridged=False``) form
+    re-labels the neighbour's voxels onto the target (unbridged -- the
+    physical gap is not filled), leaving the target spanning two disconnected
+    vertebra bodies; it co-detects as ``fragmentation`` and ``coverage`` and
+    is kept byte for byte for the supplementary severity ladder
+    (``segfacet.eval.severity_ladder``).
+
+    ``bridged=True`` (item 176) is mode 2's corpus fixture: every background
+    voxel strictly between the pair's facing ends, column by column along the
+    affine-resolved stacking axis, is set to the target; the neighbour is
+    relabelled onto the target; and every present label greater than the
+    neighbour is renumbered to the present label before it, so the sequence
+    stays continuous. The neighbour must be the next-higher present label.
     """
 
     name = "fuse"
@@ -282,9 +292,11 @@ class FusePerturbation(Perturbation):
         *,
         target_label: Optional[int] = None,
         neighbour_label: Optional[int] = None,
+        bridged: bool = False,
     ):
         self._target_label = target_label
         self._neighbour_label = neighbour_label
+        self._bridged = bool(bridged)
 
     def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
         labels = _present_labels(labelmap)
@@ -314,17 +326,13 @@ class FusePerturbation(Perturbation):
         else:
             target, neighbour = _choose_adjacent_pair(labels, seed)
 
-        data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
-        data[data == neighbour] = target
-        out_img = _new_image(data, labelmap)
-
-        expectation = Expectation(
-            failure_mode=2,
-            failure_mode_name=FAILURE_MODE_NAMES[2],
-            expected_rule_ids=frozenset({"coverage", "fragmentation"}),
-            expected_labels=frozenset({target}),
-            expected_verdict="flagged-for-review",
-            detail=(
+        if not self._bridged:
+            data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
+            data[data == neighbour] = target
+            rule_ids = frozenset({"coverage", "fragmentation"})
+            offending = frozenset({target})
+            verdict = "flagged-for-review"
+            detail = (
                 f"fuse: absorbed neighbour label {neighbour} into target "
                 f"label {target}; {neighbour} is no longer present. Mode 2 "
                 "(fused or split vertebra segments) of the catalogue signed "
@@ -333,7 +341,69 @@ class FusePerturbation(Perturbation):
                 "bodies under one label, coverage on the absorbed level "
                 "missing from the span -- not mode 2's own bounds / "
                 "reference_delta proxies, which need a reference."
-            ),
+            )
+        else:
+            if labels.index(neighbour) != labels.index(target) + 1:
+                raise FacetInputError(
+                    f"FusePerturbation(bridged=True): neighbour_label={neighbour!r} "
+                    f"must be the next-higher present label after "
+                    f"target_label={target!r} in {labels!r}, or the caudal "
+                    "renumbering would relabel the target itself."
+                )
+            orig = np.asanyarray(labelmap.dataobj)
+            data = np.array(orig, copy=True)
+            axis = si_axis(labelmap.affine)
+
+            # Column walk on a view of the private copy, stacking axis last.
+            cols = np.moveaxis(data, axis, -1)
+            t_mask, n_mask = cols == target, cols == neighbour
+            idx = np.arange(cols.shape[-1])
+            both = t_mask.any(-1) & n_mask.any(-1)
+            neighbour_low = float(np.nonzero(n_mask)[-1].mean()) < float(
+                np.nonzero(t_mask)[-1].mean()
+            )
+            low, high = (n_mask, t_mask) if neighbour_low else (t_mask, n_mask)
+            lo = np.where(low, idx, -1).max(-1) + 1  # after the low label's facing end
+            hi = np.where(high, idx, idx.size).min(-1)  # the high label's facing end
+            bridge = (
+                both[..., None]
+                & (idx >= lo[..., None])
+                & (idx < hi[..., None])
+                & (cols == 0)
+            )
+            cols[bridge] = target
+            n_bridged = int(np.count_nonzero(bridge))
+            n_columns = int(np.count_nonzero(bridge.any(-1)))
+
+            data[orig == neighbour] = target
+            caudal = [lbl for lbl in labels if lbl > neighbour]
+            renumbered = list(zip(caudal, [neighbour] + caudal[:-1]))
+            for old, new in renumbered:
+                data[orig == old] = new
+
+            rule_ids = frozenset()
+            offending = frozenset()
+            verdict = "pass"
+            detail = (
+                f"fuse (bridged): fused neighbour label {neighbour} into target "
+                f"label {target}, filling {n_bridged} background voxels over "
+                f"{n_columns} columns along the stacking axis (array axis "
+                f"{axis}); renumbered (old, new) {renumbered}. Mode 2's own "
+                "signal, the inter-centroid spacing around the fused label, is "
+                "read by no shipped rule, so no rule is designated."
+            )
+
+        out_img = _new_image(data, labelmap)
+
+        # Computed per branch (item 176): no literal here designates mode 2 to
+        # a rule, so catalogue's literal-only scan reads none from ``fuse``.
+        expectation = Expectation(
+            failure_mode=2,
+            failure_mode_name=FAILURE_MODE_NAMES[2],
+            expected_rule_ids=rule_ids,
+            expected_labels=offending,
+            expected_verdict=verdict,
+            detail=detail,
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
 

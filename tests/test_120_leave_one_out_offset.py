@@ -766,8 +766,8 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     verdict; remove_level_relabel expects "pass" and is not an
     expected-failure record), eight detected, the overlap case the only
     miss. Re-keyed 2026-09-15 to item 150's revised catalogue: the nine
-    records file under modes 0 (crop), 1 (displace, fragment), 2 (fuse),
-    4 (islands), 6 (remove_level), 9 (relabel swap, sequence break) and
+    records file under modes 0 (crop), 1 (displace, fragment), 2 (fuse;
+    until item 176), 4 (islands), 6 (remove_level), 9 (relabel swap, sequence break) and
     15 (overlap, the miss). Mode 6's other case, remove_level_relabel, is
     not an expected-failure record, so mode 6 scores exactly one case; mode
     10 ("skipped level label") has no corpus case and scores none.
@@ -779,21 +779,27 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     sensitivity is 10/11; mode 3 stays at 1.0 over two cases.
     Re-measured 2026-09-24 (item 175) -- the `crop_fov_si` condition case is
     the twelfth expected-failure record and is caught, so overall
-    sensitivity is 11/12; mode 0 stays at 1.0 over two cases. The test name
-    keeps the old value."""
+    sensitivity is 11/12; mode 0 stays at 1.0 over two cases.
+    Re-measured 2026-09-24 (item 176) -- the bridged, renumbered
+    `fuse_adjacent` expects "pass" and is no longer an expected-failure
+    record, so overall sensitivity is 10/11 over eleven records and mode 2
+    scores no case. The test name keeps the old value."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
-    assert metrics.sensitivity == pytest.approx(11.0 / 12.0)
+    # Item 176 (2026-09-24): 11/12 -> 10/11.
+    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
 
-    expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+    # Item 176 (2026-09-24): mode 2's entry (2: 1.0) removed -- no case left.
+    expected_sensitivity = {0: 1.0, 1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
     # Item 174 (2026-09-23): 10 -> 11.
     # Item 175 (2026-09-24): 11 -> 12.
-    assert sum(m.n_cases for m in metrics.per_mode) == 12
+    # Item 176 (2026-09-24): 12 -> 11.
+    assert sum(m.n_cases for m in metrics.per_mode) == 11
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

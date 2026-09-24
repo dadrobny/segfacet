@@ -815,7 +815,17 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     ``("rule_bookkeeping",)`` alone (19 -> 20). These figures are derived from
     the item spec's Implementation Steps, not re-measured against a built
     catalogue -- the two new fields do not exist on this tree until the
-    builder implements them; the validator's live suite run is the check."""
+    builder implements them; the validator's live suite run is the check.
+
+    Re-measured (item 176, 2026-09-24) against the regenerated committed
+    catalogue: the bridged, renumbered ``fuse_adjacent`` designates no rule,
+    so the corpus-derived map drops mode 2 from ``fragmentation`` and
+    ``coverage``. The six ``fragmentation`` signal paths and
+    ``relationships.missing_levels[]`` / ``present_levels[]`` lose mode 2, so
+    mode2_count moves 15 -> 7 (the four ``bounds`` ``geometry.*`` paths plus
+    three ``reference_delta.*`` paths). The entry count (140), mode1_count
+    (14), mode16_count (2) and the ``mode_evidence`` distribution do not
+    move: each of those eight paths keeps a ``rule_mode_map`` source."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -826,7 +836,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert mode1_count == 14
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
-    assert mode2_count == 15
+    # Item 176 (2026-09-24): 15 -> 7.
+    assert mode2_count == 7
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
