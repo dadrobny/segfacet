@@ -101,6 +101,57 @@ across platforms. Two things are compared instead:
 
 None of these ACs closes a Stage 33 acceptance criterion.
 
+> **Amended 2026-09-24 — two maintainer requirements and a re-pointed test.**
+> After round 1 validated, the maintainer added, verbatim: "visualisation also
+> needs to differentiate between cropped volume (e.g. white as panel) and
+> empty background (black). Also, red outline of changes should be clearly
+> different from the currently red label." The "currently red label" is tab10
+> entry 3 (RGB 0.839, 0.153, 0.157), which the label table assigns to every
+> label `L` with `1 + (L - 1) % 9 == 4`, i.e. label 22; the pure-red outline
+> sits 0.27 from it in RGB. AC1–AC9 stand unchanged. AC10–AC15 are added
+> below. "Outside field of view" is defined per case on clean_control's grid:
+> `covered` is a bool array of clean_control's shape, `True` exactly over the
+> slab AC2 writes the case into (`start` to `start + case.shape`, `start` as
+> in AC2). A panel pixel is outside the field of view when its whole
+> projection ray is uncovered. Measured 2026-09-24: only `crop_fov_si` has a
+> non-empty mask, and it is exactly display rows 0–34 (the 35 mm inferior
+> slab item 175 cut away) in both views, 3010 sagittal and 2135 coronal pixels.
+> "RGB distance" below is the Euclidean distance between the first three
+> components of two RGBA tuples in [0, 1].
+
+- [ ] **AC10: no present label renders as background.** For every nonzero
+  label value present in any committed geometric seg fixture,
+  `corpus_sheet.label_rgba` of that value is not equal to
+  `corpus_sheet.BACKGROUND_RGBA`.
+- [ ] **AC11: the outside-FOV masks are the uncovered rays.** Every
+  `SheetPanel` carries bool arrays `sagittal_outside_fov` and
+  `coronal_outside_fov`. For every manifest case, with `covered` built by the
+  test from the two affines as defined above, `sagittal_outside_fov` equals
+  `(~covered).all(axis=0).T` and `coronal_outside_fov` equals
+  `(~covered).all(axis=1).T` (`np.array_equal`).
+- [ ] **AC12: the outside-FOV colour is distinct.**
+  `corpus_sheet.OUTSIDE_FOV_RGBA` is at RGB distance at least 0.5 from
+  `BACKGROUND_RGBA` and from each of the nine colours
+  `label_rgba(np.arange(1, 10))` produces.
+- [ ] **AC13: each panel is drawn with outside-FOV and background colours.**
+  In the `Figure` that `render_sheet(out=<tmp>.png)` returns, for every
+  manifest case and view `v` in (`sagittal`, `coronal`), the axes whose
+  `get_label()` is `f"{case_id}/{v}"` holds one image whose
+  `get_array()` equals (`np.array_equal`) the RGBA array that is
+  `OUTSIDE_FOV_RGBA` where the panel's `v_outside_fov` is `True`, else
+  `BACKGROUND_RGBA` where the panel's `v` label is 0, else `label_rgba` of
+  that label.
+- [ ] **AC14: the outline colour is distinct.** `corpus_sheet.OUTLINE_RGBA`
+  is at RGB distance at least 0.5 from `BACKGROUND_RGBA`, from
+  `OUTSIDE_FOV_RGBA`, and from each of the nine colours
+  `label_rgba(np.arange(1, 10))` produces.
+- [ ] **AC15: every outline is drawn in the outline colour.** In the `Figure`
+  that `render_sheet(out=<tmp>.png)` returns, every row of
+  `c.get_edgecolor()`, for every collection `c` of every axes, equals
+  `OUTLINE_RGBA` (`np.allclose`).
+
+None of AC10–AC15 closes a Stage 33 acceptance criterion.
+
 ## Assumptions
 
 - **A1 (defensible default: the sheet's home and name).** The committed image
@@ -228,6 +279,39 @@ None of these ACs closes a Stage 33 acceptance criterion.
 
 No dependency is added.
 
+> **Amended 2026-09-24 — steps for AC10–AC15.** Step 1's "red outline" and
+> its five-field `SheetPanel` are superseded as follows; everything else in
+> steps 1–4 stands. The builder changes `src/segfacet/synth/corpus_sheet.py`
+> only, then regenerates the sheet:
+>
+> 5. **Three public module constants**, added to `__all__`:
+>    `BACKGROUND_RGBA = (0.0, 0.0, 0.0, 1.0)` (black),
+>    `OUTSIDE_FOV_RGBA = (1.0, 1.0, 1.0, 1.0)` (white, the figure's own panel
+>    colour) and `OUTLINE_RGBA = (1.0, 0.0, 1.0, 1.0)` (magenta). Measured
+>    2026-09-24 against the nine tab10 entries in use plus black and white,
+>    magenta's minimum RGB distance is 0.536 and white's is 0.595. Pure red,
+>    tab10's own cyan (0.30), yellow (0.39) and lime (0.45) all fall below
+>    0.5.
+> 6. **`label_rgba(labels, outside_fov=None)`.** Label 0 maps to
+>    `BACKGROUND_RGBA` (replacing the `"black"` table entry, same colour) and
+>    nonzero labels keep `1 + (L - 1) % 9`. When `outside_fov` is given, its
+>    `True` pixels become `OUTSIDE_FOV_RGBA`. `render_sheet` calls
+>    `label_rgba(img, outside)`.
+> 7. **`SheetPanel` gains `sagittal_outside_fov` and `coronal_outside_fov`**
+>    (bool, transposed like the rest). `sheet_panels()` builds `covered` over
+>    the same `start:stop` slab `_place_case_on_clean_grid` writes, and
+>    projects `(~covered).all(axis=0).T` / `.all(axis=1).T`. Return `covered`
+>    from the placement helper rather than recomputing the offset.
+> 8. **`render_sheet`:** `ax.set_label(f"{case_id}/sagittal")` (or
+>    `/coronal`) on each image axes, and `ax.contour(mask, levels=[0.5],
+>    colors=[OUTLINE_RGBA], ...)` in place of `colors="red"`. Nothing else in
+>    the figure may add a collection, since AC15 reads every one.
+> 9. **Regenerate `docs/aide/corpus_sheet.png`** with
+>    `.venv/bin/python -m segfacet.synth.corpus_sheet`. The `Source` digest is
+>    unchanged, because the inputs are unchanged (A6), so AC7 passes on the old
+>    file too. Regenerate anyway: the committed image is what the D5 gate
+>    reads. Update the module docstring's colour description if it names one.
+
 ## Authorised paths
 
 **May change:**
@@ -302,6 +386,46 @@ Adversarial cases, each written once:
   matcher that never matches, which would let AC9 pass vacuously over the
   whole tree.
 
+> **Amended 2026-09-24 — tests for AC10–AC15.** The test-writer edits
+> `tests/test_178_corpus_sheet.py` only:
+>
+> - **Edit** `test_every_present_label_is_distinct_from_background`. It
+>   becomes AC10's test, re-pointed from the removed private
+>   `_label_colormap()` and its `label % 10` indexing (it errors as committed)
+>   to `corpus_sheet.label_rgba` and `corpus_sheet.BACKGROUND_RGBA`. It keeps
+>   collecting the present labels from the fixtures. Move its "labels 20..24
+>   pairwise distinct" block out into the adversarial test below. Rename it
+>   `test_ac10_no_present_label_renders_as_background`: `aide scope` warns
+>   (§6) on its current name, which names no AC.
+> - **Add** `test_ac11_outside_fov_masks_are_the_uncovered_rays`. It builds
+>   `covered` from the two affines with the test's own `start` formula (extend
+>   `_placed_on_clean_grid` or add a sibling helper, never the module's). It
+>   also asserts at least one panel's `sagittal_outside_fov` holds a `True`,
+>   so the equality cannot pass on an all-empty corpus.
+> - **Add** `test_ac12_outside_fov_colour_is_distinct`.
+> - **Add** `test_ac13_panels_drawn_with_outside_fov_and_background_colours`.
+>   It builds the expected RGBA itself with `np.where` from the three sources
+>   AC13 names, and compares with `np.asarray(ax.images[0].get_array())`. It
+>   reuses one module-scoped `render_sheet` figure with AC15 (written under
+>   `tmp_path_factory`, never `SHEET_PATH`). AC5 may share it.
+> - **Add** `test_ac14_outline_colour_is_distinct`.
+> - **Add** `test_ac15_every_outline_is_drawn_in_the_outline_colour`. It also
+>   asserts the axes labelled `crop_fov_si/sagittal` has at least one
+>   collection, so the check cannot pass on a sheet with no outline at all.
+>
+> Adversarial case added:
+>
+> - **`adjacent-labels-pairwise-distinct`**
+>   (`test_adjacent_labels_pairwise_distinct`): the colours
+>   `label_rgba` gives labels 20–24 are pairwise distinct. This guards a fix
+>   for AC10 that maps every nonzero label to one non-background colour, which
+>   passes AC10 while losing the relabel-reads-as-colour-change property.
+>
+> **Existing tests to reconcile:** only the edit above. A grep of `tests/`,
+> `src/` and `scripts/` for `corpus_sheet`, `SheetPanel`, `label_rgba` and
+> `_label_colormap` finds only this item's two files. AC2–AC4 read
+> `SheetPanel` by attribute, so the two new fields break nothing.
+
 **Existing tests to reconcile: none.** This item changes no existing default
 or behaviour. The sweep of 2026-09-24 checked every test that walks a
 directory this item writes to or deletes from:
@@ -339,6 +463,14 @@ and open the image. Confirm:
 - `PIL.Image.open(...).text["Source"]` matches the committed sheet's value.
 
 No `[validation]` profile is needed.
+
+> **Amended 2026-09-24.** Read "red outline" above as the magenta
+> `OUTLINE_RGBA`. Also confirm:
+>
+> - `crop_fov_si`'s bottom 35 rows are white in both views, and every other
+>   panel's background is black throughout.
+> - The outline is visibly distinct from label 22's red body in every panel
+>   where the two meet.
 
 ## Dependencies
 
@@ -387,3 +519,13 @@ committed sheet. Item 179 is independent of this item.
   labels) land on distinct indices 1-9 and no nonzero label can land on 0. The
   colour is still a pure function of the label value, so a relabel still reads
   as a colour change — it just never lands *on* the background colour anymore.
+- **2026-09-24 — outside-FOV white, magenta outline (AC10–AC15).** These
+  follow the maintainer's two requirements recorded under Acceptance
+  Criteria. The outline colour changed rather than the label table, so every
+  label keeps its colour. A partly covered projection ray renders as in-FOV,
+  because it holds real voxels. "Entirely outside" is the only case where
+  there is nothing of the case to show.
+- **Left open:** labels 19 and 28 share a colour (`1 + (L - 1) % 9` gives 1
+  for both), so a 19↔28 relabel would not read as a colour change. No corpus
+  case relabels across that pair, and the maintainer's requirements did not
+  ask for it.
