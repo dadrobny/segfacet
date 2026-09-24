@@ -529,3 +529,15 @@ committed sheet. Item 179 is independent of this item.
   for both), so a 19↔28 relabel would not read as a colour change. No corpus
   case relabels across that pair, and the maintainer's requirements did not
   ask for it.
+- **2026-09-24 — builder implementation of AC10–AC15.** `_place_case_on_clean_grid`
+  now returns `(placed, covered)` instead of just `placed`, since
+  `sheet_panels()` needs both without recomputing the offset (steps 5–7).
+  `label_rgba` drops the `ListedColormap` indirection and indexes a
+  `(10, 4)` NumPy array of `[BACKGROUND_RGBA, *9 tab10 colours]` directly —
+  simpler than a colormap object and the same for a scalar or array `labels`
+  input (AC10 calls it with a bare Python `int`, AC12/AC14 with an array).
+  The `outside_fov` argument overrides *after* the label-colour lookup, one
+  `np.where` on `outside_fov[..., None]`, matching AC13's own expected-value
+  construction exactly. `render_sheet` regenerated
+  `docs/aide/corpus_sheet.png`; its `Source` digest is unchanged (A6),
+  confirmed by `git diff --stat`.

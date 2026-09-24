@@ -37,6 +37,9 @@ from segfacet.synth.corpus import MANIFEST_PATH, crop_to_grid, load_manifest
 
 __all__ = [
     "SHEET_PATH",
+    "BACKGROUND_RGBA",
+    "OUTSIDE_FOV_RGBA",
+    "OUTLINE_RGBA",
     "SheetPanel",
     "sheet_panels",
     "input_digest",
@@ -51,6 +54,17 @@ SHEET_PATH: Path = Path(__file__).resolve().parents[3] / "docs" / "aide" / "corp
 #: Axes columns per row pair (one sagittal row above one coronal row).
 _COLUMNS: int = 6
 
+#: Label 0 / no seg data present (2026-09-24 amendment).
+BACKGROUND_RGBA = (0.0, 0.0, 0.0, 1.0)
+#: A display pixel whose whole projection ray falls outside a case's field
+#: of view (2026-09-24 amendment) -- distinct from both background and every
+#: label colour (>= 0.5 RGB distance, measured 2026-09-24).
+OUTSIDE_FOV_RGBA = (1.0, 1.0, 1.0, 1.0)
+#: The changed-voxel outline colour (2026-09-24 amendment) -- magenta, kept
+#: distinct from background, outside-FOV white and every label colour,
+#: including label 22's tab10 red (0.536 RGB distance, measured 2026-09-24).
+OUTLINE_RGBA = (1.0, 0.0, 1.0, 1.0)
+
 
 @dataclass(frozen=True)
 class SheetPanel:
@@ -62,6 +76,8 @@ class SheetPanel:
     coronal: np.ndarray
     sagittal_changed: np.ndarray
     coronal_changed: np.ndarray
+    sagittal_outside_fov: np.ndarray
+    coronal_outside_fov: np.ndarray
 
 
 def sheet_panels(manifest_path: Path = MANIFEST_PATH) -> list:
@@ -81,7 +97,7 @@ def sheet_panels(manifest_path: Path = MANIFEST_PATH) -> list:
         # crop_to_grid: raises FacetInputError for a case that is not an
         # integral sub-grid of clean_control, instead of rendering misaligned.
         crop_to_grid(clean_img, case_img)
-        placed = _place_case_on_clean_grid(clean_img, case_img)
+        placed, covered = _place_case_on_clean_grid(clean_img, case_img)
         changed = placed != np.asanyarray(clean_img.dataobj)
         panels.append(
             SheetPanel(
@@ -90,23 +106,32 @@ def sheet_panels(manifest_path: Path = MANIFEST_PATH) -> list:
                 coronal=placed.max(axis=1).T,
                 sagittal_changed=changed.any(axis=0).T,
                 coronal_changed=changed.any(axis=1).T,
+                sagittal_outside_fov=(~covered).all(axis=0).T,
+                coronal_outside_fov=(~covered).all(axis=1).T,
             )
         )
     return panels
 
 
-def _place_case_on_clean_grid(clean_img, case_img) -> np.ndarray:
+def _place_case_on_clean_grid(clean_img, case_img):
     """The AC2 placement formula: start = round(inv(clean.affine) @
-    case.affine[:, 3])[:3], which is (0, 0, 0) for a case on the same grid."""
+    case.affine[:, 3])[:3], which is (0, 0, 0) for a case on the same grid.
+
+    Returns ``(placed, covered)``: *placed* is the case's array written into
+    a zero array of clean_control's shape; *covered* is a bool array of the
+    same shape, ``True`` exactly over the slab *placed* was written into
+    (the AC11 amendment's ``covered``)."""
     clean_data = np.asanyarray(clean_img.dataobj)
     case_data = np.asanyarray(case_img.dataobj)
     start = np.round(
         (np.linalg.inv(clean_img.affine) @ case_img.affine[:, 3])[:3]
     ).astype(int)
     placed = np.zeros(clean_data.shape, dtype=case_data.dtype)
+    covered = np.zeros(clean_data.shape, dtype=bool)
     stop = start + np.asarray(case_data.shape[:3])
     placed[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = case_data
-    return placed
+    covered[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = True
+    return placed, covered
 
 
 def input_digest(manifest_path: Path = MANIFEST_PATH) -> str:
@@ -155,18 +180,19 @@ def render_sheet(out: Path = SHEET_PATH, manifest_path: Path = MANIFEST_PATH):
             + "\n"
             + (", ".join(case.get("expected_rule_ids", [])) or "-")
         )
-        for row_offset, img, mask in (
-            (0, panel.sagittal, panel.sagittal_changed),
-            (1, panel.coronal, panel.coronal_changed),
+        for row_offset, view, img, mask, outside in (
+            (0, "sagittal", panel.sagittal, panel.sagittal_changed, panel.sagittal_outside_fov),
+            (1, "coronal", panel.coronal, panel.coronal_changed, panel.coronal_outside_fov),
         ):
             ax = axes[2 * case_row + row_offset, col]
+            ax.set_label(f"{panel.case_id}/{view}")
             ax.imshow(
-                label_rgba(img),
+                label_rgba(img, outside),
                 origin="lower",
                 interpolation="nearest",
             )
             if mask.any():
-                ax.contour(mask, levels=[0.5], colors="red", linewidths=1.2)
+                ax.contour(mask, levels=[0.5], colors=[OUTLINE_RGBA], linewidths=1.2)
             ax.set_xticks([])
             ax.set_yticks([])
             if row_offset == 0:
@@ -188,26 +214,35 @@ def render_sheet(out: Path = SHEET_PATH, manifest_path: Path = MANIFEST_PATH):
     return fig
 
 
-def label_rgba(labels: np.ndarray) -> np.ndarray:
-    """Map a label array to RGBA, background (0) black, every nonzero label
-    to one of 9 tab10 colours via ``1 + (label - 1) % 9`` -- so labels 20-24
-    (any 9 consecutive nonzero labels) are pairwise distinct and no nonzero
-    label ever lands on index 0 the way a bare ``label % 10`` did (a
-    committed corpus case is labelled 20, which mapped to background and
-    rendered invisible in every panel -- fixed 2026-09-24, item 178).
+def label_rgba(labels: np.ndarray, outside_fov: Optional[np.ndarray] = None) -> np.ndarray:
+    """Map a label array to RGBA, background (0) -> :data:`BACKGROUND_RGBA`,
+    every nonzero label to one of 9 tab10 colours via ``1 + (label - 1) % 9``
+    -- so labels 20-24 (any 9 consecutive nonzero labels) are pairwise
+    distinct and no nonzero label ever lands on the background colour the way
+    a bare ``label % 10`` did (a committed corpus case is labelled 20, which
+    mapped to background and rendered invisible in every panel -- fixed
+    2026-09-24, item 178).
+
+    When *outside_fov* is given, its ``True`` pixels render as
+    :data:`OUTSIDE_FOV_RGBA` instead, regardless of the label value there
+    (2026-09-24 amendment).
 
     Colour is still a pure function of the label value, so a relabel still
     reads as a colour change, just never *to* the background colour."""
-    from matplotlib.colors import ListedColormap
     from matplotlib import colormaps
 
     tab10 = colormaps["tab10"]
-    colours = ["black"] + [tab10(i) for i in range(9)]
-    cmap = ListedColormap(colours)
+    colours = np.array([BACKGROUND_RGBA] + [tab10(i) for i in range(9)])
 
     labels = np.asarray(labels)
     index = np.where(labels == 0, 0, 1 + (labels - 1) % 9)
-    return cmap(index)
+    result = colours[index]
+
+    if outside_fov is not None:
+        outside_fov = np.asarray(outside_fov)
+        result = np.where(outside_fov[..., None], np.asarray(OUTSIDE_FOV_RGBA), result)
+
+    return result
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
