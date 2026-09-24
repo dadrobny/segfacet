@@ -184,15 +184,19 @@ def test_ac3_clean_control_stays_monotonic():
 # AC4: no clean case's u_values move
 # =========================================================================== #
 
+# Re-measured 2026-09-23 on item 173's lordotic base; the box-base values
+# this table replaces are recorded in item 173's Decisions log.
 _PRE_ITEM_U_VALUES = {
-    "clean_control": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
-    "displace": [0.000000561, 0.234074709, 0.500000025, 0.765925291, 0.999999440],
-    "fragment": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
-    "inject_islands": [0.000049227, 0.250369752, 0.500000000, 0.749630248, 0.999950773],
-    "remove_level": [0.000000561, 0.250621894, 0.749378106, 0.999999440],
-    "crop_at_border": [0.000000561, 0.237035382, 0.499999976, 0.762964618, 0.999999440],
-    "sequence_break": [0.000050774, 0.250363632, 0.500000000, 0.749636368, 0.999949226],
-    "force_overlap": [0.000061555, 0.165598814, 0.437861146, 0.718006432, 0.999999440],
+    "clean_control": [0.000000561, 0.245056802, 0.483088896, 0.730986720, 0.999999440],
+    # Item 177 (2026-09-24): displace re-authored mostly left-right; was
+    # [0.000000561, 0.222516283, 0.473947274, 0.754651307, 0.999999440].
+    "displace": [0.000000561, 0.229606218, 0.479875022, 0.747093991, 0.999999440],
+    "fragment": [0.000000561, 0.245054485, 0.483276334, 0.730988993, 0.999999440],
+    "inject_islands": [0.000000561, 0.245071604, 0.483117471, 0.730970397, 0.999999440],
+    "remove_level": [0.000000561, 0.244998545, 0.730526238, 0.999999440],
+    "crop_at_border": [0.000000561, 0.219880162, 0.469887999, 0.757448722, 0.999999440],
+    "sequence_break": [0.000000561, 0.245056802, 0.483088896, 0.730986720, 0.999999440],
+    "force_overlap": [0.000000561, 0.191287857, 0.443289958, 0.709487482, 0.999999440],
 }
 
 
@@ -213,7 +217,15 @@ def test_ac4_no_clean_case_u_values_move(case_id):
 #: ``split`` case. The table is deliberately not extended with
 #: values item 132 never measured; the uncovered set is pinned exactly
 #: instead, so a *fourth* uncovered case still fails this test.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_ITEM = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def test_ac4_pre_item_table_covers_every_non_mode4_manifest_case():
@@ -676,7 +688,9 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     assert u_entry["observed"]["verdict"] == "varies"
     corpus_obs = u_entry["observed"]["corpus"]
     assert corpus_obs["count"] == 24
-    assert corpus_obs["minimum"] == pytest.approx(5.6119e-07, abs=1e-11)
+    # The raw minimum is sub-floor residue (5.6e-07); emission_range clamps a
+    # sub-floor endpoint to 0.0 (PR #84's CI, 2026-09-24).
+    assert corpus_obs["minimum"] == 0.0
     assert corpus_obs["maximum"] == pytest.approx(0.999999, abs=1e-6)
     assert corpus_obs["span"] == pytest.approx(0.999999, abs=1e-6)
 

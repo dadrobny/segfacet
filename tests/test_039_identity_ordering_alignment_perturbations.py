@@ -315,7 +315,12 @@ def test_ac8_relabel_swap_exchanges_two_adjacent_bodies_preserving_label_set():
     """AC8: the present-label set is unchanged; label 21's centroid position
     (array axis 0, a fixed voxel coordinate independent of anatomical
     meaning) equals the clean GT's label-22 centroid position and vice
-    versa; each label's voxel count is preserved."""
+    versa; each label's voxel count is preserved.
+
+    Item 173 (2026-09-23): the box base's five bodies had equal voxel counts,
+    so a swap left every label's count unchanged. The lordotic bodies' counts
+    differ (L2 19 375, L3 19 437), so the preserved count follows the body:
+    label 21 now carries clean label 22's count and vice versa."""
     clean = _clean()
     result = RelabelSwapPerturbation(target_label=21, neighbour_label=22).apply(
         clean.seg_img, seed=0
@@ -334,8 +339,9 @@ def test_ac8_relabel_swap_exchanges_two_adjacent_bodies_preserving_label_set():
     )
 
     data = np.asanyarray(result.labelmap.dataobj)
+    swapped_from = {20: 20, 21: 22, 22: 21, 23: 23, 24: 24}
     for label in (20, 21, 22, 23, 24):
-        assert int(np.count_nonzero(data == label)) == clean.voxel_counts[label]
+        assert int(np.count_nonzero(data == label)) == clean.voxel_counts[swapped_from[label]]
 
 
 def test_ac9_relabel_swap_makes_centroid_order_non_monotonic_on_spatial_curve():

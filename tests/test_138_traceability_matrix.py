@@ -610,20 +610,16 @@ def test_ac1_public_surface_and_zero_argument_build_matrix(raw_matrix):
 # =========================================================================== #
 
 
-def test_ac2_main_redirects_writes_and_leaves_committed_artifacts_unchanged(tmp_path):
-    import segfacet.traceability as traceability
-
-    before_json = _COMMITTED_JSON.read_bytes()
-    before_md = _COMMITTED_MD.read_bytes()
+def test_ac2_main_redirects_writes_and_leaves_committed_artifacts_unchanged(
+    regenerated_traceability,
+):
+    before_json = regenerated_traceability.committed_json_before
+    before_md = regenerated_traceability.committed_md_before
     assert before_json, "expected a non-empty committed JSON artifact"
     assert before_md, "expected a non-empty committed markdown artifact"
 
-    json_dest = tmp_path / "out.json"
-    md_dest = tmp_path / "out.md"
-    traceability.main(["--json", str(json_dest), "--md", str(md_dest)])
-
-    assert json_dest.exists()
-    assert md_dest.exists()
+    assert regenerated_traceability.json_a.exists()
+    assert regenerated_traceability.md_a.exists()
 
     after_json = _COMMITTED_JSON.read_bytes()
     after_md = _COMMITTED_MD.read_bytes()
@@ -654,17 +650,11 @@ def test_ac2_default_output_paths_are_the_committed_docs_aide_paths(monkeypatch)
 # =========================================================================== #
 
 
-def test_ac3_artifacts_are_byte_reproducible_run_to_run(tmp_path):
-    import segfacet.traceability as traceability
-
-    json_a, md_a = tmp_path / "a.json", tmp_path / "a.md"
-    json_b, md_b = tmp_path / "b.json", tmp_path / "b.md"
-
-    traceability.main(["--json", str(json_a), "--md", str(md_a)])
-    traceability.main(["--json", str(json_b), "--md", str(md_b)])
-
-    bytes_a_json, bytes_b_json = json_a.read_bytes(), json_b.read_bytes()
-    bytes_a_md, bytes_b_md = md_a.read_bytes(), md_b.read_bytes()
+def test_ac3_artifacts_are_byte_reproducible_run_to_run(regenerated_traceability):
+    bytes_a_json = regenerated_traceability.json_a.read_bytes()
+    bytes_b_json = regenerated_traceability.json_b.read_bytes()
+    bytes_a_md = regenerated_traceability.md_a.read_bytes()
+    bytes_b_md = regenerated_traceability.md_b.read_bytes()
     assert bytes_a_json, "expected non-empty JSON output"
     assert bytes_a_md, "expected non-empty markdown output"
 
@@ -1359,12 +1349,13 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # ("vertebra not segmented") carries remove_level, which expects
     # coverage to fire, alongside remove_level_relabel, which expects nothing.
     # Mode 10 ("skipped level label") is proposed and declares no rule.
+    # 2026-09-23, item 174: (3, "bounds") left the witness -- mode 3's
+    # split_own_label case designates bounds, so that edge is now corpus.
     witness = {
         (1, "bounds"),
         (1, "reference_delta"),
         (2, "bounds"),
         (2, "reference_delta"),
-        (3, "bounds"),
         (3, "reference_delta"),
         (4, "bounds"),
         (4, "reference_delta"),
@@ -1394,7 +1385,9 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     for rule_id, tags in by_rule.items():
         assert tags <= {"analytic", "corpus"}, (rule_id, tags)
     mixed = {rule_id for rule_id, tags in by_rule.items() if len(tags) == 2}
-    assert mixed == set(), by_rule
+    # 2026-09-23, item 174: set() -> {"bounds"}. bounds is corpus-attributed
+    # for mode 3 (split_own_label) and analytic for modes 1, 2 and 4.
+    assert mixed == {"bounds"}, by_rule
 
 
 def test_adv_ac20_mistagged_corpus_evidence_changes_no_attribution(matrix_bounds_mistagged_evidence):
@@ -2099,10 +2092,20 @@ def test_ac31_measured_findings_claim_matches_the_live_pipeline_firing_set(matri
 
 
 def test_adv_ac31_measured_findings_claim_overclaiming_a_rule_is_detectable(monkeypatch):
-    """Reproduces the pre-fix mode-2 defect directly: claiming a rule
-    ('bounds', 'reference_delta') fires on the plain-pipeline corpus case
-    when it structurally cannot without an attached reference --
-    demonstrating check (2) above would have failed it."""
+    """Reproduces the SHAPE of the pre-fix mode-2 defect: a mechanism
+    sentence claiming a firing set that names one rule the case does not
+    actually fire -- demonstrating check (2) above would have failed it.
+
+    Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
+    the old literal claim (['bounds', 'fragmentation', 'reference_delta'])
+    sat behind a literal precondition pinning the live firing set on
+    'fragment' ({"fragmentation"}) -- item 173 regenerates 'fragment' on the
+    new corpus base, so a corpus move could put the live firing set onto
+    the literal claim. Build the overclaiming claim from the live firing
+    set plus one extra registered rule instead, so it can never coincide
+    with live state.
+    """
+    from segfacet.heuristics.rule import iter_rules
     from segfacet.synth.corpus import load_manifest
     from segfacet.synth.regression import pipeline_findings
 
@@ -2111,18 +2114,19 @@ def test_adv_ac31_measured_findings_claim_overclaiming_a_rule_is_detectable(monk
     case = cases_by_id["fragment"]
     assert case.get("detection") == "pipeline"
 
-    actual_rule_ids = {f.rule_id for f in pipeline_findings(case)}
-    assert actual_rule_ids == {"fragmentation"}, actual_rule_ids
+    live = {f.rule_id for f in pipeline_findings(case)}
+    assert live, "expected 'fragment' to fire at least one rule"
+    extra = next(r.rule_id for r in iter_rules() if r.rule_id not in live)
+    overclaimed = live | {extra}
+    assert overclaimed != live
 
     overclaiming_mechanism = (
-        "caught independently by bounds' magnitude thresholds, "
-        "fragmentation's component-count checks, and reference_delta's "
-        "cohort-relative scoring on fragment (measured: findings == "
-        "['bounds', 'fragmentation', 'reference_delta'])."
+        "caught independently by every rule named below on fragment "
+        "(measured: findings == [%s])." % ", ".join(sorted(repr(r) for r in overclaimed))
     )
     claim = _parse_measured_findings_claim(overclaiming_mechanism)
-    assert claim == {"bounds", "fragmentation", "reference_delta"}
-    assert claim != actual_rule_ids, (
+    assert claim == overclaimed
+    assert claim != live, (
         "check (2) must fail here: the mechanism claims a firing set the "
         "live pipeline does not produce"
     )

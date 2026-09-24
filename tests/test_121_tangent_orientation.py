@@ -173,11 +173,12 @@ def _mode4_relabel_swap_ordered_centroids() -> List[LabelCentroid]:
     """The real ``relabel_swap`` corpus case's centroids, ordered by
     label -- unlike ``_mode4_relabel_swap_shape``'s hand-built approximation,
     a freshly built report for this case (its committed golden snapshot was
-    retired by item 126) measures ``coronal_tangent_angles_deg`` entries at
-    182.3510, 184.7816 and
-    358.5342 degrees, genuinely outside (-180, 180], which is what this
-    adversarial test needs to contrast against item 121's wrapped
-    convention."""
+    retired by item 126) measures ``sagittal_tangent_angles_deg`` as
+    [2.4934, -174.7774, -176.1799, -346.4176, -291.2034] degrees (2026-09-23,
+    lordotic base of item 173), genuinely outside (-180, 180], which is what
+    this adversarial test needs to contrast against item 121's wrapped
+    convention. (On the box base the doubling-back showed in the coronal
+    plane instead.)"""
     from segfacet.features.centroids import compute_centroid
 
     seg_img = loaded_seg_image(_mode4_relabel_swap_case())
@@ -259,22 +260,34 @@ def test_ac4_tangent_matches_spline_derivative_up_to_direction():
 # =========================================================================== #
 
 
-def test_ac5_clean_control_coronal_tilts_vary_across_levels():
+def test_ac5_clean_control_sagittal_tilts_vary_across_levels():
+    """The tangent estimate varies across levels on a curved spine, against a
+    principal_axis that does not. Since item 173 (2026-09-23) clean_control
+    is the lordotic base, which curves in the sagittal plane and has no
+    lateral hump, so the varying angle is ``sagittal_deg`` (it was
+    ``coronal_deg`` on the box base's 6 mm lateral hump). The principal axis
+    is compared as the L-R axis up to summation residue and sign: the tilted
+    bodies' off-diagonal covariance entries reach ``eigh`` as ~1e-16
+    residue, and the axis carries no sign under its contract."""
     seg_img, labels, centroids = _clean_control_ordered_centroids()
     assert len(centroids) == 5
     fit = fit_centroid_spline(centroids)
     result = compute_vertebra_tangent_orientations(fit, centroids)
-    coronal = [r.coronal_deg for r in result]
-    expected = [-8.1644, -4.0746, 0.0000, 4.0746, 8.1644]
-    assert coronal == pytest.approx(expected, abs=1e-3)
-    spread = max(coronal) - min(coronal)
-    assert spread == pytest.approx(16.3287, abs=1e-3)
+    sagittal = [r.sagittal_deg for r in result]
+    expected = [-7.5755, -0.2419, 8.3225, 19.2451, 33.5900]
+    assert sagittal == pytest.approx(expected, abs=1e-3)
+    spread = max(sagittal) - min(sagittal)
+    assert spread == pytest.approx(41.1654, abs=1e-3)
 
     principal_axes = [o.principal_axis for o in compute_vertebra_orientations(seg_img, labels)]
-    assert len(set(principal_axes)) == 1, (
-        "principal_axis is expected to be identical on all five clean_control "
-        "levels, against which the tangent estimate's spread is contrasted"
-    )
+    for axis in principal_axes:
+        assert abs(axis[0]) == pytest.approx(1.0, abs=1e-12), (
+            f"principal_axis {axis!r} is expected to be the L-R axis on every "
+            "clean_control level, against which the tangent estimate's spread "
+            "is contrasted"
+        )
+        assert abs(axis[1]) <= 1e-12, axis
+        assert abs(axis[2]) <= 1e-12, axis
 
 
 # =========================================================================== #
@@ -370,11 +383,13 @@ def test_ac9_sagittal_c_curve_signed_angles():
 # rather than by loosening the 0.996 threshold, which would stop the threshold
 # testing anything on the other cases.
 #
-# ``split`` (added by item 166, 2026-09-20) is the converse: label 22 donates
-# an end-slab to label 23, so the receiving label 23 now spans two
-# disconnected bodies and its principal axis is cranio-caudal for the same
-# reason. Excluded by name, not by loosening the threshold.
-_FUSED_BODY_SPAN_EXCLUSIONS = {("fuse_adjacent", 22), ("split", 23)}
+# ``split`` (added by item 166, 2026-09-20) is the converse: since item 174
+# (2026-09-23) label 23 gives its caudal cap to label 24, so the receiving
+# label 24 now spans two disconnected bodies and its principal axis is off
+# the L-R axis for the same reason (measured [0.0, 0.607, 0.795]). Excluded
+# by name, not by loosening the threshold. Item 174: ("split", 23) ->
+# ("split", 24).
+_FUSED_BODY_SPAN_EXCLUSIONS = {("fuse_adjacent", 22), ("split", 24)}
 
 
 def test_ac10_principal_axis_within_0996_of_left_right_on_every_golden():
@@ -415,10 +430,19 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
     ``fuse_adjacent`` joins the two pre-existing exceptions (item 150,
     2026-09-14): its label 22 spans two vertebral bodies, so its principal
     axis is cranio-caudal by construction. ``split`` (item 166, 2026-09-20)
-    joins them for the converse reason: label 23 receives the donated slab
-    and spans two bodies. The case count is derived from the
+    joins them for the converse reason: label 24 (label 23 before item 174,
+    2026-09-23) receives the donated cap and spans two bodies. The case count is derived from the
     manifest rather than hard-coded, so a new corpus case is covered by
-    default instead of silently slipping past a frozen number."""
+    default instead of silently slipping past a frozen number.
+
+    Since item 173 (2026-09-23) the check is "exactly the L-R axis, up to
+    summation residue and sign": the lordotic bodies are rotated about the
+    L-R axis, so their x-y and x-z covariance entries are zero only
+    analytically and reach ``eigh`` as residue (largest measured off-axis
+    component 4.9e-16), and ``_pca_principal_axis`` fixes no eigenvector
+    sign (``crop_at_border`` label 22 reads ``[-1.0, ...]``). 1e-12 is about
+    2 000 times that residue and far below the ~0.09 off-axis the sibling
+    0.996-dot test admits."""
     exceptions = {"inject_islands", "force_overlap", "fuse_adjacent", "split"}
     cases = load_manifest()["cases"]
     assert exceptions <= {c["case_id"] for c in cases}, (
@@ -432,10 +456,14 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
         entries = data["features"]["stage3"]["per_label_orientations"]
         assert entries
         for entry in entries:
-            assert entry["principal_axis"] == [1.0, 0.0, 0.0], (
+            axis = entry["principal_axis"]
+            message = (
                 f"{case['case_id']!r} label {entry['label']!r} principal_axis "
-                f"{entry['principal_axis']!r} is not exactly [1.0, 0.0, 0.0]"
+                f"{axis!r} is not the L-R axis up to summation residue and sign"
             )
+            assert abs(axis[0]) == pytest.approx(1.0, abs=1e-12), message
+            assert abs(axis[1]) <= 1e-12, message
+            assert abs(axis[2]) <= 1e-12, message
 
 
 # =========================================================================== #
@@ -801,11 +829,16 @@ def test_adv_doubling_back_sequence_stays_within_wrap_bounds():
 
 def test_adv_doubling_back_contrasted_with_unwrapped_curvature_convention():
     """Item 121's per-vertebra angles stay wrapped to (-180, 180], while item
-    122's stage3.curvature.coronal_tangent_angles_deg on the real
+    122's stage3.curvature.sagittal_tangent_angles_deg on the real
     ``relabel_swap`` corpus case is deliberately unwrapped and does
-    leave that range (committed golden measures 182.3510 / 184.7816 /
-    358.5342 degrees there) -- the two conventions differ on purpose (see the
-    item's Decisions log). The hand-built ``_mode4_relabel_swap_shape``
+    leave that range (measured 2026-09-23 on item 173's lordotic base:
+    [2.4934, -174.7774, -176.1799, -346.4176, -291.2034] degrees, against
+    wrapped ``sagittal_deg`` [2.4934, -174.7017, 91.4601, 13.7898, 67.6713])
+    -- the two conventions differ on purpose (see the item's Decisions log).
+    The lordotic base has no lateral offset, so the doubling-back shows in
+    the sagittal plane; its coronal angles sit on the range boundary by
+    floating-point accident, which is evidence of neither convention, so no
+    coronal assertion is made. The hand-built ``_mode4_relabel_swap_shape``
     fixture used elsewhere in this file reproduces the *doubling-back shape*
     at unit-test scale but its unwrapped coronal angles all stay within
     (-180, 180] (measured max ~152.6 deg), so it cannot exercise this
@@ -818,13 +851,13 @@ def test_adv_doubling_back_contrasted_with_unwrapped_curvature_convention():
     curvature_result = compute_spine_curvature(fit, centroids)
 
     for record in tangent_result:
-        assert -180.0 < record.coronal_deg <= 180.0
+        assert -180.0 < record.sagittal_deg <= 180.0
 
-    unwrapped = curvature_result.coronal_tangent_angles_deg
+    unwrapped = curvature_result.sagittal_tangent_angles_deg
     assert any(v <= -180.0 or v > 180.0 for v in unwrapped), (
-        "expected item 122's unwrapped array to leave (-180, 180] on the "
-        "real relabel_swap corpus case, contrasting with item 121's "
-        "wrapped convention"
+        "expected item 122's unwrapped sagittal-plane array to leave "
+        "(-180, 180] on the real relabel_swap corpus case, contrasting with "
+        "item 121's wrapped sagittal-plane convention"
     )
 
 

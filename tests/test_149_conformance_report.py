@@ -770,13 +770,15 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     assert actual_keys == expected_keys
     # 16 since the item-150 sign-off added the fuse_adjacent (mode 2) and
     # remove_level_relabel (mode 6 under the 2026-09-15 ids) fixtures, and
-    # item 166 (2026-09-20) added the split (mode 3) fixture:
-    # 12 geometric + 4 intensity.
+    # item 166 (2026-09-20) added the split (mode 3) fixture; 17 since
+    # item 174 (2026-09-23) added split_own_label (mode 3); 18 since
+    # item 175 (2026-09-24) added crop_fov_si (the fov_truncation
+    # condition): 14 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
-    assert len(cases) == 16, len(cases)
+    assert len(cases) == 18, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
     intensity = [c for c in cases if c["corpus"] == "intensity"]
-    assert len(geometric) == len(_geometric_manifest_cases()) == 12, len(geometric)
+    assert len(geometric) == len(_geometric_manifest_cases()) == 14, len(geometric)
     assert len(intensity) == len(_intensity_manifest_cases()) == 4, len(intensity)
     for case in cases:
         for key in ("corpus", "case_id", "mode", "expected_firing", "measured_firing", "agrees", "expected_source"):
@@ -976,36 +978,29 @@ def test_adv_ac19_renarrowed_reference_delta_shrinks_mode1_attribution(
 # =========================================================================== #
 
 
-def test_ac20_both_artifacts_regenerate_byte_identically_run_to_run(tmp_path):
-    import segfacet.traceability as traceability
-
-    json_a, md_a = tmp_path / "a.json", tmp_path / "a.md"
-    json_b, md_b = tmp_path / "b.json", tmp_path / "b.md"
-    traceability.main(["--json", str(json_a), "--md", str(md_a)])
-    traceability.main(["--json", str(json_b), "--md", str(md_b)])
-
-    bytes_a_json, bytes_b_json = json_a.read_bytes(), json_b.read_bytes()
-    bytes_a_md, bytes_b_md = md_a.read_bytes(), md_b.read_bytes()
+def test_ac20_both_artifacts_regenerate_byte_identically_run_to_run(
+    regenerated_traceability,
+):
+    bytes_a_json = regenerated_traceability.json_a.read_bytes()
+    bytes_b_json = regenerated_traceability.json_b.read_bytes()
+    bytes_a_md = regenerated_traceability.md_a.read_bytes()
+    bytes_b_md = regenerated_traceability.md_b.read_bytes()
     assert bytes_a_json, "expected non-empty JSON output"
     assert bytes_a_md, "expected non-empty markdown output"
     assert bytes_a_json == bytes_b_json
     assert bytes_a_md == bytes_b_md
 
 
-def test_ac20_fresh_matches_committed_byte_for_byte(tmp_path):
+def test_ac20_fresh_matches_committed_byte_for_byte(regenerated_traceability):
     from segfacet.synth.golden import assert_matches_committed_artifact
-    import segfacet.traceability as traceability
 
-    json_dest, md_dest = tmp_path / "tm.json", tmp_path / "tm.md"
-    traceability.main(["--json", str(json_dest), "--md", str(md_dest)])
-
-    fresh_json_bytes = json_dest.read_bytes()
+    fresh_json_bytes = regenerated_traceability.json_a.read_bytes()
     committed_json_bytes = _COMMITTED_JSON.read_bytes()
     assert fresh_json_bytes, "expected non-empty fresh JSON"
     assert committed_json_bytes, "expected non-empty committed JSON"
-    assert_matches_committed_artifact(json_dest, _COMMITTED_JSON)
+    assert_matches_committed_artifact(regenerated_traceability.json_a, _COMMITTED_JSON)
 
-    fresh_md_bytes = md_dest.read_bytes()
+    fresh_md_bytes = regenerated_traceability.md_a.read_bytes()
     committed_md_bytes = _COMMITTED_MD.read_bytes()
     assert fresh_md_bytes, "expected non-empty fresh markdown"
     assert fresh_md_bytes == committed_md_bytes
@@ -1072,29 +1067,13 @@ def test_ac22_gitattributes_pins_all_four_generated_paths_eol_lf():
         assert pattern.search(text), rel_path
 
 
-def _aide_module():
-    import importlib.util
-
-    aide_script = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
-    spec = importlib.util.spec_from_file_location("_aide_cli_149", aide_script)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
-
-
-def test_ac22_aide_check_reports_no_gitattributes_warning_for_these_paths():
-    aide = _aide_module()
-    _errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    offending = [
-        w
-        for w in warnings
-        if "gitattributes" in str(w).lower()
-        and (
-            "traceability_matrix.generated" in str(w)
-            or "failure_modes.generated" in str(w)
-        )
-    ]
-    assert offending == [], offending
+# test_ac22_aide_check_reports_no_gitattributes_warning_for_these_paths and
+# its _aide_module helper were removed by item 170 (§6, the per-item
+# warning-set-pinning retirement of 2026-09-16): this test ran a whole
+# `aide check` to assert an absence over its warning set, the class of test
+# §6 and item 170's spec (list R) name as the recurring defect. The pin
+# assertions that stay -- AC22's own .gitattributes text sweep above, and
+# test_128 AC14's `git check-attr` check -- still cover the LF pin itself.
 
 
 # =========================================================================== #

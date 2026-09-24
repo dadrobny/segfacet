@@ -581,10 +581,14 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 #: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
     "mislabel": (1, 9),  # displace (1), relabel_swap (9)
-    "fragmentation": (1, 2, 3, 4),  # fragment (1), fuse_adjacent (2), split (3), islands (4)
-    "coverage": (2, 6),  # fuse_adjacent (2), remove_level (6)
+    # Item 176 (2026-09-24): the bridged fuse_adjacent designates no rule, so
+    # fragmentation (1, 2, 3, 4) -> (1, 3, 4) and coverage (2, 6) -> (6,).
+    "fragmentation": (1, 3, 4),  # fragment (1), split (3), islands (4)
+    "coverage": (6,),  # remove_level (6)
     "sequence": (9,),  # sequence_break
     "overlap": (15,),  # force_overlap
+    # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
+    "bounds": (3,),  # split_own_label (3)
 }
 
 
@@ -612,8 +616,9 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
 
     Reconciled again (item 150, 2026-09-14): the sign-off split the corpus
     map and the rules' own ``RuleModeDeclaration`` apart -- on the
-    2026-09-15 revision ``coverage``'s corpus modes are ``(2, 6)`` while it
-    declares ``(6,)``, and ``mislabel``'s are ``(1, 9)`` against a
+    2026-09-15 revision ``coverage``'s corpus modes were ``(2, 6)`` while it
+    declares ``(6,)`` (``(6,)`` for both since item 176, 2026-09-24), and
+    ``mislabel``'s are ``(1, 9)`` against a
     declared ``(9,)``. An entry's
     ``failure_modes`` is the *union* of every source that spoke, so the exact
     expected set is derived here from all three live sources (corpus map,

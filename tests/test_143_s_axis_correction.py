@@ -173,27 +173,17 @@ def test_ac2_caudal_order_holds_for_every_span_and_spacing(kwargs):
 # =========================================================================== #
 
 
-def test_ac3_mirror_plus_relabel_reproduces_the_array_exactly():
-    clean = build_clean_spine()
-    data = np.asanyarray(clean.seg_img.dataobj)
-    n = len(clean.labels)
-    remap: Dict[int, int] = {clean.labels[i]: clean.labels[n - 1 - i] for i in range(n)}
-
-    mirrored = data[:, :, ::-1]
-    relabelled = np.zeros_like(mirrored)
-    for old_label, new_label in remap.items():
-        relabelled[mirrored == old_label] = new_label
-
-    assert np.array_equal(relabelled, data), (
-        "mirroring the array along S and reversing the label<->level "
-        "assignment does not reproduce the original array -- the correction "
-        "appears to have reshaped the spine, not just relabelled it"
-    )
+# ``test_ac3_mirror_plus_relabel_reproduces_the_array_exactly`` was retired
+# on 2026-09-23 (item 173, fence clause c): its sole subject was that the
+# axis-aligned box spine is S-mirror-symmetric, so mirroring the array along
+# S and reversing the label<->level assignment reproduced it exactly. The
+# lordotic base's per-level tilts are asymmetric by design (L1 -8 deg ...
+# L5 +35 deg), so the property has no lordotic counterpart.
 
 
-_EXPECTED_DEFAULT_SHAPE = (66, 55, 215)
+_EXPECTED_DEFAULT_SHAPE = (61, 86, 193)
 _EXPECTED_DEFAULT_SPACING = (1.0, 1.0, 1.0)
-_EXPECTED_DEFAULT_VOXEL_COUNTS = {20: 18750, 21: 18750, 22: 18750, 23: 18750, 24: 18750}
+_EXPECTED_DEFAULT_VOXEL_COUNTS = {20: 19437, 21: 19375, 22: 19437, 23: 19344, 24: 19344}
 
 
 def test_ac3_shape_spacing_affine_and_voxel_counts_are_unaffected_by_the_correction():
@@ -205,7 +195,14 @@ def test_ac3_shape_spacing_affine_and_voxel_counts_are_unaffected_by_the_correct
     along the stacking axis, per the module docstring's stated 25/30/25 mm
     body and 15 mm margin/gap, at 1.0 mm isotropic spacing --
     2*15 + 5*25 + 4*15 = 215 (S/I), 2*15 + 30 + 6 = 66 (L/R, +6 vox default
-    curve amplitude), 2*15 + 25 = 55 (A/P); each body 30*25*25 = 18750 vox^3."""
+    curve amplitude), 2*15 + 25 = 55 (A/P); each body 30*25*25 = 18750 vox^3.
+
+    Re-derived 2026-09-23 (item 173, fence clause b): the closed-form box
+    product above describes the axis-aligned box base. On the lordotic base
+    the shape is the centroid span plus the worst-case rotated half-extent
+    plus the margin per axis, and voxel_counts are counted from the array,
+    so the expected values are the fresh default build's: shape
+    (61, 86, 193), counts 19 437 / 19 375 / 19 437 / 19 344 / 19 344."""
     clean = build_clean_spine()
     assert clean.shape == _EXPECTED_DEFAULT_SHAPE
     assert clean.spacing == _EXPECTED_DEFAULT_SPACING
@@ -289,7 +286,15 @@ def test_ac5_docstrings_state_the_caudal_contract():
 #: ``split`` case. A pre-item table is deliberately not extended
 #: with values the item it belongs to never measured; instead each sweep pins
 #: the uncovered set exactly, so a *fourth* uncovered case still fails.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_ITEM = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
@@ -311,16 +316,19 @@ def _cases_covered_by(table, manifest, *, also_excluded=frozenset()):
     ]
 
 
+#: Re-measured 2026-09-23 on item 173's lordotic base (box base: 160.0 for
+#: every case, 142.0 for force_overlap), mirroring test_131's re-measured
+#: ``_PRE_ITEM_NET_ADVANCE_S_MM``.
 _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
-    "clean_control": 160.0,
-    "displace": 160.0,
-    "fragment": 160.0,
-    "inject_islands": 160.0,
-    "relabel_swap": 160.0,
-    "remove_level": 160.0,
-    "crop_at_border": 160.0,
-    "sequence_break": 160.0,
-    "force_overlap": 142.0,
+    "clean_control": 131.97402926021348,
+    "displace": 131.97402926021348,
+    "fragment": 131.97402926021348,
+    "inject_islands": 131.97402926021348,
+    "relabel_swap": 131.97402926021348,
+    "remove_level": 131.97402926021348,
+    "crop_at_border": 131.97402926021348,
+    "sequence_break": 131.97402926021348,
+    "force_overlap": 121.97402926021348,
 }
 
 
@@ -484,15 +492,16 @@ def test_ac11_feature_catalogue_regenerates_byte_identically(tmp_path):
     assert md1.read_bytes() == md2.read_bytes()
 
 
-def test_ac11_traceability_matrix_regenerates_byte_identically(tmp_path):
-    import segfacet.traceability as traceability_module
-
-    json1, md1 = tmp_path / "tm1.json", tmp_path / "tm1.md"
-    json2, md2 = tmp_path / "tm2.json", tmp_path / "tm2.md"
-    assert traceability_module.main(["--json", str(json1), "--md", str(md1)]) == 0
-    assert traceability_module.main(["--json", str(json2), "--md", str(md2)]) == 0
-    assert json1.read_bytes() == json2.read_bytes()
-    assert md1.read_bytes() == md2.read_bytes()
+def test_ac11_traceability_matrix_regenerates_byte_identically(regenerated_traceability):
+    assert regenerated_traceability.exit_codes == (0, 0)
+    assert (
+        regenerated_traceability.json_a.read_bytes()
+        == regenerated_traceability.json_b.read_bytes()
+    )
+    assert (
+        regenerated_traceability.md_a.read_bytes()
+        == regenerated_traceability.md_b.read_bytes()
+    )
 
 
 def test_ac11_golden_evidence_regenerates_byte_identically(tmp_path):
@@ -539,13 +548,11 @@ def test_ac12_feature_catalogue_json_matches_committed(tmp_path):
     )
 
 
-def test_ac12_traceability_matrix_json_matches_committed(tmp_path):
-    import segfacet.traceability as traceability_module
-
-    json_dest, md_dest = tmp_path / "tm.json", tmp_path / "tm.md"
-    assert traceability_module.main(["--json", str(json_dest), "--md", str(md_dest)]) == 0
+def test_ac12_traceability_matrix_json_matches_committed(regenerated_traceability):
+    assert regenerated_traceability.exit_codes == (0, 0)
     assert_matches_committed_artifact(
-        json_dest, _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
+        regenerated_traceability.json_a,
+        _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json",
     )
 
 
@@ -623,16 +630,15 @@ def test_ac15_feature_catalogue_markdown_matches_committed_byte_for_byte(tmp_pat
     assert md_dest.read_bytes() == committed.read_bytes()
 
 
-def test_ac15_traceability_matrix_markdown_matches_committed_byte_for_byte(tmp_path):
-    import segfacet.traceability as traceability_module
-
-    json_dest, md_dest = tmp_path / "tm.json", tmp_path / "tm.md"
-    assert traceability_module.main(["--json", str(json_dest), "--md", str(md_dest)]) == 0
+def test_ac15_traceability_matrix_markdown_matches_committed_byte_for_byte(
+    regenerated_traceability,
+):
+    assert regenerated_traceability.exit_codes == (0, 0)
     committed = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.md"
     # Byte-exact against a committed artifact allowlisted under
     # "no-float-leaf" (item 149) -- see this module's "Shared helpers"
     # section for the ground (zero float leaves).
-    assert md_dest.read_bytes() == committed.read_bytes()
+    assert regenerated_traceability.md_a.read_bytes() == committed.read_bytes()
 
 
 def test_ac15_gitattributes_still_pins_both_markdown_renderings_eol_lf():
@@ -841,7 +847,11 @@ def test_ac18_reference_verse_v1_row_reads_unmoved():
 def test_ac19_snapshot_covers_all_15_entries_across_both_corpora():
     snapshot_path = _REPO_ROOT / "tests" / "corpus" / "094_pre_migration_snapshot.json"
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
-    assert len(snapshot) == 15
+    # Item 174 (2026-09-23): 15 -> 16, the snapshot gains
+    # split_own_label_seg.nii.gz.
+    # Item 175 (2026-09-24): 16 -> 18, the snapshot gains
+    # crop_fov_si_seg.nii.gz and crop_fov_si_scan.nii.gz.
+    assert len(snapshot) == 18
     assert any("intensity/fixtures" in entry["path"] for entry in snapshot.values())
     assert any(
         "intensity" not in entry["path"] and "corpus/fixtures" in entry["path"]

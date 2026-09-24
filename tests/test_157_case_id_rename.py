@@ -535,35 +535,35 @@ def test_ac15_geometric_corpus_regenerates_identically(tmp_path):
 # =========================================================================== #
 
 
-def test_ac16_failure_mode_specification_artifacts_regenerate_identically(tmp_path):
-    import segfacet.failure_modes as fm
+def test_ac16_failure_mode_specification_artifacts_regenerate_identically(
+    regenerated_failure_modes,
+):
     from segfacet.synth.golden import assert_matches_committed_artifact
-
-    json_path = tmp_path / "failure_modes.generated.json"
-    md_path = tmp_path / "failure_modes.generated.md"
-    fm.main(["--json", str(json_path), "--md", str(md_path)])
 
     committed_json = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.json"
     committed_md = _REPO_ROOT / "docs" / "aide" / "failure_modes.generated.md"
-    assert_matches_committed_artifact(json_path, committed_json)
+    assert_matches_committed_artifact(regenerated_failure_modes.json_a, committed_json)
     # Markdown: no numeric-tolerance ground exists for a whole-document
     # compare, and none is added here -- decode-then-compare as fully
     # rendered text (same shape as test_147's AC24).
-    assert md_path.read_bytes().decode("utf-8") == committed_md.read_bytes().decode("utf-8")
+    assert (
+        regenerated_failure_modes.md_a.read_bytes().decode("utf-8")
+        == committed_md.read_bytes().decode("utf-8")
+    )
 
 
-def test_ac17_traceability_matrix_artifacts_regenerate_identically(tmp_path):
-    import segfacet.traceability as traceability
+def test_ac17_traceability_matrix_artifacts_regenerate_identically(
+    regenerated_traceability,
+):
     from segfacet.synth.golden import assert_matches_committed_artifact
-
-    json_path = tmp_path / "traceability_matrix.generated.json"
-    md_path = tmp_path / "traceability_matrix.generated.md"
-    traceability.main(["--json", str(json_path), "--md", str(md_path)])
 
     committed_json = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
     committed_md = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.md"
-    assert_matches_committed_artifact(json_path, committed_json)
-    assert md_path.read_bytes().decode("utf-8") == committed_md.read_bytes().decode("utf-8")
+    assert_matches_committed_artifact(regenerated_traceability.json_a, committed_json)
+    assert (
+        regenerated_traceability.md_a.read_bytes().decode("utf-8")
+        == committed_md.read_bytes().decode("utf-8")
+    )
 
 
 def test_ac18_golden_evidence_companion_regenerates_identically(tmp_path):

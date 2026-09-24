@@ -329,8 +329,9 @@ def test_target_stays_one_component():
 
 
 def test_expected_labels_equal_the_fired_labels():
-    """A4: the manifest's ``expected_labels`` is ``{23}`` (the neighbour
-    alone), an exact equality the intuitive ``{22, 23}`` fails."""
+    """A4: the manifest's ``expected_labels`` is ``{24}`` (the neighbour
+    alone; ``{23}`` before item 174 re-authored the case, 2026-09-23), an
+    exact equality the intuitive ``{23, 24}`` fails."""
     case = _split_case_dict()
     assert offending_labels_match(case) is True
 
@@ -341,14 +342,20 @@ def test_expected_labels_equal_the_fired_labels():
 
 
 def test_bounds_stays_silent_on_the_donor():
-    """At a 0.5 donated fraction the donor's extent_z falls to 13 mm and
-    bounds fires (A1), which would validate mode 3 through a proxy the
-    bar's condition 4 excludes; the committed 0.4 fixture must stay inside
-    the lumbar range on every geometry field bounds checks."""
+    """A donor shrunk below its level's range would fire bounds, which
+    would validate mode 3 through a proxy the bar's condition 4 excludes;
+    the committed 20 % cap fixture must leave the donor inside the lumbar
+    range on every geometry field bounds checks (measured 2026-09-23, item
+    174: 15 314 mm^3, extents 31 / 31 / 23 mm).
+
+    Item 174 (2026-09-23), re-derived premise: the donor label is read from
+    the committed case's ``perturbation_params["target_label"]`` rather than
+    the literal 22, which would pass vacuously on the untouched L3 now that
+    the donor is L4 (23)."""
     case = _split_case_dict()
     fixture_path = CORPUS_DIR / case["seg_fixture"]
     donor_img = nib.load(str(fixture_path))
-    geometry = compute_label_geometry(donor_img, 22)
+    geometry = compute_label_geometry(donor_img, case["perturbation_params"]["target_label"])
 
     lumbar = DEFAULT_BOUNDS["lumbar"]
     assert lumbar["min_volume_mm3"] <= geometry.physical_volume_mm3 <= lumbar["max_volume_mm3"]

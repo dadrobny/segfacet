@@ -44,7 +44,6 @@ Adversarial / edge cases:
 from __future__ import annotations
 
 import ast
-import importlib.util
 import re
 import subprocess
 
@@ -57,7 +56,6 @@ _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
 _NEW_MODULE_NAME = "test_128_reference_verse_v1_integrity.py"
 _NEW_MODULE_PATH = _TESTS_DIR / _NEW_MODULE_NAME
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _ARTIFACT_PATH = (
     _REPO_ROOT / "src" / "segfacet" / "reference" / "reference_verse_v1.json"
 )
@@ -743,65 +741,12 @@ def test_ac22_allowlist_still_carries_the_integrity_pin_entry():
 # diff"). The allowlist half above still runs.
 
 
-# =========================================================================== #
-# AC23: aide check reports no new warning
-# =========================================================================== #
-
-
-def _aide_check_warnings() -> list:
-    """Return `aide check`'s warnings as a list of strings.
-
-    Calls ``run_checks`` in-process rather than shelling out to
-    ``aide.py check``: that subprocess shape is exactly what engine 1.21.0's
-    `cli_subprocess_test_warnings` lint flags, so a subprocess-based version
-    of this test would make this module report a warning about itself and
-    could never reach a clean `aide check`. ``run_checks`` is the same
-    function ``cmd_check`` calls; it returns ``(errors, warnings)`` as
-    structured data, so there is no stdout, no encoding and no subprocess to
-    go wrong.
-    """
-    spec = importlib.util.spec_from_file_location("_aide_cli_128", _AIDE_SCRIPT)
-    aide = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(aide)
-    repo_root = aide.find_repo_root(_REPO_ROOT)
-    _errors, warnings = aide.run_checks(repo_root, aide.load_config(repo_root))
-    return list(warnings)
-
-
-def test_ac23_aide_check_emits_no_gitattributes_lint_warning():
-    """AC23: relocating the ``reference_verse_v1`` byte pin must not trip
-    engine 1.19.0's fixture-pin lint (``gitattributes_eol_pin_warnings``,
-    which names its own path in the warning text as "compares ... byte-for-
-    byte" plus either "this repo has no .gitattributes" or "no .gitattributes
-    `eol=lf` pin covers it" -- see ``.aide/scripts/aide.py``).
-
-    This used to also assert that `aide check`'s *entire* warning set held
-    nothing beyond two named baseline categories. That pin was wider than
-    AC23: `aide merge`'s own sequence is claim-branch merge -> mark item
-    (fully-check)-> re-run the suite -> delete the claim branch, so a
-    transient "stale claim branch aide/NNN-... is already (fully-check)"
-    warning is live during that re-test window on *every* item's merge, not
-    just this one -- measured 2026-08-31 during item 128's own `aide merge`,
-    which turned this test red for a warning AC23 never claimed to forbid.
-    Scoped down to what the AC actually protects: no gitattributes-lint
-    warning, and no warning naming either the relocated artifact or its new
-    home.
-    """
-    warnings = _aide_check_warnings()
-    gitattributes_lint = [
-        warning
-        for warning in warnings
-        if ".gitattributes" in warning and "compares" in warning and "byte-for-byte" in warning
-    ]
-    assert not gitattributes_lint, (
-        f"aide check emitted a .gitattributes fixture-pin lint warning:\n{gitattributes_lint}"
-    )
-    assert not any(_ARTIFACT_REL_POSIX in warning for warning in warnings), (
-        f"aide check named {_ARTIFACT_REL_POSIX!r} in a warning:\n{warnings}"
-    )
-    assert not any(_NEW_MODULE_NAME in warning for warning in warnings), (
-        f"aide check named the new module in a warning:\n{warnings}"
-    )
+# test_ac23_aide_check_emits_no_gitattributes_lint_warning and its
+# _aide_check_warnings helper were removed by item 170 (§6, the per-item
+# warning-set-pinning retirement of 2026-09-16): both name what test_146's
+# equivalent removal explains -- a whole `aide check` run held to an
+# absence over its warning set is the recurring defect class §6 names. The
+# LF pin itself is still asserted by test_128 AC14's `git check-attr` test.
 
 
 # =========================================================================== #

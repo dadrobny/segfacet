@@ -440,8 +440,12 @@ def test_ac6_shape_mismatched_result_raises():
     # Cutting at 50 removes real foreground from both arrays while leaving the
     # label set unchanged, so this isolates a shape/voxel-count disagreement;
     # label-set disagreement is the sibling test's subject.
-    smaller_cand = _CAND_ARRAY[:50]
-    smaller_gt = _GT_ARRAY[:50]
+    # Re-derived 2026-09-23 (item 173): on the lordotic base the GT fixture's
+    # axis-0 foreground spans indices 15-45 of 61 (the candidate's 15-58), so
+    # a cut at 50 no longer reaches GT foreground; 40 cuts real foreground
+    # from both while every label stays present.
+    smaller_cand = _CAND_ARRAY[:40]
+    smaller_gt = _GT_ARRAY[:40]
     assert smaller_cand.shape != _CAND_ARRAY.shape
     assert int((smaller_cand != 0).sum()) < int((_CAND_ARRAY != 0).sum())
     assert int((smaller_gt != 0).sum()) < int((_GT_ARRAY != 0).sum())

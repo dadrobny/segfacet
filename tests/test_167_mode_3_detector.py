@@ -39,7 +39,9 @@ from segfacet.heuristics.fragmentation import (
     DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2,
     FragmentationRule,
 )
-from segfacet.pipeline import extract_feature_record
+from segfacet.pipeline import extract_feature_record, run_qc
+from segfacet.synth.clean_gt import build_clean_spine
+from segfacet.synth.component_shape import SplitPerturbation
 from segfacet.synth.corpus import load_manifest
 from segfacet.synth.intensity import load_intensity_manifest
 from segfacet.synth.regression import (
@@ -228,16 +230,21 @@ def test_ac1_feature_measures_the_split():
     data = np.asanyarray(seg_img.dataobj)
     zooms = seg_img.header.get_zooms()
 
-    expected_area, _expected_other = _recompute_stray_contact(data, zooms)[23]
-    assert expected_area > 0.0, "expected recomputation to find contact on label 23"
+    # Item 174 (2026-09-23): the re-authored split gives L4's (23) caudal
+    # cap to L5 (24), so the receiving label is 24, not 23.
+    expected_area, _expected_other = _recompute_stray_contact(data, zooms)[24]
+    assert expected_area > 0.0, "expected recomputation to find contact on label 24"
 
     config = bundled_default_config()
-    info = compute_components(seg_img, 23, config)
+    info = compute_components(seg_img, 24, config)
     assert info.stray_contact_area_mm2 == pytest.approx(expected_area)
     # Measured 2026-09-20 (Correction C7): the committed split fixture's
     # own value, pinned as a from-first-principles literal alongside the
     # recomputation above -- neither is a mirror of the other.
-    assert info.stray_contact_area_mm2 == pytest.approx(750.0)
+    # Re-measured 2026-09-23 on item 173's lordotic base: 775.0 (750.0 on
+    # the box base). Item 174 (2026-09-23): 775.0 -> 806.0, the 20 % caudal
+    # cap of L4 given to L5.
+    assert info.stray_contact_area_mm2 == pytest.approx(806.0)
 
 
 # =========================================================================== #
@@ -251,20 +258,23 @@ def test_ac2_feature_names_the_claiming_label():
     data = np.asanyarray(seg_img.dataobj)
     zooms = seg_img.header.get_zooms()
 
-    expected_area, expected_other = _recompute_stray_contact(data, zooms)[23]
-    assert expected_other != 0, "expected label 23's recomputed contact to name another label"
+    # Item 174 (2026-09-23): the receiving label is 24 (was 23), claimed by
+    # 23 (was 22).
+    expected_area, expected_other = _recompute_stray_contact(data, zooms)[24]
+    assert expected_other != 0, "expected label 24's recomputed contact to name another label"
 
     config = bundled_default_config()
-    info = compute_components(seg_img, 23, config)
+    info = compute_components(seg_img, 24, config)
     assert info.stray_contact_label == expected_other
     # Measured 2026-09-20 (Correction C7): the committed split fixture's
     # own value, pinned as a from-first-principles literal alongside the
     # recomputation above -- neither is a mirror of the other.
-    assert info.stray_contact_label == 22
+    # Item 174 (2026-09-23): 22 -> 23.
+    assert info.stray_contact_label == 23
 
     # The background sentinel for a label with no stray contact (AC2's
     # second half): every other present label in the same fixture.
-    other_labels = sorted(int(v) for v in np.unique(data) if v != 0 and int(v) != 23)
+    other_labels = sorted(int(v) for v in np.unique(data) if v != 0 and int(v) != 24)
     assert other_labels, "expected at least one other label in the split fixture"
     saw_a_sentinel = False
     for label in other_labels:
@@ -282,7 +292,9 @@ def test_ac2_feature_names_the_claiming_label():
 
 def test_ac3_silent_everywhere_else_in_both_corpora(stray_contact_sweep):
     firing = {key for key, area in stray_contact_sweep.items() if area > 0.0}
-    assert firing == {("geometric", "split", 23)}
+    # Item 174 (2026-09-23): ("geometric", "split", 23) -> 24, the label
+    # that now receives L4's cap.
+    assert firing == {("geometric", "split", 24)}
 
 
 # =========================================================================== #
@@ -318,7 +330,8 @@ def test_ac6_detector_fires_on_the_split_case():
         f for f in findings if (f.rule_id, f.detector_id) == ("fragmentation", "neighbour_contact")
     ]
     assert len(matches) == 1, findings
-    assert matches[0].labels == frozenset({23})
+    # Item 174 (2026-09-23): frozenset({23}) -> frozenset({24}).
+    assert matches[0].labels == frozenset({24})
 
 
 # =========================================================================== #
@@ -341,7 +354,12 @@ def test_ac7_detector_fires_on_no_other_case(all_corpus_findings):
 
 
 def test_ac8_split_case_expected_firing_unmoved():
-    cases = failure_modes.SPECIFICATION[3].corpus_cases
+    # Item 174 (2026-09-23), re-derived premise: mode 3 now carries two
+    # cases (split and split_own_label), so the split case is selected by
+    # case_id instead of asserting it is mode 3's only case.
+    cases = [
+        c for c in failure_modes.SPECIFICATION[3].corpus_cases if c.case_id == "split"
+    ]
     assert len(cases) == 1, cases
     case = cases[0]
     assert case.case_id == "split"
@@ -434,7 +452,10 @@ def test_fuse_adjacent_stays_silent():
     seg_img = loaded_seg_image(case)
     config = bundled_default_config()
     info = compute_components(seg_img, 22, config)
-    assert info.component_count > 1, "expected label 22 to carry a detached component"
+    # Item 176 (2026-09-24): premise re-derived -- the bridged fuse leaves
+    # label 22 one connected component over two bodies (was "> 1", a detached
+    # absorbed neighbour), so there is no stray component to measure.
+    assert info.component_count == 1, "expected the fused label 22 to be one component"
     assert info.stray_contact_area_mm2 == 0.0
 
 
@@ -504,8 +525,15 @@ def test_absence_tolerant_detector():
 
 
 def test_existing_detectors_unchanged():
-    case = _split_case_dict()
-    findings = pipeline_findings(case)
+    # Item 174 (2026-09-23), re-derived premise: the committed 20 % split no
+    # longer fires `components` (label 24's fragmentation_index is 0.8276),
+    # so item 167's claim -- the components and islands detectors are
+    # unchanged -- is shown on an in-memory 0.4 split of L4 to L5 instead.
+    split_img = SplitPerturbation(
+        target_label=23, neighbour_label=24, donated_fraction=0.4
+    ).apply(build_clean_spine().seg_img, 0).labelmap
+    result, _record = run_qc(split_img, bundled_default_config())
+    findings = result.findings
     components_findings = [
         f for f in findings if (f.rule_id, f.detector_id) == ("fragmentation", "components")
     ]

@@ -267,7 +267,7 @@ _SEG_FIXTURE_NAME: str = "clean_spine_seg.nii.gz"
 _DEFAULT_BASE_PARAMS: Dict[str, Any] = {
     "levels": ["L1", "L2", "L3", "L4", "L5"],
     "spacing": [1.0, 1.0, 1.0],
-    "curve_amplitude_mm": 6.0,
+    "curve_amplitude_mm": 0.0,
 }
 
 #: Target label for every implausible variant (L3, the middle body --

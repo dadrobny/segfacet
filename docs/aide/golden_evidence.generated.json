@@ -8,6 +8,10 @@
       "total_leaf_paths": 96,
       "unwired_leaf_paths": 26
     },
+    "crop_fov_si": {
+      "total_leaf_paths": 96,
+      "unwired_leaf_paths": 26
+    },
     "displace": {
       "total_leaf_paths": 96,
       "unwired_leaf_paths": 26
@@ -45,6 +49,10 @@
       "unwired_leaf_paths": 26
     },
     "split": {
+      "total_leaf_paths": 96,
+      "unwired_leaf_paths": 26
+    },
+    "split_own_label": {
       "total_leaf_paths": 96,
       "unwired_leaf_paths": 26
     }

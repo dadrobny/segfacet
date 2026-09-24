@@ -158,7 +158,9 @@ def emission_range(
     - Uncovered (``pop.covered is False``): all four ``None`` (AC4's null,
       never ``0`` -- unaffected by this function).
     - Covered and ``informative`` (magnitude strictly above
-      :data:`NEGLIGIBLE_MAGNITUDE`): the raw measured values, unchanged.
+      :data:`NEGLIGIBLE_MAGNITUDE`): the raw measured values, except that a
+      ``minimum`` or ``maximum`` at or below the floor in absolute value is
+      emitted as ``0.0`` and ``span`` is recomputed from the emitted pair.
     - Covered but not ``informative``: ``(0.0, 0.0, 0.0, 0.0)`` -- the raw
       measurement is sub-floor numerical noise whose exact bits are
       platform-dependent; reported as ``0.0`` by design rather than
@@ -174,7 +176,13 @@ def emission_range(
         return (None, None, None, None)
     if not pop.informative:
         return (0.0, 0.0, 0.0, 0.0)
-    return (pop.minimum, pop.maximum, pop.span, pop.magnitude)
+    # An informative population can still carry one sub-floor endpoint -- a
+    # principal-axis component of -2.9e-16 beside a maximum of 1.0 -- whose
+    # digits differ across numpy builds just as a wholly sub-floor
+    # population's do (PR #84's CI, 2026-09-24). Clamp that endpoint alone.
+    minimum = 0.0 if abs(pop.minimum) <= NEGLIGIBLE_MAGNITUDE else pop.minimum
+    maximum = 0.0 if abs(pop.maximum) <= NEGLIGIBLE_MAGNITUDE else pop.maximum
+    return (minimum, maximum, maximum - minimum, pop.magnitude)
 
 
 def _empty_population(population: str, source: Tuple[str, ...] = ()) -> PopulationRange:

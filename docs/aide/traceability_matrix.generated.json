@@ -1,7 +1,7 @@
 {
   "classification_conflicts": [],
   "conformance": {
-    "agree_count": 16,
+    "agree_count": 18,
     "cases": [
       {
         "agrees": true,
@@ -24,6 +24,19 @@
         "measured_firing": [
           "border",
           "mislabel"
+        ],
+        "mode": 0
+      },
+      {
+        "agrees": true,
+        "case_id": "crop_fov_si",
+        "corpus": "geometric",
+        "expected_firing": [
+          "bounds"
+        ],
+        "expected_source": "specification-condition",
+        "measured_firing": [
+          "bounds"
         ],
         "mode": 0
       },
@@ -70,15 +83,9 @@
         "agrees": true,
         "case_id": "fuse_adjacent",
         "corpus": "geometric",
-        "expected_firing": [
-          "coverage",
-          "fragmentation"
-        ],
+        "expected_firing": [],
         "expected_source": "specification",
-        "measured_firing": [
-          "coverage",
-          "fragmentation"
-        ],
+        "measured_firing": [],
         "mode": 2
       },
       {
@@ -152,6 +159,21 @@
         "expected_source": "specification",
         "measured_firing": [
           "fragmentation"
+        ],
+        "mode": 3
+      },
+      {
+        "agrees": true,
+        "case_id": "split_own_label",
+        "corpus": "geometric",
+        "expected_firing": [
+          "bounds",
+          "coverage"
+        ],
+        "expected_source": "specification",
+        "measured_firing": [
+          "bounds",
+          "coverage"
         ],
         "mode": 3
       },
@@ -254,6 +276,14 @@
         "reason": "",
         "state": "used"
       },
+      "crop_fov": {
+        "cases": [
+          "crop_fov_si"
+        ],
+        "name": "crop_fov",
+        "reason": "",
+        "state": "used"
+      },
       "displace": {
         "cases": [
           "displace"
@@ -341,6 +371,14 @@
         "name": "split",
         "reason": "",
         "state": "used"
+      },
+      "split_own_label": {
+        "cases": [
+          "split_own_label"
+        ],
+        "name": "split_own_label",
+        "reason": "",
+        "state": "used"
       }
     },
     "rules": {
@@ -357,26 +395,30 @@
         "state": "exercised"
       },
       "bounds": {
-        "exercised_by": [],
-        "reason": "needs-real-data",
-        "reason_modes": [
-          1,
-          2,
-          3,
-          4
+        "exercised_by": [
+          [
+            "geometric",
+            "crop_fov_si"
+          ],
+          [
+            "geometric",
+            "split_own_label"
+          ]
         ],
+        "reason": "",
+        "reason_modes": [],
         "rule_id": "bounds",
-        "state": "unexercised"
+        "state": "exercised"
       },
       "coverage": {
         "exercised_by": [
           [
             "geometric",
-            "fuse_adjacent"
+            "remove_level"
           ],
           [
             "geometric",
-            "remove_level"
+            "split_own_label"
           ]
         ],
         "reason": "",
@@ -389,10 +431,6 @@
           [
             "geometric",
             "fragment"
-          ],
-          [
-            "geometric",
-            "fuse_adjacent"
           ],
           [
             "geometric",
@@ -802,7 +840,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Observable from the label map via proxies, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both edges needs-real-data. The corpus case fuse_adjacent absorbs label 23 (L4) into 22 (L3) unbridged, so what fires today is fragmentation's Fragmentation: detector (per_label.{label}.components.fragmentation_index) and coverage's interior-gap detector (relationships.missing_levels[]) -- mode 1's and mode 6's detectors co-detecting, recorded, not this mode's own.",
+      "mechanism": "Observable from the label map via proxies, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both edges needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.",
       "mode": 2,
       "pipeline_detected": true,
       "read_paths": [
@@ -834,6 +872,10 @@
         {
           "case_id": "split",
           "detection": "pipeline"
+        },
+        {
+          "case_id": "split_own_label",
+          "detection": "pipeline"
         }
       ],
       "edge_rungs": [
@@ -862,7 +904,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Its own detector as of item 167: fragmentation's neighbour_contact detector fires on per_label.{label}.components.stray_contact_area_mm2 -- the maximum, over a label's non-largest connected components, of that component's 6-neighbour face-contact area with any single other non-zero label -- strictly above DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both committed corpora (2026-09-20): the only firing value is 750.0 mm^2 (label 23 against label 22 on the split case, +650.0 above threshold) and every other label of every other case measures 0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose absorbed neighbour is detached but touches nothing. On the split corpus case, label 23 now carries two findings: fragmentation's Fragmentation: detector (per_label.{label}.components.fragmentation_index) -- mode 1's detector co-detecting, because label 23 now spans two disconnected bodies -- and this mode's own Neighbour contact: detector. A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.",
+      "mechanism": "Its own detector as of item 167: fragmentation's neighbour_contact detector fires on per_label.{label}.components.stray_contact_area_mm2 -- the maximum, over a label's non-largest connected components, of that component's 6-neighbour face-contact area with any single other non-zero label -- strictly above DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both committed corpora (2026-09-23, item 174's 20% caudal cap on item 173's lordotic base): the only firing value is 806.0 mm^2 (label 24 against label 23 on the split case, +706.0 above threshold) and every other label of every other case measures 0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (per_label.{label}.components.fragmentation_index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure. A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.",
       "mode": 3,
       "pipeline_detected": true,
       "read_paths": [
@@ -882,7 +924,7 @@
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "bounds": "analytic",
+        "bounds": "corpus",
         "fragmentation": "corpus",
         "reference_delta": "analytic"
       },
@@ -1203,7 +1245,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's fragment designates this rule for mode 1 (segmentation accuracy: a vertebra cut into large same-label pieces) and inject_islands for mode 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- the Fragmentation: detector for the first, the Rogue island(s): detector for the second. The per-mode evidence claims are the per-edge rungs in segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 167 adds mode 3 (split vertebra segment): the split manifest case measures a 750.0 mm^2 stray-component contact between labels 22 and 23, none of the other fifteen committed corpus cases (both manifests, every label) measures more than 0.0 mm^2 -- the Neighbour contact: detector."
+        "tests/corpus/manifest.json's fragment designates this rule for mode 1 (segmentation accuracy: a vertebra cut into large same-label pieces) and inject_islands for mode 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- the Fragmentation: detector for the first, the Rogue island(s): detector for the second. The per-mode evidence claims are the per-edge rungs in segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 167 adds mode 3 (split vertebra segment): the split manifest case measures a 806.0 mm^2 stray-component contact between labels 24 and 23 (+706.0 above the 100.0 mm^2 threshold; measured 2026-09-23 on item 174's 20% caudal cap of item 173's lordotic base), none of the other sixteen committed corpus cases (both manifests, every label) measures more than 0.0 mm^2 -- the Neighbour contact: detector."
       ],
       "feature_path_count": 9,
       "feature_paths": [

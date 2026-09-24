@@ -647,6 +647,10 @@ def test_adv_explicit_empty_stray_sizes_is_honoured_not_treated_as_absent():
 # item 098's builder touches anything)
 # =========================================================================== #
 
+# Item 173 (2026-09-23): the component sizes, fragmentation indices and the
+# displace offset below are re-measured on the lordotic base (box base:
+# [9000, 9000] / 0.5, [18750, 27] / 0.9985620706183096, displace 18.7 mm,
+# crop_at_border 17.5 mm).
 _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
     "clean_control": [],
     "displace": [],
@@ -656,9 +660,9 @@ _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
             "severity": "flagged-for-review",
             "labels": [22],
             "reason": (
-                "Fragmentation: Label 22: fragmentation_index=0.5 is "
+                "Fragmentation: Label 22: fragmentation_index=0.52579 is "
                 "strictly below threshold 0.75. component_count=2, "
-                "component_sizes=[9000, 9000]"
+                "component_sizes=[9796, 8835]"
             ),
         }
     ],
@@ -670,8 +674,8 @@ _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
             "reason": (
                 "Rogue island(s): Label 22: 1 non-dominant component(s) "
                 "strictly below island_min_voxels=50. Tiny island sizes: "
-                "[27]. component_count=2, component_sizes=[18750, 27], "
-                "fragmentation_index=0.9985620706183096"
+                "[27]. component_count=2, component_sizes=[19437, 27], "
+                "fragmentation_index=0.9986128236744759"
             ),
         }
     ],
@@ -855,6 +859,10 @@ def test_ac14_every_golden_still_validates_against_schema():
 #: ``components``; ``inject_islands`` -> ``islands``; ``relabel_swap`` ->
 #: ``ordering``; ``remove_level`` -> ``missing_interior``; ``crop_at_border``
 #: -> ``unexpected_clip`` (border) and ``spline_offset`` (mislabel).
+#: Item 177 (2026-09-24): ``displace`` is re-authored mostly left-right
+#: (14 voxels right, 5 anterior), so its reason's offset moves
+#: "17.6 mm" -> "14.6 mm" (measured 14.615923 mm); direction and verdict
+#: unchanged.
 _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     "clean_control": {"verdict": "pass", "findings": []},
     "displace": {
@@ -867,7 +875,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "labels": [22],
                 "reason": (
                     "Vertebra misaligned from spinal curve: label 22 (L3) "
-                    "centroid lies 18.7 mm off the fitted spinal curve, "
+                    "centroid lies 14.6 mm off the fitted spinal curve, "
                     f"predominantly left-right (threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)."
                 ),
             }
@@ -882,9 +890,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "severity": "flagged-for-review",
                 "labels": [22],
                 "reason": (
-                    "Fragmentation: Label 22: fragmentation_index=0.5 is "
+                    "Fragmentation: Label 22: fragmentation_index=0.52579 is "
                     "strictly below threshold 0.75. component_count=2, "
-                    "component_sizes=[9000, 9000]"
+                    "component_sizes=[9796, 8835]"
                 ),
             }
         ],
@@ -900,8 +908,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "reason": (
                     "Rogue island(s): Label 22: 1 non-dominant component(s) "
                     "strictly below island_min_voxels=50. Tiny island sizes: "
-                    "[27]. component_count=2, component_sizes=[18750, 27], "
-                    "fragmentation_index=0.9985620706183096"
+                    "[27]. component_count=2, component_sizes=[19437, 27], "
+                    "fragmentation_index=0.9986128236744759"
                 ),
             }
         ],
@@ -960,7 +968,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "labels": [22],
                 "reason": (
                     "Vertebra misaligned from spinal curve: label 22 (L3) "
-                    "centroid lies 17.5 mm off the fitted spinal curve, "
+                    "centroid lies 18.0 mm off the fitted spinal curve, "
                     f"predominantly anterior-posterior (threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)."
                 ),
             },

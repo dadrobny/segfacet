@@ -344,7 +344,9 @@ def _all_manifest_case_keys():
 
 def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
-    assert len(keys) == 16, keys
+    # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
+    # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
+    assert len(keys) == 18, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -360,7 +362,9 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.unspecified_cases == ()
     assert matrix.conformance.disagreements == ()
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
-    assert matrix.conformance.agree_count == 16
+    # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
+    # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
+    assert matrix.conformance.agree_count == 18
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
@@ -554,10 +558,12 @@ def test_ac14_recorded_analytic_edge_list(matrix):
         for rule_id, attribution in row.rule_attribution
         if attribution == "analytic"
     )
+    # Item 174 (2026-09-23): (3, "bounds") left the analytic list -- mode 3's
+    # split_own_label case designates bounds, so that edge is now corpus.
     for expected in [
         (1, "bounds"), (1, "reference_delta"),
         (2, "bounds"), (2, "reference_delta"),
-        (3, "bounds"), (3, "reference_delta"),
+        (3, "reference_delta"),
         (4, "bounds"), (4, "reference_delta"),
         (8, "reference_delta"),
         (16, "intensity_reference_delta"),
@@ -1162,11 +1168,22 @@ def test_adv_ac35_status_counts_parser_rejects_off_by_one():
 
 
 def test_adv_ac35_status_counts_parser_rejects_wrong_n():
-    text = "derived status counts over 15 modes: validated 6, implemented 3, specified 0, proposed 7"
+    # Item 171 (Correction 2026-09-20 class, item 167): the old literal ("15
+    # modes") was a hardcoded guess about the specification's mode count.
+    # Stage 33 grows that count, so a fixed literal could coincide with it
+    # again. Build the perturbed mode count from the live derivation
+    # instead, so it can never coincide with live state.
+    live_n, live_counts = _live_status_counts()
+    text = (
+        f"derived status counts over {live_n + 1} modes: "
+        f"validated {live_counts['validated']}, "
+        f"implemented {live_counts['implemented']}, "
+        f"specified {live_counts['specified']}, "
+        f"proposed {live_counts['proposed']}"
+    )
     match = _STATUS_COUNTS_RE.search(text)
     assert match is not None
     n = int(match.group(1))
-    live_n, _live_counts = _live_status_counts()
     assert n != live_n
 
 

@@ -154,3 +154,48 @@ def docker_image_tag():
             f"--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"
         )
     return tag
+
+
+# --- Session-scoped work fixtures (item 170, insight 2026-09-18) -----------
+#
+# The 2026-09-18 measurement in docs/aide/insights.md found 11 in-process
+# `aide check` runs (11-13s each) and 33 specification/traceability
+# regenerations (7-27s each) across the suite. Each of the three fixtures
+# below does its expensive work at most once per pytest worker; the logic
+# lives in tests/session_artifacts.py and these are thin wrappers over it.
+
+
+@pytest.fixture(scope="session")
+def aide_check_result():
+    """One in-process ``aide check`` run, shared by every consumer (item 170,
+    insight 2026-09-18)."""
+    import session_artifacts
+
+    return session_artifacts.load_aide_check_result()
+
+
+@pytest.fixture(scope="session")
+def regenerated_failure_modes(tmp_path_factory):
+    """Two runs of ``segfacet.failure_modes.main``, shared by every consumer
+    (item 170, insight 2026-09-18)."""
+    import session_artifacts
+    import segfacet.failure_modes as fm
+
+    return session_artifacts.regenerate(
+        fm.main, fm.JSON_PATH, fm.MD_PATH, tmp_path_factory.mktemp("failure_modes")
+    )
+
+
+@pytest.fixture(scope="session")
+def regenerated_traceability(tmp_path_factory):
+    """Two runs of ``segfacet.traceability.main``, shared by every consumer
+    (item 170, insight 2026-09-18)."""
+    import session_artifacts
+    import segfacet.traceability as traceability
+
+    return session_artifacts.regenerate(
+        traceability.main,
+        traceability.JSON_PATH,
+        traceability.MD_PATH,
+        tmp_path_factory.mktemp("traceability"),
+    )

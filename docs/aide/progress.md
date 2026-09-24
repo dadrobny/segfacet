@@ -61,7 +61,7 @@
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
-| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 📋     |
+| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 🚧     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -1810,7 +1810,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 ---
 
-## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 📋
+## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 🚧
 
 **Goal.** Rebuild the geometric corpus base as a lordotic L1–L5, re-author the fixtures that
 do not express their mode, re-home the rules the queue-022 review named (`insights.md`,
@@ -1820,16 +1820,32 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 
 **Deliverables.**
 
-- 📋 **D0** Protective fixes at the head of the first queue: session-scoped `aide check`
-  and specification-regeneration fixtures, literal negative controls rebuilt from live
-  values, and `UNUSED_OPERATOR_REASONS` entries validated.
-- 📋 **D1** The lordotic geometric base, with both manifests regenerated and the
-  2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
-  status report's corpus section re-keyed off the generated specification.
-- 📋 **D2** Fixtures that express their mode: `split` at a ~20 % cap plus a new
-  `split_own_label`, `crop_at_border` as a volume crop, `fuse_adjacent` bridged and
-  renumbered, `displace` mostly left-right, `force_overlap` retired or declared
-  multi-channel, and `fragment` parked.
+- ✅ **D0** Protective fix: session-scoped `aide check` and specification-regeneration
+  fixtures, so the suite runs each once per session. *(Item 170)*
+- ✅ **D0** Protective fix: literal negative controls rebuilt from live values, so a
+  corpus change cannot make a "wrong" literal coincide with the live one. *(Item 171)*
+- ✅ **D0** Protective fix: `UNUSED_OPERATOR_REASONS` entries validated against the
+  operator registry and `CASE_RECIPE`. *(Item 172)*
+- ✅ **D1** The lordotic geometric base (per-level sagittal tilts L1–L5), with both
+  manifests and every generated artifact regenerated. *(Item 173)*
+- ✅ **D1** A committed corpus rendering (`docs/aide/corpus_sheet.png`, stale-checked
+  against the manifest and fixtures), with the 2026-09-22 prototype absorbed and
+  deleted. *(Item 178)*
+- ✅ **D1** The status report's corpus section re-keyed off the generated
+  specification. *(Item 179)*
+- ✅ **D2** `split` at a ~20 % cap, plus a new `split_own_label` case for mode 3's
+  second sub-type. *(Item 174)*
+- ✅ **D2** A new `crop_fov_si` case, a true S-I field-of-view crop of the volume; the
+  legacy anterior `crop_at_border` case is kept unchanged for `border` coverage.
+  *(Item 175)*
+- ✅ **D2** `fuse_adjacent` bridged into one component and L5 renumbered.
+  *(Item 176)*
+- ✅ **D2** `displace` moves mostly left-right (14 voxels right, 5 anterior).
+  *(Item 177)*
+- ⏸️ **D2** `force_overlap` retired or declared multi-channel, and `fragment` parked.
+  Parked 2026-09-24 by the maintainer: no overlap fixture is needed while multi-channel
+  segmentation is unsupported, and no follow-up is planned (`insights.md`, `knowledge`
+  entry dated 2026-09-23).
 - 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`

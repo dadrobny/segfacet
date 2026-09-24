@@ -24,21 +24,30 @@ slot ``i`` -- so ``labels[0]`` (the most cranial anatomical level, e.g. L1)
 sits at the *highest* S and ``labels[-1]`` (e.g. L5) at the *lowest*. The
 label order and the array-axis-2 slot order run opposite each other.
 
-Design (see the item 036 spec's Implementation Steps for the full rationale):
+Design -- a lordotic L1-L5 (item 173; the maintainer decision is the ``gap``
+entry in ``docs/aide/insights.md`` dated 2026-09-22, "maintainer decision on
+the geometric corpus base"):
 
-* Each body is a solid rectangular block sized in **physical mm**, converted
-  to voxel counts via ``spacing`` -- so the body's volume/extents land inside
-  every level group's default ``bounds`` regardless of spacing (AC4/AC6).
-* Bodies are separated by a fixed gap along axis 2 (the stacking axis;
-  disjoint -> no overlap, single component each -- AC7/AC9) and inset from
-  all six faces by a margin (no border contact -- AC8).
-* Centroids follow a smooth, gently-curved path (a shallow non-negative hump
-  in the left-right plane as a function of axis-2 (superior-inferior)
-  position); the fitted
-  spline (item 017) passes through the centroids exactly (``s=0``
-  interpolation), so every offset stays near-zero, well under the default
-  15 mm ``mislabel`` threshold (AC11), and the path is centroid-order
-  monotonic.
+* Each body is a 30 (L-R) x 25 (A-P) x 25 (S-I) mm box sized in **physical
+  mm**, rotated about the L-R axis by its level's sagittal tilt: L1 -8 deg,
+  L2 0 deg, L3 +8 deg, L4 +18 deg, L5 +35 deg (positive = anterior edge
+  lower). The tilt is looked up by canonical level name, so a partial lumbar
+  span keeps its levels' own tilts; every non-lumbar level (cervical,
+  thoracic) is untilted. A voxel belongs to a body iff its centre
+  (``index * spacing``, the affine's own mapping) lies inside the rotated
+  box, so ``voxel_counts`` is counted from the array.
+* Bodies are separated by an 8 mm gap (a disc height) along axis 2 (the
+  stacking axis; disjoint -> no overlap, single component each), i.e. a
+  33 mm S-I pitch, and inset from all six faces by a margin of at least one
+  voxel (``max(1, ceil(15 mm / spacing))`` voxels -- no border contact at any
+  spacing).
+* The A-P centroid path is the integral of the tilts: walking caudally, each
+  step moves A-P by the S-I step times the tangent of the mean of the two
+  bodies' tilts, so each tilt is the tangent of the lordotic curve.
+* There is no lateral curve by default (scoliosis is not the base case);
+  ``curve_amplitude_mm`` still adds a non-negative left-right hump,
+  ``amplitude * sin(pi * i / (n - 1))``, for callers that want per-subject
+  variability.
 * Content is purely computed (no RNG) -- deterministic (AC24).
 
 The default level span is lumbar L1-L5 (labels 20-24): a canonically-
@@ -91,17 +100,29 @@ _BODY_SIZE_SI_MM: float = 25.0
 _BODY_SIZE_LR_MM: float = 30.0
 _BODY_SIZE_AP_MM: float = 25.0
 
-# Inter-body gap along the stacking (superior-inferior) axis (mm) -- keeps
-# bodies disjoint (no overlap, one component each) with headroom.
-_GAP_MM: float = 15.0
+# Inter-body gap along the stacking (superior-inferior) axis (mm) -- a disc
+# height (item 173; was 15 mm). Keeps bodies disjoint at every tilt.
+_GAP_MM: float = 8.0
 
-# Margin from every one of the six FOV faces (mm) -- keeps every body's
-# bounding box strictly inside the volume (no border contact).
+# Margin from every one of the six FOV faces (mm), rounded up to whole voxels
+# and never less than one voxel -- keeps every body strictly inside the
+# volume (no border contact) at any spacing.
 _MARGIN_MM: float = 15.0
 
-# Gentle default lateral arc amplitude (mm); small enough that the curve
-# never threatens the margin, comfortably below the 15 mm mislabel threshold.
-_DEFAULT_CURVE_AMPLITUDE_MM: float = 6.0
+# Default lateral arc amplitude (mm): none -- scoliosis is not the base case
+# (item 173).
+_DEFAULT_CURVE_AMPLITUDE_MM: float = 0.0
+
+# Sagittal tilt per canonical level name, degrees about the L-R axis;
+# positive = anterior edge lower. The maintainer's lordosis table
+# (docs/aide/insights.md, 2026-09-22); levels it does not name are untilted.
+_TILT_DEG: Dict[str, float] = {
+    "L1": -8.0,
+    "L2": 0.0,
+    "L3": 8.0,
+    "L4": 18.0,
+    "L5": 35.0,
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -228,6 +249,16 @@ def build_clean_spine(
     :mod:`segfacet.io` -- the label order and the array-axis-2 slot order
     run opposite each other.
 
+    Item 173 (a lordotic base; ``docs/aide/insights.md``, 2026-09-22): each
+    30 x 25 x 25 mm body is rotated about the L-R axis by its level's
+    sagittal tilt (L1 -8, L2 0, L3 +8, L4 +18, L5 +35 deg; positive =
+    anterior edge lower; non-lumbar levels are untilted), bodies sit 8 mm
+    apart along S-I (a 33 mm pitch), and the A-P centroid path is the
+    integral of the tilts -- each caudal step moves A-P by the S-I step
+    times the tangent of the two bodies' mean tilt. A voxel belongs to a
+    body iff its centre lies inside the rotated box; every face keeps at
+    least one empty voxel.
+
     Parameters
     ----------
     levels:
@@ -244,7 +275,7 @@ def build_clean_spine(
         integer labels. Defaults to :meth:`LabelConvention.default`.
     curve_amplitude_mm:
         Peak lateral (left-right) displacement of the smooth centroid arc, in
-        mm. ``0.0`` yields a straight line.
+        mm. ``0.0`` (the default) yields no lateral curve.
 
     Returns
     -------
@@ -267,52 +298,91 @@ def build_clean_spine(
     # module docstring's RAS-native convention: axis 0 = left-right, axis 1 =
     # anterior-posterior, axis 2 = superior-inferior (the stacking axis).
     sx, sy, sz = (float(s) for s in spacing)
+    spacing_arr = np.array([sx, sy, sz])
 
-    body_vox_lr = max(1, math.ceil(_BODY_SIZE_LR_MM / sx))
-    body_vox_ap = max(1, math.ceil(_BODY_SIZE_AP_MM / sy))
-    body_vox_si = max(1, math.ceil(_BODY_SIZE_SI_MM / sz))
-
-    gap_vox_si = max(1, math.ceil(_GAP_MM / sz))
-    margin_vox_lr = max(1, math.ceil(_MARGIN_MM / sx))
-    margin_vox_ap = max(1, math.ceil(_MARGIN_MM / sy))
-    margin_vox_si = max(1, math.ceil(_MARGIN_MM / sz))
-
+    tilts_rad = [math.radians(_TILT_DEG.get(name, 0.0)) for name in level_names]
     amplitude = max(0.0, float(curve_amplitude_mm))
-    amplitude_vox_lr = math.ceil(amplitude / sx) if amplitude > 0.0 else 0
 
-    shape0 = 2 * margin_vox_lr + body_vox_lr + amplitude_vox_lr
-    shape1 = 2 * margin_vox_ap + body_vox_ap
-    shape2 = 2 * margin_vox_si + n * body_vox_si + max(0, n - 1) * gap_vox_si
-    shape = (int(shape0), int(shape1), int(shape2))
-
-    seg_data = np.zeros(shape, dtype=np.uint16)
-
-    voxel_counts: Dict[int, int] = {}
-    for i, label in enumerate(labels):
-        # Ascending labels advance caudally (descending S): the i-th
-        # ascending label occupies slot n - 1 - i along the stacking axis,
-        # not slot i (item 143). The hump stays keyed on i (A2): it is
-        # symmetric in i, so this reassignment reverses only which label
-        # sits at which S -- the emitted geometry is bit-identical.
-        slot = n - 1 - i
-        start2 = margin_vox_si + slot * (body_vox_si + gap_vox_si)
-        end2 = start2 + body_vox_si
-
-        # Smooth, non-negative lateral hump: 0 at the ends, peaking at the
-        # middle body -- always >= 0, so a fixed one-sided margin suffices.
+    # Centroids in mm, relative to an origin fixed below. Ascending labels
+    # advance caudally (descending S): the i-th ascending label occupies slot
+    # n - 1 - i along the stacking axis (item 143), at a pitch of one body
+    # plus one disc gap. The A-P path is the integral of the tilts: walking
+    # caudally, y drops by pitch * tan(mean of the two bodies' tilts).
+    pitch = _BODY_SIZE_SI_MM + _GAP_MM
+    centroids = np.zeros((n, 3))
+    for i in range(n):
         frac = (i / (n - 1)) if n > 1 else 0.0
-        shift_mm = amplitude * math.sin(math.pi * frac)
-        shift_vox_lr = int(round(shift_mm / sx)) if sx > 0 else 0
-        shift_vox_lr = max(0, min(shift_vox_lr, amplitude_vox_lr))
+        centroids[i, 0] = amplitude * math.sin(math.pi * frac)
+        centroids[i, 2] = (n - 1 - i) * pitch
+        if i > 0:
+            mean_tilt = (tilts_rad[i - 1] + tilts_rad[i]) / 2.0
+            centroids[i, 1] = centroids[i - 1, 1] - pitch * math.tan(mean_tilt)
 
-        start0 = margin_vox_lr + shift_vox_lr
-        end0 = start0 + body_vox_lr
+    # Worst-case rotated half-extent over the span's levels, per axis.
+    t_max = max(abs(t) for t in tilts_rad)
+    half = np.array(
+        [
+            _BODY_SIZE_LR_MM / 2.0,
+            (_BODY_SIZE_AP_MM * math.cos(t_max) + _BODY_SIZE_SI_MM * math.sin(t_max)) / 2.0,
+            (_BODY_SIZE_AP_MM * math.sin(t_max) + _BODY_SIZE_SI_MM * math.cos(t_max)) / 2.0,
+        ]
+    )
 
-        start1 = margin_vox_ap
-        end1 = start1 + body_vox_ap
+    # Margin: at least one whole voxel per face at any spacing (item 173 A3).
+    margin_vox = np.array([max(1, math.ceil(_MARGIN_MM / s)) for s in (sx, sy, sz)])
+    lo = centroids.min(axis=0) - half - margin_vox * spacing_arr
+    hi = centroids.max(axis=0) + half + margin_vox * spacing_arr
+    centroids = centroids - lo
+    # One spare voxel per axis; the grid is trimmed to the exact margin below.
+    grid_shape = tuple(int(math.ceil(v / s)) + 1 for v, s in zip(hi - lo, (sx, sy, sz)))
 
-        seg_data[start0:end0, start1:end1, start2:end2] = label
-        voxel_counts[label] = int(body_vox_lr * body_vox_ap * body_vox_si)
+    # Voxel centres in mm -- index * spacing, the affine's own mapping.
+    gx = (np.arange(grid_shape[0]) * sx).reshape(-1, 1, 1)
+    gy = (np.arange(grid_shape[1]) * sy).reshape(1, -1, 1)
+    gz = (np.arange(grid_shape[2]) * sz).reshape(1, 1, -1)
+
+    seg_data = np.zeros(grid_shape, dtype=np.uint16)
+    for label, (cx, cy, cz), th in zip(labels, centroids, tilts_rad):
+        y = gy - cy
+        z = gz - cz
+        u = y * math.cos(th) - z * math.sin(th)  # along the body's A-P axis
+        v = y * math.sin(th) + z * math.cos(th)  # along the body's S-I axis
+        inside = (
+            (np.abs(gx - cx) <= _BODY_SIZE_LR_MM / 2.0)
+            & (np.abs(u) <= _BODY_SIZE_AP_MM / 2.0)
+            & (np.abs(v) <= _BODY_SIZE_SI_MM / 2.0)
+        )
+        seg_data[inside] = label
+
+    # Second pass (item 173 correction, 2026-09-23): a spacing coarser than a
+    # body can miss every voxel centre inside its rotated box, and a later
+    # body's box fill can overwrite an earlier body's own claimed voxels --
+    # so this only runs after every box above is written, over labels in
+    # ascending order. Each label left with zero voxels claims the still-
+    # unclaimed (value 0) voxel nearest its centroid in mm; ties go to the
+    # lowest C-order flat index, which is what np.argmin returns first.
+    for label in sorted(labels):
+        if np.any(seg_data == label):
+            continue
+        cx, cy, cz = centroids[labels.index(label)]
+        dist2 = (gx - cx) ** 2 + (gy - cy) ** 2 + (gz - cz) ** 2
+        dist2 = np.where(seg_data == 0, dist2, np.inf)
+        seg_data.flat[np.argmin(dist2)] = label
+
+    # Trim to the occupied bounding box plus exactly ``margin_vox`` empty
+    # voxels on every face, so the margin holds whatever the rounding.
+    occupied = np.argwhere(seg_data)
+    first = occupied.min(axis=0)
+    last = occupied.max(axis=0)
+    seg_data = seg_data[first[0]:last[0] + 1, first[1]:last[1] + 1, first[2]:last[2] + 1]
+    seg_data = np.ascontiguousarray(
+        np.pad(seg_data, [(int(m), int(m)) for m in margin_vox], mode="constant")
+    )
+    shape = tuple(int(d) for d in seg_data.shape)
+
+    voxel_counts: Dict[int, int] = {
+        label: int(np.count_nonzero(seg_data == label)) for label in labels
+    }
 
     affine = _affine_from_spacing(spacing)
     seg_img = nib.Nifti1Image(seg_data, affine)

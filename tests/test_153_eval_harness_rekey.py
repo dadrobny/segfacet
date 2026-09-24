@@ -249,9 +249,19 @@ def test_ac5_homes_are_derived_from_the_specification():
 def test_adv_ac5_wrong_home_is_detected():
     """A monkeypatched registry entry with a wrong home disagrees with the
     live derivation (a false 'homes are derived' claim must fail, not pass
-    silently)."""
+    silently).
+
+    Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
+    the old literal wrong home (99) was a numeric guess about the
+    specification's mode-id domain -- Stage 33 grows that domain, so a
+    fixed literal could coincide with a real home again. Derive the wrong
+    home from the live specification instead, so it can never coincide with
+    live state.
+    """
     real = per_mode.PER_MODE_METRIC_SPECS["unanchored_foreground_fraction"]
-    wrong = dataclasses.replace(real, failure_mode=99)
+    live = _derived_home("unanchored_foreground_fraction")
+    wrong_home = min(i for i in fm.SPECIFICATION if i != live)
+    wrong = dataclasses.replace(real, failure_mode=wrong_home)
     assert wrong.failure_mode != _derived_home("unanchored_foreground_fraction")
 
 

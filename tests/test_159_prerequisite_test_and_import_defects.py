@@ -40,7 +40,6 @@ from run_process import run_utf8
 import test_143_s_axis_correction as t143
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _TESTS_DIR = _REPO_ROOT / "tests"
 
 _HEAVY_ROOTS = {"numpy", "scipy", "nibabel"}
@@ -262,64 +261,49 @@ def _load_module_from_path(path: Path, unique_name: str):
     return module
 
 
-class _InjectingAide:
-    """Wraps a real, freshly-loaded ``aide.py`` module so ``run_checks``
-    returns the live result plus one extra warning (spec A9) -- the seam
-    AC7-AC9 drive by monkeypatching a test module's ``_aide_module``."""
-
-    def __init__(self, real_aide, extra_warning: str):
-        self._real = real_aide
-        self._extra_warning = extra_warning
-        self.calls = 0
-        self.last_warnings: List[str] = []
-
-    def load_config(self, repo_root):
-        return self._real.load_config(repo_root)
-
-    def run_checks(self, repo_root, config, branches=None):
-        self.calls += 1
-        errors, warnings = self._real.run_checks(repo_root, config, branches)
-        self.last_warnings = list(warnings) + [self._extra_warning]
-        return errors, self.last_warnings
+# The injection seam moved (item 170, step 4): test_146/test_150's targets
+# now take the `aide_check_result` session fixture directly rather than
+# calling a module-level `_aide_module()`, so the seam is a constructed
+# `AideCheckResult` -- built from a real one plus the injected literal --
+# passed straight into the target function. `_InjectingAide` is gone; its
+# `run_checks` call is what AC7 forbids (item 170 AC5).
 
 
-def test_ac7_test_146_no_longer_pins_the_warning_class_set(monkeypatch):
+def test_ac7_test_146_no_longer_pins_the_warning_class_set(aide_check_result):
+    import session_artifacts
+
     module = _load_module_from_path(_TEST_146_PATH, "_test_146_for_159_ac7")
-    real_aide = _load_module_from_path(_AIDE_SCRIPT, "_aide_cli_159_ac7_real")
-    injector = _InjectingAide(real_aide, _UNRECOGNISED_WARNING)
-    monkeypatch.setattr(module, "_aide_module", lambda: injector)
+    injected = session_artifacts.AideCheckResult(
+        errors=aide_check_result.errors,
+        warnings=aide_check_result.warnings + (_UNRECOGNISED_WARNING,),
+    )
 
-    module.test_ac36_aide_check_reports_no_error_and_no_new_warning_class()
-
-    # Guard against vacuity: the wrapper was actually called, and the
-    # injected, unclassifiable warning really is in what it returned.
-    assert injector.calls == 1, "the injected wrapper's run_checks was never called"
-    assert _UNRECOGNISED_WARNING in injector.last_warnings
+    module.test_ac36_aide_check_reports_no_error_and_no_new_warning_class(injected)
 
 
-def test_ac8_test_150_no_longer_pins_the_warning_class_set(monkeypatch):
+def test_ac8_test_150_no_longer_pins_the_warning_class_set(aide_check_result):
+    import session_artifacts
+
     module = _load_module_from_path(_TEST_150_PATH, "_test_150_for_159_ac8")
-    real_aide = _load_module_from_path(_AIDE_SCRIPT, "_aide_cli_159_ac8_real")
-    injector = _InjectingAide(real_aide, _UNRECOGNISED_WARNING)
-    monkeypatch.setattr(module, "_aide_module", lambda: injector)
+    injected = session_artifacts.AideCheckResult(
+        errors=aide_check_result.errors,
+        warnings=aide_check_result.warnings + (_UNRECOGNISED_WARNING,),
+    )
 
-    module.test_ac4_aide_check_reports_no_error_and_no_unfilled_slot()
-
-    assert injector.calls == 1, "the injected wrapper's run_checks was never called"
-    assert _UNRECOGNISED_WARNING in injector.last_warnings
+    module.test_ac4_aide_check_reports_no_error_and_no_unfilled_slot(injected)
 
 
-def test_ac9_test_150_still_catches_an_unfilled_slot(monkeypatch):
+def test_ac9_test_150_still_catches_an_unfilled_slot(aide_check_result):
+    import session_artifacts
+
     module = _load_module_from_path(_TEST_150_PATH, "_test_150_for_159_ac9")
-    real_aide = _load_module_from_path(_AIDE_SCRIPT, "_aide_cli_159_ac9_real")
-    injector = _InjectingAide(real_aide, _UNFILLED_SLOT_WARNING)
-    monkeypatch.setattr(module, "_aide_module", lambda: injector)
+    injected = session_artifacts.AideCheckResult(
+        errors=aide_check_result.errors,
+        warnings=aide_check_result.warnings + (_UNFILLED_SLOT_WARNING,),
+    )
 
     with pytest.raises(AssertionError):
-        module.test_ac4_aide_check_reports_no_error_and_no_unfilled_slot()
-
-    assert injector.calls == 1, "the injected wrapper's run_checks was never called"
-    assert _UNFILLED_SLOT_WARNING in injector.last_warnings
+        module.test_ac4_aide_check_reports_no_error_and_no_unfilled_slot(injected)
 
 
 # =========================================================================== #

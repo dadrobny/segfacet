@@ -293,8 +293,9 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     each corroborated rule declares *exactly* the modes the committed corpus
     designates for it. The sign-off separates the two: a corpus case's
     ``expected_firing`` now records co-detections as well as the mode's own
-    intended rules, so ``coverage``, ``fragmentation`` and ``mislabel`` are
-    each designated one mode more than they declare. The claim that survives,
+    intended rules, so ``mislabel`` is designated one mode more than it
+    declares (``coverage`` and ``fragmentation`` were too, until item 176,
+    2026-09-24, made fuse_adjacent designate no rule). The claim that survives,
     pair by pair, is that every corpus-designated mode is *accounted for* --
     declared by the rule, or recorded in the specification as a co-detection
     on one of that mode's corpus cases -- and that the split is the one the
@@ -315,9 +316,9 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # out of this set -- fragmentation now declares mode 3 itself, via the
     # new `neighbour_contact` detector, so the pair is no longer a
     # co-detection.
+    # Revised 2026-09-24 (item 176): ("coverage", 2) and ("fragmentation", 2)
+    # left the set -- the bridged, renumbered fuse_adjacent designates no rule.
     expected_co_detections = {
-        ("coverage", 2),  # fuse_adjacent fires coverage alongside fragmentation
-        ("fragmentation", 2),  # ... and fragmentation, neither declaring mode 2
         ("mislabel", 1),  # displace is detected only as a co-detection
     }
 

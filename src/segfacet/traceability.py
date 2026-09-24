@@ -77,7 +77,10 @@ the strongest :data:`segfacet.failure_modes.EVIDENCE_RUNGS` entry among the
 perturbation operator (:func:`segfacet.synth.perturbation.perturbation_names`),
 whether it is used by >=1 :data:`segfacet.synth.corpus.CASE_RECIPE` entry, or
 recorded unused with an authored reason
-(:data:`UNUSED_OPERATOR_REASONS`, empty on this tree). Both directions score
+(:data:`UNUSED_OPERATOR_REASONS`, empty on this tree; item 172's
+:func:`operator_reason_conflicts` validates each entry against the live
+registry and ``CASE_RECIPE`` -- an unregistered name or a now-used operator
+is reported as a conflict, not silently read as `""`). Both directions score
 their own completeness the same way every other direction here does: a record
 that is neither exercised/used nor reasoned is a named hole, and the
 direction's ``complete`` flag turns false.
@@ -153,6 +156,7 @@ __all__ = [
     "bar_conditions",
     "BAR_CONDITIONS",
     "PROXY_RULE_IDS",
+    "operator_reason_conflicts",
 ]
 
 SCHEMA_VERSION = "1.2"
@@ -201,7 +205,10 @@ OPERATOR_STATES: Tuple[str, ...] = ("used", "unused")
 #: The sole authored string in the exercise feature (A4): a deliberately
 #: unused operator's reason. Empty on this tree -- all registered operators
 #: are used, measured 2026-09-18 -- so the recorded branch is reachable and
-#: tested only adversarially.
+#: tested only adversarially. Entries are validated by
+#: :func:`operator_reason_conflicts` (item 172): a key absent from
+#: ``perturbation_names()`` or naming an operator ``CASE_RECIPE`` actually
+#: uses is reported as a conflict.
 UNUSED_OPERATOR_REASONS: Dict[str, str] = {}
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -539,6 +546,62 @@ def _build_conformance(failure_modes_module) -> ConformanceReport:
     )
 
 
+def _cases_by_operator() -> Dict[str, list]:
+    """Operator name -> list of ``CASE_RECIPE`` case ids using it, in
+    ``CASE_RECIPE`` order; callers sort.
+    Shared by :func:`_build_exercise` and :func:`operator_reason_conflicts`
+    (item 172) so the two cannot drift on what "used" means. Imports
+    ``CASE_RECIPE`` from ``segfacet.synth.corpus`` inside the function body
+    (house style) -- this also imports ``segfacet.synth``, whose
+    ``__init__`` imports every module that registers an operator, so the
+    registry is complete before anything reads it."""
+    from segfacet.synth.corpus import CASE_RECIPE
+
+    cases_by_operator: Dict[str, list] = {}
+    for entry in CASE_RECIPE:
+        cases_by_operator.setdefault(entry.perturbation, []).append(entry.case_id)
+    return cases_by_operator
+
+
+def operator_reason_conflicts() -> Tuple[str, ...]:
+    """Validate :data:`UNUSED_OPERATOR_REASONS` against the live registry and
+    ``CASE_RECIPE`` (item 172). Reads the module global at call time (A3), so
+    ``monkeypatch.setattr(traceability, "UNUSED_OPERATOR_REASONS", ...)``
+    reaches it.
+
+    One message per bad entry, sorted by key (A4, deterministic):
+
+    - a key not registered by ``perturbation_names()`` is reported as a
+      stale/unregistered entry;
+    - a key naming a registered operator that >=1 ``CASE_RECIPE`` entry
+      actually uses is reported as a used-operator conflict, naming the
+      cases.
+
+    An entry for a registered, unused operator adds nothing -- that is the
+    legitimate shape (AC3)."""
+    from segfacet.synth.perturbation import perturbation_names
+
+    registered = set(perturbation_names())
+    cases_by_operator = _cases_by_operator()
+
+    messages: list = []
+    for name in sorted(UNUSED_OPERATOR_REASONS):
+        if name not in registered:
+            messages.append(
+                f"UNUSED_OPERATOR_REASONS entry {name!r} names an operator "
+                "that is not registered (perturbation_names() does not "
+                "list it)."
+            )
+            continue
+        cases = sorted(cases_by_operator.get(name, ()))
+        if cases:
+            messages.append(
+                f"UNUSED_OPERATOR_REASONS entry {name!r} is recorded as "
+                "unused, but CASE_RECIPE uses it: " + ", ".join(cases) + "."
+            )
+    return tuple(messages)
+
+
 def _build_exercise(
     conformance: ConformanceReport, failure_modes_module
 ) -> ExerciseReport:
@@ -548,7 +611,6 @@ def _build_exercise(
     drive) and a fresh read of the rule/operator registries and
     ``CASE_RECIPE``."""
     from segfacet.heuristics.rule import iter_rules
-    from segfacet.synth.corpus import CASE_RECIPE
     from segfacet.synth.perturbation import perturbation_names
 
     specification = failure_modes_module.SPECIFICATION
@@ -613,9 +675,7 @@ def _build_exercise(
     rule_holes = tuple(sorted(r.rule_id for r in rule_records if r.state == "unexercised" and not r.reason))
     rule_direction = DirectionReport(complete=not rule_holes, holes=rule_holes)
 
-    cases_by_operator: Dict[str, list] = {}
-    for entry in CASE_RECIPE:
-        cases_by_operator.setdefault(entry.perturbation, []).append(entry.case_id)
+    cases_by_operator = _cases_by_operator()
 
     operator_records: list = []
     for name in perturbation_names():

@@ -1055,21 +1055,17 @@ def test_ac22_committed_corpora_agree_with_the_derived_name_map():
 # =========================================================================== #
 
 
-def test_ac23_new_fields_reach_both_artifacts(tmp_path):
+def test_ac23_new_fields_reach_both_artifacts(regenerated_failure_modes):
     import segfacet.failure_modes as fm
 
-    json_dest = tmp_path / "failure_modes.generated.json"
-    md_dest = tmp_path / "failure_modes.generated.md"
-    fm.main(["--json", str(json_dest), "--md", str(md_dest)])
-
-    payload = json.loads(json_dest.read_text(encoding="utf-8"))
+    payload = json.loads(regenerated_failure_modes.json_a.read_text(encoding="utf-8"))
     assert payload["modes"], "expected a non-empty rendered mode list"
     assert len(payload["modes"]) == len(fm.SPECIFICATION)
     for mode_record in payload["modes"]:
         assert "short_name" in mode_record, mode_record["id"]
         assert "mechanism" in mode_record, mode_record["id"]
 
-    md_text = md_dest.read_text(encoding="utf-8")
+    md_text = regenerated_failure_modes.md_a.read_text(encoding="utf-8")
     for mode_id, mode in fm.SPECIFICATION.items():
         section = _mode_section(md_text, mode_id)
         assert mode.short_name in section, mode_id
@@ -1103,19 +1099,17 @@ def _assert_lf_only_single_trailing_newline(raw: bytes):
     assert not text.endswith("\n\n")
 
 
-def test_ac24_all_three_artifact_pairs_regenerate_byte_identically(tmp_path):
+def test_ac24_all_three_artifact_pairs_regenerate_byte_identically(
+    tmp_path, regenerated_failure_modes, regenerated_traceability
+):
     import segfacet.catalogue as catalogue
     import segfacet.failure_modes as fm
-    import segfacet.traceability as traceability
     from segfacet.synth.golden import assert_matches_committed_artifact
 
     # -- failure_modes.generated.{json,md} --------------------------------- #
-    fm_json_a, fm_md_a = tmp_path / "fm_a.json", tmp_path / "fm_a.md"
-    fm_json_b, fm_md_b = tmp_path / "fm_b.json", tmp_path / "fm_b.md"
-    fm.main(["--json", str(fm_json_a), "--md", str(fm_md_a)])
-    fm.main(["--json", str(fm_json_b), "--md", str(fm_md_b)])
-    assert fm_json_a.read_bytes() == fm_json_b.read_bytes()
-    assert fm_md_a.read_bytes() == fm_md_b.read_bytes()
+    fm_json_a, fm_md_a = regenerated_failure_modes.json_a, regenerated_failure_modes.md_a
+    assert fm_json_a.read_bytes() == regenerated_failure_modes.json_b.read_bytes()
+    assert fm_md_a.read_bytes() == regenerated_failure_modes.md_b.read_bytes()
     _assert_lf_only_single_trailing_newline(fm_json_a.read_bytes())
     _assert_lf_only_single_trailing_newline(fm_md_a.read_bytes())
     assert_matches_committed_artifact(fm_json_a, _COMMITTED_FM_JSON)
@@ -1142,12 +1136,9 @@ def test_ac24_all_three_artifact_pairs_regenerate_byte_identically(tmp_path):
     assert fresh_headings == committed_headings
 
     # -- traceability_matrix.generated.{json,md} ---------------------------- #
-    trace_json_a, trace_md_a = tmp_path / "trace_a.json", tmp_path / "trace_a.md"
-    trace_json_b, trace_md_b = tmp_path / "trace_b.json", tmp_path / "trace_b.md"
-    traceability.main(["--json", str(trace_json_a), "--md", str(trace_md_a)])
-    traceability.main(["--json", str(trace_json_b), "--md", str(trace_md_b)])
-    assert trace_json_a.read_bytes() == trace_json_b.read_bytes()
-    assert trace_md_a.read_bytes() == trace_md_b.read_bytes()
+    trace_json_a, trace_md_a = regenerated_traceability.json_a, regenerated_traceability.md_a
+    assert trace_json_a.read_bytes() == regenerated_traceability.json_b.read_bytes()
+    assert trace_md_a.read_bytes() == regenerated_traceability.md_b.read_bytes()
     _assert_lf_only_single_trailing_newline(trace_json_a.read_bytes())
     _assert_lf_only_single_trailing_newline(trace_md_a.read_bytes())
     assert_matches_committed_artifact(trace_json_a, _COMMITTED_TRACE_JSON)
@@ -1253,5 +1244,7 @@ def test_ac26_every_corpus_case_agrees_and_status_derives_correctly(measured):
 # (.aide/conventions/6-test-hygiene.md §6). The error half now lives in
 # tests/test_aide_check_no_errors.py; the `.gitattributes`-warning guard it
 # also carried is covered by
-# tests/test_128_relocation_checks.py::test_ac23_aide_check_emits_no_gitattributes_lint_warning.
+# tests/test_128_relocation_checks.py::test_ac14_git_check_attr_reports_text_set_and_eol_lf
+# (re-pointed by item 170: the sweep this comment used to name was removed
+# as a warning-set pin, per §6 and the 2026-09-16 retirement).
 # =========================================================================== #

@@ -2,7 +2,7 @@
   "cases": [
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -35,7 +35,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -51,7 +51,7 @@
       },
       "case_id": "displace",
       "condition": "",
-      "detail": "displace: translated label 22 by (13, 13) voxels along (array axis 0, array axis 1) -- the two non-stacking axes -- off the spinal curve defined by the remaining vertebrae. Caught by plain run_qc's held-out per-label spline offset (item 120), which measures the target against a curve it did not shape.",
+      "detail": "displace: translated label 22 by 14 voxels toward the right face (array axis 0, high end) and 5 voxels toward the anterior face (array axis 1, high end) -- mostly left-right (ap_angle_deg=20.0), nothing along the stacking axis -- off the spinal curve defined by the remaining vertebrae. Caught by plain run_qc's held-out per-label spline offset (item 120).",
       "detection": "pipeline",
       "expected_labels": [
         22
@@ -65,6 +65,8 @@
       "kind": "failure",
       "perturbation": "displace",
       "perturbation_params": {
+        "ap_angle_deg": 20.0,
+        "displacement_mm": 15.0,
         "target_label": 22
       },
       "reconstruction": null,
@@ -74,7 +76,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -90,7 +92,7 @@
       },
       "case_id": "fragment",
       "condition": "",
-      "detail": "fragment: split label 22 into 2 pieces via interior slab cut(s) at stacking-axis (array axis 2) index(es) [107].",
+      "detail": "fragment: split label 22 into 2 pieces via interior slab cut(s) at stacking-axis (array axis 2) index(es) [98].",
       "detection": "pipeline",
       "expected_labels": [
         22
@@ -113,7 +115,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -152,7 +154,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -193,7 +195,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -230,7 +232,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -270,7 +272,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -307,7 +309,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -323,7 +325,7 @@
       },
       "case_id": "force_overlap",
       "condition": "",
-      "detail": "force_overlap: shifted label 20 by -18 voxel(s) along the stacking axis (array axis 2) toward neighbour label 21, reassigning the contested overhang from 21 to 20.",
+      "detail": "force_overlap: shifted label 20 by -10 voxel(s) along the stacking axis (array axis 2) toward neighbour label 21, reassigning the contested overhang from 21 to 20.",
       "detection": "reconstructed_record",
       "expected_labels": [
         20,
@@ -348,7 +350,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -364,21 +366,17 @@
       },
       "case_id": "fuse_adjacent",
       "condition": "",
-      "detail": "fuse: absorbed neighbour label 23 into target label 22; 23 is no longer present. Mode 2 (fused or split vertebra segments) of the catalogue signed off at item 150; what plain run_qc fires on it today are co-detections -- fragmentation on the two disconnected bodies under one label, coverage on the absorbed level missing from the span -- not mode 2's own bounds / reference_delta proxies, which need a reference.",
+      "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the inter-centroid spacing around the fused label, is read by no shipped rule, so no rule is designated.",
       "detection": "pipeline",
-      "expected_labels": [
-        22
-      ],
-      "expected_rule_ids": [
-        "coverage",
-        "fragmentation"
-      ],
-      "expected_verdict": "flagged-for-review",
+      "expected_labels": [],
+      "expected_rule_ids": [],
+      "expected_verdict": "pass",
       "failure_mode": 2,
       "failure_mode_name": "fused vertebra segments",
       "kind": "failure",
       "perturbation": "fuse",
       "perturbation_params": {
+        "bridged": true,
         "neighbour_label": 23,
         "target_label": 22
       },
@@ -389,7 +387,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -424,7 +422,7 @@
     },
     {
       "base": {
-        "curve_amplitude_mm": 6.0,
+        "curve_amplitude_mm": 0.0,
         "levels": [
           "L1",
           "L2",
@@ -440,10 +438,10 @@
       },
       "case_id": "split",
       "condition": "",
-      "detail": "split: donated 0.4 of target label 22's stacking-axis (array axis 2) span (indices 95-104 of 95-119) to neighbour label 23. The receiving label now spans two disconnected bodies, so fragmentation's Fragmentation: detector (mode 1's) fires on it -- a co-detection, not mode 3's own signal.",
+      "detail": "split: requested donated_fraction 0.2 of target label 23's voxels; relabelled its stacking-axis (array axis 2) slices 49-57 of 49-80 (4030 of 19344 voxels) to neighbour label 24.",
       "detection": "pipeline",
       "expected_labels": [
-        23
+        24
       ],
       "expected_rule_ids": [
         "fragmentation"
@@ -454,13 +452,95 @@
       "kind": "failure",
       "perturbation": "split",
       "perturbation_params": {
-        "neighbour_label": 23,
-        "target_label": 22
+        "donated_fraction": 0.2,
+        "neighbour_label": 24,
+        "target_label": 23
       },
       "reconstruction": null,
       "scan_fixture": "fixtures/base_scan.nii.gz",
       "seed": 0,
       "seg_fixture": "fixtures/split_seg.nii.gz"
+    },
+    {
+      "base": {
+        "curve_amplitude_mm": 0.0,
+        "levels": [
+          "L1",
+          "L2",
+          "L3",
+          "L4",
+          "L5"
+        ],
+        "spacing": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "case_id": "split_own_label",
+      "condition": "",
+      "detail": "split_own_label: requested donated_fraction 0.2 of target label 23's voxels; its caudal cap, stacking-axis (array axis 2) slices 49-57 (4030 voxels), keeps label 23 and every label <= 23 elsewhere shifts to label - 1.",
+      "detection": "pipeline",
+      "expected_labels": [
+        23
+      ],
+      "expected_rule_ids": [
+        "bounds"
+      ],
+      "expected_verdict": "flagged-for-review",
+      "failure_mode": 3,
+      "failure_mode_name": "split vertebra segment",
+      "kind": "failure",
+      "perturbation": "split_own_label",
+      "perturbation_params": {
+        "donated_fraction": 0.2,
+        "target_label": 23
+      },
+      "reconstruction": null,
+      "scan_fixture": "fixtures/base_scan.nii.gz",
+      "seed": 0,
+      "seg_fixture": "fixtures/split_own_label_seg.nii.gz"
+    },
+    {
+      "base": {
+        "curve_amplitude_mm": 0.0,
+        "levels": [
+          "L1",
+          "L2",
+          "L3",
+          "L4",
+          "L5"
+        ],
+        "spacing": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "case_id": "crop_fov_si",
+      "condition": "fov_truncation",
+      "detail": "crop_fov: cropped the volume at the 'inferior' face, removing 35 whole slice(s) to take at least 0.65 of target label 24 (12586 of 19344 voxels removed); output shape (61, 86, 158). Exhibits the FOV-truncation CONDITION, not a failure mode.",
+      "detection": "pipeline",
+      "expected_labels": [
+        24
+      ],
+      "expected_rule_ids": [
+        "bounds"
+      ],
+      "expected_verdict": "flagged-for-review",
+      "failure_mode": 0,
+      "failure_mode_name": "FOV truncation (condition, not a failure mode)",
+      "kind": "condition",
+      "perturbation": "crop_fov",
+      "perturbation_params": {
+        "face": "inferior",
+        "removed_fraction": 0.65,
+        "target_label": 24
+      },
+      "reconstruction": null,
+      "scan_fixture": "fixtures/crop_fov_si_scan.nii.gz",
+      "seed": 0,
+      "seg_fixture": "fixtures/crop_fov_si_seg.nii.gz"
     }
   ],
   "generator": "segfacet.synth.corpus",

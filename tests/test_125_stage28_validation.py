@@ -476,11 +476,20 @@ def test_ac15_agrees_with_test_040_mode_sets():
 def test_ac15_agrees_with_test_057_pipeline_detectable_modes():
     import test_057_acceptance_stage7 as t057
 
-    manifest_pipeline_modes = _pipeline_detected_modes_excluding_clean_control()
     # test_057's constant names the modes with a DETECTED case (sensitivity
-    # 1.0). Since item 150's 2026-09-15 revision every pipeline-typed mode
-    # has one: mode 6's remove_level_relabel case is undetected, but its
-    # remove_level case is caught.
+    # 1.0): pipeline-path failure cases that designate a rule. Item 176
+    # (2026-09-24) re-derived this set: its premise "every pipeline-typed
+    # mode has a detected case" no longer holds. The two expected-"pass"
+    # failure cases, remove_level_relabel (mode 6, whose remove_level case is
+    # still caught) and fuse_adjacent (mode 2's only case), designate no rule,
+    # so the set is built here from cases with a non-empty expected_rule_ids.
+    manifest_pipeline_modes = {
+        c["failure_mode"]
+        for c in _read_manifest()["cases"]
+        if c["detection"] == "pipeline"
+        and corpus_case_kind(c) == CASE_KIND_FAILURE
+        and c["expected_rule_ids"]
+    }
     assert set(t057._PIPELINE_DETECTABLE_MODES) == manifest_pipeline_modes
 
 

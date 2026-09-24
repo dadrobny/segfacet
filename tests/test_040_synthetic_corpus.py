@@ -502,23 +502,28 @@ def test_ac18_the_one_command_regeneration_entry_point_runs(tmp_path):
 # =========================================================================== #
 
 
-def test_fuse_adjacent_case_records_mode_2_with_both_co_detected_rules():
-    """``fuse_adjacent`` is mode 2's ("fused vertebra segments")
-    fixture, and it names *both* rules the fused map trips: the survivor's
-    fragmentation finding and the case-level coverage finding for the level
-    the fuse consumed. Both must actually fire."""
+def test_fuse_adjacent_case_records_mode_2_bridged_and_fires_nothing():
+    """``fuse_adjacent`` is mode 2's ("fused vertebra segments") fixture:
+    one connected label over two bodies, with the caudal labels renumbered
+    so the sequence stays continuous, so no shipped rule sees anything. Its
+    expectation records that honestly -- no rule, a "pass" verdict -- and the
+    pipeline must agree.
+
+    Item 176 (2026-09-24): the fuse is now bridged and renumbered; it was
+    the unbridged absorb that co-detected as coverage and fragmentation
+    (renamed from ``..._with_both_co_detected_rules``, spec R2)."""
     case = _case("fuse_adjacent")
     assert case["failure_mode"] == 2
     assert case["condition"] == ""
     assert case["detection"] == "pipeline"
-    assert sorted(case["expected_rule_ids"]) == ["coverage", "fragmentation"]
-    assert case["expected_verdict"] == "flagged-for-review"
+    assert case["expected_rule_ids"] == []
+    assert case["expected_labels"] == []
+    assert case["expected_verdict"] == "pass"
 
     seg_img = _seg_nifti_from_case(case)
     case_result, _block = run_qc(seg_img, bundled_default_config())
-    fired = {f.rule_id for f in case_result.findings}
-    assert set(case["expected_rule_ids"]) <= fired
-    assert case_result.verdict.overall.label == case["expected_verdict"]
+    assert list(case_result.findings) == []
+    assert case_result.verdict.overall == Severity.PASS
 
 
 def test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing():
@@ -589,9 +594,27 @@ def test_adv_every_seg_fixture_path_is_distinct():
 
 def test_adv_all_cases_share_exactly_one_scan_fixture():
     """Adversarial: every case derives from the same base clean spine, so
-    every case's scan_fixture is the same shared path."""
-    scan_fixtures = {c["scan_fixture"] for c in _cases()}
-    assert len(scan_fixtures) == 1
+    every case on the base grid names the one shared base scan -- no
+    duplicated scan.
+
+    Item 175 (2026-09-24) re-derived the premise "every case shares one
+    scan": ``crop_fov_si`` is a volume crop on a smaller grid and carries its
+    own scan. The guard is kept: a case on ``clean_control``'s grid must name
+    ``fixtures/base_scan.nii.gz``, and any other case must name a scan on its
+    own seg's grid. The name records the pre-item premise (items 173/174
+    precedent)."""
+    reference = nib.load(str(_resolve(_case("clean_control"), "seg_fixture")))
+    for case in _cases():
+        seg = nib.load(str(_resolve(case, "seg_fixture")))
+        on_base_grid = seg.shape == reference.shape and np.array_equal(
+            seg.affine, reference.affine
+        )
+        if on_base_grid:
+            assert case["scan_fixture"] == "fixtures/base_scan.nii.gz", case["case_id"]
+        else:
+            scan = nib.load(str(_resolve(case, "scan_fixture")))
+            assert scan.shape == seg.shape, case["case_id"]
+            assert np.array_equal(scan.affine, seg.affine), case["case_id"]
 
 
 def test_adv_shared_base_scan_byte_identical_to_fresh_clean_spine_scan(tmp_path):

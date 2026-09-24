@@ -82,8 +82,7 @@ entry, AC32-AC36 artifacts and the record):
         test_ac33_traceability_matrix_matches_committed_structurally
 - AC34: test_ac34_mode16_catalogue_attribution_equals_declaring_rules_reach
 - AC35: test_ac35_module_docstring_records_the_change_with_resolvable_paths
-- AC36: test_ac36_aide_check_reports_no_error_and_no_new_warning_class,
-        test_ac36_no_warning_names_a_path_this_item_writes
+- AC36: test_ac36_aide_check_reports_no_error_and_no_new_warning_class
 
 Adversarial / edge cases beyond the one-per-AC set are grouped at the bottom,
 in the item spec's Testing Strategy order.
@@ -1228,17 +1227,13 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
 # =========================================================================== #
 
 
-def test_ac32_specification_artifacts_regenerate_byte_identically_run_to_run(tmp_path):
-    import segfacet.failure_modes as fm
-
-    json_a, md_a = tmp_path / "a.json", tmp_path / "a.md"
-    json_b, md_b = tmp_path / "b.json", tmp_path / "b.md"
-
-    fm.main(["--json", str(json_a), "--md", str(md_a)])
-    fm.main(["--json", str(json_b), "--md", str(md_b)])
-
-    bytes_a_json, bytes_b_json = json_a.read_bytes(), json_b.read_bytes()
-    bytes_a_md, bytes_b_md = md_a.read_bytes(), md_b.read_bytes()
+def test_ac32_specification_artifacts_regenerate_byte_identically_run_to_run(
+    regenerated_failure_modes,
+):
+    bytes_a_json = regenerated_failure_modes.json_a.read_bytes()
+    bytes_b_json = regenerated_failure_modes.json_b.read_bytes()
+    bytes_a_md = regenerated_failure_modes.md_a.read_bytes()
+    bytes_b_md = regenerated_failure_modes.md_b.read_bytes()
     assert bytes_a_json, "expected non-empty JSON"
     assert bytes_a_md, "expected non-empty markdown"
     assert bytes_a_json == bytes_b_json
@@ -1284,9 +1279,10 @@ def test_ac32_fresh_matches_committed_and_is_lf_with_one_trailing_newline():
 # =========================================================================== #
 
 
-def test_ac33_downstream_artifacts_regenerate_byte_identically_run_to_run(tmp_path):
+def test_ac33_downstream_artifacts_regenerate_byte_identically_run_to_run(
+    tmp_path, regenerated_traceability
+):
     import segfacet.catalogue as catalogue
-    import segfacet.traceability as traceability
 
     cat_json_a, cat_md_a = tmp_path / "cat_a.json", tmp_path / "cat_a.md"
     cat_json_b, cat_md_b = tmp_path / "cat_b.json", tmp_path / "cat_b.md"
@@ -1296,13 +1292,14 @@ def test_ac33_downstream_artifacts_regenerate_byte_identically_run_to_run(tmp_pa
     assert cat_json_a.read_bytes() == cat_json_b.read_bytes()
     assert cat_md_a.read_bytes() == cat_md_b.read_bytes()
 
-    trace_json_a, trace_md_a = tmp_path / "trace_a.json", tmp_path / "trace_a.md"
-    trace_json_b, trace_md_b = tmp_path / "trace_b.json", tmp_path / "trace_b.md"
-    traceability.main(["--json", str(trace_json_a), "--md", str(trace_md_a)])
-    traceability.main(["--json", str(trace_json_b), "--md", str(trace_md_b)])
-    assert trace_json_a.read_bytes(), "expected non-empty traceability JSON"
-    assert trace_json_a.read_bytes() == trace_json_b.read_bytes()
-    assert trace_md_a.read_bytes() == trace_md_b.read_bytes()
+    trace_json_a = regenerated_traceability.json_a.read_bytes()
+    trace_json_b = regenerated_traceability.json_b.read_bytes()
+    assert trace_json_a, "expected non-empty traceability JSON"
+    assert trace_json_a == trace_json_b
+    assert (
+        regenerated_traceability.md_a.read_bytes()
+        == regenerated_traceability.md_b.read_bytes()
+    )
 
 
 def test_ac33_feature_catalogue_matches_committed_via_tolerance_helper(tmp_path):
@@ -1321,14 +1318,10 @@ def test_ac33_feature_catalogue_matches_committed_via_tolerance_helper(tmp_path)
     assert fresh_md_bytes == committed_md_bytes
 
 
-def test_ac33_traceability_matrix_matches_committed_structurally(tmp_path):
-    import segfacet.traceability as traceability
-
-    json_dest = tmp_path / "traceability_matrix.generated.json"
-    md_dest = tmp_path / "traceability_matrix.generated.md"
-    traceability.main(["--json", str(json_dest), "--md", str(md_dest)])
-
-    fresh_bytes = json_dest.read_bytes()
+def test_ac33_traceability_matrix_matches_committed_structurally(
+    regenerated_traceability,
+):
+    fresh_bytes = regenerated_traceability.json_a.read_bytes()
     assert fresh_bytes, "expected non-empty traceability JSON"
     fresh_payload = json.loads(fresh_bytes.decode("utf-8"))
     committed_bytes = _COMMITTED_TRACEABILITY_JSON.read_bytes()
@@ -1336,7 +1329,7 @@ def test_ac33_traceability_matrix_matches_committed_structurally(tmp_path):
     committed_payload = json.loads(committed_bytes.decode("utf-8"))
     assert fresh_payload == committed_payload
 
-    fresh_md_bytes = md_dest.read_bytes()
+    fresh_md_bytes = regenerated_traceability.md_a.read_bytes()
     committed_md_bytes = _COMMITTED_TRACEABILITY_MD.read_bytes()
     assert fresh_md_bytes, "expected non-empty traceability markdown"
     assert fresh_md_bytes.decode("utf-8") == committed_md_bytes.decode("utf-8")
@@ -1433,33 +1426,16 @@ def test_ac35_module_docstring_records_the_change_with_resolvable_paths():
 # no encoding and no re-parse.
 # =========================================================================== #
 
-_BRANCH_STATE_WARNING_PREFIXES = ("stale claim branch", "unrecognised branch")
-
-def _aide_module():
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("_aide_cli_146", _AIDE_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
+# _aide_module, _classify_warning and _BRANCH_STATE_WARNING_PREFIXES, plus
+# the two warning-set-pinning tests they served
+# (test_ac36_no_warning_names_a_path_this_item_writes and
+# test_adv_unclassified_warning_would_be_caught), were removed by item 170
+# (§6, the per-item warning-baseline retirement of 2026-09-16): a warning
+# shape `aide check` legitimately starts emitting is not a defect, so
+# pinning a warning-class baseline is the recurring defect class §6 names.
 
 
-def _classify_warning(message: str) -> str:
-    """Classify by *shape*, so a genuinely new instance of a tolerated class
-    still classifies as that class while an unseen shape reports
-    ``"unclassified"`` and fails the check."""
-    if message.startswith(_BRANCH_STATE_WARNING_PREFIXES):
-        return "branch-state"
-    if re.search(r"criterion \d+ was retracted on \d{4}-\d{2}-\d{2}", message):
-        return "retracted-criterion"
-    if "assumptions" in message.lower():
-        return "assumptions-block"
-    if "awaiting a decision" in message.lower():
-        return "awaiting-a-decision"
-    return "unclassified"
-
-
-def test_ac36_aide_check_reports_no_error_and_no_new_warning_class():
+def test_ac36_aide_check_reports_no_error_and_no_new_warning_class(aide_check_result):
     """The class-subset pin this name once carried is retired (item 159 A4,
     D-n): a warning shape ``aide check`` legitimately starts emitting is not
     a defect, so pinning "the classes are a subset of a recorded baseline"
@@ -1468,53 +1444,7 @@ def test_ac36_aide_check_reports_no_error_and_no_new_warning_class():
     module-independently, by ``tests/test_aide_check_no_errors.py``; this
     test keeps the name (item 159 AC7 drives it via an injected wrapper)
     and the same call shape, minus the retired assertions."""
-    aide = _aide_module()
-    errors, _warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    assert errors == [], errors
-
-
-def test_ac36_no_warning_names_a_path_this_item_writes():
-    """The negatives AC36 names by hand: no `.gitattributes` lint for any
-    path this item regenerated, no `insights.md` entry-shape warning, and no
-    warning naming any file the item wrote.
-
-    Human-gate warnings are excluded from the path sweep, and only from it
-    (they are still classified by the test above): a gate's warning quotes
-    the gate's own prose, and a Stage-30 gate legitimately names
-    `src/segfacet/failure_modes.py` while asking a person to sign the
-    specification off -- which is the loop working, not a lint firing. The
-    `.gitattributes` / `insights.md` negatives still apply to every warning.
-    """
-    aide = _aide_module()
-    _errors, warnings = aide.run_checks(_REPO_ROOT, aide.load_config(_REPO_ROOT))
-    written_paths = (
-        "src/segfacet/failure_modes.py",
-        "src/segfacet/synth/regression.py",
-        "src/segfacet/synth/intensity.py",
-        "src/segfacet/catalogue.py",
-        "src/segfacet/heuristics/intensity.py",
-        "src/segfacet/heuristics/intensity_reference_delta.py",
-        "tests/corpus/intensity/manifest.json",
-    )
-    swept = 0
-    for warning in warnings:
-        assert "insights.md" not in warning, warning
-        assert ".gitattributes" not in warning, warning
-        if _classify_warning(warning) == "awaiting-a-decision":
-            continue
-        swept += 1
-        for written_path in written_paths:
-            assert written_path not in warning, (written_path, warning)
-    assert swept, (
-        "every warning was a human gate -- the path sweep checked nothing; "
-        "re-read the baseline before trusting this test"
-    )
-
-
-def test_adv_unclassified_warning_would_be_caught():
-    """The classifier must be able to detect a new class -- otherwise the
-    AC36 check above passes on anything."""
-    assert _classify_warning("a brand new kind of warning nobody has seen") == "unclassified"
+    assert aide_check_result.errors == (), aide_check_result.errors
 
 
 def test_adv_aide_check_exits_zero():

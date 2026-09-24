@@ -360,7 +360,12 @@ def test_ac5_only_the_targeted_path_is_flagged_degenerate(observed_range_module)
 
 
 def test_ac6_constant_synthetic_dy_mm_not_degenerate(full_catalogue):
-    entry = _entry(full_catalogue, "stage3.per_label_offsets[].dy_mm")
+    # Re-derived 2026-09-23 (item 173): on the axis-aligned box base the curve
+    # was lateral only, so dy_mm (A-P) was the legitimately-constant path. The
+    # lordotic base curves in the sagittal plane with no lateral curve, so the
+    # constant path is now dx_mm (L-R) and dy_mm varies. The name records the
+    # box-base path.
+    entry = _entry(full_catalogue, "stage3.per_label_offsets[].dx_mm")
     assert entry.observed.verdict == "constant-synthetic"
     assert entry.observed.verdict != "degenerate"
 
@@ -773,6 +778,16 @@ def test_adv_floor_boundary_just_above_floor_is_informative(observed_range_modul
     driver_records = [("clean", {"leaf": just_above})]
     ranges = observed_range_module.build_observed_ranges(driver_records=driver_records)
     assert ranges["leaf"].corpus.informative is True
+
+
+def test_adv_sub_floor_endpoint_of_informative_population_emits_zero(observed_range_module):
+    # PR #84's CI: a principal-axis minimum of -2.9e-16 beside a maximum of
+    # 1.0 emitted its noise digits, which differ across numpy builds.
+    driver_records = [("clean", {"leaf": -2.90281e-16}), ("single_label", {"leaf": 1.0})]
+    corpus = observed_range_module.build_observed_ranges(driver_records=driver_records)["leaf"].corpus
+    assert corpus.informative is True
+    assert corpus.minimum == -2.90281e-16
+    assert observed_range_module.emission_range(corpus) == (0.0, 1.0, 1.0, 1.0)
 
 
 def test_adv_sign_handling_all_negative_population_is_informative(observed_range_module):

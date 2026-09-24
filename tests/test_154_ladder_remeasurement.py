@@ -432,10 +432,23 @@ def test_ac14_disposition_ladders_are_derived_from_the_homes(sl):
 def test_adv_ac14_rehoming_a_metric_changes_the_derived_tuple(monkeypatch, sl):
     import segfacet.eval.per_mode as per_mode
 
-    patched_specs = dict(per_mode.PER_MODE_METRIC_SPECS)
-    patched_specs["rogue_island_count"] = dataclasses.replace(
-        patched_specs["rogue_island_count"], failure_mode=1
+    # Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
+    # the old literal metric ("rogue_island_count") was wrong only while its
+    # live home was not 1 -- Stage 33 re-homes ladders and metrics, so a
+    # fixed literal could end up already living in mode 1, making this
+    # control vacuous. Choose the first ladder (in SEVERITY_LADDERS order)
+    # whose designated metric does not already live in mode 1 instead, so
+    # the control is non-vacuous by construction.
+    metric_name = next(
+        sl.SEVERITY_LADDERS[operator].designated_metric
+        for operator in sl.SEVERITY_LADDERS
+        if per_mode.PER_MODE_METRIC_SPECS[sl.SEVERITY_LADDERS[operator].designated_metric].failure_mode
+        != 1
     )
+    assert per_mode.PER_MODE_METRIC_SPECS[metric_name].failure_mode != 1
+
+    patched_specs = dict(per_mode.PER_MODE_METRIC_SPECS)
+    patched_specs[metric_name] = dataclasses.replace(patched_specs[metric_name], failure_mode=1)
     monkeypatch.setattr(per_mode, "PER_MODE_METRIC_SPECS", patched_specs)
 
     rehomed_ladders = tuple(

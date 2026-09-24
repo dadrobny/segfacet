@@ -278,7 +278,10 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
     record = extract_feature_record(seg_img, bundled_default_config())
     actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
 
-    expected_global = [3.2953, 177.6490, 175.2184, 1.4658, 22.0118]
+    # Re-measured 2026-09-23 on item 173's lordotic base (box base:
+    # [3.2953, 177.6490, 175.2184, 1.4658, 22.0118], fold
+    # [3.2953, 2.3510, 4.7816, 1.4658, 22.0118]).
+    expected_global = [2.4934, 174.7774, 176.1799, 13.5824, 68.7966]
     assert actual == pytest.approx(expected_global, abs=1e-3)
 
     rejected_fold = _per_element_fold(actual)
@@ -292,7 +295,7 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
     # The per-element fold, applied to the *correct* global-decision array,
     # would itself read close to the values a wrongly-implemented fold would
     # produce -- pinned so a future reader sees exactly what AC4 rules out.
-    expected_fold_if_wrongly_implemented = [3.2953, 2.3510, 4.7816, 1.4658, 22.0118]
+    expected_fold_if_wrongly_implemented = [2.4934, 5.2226, 3.8201, 13.5824, 68.7966]
     assert _per_element_fold(expected_global) == pytest.approx(
         expected_fold_if_wrongly_implemented, abs=1e-3
     )
@@ -310,7 +313,15 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
 #: ``split`` case. A pre-item table is deliberately not extended
 #: with values the item it belongs to never measured; instead each sweep pins
 #: the uncovered set exactly, so a *fourth* uncovered case still fails.
-_ADDED_AFTER_ITEM = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_ITEM = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def _cases_covered_by(table, manifest):
@@ -328,16 +339,21 @@ def _cases_covered_by(table, manifest):
     return [c for c in manifest["cases"] if c["case_id"] in table]
 
 
+#: Re-measured 2026-09-23 (item 173): every table below carries the lordotic
+#: base's fresh values; the box-base values they replace are recorded in
+#: item 173's Decisions log. The "pre-item" names are kept.
 _PRE_ITEM_TANGENT_ANGLES_DEG = {
-    "clean_control": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
-    "displace": [25.5042, 27.8238, 0.0, 27.8238, 25.5042],
-    "fragment": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
-    "inject_islands": [8.1498, 4.0650, 0.0, 4.0650, 8.1498],
-    "relabel_swap": [3.2953, 177.6490, 175.2184, 1.4658, 22.0118],
-    "remove_level": [7.6323, 3.7952, 3.7952, 7.6323],
-    "crop_at_border": [28.8047, 24.3476, 0.0, 24.3476, 28.8047],
-    "sequence_break": [8.1652, 4.0730, 0.0, 4.0730, 8.1652],
-    "force_overlap": [13.2111, 6.9636, 0.6253, 4.9247, 5.7262],
+    "clean_control": [7.5755, 0.2549, 8.338, 19.241, 33.59],
+    # Item 177 (2026-09-24): displace re-authored mostly left-right; was
+    # [27.8284, 27.8378, 6.0299, 41.7355, 26.6063].
+    "displace": [25.9391, 23.5042, 7.7742, 34.4209, 36.1447],
+    "fragment": [7.5789, 0.2563, 8.3458, 19.2424, 33.5914],
+    "inject_islands": [7.5527, 0.2444, 8.3384, 19.2305, 33.5758],
+    "relabel_swap": [2.4934, 174.7774, 176.1799, 13.5824, 68.7966],
+    "remove_level": [7.9542, 0.3797, 19.3691, 33.9343],
+    "crop_at_border": [26.3425, 28.4101, 3.3337, 44.8979, 3.7078],
+    "sequence_break": [7.5755, 0.2549, 8.338, 19.241, 33.59],
+    "force_overlap": [9.5721, 1.5117, 8.781, 19.7507, 32.4681],
 }
 
 #: Item 143 corrected the synthetic corpus's S-axis stacking so ascending
@@ -346,15 +362,15 @@ _PRE_ITEM_TANGENT_ANGLES_DEG = {
 #: matching AC3's mirror-symmetry guarantee that the correction changes only
 #: the sign of the net advance, never its magnitude).
 _PRE_ITEM_NET_ADVANCE_S_MM = {
-    "clean_control": -160.0,
-    "displace": -160.0,
-    "fragment": -160.0,
-    "inject_islands": -160.0,
-    "relabel_swap": -160.0,
-    "remove_level": -160.0,
-    "crop_at_border": -160.0,
-    "sequence_break": -160.0,
-    "force_overlap": -142.0,
+    "clean_control": -131.97402926021348,
+    "displace": -131.97402926021348,
+    "fragment": -131.97402926021348,
+    "inject_islands": -131.97402926021348,
+    "relabel_swap": -131.97402926021348,
+    "remove_level": -131.97402926021348,
+    "crop_at_border": -131.97402926021348,
+    "sequence_break": -131.97402926021348,
+    "force_overlap": -121.97402926021348,
 }
 
 
@@ -394,15 +410,17 @@ def test_ac6_every_corpus_case_net_advance_positive():
 # =========================================================================== #
 
 _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
-    "clean_control": [4.092235, 4.072969, 4.072969, 4.092235],
-    "displace": [52.786936, 27.823768, 27.823768, 52.786936],
-    "fragment": [4.092235, 4.072969, 4.072969, 4.092235],
-    "inject_islands": [4.084804, 4.065026, 4.065026, 4.084804],
-    "relabel_swap": [179.055714, 2.430623, 173.752605, 20.545999],
-    "remove_level": [3.837156, 7.590310, 3.837156],
-    "crop_at_border": [52.093619, 24.347610, 24.347610, 52.093619],
-    "sequence_break": [4.092235, 4.072969, 4.072969, 4.092235],
-    "force_overlap": [6.247546, 7.588856, 4.299399, 0.801556],
+    "clean_control": [7.320601, 8.592928, 10.902949, 14.349002],
+    # Item 177 (2026-09-24): displace re-authored mostly left-right; was
+    # [55.387489, 30.552099, 38.203632, 53.0888].
+    "displace": [48.936337, 25.787973, 30.209688, 50.406207],
+    "fragment": [7.32261, 8.602036, 10.896665, 14.34894],
+    "inject_islands": [7.308494, 8.582631, 10.892096, 14.345307],
+    "relabel_swap": [177.270834, 1.402466, 170.23772, 55.214185],
+    "remove_level": [7.574565, 19.748784, 14.565142],
+    "crop_at_border": [54.752541, 31.743766, 41.564217, 48.605677],
+    "sequence_break": [7.320601, 8.592928, 10.902949, 14.349002],
+    "force_overlap": [8.060493, 10.292691, 10.969692, 12.717367],
 }
 
 
@@ -690,14 +708,16 @@ def test_ac17_observed_range_cells_unchanged(tmp_path):
     }
 
     tangent = entries_by_path["stage3.curvature.tangent_angles_deg[]"]
-    assert tangent["observed"]["corpus"]["minimum"] == pytest.approx(0.0, abs=1e-6)
-    assert tangent["observed"]["corpus"]["maximum"] == pytest.approx(8.1652, abs=1e-3)
+    # Re-measured 2026-09-23 on item 173's lordotic base (box base: 0.0,
+    # 8.1652; inter 3.83716, 7.59031).
+    assert tangent["observed"]["corpus"]["minimum"] == pytest.approx(0.254105, abs=1e-6)
+    assert tangent["observed"]["corpus"]["maximum"] == pytest.approx(33.9343, abs=1e-3)
     assert tangent["observed"]["verdict"] == "varies"
     assert tangent["status"] == "retune"
 
     inter = entries_by_path["stage3.curvature.inter_tangent_angles_deg[]"]
-    assert inter["observed"]["corpus"]["minimum"] == pytest.approx(3.83716, abs=1e-3)
-    assert inter["observed"]["corpus"]["maximum"] == pytest.approx(7.59031, abs=1e-3)
+    assert inter["observed"]["corpus"]["minimum"] == pytest.approx(7.32060, abs=1e-3)
+    assert inter["observed"]["corpus"]["maximum"] == pytest.approx(19.74878, abs=1e-3)
     assert inter["observed"]["verdict"] == "varies"
     assert inter["status"] == "retune"
 
@@ -768,101 +788,132 @@ def test_ac20_fresh_default_reference_matches_committed(tmp_path):
 
 _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
     "clean_control": {
-        "total_curvature_deg": 16.330407,
-        "coronal_curvature_deg": 16.330407,
-        "sagittal_curvature_deg": 0.0,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
-        "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "total_curvature_deg": 41.165481,
+        "coronal_curvature_deg": 0.0,
+        "sagittal_curvature_deg": 41.165481,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [-7.575496, -0.254895, 8.338034, 19.240983, 33.589985],
     },
+    # Item 177 (2026-09-24): displace re-authored mostly left-right, so the
+    # displacement now lies in the coronal plane. Was: total 58.548579,
+    # coronal 49.467784, sagittal 58.548579, plane "sagittal", coronal angles
+    # [23.691377, -20.547581, -2.362148, 22.93499, -25.776407], sagittal
+    # [16.354544, -20.404503, 5.554225, 38.144076, 7.57774].
     "displace": {
-        "total_curvature_deg": 44.926306,
-        "coronal_curvature_deg": 44.926306,
-        "sagittal_curvature_deg": 42.295125,
+        "total_curvature_deg": 56.331544,
+        "coronal_curvature_deg": 56.331544,
+        "sagittal_curvature_deg": 35.478865,
         "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [15.600454, -22.463153, 0.0, 22.463153, -15.600454],
-        "sagittal_tangent_angles_deg": [21.147563, -18.160137, 0.0, 18.160137, -21.147563],
+        "coronal_tangent_angles_deg": [25.89443, -22.28683, -1.465662, 24.377859, -30.437115],
+        "sagittal_tangent_angles_deg": [1.753769, -8.274653, 7.638103, 27.204212, 23.455504],
     },
     "fragment": {
-        "total_curvature_deg": 16.330407,
-        "coronal_curvature_deg": 16.330407,
-        "sagittal_curvature_deg": 0.0,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
-        "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "total_curvature_deg": 41.17025,
+        "coronal_curvature_deg": 0.0,
+        "sagittal_curvature_deg": 41.17025,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [-7.578873, -0.256263, 8.345773, 19.242437, 33.591377],
     },
     "inject_islands": {
-        "total_curvature_deg": 16.299623,
-        "coronal_curvature_deg": 16.299623,
-        "sagittal_curvature_deg": 0.035422,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-8.149811, -4.065017, 0.0, 4.065017, 8.149811],
-        "sagittal_tangent_angles_deg": [0.017711, 0.008789, 0.0, -0.008789, -0.017711],
+        "total_curvature_deg": 41.128509,
+        "coronal_curvature_deg": 0.039344,
+        "sagittal_curvature_deg": 41.128509,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.021599, 0.008997, -0.000758, -0.00929, -0.017745],
+        "sagittal_tangent_angles_deg": [-7.552704, -0.24422, 8.338405, 19.230499, 33.575804],
     },
     "relabel_swap": {
-        "total_curvature_deg": 355.238942,
-        "coronal_curvature_deg": 355.238942,
-        "sagittal_curvature_deg": 180.0,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-3.295293, -182.351007, -184.78163, -358.534236, -337.988237],
-        "sagittal_tangent_angles_deg": [0.0, -180.0, -180.0, 0.0, 0.0],
+        "total_curvature_deg": 348.91102,
+        "coronal_curvature_deg": 180.0,
+        "sagittal_curvature_deg": 348.91102,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.0, -180.0, -180.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [2.493388, -174.777446, -176.179913, -346.417633, -291.203447],
     },
     "remove_level": {
-        "total_curvature_deg": 15.264623,
-        "coronal_curvature_deg": 15.264623,
-        "sagittal_curvature_deg": 0.0,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-7.632311, -3.795155, 3.795155, 7.632311],
-        "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0],
+        "total_curvature_deg": 41.888491,
+        "coronal_curvature_deg": 0.0,
+        "sagittal_curvature_deg": 41.888491,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [-7.954219, -0.379654, 19.36913, 33.934272],
     },
     "crop_at_border": {
-        "total_curvature_deg": 56.66451,
-        "coronal_curvature_deg": 12.316259,
-        "sagittal_curvature_deg": 56.66451,
+        "total_curvature_deg": 73.307982,
+        "coronal_curvature_deg": 0.0,
+        "sagittal_curvature_deg": 73.307982,
         "curvature_plane": "sagittal",
-        "coronal_tangent_angles_deg": [-6.15813, -4.869332, 0.0, 4.869332, 6.15813],
-        "sagittal_tangent_angles_deg": [28.332255, -23.961638, 0.0, 23.961638, -28.332255],
+        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [26.34248, -28.410061, 3.333705, 44.897922, -3.707755],
     },
     "sequence_break": {
-        "total_curvature_deg": 16.330407,
-        "coronal_curvature_deg": 16.330407,
-        "sagittal_curvature_deg": 0.0,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-8.165203, -4.072969, 0.0, 4.072969, 8.165203],
-        "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "total_curvature_deg": 41.165481,
+        "coronal_curvature_deg": 0.0,
+        "sagittal_curvature_deg": 41.165481,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [-7.575496, -0.254895, 8.338034, 19.240983, 33.589985],
     },
     "force_overlap": {
-        "total_curvature_deg": 18.937358,
-        "coronal_curvature_deg": 18.937358,
-        "sagittal_curvature_deg": 0.0,
-        "curvature_plane": "coronal",
-        "coronal_tangent_angles_deg": [-13.211112, -6.963566, 0.62529, 4.924689, 5.726245],
-        "sagittal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "total_curvature_deg": 42.040243,
+        "coronal_curvature_deg": 0.0,
+        "sagittal_curvature_deg": 42.040243,
+        "curvature_plane": "sagittal",
+        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
+        "sagittal_tangent_angles_deg": [-9.572145, -1.511652, 8.781039, 19.750731, 32.468098],
     },
 }
 
 
 def test_ac21_other_curvature_fields_unmoved():
+    # relabel_swap's coronal_tangent_angles_deg entries at indices 1 and 2 sit
+    # exactly on atan2's +-180 branch cut (the analytic L-R component is pure
+    # summation residue on the lordotic base, which has no lateral curve).
+    # Which side of the cut a platform lands on flips coronal_curvature_deg,
+    # total_curvature_deg and curvature_plane, so those three are not
+    # comparable across platforms for this case. Item 173's
+    # "Correction -- 2026-09-23 (review findings)" part 2 rules on this under
+    # fence clause (d): the coronal angles are still compared, as directions
+    # on the circle, and the other three fields are left as a dated record of
+    # this platform's reading rather than asserted.
     manifest = load_manifest()
     for case in _cases_covered_by(_PRE_ITEM_OTHER_CURVATURE_FIELDS, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
         curv = record["stage3"]["curvature"]
         expected = _PRE_ITEM_OTHER_CURVATURE_FIELDS[case["case_id"]]
-        for key in (
-            "total_curvature_deg",
-            "coronal_curvature_deg",
-            "sagittal_curvature_deg",
-            "coronal_tangent_angles_deg",
-            "sagittal_tangent_angles_deg",
-        ):
+        is_relabel_swap = case["case_id"] == "relabel_swap"
+
+        for key in ("total_curvature_deg", "sagittal_curvature_deg", "sagittal_tangent_angles_deg"):
+            if is_relabel_swap and key == "total_curvature_deg":
+                continue
             assert curv[key] == pytest.approx(expected[key], abs=1e-6), (
                 f"{case['case_id']}.{key} moved: {curv[key]} != {expected[key]}"
             )
-        assert curv["curvature_plane"] == expected["curvature_plane"], (
-            f"{case['case_id']}.curvature_plane moved: "
-            f"{curv['curvature_plane']!r} != {expected['curvature_plane']!r}"
-        )
+
+        if is_relabel_swap:
+            for actual, exp in zip(curv["coronal_tangent_angles_deg"], expected["coronal_tangent_angles_deg"]):
+                circle_delta = abs((actual - exp + 180.0) % 360.0 - 180.0)
+                assert circle_delta <= 1e-6, (
+                    f"{case['case_id']}.coronal_tangent_angles_deg moved: {actual} != {exp} (circle)"
+                )
+        else:
+            assert curv["coronal_tangent_angles_deg"] == pytest.approx(
+                expected["coronal_tangent_angles_deg"], abs=1e-6
+            ), (
+                f"{case['case_id']}.coronal_tangent_angles_deg moved: "
+                f"{curv['coronal_tangent_angles_deg']} != {expected['coronal_tangent_angles_deg']}"
+            )
+            assert curv["coronal_curvature_deg"] == pytest.approx(expected["coronal_curvature_deg"], abs=1e-6), (
+                f"{case['case_id']}.coronal_curvature_deg moved: "
+                f"{curv['coronal_curvature_deg']} != {expected['coronal_curvature_deg']}"
+            )
+            assert curv["curvature_plane"] == expected["curvature_plane"], (
+                f"{case['case_id']}.curvature_plane moved: "
+                f"{curv['curvature_plane']!r} != {expected['curvature_plane']!r}"
+            )
 
 
 # =========================================================================== #

@@ -26,14 +26,14 @@
         1.0
       ]
     ],
-    "data_sha256": "b9988b6ecb2012be45c92e487483c706134ec1a40a5b9314feab277bad62acd7",
+    "data_sha256": "9ef331886ed44889b17a767164e89be0c1f7d0147c3466a585b0c1f242c6f616",
     "dtype": "float64",
     "integer_labels": false,
     "path": "corpus/fixtures/base_scan.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -68,14 +68,14 @@
         1.0
       ]
     ],
-    "data_sha256": "3cc0767895e28d8f2633c40969a18fb37852b81ea0cd308d705fb22092c5bbbc",
+    "data_sha256": "8d9fa96b2f577dbb3b0aa2e9f4b569996fe9ebab730e46cd7d3d2369bf1859fb",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/clean_control_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -110,14 +110,98 @@
         1.0
       ]
     ],
-    "data_sha256": "708a2d386eff62449e0b4c2f7daed28fa4f5f7608b0d3dcc118dcdf5e64f3160",
+    "data_sha256": "fe013848a19142add7db10bdb996b4b8eef9f8b301ba1652c265d3528520afdf",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/crop_at_border_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/crop_fov_si_scan.nii.gz|scan": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        35.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "d23fd8fd2a20a9a306ec49200e0bea2ebdb97049de8e4fdfcf4856eb24f426fc",
+    "dtype": "float64",
+    "integer_labels": false,
+    "path": "corpus/fixtures/crop_fov_si_scan.nii.gz",
+    "shape": [
+      61,
+      86,
+      158
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/crop_fov_si_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        35.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "e1c6b64925eaf8d6e16fa1a003f324aba60799909b7fa9966795728452e3cd44",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/crop_fov_si_seg.nii.gz",
+    "shape": [
+      61,
+      86,
+      158
     ],
     "spacing": [
       1.0,
@@ -152,14 +236,14 @@
         1.0
       ]
     ],
-    "data_sha256": "6e6bc34353acec6dcaebf91b1d9a1d4a5f26003b302b379c2ac070539098b0aa",
+    "data_sha256": "aaf0c2c714b6429419572a121bf114ac0178c90c1a18c00e05ff792dd1ea6839",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/displace_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -194,14 +278,14 @@
         1.0
       ]
     ],
-    "data_sha256": "826ae22b6d1279f1dd6dbe9f7c5ec6fcb08f0b14705f82b1616c297d67e2c871",
+    "data_sha256": "9b3969660d67e9da809660901d4895242a2cf9f1320aa81251d2f91613c5725f",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/force_overlap_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -236,14 +320,14 @@
         1.0
       ]
     ],
-    "data_sha256": "4374d9e195681035f002dee3fe240a57621beac6991e376d79525638f11b3725",
+    "data_sha256": "dc28007734344f6a35595f26177a22f07b6d114c5572cf45ad9a7965c36f1763",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/fragment_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -278,14 +362,14 @@
         1.0
       ]
     ],
-    "data_sha256": "9f49789b985c971a1008cba851c064b65e0df00f77d4d9fae180adc91a62d68c",
+    "data_sha256": "66a38c02d6d6d4e0d29276748b5d8904737efaf6d1af400a04e50d20aa0e7823",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/inject_islands_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -320,14 +404,14 @@
         1.0
       ]
     ],
-    "data_sha256": "dcf4abf3eaaa38472846d902c2f47b2ce16e3c97068b7688bf2086b1c1521b9c",
+    "data_sha256": "dd75e62339e501b04ee88ff00a3d2e7dab465f65b5a06030a202bd91502fdca6",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/relabel_swap_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -362,14 +446,14 @@
         1.0
       ]
     ],
-    "data_sha256": "ded98c34009acd4ae00ed09f43b0699d7cb0c17c7092071fdef6d0e1dfefbb9f",
+    "data_sha256": "191ad5371398b3ba48cab6388c757180552744faff8b3ed344b549d12389a286",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/remove_level_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -404,14 +488,56 @@
         1.0
       ]
     ],
-    "data_sha256": "fa286cb91dd1f1161df2cd22e76960322a0e6a72804e0b7359280a5e69b5a368",
+    "data_sha256": "a6f2849dedb51891ab3eec0f6d4ff1dd3e83705baba3fc66a050d23abfcbe524",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/sequence_break_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "corpus/fixtures/split_own_label_seg.nii.gz|seg": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "351f59f73469916b5a6dc8ce00c061b52961184397c06e98ab52736c5b3d5e55",
+    "dtype": "int64",
+    "integer_labels": true,
+    "path": "corpus/fixtures/split_own_label_seg.nii.gz",
+    "shape": [
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -446,14 +572,14 @@
         1.0
       ]
     ],
-    "data_sha256": "2f62fb2ee60b06205809ef372f1b247cfef4113ea1b20ca793281ada7bf898a3",
+    "data_sha256": "03941f0a4cd16837d517ce929f87e3d4a09e5d527bd268dd8e3d84a6ef599f23",
     "dtype": "float64",
     "integer_labels": false,
     "path": "corpus/intensity/fixtures/clean_hu_scan.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -488,14 +614,14 @@
         1.0
       ]
     ],
-    "data_sha256": "3cc0767895e28d8f2633c40969a18fb37852b81ea0cd308d705fb22092c5bbbc",
+    "data_sha256": "8d9fa96b2f577dbb3b0aa2e9f4b569996fe9ebab730e46cd7d3d2369bf1859fb",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/intensity/fixtures/clean_spine_seg.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -530,14 +656,14 @@
         1.0
       ]
     ],
-    "data_sha256": "09208692271ed5511d9e52b978da5606c9d77a4cbc4757e8bb4f35d747312968",
+    "data_sha256": "1c26f4b3c319a6e35d6f2c6f92e9826f4dcd844d462cd9a7b3adb617ac326b3c",
     "dtype": "float64",
     "integer_labels": false,
     "path": "corpus/intensity/fixtures/degenerate_uniform_scan.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -572,14 +698,14 @@
         1.0
       ]
     ],
-    "data_sha256": "1010ee91affe22073e36a9d6daf5441d171749ca1e30a6dd1b6c1069efc73a98",
+    "data_sha256": "525a87c27a74c80643b3ac827dfca02bee9b67b1ad8ac4bd4ade4b3bb3dcf739",
     "dtype": "float64",
     "integer_labels": false,
     "path": "corpus/intensity/fixtures/implausible_metal_scan.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,
@@ -614,14 +740,14 @@
         1.0
       ]
     ],
-    "data_sha256": "291a58227f734e1ac86a5672886b3fb2203966c1d865d0f4802039158d4d6f6a",
+    "data_sha256": "eef16946fccf1bfe3dc3e9130e463f0794faf4e76999d8fe7d3bc4e7a4dce62c",
     "dtype": "float64",
     "integer_labels": false,
     "path": "corpus/intensity/fixtures/implausible_soft_tissue_scan.nii.gz",
     "shape": [
-      66,
-      55,
-      215
+      61,
+      86,
+      193
     ],
     "spacing": [
       1.0,

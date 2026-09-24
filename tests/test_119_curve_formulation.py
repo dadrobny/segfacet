@@ -21,9 +21,9 @@ Covers Acceptance Criteria AC1-AC27:
   (``make_splprep`` import, no legacy FITPACK wrappers, ``smoothing`` default
   and override, degree clamp, chord-length ``u`` parameterisation).
 - AC7/AC8: item 017's clean-GT fixtures stay within its own 0.5 mm unit
-  tolerance while the synthetic ``build_clean_spine`` sweep exceeds it once,
-  bounded at 0.56 mm and inside stage 28's 1.0 mm acceptance bound -- a
-  matched pair, both directions asserted.
+  tolerance while the synthetic ``build_clean_spine`` sweep exceeds 0.4 mm,
+  bounded at 0.44 mm on the lordotic base (2026-09-23) and inside stage 28's
+  1.0 mm acceptance bound -- a matched pair, both directions asserted.
 - AC9/AC10: a displaced vertebra separates under leave-one-out evaluation but
   not in-sample -- also a matched pair.
 - AC11-AC13: determinism and degenerate/edge-count inputs (2-level, truncated
@@ -310,19 +310,26 @@ def test_ac7_item017_gt_fixtures_stay_within_half_mm():
     assert overall_max < 0.5
 
 
-def test_ac8_clean_gt_sweep_exceeds_half_mm_but_stays_under_0_56mm():
+def test_ac8_clean_gt_sweep_exceeds_0_4mm_but_stays_under_0_44mm():
     """AC8: over build_clean_spine's level-count x spacing sweep grid, the
-    max in-sample closest-approach distance is > 0.5 mm and <= 0.56 mm --
+    max in-sample closest-approach distance is > 0.4 mm and <= 0.44 mm --
     both halves asserted so this value cannot silently move without this test
-    noticing (recorded: 0.552139 mm).
+    noticing (recorded: 0.434581 mm on 2026-09-23, on the lordotic base of
+    item 173, at 5 levels, spacing (0.8, 0.8, 1.0), label 22; it was
+    0.552139 mm on the axis-aligned box base). The bracket follows the rule
+    the original used: floor = the measured maximum rounded down to 0.1 mm,
+    ceiling = rounded up to 0.01 mm.
 
-    The 0.5 mm lower half is *not* an acceptance bound. Stage 28's acceptance
+    The 0.4 mm lower half is *not* an acceptance bound. Stage 28's acceptance
     line was raised to 1.0 mm on 2026-08-28 precisely because it had been
     reusing item 017's AC1 -- a unit tolerance on that item's own fixtures,
-    checked by test_ac7 above -- across this much wider sweep, which the
-    approved smoothing formulation does not satisfy. What the lower half pins
-    is that the sweep still reaches past that unit tolerance: if it stopped
-    doing so, the fit would have drifted back toward interpolation and the
+    checked by test_ac7 above -- across a wider sweep, which the approved
+    smoothing formulation did not satisfy on the box base. On the lordotic
+    base the floor no longer coincides with item 017's 0.5 mm unit tolerance,
+    because the lordotic sweep does not reach it. What the floor pins is
+    unchanged in kind: the sweep's maximum stays four orders of magnitude
+    above the interpolating fit's on the same sweep (about 1.1e-5 mm), so a
+    fit that drifted back toward interpolation still fails it, and the
     approved formulation would no longer be what is running.
     """
     levels_pool = ("L1", "L2", "L3", "L4", "L5")
@@ -339,16 +346,16 @@ def test_ac8_clean_gt_sweep_exceeds_half_mm_but_stays_under_0_56mm():
             for offset in offsets:
                 overall_max = max(overall_max, offset.offset_mm)
 
-    assert overall_max > 0.5, (
-        f"expected the sweep to exceed item 017's 0.5 mm unit tolerance at some "
-        f"grid point (got max {overall_max:.6f} mm) -- if this no longer exceeds "
-        f"0.5 mm, the fit has drifted back toward interpolation and is no longer "
-        f"the formulation item 118's gate approved. Re-measure, do not silently "
-        f"accept a smaller max."
+    assert overall_max > 0.4, (
+        f"expected the sweep max to exceed 0.4 mm (recorded 0.434581 mm on the "
+        f"lordotic base, 2026-09-23; got max {overall_max:.6f} mm) -- if it no "
+        f"longer does, the fit has drifted back toward interpolation and is no "
+        f"longer the formulation item 118's gate approved. Re-measure, do not "
+        f"silently accept a smaller max."
     )
-    assert overall_max <= 0.56, f"sweep max {overall_max:.6f} mm exceeds the 0.56 mm ceiling"
+    assert overall_max <= 0.44, f"sweep max {overall_max:.6f} mm exceeds the 0.44 mm ceiling"
     # Stage 28's acceptance bound (raised 0.5 -> 1.0 mm on 2026-08-28). Implied
-    # by the 0.56 ceiling above, but asserted in its own right so the criterion
+    # by the 0.44 ceiling above, but asserted in its own right so the criterion
     # the stage is ticked against is checked somewhere rather than inferred.
     assert overall_max < 1.0, (
         f"sweep max {overall_max:.6f} mm breaches stage 28's 1.0 mm pass-through "
@@ -384,7 +391,8 @@ def test_ac9_displaced_vertebra_separates_under_leave_one_out():
     """AC9: fitting through the other seven levels and measuring with
     compute_spline_offsets, the displaced centroid's offset exceeds the
     largest of the seven clean centroids' offsets by >= 4.5 mm. (Decision
-    document records 4.999144 mm as the smallest margin over 5/10/20 mm.)"""
+    document records 4.920550 mm as the smallest margin over 5/10/20 mm,
+    measured 2026-09-23 on the lordotic base; 4.999144 mm on the box base.)"""
     centroids = _separation_fixture()
     target_idx, displaced = _displace_middle(centroids, magnitude_mm=5.0)
 

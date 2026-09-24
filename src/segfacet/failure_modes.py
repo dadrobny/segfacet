@@ -94,7 +94,8 @@ full walkthrough is transcribed in
   per-level-geometry proxy (``reference_delta``).
 * Mode 6 (partial vertebra at the border) becomes the FOV-truncation
   **condition**: ``border`` declares no mode, and ``crop_at_border``
-  is the condition's fixture, still expecting ``{border, mislabel}``.
+  is one of the condition's fixtures, still expecting
+  ``{border, mislabel}`` (item 175 added the second, ``crop_fov_si``).
 * Two observability classes are added, ``needs-ground-truth`` and
   ``needs-external-classifier``; ``bounds`` and ``reference_delta`` are
   declared for every mode their volume/extent signal can proxy.
@@ -1017,13 +1018,13 @@ _MODE_2 = ModeSpec(
         "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
         "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both edges needs-real-data. The corpus case fuse_adjacent absorbs "
-        "label 23 (L4) into 22 (L3) unbridged, so what fires today is "
-        "fragmentation's Fragmentation: detector "
-        "(per_label.{label}.components.fragmentation_index) and coverage's "
-        "interior-gap detector (relationships.missing_levels[]) -- mode 1's "
-        "and mode 6's detectors co-detecting, recorded, not this mode's "
-        "own."
+        "both edges needs-real-data. The corpus case fuse_adjacent (item "
+        "176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label "
+        "over two bodies, with L5 renumbered 23 so the sequence stays "
+        "continuous -- and fires nothing: its signature is the doubled "
+        "inter-centroid spacing around the fused label "
+        "(stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), "
+        "which no shipped rule reads."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1072,16 +1073,18 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_adjacent",
             corpus="geometric",
-            expected_firing=("coverage", "fragmentation"),
+            expected_firing=(),
             reason=(
-                "pipeline-detected by co-detections only, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
-                "the fused label 22 spans two disconnected bodies "
-                "(fragmentation, Fragmentation:, mode 1's detector) and the "
-                "absorbed level L4 is missing from the interior of the span "
-                "(coverage, Missing interior level(s):, mode 6's detector). "
-                "Neither of this mode's own intended rules fires without a "
-                "reference, so the case does not validate mode 2."
+                "fires nothing, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-24, "
+                "item 176): the bridged, renumbered map is one connected "
+                "label 22 over two bodies with a continuous label sequence, "
+                "so no shipped rule fires. Mode 2's own signal is the "
+                "inter-centroid spacing around the fused label "
+                "(stage3.spacing_consistency.spacings_mm[], about 1.5x the "
+                "pitch); no shipped rule reads that spacing, and the rule "
+                "that would is left to a later per-mode queue (roadmap "
+                "Stage 33). An empty expected set never validates a mode."
             ),
         ),
     ),
@@ -1121,18 +1124,22 @@ _MODE_3 = ModeSpec(
         "that component's 6-neighbour face-contact area with any single "
         "other non-zero label -- strictly above "
         "DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both "
-        "committed corpora (2026-09-20): the only firing value is 750.0 mm^2 "
-        "(label 23 against label 22 on the split case, +650.0 above "
+        "committed corpora (2026-09-23, item 174's 20% caudal cap on item "
+        "173's lordotic base): the only firing value is 806.0 mm^2 "
+        "(label 24 against label 23 on the split case, +706.0 above "
         "threshold) and every other label of every other case measures "
         "0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), "
         "whose contacting components are each label's largest, and "
-        "fuse_adjacent (mode 2, this mode's converse), whose absorbed "
-        "neighbour is detached but touches nothing. On the split corpus "
-        "case, label 23 now carries two findings: fragmentation's "
-        "Fragmentation: detector (per_label.{label}.components."
-        "fragmentation_index) -- mode 1's detector co-detecting, because "
-        "label 23 now spans two disconnected bodies -- and this mode's own "
-        "Neighbour contact: detector. A secondary, needs-real-data proxy "
+        "fuse_adjacent (mode 2, this mode's converse), whose fused label is "
+        "a single component, so it has no stray component to measure "
+        "(item 176). On the split corpus "
+        "case, label 24 carries this mode's own Neighbour contact: finding "
+        "alone: mode 1's Fragmentation: detector (per_label.{label}."
+        "components.fragmentation_index) stays silent at 0.8276, above its "
+        "0.75 threshold. Sub-type (b), a part carrying a label of its own "
+        "(the split_own_label case), is seen only by bounds, not by this "
+        "detector: the part is its label's only component, so it has no "
+        "stray component to measure. A secondary, needs-real-data proxy "
         "remains: the split vertebra reading under its level's "
         "volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
@@ -1188,19 +1195,40 @@ _MODE_3 = ModeSpec(
             expected_firing=("fragmentation",),
             reason=(
                 "pipeline-detected, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-20): "
-                "the split donates a contiguous end-slab (40% of label 22's "
-                "stacking-axis extent) to label 23, so label 23 now spans "
-                "two disconnected bodies (fragmentation, Fragmentation:, "
-                "mode 1's detector -- detector id components) on the "
-                "receiving label, AND now carries this mode's own "
-                "Neighbour contact: finding (detector id neighbour_contact, "
-                "item 167): stray_contact_area_mm2=750.0 against label 22, "
-                "strictly above the 100.0 mm^2 threshold. Both findings "
-                "share rule_id fragmentation, so the rule-id-granular "
-                "expected_firing set is unchanged at one element -- AC8/A3 "
-                "of item 167. Neither of the two needs-real-data intended "
-                "rules (bounds, reference_delta) fires without a reference."
+                "segfacet.synth.regression.pipeline_findings (2026-09-23, "
+                "item 174): mode 3 sub-type (a) -- the caudal cap of label "
+                "23 (L4) holding 20% of its voxels (4030 of 19344, slices "
+                "49-57) is given to label 24 (L5). Label 24 carries this "
+                "mode's own Neighbour contact: finding alone (detector id "
+                "neighbour_contact, item 167): stray_contact_area_mm2=806.0 "
+                "against label 23, +706.0 above the 100.0 mm^2 threshold. "
+                "Mode 1's Fragmentation: detector (detector id components) "
+                "is now silent: label 24's fragmentation_index is 0.8276, "
+                "above its 0.75 threshold. Neither of the two needs-real-data "
+                "intended rules (bounds, reference_delta) fires without a "
+                "reference: the donor keeps 15314 mm^3 and extents "
+                "31 / 31 / 23 mm, inside the lumbar bounds."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="split_own_label",
+            corpus="geometric",
+            expected_firing=("bounds", "coverage"),
+            reason=(
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-23, "
+                "item 174): mode 3 sub-type (b) -- the same 20% caudal cap "
+                "of L4 keeps label 23 as a label of its own, and every "
+                "cranial label shifts up one level (the rest of L4 reads "
+                "22, L1 reads 19). bounds fires twice on the cap (label "
+                "23): volume 4030 mm^3 below the lumbar minimum of 8000, and "
+                "extent_z 9 mm below the lumbar minimum of 15 -- mode 3's "
+                "own needs-real-data proxy. coverage fires missing_interior "
+                "on T13, absent between T12 (19) and L1 (20): a "
+                "co-detection that the next queue's CANONICAL_ORDER item "
+                "(roadmap Stage 33 D3) removes. neighbour_contact does not "
+                "fire: the cap is its own label's only component, so every "
+                "label's stray_contact_area_mm2 is 0.0."
             ),
         ),
     ),
@@ -2113,13 +2141,19 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "defect of the segmentation."
     ),
     mechanism=(
-        "The border rule records the condition end-to-end on "
+        "Two fixtures express the condition's two forms. The unexpected "
+        "in-plane form: the border rule records the condition end-to-end on "
         "crop_at_border, which crops label 22's anterior face "
         "(per_label.{label}.geometry.touches_anterior), classifying it an "
         "unexpected clip; cropping also displaces the centroid off the "
         "fitted spinal curve, so mislabel's mode-less spline-offset "
         "detector co-fires via stage3.per_label_offsets[].offset_mm. The "
-        "border rule declares no failure mode. The exemptions the condition "
+        "expected cranio-caudal form: crop_fov_si crops the volume at the "
+        "inferior face through label 24 "
+        "(per_label.{label}.geometry.touches_inferior); the border rule "
+        "suppresses that expected FOV-end touch, and bounds fires on the "
+        "truncated remnant's volume and extent. The border rule declares no "
+        "failure mode. The exemptions the condition "
         "grants today: mislabel's spline-offset detector skips terminal "
         "entries (stage3.per_label_offsets[].is_terminal), and coverage's "
         "border-aware span check resolves the covered span through the "
@@ -2150,7 +2184,24 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
                 "anterior image face, and mislabel, because the crop "
                 "displaces the centroid off the fitted spinal curve. Both "
                 "are the condition's recorded signature; neither names a "
-                "failure mode."
+                "failure mode. An anterior clip is the rare crop direction: "
+                "the case is kept for border coverage, not for realism "
+                "(maintainer, 2026-09-24)."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="crop_fov_si",
+            corpus="geometric",
+            expected_firing=("bounds",),
+            reason=(
+                "pipeline-detected; measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-24, "
+                "item 175): the inferior image face cuts label 24 (L5) -- "
+                "the S-I FOV crop, the common form of the condition. border "
+                "suppresses the touch as an expected FOV end, so it does not "
+                "fire; bounds fires on the truncated remnant's volume and "
+                "extent_z. That bounds firing is what the border gating of "
+                "the size rules (roadmap Stage 33 D3) will remove."
             ),
         ),
     ),

@@ -63,7 +63,7 @@ import segfacet.heuristics.mislabel  # noqa: F401 -- triggers MislabelRule regis
 from segfacet.heuristics import run_rules
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.corpus import load_manifest
+from segfacet.synth.corpus import crop_to_grid, load_manifest
 from segfacet.synth.golden import build_report_for_case, write_goldens
 from segfacet.synth.regression import (
     loaded_seg_image,
@@ -301,7 +301,10 @@ def test_ac5_displaced_interior_level_separates_only_held_out():
 
 
 def test_ac6_mode1_displace_dominant_outlier_exceeds_by_at_least_9mm():
-    """Measured on the item's own branch: 18.719 mm vs 8.701 mm."""
+    """Measured on the item's own branch: 18.719 mm vs 8.701 mm. Item 177
+    (2026-09-24) re-authors ``displace`` mostly left-right: now 14.616 mm vs
+    6.919 mm (gap 7.697178), so the floor moves 9.0 -> 7.5, floored to the
+    half-millimetre as 9.0 floored 9.247 (name kept)."""
     case, centroids, spacing = _mode1_displace_case_and_centroids()
     records = compute_leave_one_out_spline_offsets(centroids, spacing_mm=spacing)
     by_label = {r.label: r.offset_mm for r in records}
@@ -311,7 +314,7 @@ def test_ac6_mode1_displace_dominant_outlier_exceeds_by_at_least_9mm():
 
     sorted_offsets = sorted(by_label.values(), reverse=True)
     assert by_label[target] == sorted_offsets[0]
-    assert by_label[target] - sorted_offsets[1] >= 9.0
+    assert by_label[target] - sorted_offsets[1] >= 7.5  # item 177: was >= 9.0
 
 
 def test_ac6_tie_break_rule_is_documented():
@@ -606,7 +609,12 @@ def test_ac17_threshold_margins_hold_on_corpus():
     mode1_report = build_report_for_case(mode1_case)
     mode1_offsets = mode1_report["features"]["stage3"]["per_label_offsets"]
     displaced = next(o for o in mode1_offsets if o["label"] == 22)
-    assert displaced["offset_mm"] > 15.0, "displaced label 22 must exceed the threshold"
+    # Item 177 (2026-09-24), re-derived premise: "15.0 is the firing
+    # threshold" has been false since item 123 (13.0), and the re-authored
+    # displace (14.616 mm) falls between -- so read the live threshold.
+    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+
+    assert displaced["offset_mm"] > _DEFAULT_MAX_OFFSET_MM, "displaced label 22 must exceed the threshold"
 
 
 # =========================================================================== #
@@ -718,7 +726,9 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     report = build_report_for_case(border_case)
     offsets = report["features"]["stage3"]["per_label_offsets"]
     entry = next(o for o in offsets if o["label"] == 22)
-    assert entry["offset_mm"] == pytest.approx(17.507, abs=0.05)
+    # 17.507 on the box base; re-measured 18.0256 on item 173's lordotic base
+    # (2026-09-23).
+    assert entry["offset_mm"] == pytest.approx(18.0256, abs=0.05)
 
 
 # =========================================================================== #
@@ -741,7 +751,15 @@ def _corpus_cohort_metrics():
             gt_img if case["case_id"] == "clean_control" else loaded_seg_image(case)
         )
         eval_cases.append(
-            EvaluationCase(case_id=case["case_id"], gt=gt_img, candidate=candidate_img, expected=case)
+            EvaluationCase(
+                case_id=case["case_id"],
+                # Item 175 (2026-09-24): each case's GT is the clean control
+                # on that case's own grid (crop_fov_si is a volume crop);
+                # clean_control itself for every base-grid case.
+                gt=crop_to_grid(gt_img, candidate_img),
+                candidate=candidate_img,
+                expected=case,
+            )
         )
     evaluation = evaluate_cohort(eval_cases, bundled_default_config())
     return compute_cohort_metrics(evaluation, failure_modes=FAILURE_MODE_NAMES)
@@ -756,23 +774,40 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     verdict; remove_level_relabel expects "pass" and is not an
     expected-failure record), eight detected, the overlap case the only
     miss. Re-keyed 2026-09-15 to item 150's revised catalogue: the nine
-    records file under modes 0 (crop), 1 (displace, fragment), 2 (fuse),
-    4 (islands), 6 (remove_level), 9 (relabel swap, sequence break) and
+    records file under modes 0 (crop), 1 (displace, fragment), 2 (fuse;
+    until item 176), 4 (islands), 6 (remove_level), 9 (relabel swap, sequence break) and
     15 (overlap, the miss). Mode 6's other case, remove_level_relabel, is
     not an expected-failure record, so mode 6 scores exactly one case; mode
     10 ("skipped level label") has no corpus case and scores none.
     Re-measured 2026-09-20 (item 166) -- mode 3's `split` case is the tenth
     expected-failure record and is caught, so overall sensitivity is 9/10
-    and the per-mode breakdown gains mode 3 at 1.0."""
+    and the per-mode breakdown gains mode 3 at 1.0.
+    Re-measured 2026-09-23 (item 174) -- mode 3's `split_own_label` case is
+    the eleventh expected-failure record and is caught, so overall
+    sensitivity is 10/11; mode 3 stays at 1.0 over two cases.
+    Re-measured 2026-09-24 (item 175) -- the `crop_fov_si` condition case is
+    the twelfth expected-failure record and is caught, so overall
+    sensitivity is 11/12; mode 0 stays at 1.0 over two cases.
+    Re-measured 2026-09-24 (item 176) -- the bridged, renumbered
+    `fuse_adjacent` expects "pass" and is no longer an expected-failure
+    record, so overall sensitivity is 10/11 over eleven records and mode 2
+    scores no case. The test name keeps the old value."""
     metrics = _corpus_cohort_metrics()
-    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
+    # Item 174 (2026-09-23): 9/10 -> 10/11.
+    # Item 175 (2026-09-24): 10/11 -> 11/12.
+    # Item 176 (2026-09-24): 11/12 -> 10/11.
+    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
 
-    expected_sensitivity = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+    # Item 176 (2026-09-24): mode 2's entry (2: 1.0) removed -- no case left.
+    expected_sensitivity = {0: 1.0, 1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
-    assert sum(m.n_cases for m in metrics.per_mode) == 10
+    # Item 174 (2026-09-23): 10 -> 11.
+    # Item 175 (2026-09-24): 11 -> 12.
+    # Item 176 (2026-09-24): 12 -> 11.
+    assert sum(m.n_cases for m in metrics.per_mode) == 11
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

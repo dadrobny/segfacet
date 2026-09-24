@@ -44,8 +44,10 @@ import copy
 import pytest
 
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
+from segfacet.heuristics.rule import iter_rules
 from segfacet.synth.corpus import load_manifest
 from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, CASE_KIND_FAILURE, corpus_case_kind
+from segfacet.verdict import Severity
 from segfacet.synth.regression import (
     RECONSTRUCTIONS,
     designated_rule_fired,
@@ -222,12 +224,23 @@ def test_ac8_reconstruction_fires_designated_rule_with_expected_labels(case):
 def test_ac9_verdict_drift_is_caught():
     """AC9: for a detection == "pipeline" case, a copy whose
     expected_verdict is changed to a different valid label makes the
-    verdict comparison fail."""
+    verdict comparison fail.
+
+    Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
+    the old literal wrong verdict ("pass") sat behind a literal precondition
+    pinning the live verdict ("flagged-for-review") -- items 173-177
+    regenerate this case, so a corpus move could put the live verdict onto
+    the literal wrong value. Derive the wrong verdict from the live one
+    instead, so it can never coincide with live state.
+    """
     case = _case("sequence_break")
     assert case["detection"] == "pipeline"
+    live_label = pipeline_verdict_label(case)
+    wrong_label = next(s.label for s in Severity if s.label != live_label)
+    assert wrong_label != live_label
+
     drifted = copy.deepcopy(case)
-    assert drifted["expected_verdict"] == "flagged-for-review"
-    drifted["expected_verdict"] = "pass"
+    drifted["expected_verdict"] = wrong_label
 
     assert drifted["expected_verdict"] != pipeline_verdict_label(case)
     assert verify_case(drifted) is False
@@ -236,11 +249,24 @@ def test_ac9_verdict_drift_is_caught():
 def test_ac10_fired_rule_drift_is_caught():
     """AC10: for a detection == "pipeline" case, a copy whose
     expected_rule_ids is changed to a rule id that did not fire makes
-    designated_rule_fired(copy) return False."""
+    designated_rule_fired(copy) return False.
+
+    Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
+    the old literal wrong rule id ("overlap") sat behind a literal
+    precondition pinning the live firing set (["sequence"]) -- items
+    173-177 regenerate this case, so a corpus move could put the live
+    firing set onto the literal wrong value. Derive the wrong rule id from
+    the live firing set and the registered rules instead, so it can never
+    coincide with live state.
+    """
     case = _case("sequence_break")
-    assert case["expected_rule_ids"] == ["sequence"]
+    assert case["detection"] == "pipeline"
+    live_rule_ids = {f.rule_id for f in pipeline_findings(case)}
+    wrong_rule_id = next(r.rule_id for r in iter_rules() if r.rule_id not in live_rule_ids)
+    assert wrong_rule_id not in live_rule_ids
+
     drifted = copy.deepcopy(case)
-    drifted["expected_rule_ids"] = ["overlap"]
+    drifted["expected_rule_ids"] = [wrong_rule_id]
 
     assert designated_rule_fired(drifted) is False
 

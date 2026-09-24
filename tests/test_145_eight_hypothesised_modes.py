@@ -884,10 +884,12 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
     expectation = _case(condition, "crop_at_border")
     assert set(case["expected_rule_ids"]) <= set(expectation.expected_firing)
 
-    # Every other manifest case names no condition, so the key is a real
+    # Only the two FOV crops name a condition, so the key is a real
     # discriminator rather than a field that is always set.
+    # Item 175 (2026-09-24): ["crop_at_border"] -> ["crop_at_border",
+    # "crop_fov_si"], in manifest order.
     conditioned = [c["case_id"] for c in _manifest_cases() if c.get("condition")]
-    assert conditioned == ["crop_at_border"], conditioned
+    assert conditioned == ["crop_at_border", "crop_fov_si"], conditioned
 
 
 # =========================================================================== #
@@ -1305,17 +1307,11 @@ def test_ac22_implemented_derives_on_registered_rule_containment(mode_id):
 # =========================================================================== #
 
 
-def test_ac23_regeneration_is_byte_reproducible_run_to_run(tmp_path):
-    import segfacet.failure_modes as fm
-
-    json_a, md_a = tmp_path / "a.json", tmp_path / "a.md"
-    json_b, md_b = tmp_path / "b.json", tmp_path / "b.md"
-
-    fm.main(["--json", str(json_a), "--md", str(md_a)])
-    fm.main(["--json", str(json_b), "--md", str(md_b)])
-
-    bytes_a_json, bytes_b_json = json_a.read_bytes(), json_b.read_bytes()
-    bytes_a_md, bytes_b_md = md_a.read_bytes(), md_b.read_bytes()
+def test_ac23_regeneration_is_byte_reproducible_run_to_run(regenerated_failure_modes):
+    bytes_a_json = regenerated_failure_modes.json_a.read_bytes()
+    bytes_b_json = regenerated_failure_modes.json_b.read_bytes()
+    bytes_a_md = regenerated_failure_modes.md_a.read_bytes()
+    bytes_b_md = regenerated_failure_modes.md_b.read_bytes()
     assert bytes_a_json, "expected non-empty JSON"
     assert bytes_a_md, "expected non-empty markdown"
     assert bytes_a_json == bytes_b_json

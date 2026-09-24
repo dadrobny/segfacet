@@ -676,11 +676,14 @@ def test_ac27_four_level_blind_spot_asserted():
 # Values measured on the pre-item tree (2026-08-31), captured via
 # extract_feature_record(loaded_seg_image(remove_level_case), ...) --
 # the corpus's only four-level case, per the spec's Assumptions.
+# Re-measured 2026-09-23 on item 173's lordotic base (box base: 20
+# 8.999145394285883e-05, 21 7.671141041439496e-08, 23 7.671141041439002e-08,
+# 24 8.977793575361994e-05).
 _PRE_129_MODE5_REMOVE_LEVEL_OFFSETS_MM = {
-    20: 8.999145394285883e-05,
-    21: 7.671141041439496e-08,
-    23: 7.671141041439002e-08,
-    24: 8.977793575361994e-05,
+    20: 7.595758137565312e-05,
+    21: 8.717388010901323e-07,
+    23: 2.8611762188838856e-07,
+    24: 7.745963365341523e-05,
 }
 
 
@@ -732,7 +735,15 @@ _PRE_129_FINDINGS = {
 #: ``split`` case. The table is deliberately not extended with
 #: values item 129 never measured; instead the uncovered set is pinned
 #: exactly, so a *fourth* uncovered case still fails this test.
-_ADDED_AFTER_129 = {"fuse_adjacent", "remove_level_relabel", "split"}
+#: Item 174 (2026-09-23) adds mode 3 sub-type (b)'s ``split_own_label``.
+#: Item 175 (2026-09-24) adds the S-I FOV crop ``crop_fov_si``.
+_ADDED_AFTER_129 = {
+    "fuse_adjacent",
+    "remove_level_relabel",
+    "split",
+    "split_own_label",
+    "crop_fov_si",
+}
 
 
 def test_ac29_no_corpus_case_changes_findings():
