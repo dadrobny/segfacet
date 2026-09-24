@@ -1833,7 +1833,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
   status report's corpus section re-keyed off the generated specification.
   *(Item 173)*
-- 📋 **D1** The lordotic geometric base, with both manifests regenerated and the
+- 🚧 **D1** The lordotic geometric base, with both manifests regenerated and the
   2026-09-22 prototype absorbed and deleted. Also a committed corpus rendering, and the
   status report's corpus section re-keyed off the generated specification.
   *(Item 178)*
