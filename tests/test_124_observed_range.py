@@ -780,6 +780,16 @@ def test_adv_floor_boundary_just_above_floor_is_informative(observed_range_modul
     assert ranges["leaf"].corpus.informative is True
 
 
+def test_adv_sub_floor_endpoint_of_informative_population_emits_zero(observed_range_module):
+    # PR #84's CI: a principal-axis minimum of -2.9e-16 beside a maximum of
+    # 1.0 emitted its noise digits, which differ across numpy builds.
+    driver_records = [("clean", {"leaf": -2.90281e-16}), ("single_label", {"leaf": 1.0})]
+    corpus = observed_range_module.build_observed_ranges(driver_records=driver_records)["leaf"].corpus
+    assert corpus.informative is True
+    assert corpus.minimum == -2.90281e-16
+    assert observed_range_module.emission_range(corpus) == (0.0, 1.0, 1.0, 1.0)
+
+
 def test_adv_sign_handling_all_negative_population_is_informative(observed_range_module):
     driver_records = [
         ("clean", {"leaf": -500.0}),

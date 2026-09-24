@@ -3208,7 +3208,7 @@
               "informative": true,
               "magnitude": 0.999999,
               "maximum": 0.999999,
-              "minimum": 5.6119e-07,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3643,7 +3643,7 @@
               "informative": true,
               "magnitude": 0.343588,
               "maximum": 0.343588,
-              "minimum": 2.86118e-07,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3661,7 +3661,7 @@
               "informative": true,
               "magnitude": 18.5103,
               "maximum": 18.5103,
-              "minimum": 2.33515e-08,
+              "minimum": 0.0,
               "population": "reference",
               "source": [
                 "spline_offset_mm"
@@ -3702,7 +3702,7 @@
               "informative": true,
               "magnitude": 0.343588,
               "maximum": 0.343588,
-              "minimum": 2.86118e-07,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4290,7 +4290,7 @@
               "informative": true,
               "magnitude": 1.0,
               "maximum": 1.0,
-              "minimum": -2.90281e-16,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4338,7 +4338,7 @@
               "informative": true,
               "magnitude": 0.999999,
               "maximum": 0.999999,
-              "minimum": 5.6119e-07,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4660,7 +4660,7 @@
               "informative": true,
               "magnitude": 0.999999,
               "maximum": 0.999999,
-              "minimum": 5.6119e-07,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5148,7 +5148,7 @@
               "informative": true,
               "magnitude": 0.218387,
               "maximum": 0.218387,
-              "minimum": 2.57051e-05,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5157,7 +5157,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.218362
+              "span": 0.218387
             },
             "numeric": true,
             "reference": {
@@ -5196,7 +5196,7 @@
               "informative": true,
               "magnitude": 0.160233,
               "maximum": 0.160233,
-              "minimum": 8.71739e-07,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5205,7 +5205,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.160232
+              "span": 0.160233
             },
             "numeric": true,
             "reference": {
@@ -5244,7 +5244,7 @@
               "informative": true,
               "magnitude": 0.121301,
               "maximum": 0.121301,
-              "minimum": 3.55346e-05,
+              "minimum": 0.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -5253,7 +5253,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.121265
+              "span": 0.121301
             },
             "numeric": true,
             "reference": {

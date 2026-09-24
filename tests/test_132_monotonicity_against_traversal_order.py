@@ -688,7 +688,9 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     assert u_entry["observed"]["verdict"] == "varies"
     corpus_obs = u_entry["observed"]["corpus"]
     assert corpus_obs["count"] == 24
-    assert corpus_obs["minimum"] == pytest.approx(5.6119e-07, abs=1e-11)
+    # The raw minimum is sub-floor residue (5.6e-07); emission_range clamps a
+    # sub-floor endpoint to 0.0 (PR #84's CI, 2026-09-24).
+    assert corpus_obs["minimum"] == 0.0
     assert corpus_obs["maximum"] == pytest.approx(0.999999, abs=1e-6)
     assert corpus_obs["span"] == pytest.approx(0.999999, abs=1e-6)
 
