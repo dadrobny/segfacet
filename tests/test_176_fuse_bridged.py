@@ -11,8 +11,9 @@ for the severity ladder.
 Covers Acceptance Criteria AC1-AC11 per the item spec's Testing Strategy: one
 test per AC. AC1-AC6 apply the bridged operator directly to
 ``build_clean_spine().seg_img``; AC3/AC4 walk columns with plain NumPy,
-deriving the stacking axis from ``si_axis`` and the facing side from the two
-labels' live mean index on it, never calling the operator's internals. AC7
+deriving the stacking axis from ``si_axis`` and each column's own gap by
+item 183's per-column rule (``_column_gap_positions``), never calling the
+operator's internals. AC7
 compares against the committed ``clean_control``/``fuse_adjacent`` fixtures,
 resolved through ``load_manifest``/``loaded_seg_image``, never a hard-coded
 path. AC9 uses ``extract_feature_record``; AC10/AC11 use
@@ -64,26 +65,19 @@ def _manifest_case(case_id: str) -> dict:
     return matches[0]
 
 
-def _facing_side(data: np.ndarray, axis: int) -> bool:
-    """True iff label 23 (the neighbour) sits on the *low*-index side of
-    label 22 (the target) along *axis*, derived live from their mean index --
-    never assumed."""
-    mean_target = float(np.nonzero(data == 22)[axis].mean())
-    mean_neighbour = float(np.nonzero(data == 23)[axis].mean())
-    return mean_neighbour < mean_target
-
-
-def _column_gap(col: np.ndarray, neighbour_is_low: bool):
-    """``(lo, hi)`` -- the exclusive-background index range strictly between
-    the target's (22) and neighbour's (23) facing ends of one column, or
-    ``None`` if the column does not hold both labels."""
-    t_idx = np.nonzero(col == 22)[0]
-    n_idx = np.nonzero(col == 23)[0]
-    if t_idx.size == 0 or n_idx.size == 0:
-        return None
-    if neighbour_is_low:
-        return int(n_idx.max()) + 1, int(t_idx.min())
-    return int(t_idx.max()) + 1, int(n_idx.min())
+def _column_gap_positions(col: np.ndarray) -> set:
+    """The set of background (0) positions in one column that item 183's
+    per-column A1 rule bridges: walk the column keeping only voxels whose
+    value is the target (22) or the neighbour (23), in index order; for each
+    two consecutive such voxels that carry different labels, every
+    background voxel strictly between them is in the gap. Order is decided
+    per column, not from a single global mean-index side (item 183)."""
+    pair_positions = [i for i, v in enumerate(col) if v in (22, 23)]
+    gap: set = set()
+    for a, b in zip(pair_positions, pair_positions[1:]):
+        if col[a] != col[b]:
+            gap |= {i for i in range(a + 1, b) if col[i] == 0}
+    return gap
 
 
 # =========================================================================== #
@@ -123,7 +117,6 @@ def test_ac3_bridge_stays_inside_the_gap():
     clean_img = _clean_seg_img()
     input_data = np.asanyarray(clean_img.dataobj)
     axis = si_axis(clean_img.affine)
-    neighbour_is_low = _facing_side(input_data, axis)
 
     result = _bridged_result(clean_img)
     output_data = np.asanyarray(result.labelmap.dataobj)
@@ -139,11 +132,9 @@ def test_ac3_bridge_stays_inside_the_gap():
         col_bridge = bridge_mask[idx]
         if not col_bridge.any():
             continue
-        gap = _column_gap(moved_in[idx], neighbour_is_low)
-        assert gap is not None, "bridged voxel in a column missing one of the pair"
-        lo, hi = gap
+        gap = _column_gap_positions(moved_in[idx])
         bridged_positions = set(int(p) for p in np.nonzero(col_bridge)[0])
-        assert bridged_positions <= set(range(lo, hi))
+        assert bridged_positions <= gap
 
 
 # =========================================================================== #
@@ -155,7 +146,6 @@ def test_ac4_bridge_fills_the_gap():
     clean_img = _clean_seg_img()
     input_data = np.asanyarray(clean_img.dataobj)
     axis = si_axis(clean_img.affine)
-    neighbour_is_low = _facing_side(input_data, axis)
 
     result = _bridged_result(clean_img)
     output_data = np.asanyarray(result.labelmap.dataobj)
@@ -166,15 +156,13 @@ def test_ac4_bridge_fills_the_gap():
     checked_gap_voxels = 0
     for idx in np.ndindex(moved_in.shape[:-1]):
         col_in = moved_in[idx]
-        gap = _column_gap(col_in, neighbour_is_low)
-        if gap is None:
+        gap = _column_gap_positions(col_in)
+        if not gap:
             continue
-        lo, hi = gap
         col_out = moved_out[idx]
-        for pos in range(lo, hi):
-            if col_in[pos] == 0:
-                checked_gap_voxels += 1
-                assert col_out[pos] == 22
+        for pos in gap:
+            checked_gap_voxels += 1
+            assert col_out[pos] == 22
     assert checked_gap_voxels > 0, "no column held a background gap -- nothing to check"
 
 
@@ -312,24 +300,17 @@ def test_fuse_bridge_keeps_third_label():
     clean_img = _clean_seg_img()
     axis = si_axis(clean_img.affine)
     data = np.array(np.asanyarray(clean_img.dataobj), copy=True)
-    neighbour_is_low = _facing_side(data, axis)
 
     moved = np.moveaxis(data, axis, -1)
     other_axes = [a for a in range(data.ndim) if a != axis]
 
     chosen = None
     for other_idx in np.ndindex(moved.shape[:-1]):
-        gap = _column_gap(moved[other_idx], neighbour_is_low)
-        if gap is None:
+        gap = _column_gap_positions(moved[other_idx])
+        if not gap:
             continue
-        lo, hi = gap
-        col = moved[other_idx]
-        for pos in range(lo, hi):
-            if col[pos] == 0:
-                chosen = (other_idx, pos)
-                break
-        if chosen is not None:
-            break
+        chosen = (other_idx, min(gap))
+        break
     assert chosen is not None, "no column has a background gap -- nothing to test"
 
     other_idx, pos = chosen
