@@ -184,8 +184,10 @@ the scan reads, are both merged.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- **No `src/segfacet/` change.** Confirmed 2026-09-25 by running the widened
+  `_zero_comparisons` (as committed in `tests/test_155_corpus_case_kind.py`)
+  over `_iter_scanned_files()` directly: `[]`, matching A2. This item stays
+  tests-only, as scoped.
 - **Left open:** bare truthiness of a tracked access in a test position
   (`if`/`while`/ternary test, an `and`/`or` operand, a comprehension `if`), and
   ordering comparisons against 0. The queue names neither. Bare truthiness has
