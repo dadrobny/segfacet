@@ -17,7 +17,12 @@ function body of a parsed source file separately, flags any ``Eq``/``NotEq``/
 a local name bound from either in the same scope) against the literal ``0``
 or a ``CLEAN_CONTROL_MODE``/``_CLEAN_MODE_ID`` name, exempting anything
 inside an ``assert`` and the body of ``case_kind`` itself (the one place
-literally required to make that comparison).
+literally required to make that comparison). Item 184 widened the scan to
+report three more shapes expressing the same test: membership against a
+zero-sentinel-containing ``Tuple``/``Set``/``List`` literal (``in``/``not
+in``), a zero comparison inside a chained comparison
+(``lo <= x["failure_mode"] == 0``), and ``bool(...)`` truthiness of a
+tracked access.
 
 AC14/AC15 build their probes from the *committed* clean-control geometric
 case, selected by ``kind == "clean_control"`` (never by ``case_id``, which
@@ -199,7 +204,11 @@ def _is_zero_sentinel(node: ast.AST) -> bool:
 def _zero_comparisons(source: str, filename: str) -> list:
     """AC12/AC13: every forbidden zero-comparison of a manifest case's
     ``failure_mode``, scanning the module body and each function body as its
-    own scope. See the module docstring for the exact shape matched."""
+    own scope. See the module docstring for the exact shape matched. Item 184
+    widened the match to also report membership (``in``/``not in`` a
+    zero-sentinel-containing ``Tuple``/``Set``/``List``), a zero comparison
+    inside a chained comparison, and ``bool(...)`` truthiness of a tracked
+    access."""
     tree = ast.parse(source, filename=filename)
 
     exempt_test_ids = set()
@@ -232,16 +241,35 @@ def _zero_comparisons(source: str, filename: str) -> list:
             for node in ast.walk(stmt):
                 if id(node) in exempt_test_ids:
                     continue
-                if isinstance(node, ast.Compare) and len(node.ops) == 1:
-                    op = node.ops[0]
-                    if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
-                        left, right = node.left, node.comparators[0]
-                        if (is_tracked(left) and _is_zero_sentinel(right)) or (
-                            is_tracked(right) and _is_zero_sentinel(left)
-                        ):
-                            violations.append((filename, node.lineno))
+                if isinstance(node, ast.Compare):
+                    operands = [node.left] + list(node.comparators)
+                    matched = False
+                    for i, op in enumerate(node.ops):
+                        left, right = operands[i], operands[i + 1]
+                        if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+                            if (is_tracked(left) and _is_zero_sentinel(right)) or (
+                                is_tracked(right) and _is_zero_sentinel(left)
+                            ):
+                                matched = True
+                        elif isinstance(op, (ast.In, ast.NotIn)):
+                            if is_tracked(left) and isinstance(
+                                right, (ast.Tuple, ast.Set, ast.List)
+                            ):
+                                if any(_is_zero_sentinel(elt) for elt in right.elts):
+                                    matched = True
+                    if matched:
+                        violations.append((filename, node.lineno))
                 elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
                     if is_tracked(node.operand):
+                        violations.append((filename, node.lineno))
+                elif isinstance(node, ast.Call):
+                    func = node.func
+                    if (
+                        isinstance(func, ast.Name)
+                        and func.id == "bool"
+                        and len(node.args) == 1
+                        and is_tracked(node.args[0])
+                    ):
                         violations.append((filename, node.lineno))
 
     module_level = [
