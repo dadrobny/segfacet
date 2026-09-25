@@ -1856,7 +1856,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   *(Item 195)*
 - ✅ **Maintenance** `segfacet evaluate` reports a `FacetInputError` as an error, not a
   traceback. *(Item 180)*
-- 🚧 **Maintenance** Vacuous reference-backed tests in `test_049` and `test_090` made
+- 🔍 **Maintenance** Vacuous reference-backed tests in `test_049` and `test_090` made
   discriminating on the lordotic base. *(Item 181)*
 - 📋 **Maintenance** The catalogue's corpus-derived rule→mode map read from the committed
   cases. *(Item 182)*
