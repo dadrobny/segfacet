@@ -243,6 +243,22 @@ merged.
 
 To be updated during implementation.
 
+- **A3 replay (2026-09-25).** With `ALLOWLIST` emptied,
+  `iter_violations(tests/)` on this branch's base commit (`e4d87c5`) actually
+  returns **39** `(module, committed_path)` pairs, not the 38 the Description
+  states -- `test_106_stage19_validation.py` reports
+  `docs/aide/feature_catalogue.generated.md` twice (two separate byte-exact
+  comparisons in that module against the same committed path), which a
+  hand-count of distinct committed paths misses. This is a miscount in the
+  Description's narration, not a defect this item introduces: the same 39
+  pairs, exactly, appear before and after `_file_root_parent_count`'s change
+  (none added, none lost), so A3's substantive claim -- no hidden comparison
+  is uncovered by this change -- holds. AC4's actual test
+  (`test_158`'s `test_ac10_tests_tree_is_guard_clean_with_committed_allowlist`)
+  runs with the real committed `ALLOWLIST`, under which every one of the 39
+  raw pairs is covered by a glob entry, so it returns `[]` unchanged either
+  way. No hand-back: the discrepancy is between the Description's prose and
+  reality, not between this patch's before/after.
 - **Left open:** `os.path.join(...)` as a path join, and `open(...).read()`
   as a read shape. No module under `tests/` builds a committed path either
   way. Resolving them would widen the guard's read and join model, not just
