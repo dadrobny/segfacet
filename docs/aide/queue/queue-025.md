@@ -38,8 +38,11 @@ rule→mode pair as a literal.
 otherwise re-author around it. Item 187 (the `neighbour_contact` rule) pays
 the rule-count pins once. Item 189 (the displaced-vertebra condition) precedes
 item 190 (the condition-keyed eval bucket), which needs a second condition to
-exist. Items 191–195 are independent and can be claimed in any order after
-186. Item 194 (mode-1 attribution) is best run late, so it sees the other
+exist. Item 191 (condition-flagged labels excluded by default) follows 189,
+because its mechanism covers both conditions. Item 192 (`sequence`
+sub-types) follows 186, because it checks against 186's expected sequence.
+Items 193–195 are independent and can be claimed in any order after 186.
+Item 194 (mode-1 attribution) is best run late, so it sees the other
 re-homings.
 
 **Build posture (`prototype`).** Every item is a named D3 deliverable, or an
@@ -51,18 +54,44 @@ insight entry that D3 absorbs. Stage 33's acceptance criteria 2–4 need them.
 
 ## Work items
 
-### Item 186: `CANONICAL_ORDER` admits every numbering variant as continuous
+### Item 186: The expected level sequence admits per-section vertebra counts
 
 `relationships.missing_levels` walks `labels.CANONICAL_ORDER`, where the
 transitional T13 sits between T12 and L1, and L6 sits between L5 and S1. So
 `coverage` reports T13 as absent on any label map that holds T12 and L1. That
 is the common thoraco-lumbar case (`insights.md`, queue-022 review,
-2026-09-22, the defect entry). Make T12→L1 continuous with or without T13, and
-L5→S1 with or without L6. A transitional level counts as missing only when the
-case is configured to expect it. `split_own_label`'s expected set loses the
-`coverage` co-detection. *Testable:* a label map holding T12 and L1–L5 and no
-T13 yields no missing level and no finding (Stage 33 criterion 4). A map that
-skips L3 still reports L3.
+2026-09-22, the defect entry). `split_own_label`'s expected set loses the
+`coverage` co-detection.
+
+The fix is per-section counts, not two special-cased transitional labels
+(maintainer feedback, 2026-09-25):
+
+- **Counts per section.** Cervical 7. Thoracic 11–13. Lumbar 4–6. The sacrum
+  is not split into levels: some models label S1's body separately and the
+  rest of the sacrum as a second label, so neither form counts as a gap. Any
+  combination of section counts is valid. The default is (7, 12, 5). The
+  expected sequence for a case is C1–C7, T1–T*n*, L1–L*m*, S, and it is
+  walked in that order. T11→L1 is continuous when the thoracic count is 11.
+  L5→S is continuous when the lumbar count is 5.
+- **The order must be monotonic** along the spine.
+- **A non-default count must be indicated by the scan.** The whole section
+  must be in the field of view, plus the first vertebra on either side of
+  it. So L1 preceded by T11 or T13 requires C7 in the field of view, so that
+  every thoracic level is counted. S preceded by L4 or L6 requires the last
+  thoracic level in the field of view, so that every lumbar level is
+  counted. When the field of view does not show that, the non-default
+  reading is not accepted, and item 192's transitional sub-type reports it.
+- **Prior knowledge may set the counts instead.** A case may be given its
+  section counts as input, for example from the subject's other scans. A
+  supplied count is accepted without the field-of-view requirement.
+
+*Testable:* a label map holding T12 and L1–L5 and no T13 yields no missing
+level and no finding (Stage 33 criterion 4). A map that skips L3 still
+reports L3. T1–T11 then L1, with C7 in the field of view, yields no missing
+level. The same map without C7 does not accept the 11-level reading. A
+supplied count of 13 thoracic levels makes an absent T13 missing. Each
+section's count range, and one mixed combination such as (7, 13, 4), is
+exercised.
 
 ### Item 187: `neighbour_contact` becomes a rule of its own, serving mode 3
 
@@ -73,19 +102,47 @@ declaring mode 3 (`insights.md`, queue-022 review, 2026-09-22). The threshold
 comment in `src/segfacet/default_config.yaml` is re-measured with the move. It
 still quotes the split case's contact as 750.0 mm², and the lordotic base
 reads 775.0 (`insights.md`, item 173, 2026-09-23). The rule-count pin
-(`test_136`) and the rule-id enumerations are updated once, here. *Testable:*
-the new rule fires on `split` and on no other corpus case. `fragmentation`
-declares no mode 3 edge. The rule count is 11.
+(`test_136`) and the rule-id enumerations are updated once, here.
+
+The contact measure changes with the move (maintainer feedback, 2026-09-25).
+Today `components.stray_contact_area_mm2` is an absolute area. A small
+component shows little absolute contact even when a large part of its surface
+touches a neighbour. So contact is also measured relative to the component's
+own surface: the contact area divided by the component's surface area. It is
+reported at two scopes:
+
+- **Per connected component**, naming the neighbour each part touches. This
+  is what decides which parts of a fragmented label may need merging, and
+  into which neighbour.
+- **Per whole label**, whether or not the label is fragmented.
+
+The threshold is re-expressed on the relative measure and re-measured.
+
+*Testable:* the new rule fires on `split` and on no other corpus case. A small
+component that touches a neighbour over most of its surface reaches a higher
+contact fraction than a large component with the same absolute contact area.
+Each component's record names the neighbour it touches. An unfragmented label
+carries a label-level contact fraction. `fragmentation` declares no mode 3
+edge. The rule count is 11.
 
 ### Item 188: `coverage` re-homed from mode 6 to mode 10
 
 `coverage` detects a missing *label* in the sequence, not a missing vertebra,
 so it serves mode 10 (skipped level label), not mode 6 (`insights.md`,
 queue-022 review, 2026-09-22). Mode 10 gains its first rule edge. Mode 6 loses
-its only synthetic-demonstrable edge, and `remove_level` is re-attributed or
-recorded as a co-detection. Mode 6's own spacing rule is not in this stage
-(roadmap Stage 33, scope decisions). *Testable:* `coverage`'s declaration
-names mode 10 and not mode 6. Both modes' derived status and rung match an
+its only synthetic-demonstrable edge.
+
+`remove_level` and `remove_level_relabel` stay attributed to mode 6. Mode 6
+should fire on both, and that is its detection target (maintainer feedback,
+2026-09-25). `coverage` firing on `remove_level` is recorded as a mode-10
+co-detection, not as mode 6's detection. Mode 6's own rule is to be decided
+later: the spacing rule is not in this stage (roadmap Stage 33, scope
+decisions). So mode 6's status and rung record that no rule detects it yet.
+Neither case is moved to another mode to fill the gap.
+
+*Testable:* `coverage`'s declaration names mode 10 and not mode 6. Both
+`remove_level` cases are still attributed to mode 6. Mode 6's status records
+that no rule detects it. Both modes' derived status and rung match an
 independent recomputation. The ratchet is green.
 
 ### Item 189: `mislabel`'s `spline_offset` moves to a displaced-vertebra condition
@@ -113,16 +170,33 @@ each condition gets its own bucket. `test_116`'s
 `failure_mode == 0`. *Testable:* each condition case is reported under its
 condition's name. The clean control's bucket holds only clean controls.
 
-### Item 191: Size features gated on a border-touch flag
+### Item 191: A condition-flagged label is excluded from every rule that does not opt in
 
-`bounds`, and `reference_delta`'s size features, are suppressed on a label
-that carries a border-touch flag, because a truncated vertebra is small by
-construction. Verified 2026-09-22: `heuristics/bounds.py` reads no `touches_*`
-flag (`insights.md`, queue-022 review, 2026-09-22, the `bounds` decision).
-Vertebra-local extents are Stage 27's. `crop_fov_si` is the fixture the gating
-is measured on. *Testable:* `crop_fov_si`'s L5 remnant fires no size finding.
-The same volume on an interior label still fires. The expected set is
-re-authored.
+`bounds`, and `reference_delta`'s size features, fire on a label that touches
+the image border, because a truncated vertebra is small by construction.
+Verified 2026-09-22: `heuristics/bounds.py` reads no `touches_*` flag
+(`insights.md`, queue-022 review, 2026-09-22, the `bounds` decision).
+
+Size is not the only feature a border touch spoils. The maintainer ruled
+that the gate belongs to the condition, not to each feature (maintainer
+feedback, 2026-09-25). A border-touching label is in the `fov_truncation`
+condition, and a label in any condition is excluded from every rule unless
+that rule explicitly opts in to the condition. Today the relationship is the
+other way round: `ConditionSpec.exempting_rules` lists the rules that
+exempt a condition's labels (`mislabel`, `coverage`), and every other rule
+applies. This item inverts it. A rule that opts in says which of its
+features stay valid on a truncated label. That choice is made for each rule
+when the rule uses the feature, and not in advance for every feature. The
+mechanism covers item 189's displaced-vertebra condition too, so this item
+runs after 189. Vertebra-local extents are Stage 27's. `crop_fov_si` is the
+fixture the gating is measured on.
+
+*Testable:* `crop_fov_si`'s L5 remnant fires no size finding. The same
+volume on an interior label still fires. A rule that opts in to
+`fov_truncation` still fires on a border-touching label. The existing
+exemptions (`mislabel`'s terminal skip, `coverage`'s border-aware span) hold
+under the new default. The expected sets of `crop_fov_si` and
+`crop_at_border` are re-authored.
 
 ### Item 192: `sequence` reports which sub-type it saw
 
@@ -130,7 +204,11 @@ An out-of-sequence label can express any of modes 8–11, so `sequence` serves
 that family and reports the sub-type in its finding: a swap, a skip, a
 transitional label, or a shift. Mode 12 (shifted sequence) cannot be
 identified without external context and stays out (`insights.md`, queue-022
-review, 2026-09-22, the `sequence` decision). *Testable:* each sub-type,
+review, 2026-09-22, the `sequence` decision). Item 186 sets the expected
+sequence this rule checks against: section counts, monotonic order, and when
+a non-default count is accepted. A non-default count that the field of view
+does not show, and no supplied count backs, is reported as the transitional
+sub-type. *Testable:* each sub-type,
 constructed as a label map, yields a finding that names it.
 `sequence_break`'s finding names its sub-type. No mode-12 edge is declared.
 
