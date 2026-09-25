@@ -201,8 +201,15 @@ the same method, are both merged.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- Implemented the A1 rule with the forward/backward "nearest pair voxel"
+  scan named in Implementation Step 1's vectorised form, computed once per
+  column with `np.maximum.accumulate`/`np.minimum.accumulate` over the
+  stacking axis rather than the old single-side `lo`/`hi` range. No helper
+  was added to the module and no dependency was added, per the step.
+- A2 verified by running `write_corpus` into a scratch directory and
+  comparing every written file against `tests/corpus/` byte for byte: all
+  18 entries (fixtures + manifest) matched, so nothing in the committed
+  corpus moved and the hand-back condition did not trigger.
 - **Left open:** whether a column in which a third label lies between the pair
   should be bridged at all. Filling the background on either side of the third
   label leaves the fused label split in that column. A1 keeps item 176's

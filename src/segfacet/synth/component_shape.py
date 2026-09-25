@@ -277,12 +277,15 @@ class FusePerturbation(Perturbation):
     is kept byte for byte for the supplementary severity ladder
     (``segfacet.eval.severity_ladder``).
 
-    ``bridged=True`` (item 176) is mode 2's corpus fixture: every background
-    voxel strictly between the pair's facing ends, column by column along the
-    affine-resolved stacking axis, is set to the target; the neighbour is
-    relabelled onto the target; and every present label greater than the
-    neighbour is renumbered to the present label before it, so the sequence
-    stays continuous. The neighbour must be the next-higher present label.
+    ``bridged=True`` (item 176) is mode 2's corpus fixture: along the
+    affine-resolved stacking axis, each column is walked independently (item
+    183) -- for every two consecutive pair (target/neighbour) voxels in that
+    column that carry different labels, every background voxel strictly
+    between them is set to the target, whichever label comes first in that
+    column; the neighbour is relabelled onto the target; and every present
+    label greater than the neighbour is renumbered to the present label
+    before it, so the sequence stays continuous. The neighbour must be the
+    next-higher present label.
     """
 
     name = "fuse"
@@ -355,21 +358,31 @@ class FusePerturbation(Perturbation):
             axis = si_axis(labelmap.affine)
 
             # Column walk on a view of the private copy, stacking axis last.
+            # Per-column gap rule (item 183, A1): a background voxel bridges
+            # iff its nearest pair voxel on each side (skipping non-pair
+            # labels) exists and the two differ -- decided independently in
+            # every column, not from one global mean-index side.
             cols = np.moveaxis(data, axis, -1)
-            t_mask, n_mask = cols == target, cols == neighbour
+            pair = (cols == target) | (cols == neighbour)
             idx = np.arange(cols.shape[-1])
-            both = t_mask.any(-1) & n_mask.any(-1)
-            neighbour_low = float(np.nonzero(n_mask)[-1].mean()) < float(
-                np.nonzero(t_mask)[-1].mean()
+
+            prev_idx = np.maximum.accumulate(np.where(pair, idx, -1), axis=-1)
+            suffix_min = np.minimum.accumulate(
+                np.where(pair, idx, idx.size)[..., ::-1], axis=-1
+            )[..., ::-1]
+            next_idx = np.where(suffix_min < idx.size, suffix_min, -1)
+
+            prev_label = np.where(
+                prev_idx >= 0, np.take_along_axis(cols, np.clip(prev_idx, 0, None), axis=-1), 0
             )
-            low, high = (n_mask, t_mask) if neighbour_low else (t_mask, n_mask)
-            lo = np.where(low, idx, -1).max(-1) + 1  # after the low label's facing end
-            hi = np.where(high, idx, idx.size).min(-1)  # the high label's facing end
+            next_label = np.where(
+                next_idx >= 0, np.take_along_axis(cols, np.clip(next_idx, 0, None), axis=-1), 0
+            )
             bridge = (
-                both[..., None]
-                & (idx >= lo[..., None])
-                & (idx < hi[..., None])
-                & (cols == 0)
+                (cols == 0)
+                & (prev_label != 0)
+                & (next_label != 0)
+                & (prev_label != next_label)
             )
             cols[bridge] = target
             n_bridged = int(np.count_nonzero(bridge))
