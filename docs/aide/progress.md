@@ -1863,7 +1863,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - ✅ **Maintenance** Bridged `fuse` fills each column in its own order. *(Item 183)*
 - ✅ **Maintenance** `test_155`'s zero-comparison scan covers membership, chained and
   `bool(...)` shapes. *(Item 184)*
-- 🚧 **Maintenance** `committed_artifact_guard` resolves the `dirname(abspath(__file__))`
+- 🔍 **Maintenance** `committed_artifact_guard` resolves the `dirname(abspath(__file__))`
   root idiom. *(Item 185)*
 - 📋 **D4** The bar checker's condition 2 made existential and detector-granular, the
   severity-ladder constants re-measured including the split operators, and a generated
