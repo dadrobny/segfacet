@@ -1854,7 +1854,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - 📋 **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
   corpus attribution (maintainer, 2026-09-25, superseding the 2026-09-24 park).
   *(Item 195)*
-- 🚧 **Maintenance** `segfacet evaluate` reports a `FacetInputError` as an error, not a
+- 🔍 **Maintenance** `segfacet evaluate` reports a `FacetInputError` as an error, not a
   traceback. *(Item 180)*
 - 📋 **Maintenance** Vacuous reference-backed tests in `test_049` and `test_090` made
   discriminating on the lordotic base. *(Item 181)*
