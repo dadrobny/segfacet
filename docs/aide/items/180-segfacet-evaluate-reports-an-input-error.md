@@ -155,4 +155,12 @@ None.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented exactly as scoped in Implementation Steps: the `evaluate_cohort(...)`
+call in `_handle_evaluate` (`src/segfacet/cli.py`) is now wrapped in
+`try: ... except FacetInputError as exc: print(f"Error: {exc}",
+file=sys.stderr); return 1`, matching the existing shape around
+`load_cohort_manifest` a few lines above and `_handle_run`'s around
+`load_case`. `compute_cohort_metrics` and everything after stays outside the
+`try`, per A3. The handler's docstring gained one clause naming the new input
+error alongside the existing bad-`--config`/cohort-loading ones. No other
+file changed.
