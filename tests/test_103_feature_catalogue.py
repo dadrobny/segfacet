@@ -37,9 +37,10 @@ Covers Acceptance Criteria AC1-AC25:
         evidence tag.
 - AC12: every rule attribution carries a valid evidence tag; the
         ``rule_evidence`` rule-id set equals ``consuming_rules``.
-- AC13: the rule->mode map is derived from ``synth/`` (checked via its
-        effect on ``failure_modes``) and ``catalogue.py``'s source contains
-        no hand-typed rule-id->mode dict literal.
+- AC13: the rule->mode map is derived from the committed corpus manifest
+        (item 182; checked via its effect on ``failure_modes``) and
+        ``catalogue.py``'s source contains no hand-typed rule-id->mode dict
+        literal.
 - AC14: every ``MODE_ANCHOR_PATHS`` path anchors its mode with
         ``"per_mode_metric"`` evidence -- keyed, since item 150's sign-off
         (revised 2026-09-15), by the anchorable signed-off modes ``{1, 4, 6,
@@ -567,14 +568,15 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 
 
 # =========================================================================== #
-# AC13: the rule->mode map is derived from synth/, not hand-typed
+# AC13: the rule->mode map is derived from the committed corpus manifest,
+# not hand-typed (item 182: no longer from a synth/ literal scan)
 # =========================================================================== #
 
 
 #: The corpus-derived rule -> failure-mode map, as the maintainer's item-150
-#: sign-off (revised 2026-09-15) leaves it: the modes ``synth/*.py``'s
-#: ``Expectation(...)`` literals attribute to each rule, which is exactly what
-#: ``catalogue._scan_synth_rule_mode_map`` must recover. ``border`` is absent
+#: sign-off (revised 2026-09-15) leaves it: the modes the committed corpus
+#: manifest's failure-kind cases attribute to each rule (item 182), which is
+#: exactly what ``catalogue._scan_synth_rule_mode_map`` must recover. ``border`` is absent
 #: on purpose -- its corpus case (``crop_at_border``) now carries
 #: ``failure_mode=0`` plus the ``fov_truncation`` *condition*, so the scan
 #: attributes no mode to it; the mode-less half of AC15 covers it instead.
