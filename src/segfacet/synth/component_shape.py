@@ -395,8 +395,10 @@ class FusePerturbation(Perturbation):
 
         out_img = _new_image(data, labelmap)
 
-        # Computed per branch (item 176): no literal here designates mode 2 to
-        # a rule, so catalogue's literal-only scan reads none from ``fuse``.
+        # Computed per branch (item 176): ``expected_rule_ids`` is branch-computed,
+        # not a literal. Since item 182 the catalogue's corpus-derived map no
+        # longer reads synth source at all -- it reads the committed cases'
+        # designations directly, so this branch's runtime value still reaches it.
         expectation = Expectation(
             failure_mode=2,
             failure_mode_name=FAILURE_MODE_NAMES[2],

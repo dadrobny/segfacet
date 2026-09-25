@@ -223,7 +223,24 @@ queue orders item 182 first.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented as specified: `_scan_synth_rule_mode_map` now reads
+`segfacet.synth.corpus.load_manifest()["cases"]` at call time, keeps only
+`corpus_case_kind(case) == CASE_KIND_FAILURE` cases, and maps each
+`expected_rule_ids` entry to the sorted tuple of distinct `failure_mode`
+values across the cases that designate it -- exactly the Implementation Steps
+1-3 shape. `_extract_frozenset_string_elements` and the AST-scan body were
+deleted; both function names (`_scan_synth_rule_mode_map` /
+`scan_synth_rule_mode_map`) were kept per A5. The `fuse` comment in
+`component_shape.py` was rewritten per Implementation Step 4 (runtime values
+unchanged). Confirmed A2 at implementation time: `python -m segfacet.catalogue`
+into a scratch directory is byte-identical to both committed
+`docs/aide/feature_catalogue.generated.{json,md}`, and
+`scan_synth_rule_mode_map()` / `rule_declaration_conflicts()` match the values
+A2 records, so neither committed artifact needed regeneration.
+`tests/test_103_feature_catalogue.py` and `tests/test_136_rule_mode_declarations.py`
+already read comment-clean (no stale "AST scan of synth/*.py literals"
+wording to reconcile) -- the Testing Strategy's reconciliation list needed no
+edit.
 
 - **Left open:** whether the map should also read the intensity manifest's
   `expected_firing`. Doing so changes the committed catalogue artifacts and
