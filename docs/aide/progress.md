@@ -1858,7 +1858,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   traceback. *(Item 180)*
 - ✅ **Maintenance** Vacuous reference-backed tests in `test_049` and `test_090` made
   discriminating on the lordotic base. *(Item 181)*
-- 🔍 **Maintenance** The catalogue's corpus-derived rule→mode map read from the committed
+- ✅ **Maintenance** The catalogue's corpus-derived rule→mode map read from the committed
   cases. *(Item 182)*
 - 📋 **Maintenance** Bridged `fuse` fills each column in its own order. *(Item 183)*
 - 📋 **Maintenance** `test_155`'s zero-comparison scan covers membership, chained and
