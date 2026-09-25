@@ -1850,6 +1850,21 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Items 186, 187, 188, 189, 190, 191, 192, 193, 194)*
+- 📋 **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
+  corpus attribution (maintainer, 2026-09-25, superseding the 2026-09-24 park).
+  *(Item 195)*
+- 📋 **Maintenance** `segfacet evaluate` reports a `FacetInputError` as an error, not a
+  traceback. *(Item 180)*
+- 📋 **Maintenance** Vacuous reference-backed tests in `test_049` and `test_090` made
+  discriminating on the lordotic base. *(Item 181)*
+- 📋 **Maintenance** The catalogue's corpus-derived rule→mode map read from the committed
+  cases. *(Item 182)*
+- 📋 **Maintenance** Bridged `fuse` fills each column in its own order. *(Item 183)*
+- 📋 **Maintenance** `test_155`'s zero-comparison scan covers membership, chained and
+  `bool(...)` shapes. *(Item 184)*
+- 📋 **Maintenance** `committed_artifact_guard` resolves the `dirname(abspath(__file__))`
+  root idiom. *(Item 185)*
 - 📋 **D4** The bar checker's condition 2 made existential and detector-granular, the
   severity-ladder constants re-measured including the split operators, and a generated
   `docs/aide/rules.generated.md`.
