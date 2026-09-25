@@ -247,7 +247,16 @@ under its May change.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Builder confirmation:** no `src/segfacet/` change is needed for this item.
+  Per the Implementation Steps, the item is tests-only: both AC1 and AC2 are
+  satisfied by rewriting the two `test_049` tests against
+  `_build_bracketing_reference()` (already present in the module) and by
+  retiring `test_090`'s AC14 test, neither of which touches production
+  behaviour. `git diff main...HEAD --stat` at implementation time shows only
+  `tests/test_049_acceptance_stage6.py` and
+  `tests/test_090_reference_derived_defaults.py` changed by this item's
+  commit (the sibling `src/segfacet/cli.py` change on the branch belongs to
+  item 180, already merged ahead of this one).
 
 - **Left open:** whether item 090's claim, that the real-grounded `bounds`
   default still catches a FOV crop, is reinstated at all. It needs a fixture
