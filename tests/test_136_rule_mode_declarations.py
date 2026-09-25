@@ -478,8 +478,8 @@ def test_ac7_corpus_designated_rule_no_rule_registers_is_reported(monkeypatch):
 # Note (item 150, 2026-09-14), recorded where the next reader of AC7 will
 # look: on the shipped tree the co-detection exemption absorbs the corpus ->
 # declaration direction entirely. ``scan_synth_rule_mode_map()`` derives
-# "corpus designates mode M for rule R" from the ``Expectation(...)`` literals
-# in ``src/segfacet/synth/*.py`` -- R appears in the ``expected_rule_ids`` of a
+# "corpus designates mode M for rule R" from the committed corpus manifest's
+# failure-kind cases (item 182) -- R appears in the ``expected_rule_ids`` of a
 # case whose ``failure_mode`` is M -- and the exemption derives "recorded
 # co-detection" from R appearing in the ``expected_firing`` of one of mode M's
 # ``SPECIFICATION`` corpus cases. ``specification_conflicts()`` requires those

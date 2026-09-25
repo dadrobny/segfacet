@@ -68,15 +68,20 @@ non-negative int literal) starting at ``Path(__file__)`` (a
 "``_REPO_ROOT``-style" root) -- including a name reached in two hops, one
 name bound to the chain and a second bound to ``.parent`` on the first name
 (``_TESTS_DIR = Path(__file__).resolve().parent`` then
-``_REPO_ROOT = _TESTS_DIR.parent``) -- optionally further joined with literal
-string segments via ``/``; a local variable assigned from one of those in the
-same function; and the recognised read shapes ``.read_bytes()``,
-``.read_text(...)`` and ``hashlib.sha256(<path>.read_bytes()).hexdigest()`` --
-including a local variable that was itself assigned from one of those read
-shapes earlier in the same function (the "unchanged fence" idiom: read once,
-do something, read again, compare to the stored value). A one-step root
-(``Path(__file__).resolve().parent`` or ``.parents[0]``, named or not) is
-deliberately not "the repo root" -- see :func:`_is_file_root_chain`.
+``_REPO_ROOT = _TESTS_DIR.parent``) -- or the same root spelled with the
+``os.path`` string idiom, ``os.path.dirname``/``os.path.abspath`` over
+``__file__``, optionally wrapped in ``Path(...)`` (item 185), stepped up the
+same way, with ``os.path.dirname`` counting as one step just like ``.parent``
+-- optionally further joined with literal string segments via ``/``; a local
+variable assigned from one of those in the same function; and the recognised
+read shapes ``.read_bytes()``, ``.read_text(...)`` and
+``hashlib.sha256(<path>.read_bytes()).hexdigest()`` -- including a local
+variable that was itself assigned from one of those read shapes earlier in
+the same function (the "unchanged fence" idiom: read once, do something,
+read again, compare to the stored value). A one-step root
+(``Path(__file__).resolve().parent``/``.parents[0]`` or
+``os.path.dirname(os.path.abspath(__file__))``, named or not) is deliberately
+not "the repo root" -- see :func:`_is_file_root_chain`.
 
 Still skipped in silence:
 - a ``pathlib.Path(__file__)`` root (the attribute-call form): ``(pathlib.Path(__file__).parent.parent / ARTIFACT).read_bytes()``
@@ -86,6 +91,7 @@ Still skipped in silence:
 - a value reached through json.loads: ``(Path(json.loads(arg)) / ARTIFACT).read_bytes()``
 - a comprehension variable: ``Path(next(p for p in [ARTIFACT])).read_bytes()``
 - a path segment that is not a string literal (an f-string): ``(Path(__file__).resolve().parent.parent / f'{ARTIFACT}').read_bytes()``
+- an ``os.path.join`` path build off an ``os.path`` root: ``Path(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ARTIFACT)).read_bytes()``
 
 A loop variable (bound by a ``for`` statement rather than a comprehension), a
 path built from ``tmp_path``, and every placement shape described below are
@@ -278,10 +284,30 @@ def _is_name(node, name: str) -> bool:
     return isinstance(node, ast.Name) and node.id == name
 
 
+def _is_os_path_call(node, attr: str) -> bool:
+    """True iff *node* is ``os.path.<attr>(x)`` -- exactly one positional
+    argument, no keywords."""
+    if not (isinstance(node, ast.Call) and len(node.args) == 1 and not node.keywords):
+        return False
+    func = node.func
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == attr
+        and isinstance(func.value, ast.Attribute)
+        and func.value.attr == "path"
+        and isinstance(func.value.value, ast.Name)
+        and func.value.value.id == "os"
+    )
+
+
 def _file_root_parent_count(node, depths: Optional[Dict[str, int]] = None) -> Optional[int]:
     """If *node* is a chain of ``.resolve()``/``.parent``/``.parents[N]``
-    starting at ``Path(__file__)``, return how many ``.parent`` steps it
-    takes (0 for ``Path(__file__)`` itself); otherwise ``None``.
+    starting at ``Path(__file__)``, or the ``os.path`` string-root idiom
+    (``os.path.dirname``/``os.path.abspath`` over ``__file__``, optionally
+    wrapped in ``Path(...)`` -- item 185), return how many "step up a
+    directory" steps it takes (0 for ``Path(__file__)``/``__file__`` itself,
+    a bare ``os.path.dirname(...)`` step and a ``.parent``/``.parents[N]``
+    step counting the same way); otherwise ``None``.
 
     *depths* maps a name already known to carry such a chain (bound earlier
     at module level or, for a function-local pre-scan, earlier in the same
@@ -292,12 +318,11 @@ def _file_root_parent_count(node, depths: Optional[Dict[str, int]] = None) -> Op
     if depths is None:
         depths = {}
     if isinstance(node, ast.Name):
+        if node.id == "__file__":
+            return 0
         return depths.get(node.id)
     if isinstance(node, ast.Call) and _is_name(node.func, "Path") and len(node.args) == 1:
-        arg = node.args[0]
-        if isinstance(arg, ast.Name) and arg.id == "__file__":
-            return 0
-        return None
+        return _file_root_parent_count(node.args[0], depths)
     if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
@@ -318,23 +343,32 @@ def _file_root_parent_count(node, depths: Optional[Dict[str, int]] = None) -> Op
             return None
         inner = _file_root_parent_count(node.value.value, depths)
         return None if inner is None else inner + index_node.value + 1
+    if _is_os_path_call(node, "abspath"):
+        return _file_root_parent_count(node.args[0], depths)
+    if _is_os_path_call(node, "dirname"):
+        inner = _file_root_parent_count(node.args[0], depths)
+        return None if inner is None else inner + 1
     return None
 
 
 def _is_file_root_chain(node, depths: Optional[Dict[str, int]] = None) -> bool:
     """True iff *node* is a ``Path(__file__)``-based chain (directly, via
-    ``parents[N]``, or via a name carrying one of these -- see *depths* on
-    :func:`_file_root_parent_count`) reaching at least two ``.parent`` steps
-    up, e.g. ``Path(__file__).resolve().parent.parent``.
+    ``parents[N]``, via the ``os.path.dirname``/``os.path.abspath`` string
+    idiom over ``__file__`` -- optionally wrapped in ``Path(...)``, item 185
+    -- or via a name carrying one of these -- see *depths* on
+    :func:`_file_root_parent_count`) reaching at least two "step up a
+    directory" steps, e.g. ``Path(__file__).resolve().parent.parent`` or
+    ``os.path.dirname(os.path.dirname(os.path.abspath(__file__)))``.
 
-    A *single* ``.parent`` (a module's own containing directory, e.g.
-    ``tests/`` for a module directly under it) is deliberately not treated as
-    "the repo root" -- this classifier has no notion of a module's real
-    on-disk depth (see the module docstring), so a one-parent chain used to
-    join further literal segments (e.g. ``Path(__file__).parent / "golden" /
-    "x.json"``) would otherwise resolve to a path relative to the *module's*
-    directory rather than the repo root, and silently mismatch every
-    repo-relative allowlist entry.
+    A *single* step (a module's own containing directory, e.g. ``tests/`` for
+    a module directly under it -- ``Path(__file__).parent``/``.parents[0]``
+    or ``os.path.dirname(os.path.abspath(__file__))``) is deliberately not
+    treated as "the repo root" -- this classifier has no notion of a module's
+    real on-disk depth (see the module docstring), so a one-step chain used
+    to join further literal segments (e.g. ``Path(__file__).parent /
+    "golden" / "x.json"``) would otherwise resolve to a path relative to the
+    *module's* directory rather than the repo root, and silently mismatch
+    every repo-relative allowlist entry.
     """
     count = _file_root_parent_count(node, depths)
     return count is not None and count >= 2

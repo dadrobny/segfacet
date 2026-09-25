@@ -26,8 +26,11 @@ Covers Acceptance Criteria AC1-AC17:
 - AC13: synthetic corpus fragmentation sensitivity holds against the
         synthetic reference_default.json baseline (fragment /
         inject_islands).
-- AC14: real-grounded bounds still catches crop_at_border against
-        verse-v1.
+- AC14: RETIRED (item 181, 2026-09-25) -- no bounds predicate on label 22
+        separates crop_at_border from clean_control against verse-v1 on this
+        synthetic-box base: both arms fire bounds on the same four label-22
+        metrics (volume, extent_x, extent_y, extent_z). See the comment in
+        place of the deleted test, below AC13, for the measured premise.
 - AC15: the Stage-5 goldens stay byte-identical (golden harness attaches no
         reference; both rules fall back to hand-set there).
 - AC16: parsed default config / config_hash / schema_version stay byte-stable.
@@ -771,17 +774,22 @@ def test_ac13_mode3_inject_islands_fires_fragmentation_on_label_22():
 
 
 # =========================================================================== #
-# AC14: real-grounded bounds still catches crop_at_border
+# AC14: real-grounded bounds still catches crop_at_border -- RETIRED
 # =========================================================================== #
 
-
-def test_ac14_mode6_crop_at_border_fires_bounds_on_label_22_against_verse_v1():
-    case = _manifest_case("crop_at_border")
-    seg_img = loaded_seg_image(case)
-    reference = bundled_production_reference()
-    case_result, _block, _delta = run_qc_with_reference(seg_img, bundled_default_config(), reference)
-    bounds_findings = [f for f in case_result.findings if f.rule_id == "bounds" and 22 in f.labels]
-    assert len(bounds_findings) >= 1
+# test_ac14_mode6_crop_at_border_fires_bounds_on_label_22_against_verse_v1
+# was retired by item 181 (2026-09-25, docs/aide/items/181-*.md, insights.md
+# 2026-09-24 item-175 defect entries). It asserted bounds fires on label 22
+# of crop_at_border against bundled_production_reference() (verse-v1), but
+# clean_control fires bounds on label 22 there too, for the same four
+# metrics: measured 2026-09-25, both clean_control and crop_at_border fall
+# below verse-v1 L3's p1 on physical_volume_mm3, extent_x_mm, extent_y_mm and
+# extent_z_mm (the synthetic box base fills ~80% of its bounding box; a real
+# L3 fills ~13%, so no rescaling of the box brackets clean_control inside all
+# four verse-v1 bands without pushing its volume above the p99 -- item 181's
+# Assumption A3). No bounds predicate on label 22 therefore separates the two
+# arms against verse-v1 on this base, so the test could not be made
+# discriminating and was deleted rather than rewritten.
 
 
 # =========================================================================== #

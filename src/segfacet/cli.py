@@ -1018,8 +1018,10 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
     055), builds + writes the JSON and human-readable evaluation reports
     (item 056), and -- when calibrating and a feasible setting was found --
     records the calibrated config. Returns 1 (writing no report) on a bad
-    ``--config`` or a cohort-loading error (e.g. a nonexistent ``--cohort``
-    path) -- a caller error is reported, not a traceback.
+    ``--config``, a cohort-loading error (e.g. a nonexistent ``--cohort``
+    path), or an input error raised while evaluating a case (e.g. a
+    candidate/GT shape mismatch, item 180) -- a caller error is reported, not
+    a traceback.
     """
     from segfacet._logging import setup_logging  # noqa: PLC0415
 
@@ -1125,15 +1127,19 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
     upper_pct = cfg.reference_param("upper_pct", 99)
 
     # --- 2. Drive the harness + metrics --------------------------------------- #
-    cohort = evaluate_cohort(
-        cases,
-        cfg,
-        reference=reference,
-        stratum=stratum,
-        lower_pct=lower_pct,
-        upper_pct=upper_pct,
-        per_mode=args.per_mode,
-    )
+    try:
+        cohort = evaluate_cohort(
+            cases,
+            cfg,
+            reference=reference,
+            stratum=stratum,
+            lower_pct=lower_pct,
+            upper_pct=upper_pct,
+            per_mode=args.per_mode,
+        )
+    except FacetInputError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
     metrics = compute_cohort_metrics(cohort)
 
     # --- 3. Optional calibration ----------------------------------------------- #
