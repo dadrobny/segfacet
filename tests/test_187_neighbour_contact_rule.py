@@ -200,16 +200,17 @@ def test_ac2_each_component_names_its_neighbour(split_case_image):
 
 
 def test_ac3_small_component_scores_higher_at_equal_contact_area():
-    # label 2 is a wall; label 1 has a large 10x10x10 cube with one 10x10
-    # face on the wall, and a separate 1x10x10 slab lying flat on the wall,
-    # not touching the cube. Both contact areas are 100.0 mm^2 at 1mm
-    # isotropic spacing; the small slab's surface is 240 mm^2, the cube's is
-    # 600 mm^2, so the fractions differ though the areas match.
-    shape = (14, 10, 10)
+    # label 2 is a one-voxel wall; label 1 has a large 10x10x10 cube on one
+    # side of the wall and a separate 1x10x10 slab on the other side, so the
+    # slab and the cube are two components of label 1, each with one face on
+    # the wall. Both contact areas are 100.0 mm^2 at 1mm isotropic spacing;
+    # the small slab's surface is 240 mm^2, the cube's is 600 mm^2, so the
+    # fractions differ though the areas match.
+    shape = (12, 10, 10)
     data = np.zeros(shape, dtype=LABEL_DTYPE)
-    data[0, :, :] = 2  # the wall
-    data[1:11, :, :] = 1  # the cube, face x=1 touches the wall
-    data[12, :, :] = 1  # the flat slab, separated from the cube by a gap
+    data[0, :, :] = 1  # the slab, 1x10x10 (100 voxels)
+    data[1, :, :] = 2  # the wall
+    data[2:12, :, :] = 1  # the cube, 10x10x10 (1000 voxels)
     img = nib.Nifti1Image(data, affine_from_spacing((1.0, 1.0, 1.0)))
 
     config = bundled_default_config()
@@ -563,11 +564,11 @@ def test_spacing_read_from_header():
     # the wall's face is on axis 0, so its area is spacing[1] * spacing[2] =
     # 6.0 mm^2 per voxel; the cube's contact face is 10x10 voxels (100
     # faces), the slab's is also 10x10 (100 faces).
-    shape = (14, 10, 10)
+    shape = (12, 10, 10)
     data = np.zeros(shape, dtype=LABEL_DTYPE)
-    data[0, :, :] = 2  # the wall
-    data[1:11, :, :] = 1  # the cube, face x=1 touches the wall
-    data[12, :, :] = 1  # the flat slab, separated from the cube by a gap
+    data[0, :, :] = 1  # the slab, 1x10x10 (100 voxels)
+    data[1, :, :] = 2  # the wall
+    data[2:12, :, :] = 1  # the cube, 10x10x10 (1000 voxels)
     spacing = (1.0, 2.0, 3.0)
     img = nib.Nifti1Image(data, affine_from_spacing(spacing))
 
