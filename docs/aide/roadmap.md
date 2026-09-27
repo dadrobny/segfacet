@@ -2056,8 +2056,14 @@ re-measured on the new base, never carried over.
 - **D3 — rules re-homed to the signal they read** (`insights.md`, 2026-09-22):
   - `neighbour_contact` leaves `fragmentation` and becomes a rule of its own, serving
     mode 3. `fragmentation` stops declaring mode 3. The rule-count and rule-id pins are
-    paid once, in the same queue as the base regeneration.
-  - `coverage` is re-homed from mode 6 to mode 10 (skipped level label).
+    paid once, in the same queue as the base regeneration. Contact is measured relative
+    to the component's own surface, not as an absolute area, and is reported per
+    connected component (naming the neighbour it touches, to guide merging) and per
+    whole label (maintainer feedback, 2026-09-25).
+  - `coverage` is re-homed from mode 6 to mode 10 (skipped level label). `remove_level`
+    and `remove_level_relabel` stay attributed to mode 6, whose own rule is decided
+    later. `coverage`'s firing on `remove_level` is a mode-10 co-detection (maintainer
+    feedback, 2026-09-25).
   - `mislabel` keeps its `ordering` detector, extended to any out-of-sequence label. Its
     `spline_offset` detector moves to a new **displaced-vertebra condition** in
     `failure_modes.CONDITIONS`, beside `fov_truncation`. `displace` becomes that
@@ -2065,16 +2071,23 @@ re-measured on the new base, never carried over.
     `unanchored_foreground_fraction`, is re-homed with it (`insights.md`, item 153,
     2026-09-16). The per-label offset stays an anatomy signal and moves to a clinical
     group when Stage 27 re-taxonomises the schema.
-  - `bounds` and `reference_delta`'s size features are suppressed on a label carrying a
-    border-touch flag.
+  - A label in a condition (`fov_truncation`, the displaced vertebra) is excluded from
+    every rule unless that rule explicitly opts in to the condition. This inverts
+    `ConditionSpec.exempting_rules`. Which features stay valid on such a label is decided
+    per rule when the rule uses them. `bounds` and `reference_delta`'s size features are
+    the first measured instance (maintainer feedback, 2026-09-25).
   - `sequence` reports which sub-type it saw across modes 8–11. Mode 12 stays out.
   - `reference_delta` and `intensity_reference_delta` stay as general outlier detectors
     and are no mode's own detector. `intensity_reference_delta`'s claim on mode 16 with
     zero `signal` paths is resolved, and the conflict check learns to see that state
     (`insights.md`, item 164, 2026-09-20).
-  - `labels.CANONICAL_ORDER` admits every numbering variation as continuous (T12→L1 with
-    or without T13, and L5→S1 with or without L6), so no rule reports an absent
-    transitional vertebra as a gap.
+  - The expected level sequence admits per-section vertebra counts: cervical 7, thoracic
+    11–13, lumbar 4–6, in any combination, with the sacrum not split into levels. The
+    default is (7, 12, 5), so no rule reports an absent transitional vertebra as a gap.
+    The order must be monotonic. A non-default count is accepted only when the scan shows
+    the whole section plus the first vertebra on either side, or when the count is
+    supplied as prior knowledge of the subject; otherwise `sequence` reports it as the
+    transitional sub-type (maintainer feedback, 2026-09-25).
   - Mode 1 is attributed only when no other mode applies, and the rendering says so. The
     vocabulary is applied as the review defined it: a mode describes the vertebra, and
     "fragmentation" is one label in several parts.

@@ -27,15 +27,16 @@ Four derivation mechanisms, each carrying its own evidence tag
   (the pre-item-110 behaviour, tagged ``static-ambiguous``, produced exactly
   this false-positive shape whenever an unrelated block reused a generic key
   name).
-- **C. Static AST scan of ``synth/*.py``** — ``rule_id -> failure mode(s)``, read
-  off every ``Expectation(failure_mode=N, ..., expected_rule_ids=frozenset(
-  {...}))`` call's literal keyword pairs. No hand-typed rule-id -> mode
-  dictionary exists anywhere in this module's source (drift guard, AC13).
-  Exposed publicly as :func:`scan_synth_rule_mode_map`. It matches only
-  geometric ``Expectation(...)`` literals under ``src/segfacet/synth/*.py``
-  and cannot see the intensity corpus, whose cases are ``_RecipeEntry(...)``
-  literals (item 156, Seam 2) — see the function's own docstring for its two
-  remaining consumers.
+- **C. The committed geometric corpus manifest** — ``rule_id -> failure
+  mode(s)``, read from every failure-kind case of
+  ``tests/corpus/manifest.json`` (item 182; via
+  :func:`segfacet.synth.corpus.load_manifest`), mapping each of a case's
+  ``expected_rule_ids`` to that case's ``failure_mode``. No hand-typed
+  rule-id -> mode dictionary exists anywhere in this module's source (drift
+  guard, AC13). Exposed publicly as :func:`scan_synth_rule_mode_map`. It reads
+  the geometric manifest only and cannot see the intensity corpus, whose
+  cases carry ``expected_firing``, not ``expected_rule_ids`` (item 156, Seam
+  2) — see the function's own docstring for its two remaining consumers.
 - **D. Non-rule consumers** (``observed`` / ``vocabulary``) — the same trace
   proxy run through ``eval.per_mode.compute_per_mode_metrics`` and
   ``human_report.render_feature_table``, plus the declared feature-name
@@ -680,69 +681,40 @@ def _rule_module_literal_keys(rule) -> Set[str]:
     return _scan_literal_string_keys(source)
 
 
-def _extract_frozenset_string_elements(node) -> List[str]:
-    import ast
-
-    if not isinstance(node, ast.Call):
-        return []
-    func = node.func
-    if not (isinstance(func, ast.Name) and func.id == "frozenset"):
-        return []
-    if not node.args:
-        return []
-    set_node = node.args[0]
-    elts = getattr(set_node, "elts", None)
-    if elts is None:
-        return []
-    return [
-        elt.value for elt in elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-    ]
-
-
 def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
-    """``rule_id -> failure mode(s)``, read from every ``Expectation(...)`` call's
-    literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
-    ``src/segfacet/synth/*.py``. No rule-id -> mode mapping is hand-typed
-    anywhere in this module's source (AC13's drift guard).
+    """``rule_id -> failure mode(s)``, read from the committed geometric corpus
+    manifest's failure-kind cases (item 182; ``tests/corpus/manifest.json``,
+    via :func:`segfacet.synth.corpus.load_manifest`). Every case whose
+    :func:`segfacet.synth.perturbation.corpus_case_kind` is
+    ``CASE_KIND_FAILURE`` contributes each of its ``expected_rule_ids``,
+    mapped to that case's ``failure_mode``. No rule-id -> mode mapping is
+    hand-typed anywhere in this module's source (AC13's drift guard).
 
-    Geometric-only (item 156, Seam 2): this scan matches ``Expectation(...)``
-    literals only, so it never sees the intensity corpus
-    (``src/segfacet/synth/intensity.py``'s cases are ``_RecipeEntry(...)``
-    literals, an unrelated call shape). Its two remaining consumers, both
-    geometric-only by the same limit: mechanism C of :func:`build_catalogue`
-    (this module's own ``rule_mode_map`` evidence term), and the corpus ->
-    declaration direction of :func:`rule_declaration_conflicts`.
+    Geometric-only (item 156, Seam 2; item 182 A1): this reads the geometric
+    manifest only, so it never sees the intensity corpus (whose cases carry
+    ``expected_firing``, not ``expected_rule_ids``). Its two remaining
+    consumers, both geometric-only by the same limit: mechanism C of
+    :func:`build_catalogue` (this module's own ``rule_mode_map`` evidence
+    term), and the corpus -> declaration direction of
+    :func:`rule_declaration_conflicts`.
     :func:`segfacet.traceability.build_matrix` used to read this scan for
     ``corpus_designated_unregistered_rule_ids`` too; since item 156 it derives
     that field from the two committed manifests
     (``tests/corpus/manifest.json`` and ``tests/corpus/intensity/manifest.json``)
-    directly, so an intensity case naming an unregistered rule is reported."""
-    import ast
-    import segfacet.synth as synth_pkg
+    directly, so an intensity case naming an unregistered rule is reported.
 
-    synth_dir = Path(synth_pkg.__file__).resolve().parent
+    A case with no recognised ``kind`` propagates
+    :func:`~segfacet.synth.perturbation.corpus_case_kind`'s ``ValueError``
+    rather than being skipped in silence (item 182 A3)."""
+    import segfacet.synth.corpus as corpus
+    from segfacet.synth.perturbation import CASE_KIND_FAILURE, corpus_case_kind
 
     accum: Dict[str, Set[int]] = defaultdict(set)
-    for path in sorted(synth_dir.glob("*.py")):
-        source = path.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
-                continue
-            if node.func.id != "Expectation":
-                continue
-            mode: Optional[int] = None
-            rule_ids: List[str] = []
-            for kw in node.keywords:
-                if kw.arg == "failure_mode" and isinstance(kw.value, ast.Constant):
-                    if isinstance(kw.value.value, int):
-                        mode = kw.value.value
-                elif kw.arg == "expected_rule_ids":
-                    rule_ids = _extract_frozenset_string_elements(kw.value)
-            if mode is None or not rule_ids:
-                continue
-            for rule_id in rule_ids:
-                accum[rule_id].add(mode)
+    for case in corpus.load_manifest().get("cases", []):
+        if corpus_case_kind(case) != CASE_KIND_FAILURE:
+            continue
+        for rule_id in case.get("expected_rule_ids", ()):
+            accum[rule_id].add(case["failure_mode"])
 
     return {rule_id: tuple(sorted(modes)) for rule_id, modes in accum.items()}
 
@@ -750,13 +722,12 @@ def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
 def scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
     """Public name for :func:`_scan_synth_rule_mode_map` (item 136).
 
-    ``rule_id -> failure mode(s)``, read from every ``Expectation(...)`` call's
-    literal ``failure_mode=``/``expected_rule_ids=`` keyword pair across
-    ``src/segfacet/synth/*.py`` -- the corpus-derived side of the
+    ``rule_id -> failure mode(s)``, read from the committed geometric corpus
+    manifest's failure-kind cases (item 182) -- the corpus-derived side of the
     declaration <-> corpus agreement checked by
     :func:`rule_declaration_conflicts`. Geometric-only: see
-    :func:`_scan_synth_rule_mode_map`'s docstring for what this scan cannot
-    see and who still reads it.
+    :func:`_scan_synth_rule_mode_map`'s docstring for what this cannot see
+    and who still reads it.
     """
     return _scan_synth_rule_mode_map()
 
@@ -913,7 +884,8 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
             for path in candidates:
                 attributions[path][rule.rule_id].add("static")
 
-    # Mechanism C: rule_id -> failure mode(s), from synth/*.py's Expectation(...).
+    # Mechanism C: rule_id -> failure mode(s), from the committed geometric
+    # corpus manifest's failure-kind cases (item 182).
     rule_mode_map = _scan_synth_rule_mode_map()
 
     # Declaration source (item 136): rule_id -> declared failure mode(s), read

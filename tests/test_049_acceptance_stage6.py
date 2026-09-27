@@ -20,8 +20,12 @@ Covers Acceptance Criteria AC10-AC12:
   available label's out_of_range_features == [] and no reference_delta
   finding fires.
 - AC11: G3 detection -- inject_islands and crop_at_border (both
-  targeting label 22 = L3) yield a non-empty out_of_range_features for label
-  22 and >= 1 reference_delta finding naming label 22.
+  targeting label 22 = L3) separate from clean_control (the same base's
+  identity perturbation) on label 22's out_of_range_features and on whether
+  a reference_delta finding names label 22, both arms evaluated against the
+  one ``_build_bracketing_reference()`` object -- not bundled_default_
+  reference(), which clean_control itself already reads out-of-range against
+  (item 181, 2026-09-25).
 - AC12: reference loading is covered end-to-end -- bundled_default_reference()
   and a fresh build_reference() both cover L1-L5.
 
@@ -131,6 +135,11 @@ def _ref_findings(case_result):
     return [f for f in case_result.findings if f.rule_id == "reference_delta"]
 
 
+@pytest.fixture(scope="module")
+def bracketing_reference():
+    return _build_bracketing_reference()
+
+
 # =========================================================================== #
 # AC10: G3 positive control -- clean GT sits inside the reference ranges
 # =========================================================================== #
@@ -166,40 +175,58 @@ def test_ac10_clean_control_yields_no_reference_delta_finding():
 
 
 # =========================================================================== #
-# AC11: G3 detection -- size-distorting perturbations fall outside the
-# reference
+# AC11: G3 detection -- size-distorting perturbations separate from
+# clean_control (the identity perturbation of the same base)
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("case_id", ["inject_islands", "crop_at_border"])
-def test_ac11_size_distorting_perturbation_flags_label_22_out_of_range(case_id):
+def _out_of_range_on_label_22(case_id, reference):
     case = _case(case_id)
     seg_img = loaded_seg_image(case)
-    reference = bundled_default_reference()
     cfg = bundled_default_config()
-
     _case_result, _features_block, reference_delta = run_qc_with_reference(
         seg_img, cfg, reference
     )
     entry = reference_delta["per_label"][str(_LABEL_L3)]
-    assert entry["out_of_range_features"] != []
+    return entry["out_of_range_features"] != []
+
+
+def _reference_delta_finding_on_label_22(case_id, reference):
+    case = _case(case_id)
+    seg_img = loaded_seg_image(case)
+    cfg = bundled_default_config()
+    case_result, _features_block, _reference_delta = run_qc_with_reference(
+        seg_img, cfg, reference
+    )
+    return any(_LABEL_L3 in f.labels for f in _ref_findings(case_result))
+
+
+@pytest.mark.parametrize("case_id", ["inject_islands", "crop_at_border"])
+def test_ac11_size_distorting_perturbation_flags_label_22_out_of_range(
+    case_id, bracketing_reference
+):
+    # A1 precondition: clean_control is the identity perturbation of the
+    # exact same base as case_id, so the control arm below measures the
+    # perturbation, not a base difference.
+    assert _case("clean_control")["perturbation"] == "identity"
+    assert _case("clean_control")["base"] == _case(case_id)["base"]
+
+    p_clean = _out_of_range_on_label_22("clean_control", bracketing_reference)
+    p_case = _out_of_range_on_label_22(case_id, bracketing_reference)
+    assert [p_clean, p_case] == [False, True]
 
 
 @pytest.mark.parametrize("case_id", ["inject_islands", "crop_at_border"])
 def test_ac11_size_distorting_perturbation_fires_reference_delta_finding_on_label_22(
-    case_id,
+    case_id, bracketing_reference
 ):
-    case = _case(case_id)
-    seg_img = loaded_seg_image(case)
-    reference = bundled_default_reference()
-    cfg = bundled_default_config()
+    # A1 precondition -- see the sibling test above.
+    assert _case("clean_control")["perturbation"] == "identity"
+    assert _case("clean_control")["base"] == _case(case_id)["base"]
 
-    case_result, _features_block, _reference_delta = run_qc_with_reference(
-        seg_img, cfg, reference
-    )
-    ref_findings = _ref_findings(case_result)
-    assert len(ref_findings) >= 1
-    assert any(_LABEL_L3 in f.labels for f in ref_findings)
+    q_clean = _reference_delta_finding_on_label_22("clean_control", bracketing_reference)
+    q_case = _reference_delta_finding_on_label_22(case_id, bracketing_reference)
+    assert [q_clean, q_case] == [False, True]
 
 
 # =========================================================================== #
