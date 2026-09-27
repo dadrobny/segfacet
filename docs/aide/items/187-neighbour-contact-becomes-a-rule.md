@@ -573,3 +573,16 @@ sign-off reads mode 3 through it.
   and against the single most-contacted neighbour, not all neighbours together
   (A3). No consumer in this queue reads it. A merge-guidance consumer that needs
   either is the one to decide.
+- **Validator round 1 (2026-09-28): mode 3's mechanism prose named
+  fragmentation's catalogue path while explaining its silence on the split
+  case, tripping AC31** (fragmentation is no longer one of mode 3's declared
+  rules post-move, so naming its `feature_paths`-eligible path there is
+  disallowed). Reworded to name the rule/detector in prose
+  ("mode 1's Fragmentation: detector (the fragmentation rule's per-label
+  fragmentation index)") instead of the literal
+  `per_label.{label}.components.fragmentation_index` string. Regenerated
+  `docs/aide/failure_modes.generated.{json,md}` and
+  `docs/aide/traceability_matrix.generated.{json,md}` via
+  `.venv/bin/python -m segfacet.failure_modes` and
+  `.venv/bin/python -m segfacet.traceability`; no other generated artifact
+  embeds this mechanism text.
