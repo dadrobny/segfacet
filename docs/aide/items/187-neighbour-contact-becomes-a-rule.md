@@ -417,6 +417,42 @@ flat on the wall, not touching the cube). Both contact areas are 100.0 mm²; the
 small component's fraction is 100/240 and the cube's is 100/600. The test asserts
 the equal contact areas and the ordering, not those literals.
 
+**Correction (2026-09-27, builder hand-back on AC3).** The paragraph above does
+not say where the slab sits, and it cannot be read literally: a single planar
+wall carrying both a 10×10 cube face and a 10×10 slab face, with the two not
+touching, needs a placement it never gives. The tests written from it put the
+slab one voxel clear of the wall (`data[12] = 1` beside background at x=11 and
+x=13), so its `contact_area_mm2` is 0.0 under A2 and AC3 is unsatisfiable. AC3
+itself stands unchanged. The AC3 map, and the `spacing-read-from-header` map
+built from it, is this construction, with the slab and the cube on opposite
+sides of a one-voxel wall:
+
+```python
+data = np.zeros((12, 10, 10), dtype=LABEL_DTYPE)
+data[0, :, :] = 1     # the slab, 1x10x10 (100 voxels)
+data[1, :, :] = 2     # the wall
+data[2:12, :, :] = 1  # the cube, 10x10x10 (1000 voxels)
+```
+
+The slab and the cube are two x-planes apart, so they are two components of
+label 1 under `compute_components`' 6-connectivity (and would be under 26 too),
+and `component_contacts` lists the cube first, then the slab (A1). Faces on the
+image boundary count toward surface (A2). Expected values, verified by a numpy
+probe of A2's definitions on 2026-09-27:
+
+| Spacing | Component | `neighbour_label` | `contact_area_mm2` | `surface_area_mm2` | `contact_fraction` |
+|---|---|---|---|---|---|
+| (1.0, 1.0, 1.0) | cube | 2 | 100.0 | 600.0 | 1/6 = 0.16667 |
+| (1.0, 1.0, 1.0) | slab | 2 | 100.0 | 240.0 | 5/12 = 0.41667 |
+| (1.0, 2.0, 3.0) | cube | 2 | 600.0 | 2200.0 | 3/11 = 0.27273 |
+| (1.0, 2.0, 3.0) | slab | 2 | 600.0 | 1300.0 | 6/13 = 0.46154 |
+
+At (1.0, 2.0, 3.0) a wall face lies on axis 0 and has area 2.0 × 3.0 = 6.0 mm².
+The cube's surface is 200 × 6.0 + 200 × 3.0 + 200 × 2.0, and the slab's is
+200 × 6.0 + 20 × 3.0 + 20 × 2.0. The box-surface recomputation already in
+`test_spacing_read_from_header` gives these values for this map unchanged. Only
+the array construction in the two tests moves.
+
 Named adversarial cases, and no others:
 
 - `largest-component-not-read`: a constructed record whose label has
