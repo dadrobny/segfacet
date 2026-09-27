@@ -48,3 +48,4 @@ _One row per item, newest last._
 | 183 | 024 | 33 | maintenance | merged | 3 | 3 | 5 | 1 | 0 | 0 | 0 | 2.1.0 | 2026-09-25 |
 | 184 | 024 | 33 | maintenance | merged | 4 | 4 | 5 | 1 | 0 | 0 | 0 | 2.1.0 | 2026-09-25 |
 | 185 | 024 | 33 | maintenance | merged | 4 | 6 | 4 | 1 | 0 | 0 | 0 | 2.1.0 | 2026-09-25 |
+| 186 | 025 | 33 | maintenance | merged | 16 | 21 | 15 | 1 | 0 | 0 | 0 | 2.1.0 | 2026-09-27 |

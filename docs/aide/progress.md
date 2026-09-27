@@ -1846,7 +1846,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   Parked 2026-09-24 by the maintainer: no overlap fixture is needed while multi-channel
   segmentation is unsupported, and no follow-up is planned (`insights.md`, `knowledge`
   entry dated 2026-09-23).
-- 🔍 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
