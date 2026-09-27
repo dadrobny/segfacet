@@ -365,7 +365,7 @@ def test_ac15_threshold_fires_strictly_above():
     config = bundled_default_config()
     record = extract_feature_record(seg_img, config)
 
-    fraction = record["per_label"][24]["components"]["component_contacts"][1][
+    fraction = record["per_label"]["24"]["components"]["component_contacts"][1][
         "contact_fraction"
     ]
     config.rules.setdefault("neighbour_contact", {}).setdefault("params", {})[
@@ -455,7 +455,7 @@ def test_just_above_threshold_fires():
     config = bundled_default_config()
     record = extract_feature_record(seg_img, config)
 
-    fraction = record["per_label"][24]["components"]["component_contacts"][1][
+    fraction = record["per_label"]["24"]["components"]["component_contacts"][1][
         "contact_fraction"
     ]
     config.rules.setdefault("neighbour_contact", {}).setdefault("params", {})[
