@@ -651,6 +651,15 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # "constant-synthetic" (`observed_range._derive_verdict`'s final rule), not
 # "varies". 138 -> 140 total, "constant-synthetic" 4 -> 6, "varies" unchanged
 # at 83.
+#
+# Item 187 (2026-09-27): five more leaf paths join the components block
+# (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
+# `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`), moving
+# the total 140 -> 145. Their observed-summary bucket is re-measured by the
+# builder against this driver's fixed demo corpus (this dict's predicted
+# bucket counts are not transcribed from a computation this test-authoring
+# pass can run); if the suite disagrees, the builder hands back rather than
+# loosening this assertion.
 _PRE_ITEM_OBSERVED_SUMMARY = {
     "constant-synthetic": 6,
     "degenerate": 0,
@@ -672,7 +681,7 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     entries_by_path = {e["path"]: e for g in fresh["groups"] for e in g["entries"]}
     leaf_count = sum(len(g["entries"]) for g in fresh["groups"])
 
-    assert leaf_count == 140, f"leaf-path count {leaf_count} != pre-item 140"
+    assert leaf_count == 145, f"leaf-path count {leaf_count} != pre-item 145"
     assert fresh["observed_summary"] == _PRE_ITEM_OBSERVED_SUMMARY
 
     is_mono = entries_by_path["stage3.monotonic_consistency.is_monotonic"]

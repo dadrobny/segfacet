@@ -218,8 +218,10 @@ def _firing_record():
 
 
 def test_ac1_all_ten_rules_declared_and_not_pending():
+    # Item 187 (2026-09-27): the new neighbour_contact rule brings the
+    # registry to eleven.
     rules = list(iter_rules())
-    assert len(rules) == 10
+    assert len(rules) == 11
     for rule in rules:
         decl = rule.mode_declaration
         assert decl is not None, rule.rule_id

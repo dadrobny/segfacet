@@ -150,6 +150,8 @@ RULE_IDS = (
     "intensity",
     "intensity_reference_delta",
     "mislabel",
+    # Item 187 (2026-09-27): new rule, serving mode 3 alone.
+    "neighbour_contact",
     "overlap",
     "reference_delta",
     "sequence",

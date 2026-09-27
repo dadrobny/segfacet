@@ -203,14 +203,16 @@ def test_ac7_committed_geometric_corpus_carries_the_case():
 
 # =========================================================================== #
 # AC8: authored expected firing equals measured firing, and both are
-# {"fragmentation"}
+# {"neighbour_contact"} (item 187, 2026-09-27; was {"fragmentation"})
 # =========================================================================== #
 
 
 def test_ac8_authored_expected_firing_equals_measured_firing():
+    # Item 187 (2026-09-27): the split case's rule moved from fragmentation
+    # to its own neighbour_contact.
     case = _split_corpus_case_expectation()
     measured = set(failure_modes.measured_firing(case))
-    assert measured == set(case.expected_firing) == {"fragmentation"}
+    assert measured == set(case.expected_firing) == {"neighbour_contact"}
 
 
 # =========================================================================== #
@@ -382,7 +384,9 @@ def test_mode_3_proxy_edges_unchanged():
     that claim still holds and is preserved below as the subset check.
     Item 167 added the third, non-proxy edge (fragmentation, via the new
     neighbour_contact evidence), so the exact-equality claim this test used
-    to make is corrected here rather than left red."""
+    to make is corrected here rather than left red. Item 187 (2026-09-27)
+    moved that third edge from fragmentation onto its own neighbour_contact
+    rule."""
     rule_ids = {edge.rule_id for edge in failure_modes.SPECIFICATION[3].intended_rules}
     assert {"bounds", "reference_delta"} <= rule_ids
-    assert rule_ids == {"bounds", "reference_delta", "fragmentation"}
+    assert rule_ids == {"bounds", "reference_delta", "neighbour_contact"}

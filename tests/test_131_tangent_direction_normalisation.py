@@ -668,7 +668,11 @@ _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
 )
 # Item 167 (2026-09-20): two new `components` leaf paths
 # (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
-_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 140
+# Item 187 (2026-09-27): five more leaf paths join the components block
+# (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
+# `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`),
+# 140 -> 145. The two item-167 paths stay (A4).
+_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 145
 
 
 def test_ac16_catalogue_leaf_path_set_unchanged():

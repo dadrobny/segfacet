@@ -241,10 +241,11 @@ def test_ac8_split_own_label_fires_bounds_and_coverage():
 
 
 def test_ac9_split_fires_neighbour_contact_alone():
+    # Item 187 (2026-09-27): moved rule/detector id pair.
     case = _manifest_case("split")
     findings = pipeline_findings(case)
     pairs = {(f.rule_id, f.detector_id) for f in findings}
-    assert pairs == {("fragmentation", "neighbour_contact")}
+    assert pairs == {("neighbour_contact", "stray_contact")}
 
 
 # =========================================================================== #

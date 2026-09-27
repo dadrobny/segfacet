@@ -96,9 +96,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # with the modes each one declares after the item-150 sign-off, as revised
 # 2026-09-15 (sixteen modes: coverage carries 6 "vertebra not segmented" --
 # mode 10 is now "skipped level label", label-only and proposed, with no
-# rule; fragmentation carries 1 "segmentation accuracy", 3 "split vertebra
-# segment" (item 167's own `neighbour_contact` detector) and 4 "islands";
-# mislabel and sequence carry 9 "out-of-order
+# rule; fragmentation carries 1 "segmentation accuracy" and 4 "islands"
+# (item 187, 2026-09-27: mode 3 "split vertebra segment" moved off
+# fragmentation onto its own neighbour_contact rule); mislabel and sequence
+# carry 9 "out-of-order
 # label sequence"; overlap carries 15 "overlapping segments").
 # `border` is now mode-less on purpose: it records the `fov_truncation`
 # condition (`segfacet.failure_modes.CONDITIONS`), which is not a failure
@@ -106,7 +107,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _CORROBORATED = {
     "border": (),
     "coverage": (6,),
-    "fragmentation": (1, 3, 4),
+    # Item 187 (2026-09-27): mode 3 (split vertebra segment) moved off
+    # fragmentation onto its own neighbour_contact rule.
+    "fragmentation": (1, 4),
     "mislabel": (9,),
     "overlap": (15,),
     "sequence": (9,),
@@ -181,8 +184,10 @@ def test_ac1_reexported_from_heuristics_package():
 
 
 def test_ac1_iter_rule_declarations_ascending_by_rule_id():
+    # Item 187 (2026-09-27): the new neighbour_contact rule brings the
+    # registry to eleven.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 10
+    assert len(pairs) == 11
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -241,7 +246,9 @@ def test_ac2_ill_formed_declaration_raises_naming_field(kwargs, expected_field_n
 
 
 def test_ac3_ten_rules_registered():
-    assert len(list(iter_rules())) == 10
+    # Item 187 (2026-09-27): the new neighbour_contact rule brings the
+    # registry to eleven.
+    assert len(list(iter_rules())) == 11
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
