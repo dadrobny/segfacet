@@ -129,6 +129,19 @@ def format_contract_inputs() -> dict:
         # plain round float here is deliberately safe.
         "stray_contact_area_mm2": 0.0,
         "stray_contact_label": 0,
+        # Item 187: the relative contact measure. A single-component label's
+        # one component_contacts entry and label_contact_fraction, both 0.0/0
+        # -- same "plain round float is deliberately safe" reasoning as the
+        # item-167 fields above.
+        "component_contacts": [
+            {
+                "neighbour_label": 0,
+                "contact_area_mm2": 0.0,
+                "surface_area_mm2": 0.0,
+                "contact_fraction": 0.0,
+            },
+        ],
+        "label_contact_fraction": 0.0,
     }
     centroid = {
         "centroid_voxel": [_SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT, _SECOND_DECIMAL_FLOAT],

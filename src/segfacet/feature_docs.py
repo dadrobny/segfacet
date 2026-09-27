@@ -1143,6 +1143,30 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
+        'per_label.{label}.components.component_contacts[].contact_area_mm2': FeatureDoc(
+            measures="A component's 6-neighbour face-contact area with its single most-contacted other label (item 187).",
+            computation='Same face-contact definition as stray_contact_area_mm2 (item 167), computed for every component in component_sizes order rather than only the stray population: the contact area with neighbour_label (0.0 when neighbour_label == 0).',
+            units='mm^2',
+            scale_sensitivity='scales with spacing',
+        ),
+        'per_label.{label}.components.component_contacts[].contact_fraction': FeatureDoc(
+            measures="A component's contact area with its most-contacted neighbour, as a fraction of the component's own surface -- item 187's relative measure, so a small component whose surface is mostly pressed against a neighbour scores as high as a large one whose absolute contact area happens to be the same.",
+            computation='contact_area_mm2 / surface_area_mm2, in [0.0, 1.0]; 0.0 when the component touches no other label.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'per_label.{label}.components.component_contacts[].neighbour_label': FeatureDoc(
+            measures="The other label id carrying a component's largest contact area (item 187).",
+            computation='argmax over other non-zero labels of face-contact area with this component; 0 (background sentinel) when the component touches no other label. Tie-break: among contacting labels of equal area, the lowest label id wins.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'per_label.{label}.components.component_contacts[].surface_area_mm2': FeatureDoc(
+            measures="A component's total 6-neighbour face area, toward another label, background, or the image boundary (item 187).",
+            computation='Summed face area of every 6-neighbour face of the component whose neighbour voxel is not the same component -- another label, background, or padding at the image boundary -- from the per-axis face area of the header zooms.',
+            units='mm^2',
+            scale_sensitivity='scales with spacing',
+        ),
         'per_label.{label}.components.component_count': FeatureDoc(
             measures='Number of distinct connected pieces the label is split into.',
             computation="Direct output of scipy.ndimage.label's component count (6-connectivity).",
@@ -1164,6 +1188,12 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
         'per_label.{label}.components.fragmentation_index': FeatureDoc(
             measures='Alias of largest_component_fraction, exposed under its item-025 public name.',
             computation='Same value as largest_component_fraction, always present so callers need not know the alias history.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'per_label.{label}.components.label_contact_fraction': FeatureDoc(
+            measures="The same relative contact measure as component_contacts[].contact_fraction, computed once more over the label as a whole rather than any single component (item 187).",
+            computation="The label's contact area with its single most-contacted neighbour label (summed across all of its components' contact with that neighbour), divided by the label's total surface area (summed across all of its components' surfaces); 0.0 when the label touches no other non-zero label. Not a second pass: derived from the same per-component tallies as component_contacts.",
             units='',
             scale_sensitivity='dimensionless',
         ),

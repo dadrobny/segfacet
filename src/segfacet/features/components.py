@@ -33,6 +33,16 @@ diagonal or edge neighbours) and computes:
 * **stray_contact_label** — the other label id carrying that maximal
   interface, or the ``0`` background sentinel when
   ``stray_contact_area_mm2 == 0.0`` (item 167).
+* **component_contacts** — one :class:`ComponentContact` per component, in
+  ``component_sizes`` order (index 0 is the label's largest component,
+  ``[1:]`` are its stray components): the component's own surface area, its
+  contact area with its single most-contacted other label, and that contact
+  as a *fraction of the component's own surface* — item 187's relative
+  measure, which separates "most of a small component's surface touches a
+  neighbour" from "a large component's absolute contact happens to be big".
+* **label_contact_fraction** — the same fraction, computed once more over the
+  label as a whole (all of its components' contact tallies and surfaces
+  summed together) rather than any single component (item 187).
 
 "Stray" means **every connected component of a label other than its single
 largest (dominant) one** — the exact ``component_sizes[1:]`` population. A
@@ -70,6 +80,7 @@ import segfacet.backend as _backend_mod
 from segfacet.backend import Backend
 
 __all__ = [
+    "ComponentContact",
     "ComponentsInfo",
     "compute_components",
     "CONNECTIVITY",
@@ -77,6 +88,48 @@ __all__ = [
 
 # Documented connectivity constant so callers can query it.
 CONNECTIVITY: int = 6
+
+
+# --------------------------------------------------------------------------- #
+# ComponentContact dataclass (item 187)
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class ComponentContact:
+    """One connected component's 6-neighbour face-contact measure (item 187).
+
+    ``surface_area_mm2`` is the component's total 6-neighbour face area
+    toward anything that is not itself — another label, background, or the
+    image boundary (a padding voxel). ``contact_area_mm2`` is the face area
+    toward the single most-contacted *other non-zero label*
+    (``neighbour_label``), and ``contact_fraction`` is that contact as a
+    fraction of the component's own surface — the relative measure a small
+    component needs, since its absolute contact area is small even when most
+    of its surface touches a neighbour. See the item 187 spec's A2 for the
+    exact face/surface/tie-break definitions (item 167's face-contact
+    definition, unchanged, now divided by the same component's own face
+    count).
+
+    Attributes
+    ----------
+    neighbour_label:
+        The other label id carrying this component's largest contact area,
+        or ``0`` when the component touches no other non-zero label.
+    contact_area_mm2:
+        The contact area (mm²) with ``neighbour_label`` (``0.0`` when
+        ``neighbour_label == 0``).
+    surface_area_mm2:
+        The component's total 6-neighbour face area (mm²), including faces
+        toward background and the image boundary.
+    contact_fraction:
+        ``contact_area_mm2 / surface_area_mm2``, in ``[0.0, 1.0]``.
+    """
+
+    neighbour_label: int
+    contact_area_mm2: float
+    surface_area_mm2: float
+    contact_fraction: float
 
 
 # --------------------------------------------------------------------------- #
@@ -155,6 +208,19 @@ class ComponentsInfo:
         ordered by descending voxel count, ties broken by ascending
         component id, and among contacting labels of equal area the lowest
         label id wins.
+    component_contacts:
+        One :class:`ComponentContact` per component, in ``component_sizes``
+        order (item 187). Index 0 is the label's largest component;
+        ``component_contacts[1:]`` are its stray components, same order as
+        ``stray_component_sizes``.
+    label_contact_fraction:
+        The same relative contact measure as :class:`ComponentContact`, but
+        for the label as a whole rather than any single component (item 187,
+        A3): the label's contact area with its single most-contacted
+        neighbour label (summed across all of its components' contact with
+        that neighbour), divided by the label's total surface area (summed
+        across all of its components' surfaces). ``0.0`` when the label
+        touches no other non-zero label.
     """
 
     component_count: int
@@ -168,6 +234,8 @@ class ComponentsInfo:
     stray_volume_fraction: float
     stray_contact_area_mm2: float
     stray_contact_label: int
+    component_contacts: List[ComponentContact]
+    label_contact_fraction: float
 
 
 # --------------------------------------------------------------------------- #
@@ -274,74 +342,118 @@ def compute_components(
     stray_volume_mm3: float = float(sum(component_volumes_mm3[1:]))
     stray_volume_fraction: float = 1.0 - largest_component_fraction
 
-    # Neighbour-label contact area (item 167): the maximum, over every
-    # connected component of this label OTHER THAN ITS LARGEST, of that
-    # component's 6-neighbour face-contact area with any single other
-    # non-zero label. A single-component label short-circuits to (0.0, 0).
-    # Reuses `data` (the full label map), `labelled` (this label's own
-    # component labelling) and `component_counts` (unsorted, ids 1..n) --
-    # no second labelling pass.
-    stray_contact_area_mm2: float = 0.0
-    stray_contact_label: int = 0
-    if n_components > 1:
-        # Descending-size component ids (not just sizes): id at each rank,
-        # so the dominant id can be excluded and the rest inspected in the
-        # array they actually occupy.
-        # Tie-break policy (item 167): components are ordered by descending
-        # voxel count, ties broken by ascending component id -- an explicit
-        # `sorted(...)` key, not `xp.argsort(...)[::-1]`, whose default sort
-        # kind is not stable and so is implementation-dependent under a tie
-        # (in NumPy or CuPy alike). The first of this order is excluded as
-        # the label's largest component.
-        counts_by_id = [(idx + 1, int(component_counts[idx])) for idx in range(n_components)]
-        component_ids_desc = [
-            comp_id
-            for comp_id, _count in sorted(counts_by_id, key=lambda pair: (-pair[1], pair[0]))
-        ]
+    # Neighbour-label contact area (item 167) and per-component contact/surface
+    # measures (item 187). Descending-size component ids (not just sizes): id
+    # at each rank, so the dominant (index-0) id is identified and every
+    # component -- largest included -- is walked in the array it actually
+    # occupies.
+    # Tie-break policy (item 167): components are ordered by descending
+    # voxel count, ties broken by ascending component id -- an explicit
+    # `sorted(...)` key, not `xp.argsort(...)[::-1]`, whose default sort
+    # kind is not stable and so is implementation-dependent under a tie
+    # (in NumPy or CuPy alike).
+    counts_by_id = [(idx + 1, int(component_counts[idx])) for idx in range(n_components)]
+    component_ids_desc = [
+        comp_id
+        for comp_id, _count in sorted(counts_by_id, key=lambda pair: (-pair[1], pair[0]))
+    ]
 
-        # Per-axis face area from the header zooms -- never a hardcoded or
-        # assumed-isotropic axis.
-        face_area = {
-            0: float(zooms[1]) * float(zooms[2]),
-            1: float(zooms[0]) * float(zooms[2]),
-            2: float(zooms[0]) * float(zooms[1]),
-        }
-        padded = xp.pad(data, 1, mode="constant", constant_values=0)
-        neighbour_slices = []
-        for axis in range(3):
-            pos = [slice(1, -1)] * 3
-            pos[axis] = slice(2, None)
-            neg = [slice(1, -1)] * 3
-            neg[axis] = slice(0, -2)
-            neighbour_slices.append((tuple(pos), face_area[axis]))
-            neighbour_slices.append((tuple(neg), face_area[axis]))
+    # Per-axis face area from the header zooms -- never a hardcoded or
+    # assumed-isotropic axis.
+    face_area = {
+        0: float(zooms[1]) * float(zooms[2]),
+        1: float(zooms[0]) * float(zooms[2]),
+        2: float(zooms[0]) * float(zooms[1]),
+    }
+    padded = xp.pad(data, 1, mode="constant", constant_values=0)
+    neighbour_slices = []
+    for axis in range(3):
+        pos = [slice(1, -1)] * 3
+        pos[axis] = slice(2, None)
+        neg = [slice(1, -1)] * 3
+        neg[axis] = slice(0, -2)
+        neighbour_slices.append((tuple(pos), face_area[axis]))
+        neighbour_slices.append((tuple(neg), face_area[axis]))
 
-        for comp_id in component_ids_desc[1:]:
-            comp_mask = labelled == comp_id
-            area_by_other: Dict[int, float] = {}
-            for sl, area in neighbour_slices:
-                selected = padded[sl][comp_mask]
-                for other_label in [int(v) for v in xp.unique(selected)]:
-                    if other_label == 0 or other_label == label:
-                        continue
-                    count = int(xp.count_nonzero(selected == other_label))
+    # Item 187 (A2): a component's surface is every face NOT shared with
+    # another voxel of the same component -- i.e. every face toward another
+    # label, background, or the image boundary (a padding voxel, which reads
+    # as 0). Two components of one label never share a face under
+    # 6-connectivity, so this is exactly the component's faces toward
+    # "not itself".
+    component_tallies: Dict[int, tuple] = {}  # comp_id -> (area_by_other, surface)
+    for comp_id in component_ids_desc:
+        comp_mask = labelled == comp_id
+        area_by_other: Dict[int, float] = {}
+        surface = 0.0
+        for sl, area in neighbour_slices:
+            selected = padded[sl][comp_mask]
+            for other_label in [int(v) for v in xp.unique(selected)]:
+                if other_label == label:
+                    continue
+                count = int(xp.count_nonzero(selected == other_label))
+                surface += count * area
+                if other_label != 0:
                     area_by_other[other_label] = (
                         area_by_other.get(other_label, 0.0) + count * area
                     )
-            if area_by_other:
-                # Tie-break policy (item 167): among contacting labels of
-                # equal area, the lowest label id wins -- stated explicitly
-                # rather than inherited from xp.unique's ascending order and
-                # dict insertion order.
-                local_other = max(area_by_other, key=lambda k: (area_by_other[k], -k))
-                local_area = area_by_other[local_other]
-                # Strict `>` (not `>=`) across components: under the
-                # descending-count/ascending-id order above, this keeps the
-                # lowest-id component's contact on an area tie between
-                # components (item 167).
-                if local_area > stray_contact_area_mm2:
-                    stray_contact_area_mm2 = local_area
-                    stray_contact_label = local_other
+        component_tallies[comp_id] = (area_by_other, surface)
+
+    component_contacts: List[ComponentContact] = []
+    for comp_id in component_ids_desc:
+        area_by_other, surface = component_tallies[comp_id]
+        if area_by_other:
+            # Tie-break policy (item 167): among contacting labels of equal
+            # area, the lowest label id wins -- stated explicitly rather than
+            # inherited from xp.unique's ascending order and dict insertion
+            # order.
+            neighbour = max(area_by_other, key=lambda k: (area_by_other[k], -k))
+            contact = area_by_other[neighbour]
+        else:
+            neighbour, contact = 0, 0.0
+        fraction = contact / surface if surface else 0.0
+        component_contacts.append(
+            ComponentContact(
+                neighbour_label=neighbour,
+                contact_area_mm2=contact,
+                surface_area_mm2=surface,
+                contact_fraction=fraction,
+            )
+        )
+
+    # Absolute stray-contact fields (item 167), kept exactly as before: the
+    # maximum, over every stray component (index 1: of component_ids_desc),
+    # of that component's contact area with any single other non-zero label.
+    # A single-component label short-circuits to (0.0, 0).
+    stray_contact_area_mm2: float = 0.0
+    stray_contact_label: int = 0
+    for contact in component_contacts[1:]:
+        # Strict `>` (not `>=`) across components: under the
+        # descending-count/ascending-id order above, this keeps the
+        # lowest-id component's contact on an area tie between components
+        # (item 167).
+        if contact.contact_area_mm2 > stray_contact_area_mm2:
+            stray_contact_area_mm2 = contact.contact_area_mm2
+            stray_contact_label = contact.neighbour_label
+
+    # Label-scope contact fraction (item 187, A3): the same measure over the
+    # label as a whole, from the already-computed per-component tallies (a
+    # label's contact with k is the sum of its components' contact with k,
+    # and its surface is the sum of their surfaces) -- not a second pass.
+    label_area_by_other: Dict[int, float] = {}
+    label_surface = 0.0
+    for area_by_other, surface in component_tallies.values():
+        label_surface += surface
+        for other_label, area in area_by_other.items():
+            label_area_by_other[other_label] = (
+                label_area_by_other.get(other_label, 0.0) + area
+            )
+    if label_area_by_other:
+        label_neighbour = max(label_area_by_other, key=lambda k: (label_area_by_other[k], -k))
+        label_contact = label_area_by_other[label_neighbour]
+    else:
+        label_contact = 0.0
+    label_contact_fraction: float = label_contact / label_surface if label_surface else 0.0
 
     return ComponentsInfo(
         component_count=n_components,
@@ -355,4 +467,6 @@ def compute_components(
         stray_volume_fraction=stray_volume_fraction,
         stray_contact_area_mm2=stray_contact_area_mm2,
         stray_contact_label=stray_contact_label,
+        component_contacts=component_contacts,
+        label_contact_fraction=label_contact_fraction,
     )

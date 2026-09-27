@@ -129,19 +129,6 @@ rules:
       # fallback under item 090's reference-mode default).
       island_min_voxels: 50
       severity: flagged-for-review
-      # Neighbour-contact area threshold (item 167, mode 3 -- split vertebra
-      # segment), documented here as a COMMENT ONLY for the same config_hash
-      # stability reason as the source switch above -- a new parsed key
-      # would move config_hash in every report. Code-side default supplied
-      # via heuristics/fragmentation.py::DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2
-      # (100.0 mm^2). Fires strictly above this value on a label's
-      # stray_contact_area_mm2 (the max inter-label face-contact area over
-      # that label's non-largest connected components). Calibrated on the
-      # synthetic corpus only: the only firing value measures 806.0 mm^2
-      # (split, label 24 against 23; item 174, 2026-09-23), every
-      # non-firing value measures 0.0.
-      #
-      # neighbour_contact_area_mm2_threshold: 100.0
 
   # ------------------------------------------------------------------ #
   # coverage (item 029) -- missing-level / incomplete-span detector.
@@ -203,6 +190,28 @@ rules:
       flag_offset_outliers: true
       flag_order_inconsistency: true
       severity: flagged-for-review
+
+  # ------------------------------------------------------------------ #
+  # neighbour_contact (item 187) -- relative stray-component contact
+  # detector, mode 3 (split vertebra segment). Registered enabled-by-default
+  # with NO active section here, same section-less-by-design rationale as
+  # `intensity` below: an active `rules.neighbour_contact` section would
+  # change this file's parsed `rules` dict and hence `config_hash`. Values
+  # below are DOCUMENTATION ONLY, copied verbatim from
+  # heuristics/neighbour_contact.py's code defaults -- uncomment and adjust
+  # to opt a deployment into a custom threshold.
+  #
+  # neighbour_contact:
+  #   enabled: true
+  #   params:
+  #     # Fires strictly above this value on a stray component's
+  #     # contact_fraction (its contact area with its most-contacted
+  #     # neighbour, divided by its own surface area). Calibrated on the
+  #     # synthetic corpus only: measured 2026-09-27, the only firing value
+  #     # is 0.3317 (split, label 24's stray component against label 23),
+  #     # every other stray component measures 0.0.
+  #     contact_fraction_threshold: 0.1
+  #     severity: flagged-for-review
 
   # ------------------------------------------------------------------ #
   # intensity (item 062) -- implausible-intensity (absolute-band) rule.

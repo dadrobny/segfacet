@@ -526,7 +526,41 @@ sign-off reads mode 3 through it.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implemented as specified, no deviations.** `ComponentContact`/
+  `component_contacts`/`label_contact_fraction` land exactly per A1-A3;
+  `compute_components` extends the existing item-167 per-component tally to
+  run over every component (largest included) rather than only the strays,
+  computing each component's surface alongside its neighbour-area tally in
+  the same walk, then derives `stray_contact_area_mm2`/`stray_contact_label`
+  from `component_contacts[1:]` (A4, unchanged values, verified against the
+  split fixture and the whole corpus) and `label_contact_fraction` from the
+  same per-component tallies summed (A3), with no second labelling pass.
+- **Measured values matched the spec's predictions exactly** on re-run
+  (2026-09-27, `.venv/bin/python`): the split case's label-24 stray
+  component reads `contact_fraction=0.33168724279835393` (806.0/2430.0
+  mm^2) and label 23's `label_contact_fraction=0.18588560885608857`; the AC3
+  map's four (spacing, component) combinations reproduced the spec's table
+  to the sixth decimal. No hand-back was needed.
+- **`tests/corpus/119_pre_119_digests.json`'s `catalogue_leaf_path_set_sha256`
+  recomputed** (item 121's standing obligation, explicitly authorised
+  here): `477a4be8e34d7f669ec1bdb49cc5386ca21096bf76f53c7ba1d070e49ce77798`,
+  replacing the item-167 value, since the catalogue's leaf-path set gained
+  five entries (140 -> 145).
+- **Regeneration verified byte-reproducible**: `segfacet.synth.corpus` was
+  run twice into separate temp directories and byte-compared (identical),
+  and every fixture in that run byte-matches the committed
+  `tests/corpus/fixtures/` (A8) -- only `manifest.json`'s `split` entry
+  moved (`"fragmentation"` -> `"neighbour_contact"`).
+- **Follow-up for validation, not fixed here**: `tests/test_148_per_path_mode_attribution.py`
+  is listed in this item's Authorised paths for reconciliation as a moved
+  literal, but this builder pass found it still hardcodes the pre-item-187
+  registry shape in several places -- `_EXPECTED_THRESHOLD_CONSTANTS` has no
+  `neighbour_contact` entry (so `_RULE_MODULE_NAMES` stays at 10 and two
+  `checked == 10` asserts, lines ~363, ~1024, ~1058, don't see the eleventh
+  rule) and `test_ac19_realised_universe_unchanged_and_item104_reports_no_drift`
+  still asserts `len(cat.entries) == 140`. Builders don't write tests
+  (framework rule), so this is left for the validator to route back to
+  test-writer rather than fixed here.
 
 - **Left open:** mode 3 sub-type (b), `split_own_label`, is still seen only by
   `bounds`. Its cap is its own label's only component, so the stray reading is

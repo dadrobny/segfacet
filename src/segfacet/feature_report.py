@@ -167,6 +167,11 @@ def components_to_dict(c: "ComponentsInfo") -> dict:
     ``stray_contact_area_mm2`` and ``stray_contact_label`` (item 167) are
     emitted verbatim from the dataclass -- mode 3's neighbour-contact signal
     and its bookkeeping label.
+
+    ``component_contacts`` and ``label_contact_fraction`` (item 187) are the
+    relative contact measure: a fresh list of fresh dicts (no aliasing of the
+    source dataclass's ``ComponentContact`` instances) for the former, emitted
+    verbatim for the latter.
     """
     return {
         "component_count": c.component_count,
@@ -181,6 +186,16 @@ def components_to_dict(c: "ComponentsInfo") -> dict:
         "stray_volume_fraction": float(c.stray_volume_fraction),
         "stray_contact_area_mm2": float(c.stray_contact_area_mm2),
         "stray_contact_label": int(c.stray_contact_label),
+        "component_contacts": [
+            {
+                "neighbour_label": int(contact.neighbour_label),
+                "contact_area_mm2": float(contact.contact_area_mm2),
+                "surface_area_mm2": float(contact.surface_area_mm2),
+                "contact_fraction": float(contact.contact_fraction),
+            }
+            for contact in c.component_contacts
+        ],
+        "label_contact_fraction": float(c.label_contact_fraction),
     }
 
 

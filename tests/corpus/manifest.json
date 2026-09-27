@@ -444,7 +444,7 @@
         24
       ],
       "expected_rule_ids": [
-        "fragmentation"
+        "neighbour_contact"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 3,

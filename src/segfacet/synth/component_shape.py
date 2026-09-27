@@ -503,7 +503,7 @@ class SplitPerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=3,
             failure_mode_name=FAILURE_MODE_NAMES[3],
-            expected_rule_ids=frozenset({"fragmentation"}),
+            expected_rule_ids=frozenset({"neighbour_contact"}),
             expected_labels=frozenset({neighbour}),
             expected_verdict="flagged-for-review",
             detail=(
