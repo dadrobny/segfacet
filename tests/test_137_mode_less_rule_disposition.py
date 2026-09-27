@@ -827,15 +827,47 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     mode2_count moves 15 -> 7 (the four ``bounds`` ``geometry.*`` paths plus
     three ``reference_delta.*`` paths). The entry count (140), mode1_count
     (14), mode16_count (2) and the ``mode_evidence`` distribution do not
-    move: each of those eight paths keeps a ``rule_mode_map`` source."""
+    move: each of those eight paths keeps a ``rule_mode_map`` source.
+
+    Re-measured (item 187, 2026-09-28): ``neighbour_contact`` becomes its own
+    rule (mode 3 alone), reading
+    ``component_contacts[].contact_fraction`` (signal),
+    ``component_contacts[].neighbour_label`` (bookkeeping) and
+    ``component_sizes[]`` (bookkeeping, the reason names a component's rank);
+    ``fragmentation`` drops mode 3 (now ``(1, 4)``) and no longer reads
+    ``stray_contact_area_mm2``/``stray_contact_label`` at all, which fall to
+    no consuming rule. The catalogue gains five leaf paths (140 -> 145):
+    three genuinely unwired (``contact_area_mm2``, ``surface_area_mm2``,
+    ``label_contact_fraction``, evidence ``()``) plus ``contact_fraction``
+    (evidence ``("rule_mode_map", "rule_declaration")``, mode 3 via both the
+    corpus-derived map and the declaration -- the ``split`` case fires it) and
+    ``neighbour_label`` (evidence ``("rule_bookkeeping",)`` alone, carrying no
+    mode). ``stray_contact_area_mm2`` loses its old
+    ``("rule_mode_map", "rule_declaration")`` membership and its mode
+    ``{1, 3, 4}``, joining ``()`` -- this is the whole of mode1_count's drop
+    (14 -> 13); ``stray_contact_label`` likewise leaves
+    ``("rule_bookkeeping",)`` and joins ``()``, exactly offset there by
+    ``neighbour_label`` joining the same bucket (net 0, stays 20).
+    ``component_sizes[]`` gains ``neighbour_contact`` as a second (bookkeeping)
+    consumer, moving it out of ``("rule_mode_map", "rule_declaration")`` into
+    a new triple bucket, ``("rule_mode_map", "rule_declaration",
+    "rule_bookkeeping")``: 1 (its own mode set loses 3, keeping ``(1, 4)``,
+    which does not move mode1_count). Net on
+    ``("rule_mode_map", "rule_declaration")``: 11 - 2 (``stray_contact_area_mm2``,
+    ``component_sizes[]`` leave) + 1 (``contact_fraction`` joins) = 10.
+    ``()`` gains all five: the three genuinely-unwired new paths plus the two
+    displaced ``stray_contact_*`` paths (86 -> 91). mode2_count and
+    mode16_count do not move (none of these seven paths carries either mode).
+    All figures below are read live off the regenerated committed catalogue,
+    not re-derived by hand."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 140
+    assert len(entries) == 145
 
     # The two analytic rules' own declared modes ...
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 14
+    assert mode1_count == 13
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     # Item 176 (2026-09-24): 15 -> 7.
@@ -848,13 +880,15 @@ def test_adv_measured_artifact_movement_counts_from_spec():
 
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
-        (): 86,
+        # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
+        (): 91,
         ("rule_bookkeeping",): 20,
         # Item 174 (2026-09-23): bounds' four signal paths gain rule_mode_map
         # evidence (split_own_label, mode 3), moving 6 -> 2 and 7 -> 11.
+        # Item 187 (2026-09-28): 11 -> 10 (stray_contact_area_mm2 unwired).
         ("rule_declaration",): 2,
         ("rule_mode_less", "rule_condition_signal"): 6,
-        ("rule_mode_map", "rule_declaration"): 11,
+        ("rule_mode_map", "rule_declaration"): 10,
         ("rule_bookkeeping", "rule_not_read"): 4,
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,
@@ -868,6 +902,9 @@ def test_adv_measured_artifact_movement_counts_from_spec():
             "rule_mode_less",
             "rule_bookkeeping",
         ): 1,
+        # Item 187 (2026-09-28): new -- component_contacts[].neighbour_label,
+        # bookkeeping for neighbour_contact but still corpus-mapped.
+        ("rule_mode_map", "rule_declaration", "rule_bookkeeping"): 1,
     }
     # The table is exhaustive: no bucket may appear that it does not name.
     assert set(distribution) == set(expected), sorted(set(distribution) ^ set(expected))
@@ -877,7 +914,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 140
+    assert sum(distribution.values()) == 145
 
 
 # =========================================================================== #

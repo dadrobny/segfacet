@@ -1035,7 +1035,18 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     and-detector.md, Correction 2026-09-20, C2) adds two leaf paths
     (stray_contact_area_mm2, stray_contact_label), both wired by the
     fragmentation rule's declaration, so the unwired count n stays 26 and
-    only the total m moves."""
+    only the total m moves.
+
+    (26, 96) -> (31, 101): item 187 (2026-09-28) adds five leaf paths under
+    per_label.{label}.components (component_contacts[]'s four keys,
+    label_contact_fraction); three are unconsumed by any rule
+    (contact_area_mm2, surface_area_mm2, label_contact_fraction), so m moves
+    by 5 and n gains those 3. fragmentation also stops reading
+    stray_contact_area_mm2/stray_contact_label at all (neighbour_contact
+    reads the relative measure instead), so both of item 167's previously
+    wired paths become unwired too, adding 2 more to n. Total: n gains 5
+    (3 + 2), m gains 5 (the five new paths only) -- (26, 96) -> (31, 101),
+    verified against segfacet.catalogue.build_catalogue() live."""
     import segfacet.catalogue as catalogue
 
     from segfacet.synth.golden import build_report_for_case
@@ -1045,8 +1056,8 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     assert case_id in companion["cases"], f"{case_id!r} missing from the companion"
     entry = companion["cases"][case_id]
     documented_n, documented_m = entry["unwired_leaf_paths"], entry["total_leaf_paths"]
-    assert (documented_n, documented_m) == (26, 96), (
-        f"{case_id!r}'s documented evidence has moved off the pinned 26/96 "
+    assert (documented_n, documented_m) == (31, 101), (
+        f"{case_id!r}'s documented evidence has moved off the pinned 31/101 "
         f"value: {documented_n}/{documented_m}"
     )
 

@@ -804,17 +804,30 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     moving the total 138 -> 140. Both new entries carry the fragmentation
     rule's ``mode_evidence``, so they land in neither the ``()`` bucket nor
     the ``("rule_unmapped",)`` bucket: ``stayed_empty`` stays 86 and
-    ``stayed_rule_unmapped`` stays 0 (re-measured, not assumed)."""
+    ``stayed_rule_unmapped`` stays 0 (re-measured, not assumed).
+
+    Reconciled again (item 187, 2026-09-28): the catalogue gains five entries
+    (``component_contacts[].<four keys>``, ``label_contact_fraction``),
+    moving the total 140 -> 145. ``fragmentation`` no longer reads
+    ``stray_contact_area_mm2``/``stray_contact_label`` (``neighbour_contact``
+    reads the relative measure instead), so both fall to no consuming rule and
+    join the ``()`` bucket, alongside three of the five new paths
+    (``contact_area_mm2``, ``surface_area_mm2``, ``label_contact_fraction``,
+    also unconsumed): ``stayed_empty`` moves 86 -> 91. The other two new
+    paths (``contact_fraction``, ``neighbour_label``) are consumed by
+    ``neighbour_contact``, so neither lands in ``()``.
+    ``stayed_rule_unmapped`` stays 0 (re-measured against the regenerated
+    committed catalogue, not assumed)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 140
+    assert len(entries) == 145
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
 
     assert stayed_rule_unmapped == 0
-    assert stayed_empty == 86
+    assert stayed_empty == 91
 
 
 # =========================================================================== #

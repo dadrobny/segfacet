@@ -425,6 +425,8 @@ def test_ac8_dict_key_set_is_exactly_the_components_block_field_set():
     d = components_to_dict(info)
     # Six pre-098 keys + item 098's four + item 167's two
     # (stray_contact_area_mm2, stray_contact_label) = twelve in all.
+    # Item 187 (2026-09-28) adds two more: component_contacts and
+    # label_contact_fraction -- fourteen in all.
     expected_keys = {
         "component_count",
         "component_sizes",
@@ -438,6 +440,8 @@ def test_ac8_dict_key_set_is_exactly_the_components_block_field_set():
         "stray_volume_fraction",
         "stray_contact_area_mm2",
         "stray_contact_label",
+        "component_contacts",
+        "label_contact_fraction",
     }
     assert set(d.keys()) == expected_keys
 

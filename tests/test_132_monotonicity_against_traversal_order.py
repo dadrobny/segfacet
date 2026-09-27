@@ -652,21 +652,24 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # "varies". 138 -> 140 total, "constant-synthetic" 4 -> 6, "varies" unchanged
 # at 83.
 #
-# Item 187 (2026-09-27): five more leaf paths join the components block
+# Item 187 (2026-09-28): five more leaf paths join the components block
 # (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
 # `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`), moving
-# the total 140 -> 145. Their observed-summary bucket is re-measured by the
-# builder against this driver's fixed demo corpus (this dict's predicted
-# bucket counts are not transcribed from a computation this test-authoring
-# pass can run); if the suite disagrees, the builder hands back rather than
-# loosening this assertion.
+# the total 140 -> 145. Measured against the regenerated committed catalogue
+# (this driver's fixed demo corpus, source: clean, fragmented, missing_level,
+# overlaps, sequence_break, single_label -- it does not include the `split`
+# case where the relative measure is non-zero): `.neighbour_label`,
+# `.contact_area_mm2`, `.contact_fraction` and `label_contact_fraction` are
+# flat 0.0 across that population, deriving "constant-synthetic" (four
+# paths, 6 -> 10); `.surface_area_mm2` is non-zero and non-constant across
+# it, deriving "varies" (one path, 83 -> 84).
 _PRE_ITEM_OBSERVED_SUMMARY = {
-    "constant-synthetic": 6,
+    "constant-synthetic": 10,
     "degenerate": 0,
     "non-numeric": 39,
     "placeholder": 12,
     "unobserved": 0,
-    "varies": 83,
+    "varies": 84,
 }
 
 

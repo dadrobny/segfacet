@@ -376,7 +376,13 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # detector.md, Correction 2026-09-20, C2) adds two leaf paths,
     # per_label.{label}.components.stray_contact_area_mm2 and
     # per_label.{label}.components.stray_contact_label.
-    assert len(paths) == 96
+    # 96 -> 101: item 187 (2026-09-28) adds five leaf paths,
+    # per_label.{label}.components.component_contacts[].<neighbour_label,
+    # contact_area_mm2, surface_area_mm2, contact_fraction> and
+    # per_label.{label}.components.label_contact_fraction; clean_control's
+    # single-component label still emits a one-entry component_contacts[],
+    # so all five appear.
+    assert len(paths) == 101
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):
@@ -585,12 +591,16 @@ _RULE_MODE_MAP = {
     "mislabel": (1, 9),  # displace (1), relabel_swap (9)
     # Item 176 (2026-09-24): the bridged fuse_adjacent designates no rule, so
     # fragmentation (1, 2, 3, 4) -> (1, 3, 4) and coverage (2, 6) -> (6,).
-    "fragmentation": (1, 3, 4),  # fragment (1), split (3), islands (4)
+    # Item 187 (2026-09-28): the split case's rule_id moved from
+    # fragmentation to its own neighbour_contact, so fragmentation
+    # (1, 3, 4) -> (1, 4) and a new neighbour_contact (3,) entry appears.
+    "fragmentation": (1, 4),  # fragment (1), islands (4)
     "coverage": (6,),  # remove_level (6)
     "sequence": (9,),  # sequence_break
     "overlap": (15,),  # force_overlap
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
     "bounds": (3,),  # split_own_label (3)
+    "neighbour_contact": (3,),  # split (3)
 }
 
 
