@@ -1923,7 +1923,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   corpora (**G2**, **G7**).
 - [ ] No rule declares a mode through a detector that reads another mode's signal. Condition
   4 of the bar is checked mechanically at detector granularity (**G2**, **G8**).
-- [ ] A label map holding both T12 and L1, and no T13, produces no missing-level finding
-  (**G2**).
+- [x] A label map holding both T12 and L1, and no T13, produces no missing-level finding
+  (**G2**). *(item 186 AC2 (test_ac2_t12_map_no_coverage_finding, tests/test_186_expected_level_sequence.py): full suite run 2026-09-27, 9330 passed, 72 env-gated skips; T12 map produces no coverage finding)*
 - [ ] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
   as measured numbers with what they were measured on (**G7**).
