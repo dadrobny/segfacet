@@ -1474,8 +1474,8 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             scale_sensitivity='boolean',
         ),
         'relationships.missing_levels[]': FeatureDoc(
-            measures='Canonical levels absent within the observed present-level span.',
-            computation='Set difference between the canonical-order slice [first_present..last_present] and the present-levels set.',
+            measures='Expected-sequence levels absent within the observed present-level span (item 186).',
+            computation='Set difference between the expected-sequence slice [first_present..last_present] and the present-levels set, where the expected sequence is C1-C7, T1-T{thoracic}, L1-L{lumbar}, one sacral element -- default counts (7, 12, 5); a non-default thoracic (11 or 13) or lumbar (4 or 6) count is accepted only when the labels also show the first vertebra on either side of that section (C7 for thoracic, the resolved last thoracic level for lumbar), or is supplied by the caller outright. The sacrum is one element: any of S1-S6 stands for it.',
             units='',
             scale_sensitivity='dimensionless',
         ),

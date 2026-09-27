@@ -364,8 +364,35 @@ firing.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- **Implemented as specified.** `resolve_section_counts` resolves thoracic
+  before lumbar (A6) and validates every `supplied` entry against
+  `SECTION_COUNT_RANGES` up front, so an out-of-range or unknown-key override
+  (AC15, `supplied-unknown-section`) raises `FacetInputError` before any label
+  is read — including when the observed labels alone would never trigger a
+  reading (AC15's fixture holds only `L1`). A present label maps onto the
+  expected sequence by identity except `S1`–`S6`, which all collapse onto the
+  single `SACRUM` element and are de-duplicated before the min/max span is
+  taken, so multiple sacral labels (AC14) or a sacral label plus a
+  non-sequence name (`Cocc`, A3) never inflate the span or crash the walk.
+  `present_levels`, `neighbour_spacings_mm`, `is_continuous` and
+  `out_of_order_labels` are untouched — they still walk `CANONICAL_ORDER`
+  directly (A4).
+- **Verified byte-identical regeneration (A8).** Each of `failure_modes`,
+  `traceability`, `catalogue` and `golden_evidence` was regenerated twice into
+  scratch directories and byte-compared before writing to the committed
+  paths; `golden_evidence`'s scratch output matched
+  `docs/aide/golden_evidence.generated.json` byte-for-byte, so that file is
+  untouched. The `feature_catalogue` diff is exactly the `missing_levels`
+  entry's `measures`/`computation` text; the `traceability_matrix` diff is
+  exactly `split_own_label`'s `expected_firing`/`measured_firing` losing
+  `coverage` and `coverage`'s `exercised_by` losing
+  `["geometric", "split_own_label"]`; the `failure_modes` diff is exactly
+  `split_own_label`'s `expected_firing` and `reason` text, per step 4.
+- **`tests/test_174_split_sub_types.py`'s AC8 reconciliation was already
+  committed** by the test-writer (dated 2026-09-27, item 186) before this
+  implementation session started — the assertion already read
+  `{"bounds"}` with the required dated comment, so no further edit to that
+  file was needed here.
 - **Left open:** how a supplied section count reaches a case in production
   (an `extract_feature_record`/`run_qc` keyword, a CLI flag, or a per-case
   manifest field) and how item 192's rule learns it. No caller in this queue

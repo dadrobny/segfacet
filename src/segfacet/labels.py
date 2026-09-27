@@ -32,6 +32,19 @@ Public API
     Result of :func:`summarise_inventory` — recognised vs unknown labels.
 ``summarise_inventory(inventory, convention=...) -> InventorySummary``
     Turn a raw ``{label: count}`` inventory into a named, ordered summary.
+
+Item 186 adds a **section model** on top of ``CANONICAL_ORDER``: the expected
+head-to-tail level sequence admits a per-section vertebra count (cervical is
+always 7; thoracic is 11, 12 or 13; lumbar is 4, 5 or 6), because a real scan's
+thoracolumbar transitional anatomy varies. ``SectionCounts``/
+``DEFAULT_SECTION_COUNTS``/``SECTION_COUNT_RANGES``/``SACRUM`` name the model,
+``expected_level_sequence`` builds the sequence for a given count triple, and
+``resolve_section_counts`` reads a non-default count from the present labels
+(accepted only with corroborating field-of-view evidence) or takes one supplied
+by the caller outright. ``CANONICAL_ORDER`` itself is unchanged (still the
+ranking every sort and the ``is_continuous`` check use) -- this is an
+additional, narrower sequence that ``relationships.compute_spine_relationships``
+walks for ``missing_levels``.
 """
 
 from __future__ import annotations
@@ -39,7 +52,7 @@ from __future__ import annotations
 import numbers
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Dict, List, Mapping, Optional, Tuple
+from typing import Dict, Iterable, List, Mapping, NamedTuple, Optional, Tuple
 
 from .io import FacetInputError
 
@@ -50,6 +63,13 @@ __all__ = [
     "LabelConvention",
     "InventorySummary",
     "summarise_inventory",
+    "SectionCounts",
+    "DEFAULT_SECTION_COUNTS",
+    "SECTION_COUNT_RANGES",
+    "SACRUM",
+    "ResolvedSectionCounts",
+    "expected_level_sequence",
+    "resolve_section_counts",
 ]
 
 # Sentinel name for an integer label with no mapping. ``name_of`` always returns
@@ -129,6 +149,182 @@ CANONICAL_ORDER: Tuple[str, ...] = (
 # CANONICAL_ORDER (possible only via a custom override) sort after the canonical
 # ones, then by name, so a custom convention never crashes the summariser.
 _CANONICAL_RANK: Dict[str, int] = {name: i for i, name in enumerate(CANONICAL_ORDER)}
+
+
+# --------------------------------------------------------------------------- #
+# Section model (item 186)
+# --------------------------------------------------------------------------- #
+
+#: One sacral element -- the sacrum is not split into levels S1-S6 (A3); any
+#: present sacral label (``S1``..``S6``) stands for it in the expected sequence.
+SACRUM = "S"
+
+#: Sacral label names, the only ones that collapse onto :data:`SACRUM`.
+_SACRAL_NAMES: Tuple[str, ...] = tuple(f"S{i}" for i in range(1, 7))
+
+
+class SectionCounts(NamedTuple):
+    """Per-section vertebra counts, in head-to-tail order.
+
+    Compares equal to a plain ``(cervical, thoracic, lumbar)`` tuple (A1).
+    """
+
+    cervical: int
+    thoracic: int
+    lumbar: int
+
+
+#: Cervical is always 7; thoracic and lumbar default to the modal count. A
+#: non-default thoracic or lumbar count is accepted only with corroborating
+#: field-of-view evidence (:func:`resolve_section_counts`), or supplied
+#: outright by the caller.
+DEFAULT_SECTION_COUNTS = SectionCounts(cervical=7, thoracic=12, lumbar=5)
+
+#: Inclusive valid ranges per section.
+SECTION_COUNT_RANGES: Dict[str, Tuple[int, int]] = {
+    "cervical": (7, 7),
+    "thoracic": (11, 13),
+    "lumbar": (4, 6),
+}
+
+
+class ResolvedSectionCounts(NamedTuple):
+    """Result of :func:`resolve_section_counts`.
+
+    Attributes
+    ----------
+    counts:
+        The resolved :class:`SectionCounts`.
+    unaccepted:
+        ``{section_name: observed_count}`` for a non-default reading present in
+        the labels but refused for lack of field-of-view evidence. A supplied
+        section never appears here. Item 192 reports this as its transitional
+        sub-type.
+    """
+
+    counts: SectionCounts
+    unaccepted: Dict[str, int]
+
+
+def _validate_section_count(section: str, count: object) -> int:
+    """Validate ``count`` against ``SECTION_COUNT_RANGES[section]``.
+
+    Raises :class:`FacetInputError` for an unknown section name, a non-integer
+    count, or a count outside its section's inclusive range.
+    """
+    if section not in SECTION_COUNT_RANGES:
+        raise FacetInputError(
+            f"Unknown section {section!r}; expected one of "
+            f"{sorted(SECTION_COUNT_RANGES)}."
+        )
+    if not isinstance(count, int) or isinstance(count, bool):
+        raise FacetInputError(
+            f"Section count for {section!r} must be an int; got {count!r}."
+        )
+    lo, hi = SECTION_COUNT_RANGES[section]
+    if not (lo <= count <= hi):
+        raise FacetInputError(
+            f"Section count for {section!r} must be between {lo} and {hi} "
+            f"inclusive; got {count}."
+        )
+    return count
+
+
+def expected_level_sequence(
+    counts: SectionCounts = DEFAULT_SECTION_COUNTS,
+) -> Tuple[str, ...]:
+    """Build the expected head-to-tail level sequence for ``counts``.
+
+    C1-C7, T1-T*thoracic*, L1-L*lumbar*, then one sacral element
+    (:data:`SACRUM`) -- the coccyx is not in the sequence (A3).
+
+    Raises
+    ------
+    segfacet.io.FacetInputError
+        If any count in ``counts`` is outside its section's range.
+    """
+    cervical = _validate_section_count("cervical", counts.cervical)
+    thoracic = _validate_section_count("thoracic", counts.thoracic)
+    lumbar = _validate_section_count("lumbar", counts.lumbar)
+    sequence = (
+        tuple(f"C{i}" for i in range(1, cervical + 1))
+        + tuple(f"T{i}" for i in range(1, thoracic + 1))
+        + tuple(f"L{i}" for i in range(1, lumbar + 1))
+        + (SACRUM,)
+    )
+    return sequence
+
+
+def resolve_section_counts(
+    present_levels: Iterable[str],
+    supplied: Optional[Mapping[str, int]] = None,
+) -> ResolvedSectionCounts:
+    """Resolve per-section vertebra counts from present labels and overrides.
+
+    A supplied section (``supplied``, keyed by section name) replaces that
+    section's reading outright, with no field-of-view requirement. Every other
+    section is read from ``present_levels``: a non-default reading is accepted
+    only when the labels show the whole section plus the first vertebra on
+    either side of it (A6); an unaccepted reading leaves that section at its
+    default and is recorded in the result's ``unaccepted`` mapping. The
+    thoracic count is resolved before the lumbar count, since lumbar acceptance
+    is checked against the thoracic count in effect.
+
+    Raises
+    ------
+    segfacet.io.FacetInputError
+        If ``supplied`` names an unknown section, or a value outside its
+        section's range.
+    """
+    present = set(present_levels)
+    supplied = dict(supplied) if supplied else {}
+    for section, value in supplied.items():
+        _validate_section_count(section, value)
+
+    unaccepted: Dict[str, int] = {}
+
+    cervical = supplied.get("cervical", DEFAULT_SECTION_COUNTS.cervical)
+
+    if "thoracic" in supplied:
+        thoracic = supplied["thoracic"]
+    else:
+        thoracic = DEFAULT_SECTION_COUNTS.thoracic
+        if "L1" in present:
+            observed = max(
+                (i for i in range(1, 14) if f"T{i}" in present), default=None
+            )
+            lo, hi = SECTION_COUNT_RANGES["thoracic"]
+            if observed is not None and lo <= observed <= hi and observed != thoracic:
+                if observed in (11, 13):
+                    if "C7" in present:
+                        thoracic = observed
+                    else:
+                        unaccepted["thoracic"] = observed
+                else:
+                    thoracic = observed
+
+    if "lumbar" in supplied:
+        lumbar = supplied["lumbar"]
+    else:
+        lumbar = DEFAULT_SECTION_COUNTS.lumbar
+        if any(name in present for name in _SACRAL_NAMES):
+            observed = max(
+                (i for i in range(1, 7) if f"L{i}" in present), default=None
+            )
+            lo, hi = SECTION_COUNT_RANGES["lumbar"]
+            if observed is not None and lo <= observed <= hi and observed != lumbar:
+                if observed in (4, 6):
+                    if f"T{thoracic}" in present:
+                        lumbar = observed
+                    else:
+                        unaccepted["lumbar"] = observed
+                else:
+                    lumbar = observed
+
+    return ResolvedSectionCounts(
+        counts=SectionCounts(cervical=cervical, thoracic=thoracic, lumbar=lumbar),
+        unaccepted=unaccepted,
+    )
 
 
 def _order_key(name: str) -> Tuple[int, str]:

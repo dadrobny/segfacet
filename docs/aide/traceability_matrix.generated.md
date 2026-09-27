@@ -77,7 +77,7 @@ Agree: 18. Disagree: 0. Conformant: True.
 | geometric | remove_level_relabel | 6 | (none) | (none) | True | specification |
 | geometric | sequence_break | 9 | sequence | sequence | True | specification |
 | geometric | split | 3 | fragmentation | fragmentation | True | specification |
-| geometric | split_own_label | 3 | bounds, coverage | bounds, coverage | True | specification |
+| geometric | split_own_label | 3 | bounds | bounds | True | specification |
 | intensity | clean_hu | 0 | (none) | (none) | True | manifest-clean-control |
 | intensity | degenerate_uniform | 16 | intensity | intensity | True | specification |
 | intensity | implausible_metal | 16 | intensity | intensity | True | specification |
@@ -99,7 +99,7 @@ Direction complete: True. Holes: none.
 |---|---|---|---|---|
 | border | exercised | geometric/crop_at_border | (none) | (none) |
 | bounds | exercised | geometric/crop_fov_si, geometric/split_own_label | (none) | (none) |
-| coverage | exercised | geometric/remove_level, geometric/split_own_label | (none) | (none) |
+| coverage | exercised | geometric/remove_level | (none) | (none) |
 | fragmentation | exercised | geometric/fragment, geometric/inject_islands, geometric/split | (none) | (none) |
 | intensity | exercised | intensity/degenerate_uniform, intensity/implausible_metal, intensity/implausible_soft_tissue | (none) | (none) |
 | intensity_reference_delta | unexercised | (none) | needs-real-data | 16 |

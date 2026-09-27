@@ -262,10 +262,9 @@
           "case_id": "split_own_label",
           "corpus": "geometric",
           "expected_firing": [
-            "bounds",
-            "coverage"
+            "bounds"
           ],
-          "reason": "pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-23, item 174): mode 3 sub-type (b) -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). bounds fires twice on the cap (label 23): volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's own needs-real-data proxy. coverage fires missing_interior on T13, absent between T12 (19) and L1 (20): a co-detection that the next queue's CANONICAL_ORDER item (roadmap Stage 33 D3) removes. neighbour_contact does not fire: the cap is its own label's only component, so every label's stray_contact_area_mm2 is 0.0."
+          "reason": "pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 186): mode 3 sub-type (b) -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). bounds fires twice on the cap (label 23): volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's own needs-real-data proxy. coverage no longer fires: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire: the cap is its own label's only component, so every label's stray_contact_area_mm2 is 0.0."
         }
       ],
       "definition": "A substantial part of one ground-truth vertebra is covered by the label of a neighbouring vertebra, such that giving that part the vertebra's own label gives a better prediction. Typically a mostly correct vertebra that loses a part to an adjacent segment. Sub-type: transitional lumbosacral anatomy (lumbarised S1) split from the sacrum at the junction.",

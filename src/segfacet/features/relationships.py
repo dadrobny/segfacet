@@ -4,18 +4,30 @@ Given an ordered sequence of :class:`~segfacet.features.centroids.LabelCentroid`
 records, computes:
 
 * **present_levels** — anatomical names in canonical head-to-tail order.
-* **missing_levels** — levels absent within the observed span [min..max].
+* **missing_levels** — expected-sequence levels absent within the observed
+  present span (item 186: walks a per-section-count expected sequence, not a
+  raw ``CANONICAL_ORDER`` slice -- see below).
 * **neighbour_spacings_mm** — Euclidean distances between adjacent centroids
   (in canonical order).
 * **is_continuous** — whether the *input* order is monotonically non-decreasing
   in canonical rank.
 * **out_of_order_labels** — labels (in input order) that broke monotonicity.
 
+Item 186: ``missing_levels`` no longer walks a raw ``CANONICAL_ORDER`` slice
+between the first and last present level -- that placed the transitional T13
+between T12 and L1 (and L6 between L5 and S1), so a common thoraco-lumbar case
+holding T12 and L1 with no T13 reported T13 missing. It now walks
+``segfacet.labels.expected_level_sequence`` for a per-section vertebra count
+resolved from the present labels (or supplied via ``section_counts``) by
+``segfacet.labels.resolve_section_counts`` -- see that module for the section
+model. ``present_levels``, the spacings and the continuity walk are unchanged
+and keep using ``CANONICAL_ORDER``.
+
 Public API
 ----------
 ``SpineRelationships``
     Frozen dataclass carrying the result.
-``compute_spine_relationships(centroids, convention=None) -> SpineRelationships``
+``compute_spine_relationships(centroids, convention=None, *, section_counts=None) -> SpineRelationships``
     Entry-point function.
 """
 
@@ -23,15 +35,26 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Sequence
+from typing import List, Mapping, Optional, Sequence
 
 from segfacet.features.centroids import LabelCentroid
-from segfacet.labels import CANONICAL_ORDER, UNKNOWN, LabelConvention
+from segfacet.labels import (
+    CANONICAL_ORDER,
+    SACRUM,
+    UNKNOWN,
+    LabelConvention,
+    expected_level_sequence,
+    resolve_section_counts,
+)
 
 __all__ = [
     "SpineRelationships",
     "compute_spine_relationships",
 ]
+
+#: Sacral label names, which all collapse onto ``SACRUM`` in the expected
+#: sequence (the sacrum is not split into levels -- A3).
+_SACRAL_NAMES = frozenset(f"S{i}" for i in range(1, 7))
 
 # Canonical rank for O(1) comparisons.
 _CANONICAL_RANK: dict[str, int] = {name: i for i, name in enumerate(CANONICAL_ORDER)}
@@ -46,7 +69,9 @@ class SpineRelationships:
     present_levels:
         Anatomical names of the recognised labels in canonical head-to-tail order.
     missing_levels:
-        Levels absent within the [min_present .. max_present] span, in canonical order.
+        Expected-sequence levels absent within the observed present span, in
+        sequence order (item 186: walks a per-section-count expected sequence,
+        not a raw ``CANONICAL_ORDER`` slice -- see the module docstring).
     neighbour_spacings_mm:
         Euclidean distances (mm) between adjacent centroids in canonical order.
         Length is ``len(present_levels) - 1``; empty when fewer than 2 levels present.
@@ -68,6 +93,8 @@ class SpineRelationships:
 def compute_spine_relationships(
     centroids: Sequence[LabelCentroid],
     convention: Optional[LabelConvention] = None,
+    *,
+    section_counts: Optional[Mapping[str, int]] = None,
 ) -> SpineRelationships:
     """Compute inter-vertebra relationships from an ordered centroid sequence.
 
@@ -81,10 +108,20 @@ def compute_spine_relationships(
         Unused — reserved for API symmetry with sibling functions. Level names
         are read directly from ``LabelCentroid.level_name`` and compared against
         :data:`~segfacet.labels.CANONICAL_ORDER`.
+    section_counts:
+        Optional ``{section_name: count}`` override (item 186), passed straight
+        to :func:`segfacet.labels.resolve_section_counts` as ``supplied``. A
+        supplied section's reading needs no field-of-view corroboration.
 
     Returns
     -------
     SpineRelationships
+
+    Raises
+    ------
+    segfacet.io.FacetInputError
+        If ``section_counts`` names an unknown section, or a value outside its
+        section's valid range.
     """
     # Keep only centroids whose level_name is in CANONICAL_ORDER.
     # UNKNOWN and any custom/non-canonical names are silently skipped.
@@ -106,16 +143,31 @@ def compute_spine_relationships(
     sorted_centroids = sorted(known, key=lambda c: _CANONICAL_RANK[c.level_name])
     present_levels: List[str] = [c.level_name for c in sorted_centroids]
 
-    # --- AC2: missing levels within the span [min_present .. max_present] --- #
+    # --- AC2 (item 186): missing levels within the expected-sequence span --- #
+    # Resolved section counts (from the labels, or `section_counts`) build the
+    # expected sequence; each present level maps onto it by identity, except
+    # sacral labels S1-S6, which all collapse onto the single SACRUM element
+    # (A3). Names not in the sequence (Cocc, UNKNOWN) are dropped.
+    resolved = resolve_section_counts(present_levels, supplied=section_counts)
+    sequence = expected_level_sequence(resolved.counts)
+    seq_rank = {name: i for i, name in enumerate(sequence)}
+
+    present_sequence_elements: List[str] = []
+    seen_elements = set()
+    for name in present_levels:
+        element = SACRUM if name in _SACRAL_NAMES else name
+        if element not in seq_rank or element in seen_elements:
+            continue
+        seen_elements.add(element)
+        present_sequence_elements.append(element)
+
     missing_levels: List[str] = []
-    if len(present_levels) >= 2:
-        lo = _CANONICAL_RANK[present_levels[0]]
-        hi = _CANONICAL_RANK[present_levels[-1]]
-        present_set = set(present_levels)
+    if len(present_sequence_elements) >= 2:
+        ranks = [seq_rank[element] for element in present_sequence_elements]
+        lo, hi = min(ranks), max(ranks)
+        present_set = set(present_sequence_elements)
         missing_levels = [
-            name
-            for name in CANONICAL_ORDER[lo : hi + 1]
-            if name not in present_set
+            name for name in sequence[lo : hi + 1] if name not in present_set
         ]
 
     # --- AC3: neighbour spacings in canonical order --- #

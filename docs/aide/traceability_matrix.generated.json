@@ -167,13 +167,11 @@
         "case_id": "split_own_label",
         "corpus": "geometric",
         "expected_firing": [
-          "bounds",
-          "coverage"
+          "bounds"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "bounds",
-          "coverage"
+          "bounds"
         ],
         "mode": 3
       },
@@ -415,10 +413,6 @@
           [
             "geometric",
             "remove_level"
-          ],
-          [
-            "geometric",
-            "split_own_label"
           ]
         ],
         "reason": "",
