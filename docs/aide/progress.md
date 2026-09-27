@@ -1846,11 +1846,51 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   Parked 2026-09-24 by the maintainer: no overlap fixture is needed while multi-channel
   segmentation is unsupported, and no follow-up is planned (`insights.md`, `knowledge`
   entry dated 2026-09-23).
+- 🚧 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 186)*
 - 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
-  *(Items 186, 187, 188, 189, 190, 191, 192, 193, 194)*
+  *(Item 187)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 188)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 189)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 190)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 191)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 192)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 193)*
+- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 194)*
 - 📋 **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
   corpus attribution (maintainer, 2026-09-25, superseding the 2026-09-24 park).
   *(Item 195)*
