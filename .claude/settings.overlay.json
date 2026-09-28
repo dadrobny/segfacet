@@ -48,7 +48,18 @@
       "(would admit `sed -i`), `git -C` (a §3 hygiene violation by definition —",
       "the hook is what should bounce it, not a prompt), `git cherry-pick`,",
       "`rm`, `rmdir`, `mv` (destructive), and the machine-specific absolute",
-      "paths again."
+      "paths again.",
+      "",
+      "Promoted at the 2026-09-28 feedback-loop review of 50,656 logged calls",
+      "(engine 2.1.0, after queue-025): two read-only git verbs (grep 15,",
+      "rev-list 7), two read-only process probes (pgrep 9, `top -bn1` 42 — the",
+      "batch form only, so an interactive `top` never hangs a run), `mkdir`",
+      "(89, non-destructive, mostly scratch dirs) and the project's own CLI",
+      "`.venv/bin/segfacet` (31, writes only under the --out it is given).",
+      "Kept prompting: `sed -i`, `cp`, `rm`, `git reset`, `git mv`, `git clone`.",
+      "Declined: the `cd`, `git -C`, `git -c`, `env`, `sh`, `timeout`, `for`,",
+      "`until` wrappers (each runs an arbitrary command, or is a §3 shape the",
+      "hook should bounce)."
     ],
     "allow": {
       "add": [
@@ -72,7 +83,13 @@
         "Bash(git diff-tree:*)",
         "Bash(git merge-tree:*)",
         "Bash(date:*)",
-        "Bash(md5sum:*)"
+        "Bash(md5sum:*)",
+        "Bash(git grep:*)",
+        "Bash(git rev-list:*)",
+        "Bash(pgrep:*)",
+        "Bash(top -bn1:*)",
+        "Bash(mkdir:*)",
+        "Bash(.venv/bin/segfacet:*)"
       ]
     }
   }

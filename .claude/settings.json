@@ -91,7 +91,13 @@
       "Bash(git diff-tree:*)",
       "Bash(git merge-tree:*)",
       "Bash(date:*)",
-      "Bash(md5sum:*)"
+      "Bash(md5sum:*)",
+      "Bash(git grep:*)",
+      "Bash(git rev-list:*)",
+      "Bash(pgrep:*)",
+      "Bash(top -bn1:*)",
+      "Bash(mkdir:*)",
+      "Bash(.venv/bin/segfacet:*)"
     ],
     "ask": [
       "Bash(git push --force:*)",
