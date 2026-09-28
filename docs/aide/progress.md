@@ -1904,7 +1904,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
   *(Item 194)*
-- 🔍 **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
+- ✅ **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
   corpus attribution (maintainer, 2026-09-25, superseding the 2026-09-24 park).
   *(Item 195)*
 - ✅ **Maintenance** `segfacet evaluate` reports a `FacetInputError` as an error, not a
