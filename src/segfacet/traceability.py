@@ -150,6 +150,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Set, Tuple
 
+from segfacet.failure_modes import EVIDENCE_RUNGS as _EVIDENCE_RUNGS
+
 __all__ = [
     "build_matrix",
     "matrix_to_dict",
@@ -224,12 +226,13 @@ UNUSED_OPERATOR_REASONS: Dict[str, str] = {}
 #: silently become ``rule_exercise`` holes, breaking Stage 20's attested
 #: "every registered rule is exercised by >=1 case or recorded as
 #: unexercised with a reason" criterion. Read by :func:`_build_exercise`
-#: only when no edge names the rule; each value is validated to sit inside
-#: ``failure_modes.EVIDENCE_RUNGS[1:]`` (never the strongest rung, since no
-#: edge backs it).
+#: only when no edge names the rule. Values are read from
+#: ``failure_modes.EVIDENCE_RUNGS`` rather than written as literals --
+#: ``test_147``'s AC2 allows a rung literal only in ``failure_modes.py`` --
+#: and index 1 is the ``needs-real-data`` rung; no code validates them.
 UNEXERCISED_RULE_REASONS: Dict[str, str] = {
-    "intensity_reference_delta": "needs-real-data",
-    "reference_delta": "needs-real-data",
+    "intensity_reference_delta": _EVIDENCE_RUNGS[1],
+    "reference_delta": _EVIDENCE_RUNGS[1],
 }
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
