@@ -422,6 +422,25 @@ hand-back to spec-author.
 - `tests/test_190_condition_keyed_eval_bucket.py` — derives every bucket count from the manifest; green unedited once `crop_fov_si` expects `pass`.
 - `tests/test_041_regression_suite.py` — `verify_case` over the regenerated manifest; green unedited.
 
+This section was amended on 2026-09-28, after the test-writer's commit
+`d3d68d7` and before any production code, when a read-only sweep found three
+pins outside the reconciliation list above. The lists above stand as written;
+this note adds two paths and nothing else. Two of the pins run
+`run_qc_with_reference` on `crop_at_border` and require a `bounds` finding on
+label 22, which touches the anterior face, so the gate drops it. The third is
+`tests/test_189_spline_offset_condition.py`'s AC14 (the file is already
+listed): it would pass for the wrong reason. The exact edits are under the
+Testing Strategy's correction of the same date. The reconciliation fence gains
+two shapes, and only for these edits. The first is a reference-liveness pin
+re-pointed from the crop_at_border case to the clean_control case, which has no
+label on a face. The second is test_189 AC14's "fires", computed from the
+ungated rule's evaluate instead of from pipeline_findings.
+
+**May change:**
+
+- `tests/test_128_reference_verse_v1_integrity.py` — the load-and-score companion's case becomes `clean_control` (amended 2026-09-28).
+- `tests/test_128_relocation_checks.py` — `test_ac8_companion_actually_runs_and_finds_label_22_bounds_finding`'s case becomes `clean_control` (amended 2026-09-28).
+
 ## Testing Strategy
 
 The test module is `tests/test_191_condition_gate.py`, with one test per AC.
@@ -549,6 +568,76 @@ builder treats a red test outside this list as a hand-back.
   `test_110`'s AC11 is a superset check over designated rules; the severity
   ladders do not move (A5), so `test_100`, `test_102`'s ladder block and
   `test_154` need no edit.
+
+**Correction (2026-09-28): three more tests to reconcile.** A read-only sweep
+after `d3d68d7` found them. The list above stands. The builder makes these
+edits, each with a dated item-191 comment, and the Authorised paths note of the
+same date covers the files. Every value below was measured on 2026-09-28 with
+`.venv/bin/python` against the current code. A scratch probe applied A1–A2's
+gate by hand to the ungated findings.
+
+- **`test_128`: the reference liveness pin moves to `clean_control`.**
+  - `tests/test_128_reference_verse_v1_integrity.py`
+    `test_reference_verse_v1_still_loads_and_scores_a_case` (line 72) and
+    `tests/test_128_relocation_checks.py`
+    `test_ac8_companion_actually_runs_and_finds_label_22_bounds_finding`
+    (line 290) both change `"crop_at_border"` to `"clean_control"`. Nothing
+    else changes: the call stays `run_qc_with_reference` with the production
+    reference, and the filter and the assertion stay
+    `f.rule_id == "bounds" and 22 in f.labels` and `len(...) >= 1`.
+  - Measured: with `reference_verse_v1`, `bounds` names labels 20–24 on
+    `clean_control` both before and after the gate. No `clean_control` label
+    touches a face and none is displaced, so the gate reaches none of its
+    findings. On `crop_at_border` the same filter goes from label 22 present
+    to label 22 absent.
+  - The companion's source keeps the tokens `run_qc_with_reference`, `bounds`
+    and `22`, so `test_128_relocation_checks.py`'s
+    `test_ac8_companion_body_asserts_bounds_finding_on_label_22` (line 260)
+    stays green unedited. `clean_control`'s fixture is already under Asserts
+    against.
+  - The released artifact's sha256 pin in the same file does not move: the
+    artifact is not touched.
+- **`test_189` AC14: "fires" is read from the rule, not the pipeline.**
+  - `test_ac14_recorded_corpus_margins_are_live` (line 213) builds `record`
+    first and then sets
+    `fires = bool(get_rule("spline_offset").evaluate(record, config))` in
+    place of the `pipeline_findings` scan. `get_rule` is already imported.
+    Everything else stays.
+  - Why: under the gate, `crop_at_border` no longer fires through the
+    pipeline. Its interior offsets then join the non-firing pool, so
+    `largest_non_firing` becomes 18.025609, `crop_at_border`'s own reading,
+    which the docstring already carries. The test would pass while no longer
+    checking the non-firing ceiling.
+  - Measured with the ungated rule: `displace` and `crop_at_border` fire, and
+    no other case does. `largest_non_firing` is 5.624555 (`relabel_swap`,
+    label 23), the value the docstring records.
+  - The docstring states a margin of the rule's threshold, and the gate sits
+    in the runner, not in `evaluate`. So the rule's own `evaluate` is the
+    right source for it.
+- **Unchanged, checked:**
+  - `tests/test_038_coverage_border_overlap_perturbations.py`: two tests
+    stay unedited, `test_ac13_crop_at_border_produces_no_spurious_bounds_flag`
+    (line 453) and `test_adv_crop_at_border_retains_volume_above_group_minimum`
+    (line 760). They are not vacuous today. Measured: the ungated
+    `get_rule("bounds").evaluate` returns `[]` on the crop of each of the four
+    in-plane faces, so their "no `bounds`" check holds with or without the
+    gate. The gate could only hide a future regression on label 22, and the
+    second test pins the operator's property directly, with its
+    `physical_volume_mm3 >= min_volume_mm3` assertion. They are not tightened,
+    and `test_038` is not authorised.
+  - `tests/test_178_corpus_sheet.py` AC7 heals when step 8 regenerates the
+    sheet.
+  - `tests/test_102_stage18_validation.py` and
+    `tests/test_143_s_axis_correction.py` AC9 read `test_098`'s reconciled
+    constant, which does not name `crop_fov_si`.
+- **Builder rewording in `src/segfacet/heuristics/spline_offset.py`**
+  (already authorised, step 5). The "Corpus margins" bullet says
+  `crop_at_border`'s `18.025609` mm "**must** fire". That is now true of the
+  rule's `evaluate` only. Reword it to say that the rule fires on the reading
+  and that the runner's `fov_truncation` gate drops the finding, because this
+  rule does not opt in to that condition (item 191). Keep the literal
+  `18.025609`, and keep `5.624555` and `14.615923`, because
+  `test_189` AC14 checks that all three appear in the docstring.
 
 ## Validation
 
