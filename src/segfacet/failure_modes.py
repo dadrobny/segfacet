@@ -67,7 +67,13 @@ substantial part of a vertebra under a neighbour's label; islands and holes
 by small same-label topology defects. ``fragment`` (a vertebra cut
 into large same-label pieces by a missing slab of its own body) is neither,
 so it and ``fragmentation``'s Fragmentation: detector sit at the parent,
-mode 1; the Rogue island(s): detector serves mode 4. ``ModeSpec.scope`` and
+mode 1; the Rogue island(s): detector serves mode 4. Ids written on
+2026-09-14 (the first half of the review) map to these as: old 1 -> 1,
+old 2 (fused or split) -> 2 and 3, old 3 (islands) -> 4, old 4 (not
+segmented) -> 6, old 5 (mislabelling) -> 8, old 6 (implausible sequence)
+-> 9, 10 and 11, old 7 (shifted) -> 12, old 8 (collapsed or duplicated)
+-> 13 and 14, old 9 (overlap) -> 15, old 10 (tissue) -> 16; 5 and 7 are
+new, and the ``fragment`` case moved from old 3 to mode 1. ``ModeSpec.scope`` and
 :data:`SCOPES` were added (schema 2.1).
 
 What moved at the first pass, and why, under the ids of that pass (the
@@ -3212,7 +3218,13 @@ def render_markdown() -> str:
     all (item 146): the catalogue's first ``proposed`` entry has two empty
     sections by design, and a bare heading followed by the next heading
     reads to a reviewer as a hole in the document rather than as a
-    deliberate absence."""
+    deliberate absence.
+
+    A mode's mechanism may legitimately name another mode's anchor path
+    (mode 2's names mode 3's, and renders first), so a tool or test that
+    searches this rendering for a feature path must scope the search to one
+    ``## Mode N`` section; a document-wide first-occurrence search lands in
+    the wrong entry (insights.md, item 150, 2026-09-14)."""
     payload = specification_to_dict()
     lines = [
         "# Failure-Mode Specification",

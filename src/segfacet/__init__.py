@@ -9,7 +9,10 @@ backend reads ``__version__`` from here (see ``[tool.hatch.version]`` in
 
 ``check_empty``/``CheckResult`` and ``compute_fragmentation_index`` are
 resolved lazily (PEP 562) because their defining modules pull in NumPy/SciPy/
-NiBabel; the other re-exports below are cheap and stay eager.
+NiBabel; the other re-exports below are cheap and stay eager. A side effect:
+``segfacet.features`` is not a bare attribute of the package until a lazy name
+is first touched or the submodule is imported, so import submodules explicitly
+(``import segfacet.features.x``) rather than relying on ``segfacet.features.x``.
 """
 
 import importlib
