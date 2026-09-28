@@ -212,6 +212,7 @@ def test_ac1_dataclasses_are_frozen_with_documented_fields():
             "n_caught_by_designated_rule",
             "sensitivity",
             "caught_rate",
+            "condition",
         },
         CorrelationResult: {"coefficient", "n", "method", "x_variable", "y_variable"},
         CohortMetrics: {

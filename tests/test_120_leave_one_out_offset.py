@@ -794,7 +794,12 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     Re-measured 2026-09-24 (item 176) -- the bridged, renumbered
     `fuse_adjacent` expects "pass" and is no longer an expected-failure
     record, so overall sensitivity is 10/11 over eleven records and mode 2
-    scores no case. The test name keeps the old value."""
+    scores no case. The test name keeps the old value.
+    Re-measured 2026-09-28 (item 190) -- every condition case (`displace`
+    under `displaced_vertebra`, `crop_at_border`/`crop_fov_si` under
+    `fov_truncation`) now buckets under its own condition-keyed entry
+    instead of mode 0/1, so the `(0, None)` entry has `n_cases == 0` and is
+    dropped from the per-mode map."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
@@ -802,11 +807,20 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
 
     # Item 176 (2026-09-24): mode 2's entry (2: 1.0) removed -- no case left.
-    expected_sensitivity = {0: 1.0, 1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+    # Item 190 (2026-09-28): mode 0's entry removed -- condition cases moved
+    # to their own condition-keyed buckets, checked separately below.
+    expected_sensitivity = {1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
+
+    expected_condition_sensitivity = {"fov_truncation": 1.0, "displaced_vertebra": 1.0}
+    for condition, expected in expected_condition_sensitivity.items():
+        entry = next(m for m in metrics.per_mode if m.condition == condition)
+        assert entry.n_cases > 0, f"condition {condition}"
+        assert entry.sensitivity == pytest.approx(expected), f"condition {condition}"
+
     # Item 174 (2026-09-23): 10 -> 11.
     # Item 175 (2026-09-24): 11 -> 12.
     # Item 176 (2026-09-24): 12 -> 11.

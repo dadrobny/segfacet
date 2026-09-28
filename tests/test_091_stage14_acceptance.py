@@ -91,9 +91,11 @@ _LEVELS = ("L1", "L2", "L3", "L4", "L5")
 #: pipeline-detectable operators at sensitivity 1.0. Re-keyed 2026-09-15
 #: (item 150's catalogue revision): those five operators now file under
 #: modes 1 (fragment), 4 (inject_islands), 6 (remove_level), 9
-#: (sequence_break) and the fov_truncation condition (crop_at_border), which
-#: the eval harness groups under failure_mode 0.
-_BASELINE_MODES = (0, 1, 4, 6, 9)
+#: (sequence_break) and the fov_truncation condition (crop_at_border).
+#: Re-keyed 2026-09-28 (item 190): the eval harness now groups every
+#: condition case under its own condition-keyed bucket instead of mode 0,
+#: so the fov_truncation entry is looked up by condition id, not by mode.
+_BASELINE_MODES = ("fov_truncation", 1, 4, 6, 9)
 
 #: One representative pipeline-detectable perturbation operator per baseline
 #: mode (see src/segfacet/synth/{component_shape,coverage_border_overlap,
@@ -102,7 +104,7 @@ _PIPELINE_DETECTABLE_OPERATORS = (
     ("fragment", 1),
     ("inject_islands", 4),
     ("remove_level", 6),
-    ("crop_at_border", 0),
+    ("crop_at_border", "fov_truncation"),
     ("sequence_break", 9),
 )
 
@@ -201,27 +203,31 @@ def calibrate_then_measure(
     return result, held_out_metrics
 
 
-def per_mode_sensitivity(cases, config, *, failure_modes) -> "Dict[int, float]":
-    """``{mode_key: sensitivity}`` for each observed Sec.6 mode with
-    ``n_cases > 0``, via ``evaluate_cohort`` -> ``compute_cohort_metrics``.
-    The guard's measurement primitive, used for both the Stage-5 synthetic
-    corpus and Stage-5 perturbations applied to a GT."""
+def per_mode_sensitivity(cases, config, *, failure_modes) -> "Dict[object, float]":
+    """``{mode_or_condition_key: sensitivity}`` for each observed Sec.6 mode
+    or condition with ``n_cases > 0``, via ``evaluate_cohort`` ->
+    ``compute_cohort_metrics``. A condition entry (``failure_mode is None``)
+    is keyed by its condition id (item 190); every other entry is keyed by
+    its mode integer. The guard's measurement primitive, used for both the
+    Stage-5 synthetic corpus and Stage-5 perturbations applied to a GT."""
     metrics = compute_cohort_metrics(
         evaluate_cohort(cases, config), failure_modes=failure_modes
     )
     return {
-        mode.failure_mode: mode.sensitivity
+        (mode.condition if mode.condition is not None else mode.failure_mode): mode.sensitivity
         for mode in metrics.per_mode
         if mode.n_cases > 0
     }
 
 
-def sensitivity_baseline() -> "Dict[int, float]":
+def sensitivity_baseline() -> "Dict[object, float]":
     """Item 057's recorded baseline -- the five pipeline-detectable operators
     at sensitivity 1.0 -- re-keyed at item 150's catalogue revision
-    (2026-09-15) to the modes they file under: ``{0: 1.0, 1: 1.0, 4: 1.0,
-    6: 1.0, 9: 1.0}`` (0 is the fov_truncation condition case). Does NOT
-    include the structurally invisible overlap mode (15) -- never claimed."""
+    (2026-09-15) to the modes they file under, and re-keyed again at item
+    190 (2026-09-28), which moved the fov_truncation condition case off
+    mode 0 onto its own condition-keyed bucket: ``{"fov_truncation": 1.0,
+    1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}``. Does NOT include the structurally
+    invisible overlap mode (15) -- never claimed."""
     return {mode: 1.0 for mode in _BASELINE_MODES}
 
 
@@ -467,7 +473,7 @@ def test_ac5_clean_held_out_standin_measures_fpr_zero(tmp_path):
 
 def test_ac6_sensitivity_baseline_matches_item_057():
     baseline = sensitivity_baseline()
-    assert baseline == {0: 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}
+    assert baseline == {"fov_truncation": 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}
     assert set(baseline).isdisjoint({15})
 
 
@@ -492,11 +498,21 @@ def test_ac7_shipped_default_reproduces_baseline_on_corpus(mode):
 @pytest.mark.parametrize(
     "achieved, expected",
     [
-        pytest.param({0: 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}, False, id="exact-match"),
-        pytest.param({0: 1.0, 1: 1.0, 4: 0.5, 6: 1.0, 9: 1.0}, True, id="one-mode-half"),
-        pytest.param({0: 1.0, 1: 1.0, 4: 0.0, 6: 1.0, 9: 1.0}, True, id="one-mode-zero"),
-        pytest.param({0: 1.0, 1: 1.0, 6: 1.0, 9: 1.0}, True, id="one-mode-absent"),
-        pytest.param({0: 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: None}, True, id="one-mode-none"),
+        pytest.param(
+            {"fov_truncation": 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}, False, id="exact-match"
+        ),
+        pytest.param(
+            {"fov_truncation": 1.0, 1: 1.0, 4: 0.5, 6: 1.0, 9: 1.0}, True, id="one-mode-half"
+        ),
+        pytest.param(
+            {"fov_truncation": 1.0, 1: 1.0, 4: 0.0, 6: 1.0, 9: 1.0}, True, id="one-mode-zero"
+        ),
+        pytest.param(
+            {"fov_truncation": 1.0, 1: 1.0, 6: 1.0, 9: 1.0}, True, id="one-mode-absent"
+        ),
+        pytest.param(
+            {"fov_truncation": 1.0, 1: 1.0, 4: 1.0, 6: 1.0, 9: None}, True, id="one-mode-none"
+        ),
     ],
 )
 def test_ac8_sensitivity_regressed_truth_table(achieved, expected):
@@ -558,7 +574,7 @@ def test_ac10_per_mode_sensitivity_deterministic_and_non_mutating():
 
 
 def test_ac10_sensitivity_regressed_deterministic_and_non_mutating():
-    achieved = {0: 1.0, 1: 1.0, 4: 0.5, 6: 1.0, 9: 1.0}
+    achieved = {"fov_truncation": 1.0, 1: 1.0, 4: 0.5, 6: 1.0, 9: 1.0}
     baseline = sensitivity_baseline()
     achieved_before = dict(achieved)
     baseline_before = dict(baseline)
