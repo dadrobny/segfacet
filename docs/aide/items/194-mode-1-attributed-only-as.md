@@ -523,7 +523,22 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented as specified: `bounds` narrows to `modes=(2, 3, 4)` and mode 1's
+`bounds` edge is removed together (A1); mode 1's definition, discriminator
+and mechanism, and modes 2/3's definitions, were edited exactly as
+Implementation Step 2 drafted, with S inserted verbatim as the last sentence
+of mode 1's definition (A3). The three generated document pairs were
+regenerated twice each (`--json`/`--md` to a scratch path) and byte-compared
+before writing the committed copies; a fresh `golden_evidence.generated.json`
+compared byte-identical to the committed one, so nothing was regenerated
+there. All live-measured values matched A4 exactly: detector groups
+containing mode 1 are `{("fragmentation", "components")}` only; mode rung
+counts stay synthetic-demonstrable 5, needs-real-data 3,
+structurally-unobservable 1, none 7; per-edge rung counts over 13 edges are
+synthetic-demonstrable 5, needs-real-data 7, structurally-unobservable 1;
+`specification_conflicts()`, `rule_declaration_conflicts()` and
+`path_classification_conflicts()` are all `()`. Stage 30 criterion 3 was
+amended via `aide progress amend` with those re-measured numbers.
 
 - **Left open:** a production conformance check for the catch-all rule.
   AC1 and AC3 hold the invariant in the suite. A message in

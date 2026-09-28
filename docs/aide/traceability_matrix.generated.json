@@ -577,17 +577,10 @@
             "components"
           ],
           "synthetic-demonstrable"
-        ],
-        [
-          "bounds",
-          [
-            "metric_out_of_range"
-          ],
-          "needs-real-data"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxy is the bounds rule's per-label volume/extent range (per_label.{label}.geometry.physical_volume_mm3), declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy. Item 193, 2026-09-28: reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode -- see mode 8's mechanism.)",
+      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy. Item 193, 2026-09-28: reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode -- see mode 8's mechanism. Item 194, 2026-09-28: bounds' per-label volume/extent range is no longer this mode's proxy -- it serves modes 2, 3 and 4, and a detector that serves another mode is never also attributed to this catch-all.)",
       "mode": 1,
       "pipeline_detected": true,
       "read_paths": [
@@ -595,19 +588,13 @@
         "per_label.{label}.components.component_sizes[]",
         "per_label.{label}.components.fragmentation_index",
         "per_label.{label}.components.largest_component_fraction",
-        "per_label.{label}.components.stray_component_sizes[]",
-        "per_label.{label}.geometry.extent_x_mm",
-        "per_label.{label}.geometry.extent_y_mm",
-        "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3"
+        "per_label.{label}.components.stray_component_sizes[]"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "bounds": "analytic",
         "fragmentation": "corpus"
       },
       "rules": [
-        "bounds",
         "fragmentation"
       ],
       "rung": "synthetic-demonstrable",
@@ -1136,7 +1123,7 @@
       "declaration_state": "declared",
       "evidence": [
         "analytic",
-        "per-label physical volume and x/y/z extent are compared against level-aware plausible ranges: an over-segmented vertebra or a fused pair reads over the maximum, an under-segmented, split or island-depleted vertebra reads under the minimum -- the volume proxy for modes 1 (segmentation accuracy), 2 (fused), 3 (split) and 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15); every edge needs-real-data."
+        "per-label physical volume and x/y/z extent are compared against level-aware plausible ranges: a fused pair reads over the maximum, a split or island-depleted vertebra reads under the minimum -- the volume proxy for modes 2 (fused), 3 (split) and 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15); every edge needs-real-data. Not mode 1: mode 1 is the catch-all, attributed only where no other mode applies, and this detector serves modes 2-4 (item 194)."
       ],
       "feature_path_count": 6,
       "feature_paths": [
@@ -1149,7 +1136,6 @@
       ],
       "mode_less_reason": "",
       "modes": [
-        1,
         2,
         3,
         4

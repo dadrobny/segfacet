@@ -600,7 +600,6 @@
           ],
           "documented": true,
           "failure_modes": [
-            1,
             2,
             3,
             4
@@ -673,7 +672,6 @@
           ],
           "documented": true,
           "failure_modes": [
-            1,
             2,
             3,
             4
@@ -746,7 +744,6 @@
           ],
           "documented": true,
           "failure_modes": [
-            1,
             2,
             3,
             4
@@ -820,7 +817,6 @@
           ],
           "documented": true,
           "failure_modes": [
-            1,
             2,
             3,
             4

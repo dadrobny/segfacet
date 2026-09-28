@@ -9,8 +9,8 @@ Schema version: 2.2.
 - Short name (corpus manifests): segmentation accuracy (over-/under-segmentation)
 - Parent: (none, top-level)
 - Scope: vertebra
-- Definition: Relative to ground truth, the predicted segment for a correctly identified and labelled vertebra misses part of that vertebra (under-segmentation) or extends beyond it into background or adjacent tissue (over-segmentation). This includes a vertebra cut into large same-label pieces by a missing slab of its own body: the pieces carry no neighbour's label and are not small islands. The catch-all for accuracy defects no more specific sub-mode claims: a case that is inaccurate but meets no sub-mode's rule is classified here.
-- Discriminator: Mode 2 when the overreach covers a substantial part of an adjacent vertebra; mode 3 when a substantial part of the vertebra carries a neighbour's label; mode 4 when the surplus is a disconnected island rather than contiguous with the body; mode 5 when the missing part is background enclosed inside the segment; mode 6 when the whole vertebra is absent; mode 7 when the segment covers no vertebra at all; the FOV-truncation condition when the missing part lies beyond an image face.
+- Definition: Relative to ground truth, the predicted segment for a correctly identified and labelled vertebra misses part of that vertebra (under-segmentation) or extends beyond it into background or adjacent tissue (over-segmentation). This includes fragmentation -- one label in several parts -- where the parts are large pieces of the vertebra's own body cut apart by a missing slab: they carry no neighbour's label and are not small islands. The catch-all for accuracy defects: a corpus case, or a detector's edge, is attributed to this mode only when no other mode applies, and never beside another mode.
+- Discriminator: Mode 2 when the overreach covers a substantial part of an adjacent vertebra; mode 3 when a substantial part of the vertebra carries another label; mode 4 when the surplus is a disconnected island rather than contiguous with the body; mode 5 when the missing part is background enclosed inside the segment; mode 6 when the whole vertebra is absent; mode 7 when the segment covers no vertebra at all; the FOV-truncation condition when the missing part lies beyond an image face.
 - Observability: needs-ground-truth
 - Severity: flagged-for-review
 - Provenance: hypothesised
@@ -30,12 +30,11 @@ Candidate features:
 - `hypothesised` candidate path: `local_blob_error_volume_mm3`
 - `hypothesised` candidate path: `error_spatial_distribution`
 
-Mechanism: No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxy is the bounds rule's per-label volume/extent range (per_label.{label}.geometry.physical_volume_mm3), declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy. Item 193, 2026-09-28: reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode -- see mode 8's mechanism.)
+Mechanism: No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy. Item 193, 2026-09-28: reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode -- see mode 8's mechanism. Item 194, 2026-09-28: bounds' per-label volume/extent range is no longer this mode's proxy -- it serves modes 2, 3 and 4, and a detector that serves another mode is never also attributed to this catch-all.)
 
 Intended rules:
 
 - `fragmentation` (detector: components) -- evidence rung: synthetic-demonstrable
-- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -46,7 +45,7 @@ Corpus cases:
 - Short name (corpus manifests): fused vertebra segments
 - Parent: 1
 - Scope: vertebra
-- Definition: One predicted segment covers a substantial part of two or more adjacent ground-truth vertebrae: a vertebra's label extends across the intervertebral space onto its neighbour, or absorbs the neighbour whole. Sub-type: transitional lumbosacral anatomy (sacralised L5) fused with the sacrum at the junction; a hypothesised extra signal is disc labels lying inside the sacrum label, which needs an intervertebral-disc channel the current label convention does not carry.
+- Definition: One label covers substantial parts of two or more adjacent ground-truth vertebrae: a vertebra's label extends across the intervertebral space onto its neighbour, or absorbs the neighbour whole. Sub-type: transitional lumbosacral anatomy (sacralised L5) fused with the sacrum at the junction; a hypothesised extra signal is disc labels lying inside the sacrum label, which needs an intervertebral-disc channel the current label convention does not carry.
 - Discriminator: Mode 3 is the converse -- one vertebra covered by more than one label -- and the two co-occur whenever a neighbour's overreach takes part of a vertebra rather than all of it; mode 1 when the overreach stays in background or soft tissue; mode 4 when the surplus is a small disconnected island rather than a substantial part of a neighbour; mode 6 when the absent vertebra's voxels are left unclaimed rather than absorbed; mode 14 when the vertebrae sharing the label are not adjacent.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
@@ -81,7 +80,7 @@ Corpus cases:
 - Short name (corpus manifests): split vertebra segment
 - Parent: 1
 - Scope: vertebra
-- Definition: A substantial part of one ground-truth vertebra is covered by the label of a neighbouring vertebra, such that giving that part the vertebra's own label gives a better prediction. Typically a mostly correct vertebra that loses a part to an adjacent segment. Sub-type: transitional lumbosacral anatomy (lumbarised S1) split from the sacrum at the junction.
+- Definition: One ground-truth vertebra is covered by more than one label: a substantial part of it carries a neighbouring vertebra's label (sub-type a) or a label of its own (sub-type b), such that giving that part the vertebra's own label gives a better prediction. Typically a mostly correct vertebra that loses a part to another label. A further sub-type: transitional lumbosacral anatomy (lumbarised S1) split from the sacrum at the junction.
 - Discriminator: Mode 2 is the converse -- one label covering more than one vertebra -- and the two co-occur when the label that takes the part also keeps its own vertebra; mode 1 when the missing part is left as background rather than claimed by another label; mode 4 when the pieces are small islands of the vertebra's own label; mode 13 when neither label keeps a vertebra of its own and both sit on one; mode 8 when a whole vertebra carries a wrong label rather than a part of it.
 - Observability: single-channel-observable
 - Severity: flagged-for-review

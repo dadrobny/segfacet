@@ -296,6 +296,21 @@ carrying no ``signal`` entry -- the pre-item shape
 all ``not-read``) sat in and the existing empty-classification check could
 not see.
 
+Mode 1 is attributed only as the catch-all (item 194, 2026-09-28)
+------------------------------------------------------------------------
+``bounds`` no longer declares mode 1: its ``RuleModeDeclaration`` narrows
+from ``(1, 2, 3, 4)`` to ``(2, 3, 4)``, and :data:`_MODE_1`'s
+``intended_rules`` drops the matching ``IntendedRule`` edge, so ``bounds``
+was the only detector serving mode 1 beside another mode. Mode 1's
+``definition`` states the catch-all rule for both a corpus case and a
+detector's edge, and uses "fragmentation" for one label in several parts,
+per the review's vocabulary (``docs/aide/insights.md``, 2026-09-22).
+:data:`_MODE_2` and :data:`_MODE_3`'s ``definition`` lead with the same
+vertebra wording: mode 2 is one label over parts of several vertebrae, mode
+3 is one vertebra under more than one label -- covering sub-type (b),
+``split_own_label`` (item 174), which the prior wording excluded. No rule
+``evaluate``, threshold, corpus case or rendering code changed.
+
 Lifecycle status
 -----------------
 ``status`` is **authored only** for ``"proposed"`` and ``"specified"``
@@ -957,17 +972,18 @@ _MODE_1 = ModeSpec(
         "Relative to ground truth, the predicted segment for a correctly "
         "identified and labelled vertebra misses part of that vertebra "
         "(under-segmentation) or extends beyond it into background or "
-        "adjacent tissue (over-segmentation). This includes a vertebra cut "
-        "into large same-label pieces by a missing slab of its own body: "
-        "the pieces carry no neighbour's label and are not small islands. "
-        "The catch-all for accuracy defects no more specific sub-mode "
-        "claims: a case that is inaccurate but meets no sub-mode's rule is "
-        "classified here."
+        "adjacent tissue (over-segmentation). This includes fragmentation -- "
+        "one label in several parts -- where the parts are large pieces of "
+        "the vertebra's own body cut apart by a missing slab: they carry no "
+        "neighbour's label and are not small islands. "
+        "The catch-all for accuracy defects: a corpus case, or a detector's "
+        "edge, is attributed to this mode only when no other mode applies, "
+        "and never beside another mode."
     ),
     discriminator=(
         "Mode 2 when the overreach covers a substantial part of an adjacent "
-        "vertebra; mode 3 when a substantial part of the vertebra carries a "
-        "neighbour's label; mode 4 when the surplus is a disconnected island "
+        "vertebra; mode 3 when a substantial part of the vertebra carries "
+        "another label; mode 4 when the surplus is a disconnected island "
         "rather than contiguous with the body; mode 5 when the missing part "
         "is background enclosed inside the segment; mode 6 when the whole "
         "vertebra is absent; mode 7 when the segment covers no vertebra at "
@@ -977,9 +993,7 @@ _MODE_1 = ModeSpec(
     mechanism=(
         "No shipped rule decides this mode in general: it needs a "
         "ground-truth label map, which the per-case pipeline never sees. "
-        "The label-map proxy is the bounds rule's per-label volume/extent "
-        "range (per_label.{label}.geometry.physical_volume_mm3), declared at "
-        "needs-real-data. One form is demonstrated end-to-end: fragment cuts "
+        "One form is demonstrated end-to-end: fragment cuts "
         "a background slab through label 22 and fragmentation's "
         "Fragmentation: detector fires on the two comparably-sized "
         "same-label pieces via "
@@ -990,7 +1004,10 @@ _MODE_1 = ModeSpec(
         "segmentation accuracy. Item 193, 2026-09-28: reference_delta, "
         "which scored a vertebra's geometry against its named level's "
         "cohort, is a general outlier detector and serves no mode -- see "
-        "mode 8's mechanism.)"
+        "mode 8's mechanism. Item 194, 2026-09-28: bounds' per-label "
+        "volume/extent range is no longer this mode's proxy -- it serves "
+        "modes 2, 3 and 4, and a detector that serves another mode is never "
+        "also attributed to this catch-all.)"
     ),
     observability="needs-ground-truth",
     candidate_features=(
@@ -1033,11 +1050,6 @@ _MODE_1 = ModeSpec(
             detector_ids=("components",),
             evidence_rung="synthetic-demonstrable",
         ),
-        IntendedRule(
-            rule_id="bounds",
-            detector_ids=("metric_out_of_range",),
-            evidence_rung="needs-real-data",
-        ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
@@ -1069,8 +1081,8 @@ _MODE_2 = ModeSpec(
     short_name="fused vertebra segments",
     scope="vertebra",
     definition=(
-        "One predicted segment covers a substantial part of two or more "
-        "adjacent ground-truth vertebrae: a vertebra's label extends across "
+        "One label covers substantial parts of two or more adjacent "
+        "ground-truth vertebrae: a vertebra's label extends across "
         "the intervertebral space onto its neighbour, or absorbs the "
         "neighbour whole. Sub-type: transitional lumbosacral anatomy "
         "(sacralised L5) fused with the sacrum at the junction; a "
@@ -1169,12 +1181,13 @@ _MODE_3 = ModeSpec(
     short_name="split vertebra segment",
     scope="vertebra",
     definition=(
-        "A substantial part of one ground-truth vertebra is covered by the "
-        "label of a neighbouring vertebra, such that giving that part the "
-        "vertebra's own label gives a better prediction. Typically a mostly "
-        "correct vertebra that loses a part to an adjacent segment. "
-        "Sub-type: transitional lumbosacral anatomy (lumbarised S1) split "
-        "from the sacrum at the junction."
+        "One ground-truth vertebra is covered by more than one label: a "
+        "substantial part of it carries a neighbouring vertebra's label "
+        "(sub-type a) or a label of its own (sub-type b), such that giving "
+        "that part the vertebra's own label gives a better prediction. "
+        "Typically a mostly correct vertebra that loses a part to another "
+        "label. A further sub-type: transitional lumbosacral anatomy "
+        "(lumbarised S1) split from the sacrum at the junction."
     ),
     discriminator=(
         "Mode 2 is the converse -- one label covering more than one "
