@@ -26,7 +26,7 @@ from segfacet.heuristics import get_rule, run_rules
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.corpus import load_manifest
 from segfacet.synth.regression import loaded_seg_image, pipeline_findings
-from tests.synthetic import anisotropic_case, labelled_blocks_case
+from synthetic import anisotropic_case, labelled_blocks_case
 
 _MANIFEST = load_manifest()
 _CFG = bundled_default_config()
