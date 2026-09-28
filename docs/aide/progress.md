@@ -1864,7 +1864,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
   *(Item 188)*
-- 🚧 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+- 🔍 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
