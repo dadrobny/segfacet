@@ -1860,50 +1860,24 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   rule stays, declared to need multi-channel input; mode 15 derives `implemented`, with
   no fixture claiming it. `fragment` stays parked as mode 1's catch-all case. The
   2026-09-24 park was superseded by the maintainer on 2026-09-25. *(Item 195)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** The expected level sequence admits per-section vertebra counts
+  (`CANONICAL_ORDER` transitional variants).
   *(Item 186)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** `neighbour_contact` becomes a rule of its own, serving mode 3.
   *(Item 187)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** `coverage` re-homed from mode 6 to mode 10.
   *(Item 188)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** `mislabel`'s `spline_offset` moves to a displaced-vertebra condition.
   *(Item 189)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** A condition-keyed bucket in the eval harness.
   *(Item 190)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** A condition-flagged label is excluded from every rule that does not opt in.
   *(Item 191)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** `sequence` reports which sub-type it saw.
   *(Item 192)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** `reference_delta` and `intensity_reference_delta` claim no mode as their own.
   *(Item 193)*
-- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
-  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
-  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
-  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+- ✅ **D3** Mode 1 attributed only as the catch-all, with the review's vocabulary.
   *(Item 194)*
 - ✅ **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
   corpus attribution (maintainer, 2026-09-25, superseding the 2026-09-24 park).
