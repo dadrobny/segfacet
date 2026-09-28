@@ -850,8 +850,23 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+**Implemented as specified (2026-09-28).** `src/segfacet/heuristics/sequence.py`
+was rewritten per A4-A8: it reads only `per_label` (no `relationships`),
+chooses the head-to-tail direction by the inversion-count tie-break (A4
+corrected), ranks by `CANONICAL_ORDER` with S1-S6 collapsed to one rank (A5),
+decomposes the rank permutation into cycles (a 2-cycle names both members as
+`swap`; a longer cycle names its largest-|displacement| member(s) as `shift`,
+one finding aggregating every cycle of that shape), and derives `skip`/
+`transitional` from `segfacet.labels.resolve_section_counts`'s reading (A6).
+Every measured value in the spec (AC1-AC10, the four surviving named
+adversarial cases, A9's corpus table, A10's manifest/golden-evidence
+stability) reproduced exactly against the live implementation, including the
+two `progress.md` amend clauses (Step 7a), which were re-measured live before
+`aide progress amend` was run (derived status counts 6/4/1/5,
+validated-via-pipeline 5/reconstructed-only 1, mode rung counts
+5/4/1/6, per-edge rung counts over 20 edges 5/14/1). No deviation from the
+spec's Assumptions or Implementation Steps was needed; no path outside
+Authorised paths was touched.
 - **Left open:** `relationships.is_continuous` and
   `relationships.out_of_order_labels[]` still walk ascending integer order, so
   they misread a correct T13 or `Cocc`. No rule reads them after this item, but

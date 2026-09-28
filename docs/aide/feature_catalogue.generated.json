@@ -2357,12 +2357,26 @@
           "consumers": [
             "render_feature_table"
           ],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "sequence"
+          ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            9,
+            10,
+            11
+          ],
           "measures": "Physical-space centroid.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "sequence",
+              "signal"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 75,
@@ -2398,7 +2412,16 @@
           },
           "origin": "record",
           "path": "per_label.{label}.centroid.centroid_mm[]",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "sequence",
+              "observed"
+            ],
+            [
+              "sequence",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "scales with spacing",
           "status": "keep",
           "units": "mm"
@@ -2531,9 +2554,15 @@
             "sequence"
           ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            9,
+            10,
+            11
+          ],
           "measures": "Anatomical vertebra name, e.g. \"T8\", \"L3\".",
           "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration",
             "rule_mode_less",
             "rule_bookkeeping"
           ],
@@ -2556,7 +2585,7 @@
             ],
             [
               "sequence",
-              "bookkeeping"
+              "signal"
             ]
           ],
           "observed": {
@@ -2635,8 +2664,7 @@
             "render_feature_table"
           ],
           "consuming_rules": [
-            "coverage",
-            "sequence"
+            "coverage"
           ],
           "documented": true,
           "failure_modes": [],
@@ -2647,10 +2675,6 @@
           "mode_roles": [
             [
               "coverage",
-              "bookkeeping"
-            ],
-            [
-              "sequence",
               "bookkeeping"
             ]
           ],
@@ -2691,14 +2715,6 @@
             ],
             [
               "coverage",
-              "static"
-            ],
-            [
-              "sequence",
-              "observed"
-            ],
-            [
-              "sequence",
               "static"
             ]
           ],
@@ -2891,24 +2907,12 @@
             "compute_per_mode_metrics",
             "render_feature_table"
           ],
-          "consuming_rules": [
-            "sequence"
-          ],
+          "consuming_rules": [],
           "documented": true,
-          "failure_modes": [
-            9
-          ],
+          "failure_modes": [],
           "measures": "Level names that broke the monotonic canonical-rank check.",
-          "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
-          ],
-          "mode_roles": [
-            [
-              "sequence",
-              "signal"
-            ]
-          ],
+          "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -2944,16 +2948,7 @@
           },
           "origin": "record",
           "path": "relationships.out_of_order_labels[]",
-          "rule_evidence": [
-            [
-              "sequence",
-              "observed"
-            ],
-            [
-              "sequence",
-              "static"
-            ]
-          ],
+          "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "keep",
           "units": ""

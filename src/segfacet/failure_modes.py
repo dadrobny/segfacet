@@ -1477,7 +1477,8 @@ _MODE_6 = ModeSpec(
         "and the remaining labels are kept -- but that detector serves mode "
         "10 (skipped level label), because it cannot tell a missed vertebra "
         "from a skipped label on a segmented one; so remove_level's firing "
-        "is a recorded co-detection, not this mode's own evidence. "
+        "(coverage and, since item 192, sequence's skip detector, both mode-10 "
+        "detectors) is a recorded co-detection, not this mode's own evidence. "
         "remove_level_relabel fires nothing: it deletes L3 and renumbers "
         "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
         "inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) "
@@ -1521,17 +1522,18 @@ _MODE_6 = ModeSpec(
         CorpusCaseExpectation(
             case_id="remove_level",
             corpus="geometric",
-            expected_firing=("coverage",),
+            expected_firing=("coverage", "sequence"),
             reason=(
                 "pipeline-detected; coverage (Missing interior level(s): L3 "
-                "absent within the observed present-level span) is the sole "
-                "rule that fires, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-15). "
+                "absent within the observed present-level span) and, since "
+                "item 192 (2026-09-28), sequence's skip detector (reading "
+                "the same gap from per_label level names) both fire, "
+                "measured live via segfacet.synth.regression.pipeline_findings. "
                 "The vertebra is deleted and the remaining labels are kept, "
                 "so this is a missed vertebra, not a skipped label (mode 10). "
-                "coverage serves mode 10, not this mode, since item 188 "
-                "(2026-09-28): this firing is a recorded co-detection that "
-                "does not validate mode 6. Re-measured live 2026-09-28."
+                "coverage and sequence's skip both serve mode 10, not this "
+                "mode, since item 188/192: this firing is a recorded "
+                "co-detection that does not validate mode 6."
             ),
         ),
         CorpusCaseExpectation(
@@ -1703,10 +1705,12 @@ _MODE_9 = ModeSpec(
         "Severity fail: a label is certainly wrong."
     ),
     mechanism=(
-        "Two detectors serve this mode: sequence fires on "
-        "relationships.out_of_order_labels[] (sequence_break relabels "
-        "the tail to T13 -- one rank descent, since "
-        "segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); "
+        "Two rules serve this mode (item 192, 2026-09-28): sequence's swap "
+        "and shift detectors order per_label.{label}.centroid.centroid_mm[] "
+        "head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER "
+        "(which puts T13 between T12 and L1); relabel_swap exchanges L2 and "
+        "L3 and fires swap beside mislabel's ordering, and "
+        "sequence_break's tail T13 is one rank descent and fires shift. "
         "mislabel's ordering detector fires on "
         "stage3.monotonic_consistency.non_monotonic_pairs[] "
         "(relabel_swap exchanges L2 and L3). A multi-relabel scramble "
@@ -1732,7 +1736,7 @@ _MODE_9 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="sequence",
-            detector_ids=("discontinuity",),
+            detector_ids=("shift", "swap"),
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
@@ -1745,14 +1749,16 @@ _MODE_9 = ModeSpec(
         CorpusCaseExpectation(
             case_id="relabel_swap",
             corpus="geometric",
-            expected_firing=("mislabel",),
+            expected_firing=("mislabel", "sequence"),
             reason=(
-                "pipeline-detected; mislabel's ordering detector is the "
-                "sole rule that fires, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
-                "labels 21 (L2) and 22 (L3) are out of expected order along "
-                "the spline. A swap is the order-breaking form of "
-                "mislabelling."
+                "pipeline-detected; measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-28, "
+                "item 192): mislabel's ordering detector fires (labels 21/L2 "
+                "and 22/L3 are out of expected order along the spline), and "
+                "sequence's swap detector now fires beside it on the same "
+                "pair (labels 21, 22), reading per_label centroids instead "
+                "of relationships.out_of_order_labels[]. A swap is the "
+                "order-breaking form of mislabelling."
             ),
         ),
         CorpusCaseExpectation(
@@ -1762,8 +1768,9 @@ _MODE_9 = ModeSpec(
             reason=(
                 "pipeline-detected; sequence is the sole rule that fires, "
                 "measured live via segfacet.synth.regression."
-                "pipeline_findings (2026-09-14). The tail vertebra is "
-                "relabelled to T13, a single rank descent; why the edge's "
+                "pipeline_findings (2026-09-28, item 192). The tail vertebra "
+                "is relabelled to T13, a single rank descent read from "
+                "per_label centroids and named as a shift; why the edge's "
                 "rung sits below this measured detection is in the "
                 "mechanism sentence."
             ),
@@ -1802,11 +1809,16 @@ _MODE_10 = ModeSpec(
         "relationships.missing_levels[] (item 188, 2026-09-28). The "
         "detector cannot tell that gap from a missed vertebra, so on "
         "remove_level (mode 6) it is a co-detection, not a validation of "
-        "this mode. No committed case expresses this mode itself, so the "
-        "edge is needs-real-data: a skip-relabel fixture (renumber the "
-        "labels caudal to a level down by one without deleting a vertebra) "
-        "is not authored. The separating signal is an ordinary "
-        "inter-centroid spacing across the label gap "
+        "this mode. sequence's skip detector reads the same gap from "
+        "per_label.{label}.level_name (item 192, 2026-09-28): it orders the "
+        "kept levels head-to-tail and names any level of the expected "
+        "sequence absent between two present ones, and it also co-detects "
+        "on remove_level, like coverage. No committed case expresses this "
+        "mode itself (only the mode-6 co-detection), so the edge is "
+        "needs-real-data: a skip-relabel fixture (renumber the labels "
+        "caudal to a level down by one without deleting a vertebra) is not "
+        "authored. The separating signal is an ordinary inter-centroid "
+        "spacing across the label gap "
         "(stage3.spacing_consistency.spacings_mm[]); the same path rule as "
         "mode 6 applies -- no rule reads it yet."
     ),
@@ -1825,6 +1837,11 @@ _MODE_10 = ModeSpec(
         IntendedRule(
             rule_id="coverage",
             detector_ids=("count_shortfall", "incomplete_span", "missing_interior"),
+            evidence_rung="needs-real-data",
+        ),
+        IntendedRule(
+            rule_id="sequence",
+            detector_ids=("skip",),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1854,26 +1871,31 @@ _MODE_11 = ModeSpec(
         "Flagged, not failed: the variant may be the true anatomy."
     ),
     mechanism=(
-        "No rule and no corpus case: listed as proposed. The candidate "
-        "detector reads relationships.present_levels[] for a transitional "
-        "label and a configuration flag saying whether variants are "
-        "admitted; neither the flag nor the detector exists."
+        "sequence's transitional detector reads per_label.{label}.level_name "
+        "(item 192, 2026-09-28): it resolves the section counts the present "
+        "levels read and names any non-default thoracic or lumbar reading "
+        "the field of view does not corroborate (segfacet.labels."
+        "resolve_section_counts's unaccepted mapping), plus any kept level "
+        "outside the resulting reading's expected sequence. No committed "
+        "corpus case designates it, so the edge is analytic."
     ),
     observability="single-channel-observable",
     candidate_features=(
-        CandidateFeature(
-            path="relationships.present_levels[]",
-            role="hypothesised",
-        ),
         CandidateFeature(
             path="unprompted_transitional_label",
             role="hypothesised",
         ),
     ),
-    intended_rules=(),
+    intended_rules=(
+        IntendedRule(
+            rule_id="sequence",
+            detector_ids=("transitional",),
+            evidence_rung="needs-real-data",
+        ),
+    ),
     corpus_cases=(),
     severity="flagged-for-review",
-    status="proposed",
+    status="specified",
     provenance="hypothesised",
 )
 
@@ -2346,7 +2368,12 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "the curve fitted in label order, so a genuine mislabel can also "
         "read as displaced, and mislabel's own ordering finding on that "
         "label must survive the runner's condition gate rather than be "
-        "dropped behind the anatomy condition."
+        "dropped behind the anatomy condition. sequence opts in as well "
+        "(item 192, 2026-09-28): the same swap reads as displaced under "
+        "spline_offset, but sequence's own head-to-tail order is judged by "
+        "rank, which survives a displacement that does not pass a "
+        "neighbour -- exactly what a swap creates -- so its swap/shift "
+        "finding on that label must survive the gate too."
     ),
     candidate_features=(
         "stage3.per_label_offsets[].offset_mm",
@@ -2357,7 +2384,7 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("spline_offset",),
-    opting_in_rules=("mislabel", "spline_offset"),
+    opting_in_rules=("mislabel", "sequence", "spline_offset"),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="displace",

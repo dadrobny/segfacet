@@ -100,11 +100,13 @@
         "case_id": "relabel_swap",
         "corpus": "geometric",
         "expected_firing": [
-          "mislabel"
+          "mislabel",
+          "sequence"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "mislabel"
+          "mislabel",
+          "sequence"
         ],
         "mode": 9
       },
@@ -113,11 +115,13 @@
         "case_id": "remove_level",
         "corpus": "geometric",
         "expected_firing": [
-          "coverage"
+          "coverage",
+          "sequence"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "coverage"
+          "coverage",
+          "sequence"
         ],
         "mode": 6
       },
@@ -236,7 +240,6 @@
     "mode_to_rule": {
       "complete": false,
       "holes": [
-        "11",
         "12",
         "13",
         "14",
@@ -508,6 +511,14 @@
         "exercised_by": [
           [
             "geometric",
+            "relabel_swap"
+          ],
+          [
+            "geometric",
+            "remove_level"
+          ],
+          [
+            "geometric",
             "sequence_break"
           ]
         ],
@@ -542,7 +553,7 @@
       "neighbour_contact": 5,
       "overlap": 6,
       "reference_delta": 11,
-      "sequence": 5,
+      "sequence": 4,
       "spline_offset": 7
     },
     "read_by_no_rule": {
@@ -637,22 +648,33 @@
             "missing_interior"
           ],
           "needs-real-data"
+        ],
+        [
+          "sequence",
+          [
+            "skip"
+          ],
+          "needs-real-data"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. No committed case expresses this mode itself, so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.",
+      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.",
       "mode": 10,
       "pipeline_detected": false,
       "read_paths": [
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name",
         "relationships.missing_levels[]",
         "relationships.present_levels[]"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "coverage": "analytic"
+        "coverage": "analytic",
+        "sequence": "analytic"
       },
       "rules": [
-        "coverage"
+        "coverage",
+        "sequence"
       ],
       "rung": "needs-real-data",
       "status": "implemented",
@@ -660,19 +682,34 @@
     },
     "11": {
       "anchor_paths": [],
-      "authored_status": "proposed",
+      "authored_status": "specified",
       "cases": [],
-      "edge_rungs": [],
+      "edge_rungs": [
+        [
+          "sequence",
+          [
+            "transitional"
+          ],
+          "needs-real-data"
+        ]
+      ],
       "granularity": "signal",
-      "mechanism": "No rule and no corpus case: listed as proposed. The candidate detector reads relationships.present_levels[] for a transitional label and a configuration flag saying whether variants are admitted; neither the flag nor the detector exists.",
+      "mechanism": "sequence's transitional detector reads per_label.{label}.level_name (item 192, 2026-09-28): it resolves the section counts the present levels read and names any non-default thoracic or lumbar reading the field of view does not corroborate (segfacet.labels.resolve_section_counts's unaccepted mapping), plus any kept level outside the resulting reading's expected sequence. No committed corpus case designates it, so the edge is analytic.",
       "mode": 11,
       "pipeline_detected": false,
-      "read_paths": [],
+      "read_paths": [
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name"
+      ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {},
-      "rules": [],
-      "rung": null,
-      "status": "proposed",
+      "rule_attribution": {
+        "sequence": "analytic"
+      },
+      "rules": [
+        "sequence"
+      ],
+      "rung": "needs-real-data",
+      "status": "implemented",
       "title": "Unprompted numbering variant"
     },
     "12": {
@@ -1045,7 +1082,7 @@
       ],
       "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
+      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
       "mode": 6,
       "pipeline_detected": true,
       "read_paths": [],
@@ -1129,7 +1166,8 @@
         [
           "sequence",
           [
-            "discontinuity"
+            "shift",
+            "swap"
           ],
           "needs-real-data"
         ],
@@ -1142,11 +1180,12 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Two detectors serve this mode: sequence fires on relationships.out_of_order_labels[] (sequence_break relabels the tail to T13 -- one rank descent, since segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
+      "mechanism": "Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
       "mode": 9,
       "pipeline_detected": true,
       "read_paths": [
-        "relationships.out_of_order_labels[]",
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name",
         "stage3.monotonic_consistency.non_monotonic_pairs[]"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
@@ -1386,19 +1425,20 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's sequence_break designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the fixture relabels one vertebra to the transitional label T13, and this rule fires on the resulting non-monotonic sequence. The mode 9 <-> sequence evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[9]."
+        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (swap of two adjacent labels) and sequence_break for mode 9 (a single-label tail shift); remove_level co-detects this rule's skip on mode 10 beside coverage; mode 11 (a non-default section reading the field of view does not corroborate) has no committed corpus case, so that edge is analytic. Re-measured live, item 192 (2026-09-28), after the rule stopped reading relationships.out_of_order_labels[] (ascending integer-label order, item 186's defect) in favour of per_label centroids ranked by CANONICAL_ORDER."
       ],
-      "feature_path_count": 5,
+      "feature_path_count": 4,
       "feature_paths": [
         "per_label",
+        "per_label.{label}.centroid.centroid_mm[]",
         "per_label.{label}.label",
-        "per_label.{label}.level_name",
-        "relationships",
-        "relationships.out_of_order_labels[]"
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [
-        9
+        9,
+        10,
+        11
       ],
       "rule_id": "sequence"
     },

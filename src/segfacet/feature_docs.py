@@ -78,12 +78,11 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   deliberately left as a plain attribution for the same reason as mode 8
   above.
 - **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
-  anchored on
-  ``relationships.is_continuous`` -- the companion continuity flag in the
-  same ``relationships`` sub-block ``heuristics.sequence.SequenceRule``
-  reads its ``out_of_order_labels`` signal from, for the same reason:
-  ``relationships.out_of_order_labels[]`` is ``sequence``'s only
-  exclusively-consumed leaf path and is left as a plain attribution.
+  anchored on ``relationships.is_continuous``. That flag stays the metric
+  anchor no rule reads; since item 192 (2026-09-28)
+  ``heuristics.sequence.SequenceRule`` reads ``per_label`` instead (each
+  entry's ``centroid.centroid_mm`` and ``level_name``), not the
+  ``relationships`` sub-block at all.
 
 ``MetricSpec`` (``segfacet.eval.per_mode``) carries no record-path field, so
 this transcription cannot be read off it mechanically; a future item that adds
