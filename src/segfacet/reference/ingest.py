@@ -316,7 +316,8 @@ def ingest_subject(
                 # estimator's extrapolation artefact, not a measurement of
                 # interior anatomy -- item 123. Excluded here so
                 # spline_offset_mm describes interior vertebrae alone;
-                # mislabel.py and reference/delta.py exclude it symmetrically.
+                # heuristics/spline_offset.py (item 189) and reference/delta.py
+                # exclude it symmetrically.
                 continue
             offsets_by_label[int(entry["label"])] = entry["offset_mm"]
         for entry in stage3.get("per_label_orientations", []):

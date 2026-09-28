@@ -176,20 +176,44 @@ rules:
       severity: flagged-for-review
 
   # ------------------------------------------------------------------ #
-  # mislabel (item 033) -- spline-offset misalignment + ordering-
-  # inconsistency detector.
+  # mislabel (item 033) -- ordering-inconsistency detector only, since item
+  # 189 (2026-09-28) moved the spline-offset misalignment detector to its
+  # own rule, `spline_offset`, below. `max_offset_mm` and
+  # `flag_offset_outliers` are UNREAD by mislabel now -- kept, commented
+  # nowhere and still parsed, only because rebuilding `reference_verse_v1.
+  # json`'s `config_hash` needs the real VerSe cohort (item 189 A5); removing
+  # these two keys is deferred to that rebuild. `HeuristicConfig` ignores
+  # unknown keys, so nothing reads or rejects them.
   # ------------------------------------------------------------------ #
   mislabel:
     enabled: true
     params:
-      # A centroid >= 13.0 mm off the fitted spinal curve is judged
-      # misaligned (item 123 recalibration, 2026-08-29, against the real
-      # VerSe19 interior-only p99 ceiling; superseded item 033 default was
-      # 15.0, tuned against a structurally-zero offset).
+      # UNREAD by mislabel since item 189 -- see the block comment above.
       max_offset_mm: 13.0
       flag_offset_outliers: true
       flag_order_inconsistency: true
       severity: flagged-for-review
+
+  # ------------------------------------------------------------------ #
+  # spline_offset (item 189) -- spline-offset misalignment detector, moved
+  # out of `mislabel`. Records the displaced_vertebra CONDITION
+  # (failure_modes.CONDITIONS), not a failure mode. Registered
+  # enabled-by-default with NO active section here, same section-less-by-
+  # design rationale as `neighbour_contact` below: an active
+  # `rules.spline_offset` section would change this file's parsed `rules`
+  # dict and hence `config_hash`. Values below are DOCUMENTATION ONLY,
+  # copied verbatim from heuristics/spline_offset.py's code defaults --
+  # uncomment and adjust to opt a deployment into a custom threshold.
+  #
+  # spline_offset:
+  #   enabled: true
+  #   params:
+  #     # A centroid >= 13.0 mm off the fitted spinal curve is judged
+  #     # misaligned (item 123 recalibration, 2026-08-29, against the real
+  #     # VerSe19 interior-only p99 ceiling; superseded item 033 default was
+  #     # 15.0, tuned against a structurally-zero offset).
+  #     max_offset_mm: 13.0
+  #     severity: flagged-for-review
 
   # ------------------------------------------------------------------ #
   # neighbour_contact (item 187) -- relative stray-component contact

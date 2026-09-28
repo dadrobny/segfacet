@@ -136,8 +136,9 @@ class ReferenceDeltaRule(Rule):
     # vertebra whose geometry does not fit the level it is named is also mode
     # 8's (semantic mislabelling) single-channel proxy. Mode 1 is re-anchored
     # onto per_label.{label}.components.fragmentation_index (item 154,
-    # feature_docs.MODE_ANCHOR_PATHS) and mislabel's offset paths are
-    # bookkeeping serving no mode (item-150 sign-off); this declaration rests
+    # feature_docs.MODE_ANCHOR_PATHS) and spline_offset's offset paths are a
+    # mode-less rule's condition-signal serving no mode (item-150 sign-off,
+    # moved off mislabel at item 189); this declaration rests
     # on SPECIFICATION[1].intended_rules alone, not on either premise.
     mode_declaration = RuleModeDeclaration(
         modes=(1, 2, 3, 4, 8),

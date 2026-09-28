@@ -18,12 +18,12 @@
         "corpus": "geometric",
         "expected_firing": [
           "border",
-          "mislabel"
+          "spline_offset"
         ],
         "expected_source": "specification-condition",
         "measured_firing": [
           "border",
-          "mislabel"
+          "spline_offset"
         ],
         "mode": 0
       },
@@ -45,13 +45,13 @@
         "case_id": "displace",
         "corpus": "geometric",
         "expected_firing": [
-          "mislabel"
+          "spline_offset"
         ],
-        "expected_source": "specification",
+        "expected_source": "specification-condition",
         "measured_firing": [
-          "mislabel"
+          "spline_offset"
         ],
-        "mode": 1
+        "mode": 0
       },
       {
         "agrees": true,
@@ -469,14 +469,6 @@
         "exercised_by": [
           [
             "geometric",
-            "crop_at_border"
-          ],
-          [
-            "geometric",
-            "displace"
-          ],
-          [
-            "geometric",
             "relabel_swap"
           ]
         ],
@@ -533,6 +525,22 @@
         "reason_modes": [],
         "rule_id": "sequence",
         "state": "exercised"
+      },
+      "spline_offset": {
+        "exercised_by": [
+          [
+            "geometric",
+            "crop_at_border"
+          ],
+          [
+            "geometric",
+            "displace"
+          ]
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "spline_offset",
+        "state": "exercised"
       }
     }
   },
@@ -544,11 +552,12 @@
       "fragmentation": 7,
       "intensity": 5,
       "intensity_reference_delta": 8,
-      "mislabel": 9,
+      "mislabel": 2,
       "neighbour_contact": 5,
       "overlap": 6,
       "reference_delta": 11,
-      "sequence": 5
+      "sequence": 5,
+      "spline_offset": 7
     },
     "read_by_no_rule": {
       "count": 93,
@@ -566,10 +575,6 @@
       ],
       "authored_status": "specified",
       "cases": [
-        {
-          "case_id": "displace",
-          "detection": "pipeline"
-        },
         {
           "case_id": "fragment",
           "detection": "pipeline"
@@ -601,7 +606,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. The corpus case displace (a rigidly translated vertebra, which is over-segmentation into background plus under-segmentation of the true body) fires mislabel's spline-offset detector via stage3.per_label_offsets[].offset_mm -- a detector that serves no failure mode (the spline offset is an anatomy-classification signal), so that case is a recorded co-detection.",
+      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy.)",
       "mode": 1,
       "pipeline_detected": true,
       "read_paths": [
@@ -1307,19 +1312,12 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Detector A (spline offset) serves NO failure mode since that sign-off: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis), so its firing on displace and on the FOV-truncation condition's fixture crop_at_border is a recorded co-detection, and its read paths are classified bookkeeping below rather than attributed to mode 9."
+        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Item 189 (2026-09-28) moved the former Detector A (spline offset), which served no failure mode, to heuristics.spline_offset -- see that module's declaration for its evidence."
       ],
-      "feature_path_count": 9,
+      "feature_path_count": 2,
       "feature_paths": [
         "per_label",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]",
-        "stage3.per_label_offsets[].dx_mm",
-        "stage3.per_label_offsets[].dy_mm",
-        "stage3.per_label_offsets[].dz_mm",
-        "stage3.per_label_offsets[].is_terminal",
-        "stage3.per_label_offsets[].label",
-        "stage3.per_label_offsets[].level_name",
-        "stage3.per_label_offsets[].offset_mm"
+        "stage3.monotonic_consistency.non_monotonic_pairs[]"
       ],
       "mode_less_reason": "",
       "modes": [
@@ -1417,6 +1415,23 @@
         9
       ],
       "rule_id": "sequence"
+    },
+    "spline_offset": {
+      "declaration_state": "mode_less",
+      "evidence": [],
+      "feature_path_count": 7,
+      "feature_paths": [
+        "stage3.per_label_offsets[].dx_mm",
+        "stage3.per_label_offsets[].dy_mm",
+        "stage3.per_label_offsets[].dz_mm",
+        "stage3.per_label_offsets[].is_terminal",
+        "stage3.per_label_offsets[].label",
+        "stage3.per_label_offsets[].level_name",
+        "stage3.per_label_offsets[].offset_mm"
+      ],
+      "mode_less_reason": "records the displaced_vertebra CONDITION (failure_modes.CONDITIONS['displaced_vertebra']), not a failure mode: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement), not a defect of the segmentation -- item-150 sign-off, moved here from mislabel.py's Detector A at item 189 (2026-09-28). tests/corpus/manifest.json's displace is that condition's fixture.",
+      "modes": [],
+      "rule_id": "spline_offset"
     }
   },
   "schema_version": "1.2"

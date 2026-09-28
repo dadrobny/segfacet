@@ -649,7 +649,9 @@ def _tuples_to_lists(obj: Any) -> Any:
 
 _LADDER_HOMES: Mapping[str, Tuple[Optional[int], Optional[str]]] = MappingProxyType(
     {
-        "displace": (1, None),
+        # Item 189 (2026-09-28): displace re-homed off mode 1 onto the
+        # displaced_vertebra CONDITION -- spline_offset is its recorder now.
+        "displace": (None, "displaced_vertebra"),
         "fragment": (1, None),
         "inject_islands": (4, None),
         "relabel_swap": (9, None),

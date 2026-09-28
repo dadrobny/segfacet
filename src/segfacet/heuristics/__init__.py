@@ -109,6 +109,7 @@ from segfacet.heuristics import reference_delta  # noqa: F401 — registers Refe
 from segfacet.heuristics import intensity  # noqa: F401 — registers IntensityRule (item 062)
 from segfacet.heuristics import intensity_reference_delta  # noqa: F401 — registers IntensityReferenceDeltaRule (item 064)
 from segfacet.heuristics import neighbour_contact  # noqa: F401 — registers NeighbourContactRule (item 187)
+from segfacet.heuristics import spline_offset  # noqa: F401 — registers SplineOffsetRule (item 189)
 
 __all__ = [
     "Finding",

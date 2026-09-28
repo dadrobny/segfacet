@@ -50,19 +50,19 @@
         ]
       },
       "case_id": "displace",
-      "condition": "",
+      "condition": "displaced_vertebra",
       "detail": "displace: translated label 22 by 14 voxels toward the right face (array axis 0, high end) and 5 voxels toward the anterior face (array axis 1, high end) -- mostly left-right (ap_angle_deg=20.0), nothing along the stacking axis -- off the spinal curve defined by the remaining vertebrae. Caught by plain run_qc's held-out per-label spline offset (item 120).",
       "detection": "pipeline",
       "expected_labels": [
         22
       ],
       "expected_rule_ids": [
-        "mislabel"
+        "spline_offset"
       ],
       "expected_verdict": "flagged-for-review",
-      "failure_mode": 1,
-      "failure_mode_name": "segmentation accuracy (over-/under-segmentation)",
-      "kind": "failure",
+      "failure_mode": 0,
+      "failure_mode_name": "displaced vertebra (condition, not a failure mode)",
+      "kind": "condition",
       "perturbation": "displace",
       "perturbation_params": {
         "ap_angle_deg": 20.0,

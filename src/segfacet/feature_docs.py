@@ -287,7 +287,8 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
             "anterior-posterior, axis 2 cranio-caudal -- only because "
             "io.load_volume reorients every volume to axis codes (R, A, S) and "
             "centroid_mm carries no affine of its own. is_terminal (item 123) "
-            "marks the first/last vertebra of the sequence; the mislabel rule "
+            "marks the first/last vertebra of the sequence; the spline_offset "
+            "rule (item 189, moved off mislabel) "
             "and the reference distribution both treat offset_mm as an "
             "interior-only feature, excluding a terminal entry from their "
             "judgement, because the held-out refit extrapolates past the end "
@@ -375,11 +376,13 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # candidate-vs-GT and reads no record path, so it has no anchor here. The
 # spline-offset path (``stage3.per_label_offsets[].offset_mm``) is dropped:
 # its only consumer, ``mislabel``, was classified at the item-150 sign-off
-# as serving no failure mode (mislabel itself declares that path
+# as serving no failure mode (mislabel itself declared that path
 # ``bookkeeping``, not ``signal``), so mode 1's anchor and mode 1's
-# mechanism disagreed. The corresponding candidate-feature role in
-# ``failure_modes._MODE_1`` moved from ``"stage18-metric-anchor"`` to
-# ``"hypothesised"`` to match (the path itself stays listed there).
+# mechanism disagreed. Item 189 (2026-09-28) moved that detector to its
+# own mode-less rule, ``spline_offset``, which records the new
+# ``displaced_vertebra`` CONDITION; mode 1's candidate-feature entry for
+# the path was removed from ``failure_modes._MODE_1`` at the same time
+# (the path no longer stays listed there).
 # --------------------------------------------------------------------------- #
 
 MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
@@ -1751,7 +1754,8 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             ),
             computation=(
                 'True for index 0 and index n-1 of the sequence (and every entry '
-                'when n <= 2); false otherwise. The mislabel rule and the '
+                'when n <= 2); false otherwise. The spline_offset rule (item 189, '
+                'moved off mislabel) and the '
                 'reference distribution both exclude a terminal entry from their '
                 'offset judgement, because the held-out refit must extrapolate '
                 'past the end of its own parameter domain there, which reads an '

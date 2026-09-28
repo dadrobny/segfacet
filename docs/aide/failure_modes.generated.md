@@ -21,7 +21,6 @@ Schema version: 2.2.
 
 Candidate features:
 
-- `hypothesised` candidate path: `stage3.per_label_offsets[].offset_mm`
 - Stage-18 metric anchor path (`stage18-metric-anchor`): `per_label.{label}.components.fragmentation_index`
 - `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
 - `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
@@ -31,7 +30,7 @@ Candidate features:
 - `hypothesised` candidate path: `local_blob_error_volume_mm3`
 - `hypothesised` candidate path: `error_spatial_distribution`
 
-Mechanism: No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. The corpus case displace (a rigidly translated vertebra, which is over-segmentation into background plus under-segmentation of the true body) fires mislabel's spline-offset detector via stage3.per_label_offsets[].offset_mm -- a detector that serves no failure mode (the spline offset is an anatomy-classification signal), so that case is a recorded co-detection.
+Mechanism: No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy.)
 
 Intended rules:
 
@@ -41,7 +40,6 @@ Intended rules:
 
 Corpus cases:
 
-- `displace` (geometric): expected firing = [mislabel]; agrees with live measurement: True. pipeline-detected by a mode-less detector only: mislabel's spline-offset detector fires because label 22 (L3) is rigidly translated off the fitted spinal curve, measured live via segfacet.synth.regression.pipeline_findings (2026-09-14). None of this mode's intended rules fires on it without a reference attached, so the case is a recorded co-detection.
 - `fragment` (geometric): expected firing = [fragmentation]; agrees with live measurement: True. pipeline-detected; fragmentation (Fragmentation: the label's fragmentation_index falls below threshold, two comparably-sized components) is the sole rule that fires, measured live via segfacet.synth.regression.pipeline_findings (2026-09-15). The operator removes an interior slab of label 22's own body, so the pieces carry no neighbour's label (not mode 3) and neither is a small island (not mode 4): under-segmentation that disconnects, classified at this parent at the 2026-09-15 revision.
 
 ## Mode 2 (1.1, sub-mode of 1): Fused vertebra segments
@@ -527,13 +525,35 @@ Corpus cases:
 - `implausible_soft_tissue` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14): label 22 (L3)'s median reads 40 HU, below the plausible bone band's 100 HU floor -- soft tissue under a vertebra label. intensity_reference_delta attaches no reference here (item 146 A3), so it stays needs-real-data.
 - `degenerate_uniform` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14). It raises two findings, both from the same rule: the degenerate/uniform detector (std 0.00 HU, at or below the 1.00 HU threshold) and, because the constant fill is 0 HU, the too-low detector as well -- so the firing SET is still {intensity}. intensity_reference_delta attaches no reference here (item 146 A3), so it stays needs-real-data.
 
+## Condition displaced_vertebra: Displaced vertebra (centroid off the spinal curve)
+
+- Short name (corpus manifests): displaced vertebra (condition, not a failure mode)
+- Scope: vertebra
+- Definition: A vertebra's centroid is a large outlier from the fitted spinal curve: the label sits off the smooth anatomical progression its neighbours describe, by a rigid misplacement, spondylolisthesis, scoliosis, or a similar deformity of the case itself. Retired as part of the old mode 1 ('label not aligned with the vertebra it names') at the item-150 sign-off (2026-09-14): the spline offset is an anatomy-classification signal, not a defect of the segmentation.
+- Recording rules: spline_offset
+- Exempting rules: (none)
+
+Candidate features:
+
+- `hypothesised` candidate path: `stage3.per_label_offsets[].offset_mm`
+- `hypothesised` candidate path: `stage3.per_label_offsets[].dx_mm`
+- `hypothesised` candidate path: `stage3.per_label_offsets[].dy_mm`
+- `hypothesised` candidate path: `stage3.per_label_offsets[].dz_mm`
+- `hypothesised` candidate path: `stage3.per_label_offsets[].is_terminal`
+
+Mechanism: spline_offset records the condition end-to-end on displace, which rigidly translates label 22 (L3) off the fitted spinal curve: its held-out offset_mm (stage3.per_label_offsets[].offset_mm, item 120) exceeds the 13.0 mm threshold, measured live via segfacet.synth.regression.pipeline_findings (2026-09-28). The condition also co-fires on crop_at_border, the fov_truncation condition's own fixture, because the crop displaces the truncated label's measured centroid off the curve too -- the two conditions are not mutually exclusive. The offset itself is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement): mislabel's ordering detector, which decides specification mode 9, reads a different signal entirely (stage3.monotonic_consistency.non_monotonic_pairs[]) and never fires on a displaced-only case.
+
+Corpus cases:
+
+- `displace` (geometric): expected firing = [spline_offset]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-28, item 189): label 22 (L3) reads an interior offset_mm of 14.615923 mm, 1.62 mm above the 13.0 mm threshold, and no other rule fires. Moved off specification mode 1's corpus cases, where it was a recorded co-detection, onto this condition's own fixture -- the way crop_at_border is fov_truncation's.
+
 ## Condition fov_truncation: FOV truncation (partial vertebra at the image border)
 
 - Short name (corpus manifests): FOV truncation (condition, not a failure mode)
 - Scope: vertebra
 - Definition: A vertebra at the edge of the imaging field of view is only partially captured: its label touches an image face, its geometry is impacted to a varying degree (overall size, connectedness, shape), and the missing region displaces its measured centroid. Many rules cannot be applied to such a vertebra unless the missing region has little impact. A vertebra at a cranio-caudal FOV end is the expected form; an in-plane (left/right/anterior/posterior) clip is the unexpected form. Retired as failure mode 6 at the item-150 sign-off (2026-09-14): a condition on the case, not a defect of the segmentation.
 - Recording rules: border
-- Exempting rules: mislabel, coverage
+- Exempting rules: coverage, spline_offset
 
 Candidate features:
 
@@ -546,11 +566,11 @@ Candidate features:
 - `hypothesised` candidate path: `stage3.per_label_offsets[].is_terminal`
 - `hypothesised` candidate path: `fraction_of_expected_volume_present`
 
-Mechanism: Two fixtures express the condition's two forms. The unexpected in-plane form: the border rule records the condition end-to-end on crop_at_border, which crops label 22's anterior face (per_label.{label}.geometry.touches_anterior), classifying it an unexpected clip; cropping also displaces the centroid off the fitted spinal curve, so mislabel's mode-less spline-offset detector co-fires via stage3.per_label_offsets[].offset_mm. The expected cranio-caudal form: crop_fov_si crops the volume at the inferior face through label 24 (per_label.{label}.geometry.touches_inferior); the border rule suppresses that expected FOV-end touch, and bounds fires on the truncated remnant's volume and extent. The border rule declares no failure mode. The exemptions the condition grants today: mislabel's spline-offset detector skips terminal entries (stage3.per_label_offsets[].is_terminal), and coverage's border-aware span check resolves the covered span through the FOV-end labels.
+Mechanism: Two fixtures express the condition's two forms. The unexpected in-plane form: the border rule records the condition end-to-end on crop_at_border, which crops label 22's anterior face (per_label.{label}.geometry.touches_anterior), classifying it an unexpected clip; cropping also displaces the centroid off the fitted spinal curve, so spline_offset's mode-less detector co-fires via stage3.per_label_offsets[].offset_mm (item 189: this detector moved off mislabel into its own rule). The expected cranio-caudal form: crop_fov_si crops the volume at the inferior face through label 24 (per_label.{label}.geometry.touches_inferior); the border rule suppresses that expected FOV-end touch, and bounds fires on the truncated remnant's volume and extent. The border rule declares no failure mode. The exemptions the condition grants today: spline_offset's detector skips terminal entries (stage3.per_label_offsets[].is_terminal), and coverage's border-aware span check resolves the covered span through the FOV-end labels.
 
 Corpus cases:
 
-- `crop_at_border` (geometric): expected firing = [border, mislabel]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-14): border, because the cropped label 22 (L3) touches the anterior image face, and mislabel, because the crop displaces the centroid off the fitted spinal curve. Both are the condition's recorded signature; neither names a failure mode. An anterior clip is the rare crop direction: the case is kept for border coverage, not for realism (maintainer, 2026-09-24).
+- `crop_at_border` (geometric): expected firing = [border, spline_offset]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-14, re-measured 2026-09-28 under item 189's rule rename): border, because the cropped label 22 (L3) touches the anterior image face, and spline_offset, because the crop displaces the centroid off the fitted spinal curve. Both are the condition's recorded signature; neither names a failure mode. An anterior clip is the rare crop direction: the case is kept for border coverage, not for realism (maintainer, 2026-09-24).
 - `crop_fov_si` (geometric): expected firing = [bounds]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-24, item 175): the inferior image face cuts label 24 (L5) -- the S-I FOV crop, the common form of the condition. border suppresses the touch as an expected FOV end, so it does not fire; bounds fires on the truncated remnant's volume and extent_z. That bounds firing is what the border gating of the size rules (roadmap Stage 33 D3) will remove.
 
 ## Provenance: vision.md v3 section 6 seed titles

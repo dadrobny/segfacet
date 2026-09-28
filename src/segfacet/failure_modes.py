@@ -48,6 +48,7 @@ along the spine::
     15 Overlapping segments                               vertebra  structurally-unobservable
     16 Implausible tissue under a label                   vertebra  needs-paired-scan
     Condition: FOV truncation (was mode 6)                vertebra  border rule records it
+    Condition: Displaced vertebra (item 189)              vertebra  spline_offset rule records it
 
 The 2026-09-15 revision, continuing the same review: every sub-mode that
 paired two converse defects was split so each names one defect and every
@@ -217,6 +218,29 @@ carries with a named rule and no rule declaring it (a recorded gap, not
 ``docs/aide/insights.md``, 2026-09-22, and left to a later per-mode queue).
 ``remove_level``'s firing of ``coverage`` is now a recorded co-detection of
 mode 10's detector; it does not validate mode 6.
+
+``spline_offset`` becomes the ``displaced_vertebra`` CONDITION's recorder
+(item 189, 2026-09-28)
+---------------------------------------------------------------------------
+``mislabel``'s former Detector A (spline-offset misalignment) served no
+mode since the item-150 sign-off: the offset from the fitted spinal curve is
+an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid
+misplacement), not a segmentation defect. A ``ConditionSpec`` must name at
+least one recording rule, and a detector belongs to a rule, so this item
+gives the detector a rule of its own, ``spline_offset`` (mode-less, modelled
+on ``border``), and makes it the recording rule of a second CONDITION,
+:data:`_CONDITION_DISPLACED_VERTEBRA`, beside ``fov_truncation``. ``displace``
+moves from mode 1's corpus cases (where it was a recorded co-detection) to
+this condition's own fixture -- the way ``crop_at_border`` is
+``fov_truncation``'s -- and mode 1 loses its ``stage3.per_label_offsets[].
+offset_mm`` candidate feature and its ``displace``-sentence mechanism prose:
+that path is not evidence of segmentation accuracy. ``fov_truncation``'s
+``crop_at_border`` fixture now expects ``spline_offset`` where it used to
+expect ``mislabel`` (the crop displaces the centroid off the fitted spinal
+curve, the same co-firing as before, only under the new rule id), and the
+condition's terminal-skip exemption moves with the detector:
+``exempting_rules=("coverage", "spline_offset")``. ``mislabel`` keeps only
+its ``ordering`` detector (mode 9).
 
 Lifecycle status
 -----------------
@@ -905,20 +929,14 @@ _MODE_1 = ModeSpec(
         "end-to-end: fragment cuts a background slab through label 22 "
         "and fragmentation's Fragmentation: detector fires on the two "
         "comparably-sized same-label pieces via "
-        "per_label.{label}.components.fragmentation_index. The corpus case "
-        "displace (a rigidly translated vertebra, which is "
-        "over-segmentation into background plus under-segmentation of the "
-        "true body) fires mislabel's spline-offset detector via "
-        "stage3.per_label_offsets[].offset_mm -- a detector that serves no "
-        "failure mode (the spline offset is an anatomy-classification "
-        "signal), so that case is a recorded co-detection."
+        "per_label.{label}.components.fragmentation_index. (Item 189, "
+        "2026-09-28: displace, a rigidly translated vertebra, is no longer "
+        "one of this mode's corpus cases -- its spline-offset firing is the "
+        "displaced_vertebra CONDITION's own signature, not evidence of "
+        "segmentation accuracy.)"
     ),
     observability="needs-ground-truth",
     candidate_features=(
-        CandidateFeature(
-            path="stage3.per_label_offsets[].offset_mm",
-            role="hypothesised",
-        ),
         CandidateFeature(
             path="per_label.{label}.components.fragmentation_index",
             role="stage18-metric-anchor",
@@ -970,20 +988,6 @@ _MODE_1 = ModeSpec(
         ),
     ),
     corpus_cases=(
-        CorpusCaseExpectation(
-            case_id="displace",
-            corpus="geometric",
-            expected_firing=("mislabel",),
-            reason=(
-                "pipeline-detected by a mode-less detector only: mislabel's "
-                "spline-offset detector fires because label 22 (L3) is "
-                "rigidly translated off the fitted spinal curve, measured "
-                "live via segfacet.synth.regression.pipeline_findings "
-                "(2026-09-14). None of this mode's intended rules fires on "
-                "it without a reference attached, so the case is a recorded "
-                "co-detection."
-            ),
-        ),
         CorpusCaseExpectation(
             case_id="fragment",
             corpus="geometric",
@@ -2190,15 +2194,16 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "crop_at_border, which crops label 22's anterior face "
         "(per_label.{label}.geometry.touches_anterior), classifying it an "
         "unexpected clip; cropping also displaces the centroid off the "
-        "fitted spinal curve, so mislabel's mode-less spline-offset "
-        "detector co-fires via stage3.per_label_offsets[].offset_mm. The "
+        "fitted spinal curve, so spline_offset's mode-less detector "
+        "co-fires via stage3.per_label_offsets[].offset_mm (item 189: this "
+        "detector moved off mislabel into its own rule). The "
         "expected cranio-caudal form: crop_fov_si crops the volume at the "
         "inferior face through label 24 "
         "(per_label.{label}.geometry.touches_inferior); the border rule "
         "suppresses that expected FOV-end touch, and bounds fires on the "
         "truncated remnant's volume and extent. The border rule declares no "
         "failure mode. The exemptions the condition "
-        "grants today: mislabel's spline-offset detector skips terminal "
+        "grants today: spline_offset's detector skips terminal "
         "entries (stage3.per_label_offsets[].is_terminal), and coverage's "
         "border-aware span check resolves the covered span through the "
         "FOV-end labels."
@@ -2215,17 +2220,18 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("border",),
-    exempting_rules=("mislabel", "coverage"),
+    exempting_rules=("coverage", "spline_offset"),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="crop_at_border",
             corpus="geometric",
-            expected_firing=("border", "mislabel"),
+            expected_firing=("border", "spline_offset"),
             reason=(
                 "pipeline-detected; measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-14): "
+                "segfacet.synth.regression.pipeline_findings (2026-09-14, "
+                "re-measured 2026-09-28 under item 189's rule rename): "
                 "border, because the cropped label 22 (L3) touches the "
-                "anterior image face, and mislabel, because the crop "
+                "anterior image face, and spline_offset, because the crop "
                 "displaces the centroid off the fitted spinal curve. Both "
                 "are the condition's recorded signature; neither names a "
                 "failure mode. An anterior clip is the rare crop direction: "
@@ -2246,6 +2252,66 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
                 "fire; bounds fires on the truncated remnant's volume and "
                 "extent_z. That bounds firing is what the border gating of "
                 "the size rules (roadmap Stage 33 D3) will remove."
+            ),
+        ),
+    ),
+)
+
+
+_CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
+    id="displaced_vertebra",
+    name="Displaced vertebra (centroid off the spinal curve)",
+    short_name="displaced vertebra (condition, not a failure mode)",
+    definition=(
+        "A vertebra's centroid is a large outlier from the fitted spinal "
+        "curve: the label sits off the smooth anatomical progression its "
+        "neighbours describe, by a rigid misplacement, spondylolisthesis, "
+        "scoliosis, or a similar deformity of the case itself. Retired as "
+        "part of the old mode 1 ('label not aligned with the vertebra it "
+        "names') at the item-150 sign-off (2026-09-14): the spline offset "
+        "is an anatomy-classification signal, not a defect of the "
+        "segmentation."
+    ),
+    mechanism=(
+        "spline_offset records the condition end-to-end on displace, which "
+        "rigidly translates label 22 (L3) off the fitted spinal curve: its "
+        "held-out offset_mm (stage3.per_label_offsets[].offset_mm, item "
+        "120) exceeds the 13.0 mm threshold, measured live via "
+        "segfacet.synth.regression.pipeline_findings (2026-09-28). The "
+        "condition also co-fires on crop_at_border, the fov_truncation "
+        "condition's own fixture, because the crop displaces the truncated "
+        "label's measured centroid off the curve too -- the two conditions "
+        "are not mutually exclusive. The offset itself is an "
+        "anatomy-classification signal (spondylolisthesis, scoliosis, a "
+        "rigid misplacement): mislabel's ordering detector, which decides "
+        "specification mode 9, reads a different signal entirely "
+        "(stage3.monotonic_consistency.non_monotonic_pairs[]) and never "
+        "fires on a displaced-only case."
+    ),
+    candidate_features=(
+        "stage3.per_label_offsets[].offset_mm",
+        "stage3.per_label_offsets[].dx_mm",
+        "stage3.per_label_offsets[].dy_mm",
+        "stage3.per_label_offsets[].dz_mm",
+        "stage3.per_label_offsets[].is_terminal",
+    ),
+    scope="vertebra",
+    recording_rules=("spline_offset",),
+    exempting_rules=(),
+    corpus_cases=(
+        CorpusCaseExpectation(
+            case_id="displace",
+            corpus="geometric",
+            expected_firing=("spline_offset",),
+            reason=(
+                "pipeline-detected; measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-28, "
+                "item 189): label 22 (L3) reads an interior offset_mm of "
+                "14.615923 mm, 1.62 mm above the 13.0 mm threshold, and no "
+                "other rule fires. Moved off specification mode 1's corpus "
+                "cases, where it was a recorded co-detection, onto this "
+                "condition's own fixture -- the way crop_at_border is "
+                "fov_truncation's."
             ),
         ),
     ),
@@ -2343,7 +2409,7 @@ SPECIFICATION: Mapping[int, ModeSpec] = _build_specification(
 )
 
 CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
-    (_CONDITION_FOV_TRUNCATION,)
+    (_CONDITION_FOV_TRUNCATION, _CONDITION_DISPLACED_VERTEBRA)
 )
 
 
