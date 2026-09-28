@@ -22,16 +22,36 @@ margin against; see item 089's Assumptions).
 This module registers no rule (mirrors no ``Rule`` subclass, no
 ``register_rule`` call) — it is a plain, pure, non-mutating helper that
 ``coverage.py`` and ``border.py`` import.
+
+``border_touching_labels`` (item 191) is a second, independent helper added
+here for the same reason: it is the ``fov_truncation`` CONDITION's membership
+test (``failure_modes.CONDITIONS["fov_truncation"]``), read by the runner's
+condition gate (``segfacet.heuristics.runner.run_rules``) so the runner never
+imports a rule module (``border.py`` is the condition's recording rule, but
+the gate must run before any opt-in decision, so it cannot import the rule
+whose findings it may drop). It reads the same six ``touches_*`` flags
+``border.py`` reads, independently of any rule's ``evaluate``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, FrozenSet, Optional
 
 from segfacet.labels import CANONICAL_ORDER
 
-__all__ = ["FovCoverage", "derive_fov_coverage"]
+__all__ = ["FovCoverage", "derive_fov_coverage", "border_touching_labels"]
+
+#: The six per-label border-contact flags (item 011/108), read the same way
+#: ``border.py``'s ``_ALL_FACES`` reads them: ``bool(geometry.get(face))``.
+_TOUCH_FACES = (
+    "touches_superior",
+    "touches_inferior",
+    "touches_left",
+    "touches_right",
+    "touches_anterior",
+    "touches_posterior",
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -200,3 +220,45 @@ def derive_fov_coverage(record: dict) -> FovCoverage:
         inferior_truncated=inferior_truncated,
         has_span=True,
     )
+
+
+def border_touching_labels(record: dict) -> FrozenSet[int]:
+    """Return the label ids the ``fov_truncation`` CONDITION covers (item 191).
+
+    A label is a member iff its ``per_label.{label}.geometry`` carries a true
+    ``touches_*`` flag on any of the six faces (the same six ``border.py``
+    reads). The label id is taken from the entry's own ``label`` field,
+    falling back to the ``per_label`` key (tolerating either an ``int`` or a
+    ``str`` key, item 191 A2).
+
+    Parameters
+    ----------
+    record:
+        Per-case feature dict (read-only, never mutated). Tolerates a missing
+        or malformed ``per_label`` (gives no member), a missing ``geometry``
+        sub-block, and any other absent/degenerate shape without raising.
+
+    Returns
+    -------
+    FrozenSet[int]
+        The border-touching label ids. Empty when none are determinable.
+    """
+    per_label = record.get("per_label")
+    if not isinstance(per_label, dict):
+        return frozenset()
+
+    labels: set = set()
+    for key, entry in per_label.items():
+        if not isinstance(entry, dict):
+            continue
+        geometry = entry.get("geometry")
+        if not isinstance(geometry, dict):
+            continue
+        if not any(bool(geometry.get(face)) for face in _TOUCH_FACES):
+            continue
+        try:
+            labels.add(int(entry.get("label", key)))
+        except (TypeError, ValueError):
+            continue
+
+    return frozenset(labels)

@@ -17,13 +17,11 @@
         "case_id": "crop_at_border",
         "corpus": "geometric",
         "expected_firing": [
-          "border",
-          "spline_offset"
+          "border"
         ],
         "expected_source": "specification-condition",
         "measured_firing": [
-          "border",
-          "spline_offset"
+          "border"
         ],
         "mode": 0
       },
@@ -31,13 +29,9 @@
         "agrees": true,
         "case_id": "crop_fov_si",
         "corpus": "geometric",
-        "expected_firing": [
-          "bounds"
-        ],
+        "expected_firing": [],
         "expected_source": "specification-condition",
-        "measured_firing": [
-          "bounds"
-        ],
+        "measured_firing": [],
         "mode": 0
       },
       {
@@ -396,10 +390,6 @@
         "exercised_by": [
           [
             "geometric",
-            "crop_fov_si"
-          ],
-          [
-            "geometric",
             "split_own_label"
           ]
         ],
@@ -528,10 +518,6 @@
       },
       "spline_offset": {
         "exercised_by": [
-          [
-            "geometric",
-            "crop_at_border"
-          ],
           [
             "geometric",
             "displace"

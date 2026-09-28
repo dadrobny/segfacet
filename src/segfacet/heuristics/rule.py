@@ -40,6 +40,7 @@ __all__ = [
     "iter_rules",
     "RuleModeDeclaration",
     "ConsumedPath",
+    "ConditionOptIn",
     "RuleDetector",
     "PATH_ROLES",
     "declaration_for",
@@ -358,6 +359,53 @@ class RuleModeDeclaration:
                     )
 
 
+@dataclasses.dataclass(frozen=True)
+class ConditionOptIn:
+    """A rule's declared opt-in to a case CONDITION (item 191).
+
+    A CONDITION (``segfacet.failure_modes.CONDITIONS``) gates every rule's
+    findings on the labels it covers by default (the runner's condition
+    gate, ``segfacet.heuristics.runner.run_rules``); a rule opts back in by
+    declaring one ``ConditionOptIn`` per condition on its ``condition_opt_ins``
+    class attribute. ``condition`` names an id in ``CONDITIONS``; ``paths``
+    are the catalogued leaf path(s) this rule reads that stay valid evidence
+    on one of the condition's labels; ``reason`` says why.
+
+    Read-only metadata, like :class:`RuleModeDeclaration`: the runner reads
+    it, never the rule's own ``evaluate``.
+    """
+
+    condition: str
+    paths: Tuple[str, ...]
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.condition, str) or not self.condition:
+            raise ValueError(
+                f"ConditionOptIn: 'condition' must be a non-empty str, got "
+                f"{self.condition!r}."
+            )
+        if not isinstance(self.paths, tuple):
+            raise ValueError(
+                f"ConditionOptIn: 'paths' must be a tuple, got "
+                f"{type(self.paths).__name__} ({self.paths!r}) -- a bare str "
+                f"is not accepted."
+            )
+        if not self.paths:
+            raise ValueError("ConditionOptIn: 'paths' must be non-empty.")
+        for element in self.paths:
+            if not isinstance(element, str) or not element:
+                raise ValueError(
+                    f"ConditionOptIn: 'paths' elements must be non-empty str, "
+                    f"got {element!r}."
+                )
+        if not isinstance(self.reason, str) or not self.reason:
+            raise ValueError(
+                f"ConditionOptIn: 'reason' must be a non-empty str, got "
+                f"{self.reason!r}."
+            )
+
+
 class Rule(abc.ABC):
     """Abstract base class for all heuristic QC rules.
 
@@ -393,6 +441,17 @@ class Rule(abc.ABC):
     this (A3) — ``segfacet.catalogue.rule_declaration_conflicts()`` and the
     test suite over the shipped registry do. Read-only metadata: no rule may
     read its own ``mode_declaration`` inside ``evaluate``."""
+
+    condition_opt_ins: Tuple["ConditionOptIn", ...] = ()
+    """Case CONDITIONs (``segfacet.failure_modes.CONDITIONS``) this rule
+    opts in to (item 191): read by the runner's condition gate
+    (``segfacet.heuristics.runner.run_rules``), never inside ``evaluate``.
+    Kept as its own attribute, separate from ``mode_declaration`` --
+    replacing every rule's ``mode_declaration`` with a mode-less stub must
+    leave ``run_rules``'s output unchanged
+    (``tests/test_136_rule_mode_declarations.py`` AC14). Defaults to ``()``:
+    a rule that declares nothing opts in to no condition, so its findings on
+    a condition's labels are always dropped."""
 
     @abc.abstractmethod
     def evaluate(self, record, config) -> List[Finding]:

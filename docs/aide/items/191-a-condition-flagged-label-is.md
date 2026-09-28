@@ -677,7 +677,35 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented 2026-09-28. The gate lives in `run_rules`
+(`src/segfacet/heuristics/runner.py`): every enabled rule's `evaluate` still
+runs first, unchanged; the runner then drops a finding when any of its
+`labels` is a member of a condition its producing rule does not opt in to,
+via a new `Rule.condition_opt_ins` class attribute of `ConditionOptIn`
+entries (`src/segfacet/heuristics/rule.py`). `fov_truncation` membership is
+`segfacet.heuristics.fov.border_touching_labels(record)` (added to the
+existing shared `fov.py`, so the runner imports no rule module);
+`displaced_vertebra` membership is derived from the *surviving*
+`spline_offset` findings, so the two gates run in that order (A2/A3). `border`
+and `spline_offset` each declare `condition_opt_ins` naming their own
+recording condition and nothing else. `ConditionSpec.exempting_rules`
+(`src/segfacet/failure_modes.py`) is renamed `opting_in_rules`, both
+conditions' corpus-case expectations and `mechanism` prose are re-measured,
+and `specification_to_dict`/`render_markdown` follow the rename.
+`CropFovPerturbation`'s `Expectation` (`src/segfacet/synth/
+coverage_border_overlap.py`) now expects nothing on `crop_fov_si` and a
+`"pass"` verdict, matching the regenerated `tests/corpus/manifest.json`
+(only `crop_fov_si`'s three fields changed; every fixture stayed
+byte-identical, confirmed by a two-run byte-compare before committing).
+`docs/aide/corpus_sheet.png`, `failure_modes.generated.{json,md}` and
+`traceability_matrix.generated.{json,md}` were regenerated; `docs/aide/
+feature_catalogue.generated.json` and `golden_evidence.generated.json` came
+out byte-identical, as A5 predicted (the catalogue already attributed
+`border`'s and `spline_offset`'s opt-in paths to those rules via mechanism A's
+dynamic access trace, since the rules already read them in `evaluate` before
+this item — the gate adds no new path access). Every AC and named adversarial
+case was independently verified against the real change before committing
+(not only the Assumptions' scratch-probe values).
 
 - **Left open:** which non-recording rules should opt in to a condition, and
   for which features. `bounds`' volume is unchanged by a rigid displacement,

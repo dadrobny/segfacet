@@ -67,8 +67,8 @@ Agree: 18. Disagree: 0. Conformant: True.
 | Corpus | Case | Mode | Expected firing | Measured firing | Agrees | Source |
 |---|---|---|---|---|---|---|
 | geometric | clean_control | 0 | (none) | (none) | True | manifest-clean-control |
-| geometric | crop_at_border | 0 | border, spline_offset | border, spline_offset | True | specification-condition |
-| geometric | crop_fov_si | 0 | bounds | bounds | True | specification-condition |
+| geometric | crop_at_border | 0 | border | border | True | specification-condition |
+| geometric | crop_fov_si | 0 | (none) | (none) | True | specification-condition |
 | geometric | displace | 0 | spline_offset | spline_offset | True | specification-condition |
 | geometric | force_overlap | 15 | overlap | overlap | True | specification |
 | geometric | fragment | 1 | fragmentation | fragmentation | True | specification |
@@ -100,7 +100,7 @@ Direction complete: True. Holes: none.
 | Rule | State | Exercised by | Reason | Reason modes |
 |---|---|---|---|---|
 | border | exercised | geometric/crop_at_border | (none) | (none) |
-| bounds | exercised | geometric/crop_fov_si, geometric/split_own_label | (none) | (none) |
+| bounds | exercised | geometric/split_own_label | (none) | (none) |
 | coverage | exercised | geometric/remove_level | (none) | (none) |
 | fragmentation | exercised | geometric/fragment, geometric/inject_islands | (none) | (none) |
 | intensity | exercised | intensity/degenerate_uniform, intensity/implausible_metal, intensity/implausible_soft_tissue | (none) | (none) |
@@ -110,7 +110,7 @@ Direction complete: True. Holes: none.
 | overlap | exercised | geometric/force_overlap | (none) | (none) |
 | reference_delta | unexercised | (none) | needs-real-data | 1, 2, 3, 4, 8 |
 | sequence | exercised | geometric/sequence_break | (none) | (none) |
-| spline_offset | exercised | geometric/crop_at_border, geometric/displace | (none) | (none) |
+| spline_offset | exercised | geometric/displace | (none) | (none) |
 
 ## Operator corpus exercise
 

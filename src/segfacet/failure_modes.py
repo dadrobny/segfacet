@@ -238,9 +238,31 @@ that path is not evidence of segmentation accuracy. ``fov_truncation``'s
 ``crop_at_border`` fixture now expects ``spline_offset`` where it used to
 expect ``mislabel`` (the crop displaces the centroid off the fitted spinal
 curve, the same co-firing as before, only under the new rule id), and the
-condition's terminal-skip exemption moves with the detector:
-``exempting_rules=("coverage", "spline_offset")``. ``mislabel`` keeps only
-its ``ordering`` detector (mode 9).
+condition's terminal-skip exemption moves with the detector. ``mislabel``
+keeps only its ``ordering`` detector (mode 9).
+
+The condition gate inverts to the runner (item 191, 2026-09-28)
+------------------------------------------------------------------
+Until this item, a condition was a record only: each rule's own code decided
+whether it exempted the condition's labels, and every other rule applied to
+them unchanged. Item 191 inverts that: a label named by a CONDITION is
+excluded from every rule's finding by default, gated in one place --
+``segfacet.heuristics.runner.run_rules`` -- unless the producing rule opts in
+via a new ``Rule.condition_opt_ins`` class attribute
+(``segfacet.heuristics.rule.ConditionOptIn``). ``ConditionSpec.exempting_rules``
+is renamed ``opting_in_rules``: it is no longer a free-standing record of
+which rules happen to carry their own exemption code, it is the
+specification's statement of which rules the *registry* actually opts in,
+checked against it. Only each condition's own recording rule opts in today
+(``border`` to ``fov_truncation``, ``spline_offset`` to
+``displaced_vertebra``); ``spline_offset`` does not opt in to
+``fov_truncation``, because the crop that truncates a label also displaces
+its measured centroid, so a truncated label can never be judged genuinely
+displaced. ``coverage``'s border-aware span check and ``spline_offset``'s own
+terminal skip predate the gate and are unmoved by it: both are rule logic
+(a case-level finding the gate cannot reach; a suppression inside
+``evaluate`` the gate cannot see), not the case-level exclusion the gate
+performs.
 
 Lifecycle status
 -----------------
@@ -812,9 +834,11 @@ class ConditionSpec:
     6 ("partial vertebra at the image border") into this section, because
     a truncated vertebra is a property of the scan, not a defect of the
     segmentation. A condition carries the rule(s) that *record* it, the
-    rule(s) that grant it an exemption today, and its corpus fixtures with
-    expected firing sets -- measured and compared exactly as a mode's are,
-    so a condition case is never a silent hole in the conformance report.
+    rule(s) that *opt in* to it (item 191: the runner's condition gate
+    excludes every other rule's finding on the condition's labels by
+    default), and its corpus fixtures with expected firing sets -- measured
+    and compared exactly as a mode's are, so a condition case is never a
+    silent hole in the conformance report.
     """
 
     id: str
@@ -824,7 +848,7 @@ class ConditionSpec:
     mechanism: str
     candidate_features: Tuple[str, ...]
     recording_rules: Tuple[str, ...]
-    exempting_rules: Tuple[str, ...]
+    opting_in_rules: Tuple[str, ...]
     corpus_cases: Tuple[CorpusCaseExpectation, ...]
     scope: str = ""
 
@@ -844,7 +868,7 @@ class ConditionSpec:
         for field_name in (
             "candidate_features",
             "recording_rules",
-            "exempting_rules",
+            "opting_in_rules",
             "corpus_cases",
         ):
             value = getattr(self, field_name)
@@ -2193,20 +2217,28 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "in-plane form: the border rule records the condition end-to-end on "
         "crop_at_border, which crops label 22's anterior face "
         "(per_label.{label}.geometry.touches_anterior), classifying it an "
-        "unexpected clip; cropping also displaces the centroid off the "
-        "fitted spinal curve, so spline_offset's mode-less detector "
-        "co-fires via stage3.per_label_offsets[].offset_mm (item 189: this "
-        "detector moved off mislabel into its own rule). The "
-        "expected cranio-caudal form: crop_fov_si crops the volume at the "
-        "inferior face through label 24 "
+        "unexpected clip -- the only finding this label carries once the "
+        "runner's condition gate (item 191) runs. Cropping also displaces "
+        "the centroid off the fitted spinal curve, so spline_offset's own "
+        "evaluate still fires via stage3.per_label_offsets[].offset_mm, but "
+        "spline_offset does not opt in to fov_truncation, so the gate drops "
+        "that finding: the missing region has already spoiled the measured "
+        "centroid, so the label cannot also be judged genuinely displaced. "
+        "The expected cranio-caudal form: crop_fov_si crops the volume at "
+        "the inferior face through label 24 "
         "(per_label.{label}.geometry.touches_inferior); the border rule "
-        "suppresses that expected FOV-end touch, and bounds fires on the "
-        "truncated remnant's volume and extent. The border rule declares no "
-        "failure mode. The exemptions the condition "
-        "grants today: spline_offset's detector skips terminal "
-        "entries (stage3.per_label_offsets[].is_terminal), and coverage's "
-        "border-aware span check resolves the covered span through the "
-        "FOV-end labels."
+        "suppresses that expected FOV-end touch, and bounds's own evaluate "
+        "fires on the truncated remnant's volume and extent, but bounds "
+        "does not opt in either, so the gate drops both findings and "
+        "nothing fires on crop_fov_si at all. Border's own finding always "
+        "survives the gate (it opts in to the condition it records). The "
+        "exemption the condition still grants today, unmoved by the gate "
+        "because it is rule logic rather than a case-level exclusion: "
+        "spline_offset's detector skips terminal entries "
+        "(stage3.per_label_offsets[].is_terminal); coverage's border-aware "
+        "span check resolves the covered span through the FOV-end labels, "
+        "which the gate cannot do because coverage's findings are "
+        "case-level and carry no labels for the gate to match."
     ),
     candidate_features=(
         "per_label.{label}.geometry.touches_anterior",
@@ -2220,38 +2252,45 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("border",),
-    exempting_rules=("coverage", "spline_offset"),
+    opting_in_rules=("border",),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="crop_at_border",
             corpus="geometric",
-            expected_firing=("border", "spline_offset"),
+            expected_firing=("border",),
             reason=(
                 "pipeline-detected; measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-14, "
-                "re-measured 2026-09-28 under item 189's rule rename): "
-                "border, because the cropped label 22 (L3) touches the "
-                "anterior image face, and spline_offset, because the crop "
-                "displaces the centroid off the fitted spinal curve. Both "
-                "are the condition's recorded signature; neither names a "
-                "failure mode. An anterior clip is the rare crop direction: "
-                "the case is kept for border coverage, not for realism "
-                "(maintainer, 2026-09-24)."
+                "re-measured 2026-09-28 under item 191's condition gate): "
+                "border fires and survives, because the cropped label 22 "
+                "(L3) touches the anterior image face and border is the "
+                "condition's own recording rule. spline_offset's own "
+                "evaluate still reads the crop-displaced centroid off the "
+                "fitted spinal curve and fires (label 22's interior offset "
+                "of 18.025609 mm exceeds the 13.0 mm threshold), but its "
+                "finding is gated: spline_offset does not opt in to "
+                "fov_truncation, and the missing region has already "
+                "spoiled the measured centroid, so the label cannot also be "
+                "judged genuinely displaced. An anterior clip is the rare "
+                "crop direction: the case is kept for border coverage, not "
+                "for realism (maintainer, 2026-09-24)."
             ),
         ),
         CorpusCaseExpectation(
             case_id="crop_fov_si",
             corpus="geometric",
-            expected_firing=("bounds",),
+            expected_firing=(),
             reason=(
                 "pipeline-detected; measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-24, "
-                "item 175): the inferior image face cuts label 24 (L5) -- "
-                "the S-I FOV crop, the common form of the condition. border "
-                "suppresses the touch as an expected FOV end, so it does not "
-                "fire; bounds fires on the truncated remnant's volume and "
-                "extent_z. That bounds firing is what the border gating of "
-                "the size rules (roadmap Stage 33 D3) will remove."
+                "item 175; re-measured 2026-09-28, item 191): the inferior "
+                "image face cuts label 24 (L5) -- the S-I FOV crop, the "
+                "common form of the condition. border suppresses the touch "
+                "as an expected FOV end, so it does not fire; bounds's own "
+                "evaluate still fires on the truncated remnant's volume and "
+                "extent_z, but bounds does not opt in to fov_truncation, so "
+                "the runner's condition gate drops both findings. Nothing "
+                "fires on crop_fov_si."
             ),
         ),
     ),
@@ -2277,14 +2316,19 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "rigidly translates label 22 (L3) off the fitted spinal curve: its "
         "held-out offset_mm (stage3.per_label_offsets[].offset_mm, item "
         "120) exceeds the 13.0 mm threshold, measured live via "
-        "segfacet.synth.regression.pipeline_findings (2026-09-28). The "
-        "condition also co-fires on crop_at_border, the fov_truncation "
-        "condition's own fixture, because the crop displaces the truncated "
-        "label's measured centroid off the curve too -- the two conditions "
-        "are not mutually exclusive. The offset itself is an "
-        "anatomy-classification signal (spondylolisthesis, scoliosis, a "
-        "rigid misplacement): mislabel's ordering detector, which decides "
-        "specification mode 9, reads a different signal entirely "
+        "segfacet.synth.regression.pipeline_findings (2026-09-28). The crop "
+        "on crop_at_border, the fov_truncation condition's own fixture, "
+        "does displace that label's measured centroid off the curve too, "
+        "and spline_offset's own evaluate still fires on it -- but the "
+        "runner's condition gate (item 191) drops that finding, because the "
+        "label is a fov_truncation member and spline_offset does not opt in "
+        "to that condition: the missing region has already spoiled the "
+        "measured centroid, so the label is never counted displaced by the "
+        "gated pipeline, only by spline_offset's own ungated evaluate. The "
+        "offset itself is an anatomy-classification signal "
+        "(spondylolisthesis, scoliosis, a rigid misplacement): mislabel's "
+        "ordering detector, which decides specification mode 9, reads a "
+        "different signal entirely "
         "(stage3.monotonic_consistency.non_monotonic_pairs[]) and never "
         "fires on a displaced-only case."
     ),
@@ -2297,7 +2341,7 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("spline_offset",),
-    exempting_rules=(),
+    opting_in_rules=("spline_offset",),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="displace",
@@ -3075,7 +3119,7 @@ def specification_to_dict() -> dict:
                 "mechanism": condition.mechanism,
                 "candidate_features": list(condition.candidate_features),
                 "recording_rules": list(condition.recording_rules),
-                "exempting_rules": list(condition.exempting_rules),
+                "opting_in_rules": list(condition.opting_in_rules),
                 "corpus_cases": [
                     {
                         "case_id": case.case_id,
@@ -3206,8 +3250,8 @@ def render_markdown() -> str:
         lines.append(
             f"- Recording rules: {', '.join(condition['recording_rules'])}"
         )
-        exempting = ", ".join(condition["exempting_rules"]) or "(none)"
-        lines.append(f"- Exempting rules: {exempting}")
+        opting_in = ", ".join(condition["opting_in_rules"]) or "(none)"
+        lines.append(f"- Opting-in rules: {opting_in}")
         lines.append("")
         lines.append("Candidate features:")
         lines.append("")

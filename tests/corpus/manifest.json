@@ -521,13 +521,9 @@
       "condition": "fov_truncation",
       "detail": "crop_fov: cropped the volume at the 'inferior' face, removing 35 whole slice(s) to take at least 0.65 of target label 24 (12586 of 19344 voxels removed); output shape (61, 86, 158). Exhibits the FOV-truncation CONDITION, not a failure mode.",
       "detection": "pipeline",
-      "expected_labels": [
-        24
-      ],
-      "expected_rule_ids": [
-        "bounds"
-      ],
-      "expected_verdict": "flagged-for-review",
+      "expected_labels": [],
+      "expected_rule_ids": [],
+      "expected_verdict": "pass",
       "failure_mode": 0,
       "failure_mode_name": "FOV truncation (condition, not a failure mode)",
       "kind": "condition",

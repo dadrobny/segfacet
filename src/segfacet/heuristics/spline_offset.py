@@ -50,8 +50,12 @@ per item 189 spec A1-A3):
 
 Scope fence: no change to the offset feature (``features/spline_offset.py``
 code) or to the threshold value; no re-calibration; no change to what
-``mislabel``'s ``ordering`` detector reads; no condition gating of other
-rules (item 191's).
+``mislabel``'s ``ordering`` detector reads. The condition gate itself lives in
+the runner (``segfacet.heuristics.runner.run_rules``, item 191); this rule
+only declares its own opt-in to ``displaced_vertebra`` (``condition_opt_ins``
+below) -- it opts in to no other condition, so a label this rule reports that
+is also a member of ``fov_truncation`` is gated (the crop displaces the
+truncated label's centroid, so it cannot also be judged genuinely displaced).
 
 Threshold calibration (item 123, recalibrated 2026-08-29)
 -----------------------------------------------------------
@@ -78,9 +82,13 @@ a freshly built `extract_feature_record`, all on **interior** entries only,
 re-measured 2026-09-28 against the lordotic base fixture, item 189):
 - `relabel_swap`'s largest interior reading (label 23 / L4) is
   `5.624555` mm and must **not** fire -- the non-firing ceiling.
-- `crop_at_border`'s label-22 reading is `18.025609` mm and **must**
-  fire -- so ``_DEFAULT_MAX_OFFSET_MM`` sits in `(5.624555, 18.025609]`
-  (`13.0` qualifies).
+- `crop_at_border`'s label-22 reading is `18.025609` mm, and this rule's own
+  `evaluate` **fires** on it -- so ``_DEFAULT_MAX_OFFSET_MM`` sits in
+  `(5.624555, 18.025609]` (`13.0` qualifies). The runner's `fov_truncation`
+  gate (item 191) then drops that finding end-to-end, because label 22 also
+  touches the image border and this rule does not opt in to that condition;
+  the margin itself is a property of `evaluate`, not of the gate, so it is
+  still measured against the rule's own output.
 - `displace`'s label-22 reading is `14.615923` mm and **must** fire --
   1.62 mm above the threshold (item 177's lateral form lowered it from item
   173's 17.615126).
@@ -95,6 +103,7 @@ from typing import Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
+    ConditionOptIn,
     ConsumedPath,
     Rule,
     RuleDetector,
@@ -157,6 +166,26 @@ class SplineOffsetRule(Rule):
     """
 
     rule_id = "spline_offset"
+
+    # This rule is displaced_vertebra's recording rule (item 191): its own
+    # finding on a genuinely displaced label must always survive the
+    # runner's condition gate. It opts in to no other condition.
+    condition_opt_ins = (
+        ConditionOptIn(
+            condition="displaced_vertebra",
+            paths=(
+                "stage3.per_label_offsets[].dx_mm",
+                "stage3.per_label_offsets[].dy_mm",
+                "stage3.per_label_offsets[].dz_mm",
+                "stage3.per_label_offsets[].offset_mm",
+            ),
+            reason=(
+                "the offset and its axis components are the "
+                "displaced_vertebra condition's own evidence: this rule is "
+                "its recording rule"
+            ),
+        ),
+    )
 
     # No failure mode (item 150): DisplacePerturbation
     # (src/segfacet/synth/identity_ordering_alignment.py) is the fixture of

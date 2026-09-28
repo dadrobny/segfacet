@@ -446,6 +446,11 @@ class CropFovPerturbation(Perturbation):
 
     Rejects ``removed_fraction`` outside (0, 1), an input with no labels, an
     absent target, and a cut that would remove every slice of the target.
+
+    Expects nothing to fire (item 191, 2026-09-28): the cut target touches
+    the expected FOV end, which ``border`` suppresses, and the runner's
+    ``fov_truncation`` condition gate drops ``bounds``'s own volume/extent
+    finding on the same label, because ``bounds`` does not opt in.
     """
 
     name = "crop_fov"
@@ -512,9 +517,14 @@ class CropFovPerturbation(Perturbation):
             failure_mode=CLEAN_CONTROL_MODE,
             failure_mode_name=FOV_TRUNCATION_CONDITION_NAME,
             condition=FOV_TRUNCATION_CONDITION,
-            expected_rule_ids=frozenset({"bounds"}),
-            expected_labels=frozenset({target}),
-            expected_verdict="flagged-for-review",
+            # bounds's own evaluate still fires on the truncated remnant's
+            # volume and extent, but bounds does not opt in to
+            # fov_truncation, so the runner's condition gate (item 191,
+            # 2026-09-28) drops it -- and border suppresses the expected
+            # FOV-end touch itself, so nothing fires and the verdict is pass.
+            expected_rule_ids=frozenset(),
+            expected_labels=frozenset(),
+            expected_verdict="pass",
             detail=(
                 f"crop_fov: cropped the volume at the {self._face!r} face, "
                 f"removing {n_cut} whole slice(s) to take at least "
