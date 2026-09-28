@@ -564,7 +564,10 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
 #: mode 10 leaves this set (it now derives ``"implemented"`` with a
 #: ``needs-real-data`` rung) and mode 6 joins it instead (authored
 #: ``"specified"``, no declaring rule, no derived rung).
-_DEGENERATE_MODES = (5, 6, 7, 11, 12, 13, 14)
+#: Item 192 (2026-09-28): mode 11 leaves this set -- sequence's transitional
+#: detector now declares it, deriving "implemented" with a needs-real-data
+#: rung.
+_DEGENERATE_MODES = (5, 6, 7, 12, 13, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)
@@ -626,7 +629,10 @@ _AC9_SPLIT_COLUMN_MODES = (
         "stage3.monotonic_consistency.is_monotonic",
         "reference_delta.{label}.features.physical_volume_mm3.robust_z",
     ),
-    (9, "relationships.is_continuous", "relationships.out_of_order_labels[]"),
+    # Item 192 (2026-09-28): sequence reads per_label centroids, not
+    # relationships.out_of_order_labels[]; relationships.is_continuous stays
+    # the metric anchor no rule reads.
+    (9, "relationships.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
 )
 
 

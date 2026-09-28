@@ -975,14 +975,16 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
     direction = d["directions"]["mode_to_rule"]
     assert direction["complete"] is False
     assert set(direction["holes"]) == no_rule_mode_ids
-    # Witness (item 188, 2026-09-28): six proposed entries -- 5 holes, 7
-    # hallucinated vertebra, 11 unprompted numbering variant, 12 shifted
+    # Witness (item 188, 2026-09-28; re-measured item 192, 2026-09-28): five
+    # proposed entries -- 5 holes, 7 hallucinated vertebra, 12 shifted
     # label sequence (needs an external classifier), 13 collapsed labels and
     # 14 duplicated label (no detector exists for any) -- plus mode 6
     # (vertebra not segmented), authored ``specified`` with its rule named
-    # but not yet written since ``coverage`` moved to mode 10.
-    assert proposed_mode_ids == {"5", "7", "11", "12", "13", "14"}
-    assert no_rule_mode_ids == {"5", "6", "7", "11", "12", "13", "14"}
+    # but not yet written since ``coverage`` moved to mode 10. Mode 11 leaves
+    # the proposed set: item 192 gives it a ``sequence`` edge
+    # (``transitional``), deriving ``implemented``.
+    assert proposed_mode_ids == {"5", "7", "12", "13", "14"}
+    assert no_rule_mode_ids == {"5", "6", "7", "12", "13", "14"}
 
 
 # =========================================================================== #
@@ -1295,7 +1297,10 @@ def test_ac19_every_mode_to_rule_edge_is_attributed_from_the_specification(matri
     # (coverage now declares it, so it derives `implemented`) and mode 6
     # joins the rule-less set as `RULELESS_SPECIFIED_MODES` -- authored
     # `specified`, no declaring rule.
-    assert PROPOSED_MODES == {5, 7, 11, 12, 13, 14}, PROPOSED_MODES
+    # Re-pointed (item 192, 2026-09-28): mode 11 leaves `PROPOSED_MODES` --
+    # `sequence`'s `transitional` detector now declares it, so it derives
+    # `implemented`.
+    assert PROPOSED_MODES == {5, 7, 12, 13, 14}, PROPOSED_MODES
     no_rule_modes = PROPOSED_MODES | RULELESS_SPECIFIED_MODES
     for no_rule_mode in sorted(no_rule_modes):
         record = modes[no_rule_mode]
@@ -1394,6 +1399,10 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # coverage to fire as a recorded co-detection, alongside
     # remove_level_relabel, which expects nothing; mode 6 itself now declares
     # no rule (authored specified).
+    # 2026-09-28, item 192: (10, "sequence") and (11, "sequence") enter the
+    # witness -- sequence's skip and transitional detectors declare modes 10
+    # and 11, both needs-real-data with no committed case attributed to
+    # either mode.
     witness = {
         (1, "bounds"),
         (1, "reference_delta"),
@@ -1404,6 +1413,8 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
         (4, "reference_delta"),
         (8, "reference_delta"),
         (10, "coverage"),
+        (10, "sequence"),
+        (11, "sequence"),
         (16, "intensity_reference_delta"),
     }
     assert actual_analytic == witness
@@ -1433,7 +1444,10 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     mixed = {rule_id for rule_id, tags in by_rule.items() if len(tags) == 2}
     # 2026-09-23, item 174: set() -> {"bounds"}. bounds is corpus-attributed
     # for mode 3 (split_own_label) and analytic for modes 1, 2 and 4.
-    assert mixed == {"bounds"}, by_rule
+    # 2026-09-28, item 192: {"bounds"} -> {"bounds", "sequence"}. sequence is
+    # corpus-attributed for mode 9 (relabel_swap, sequence_break) and
+    # analytic for modes 10 and 11.
+    assert mixed == {"bounds", "sequence"}, by_rule
 
 
 def test_adv_ac20_mistagged_corpus_evidence_changes_no_attribution(matrix_bounds_mistagged_evidence):

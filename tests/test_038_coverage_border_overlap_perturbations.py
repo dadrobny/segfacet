@@ -215,15 +215,20 @@ def test_ac4_remove_level_produces_no_spurious_border_flag():
 
 
 def test_ac5_remove_level_only_fired_rule_is_coverage_and_case_level():
-    """AC5: every finding has rule_id == "coverage" and every finding.labels
-    is empty (case-level)."""
+    """AC5: every finding has rule_id in {"coverage", "sequence"} and every
+    finding.labels is empty (case-level).
+
+    Item 192 (2026-09-28): sequence's skip detector now co-detects this gap
+    (case-level, like coverage's missing_interior), so the fired-rule set is
+    admitted rather than pinned to {"coverage"} alone."""
     clean = _clean()
     result = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
     assert findings
     for f in findings:
-        assert f.rule_id == "coverage"
+        assert f.rule_id in {"coverage", "sequence"}
         assert f.labels == frozenset()
+    assert {f.rule_id for f in findings} == {"coverage", "sequence"}
 
 
 def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():

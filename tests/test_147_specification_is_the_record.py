@@ -484,7 +484,9 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     import segfacet.traceability as traceability
 
     edgeless = [mode for mode in fm.SPECIFICATION.values() if not mode.intended_rules]
-    assert {mode.id for mode in edgeless} == {5, 6, 7, 11, 12, 13, 14}, [
+    # Item 192 (2026-09-28): mode 11 leaves this edgeless set -- sequence's
+    # transitional detector now gives it an intended-rule edge.
+    assert {mode.id for mode in edgeless} == {5, 6, 7, 12, 13, 14}, [
         mode.id for mode in edgeless
     ]
 
@@ -614,30 +616,54 @@ def test_adv_ac10_stale_false_claim_fails_the_tree_wide_check(tmp_path):
 # =========================================================================== #
 
 
-def _sequence_record(out_of_order):
+def _sequence_record(levels):
+    """Item 192 (2026-09-28): the rewritten rule reads per_label centroids,
+    not out_of_order_labels[]. *levels* is an ordered (head-to-tail) list of
+    level names; each gets a per_label entry (label from DEFAULT_LABEL_MAP)
+    with a synthetic centroid, z = n - i for the i-th (1-indexed) level."""
+    from segfacet.labels import DEFAULT_LABEL_MAP
+
+    label_by_name = {name: label for label, name in DEFAULT_LABEL_MAP.items()}
+    n = len(levels)
+    per_label = {}
+    for i, name in enumerate(levels, start=1):
+        label = label_by_name[name]
+        per_label[label] = {
+            "label": label,
+            "level_name": name,
+            "centroid": {"centroid_mm": [0.0, 0.0, float(n - i)]},
+        }
     return {
         "relationships": {
-            "present_levels": [],
+            "present_levels": list(levels),
             "missing_levels": [],
-            "is_continuous": len(out_of_order) == 0,
-            "out_of_order_labels": list(out_of_order),
+            "is_continuous": True,
+            "out_of_order_labels": [],
         },
-        "per_label": {},
+        "per_label": per_label,
         "overlaps": {},
     }
 
 
 def test_ac11_sequence_rule_caps_nothing():
+    """Item 192 (2026-09-28): 'one descent' and 'two descents' are now
+    expressed as per_label-centroid orderings rather than
+    out_of_order_labels[] lists. Measured: one swap on frozenset({19, 20})
+    for the one-descent record, and one swap on frozenset({19, 20, 22, 23}),
+    reason 'Non-continuous label sequence: swap of L1, T12, L4, L3.', for the
+    two-descent record -- every offender still lands in one finding."""
     from segfacet.config import default_config
     from segfacet.heuristics.sequence import SequenceRule
 
     rule = SequenceRule()
     config = default_config()
 
-    one_descent = rule.evaluate(_sequence_record(["T12"]), config)
+    one_descent = rule.evaluate(_sequence_record(["L1", "T12", "L2"]), config)
     assert len(one_descent) == 1, one_descent
 
-    two_descent = rule.evaluate(_sequence_record(["T12", "L6"]), config)
+    two_descent = rule.evaluate(
+        _sequence_record(["L1", "T12", "L2", "L4", "L3", "L5"]), config
+    )
     assert len(two_descent) == 1, two_descent
 
 
@@ -1211,7 +1237,7 @@ _EXPECTED_DERIVED_STATUS = {
     8: "implemented",   # no corpus case
     9: "validated",
     10: "implemented",   # item 188 (2026-09-28): coverage's new home, still no case
-    11: "proposed",
+    11: "implemented",   # item 192 (2026-09-28): sequence's new home, still no case
     12: "proposed",
     13: "proposed",
     14: "proposed",

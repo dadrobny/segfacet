@@ -466,12 +466,15 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
     # 17 -> 18: item 167 (docs/aide/items/167-mode-3s-own-feature-and-
     # detector.md, Correction 2026-09-20, C4) adds mode 3's third edge
     # (fragmentation, via the new neighbour_contact evidence).
+    # 18 -> 20: item 192 (2026-09-28) adds two edges -- sequence's skip
+    # (mode 10) and transitional (mode 11) detectors -- beside its existing
+    # mode-9 edge.
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 18, total_edges
+    assert total_edges == 20, total_edges
 
 
 # =========================================================================== #

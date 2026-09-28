@@ -668,7 +668,9 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
         for mode in catalogued
         if not fm.SPECIFICATION[mode].intended_rules and mode not in feature_docs.MODE_ANCHOR_PATHS
     }
-    assert unreachable == {5, 7, 11, 12, 13, 14}, unreachable
+    # Item 192 (2026-09-28): mode 11 gains an intended-rule edge (sequence's
+    # transitional detector), so it leaves this unreachable set.
+    assert unreachable == {5, 7, 12, 13, 14}, unreachable
     assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
 
     # Mode 16 ("implausible tissue under a label", entered as mode 9 by item

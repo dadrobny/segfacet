@@ -923,6 +923,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     # 2026-08-31 (item 132): the traversal-ordered monotonicity fit now
     # surfaces the swap through plain run_qc's mislabel Detector B, so this
     # entry moved from {"verdict": "pass", "findings": []}.
+    # 2026-09-28 (item 192): sequence's swap detector now also fires on this
+    # case (per_label centroids replace the integer-ordered
+    # out_of_order_labels[] input); verdict is unchanged.
     "relabel_swap": {
         "verdict": "flagged-for-review",
         "findings": [
@@ -936,9 +939,18 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "(L2) and 22 (L3) are out of expected order along the "
                     "spine (spline parameter does not advance)."
                 ),
-            }
+            },
+            {
+                "rule_id": "sequence",
+                "detector_id": "swap",
+                "severity": "flagged-for-review",
+                "labels": [21, 22],
+                "reason": "Non-continuous label sequence: swap of L3, L2.",
+            },
         ],
     },
+    # 2026-09-28 (item 192): sequence's skip detector now also fires on this
+    # case, co-detecting alongside coverage; verdict is unchanged.
     "remove_level": {
         "verdict": "flagged-for-review",
         "findings": [
@@ -951,7 +963,14 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "Missing interior level(s): L3 absent within the "
                     "observed present-level span."
                 ),
-            }
+            },
+            {
+                "rule_id": "sequence",
+                "detector_id": "skip",
+                "severity": "flagged-for-review",
+                "labels": [],
+                "reason": "Skipped level label: L3 absent between present levels.",
+            },
         ],
     },
     "crop_at_border": {
@@ -975,14 +994,17 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             },
         ],
     },
+    # 2026-09-28 (item 192): sequence names its sub-type; this case's finding
+    # is now the shift detector. Verdict is unchanged.
     "sequence_break": {
         "verdict": "flagged-for-review",
         "findings": [
             {
                 "rule_id": "sequence",
+                "detector_id": "shift",
                 "severity": "flagged-for-review",
                 "labels": [28],
-                "reason": "Non-continuous label sequence: T13 out of anatomical order.",
+                "reason": "Non-continuous label sequence: shift of T13.",
             }
         ],
     },

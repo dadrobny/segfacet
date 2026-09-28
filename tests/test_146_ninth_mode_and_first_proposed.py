@@ -1215,7 +1215,10 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     # Reconciled (item 188, 2026-09-28): mode 10 left the `proposed` set and
     # joined `specified` (coverage re-homed onto it, now `implemented`); the
     # six remaining proposed ids are 5, 7, 11, 12, 13, 14.
-    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 15, 16], specified_ids
+    # Reconciled (item 192, 2026-09-28): mode 11 left the `proposed` set and
+    # joined `specified` (sequence's `transitional` detector declares it, now
+    # `implemented`); the five remaining proposed ids are 5, 7, 12, 13, 14.
+    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 11, 15, 16], specified_ids
 
     for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]

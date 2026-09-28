@@ -240,10 +240,16 @@ def test_ac24_mode6_border_partial_fires_border():
 
 
 def _mode7_record() -> dict:
+    """Item 192 (2026-09-28): the rewritten sequence rule reads per_label
+    centroids, not out_of_order_labels[]; each entry gains a synthetic
+    centroid, and a third, in-order L2 tail level is added (a two-label
+    record is never out of order under the rule's inversion-count
+    tie-break)."""
     return {
         "per_label": {
-            _L1: {"label": _L1, "level_name": "L1"},
-            _T12: {"label": _T12, "level_name": "T12"},
+            _L1: {"label": _L1, "level_name": "L1", "centroid": {"centroid_mm": [0.0, 0.0, 3.0]}},
+            _T12: {"label": _T12, "level_name": "T12", "centroid": {"centroid_mm": [0.0, 0.0, 2.0]}},
+            _L2: {"label": _L2, "level_name": "L2", "centroid": {"centroid_mm": [0.0, 0.0, 1.0]}},
         },
         "relationships": {
             "present_levels": ["T12", "L1"],

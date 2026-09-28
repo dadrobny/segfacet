@@ -535,7 +535,9 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.geometry.touches_right", "border"),
         ("per_label.{label}.geometry.touches_anterior", "border"),
         ("per_label.{label}.geometry.touches_posterior", "border"),
-        ("relationships.out_of_order_labels[]", "sequence"),
+        # Item 192 (2026-09-28): sequence reads per_label centroids, not
+        # relationships.out_of_order_labels[].
+        ("per_label.{label}.centroid.centroid_mm[]", "sequence"),
         ("relationships.missing_levels[]", "coverage"),
         # Item 189 (2026-09-28): the offset detector moved to spline_offset.
         ("stage3.per_label_offsets[].offset_mm", "spline_offset"),

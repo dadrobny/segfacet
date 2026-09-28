@@ -905,7 +905,10 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("per_mode_metric",): 2,
         # Item 189 (2026-09-28): 1 -> 7 -- the six stage3.per_label_offsets[]
         # bookkeeping paths moved here from ("rule_bookkeeping",) above.
-        ("rule_mode_less", "rule_bookkeeping"): 7,
+        # Item 192 (2026-09-28): 7 -> 6 -- per_label.{label}.level_name gains
+        # rule_mode_map/rule_declaration evidence (sequence now declares
+        # modes), moving it to the combined bucket below instead.
+        ("rule_mode_less", "rule_bookkeeping"): 6,
         ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 1,
         (
             "per_mode_metric",
@@ -914,6 +917,10 @@ def test_adv_measured_artifact_movement_counts_from_spec():
             "rule_mode_less",
             "rule_bookkeeping",
         ): 1,
+        # Item 192 (2026-09-28): new -- per_label.{label}.level_name, read by
+        # sequence (mode-declaring, signal) and also as bookkeeping by a
+        # mode-less rule.
+        ("rule_mode_map", "rule_declaration", "rule_mode_less", "rule_bookkeeping"): 1,
         # Item 187 (2026-09-28): new -- component_contacts[].neighbour_label,
         # bookkeeping for neighbour_contact but still corpus-mapped.
         ("rule_mode_map", "rule_declaration", "rule_bookkeeping"): 1,

@@ -92,8 +92,10 @@ _MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 #: The entries authored ``"proposed"``: listed and deliberately unimplemented,
 #: so they carry no intended-rule edge, no corpus case and no declaring rule.
 #: Item 188 (2026-09-28): mode 10 left this set when ``coverage`` re-homed
-#: onto it (it now derives ``"implemented"``).
-_PROPOSED_MODE_IDS = (5, 7, 11, 12, 13, 14)
+#: onto it (it now derives ``"implemented"``). Item 192 (2026-09-28): mode 11
+#: left this set when ``sequence``'s ``transitional`` detector declared it
+#: (it now derives ``"implemented"``).
+_PROPOSED_MODE_IDS = (5, 7, 12, 13, 14)
 
 #: Item 188 (2026-09-28): the one entry authored ``"specified"`` that carries
 #: no declaring rule -- ``coverage`` moved off mode 6 onto mode 10, and mode
@@ -129,7 +131,7 @@ _EXPECTED_DERIVED_STATUS = {
     8: "implemented",
     9: "validated",
     10: "implemented",  # item 188 (2026-09-28): coverage's new home
-    11: "proposed",
+    11: "implemented",  # item 192 (2026-09-28): sequence's new home
     12: "proposed",
     13: "proposed",
     14: "proposed",
@@ -1347,9 +1349,10 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
 
     skipped = _mode(fm, 10)
     assert skipped.status == "specified", skipped.status
-    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage"}
+    # Item 192 (2026-09-28): sequence's skip detector also declares mode 10.
+    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage", "sequence"}
     assert skipped.corpus_cases == (), skipped.corpus_cases
-    assert _live_declared_rule_ids(10) == {"coverage"}
+    assert _live_declared_rule_ids(10) == {"coverage", "sequence"}
 
 
 # =========================================================================== #

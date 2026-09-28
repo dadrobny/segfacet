@@ -416,13 +416,19 @@ def test_ac12_pair_loop_still_uses_gte_not_strict_gt():
 
 
 def test_ac13_mode4_fires_exactly_one_mislabel_finding_on_21_22():
+    """Item 192 (2026-09-28): sequence's swap detector now also fires on this
+    case (per_label centroids replace the retired out_of_order_labels[]
+    input), so a second finding is expected alongside mislabel's."""
     case_result, _block = _run_qc_case("relabel_swap")
-    assert len(case_result.findings) == 1
+    assert len(case_result.findings) == 2
     finding = case_result.findings[0]
     assert finding.rule_id == "mislabel"
     assert finding.labels == frozenset({21, 22})
     assert finding.severity is Severity.FLAG
     assert finding.reason.startswith("Vertebra ordering inconsistent with label:")
+    assert case_result.findings[1].rule_id == "sequence"
+    assert case_result.findings[1].detector_id == "swap"
+    assert case_result.findings[1].labels == frozenset({21, 22})
 
 
 def test_ac14_mode4_verdict_is_flagged_for_review():
@@ -573,19 +579,27 @@ def test_ac24_item_039_mode4_pin_flipped():
 
 
 def test_ac25_item_129_pre_findings_baseline_reconciled():
+    """Item 192 (2026-09-28): sequence's swap detector now also fires."""
     import test_129_coincident_centroids_and_held_out_floor as t129
 
-    assert t129._PRE_129_FINDINGS["relabel_swap"] == {("mislabel", (21, 22))}
+    assert t129._PRE_129_FINDINGS["relabel_swap"] == {
+        ("mislabel", (21, 22)),
+        ("sequence", (21, 22)),
+    }
     t129.test_ac29_no_corpus_case_changes_findings()
 
 
 def test_ac26_item_098_shared_golden_constant_reconciled():
+    """Item 192 (2026-09-28): sequence's swap finding now also fires, so
+    relabel_swap's golden entry carries two findings, mislabel then
+    sequence."""
     import test_098_stray_components as t098
 
     expected = t098._PRE_098_GOLDEN_VERDICT_AND_FINDINGS["relabel_swap"]
     assert expected["verdict"] == "flagged-for-review"
-    assert len(expected["findings"]) == 1
+    assert len(expected["findings"]) == 2
     assert expected["findings"][0]["rule_id"] == "mislabel"
+    assert expected["findings"][1]["rule_id"] == "sequence"
     t098.test_ac15_golden_verdict_and_findings_unchanged("relabel_swap")
 
 

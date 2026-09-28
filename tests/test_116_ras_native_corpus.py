@@ -407,6 +407,16 @@ _ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace"})
 _ITEM_132_ADDED_MISLABEL_PAIR = ("mislabel", (21, 22))
 _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 
+#: Item 192 (2026-09-28): sequence's rewritten rule reads per_label centroids
+#: instead of relationships.out_of_order_labels[], adding a new finding to
+#: relabel_swap (swap, labels 21/22) and remove_level (skip, case-level).
+#: sequence_break's pair, ("sequence", (28,)), is unchanged against the
+#: aeb2f55 golden and needs no stripping.
+_ITEM_192_ADDED_SEQUENCE_PAIRS = {
+    "relabel_swap": ("sequence", (21, 22)),
+    "remove_level": ("sequence", ()),
+}
+
 
 @pytest.mark.skipif(
     _REFERENCE_SHA is None,
@@ -424,8 +434,10 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
 
     Except for ``displace`` and ``crop_at_border``, where item
     120 deliberately adds a ``mislabel`` finding on label 22 (AC18/AC23),
-    and ``relabel_swap``, where item 132 deliberately adds a
-    ``mislabel`` finding on labels (21, 22): those added pairs are stripped
+    ``relabel_swap``, where item 132 deliberately adds a
+    ``mislabel`` finding on labels (21, 22), and ``relabel_swap`` /
+    ``remove_level``, where item 192 (2026-09-28) deliberately adds a
+    ``sequence`` finding: those added pairs are stripped
     from the fresh side before comparing so the rest of each case's
     rule/label identity is still pinned exactly."""
     fresh = build_report_for_case(case)
@@ -446,6 +458,13 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
             "mislabel finding on labels (21, 22), but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != _ITEM_132_ADDED_MISLABEL_PAIR]
+    if case["case_id"] in _ITEM_192_ADDED_SEQUENCE_PAIRS:
+        added_pair = _ITEM_192_ADDED_SEQUENCE_PAIRS[case["case_id"]]
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 192's deliberate "
+            f"sequence finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (
         f"case {case['case_id']!r}: designated rule/labels changed relative "
         "to the pre-migration reference golden (aeb2f55)"

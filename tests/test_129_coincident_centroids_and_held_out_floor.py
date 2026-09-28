@@ -721,8 +721,10 @@ _PRE_129_FINDINGS = {
     "inject_islands": {("fragmentation", (22,))},
     # 2026-08-31 (item 132): traversal-ordered monotonicity now surfaces the
     # swap through plain run_qc, moved from set().
-    "relabel_swap": {("mislabel", (21, 22))},
-    "remove_level": {("coverage", ())},
+    # 2026-09-28 (item 192): sequence's swap detector now also fires.
+    "relabel_swap": {("mislabel", (21, 22)), ("sequence", (21, 22))},
+    # 2026-09-28 (item 192): sequence's skip detector now co-detects.
+    "remove_level": {("coverage", ()), ("sequence", ())},
     # Item 189 (2026-09-28): the co-firing offset detector moved to
     # spline_offset.
     # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
