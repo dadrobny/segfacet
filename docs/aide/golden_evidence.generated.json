@@ -16,10 +16,6 @@
       "total_leaf_paths": 101,
       "unwired_leaf_paths": 31
     },
-    "force_overlap": {
-      "total_leaf_paths": 101,
-      "unwired_leaf_paths": 31
-    },
     "fragment": {
       "total_leaf_paths": 101,
       "unwired_leaf_paths": 31

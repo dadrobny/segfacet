@@ -99,7 +99,7 @@ Candidate features:
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
 - `hypothesised` candidate path: `metric_change_under_merge_candidate`
 
-Mechanism: Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.
+Mechanism: Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.
 
 Intended rules:
 
@@ -468,15 +468,16 @@ Corpus cases:
 - Severity: flagged-for-review
 - Provenance: hypothesised
 - Status, authored: specified
-- Status, derived (live): validated
+- Status, derived (live): implemented
 - Derived rung (strongest edge, live): structurally-unobservable
 - Maintainer sign-off: (none recorded)
 
 Candidate features:
 
 - Stage-18 metric anchor path (`stage18-metric-anchor`): `overlaps[].overlap_voxels`
+- `hypothesised` candidate path: `eval.per_mode.overlapping_voxel_count`
 
-Mechanism: A single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a case deliberately corrupted to violate that invariant, which no real segmenter output can be; force_overlap therefore stays detection="reconstructed_record" rather than pipeline-detected, while the overlap rule and the paths it reads remain correct and fully wired.
+Mechanism: A single-channel integer label map holds exactly one label per voxel, so overlaps[].overlap_voxels can be non-zero only on a multi-channel input, which no FACET input path supplies: the pipeline builds its mask stack from the one label map. The overlap rule reads that path, is correct and fully wired, and is declared to need multi-channel input. No committed corpus case expresses this mode, because a single-channel fixture cannot hold an overlap (item 195, 2026-09-28).
 
 Intended rules:
 
@@ -484,7 +485,7 @@ Intended rules:
 
 Corpus cases:
 
-- `force_overlap` (geometric): expected firing = [overlap]; agrees with live measurement: True. reconstructed-record-detected; overlap is the sole rule that fires on this corpus case, measured live via segfacet.synth.regression.reconstructed_findings (2026-09-14). A voxel in a single-channel integer label map holds exactly one label, so overlaps[] can only populate when the record is deliberately corrupted to violate that invariant -- which this case's reconstruction does.
+- (none)
 
 ## Mode 16: Implausible tissue under a label
 

@@ -3385,7 +3385,6 @@
           "measures": "Number of voxels claimed by both labels of the pair.",
           "mode_evidence": [
             "per_mode_metric",
-            "rule_mode_map",
             "rule_declaration"
           ],
           "mode_roles": [

@@ -323,47 +323,6 @@
           1.0
         ]
       },
-      "case_id": "force_overlap",
-      "condition": "",
-      "detail": "force_overlap: shifted label 20 by -10 voxel(s) along the stacking axis (array axis 2) toward neighbour label 21, reassigning the contested overhang from 21 to 20.",
-      "detection": "reconstructed_record",
-      "expected_labels": [
-        20,
-        21
-      ],
-      "expected_rule_ids": [
-        "overlap"
-      ],
-      "expected_verdict": "flagged-for-review",
-      "failure_mode": 15,
-      "failure_mode_name": "overlapping segments",
-      "kind": "failure",
-      "perturbation": "force_overlap",
-      "perturbation_params": {
-        "neighbour_label": 21,
-        "target_label": 20
-      },
-      "reconstruction": "overlap_mask_stack",
-      "scan_fixture": "fixtures/base_scan.nii.gz",
-      "seed": 0,
-      "seg_fixture": "fixtures/force_overlap_seg.nii.gz"
-    },
-    {
-      "base": {
-        "curve_amplitude_mm": 0.0,
-        "levels": [
-          "L1",
-          "L2",
-          "L3",
-          "L4",
-          "L5"
-        ],
-        "spacing": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
       "case_id": "fuse_adjacent",
       "condition": "",
       "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the inter-centroid spacing around the fused label, is read by no shipped rule, so no rule is designated.",

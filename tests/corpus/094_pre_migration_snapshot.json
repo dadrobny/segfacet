@@ -251,48 +251,6 @@
       1.0
     ]
   },
-  "corpus/fixtures/force_overlap_seg.nii.gz|seg": {
-    "affine": [
-      [
-        1.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "data_sha256": "9b3969660d67e9da809660901d4895242a2cf9f1320aa81251d2f91613c5725f",
-    "dtype": "int64",
-    "integer_labels": true,
-    "path": "corpus/fixtures/force_overlap_seg.nii.gz",
-    "shape": [
-      61,
-      86,
-      193
-    ],
-    "spacing": [
-      1.0,
-      1.0,
-      1.0
-    ]
-  },
   "corpus/fixtures/fragment_seg.nii.gz|seg": {
     "affine": [
       [
