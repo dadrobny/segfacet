@@ -861,11 +861,17 @@ def _execution_log_body() -> str:
 
 
 def _execution_log_paths(body: str) -> set:
-    found = set()
-    for path in list(_AC18_PRE_ITEM_ROW_DIGESTS.keys()):
-        if path in body:
-            found.add(path)
-    return found
+    # item 195, 2026-09-28: was hardcoded to the item-126 retirement set only
+    # (_AC18_PRE_ITEM_ROW_DIGESTS), so a later item's own execution-log line
+    # (e.g. force_overlap_seg.nii.gz) was never recognised and AC20's
+    # both-directions check flagged it as an unexplained absent row. Mirror
+    # test_105's AC3 approach instead: any Section-1 fixture path named in
+    # the execution-log body is explained, not just the item-126 eleven.
+    # AC18/AC19's own assertions still narrow to the item-126 set themselves
+    # (via `expected = set(_AC18_PRE_ITEM_ROW_DIGESTS.keys())`), so their
+    # failure mode for a genuinely unlogged item-126 path is unchanged.
+    candidates = {r["fixture"] for r in _section1_rows()}
+    return {path for path in candidates if path in body}
 
 
 def test_ac19_execution_log_names_every_retired_path_dated_item126():
