@@ -1855,10 +1855,11 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   *(Item 176)*
 - ✅ **D2** `displace` moves mostly left-right (14 voxels right, 5 anterior).
   *(Item 177)*
-- ⏸️ **D2** `force_overlap` retired or declared multi-channel, and `fragment` parked.
-  Parked 2026-09-24 by the maintainer: no overlap fixture is needed while multi-channel
-  segmentation is unsupported, and no follow-up is planned (`insights.md`, `knowledge`
-  entry dated 2026-09-23).
+- ✅ **D2** `force_overlap` retired or declared multi-channel, and `fragment` parked.
+  Resolved 2026-09-28: the fixture, operator and ladder were removed, and the `overlap`
+  rule stays, declared to need multi-channel input; mode 15 derives `implemented`, with
+  no fixture claiming it. `fragment` stays parked as mode 1's catch-all case. The
+  2026-09-24 park was superseded by the maintainer on 2026-09-25. *(Item 195)*
 - ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
