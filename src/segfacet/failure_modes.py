@@ -264,6 +264,17 @@ terminal skip predate the gate and are unmoved by it: both are rule logic
 ``evaluate`` the gate cannot see), not the case-level exclusion the gate
 performs.
 
+**Correction (2026-09-28, after validation round 1):** ``mislabel`` also
+opts in to ``displaced_vertebra``. A genuine label swap can put the moved
+vertebra's centroid off the curve too, so ``spline_offset`` fires on it and
+the gate was dropping ``mislabel``'s own ordering finding on the same label,
+hiding a real segmentation defect behind the anatomy condition. The
+ordering signal is not spoiled by a displacement -- it is judged against a
+reference curve fitted in S-sorted label order, and a swapped label keeps
+its place in that order unless it moves past a neighbour. ``mislabel``
+still does not opt in to ``fov_truncation``: the crop spoils a truncated
+label's measured centroid, and the ordering is read from centroids.
+
 Lifecycle status
 -----------------
 ``status`` is **authored only** for ``"proposed"`` and ``"specified"``
@@ -2330,7 +2341,12 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "ordering detector, which decides specification mode 9, reads a "
         "different signal entirely "
         "(stage3.monotonic_consistency.non_monotonic_pairs[]) and never "
-        "fires on a displaced-only case."
+        "fires on a displaced-only case. mislabel opts in to this condition "
+        "too (item 191, 2026-09-28): a label swap can put a centroid off "
+        "the curve fitted in label order, so a genuine mislabel can also "
+        "read as displaced, and mislabel's own ordering finding on that "
+        "label must survive the runner's condition gate rather than be "
+        "dropped behind the anatomy condition."
     ),
     candidate_features=(
         "stage3.per_label_offsets[].offset_mm",
@@ -2341,7 +2357,7 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("spline_offset",),
-    opting_in_rules=("spline_offset",),
+    opting_in_rules=("mislabel", "spline_offset"),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="displace",

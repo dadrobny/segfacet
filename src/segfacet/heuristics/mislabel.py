@@ -32,6 +32,15 @@ Design decisions (recorded per item 033 spec):
 - Unrecognised severity string raises ValueError before any per-record
   processing.
 - The caller's record is never mutated.
+- This rule opts in to the ``displaced_vertebra`` condition (item 191,
+  2026-09-28): a mislabelled vertebra can itself read as displaced
+  (``spline_offset`` fires on it too), and the runner's condition gate would
+  otherwise drop this rule's own ordering finding on that label, hiding a
+  genuine segmentation defect behind an anatomy condition. The ordering
+  signal is not spoiled by a displacement: it is judged against a reference
+  curve fitted in S-sorted label order, and a swapped label keeps its place
+  in that order unless it moves past a neighbour -- which is exactly what
+  this rule reports.
 """
 
 from __future__ import annotations
@@ -40,6 +49,7 @@ from typing import Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
+    ConditionOptIn,
     ConsumedPath,
     Rule,
     RuleDetector,
@@ -114,6 +124,22 @@ class MislabelRule(Rule):
     """
 
     rule_id = "mislabel"
+
+    # This rule opts in to displaced_vertebra (item 191): a mislabelled
+    # vertebra can itself read as displaced, and the ordering signal is not
+    # spoiled by the displacement (see module docstring).
+    condition_opt_ins = (
+        ConditionOptIn(
+            condition="displaced_vertebra",
+            paths=("stage3.monotonic_consistency.non_monotonic_pairs[]",),
+            reason=(
+                "a mislabelled vertebra can read as displaced "
+                "(spline_offset fires on it too), but the ordering is "
+                "judged against a reference curve fitted in S-sorted label "
+                "order, which a displacement does not spoil"
+            ),
+        ),
+    )
 
     # Specification mode 9 (out-of-order label sequence):
     # RelabelSwapPerturbation designates mode 9
