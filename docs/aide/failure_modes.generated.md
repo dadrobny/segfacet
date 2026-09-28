@@ -192,8 +192,8 @@ Corpus cases:
 - Severity: flagged-for-review
 - Provenance: hypothesised
 - Status, authored: specified
-- Status, derived (live): validated
-- Derived rung (strongest edge, live): synthetic-demonstrable
+- Status, derived (live): specified
+- Derived rung (strongest edge, live): none
 - Maintainer sign-off: (none recorded)
 
 Candidate features:
@@ -205,15 +205,15 @@ Candidate features:
 - `hypothesised` candidate path: `extrapolated_centroid_gap_to_image_face_mm`
 - `hypothesised` candidate path: `scan_boundary_without_terminal_label`
 
-Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). From the label map alone: coverage's always-active interior-gap detector fires on relationships.missing_levels[] when the remaining labels are kept -- remove_level deletes L3 without renumbering and drives it end-to-end -- although the same gap is what a skipped label (mode 10) leaves, which centroid spacing would separate and no rule reads. coverage's opt-in expected-span and expected-count checks over relationships.present_levels[] ship disabled (needs-real-data). The renumbered form is not detected: remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a double inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped rule reads, so its expected firing set is empty. Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.
+Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.
 
 Intended rules:
 
-- `coverage` (detector: count_shortfall, incomplete_span, missing_interior) -- evidence rung: synthetic-demonstrable
+- (none)
 
 Corpus cases:
 
-- `remove_level` (geometric): expected firing = [coverage]; agrees with live measurement: True. pipeline-detected; coverage (Missing interior level(s): L3 absent within the observed present-level span) is the sole rule that fires, measured live via segfacet.synth.regression.pipeline_findings (2026-09-15). The vertebra is deleted and the remaining labels are kept, so this is a missed vertebra, not a skipped label (mode 10).
+- `remove_level` (geometric): expected firing = [coverage]; agrees with live measurement: True. pipeline-detected; coverage (Missing interior level(s): L3 absent within the observed present-level span) is the sole rule that fires, measured live via segfacet.synth.regression.pipeline_findings (2026-09-15). The vertebra is deleted and the remaining labels are kept, so this is a missed vertebra, not a skipped label (mode 10). coverage serves mode 10, not this mode, since item 188 (2026-09-28): this firing is a recorded co-detection that does not validate mode 6. Re-measured live 2026-09-28.
 - `remove_level_relabel` (geometric): expected firing = [(none)]; agrees with live measurement: True. not detected today: label 22 (L3) is deleted and labels 23/24 (L4/L5) are renumbered to 22/23, so the label sequence stays continuous while the centroid spacing between L2 and the renumbered L3 doubles; no shipped rule reads stage3.spacing_consistency.spacings_mm[], measured live via segfacet.synth.regression.pipeline_findings (2026-09-14). Recorded so the hypothesised spacing-gap signal has its fixture; an empty expected set never validates a mode.
 
 ## Mode 7 (1.6, sub-mode of 1): Hallucinated vertebra
@@ -323,9 +323,9 @@ Corpus cases:
 - Observability: single-channel-observable
 - Severity: fail
 - Provenance: hypothesised
-- Status, authored: proposed
-- Status, derived (live): proposed
-- Derived rung (strongest edge, live): none
+- Status, authored: specified
+- Status, derived (live): implemented
+- Derived rung (strongest edge, live): needs-real-data
 - Maintainer sign-off: (none recorded)
 
 Candidate features:
@@ -333,11 +333,11 @@ Candidate features:
 - `hypothesised` candidate path: `relationships.missing_levels[]`
 - `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
 
-Mechanism: No rule decides this mode and no corpus case exercises it: listed as proposed. coverage's interior-gap detector fires on the label gap it leaves (relationships.missing_levels[]) but cannot tell it from a missed vertebra, so that detector serves mode 6. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]), which no rule reads, and a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not yet authored.
+Mechanism: coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. No committed case expresses this mode itself, so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.
 
 Intended rules:
 
-- (none)
+- `coverage` (detector: count_shortfall, incomplete_span, missing_interior) -- evidence rung: needs-real-data
 
 Corpus cases:
 

@@ -2771,7 +2771,8 @@
           ],
           "documented": true,
           "failure_modes": [
-            6
+            6,
+            10
           ],
           "measures": "Expected-sequence levels absent within the observed present-level span (item 186).",
           "mode_evidence": [
@@ -2969,7 +2970,8 @@
           ],
           "documented": true,
           "failure_modes": [
-            6
+            6,
+            10
           ],
           "measures": "Recognised anatomical levels, in canonical head-to-tail order.",
           "mode_evidence": [

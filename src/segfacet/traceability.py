@@ -231,6 +231,10 @@ _NOTE = (
     "carry no rule -- a `proposed` entry in "
     "segfacet.failure_modes.SPECIFICATION is listed and defined but "
     "deliberately unimplemented -- and it appears as a mode -> rule hole. "
+    "Since item 188 (2026-09-28) a `specified` entry may also carry no rule "
+    "-- its rule is named but not yet written -- and that is a recorded gap, "
+    "not an excused one: mode 6 is the one such entry, and it too appears as "
+    "a mode -> rule hole. "
     "feature -> rule is deliberately incomplete -- see "
     "the `features.read_by_no_rule.qualifier` field. "
     "The `conformance` section (item 149) drives every corpus case in both "
@@ -994,8 +998,9 @@ def build_matrix() -> TraceabilityMatrix:
         # substitute either and see the matrix follow.
         mode_spec = specification[mode]
         derived_rung = failure_modes_module.derive_mode_rung(mode_spec)
-        # ``None`` is a legitimate answer -- mode 10, a `proposed` entry, has
-        # no edges by design. It is carried as "" through the frozen record
+        # ``None`` is a legitimate answer -- mode 6, a `specified` entry with
+        # no rule declaring it since item 188 (2026-09-28), has no edges to
+        # derive a rung from. It is carried as "" through the frozen record
         # and rendered as an explicit absence by both serialisers, never as a
         # blank indistinguishable from a failed lookup.
         rung = derived_rung or ""
@@ -1258,10 +1263,10 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 "status": m.status,
                 "authored_status": m.authored_status,
                 "edge_rungs": [list(edge) for edge in m.edge_rungs],
-                # An absent rung is `null`, not `""` (item 147 AC8): mode 10
-                # legitimately has no edges to derive one from, and a JSON
-                # reader must be able to tell that apart from a rung whose
-                # lookup failed.
+                # An absent rung is `null`, not `""` (item 147 AC8): mode 6
+                # legitimately has no edges to derive one from since item 188
+                # (2026-09-28), and a JSON reader must be able to tell that
+                # apart from a rung whose lookup failed.
                 "rung": m.rung or None,
                 "mechanism": m.mechanism,
                 "rules": list(m.rules),

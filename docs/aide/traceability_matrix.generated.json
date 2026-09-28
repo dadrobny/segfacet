@@ -242,12 +242,12 @@
     "mode_to_rule": {
       "complete": false,
       "holes": [
-        "10",
         "11",
         "12",
         "13",
         "14",
         "5",
+        "6",
         "7"
       ]
     },
@@ -635,19 +635,36 @@
     },
     "10": {
       "anchor_paths": [],
-      "authored_status": "proposed",
+      "authored_status": "specified",
       "cases": [],
-      "edge_rungs": [],
+      "edge_rungs": [
+        [
+          "coverage",
+          [
+            "count_shortfall",
+            "incomplete_span",
+            "missing_interior"
+          ],
+          "needs-real-data"
+        ]
+      ],
       "granularity": "signal",
-      "mechanism": "No rule decides this mode and no corpus case exercises it: listed as proposed. coverage's interior-gap detector fires on the label gap it leaves (relationships.missing_levels[]) but cannot tell it from a missed vertebra, so that detector serves mode 6. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]), which no rule reads, and a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not yet authored.",
+      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. No committed case expresses this mode itself, so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.",
       "mode": 10,
       "pipeline_detected": false,
-      "read_paths": [],
+      "read_paths": [
+        "relationships.missing_levels[]",
+        "relationships.present_levels[]"
+      ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {},
-      "rules": [],
-      "rung": null,
-      "status": "proposed",
+      "rule_attribution": {
+        "coverage": "analytic"
+      },
+      "rules": [
+        "coverage"
+      ],
+      "rung": "needs-real-data",
+      "status": "implemented",
       "title": "Skipped level label"
     },
     "11": {
@@ -1035,34 +1052,17 @@
           "detection": "pipeline"
         }
       ],
-      "edge_rungs": [
-        [
-          "coverage",
-          [
-            "count_shortfall",
-            "incomplete_span",
-            "missing_interior"
-          ],
-          "synthetic-demonstrable"
-        ]
-      ],
+      "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). From the label map alone: coverage's always-active interior-gap detector fires on relationships.missing_levels[] when the remaining labels are kept -- remove_level deletes L3 without renumbering and drives it end-to-end -- although the same gap is what a skipped label (mode 10) leaves, which centroid spacing would separate and no rule reads. coverage's opt-in expected-span and expected-count checks over relationships.present_levels[] ship disabled (needs-real-data). The renumbered form is not detected: remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a double inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped rule reads, so its expected firing set is empty. Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
+      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
       "mode": 6,
       "pipeline_detected": true,
-      "read_paths": [
-        "relationships.missing_levels[]",
-        "relationships.present_levels[]"
-      ],
+      "read_paths": [],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {
-        "coverage": "corpus"
-      },
-      "rules": [
-        "coverage"
-      ],
-      "rung": "synthetic-demonstrable",
-      "status": "validated",
+      "rule_attribution": {},
+      "rules": [],
+      "rung": null,
+      "status": "specified",
       "title": "Vertebra not segmented"
     },
     "7": {
@@ -1172,7 +1172,7 @@
       "title": "Out-of-order label sequence"
     }
   },
-  "note": "Generated by `python -m segfacet.traceability` (item 138; re-pointed at src/segfacet/failure_modes.py as its primary source by item 149). Do not hand-edit this document -- edit the authored failure-mode specification in src/segfacet/failure_modes.py (every mode's title, status, per-edge evidence rung, mechanism sentence and per-corpus-case expected firing set is read live from it) or the underlying rule/catalogue sources this matrix also derives from, then regenerate. mode -> rule and rule -> mode each report their own completeness and name every hole: read the `complete`/`holes` fields rather than assuming either is complete. Since item 146 a mode may legitimately carry no rule -- a `proposed` entry in segfacet.failure_modes.SPECIFICATION is listed and defined but deliberately unimplemented -- and it appears as a mode -> rule hole. feature -> rule is deliberately incomplete -- see the `features.read_by_no_rule.qualifier` field. The `conformance` section (item 149) drives every corpus case in both committed manifests through the specification's expected firing set and the live measured firing set: read `conformance.disagreements` and `conformance.unspecified_cases` for the live answer, never assume `conformant`. The `exercise` section (item 162) reports, per registered rule and per registered perturbation operator, whether it is exercised/used by >=1 committed corpus case or recorded unexercised/unused with a reason: read `directions.rule_exercise`/`directions.operator_exercise` for the live answer, never assume either is complete.",
+  "note": "Generated by `python -m segfacet.traceability` (item 138; re-pointed at src/segfacet/failure_modes.py as its primary source by item 149). Do not hand-edit this document -- edit the authored failure-mode specification in src/segfacet/failure_modes.py (every mode's title, status, per-edge evidence rung, mechanism sentence and per-corpus-case expected firing set is read live from it) or the underlying rule/catalogue sources this matrix also derives from, then regenerate. mode -> rule and rule -> mode each report their own completeness and name every hole: read the `complete`/`holes` fields rather than assuming either is complete. Since item 146 a mode may legitimately carry no rule -- a `proposed` entry in segfacet.failure_modes.SPECIFICATION is listed and defined but deliberately unimplemented -- and it appears as a mode -> rule hole. Since item 188 (2026-09-28) a `specified` entry may also carry no rule -- its rule is named but not yet written -- and that is a recorded gap, not an excused one: mode 6 is the one such entry, and it too appears as a mode -> rule hole. feature -> rule is deliberately incomplete -- see the `features.read_by_no_rule.qualifier` field. The `conformance` section (item 149) drives every corpus case in both committed manifests through the specification's expected firing set and the live measured firing set: read `conformance.disagreements` and `conformance.unspecified_cases` for the live answer, never assume `conformant`. The `exercise` section (item 162) reports, per registered rule and per registered perturbation operator, whether it is exercised/used by >=1 committed corpus case or recorded unexercised/unused with a reason: read `directions.rule_exercise`/`directions.operator_exercise` for the live answer, never assume either is complete.",
   "primary_source": "src/segfacet/failure_modes.py",
   "rules": {
     "border": {
@@ -1221,8 +1221,8 @@
     "coverage": {
       "declaration_state": "declared",
       "evidence": [
-        "corpus-manifest",
-        "tests/corpus/manifest.json's remove_level designates this rule for mode 6 (vertebra not segmented) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the corpus operator deletes an interior vertebra without renumbering, and the always-active detector fires on the resulting gap in relationships.missing_levels[]. The two opt-in checks (expected span, expected count) over relationships.present_levels[] serve the same mode, needs-real-data. A skipped label on a segmented vertebra (mode 10) leaves the same gap, but this rule cannot tell the two apart and does not declare mode 10; the other mode-6 fixture remove_level_relabel renumbers the labels to stay continuous and fires nothing."
+        "analytic",
+        "the always-active missing_interior detector reads the label gap in relationships.missing_levels[] -- what a skipped level label (mode 10) leaves -- but the rule cannot see whether the vertebra behind the gap is actually present, so it cannot distinguish a skipped label from a missed vertebra (mode 6). remove_level (mode 6, tests/corpus/manifest.json) therefore fires this detector as a recorded co-detection, not a validation of mode 10: no committed case expresses mode 10 itself (item 188, 2026-09-28). The two opt-in checks (expected span, expected count) over relationships.present_levels[] moved with the rule and serve the same mode, needs-real-data."
       ],
       "feature_path_count": 4,
       "feature_paths": [
@@ -1233,7 +1233,7 @@
       ],
       "mode_less_reason": "",
       "modes": [
-        6
+        10
       ],
       "rule_id": "coverage"
     },

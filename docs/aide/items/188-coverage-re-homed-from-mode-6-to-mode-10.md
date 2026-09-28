@@ -584,7 +584,16 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented as specified, with no deviation from the Assumptions'
+re-measured values: A1-A9 all held on re-measurement (2026-09-28), so the
+`mode_declaration`, both `ModeSpec`s, the two docstring corrections, the
+`_NOTE` extension, the bounds.py comment and the three regenerated documents
+match A6's live counts exactly (`derive_status`/`derive_mode_rung` over both
+modes, the `mode_to_rule` holes, the two level-list `failure_modes` tuples,
+and all three amended count clauses were re-measured live before the
+corresponding `aide progress amend` call, not copied from the spec). The
+tests listed under Testing Strategy's "Existing tests to reconcile" were
+already reconciled by the test-writer's commit; no test edit was needed here.
 
 - **Left open:** mode 6's own rule. Its label-map signal is a doubled
   inter-centroid spacing over `stage3.spacing_consistency.spacings_mm[]`, which

@@ -199,6 +199,25 @@ The sequence case's rung rationale is settled here as one measured sentence
 renumbering), correcting the ``rank(v) ==
 v - 1`` claim item 145 transcribed from ``MODE_RUNGS``: see that field.
 
+``coverage`` re-homed to mode 10 (item 188, 2026-09-28)
+---------------------------------------------------------
+``coverage`` reads ``relationships.missing_levels[]`` and
+``relationships.present_levels[]`` -- lists of labels, not of vertebrae -- so
+it can see a missing label in the sequence but not whether the vertebra
+behind it exists. That serves mode 10 (skipped level label), not mode 6
+(vertebra not segmented), which mode 6's own declaration had claimed since
+item 150. Item 188 moves ``coverage``'s declaration to ``modes=(10,)`` and
+re-authors mode 10 ``"specified"`` with that edge at ``needs-real-data`` (no
+committed case expresses it). Mode 6 loses its only edge and keeps its two
+``remove_level``/``remove_level_relabel`` corpus cases and its ``"specified"``
+status -- it derives ``"specified"`` with no rung, the first mode this module
+carries with a named rule and no rule declaring it (a recorded gap, not
+``"proposed"`` drift: :data:`AUTHORED_STATUSES`'s ``"specified"`` means
+"rules named but not written", and mode 6's spacing rule is named in
+``docs/aide/insights.md``, 2026-09-22, and left to a later per-mode queue).
+``remove_level``'s firing of ``coverage`` is now a recorded co-detection of
+mode 10's detector; it does not validate mode 6.
+
 Lifecycle status
 -----------------
 ``status`` is **authored only** for ``"proposed"`` and ``"specified"``
@@ -1412,23 +1431,24 @@ _MODE_6 = ModeSpec(
     ),
     mechanism=(
         "Defined against ground truth (the Stage-18 metric counts GT levels "
-        "with no candidate voxels). From the label map alone: coverage's "
-        "always-active interior-gap detector fires on "
-        "relationships.missing_levels[] when the remaining labels are kept "
-        "-- remove_level deletes L3 without renumbering and drives it "
-        "end-to-end -- although the same gap is what a skipped label (mode "
-        "10) leaves, which centroid spacing would separate and no rule "
-        "reads. coverage's opt-in expected-span and expected-count checks "
-        "over relationships.present_levels[] ship disabled "
-        "(needs-real-data). The renumbered form is not detected: "
-        "remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, "
-        "leaving a continuous label sequence with a double inter-centroid "
-        "spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped "
-        "rule reads, so its expected firing set is empty. Two further "
-        "hypothesised signals cover a missing vertebra at the FOV end: "
-        "extrapolating the centroid sequence toward the image face, and "
-        "checking that no label touches a scan boundary that lacks a "
-        "terminal label."
+        "with no candidate voxels). No registered rule decides this mode "
+        "since item 188 (2026-09-28): coverage's interior-gap detector "
+        "fires on the label gap in relationships.missing_levels[] that "
+        "remove_level leaves -- the vertebra is deleted without renumbering "
+        "and the remaining labels are kept -- but that detector serves mode "
+        "10 (skipped level label), because it cannot tell a missed vertebra "
+        "from a skipped label on a segmented one; so remove_level's firing "
+        "is a recorded co-detection, not this mode's own evidence. "
+        "remove_level_relabel fires nothing: it deletes L3 and renumbers "
+        "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
+        "inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) "
+        "that no rule reads. That doubled spacing is this mode's own "
+        "label-map signal -- it would also catch remove_level -- and its "
+        "rule is decided in a later per-mode queue (roadmap Stage 33 scope "
+        "decisions). Two further hypothesised signals cover a missing "
+        "vertebra at the FOV end: extrapolating the centroid sequence "
+        "toward the image face, and checking that no label touches a scan "
+        "boundary that lacks a terminal label."
     ),
     observability="needs-ground-truth",
     candidate_features=(
@@ -1457,13 +1477,7 @@ _MODE_6 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(
-        IntendedRule(
-            rule_id="coverage",
-            detector_ids=("count_shortfall", "incomplete_span", "missing_interior"),
-            evidence_rung="synthetic-demonstrable",
-        ),
-    ),
+    intended_rules=(),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="remove_level",
@@ -1475,7 +1489,10 @@ _MODE_6 = ModeSpec(
                 "rule that fires, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-15). "
                 "The vertebra is deleted and the remaining labels are kept, "
-                "so this is a missed vertebra, not a skipped label (mode 10)."
+                "so this is a missed vertebra, not a skipped label (mode 10). "
+                "coverage serves mode 10, not this mode, since item 188 "
+                "(2026-09-28): this firing is a recorded co-detection that "
+                "does not validate mode 6. Re-measured live 2026-09-28."
             ),
         ),
         CorpusCaseExpectation(
@@ -1742,15 +1759,17 @@ _MODE_10 = ModeSpec(
         "mode 9."
     ),
     mechanism=(
-        "No rule decides this mode and no corpus case exercises it: listed "
-        "as proposed. coverage's interior-gap detector fires on the label "
-        "gap it leaves (relationships.missing_levels[]) but cannot tell it "
-        "from a missed vertebra, so that detector serves mode 6. The "
-        "separating signal is an ordinary inter-centroid spacing across the "
-        "label gap (stage3.spacing_consistency.spacings_mm[]), which no "
-        "rule reads, and a skip-relabel fixture (renumber the labels caudal "
-        "to a level down by one without deleting a vertebra) is not yet "
-        "authored."
+        "coverage's interior-gap detector fires on the label gap in "
+        "relationships.missing_levels[] (item 188, 2026-09-28). The "
+        "detector cannot tell that gap from a missed vertebra, so on "
+        "remove_level (mode 6) it is a co-detection, not a validation of "
+        "this mode. No committed case expresses this mode itself, so the "
+        "edge is needs-real-data: a skip-relabel fixture (renumber the "
+        "labels caudal to a level down by one without deleting a vertebra) "
+        "is not authored. The separating signal is an ordinary "
+        "inter-centroid spacing across the label gap "
+        "(stage3.spacing_consistency.spacings_mm[]); the same path rule as "
+        "mode 6 applies -- no rule reads it yet."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1763,10 +1782,16 @@ _MODE_10 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(),
+    intended_rules=(
+        IntendedRule(
+            rule_id="coverage",
+            detector_ids=("count_shortfall", "incomplete_span", "missing_interior"),
+            evidence_rung="needs-real-data",
+        ),
+    ),
     corpus_cases=(),
     severity="fail",
-    status="proposed",
+    status="specified",
     provenance="hypothesised",
 )
 
@@ -2615,6 +2640,12 @@ def derive_status(mode: ModeSpec) -> str:
     validated implies implemented -- so the rung below is now a
     precondition, not merely the fallback. No shipped mode moves: all ten
     entries that reach the corpus-agreement clause are declared.
+
+    Correction (item 188, 2026-09-28): that no longer holds for every mode
+    that reaches the clause. Mode 6 carries corpus cases and no declaring
+    rule since ``coverage`` moved to mode 10, so it now reaches the
+    corpus-agreement clause undeclared, fails the precondition, and derives
+    its authored ``"specified"`` instead of ``"validated"``.
     """
     declared = _registry_declares(mode.id)
     if declared and mode.corpus_cases and _demonstrates(mode):

@@ -302,8 +302,9 @@ class BoundsRule(Rule):
     # case designates "bounds" for any mode, so evidence carries "analytic"
     # plus the mechanism sentence, never "corpus". Mode 6 (vertebra not
     # segmented) is structurally out of reach: evaluate() iterates labels
-    # *present* in per_label and can never observe an absent one -- coverage
-    # owns mode 6. The FOV-truncation condition is the border rule's to
+    # *present* in per_label and can never observe an absent one -- no
+    # shipped rule decides mode 6 since item 188 (2026-09-28; coverage
+    # serves mode 10). The FOV-truncation condition is the border rule's to
     # record, not a mode. Item 137 Assumptions A2 argues this under the
     # pre-renumbering v3 ids.
     mode_declaration = RuleModeDeclaration(

@@ -1,11 +1,16 @@
 """Incomplete-coverage / missing-level rule (item 029).
 
-Implements a **coverage rule family** targeting failure mode 6 (vertebra
-not segmented) in ``failure_modes.SPECIFICATION`` — *not all
-vertebrae in the image are segmented*. It runs up to three independent checks
-off the pre-computed ``relationships`` (item 014) and per-label ``geometry``
-(item 011) sub-blocks, distinguished by a stable tag at the start of each
-finding's ``reason`` string:
+Implements a **coverage rule family** targeting failure mode 10 (skipped
+level label) in ``failure_modes.SPECIFICATION`` — every vertebra is
+segmented but the labels skip a level. Item 188 (2026-09-28) re-homed the
+rule off mode 6 (vertebra not segmented): the rule reads
+``relationships.missing_levels[]``/``relationships.present_levels[]``, lists
+of *labels*, so it can see a missing label in the sequence but not whether
+the vertebra behind it is actually there — that is mode 10's finding, not
+mode 6's. It runs up to three independent checks off the pre-computed
+``relationships`` (item 014) and per-label ``geometry`` (item 011)
+sub-blocks, distinguished by a stable tag at the start of each finding's
+``reason`` string:
 
 1. **Missing interior level(s)** *(always active)* — a level absent from
    *within* the observed present-label span is bracketed above and below by
@@ -134,26 +139,28 @@ class CoverageRule(Rule):
 
     rule_id = "coverage"
 
-    # Specification mode 6 (vertebra not segmented): RemoveLevelPerturbation
-    # (src/segfacet/synth/coverage_border_overlap.py) designates "coverage"
-    # for mode 6 via its Expectation(failure_mode=6, expected_rule_ids={"coverage"}).
+    # Specification mode 10 (skipped level label), item 188 (2026-09-28):
+    # re-homed off mode 6. RemoveLevelPerturbation
+    # (src/segfacet/synth/coverage_border_overlap.py) still designates
+    # "coverage" for mode 6's remove_level case via its
+    # Expectation(failure_mode=6, expected_rule_ids={"coverage"}), but that
+    # firing is now a recorded co-detection of mode 10's detector, not mode
+    # 6's own evidence -- mode 6 carries no rule since item 188.
     mode_declaration = RuleModeDeclaration(
-        modes=(6,),
+        modes=(10,),
         evidence=(
-            "corpus-manifest",
-            "tests/corpus/manifest.json's remove_level designates "
-            "this rule for mode 6 (vertebra not segmented) of the "
-            "catalogue signed off at item 150 (2026-09-14, revised "
-            "2026-09-15): the corpus operator deletes an interior vertebra "
-            "without renumbering, and the always-active detector fires on "
-            "the resulting gap in relationships.missing_levels[]. The two "
-            "opt-in checks (expected span, expected count) over "
-            "relationships.present_levels[] serve the same mode, "
-            "needs-real-data. A skipped label on a segmented vertebra "
-            "(mode 10) leaves the same gap, but this rule cannot tell the "
-            "two apart and does not declare mode 10; the other mode-6 fixture "
-            "remove_level_relabel renumbers the labels to stay continuous "
-            "and fires nothing.",
+            "analytic",
+            "the always-active missing_interior detector reads the label "
+            "gap in relationships.missing_levels[] -- what a skipped level "
+            "label (mode 10) leaves -- but the rule cannot see whether the "
+            "vertebra behind the gap is actually present, so it cannot "
+            "distinguish a skipped label from a missed vertebra (mode 6). "
+            "remove_level (mode 6, tests/corpus/manifest.json) therefore "
+            "fires this detector as a recorded co-detection, not a "
+            "validation of mode 10: no committed case expresses mode 10 "
+            "itself (item 188, 2026-09-28). The two opt-in checks (expected "
+            "span, expected count) over relationships.present_levels[] "
+            "moved with the rule and serve the same mode, needs-real-data.",
         ),
         consumed_paths=(
             ConsumedPath(
