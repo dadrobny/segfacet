@@ -78,12 +78,11 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   deliberately left as a plain attribution for the same reason as mode 8
   above.
 - **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
-  anchored on
-  ``relationships.is_continuous`` -- the companion continuity flag in the
-  same ``relationships`` sub-block ``heuristics.sequence.SequenceRule``
-  reads its ``out_of_order_labels`` signal from, for the same reason:
-  ``relationships.out_of_order_labels[]`` is ``sequence``'s only
-  exclusively-consumed leaf path and is left as a plain attribution.
+  anchored on ``relationships.is_continuous``. That flag stays the metric
+  anchor no rule reads; since item 192 (2026-09-28)
+  ``heuristics.sequence.SequenceRule`` reads ``per_label`` instead (each
+  entry's ``centroid.centroid_mm`` and ``level_name``), not the
+  ``relationships`` sub-block at all.
 
 ``MetricSpec`` (``segfacet.eval.per_mode``) carries no record-path field, so
 this transcription cannot be read off it mechanically; a future item that adds
@@ -287,7 +286,8 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
             "anterior-posterior, axis 2 cranio-caudal -- only because "
             "io.load_volume reorients every volume to axis codes (R, A, S) and "
             "centroid_mm carries no affine of its own. is_terminal (item 123) "
-            "marks the first/last vertebra of the sequence; the mislabel rule "
+            "marks the first/last vertebra of the sequence; the spline_offset "
+            "rule (item 189, moved off mislabel) "
             "and the reference distribution both treat offset_mm as an "
             "interior-only feature, excluding a terminal entry from their "
             "judgement, because the held-out refit extrapolates past the end "
@@ -375,11 +375,13 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # candidate-vs-GT and reads no record path, so it has no anchor here. The
 # spline-offset path (``stage3.per_label_offsets[].offset_mm``) is dropped:
 # its only consumer, ``mislabel``, was classified at the item-150 sign-off
-# as serving no failure mode (mislabel itself declares that path
+# as serving no failure mode (mislabel itself declared that path
 # ``bookkeeping``, not ``signal``), so mode 1's anchor and mode 1's
-# mechanism disagreed. The corresponding candidate-feature role in
-# ``failure_modes._MODE_1`` moved from ``"stage18-metric-anchor"`` to
-# ``"hypothesised"`` to match (the path itself stays listed there).
+# mechanism disagreed. Item 189 (2026-09-28) moved that detector to its
+# own mode-less rule, ``spline_offset``, which records the new
+# ``displaced_vertebra`` CONDITION; mode 1's candidate-feature entry for
+# the path was removed from ``failure_modes._MODE_1`` at the same time
+# (the path no longer stays listed there).
 # --------------------------------------------------------------------------- #
 
 MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
@@ -1143,6 +1145,30 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
+        'per_label.{label}.components.component_contacts[].contact_area_mm2': FeatureDoc(
+            measures="A component's 6-neighbour face-contact area with its single most-contacted other label (item 187).",
+            computation='Same face-contact definition as stray_contact_area_mm2 (item 167), computed for every component in component_sizes order rather than only the stray population: the contact area with neighbour_label (0.0 when neighbour_label == 0).',
+            units='mm^2',
+            scale_sensitivity='scales with spacing',
+        ),
+        'per_label.{label}.components.component_contacts[].contact_fraction': FeatureDoc(
+            measures="A component's contact area with its most-contacted neighbour, as a fraction of the component's own surface -- item 187's relative measure, so a small component whose surface is mostly pressed against a neighbour scores as high as a large one whose absolute contact area happens to be the same.",
+            computation='contact_area_mm2 / surface_area_mm2, in [0.0, 1.0]; 0.0 when the component touches no other label.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'per_label.{label}.components.component_contacts[].neighbour_label': FeatureDoc(
+            measures="The other label id carrying a component's largest contact area (item 187).",
+            computation='argmax over other non-zero labels of face-contact area with this component; 0 (background sentinel) when the component touches no other label. Tie-break: among contacting labels of equal area, the lowest label id wins.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'per_label.{label}.components.component_contacts[].surface_area_mm2': FeatureDoc(
+            measures="A component's total 6-neighbour face area, toward another label, background, or the image boundary (item 187).",
+            computation='Summed face area of every 6-neighbour face of the component whose neighbour voxel is not the same component -- another label, background, or padding at the image boundary -- from the per-axis face area of the header zooms.',
+            units='mm^2',
+            scale_sensitivity='scales with spacing',
+        ),
         'per_label.{label}.components.component_count': FeatureDoc(
             measures='Number of distinct connected pieces the label is split into.',
             computation="Direct output of scipy.ndimage.label's component count (6-connectivity).",
@@ -1164,6 +1190,12 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
         'per_label.{label}.components.fragmentation_index': FeatureDoc(
             measures='Alias of largest_component_fraction, exposed under its item-025 public name.',
             computation='Same value as largest_component_fraction, always present so callers need not know the alias history.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'per_label.{label}.components.label_contact_fraction': FeatureDoc(
+            measures="The same relative contact measure as component_contacts[].contact_fraction, computed once more over the label as a whole rather than any single component (item 187).",
+            computation="The label's contact area with its single most-contacted neighbour label (summed across all of its components' contact with that neighbour), divided by the label's total surface area (summed across all of its components' surfaces); 0.0 when the label touches no other non-zero label. Not a second pass: derived from the same per-component tallies as component_contacts.",
             units='',
             scale_sensitivity='dimensionless',
         ),
@@ -1474,8 +1506,8 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             scale_sensitivity='boolean',
         ),
         'relationships.missing_levels[]': FeatureDoc(
-            measures='Canonical levels absent within the observed present-level span.',
-            computation='Set difference between the canonical-order slice [first_present..last_present] and the present-levels set.',
+            measures='Expected-sequence levels absent within the observed present-level span (item 186).',
+            computation='Set difference between the expected-sequence slice [first_present..last_present] and the present-levels set, where the expected sequence is C1-C7, T1-T{thoracic}, L1-L{lumbar}, one sacral element -- default counts (7, 12, 5); a non-default thoracic (11 or 13) or lumbar (4 or 6) count is accepted only when the labels also show the first vertebra on either side of that section (C7 for thoracic, the resolved last thoracic level for lumbar), or is supplied by the caller outright. The sacrum is one element: any of S1-S6 stands for it.',
             units='',
             scale_sensitivity='dimensionless',
         ),
@@ -1721,7 +1753,8 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             ),
             computation=(
                 'True for index 0 and index n-1 of the sequence (and every entry '
-                'when n <= 2); false otherwise. The mislabel rule and the '
+                'when n <= 2); false otherwise. The spline_offset rule (item 189, '
+                'moved off mislabel) and the '
                 'reference distribution both exclude a terminal entry from their '
                 'offset judgement, because the held-out refit must extrapolate '
                 'past the end of its own parameter domain there, which reads an '

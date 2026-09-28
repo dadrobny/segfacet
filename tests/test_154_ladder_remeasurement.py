@@ -56,9 +56,9 @@ Strategy):
 - AC17: the independent descent counter returns 0 for a strictly-increasing
         sequence and 1 for a sequence with one out-of-order label.
 - AC20: the same check applied to the *dropped* anchor path
-        (``stage3.per_label_offsets[].offset_mm``) fails: its only
-        consumer, ``mislabel``, declares it ``"bookkeeping"``, and
-        ``mislabel`` is not one of mode 1's intended rules.
+        (``stage3.per_label_offsets[].offset_mm``) fails: its only consumer
+        (``spline_offset`` since item 189, 2026-09-28; role
+        ``"condition-signal"``) is not one of mode 1's intended rules.
 - AC21: a ``ModeSpec`` copy whose anchor-role candidate feature is not in
         ``MODE_ANCHOR_PATHS[1]`` raises ``ValueError``.
 - AC22: a positive-control child that opens a path under ``tests/`` after
@@ -553,18 +553,27 @@ def test_ac20_mode1_rules_consume_its_anchor():
 
 def test_adv_ac20_dropped_offset_path_is_not_a_mode1_signal():
     """The path this item drops from ``MODE_ANCHOR_PATHS[1]``: its only
-    consumer, ``mislabel``, declares it ``"bookkeeping"``, and ``mislabel``
-    is not among mode 1's intended rules -- so the AC20 check would fail if
-    this path were still listed as mode 1's anchor."""
+    consumer is not among mode 1's intended rules -- so the AC20 check would
+    fail if this path were still listed as mode 1's anchor.
+
+    Item 189 (2026-09-28): the path's only consumer moved from ``mislabel``
+    (role ``"bookkeeping"``) to the new ``spline_offset`` rule (role
+    ``"condition-signal"``); ``mislabel`` no longer declares this path at
+    all. Neither rule is among mode 1's intended rules, so the guarded claim
+    still holds."""
     declarations = dict(iter_rule_declarations())
     intended_rule_ids = {rule.rule_id for rule in failure_modes.SPECIFICATION[1].intended_rules}
     assert "mislabel" not in intended_rule_ids
+    assert "spline_offset" not in intended_rule_ids
 
     offset_path = "stage3.per_label_offsets[].offset_mm"
     mislabel_declaration = declarations["mislabel"]
-    matches = [cp for cp in mislabel_declaration.consumed_paths if cp.path == offset_path]
+    assert not [cp for cp in mislabel_declaration.consumed_paths if cp.path == offset_path]
+
+    spline_offset_declaration = declarations["spline_offset"]
+    matches = [cp for cp in spline_offset_declaration.consumed_paths if cp.path == offset_path]
     assert len(matches) == 1
-    assert matches[0].role == "bookkeeping"
+    assert matches[0].role == "condition-signal"
 
 
 def test_ac21_candidate_feature_anchor_roles_mirror_the_anchor_map():

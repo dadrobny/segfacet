@@ -1,7 +1,8 @@
-"""Coverage, border & overlap perturbations: remove_level, crop_at_border,
-force_overlap (item 038).
+"""Coverage & border perturbations: remove_level, remove_level_relabel,
+crop_at_border, crop_fov (item 038; `force_overlap` removed by item 195,
+2026-09-28).
 
-The second Stage 5 operator family: three seeded :class:`~segfacet.synth.
+The second Stage 5 operator family: four seeded :class:`~segfacet.synth.
 perturbation.Perturbation` subclasses that inject label-coverage /
 spatial-extent failures onto the item-036 clean-GT positive control
 (:func:`segfacet.synth.clean_gt.build_clean_spine`), each returning a
@@ -27,17 +28,6 @@ for a condition) and the offending label(s):
   whole-slice cut removing at least a given fraction of a target label; the
   output is a smaller grid with a translated affine, so every kept voxel
   stays at its world position (the FOV-truncation condition).
-* :class:`ForceOverlapPerturbation` (``"force_overlap"``) -- shifts an
-  entire target body along the stacking (superior-inferior) axis -- resolved
-  from the target volume's own affine (item 116), not a hardcoded index --
-  toward an adjacent neighbour, reassigning the contested overhang voxels
-  from the neighbour to the target. Because a single-integer label map cannot store a voxel
-  belonging to two labels, this overlap is **not** visible through the
-  normal ``run_qc`` one-hot pipeline -- it is asserted via a reconstructed
-  two-channel mask stack fed to :func:`segfacet.features.overlap.detect_overlaps`
-  / :class:`~segfacet.heuristics.overlap.OverlapRule` directly (specification
-  mode 15, overlapping segments; see
-  the item spec's Assumptions for the full rationale).
 
 Implemented strictly against the unchanged item-036 contract (``Perturbation``,
 ``Expectation``, ``PerturbationResult``, ``register_perturbation``,
@@ -52,14 +42,14 @@ of the caller's input, and preserves dtype/shape/affine/spacing -- except
 
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence
 
 import numpy as np
 import nibabel as nib
 
 from segfacet.io import FacetInputError
 from segfacet.labels import LabelConvention
-from segfacet.synth.axes import FACE_NAMES, resolve_face, si_axis
+from segfacet.synth.axes import FACE_NAMES, resolve_face
 from segfacet.failure_modes import CONDITIONS
 from segfacet.synth.perturbation import (
     CLEAN_CONTROL_MODE,
@@ -75,7 +65,6 @@ __all__ = [
     "RemoveLevelPerturbation",
     "CropAtBorderPerturbation",
     "CropFovPerturbation",
-    "ForceOverlapPerturbation",
 ]
 
 
@@ -97,16 +86,6 @@ def _choose_label(labels: Sequence[int], seed: int) -> int:
     return labels[idx]
 
 
-def _choose_adjacent_pair(labels_sorted: Sequence[int], seed: int) -> Tuple[int, int]:
-    """Deterministically pick a consecutive-in-sorted-order pair.
-
-    Returns ``(target, neighbour)`` with ``target`` the lower-index member.
-    """
-    rng = seeded_rng(seed)
-    idx = int(rng.integers(0, len(labels_sorted) - 1))
-    return labels_sorted[idx], labels_sorted[idx + 1]
-
-
 def _new_image(data: np.ndarray, labelmap: nib.Nifti1Image) -> nib.Nifti1Image:
     """Build a fresh image with *data* and the input's affine.
 
@@ -114,12 +93,6 @@ def _new_image(data: np.ndarray, labelmap: nib.Nifti1Image) -> nib.Nifti1Image:
     """
     affine = np.array(labelmap.affine, copy=True)
     return nib.Nifti1Image(data, affine)
-
-
-def _label_bbox(data: np.ndarray, label: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Return ``(mins, maxs)`` voxel-index bounding box for *label* in *data*."""
-    coords = np.argwhere(data == label)
-    return coords.min(axis=0), coords.max(axis=0)
 
 
 def _require_present(label: int, labels: Sequence[int], *, what: str) -> None:
@@ -446,6 +419,11 @@ class CropFovPerturbation(Perturbation):
 
     Rejects ``removed_fraction`` outside (0, 1), an input with no labels, an
     absent target, and a cut that would remove every slice of the target.
+
+    Expects nothing to fire (item 191, 2026-09-28): the cut target touches
+    the expected FOV end, which ``border`` suppresses, and the runner's
+    ``fov_truncation`` condition gate drops ``bounds``'s own volume/extent
+    finding on the same label, because ``bounds`` does not opt in.
     """
 
     name = "crop_fov"
@@ -512,9 +490,14 @@ class CropFovPerturbation(Perturbation):
             failure_mode=CLEAN_CONTROL_MODE,
             failure_mode_name=FOV_TRUNCATION_CONDITION_NAME,
             condition=FOV_TRUNCATION_CONDITION,
-            expected_rule_ids=frozenset({"bounds"}),
-            expected_labels=frozenset({target}),
-            expected_verdict="flagged-for-review",
+            # bounds's own evaluate still fires on the truncated remnant's
+            # volume and extent, but bounds does not opt in to
+            # fov_truncation, so the runner's condition gate (item 191,
+            # 2026-09-28) drops it -- and border suppresses the expected
+            # FOV-end touch itself, so nothing fires and the verdict is pass.
+            expected_rule_ids=frozenset(),
+            expected_labels=frozenset(),
+            expected_verdict="pass",
             detail=(
                 f"crop_fov: cropped the volume at the {self._face!r} face, "
                 f"removing {n_cut} whole slice(s) to take at least "
@@ -522,137 +505,6 @@ class CropFovPerturbation(Perturbation):
                 f"({removed} of {n} voxels removed); output shape "
                 f"{tuple(int(s) for s in out_img.shape)!r}. Exhibits the "
                 "FOV-truncation CONDITION, not a failure mode."
-            ),
-        )
-        return PerturbationResult(labelmap=out_img, expectation=expectation)
-
-
-# --------------------------------------------------------------------------- #
-# ForceOverlapPerturbation
-# --------------------------------------------------------------------------- #
-
-
-@register_perturbation
-class ForceOverlapPerturbation(Perturbation):
-    """Shift a target body toward an adjacent neighbour to force overlap.
-
-    Registered under ``"force_overlap"``. Shifts the whole target body along
-    the stacking (superior-inferior) axis -- resolved from the target
-    volume's own affine at ``apply()`` time (item 116) via
-    :func:`segfacet.synth.axes.si_axis`, not a hardcoded index -- toward an
-    adjacent neighbour by ``gap + overlap_depth`` voxels; the contested
-    overhang voxels are
-    reassigned from the neighbour to the target in the single-integer output
-    array (the target stays a single solid block of unchanged volume). This
-    overlap is *not* visible through the normal ``run_qc`` one-hot pipeline
-    (see the module/item docstring); it is asserted via a reconstructed
-    two-channel mask stack fed to
-    :func:`segfacet.features.overlap.detect_overlaps` /
-    :class:`~segfacet.heuristics.overlap.OverlapRule` directly (specification
-    mode 15, overlapping segments).
-    Rejects a map with fewer than 2 labels or an explicit non-adjacent pair.
-    """
-
-    name = "force_overlap"
-
-    def __init__(
-        self,
-        *,
-        target_label: Optional[int] = None,
-        neighbour_label: Optional[int] = None,
-        overlap_depth: int = 3,
-    ):
-        if overlap_depth < 1:
-            raise FacetInputError(
-                f"ForceOverlapPerturbation requires overlap_depth >= 1, got "
-                f"{overlap_depth!r}."
-            )
-        self._target_label = target_label
-        self._neighbour_label = neighbour_label
-        self._overlap_depth = int(overlap_depth)
-
-    def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
-        labels = _present_labels(labelmap)
-        if len(labels) < 2:
-            raise FacetInputError(
-                "ForceOverlapPerturbation requires at least two present "
-                f"labels to force an overlap between an adjacent pair; "
-                f"found {labels!r}."
-            )
-
-        if self._target_label is not None or self._neighbour_label is not None:
-            if self._target_label is None or self._neighbour_label is None:
-                raise FacetInputError(
-                    "ForceOverlapPerturbation requires both target_label and "
-                    "neighbour_label when either is given explicitly."
-                )
-            _require_present(self._target_label, labels, what="target_label")
-            _require_present(self._neighbour_label, labels, what="neighbour_label")
-            idx_t = labels.index(self._target_label)
-            idx_n = labels.index(self._neighbour_label)
-            if abs(idx_t - idx_n) != 1:
-                raise FacetInputError(
-                    f"ForceOverlapPerturbation: target_label="
-                    f"{self._target_label!r} and neighbour_label="
-                    f"{self._neighbour_label!r} are not adjacent in the "
-                    f"sorted present-label order {labels!r}."
-                )
-            target, neighbour = self._target_label, self._neighbour_label
-        else:
-            target, neighbour = _choose_adjacent_pair(labels, seed)
-
-        data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
-        shape = data.shape
-        axis = si_axis(labelmap.affine)
-
-        t_mins, t_maxs = _label_bbox(data, target)
-        n_mins, n_maxs = _label_bbox(data, neighbour)
-
-        # Direction along the stacking axis from target toward neighbour,
-        # and the current inter-body gap along that axis.
-        if n_mins[axis] > t_maxs[axis]:
-            direction = 1
-            gap = int(n_mins[axis]) - int(t_maxs[axis]) - 1
-        else:
-            direction = -1
-            gap = int(t_mins[axis]) - int(n_maxs[axis]) - 1
-        gap = max(0, gap)
-
-        shift = direction * (gap + self._overlap_depth)
-
-        target_coords = np.argwhere(data == target)
-        new_coords = target_coords.copy()
-        new_coords[:, axis] += shift
-        valid = (new_coords[:, axis] >= 0) & (new_coords[:, axis] < shape[axis])
-        new_coords = new_coords[valid]
-        if new_coords.shape[0] != target_coords.shape[0]:
-            raise FacetInputError(
-                f"ForceOverlapPerturbation: overlap_depth={self._overlap_depth!r} "
-                f"shifts target label {target!r} outside the image bounds; "
-                "reduce overlap_depth."
-            )
-
-        # Erase the target's original footprint, then write the shifted
-        # block. Writing after erasing lets the shifted target block claim
-        # any neighbour voxels it now overlaps (reassigning the contested
-        # overhang from the neighbour to the target), while voxels the
-        # target no longer occupies revert to background.
-        data[data == target] = 0
-        data[new_coords[:, 0], new_coords[:, 1], new_coords[:, 2]] = target
-
-        out_img = _new_image(data, labelmap)
-
-        expectation = Expectation(
-            failure_mode=15,
-            failure_mode_name=FAILURE_MODE_NAMES[15],
-            expected_rule_ids=frozenset({"overlap"}),
-            expected_labels=frozenset({target, neighbour}),
-            expected_verdict="flagged-for-review",
-            detail=(
-                f"force_overlap: shifted label {target} by {shift} voxel(s) "
-                f"along the stacking axis (array axis {axis}) toward "
-                f"neighbour label {neighbour}, reassigning the contested "
-                f"overhang from {neighbour} to {target}."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)

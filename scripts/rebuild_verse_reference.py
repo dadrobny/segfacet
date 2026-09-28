@@ -22,7 +22,7 @@ layout nests masks under ``derivatives/sub-verseNNN/`` and names CTs
 4. Drives the existing ``build_reference`` / ``write_artifact`` machinery
    over the staged directory, writing ``<out>/reference_verse_v1.json`` --
    never the committed package copy under ``src/segfacet/``.
-5. Derives the recalibrated ``mislabel.max_offset_mm`` threshold via
+5. Derives the recalibrated ``spline_offset.max_offset_mm`` threshold via
    :func:`derive_max_offset_mm`, a pure function of the built
    ``ReferenceDistribution``, and records the calibration evidence.
 
@@ -217,7 +217,7 @@ def stage_cohort(
 
 
 def derive_max_offset_mm(distribution) -> float:
-    """Pure derivation of ``mislabel.max_offset_mm`` from a built
+    """Pure derivation of ``spline_offset.max_offset_mm`` from a built
     :class:`~segfacet.reference.schema.ReferenceDistribution`.
 
     Returns ``max(6.0, S)`` where ``S`` is the smallest positive multiple of
@@ -552,7 +552,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         description=(
             "Stage a real (or layout-agnostic stand-in) VerSe cohort, rebuild "
             "reference_verse_v1.json from it, and derive the recalibrated "
-            "mislabel.max_offset_mm threshold."
+            "spline_offset.max_offset_mm threshold."
         ),
     )
     parser.add_argument("--out", required=True, metavar="<dir>", help="Output directory.")

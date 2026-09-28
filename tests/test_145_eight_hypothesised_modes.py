@@ -59,6 +59,15 @@ which derives ``validated``. ``fragment``
 and ``fragmentation``'s Fragmentation: detector sit at the parent, mode 1,
 which therefore derives ``validated``. The groups below are re-pinned to
 those ids; each test keeps its claim.
+
+Reconciled again (item 188, 2026-09-28): ``coverage`` re-homed from mode 6 to
+mode 10. Mode 10 is now authored ``"specified"`` and derives ``"implemented"``
+at ``needs-real-data`` (still no committed case); mode 6 loses its edge, stays
+authored ``"specified"``, and derives ``"specified"`` with a ``None`` rung --
+the maintainer decision of 2026-09-25 leaves mode 6's own rule to a later
+per-mode queue, so mode 6 is now the one ``"specified"`` mode with no
+declaring rule (``_RULELESS_SPECIFIED_MODE_IDS``), exempted by name rather
+than by widening the "specified means it has a rule" invariant.
 """
 
 from __future__ import annotations
@@ -82,15 +91,29 @@ _MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 
 #: The entries authored ``"proposed"``: listed and deliberately unimplemented,
 #: so they carry no intended-rule edge, no corpus case and no declaring rule.
-_PROPOSED_MODE_IDS = (5, 7, 10, 11, 12, 13, 14)
+#: Item 188 (2026-09-28): mode 10 left this set when ``coverage`` re-homed
+#: onto it (it now derives ``"implemented"``). Item 192 (2026-09-28): mode 11
+#: left this set when ``sequence``'s ``transitional`` detector declared it
+#: (it now derives ``"implemented"``).
+_PROPOSED_MODE_IDS = (5, 7, 12, 13, 14)
+
+#: Item 188 (2026-09-28): the one entry authored ``"specified"`` that carries
+#: no declaring rule -- ``coverage`` moved off mode 6 onto mode 10, and mode
+#: 6's own rule is left to a later per-mode queue (maintainer decision of
+#: 2026-09-25). Distinct from ``_PROPOSED_MODE_IDS``: mode 6 keeps its two
+#: corpus cases and its candidate features.
+#: Item 193 (2026-09-28): mode 8 joins mode 6 -- ``reference_delta``, its
+#: only rule, becomes mode-less (no mode's own detector).
+_RULELESS_SPECIFIED_MODE_IDS = (6, 8)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
 #: fixture and ``_manifest_case`` resolve against. Mode 8 is specified but
 #: carries no case; mode 3 gained its ``split`` case at item 166
 #: (2026-09-20); mode 16's three cases are in the intensity
-#: corpus; the proposed entries (mode 10 among them since the maintainer
-#: narrowed it to a skipped label) carry none.
+#: corpus; the proposed entries carry none, and so does mode 10 (item 188,
+#: 2026-09-28: implemented at needs-real-data, but no committed case
+#: expresses it).
 _GEOMETRIC_CORPUS_MODE_IDS = (1, 2, 3, 4, 6, 9, 15)
 
 #: The condition the sign-off retired failure mode 6 into.
@@ -105,16 +128,16 @@ _EXPECTED_DERIVED_STATUS = {
     3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
-    6: "validated",
+    6: "specified",  # item 188 (2026-09-28): coverage re-homed to mode 10
     7: "proposed",
-    8: "implemented",
+    8: "specified",  # item 193 (2026-09-28): reference_delta becomes mode-less
     9: "validated",
-    10: "proposed",
-    11: "proposed",
+    10: "implemented",  # item 188 (2026-09-28): coverage's new home
+    11: "implemented",  # item 192 (2026-09-28): sequence's new home
     12: "proposed",
     13: "proposed",
     14: "proposed",
-    15: "validated",
+    15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",
 }
 
@@ -303,7 +326,8 @@ def test_ac1_fov_truncation_is_a_condition_and_not_a_mode():
 def test_ac2_every_field_populated(mode_id):
     """Re-pointed at the signed-off catalogue: ``parent`` is legitimately
     ``None`` on a top-level mode, and ``intended_rules`` / ``corpus_cases``
-    are legitimately empty on a ``proposed`` entry (5, 7, 10-14), and
+    are legitimately empty on a ``proposed`` entry (5, 7, 11-14; item 188,
+    2026-09-28, moved mode 10 out of this set), and
     ``corpus_cases`` on a specified mode with no fixture of its own (3, 8).
     ``scope`` (added 2026-09-15) must be a ``SCOPES`` member on every
     shipped entry. Those absences are the
@@ -350,6 +374,12 @@ def test_ac2_proposed_entries_carry_no_edges_and_no_cases():
         if mode.status == "proposed":
             continue
         assert mode.status == "specified", (mode.id, mode.status)
+        # Item 188 (2026-09-28): mode 6 is exempted by name -- authored
+        # specified, but its rule is left to a later per-mode queue
+        # (coverage moved to mode 10). No other specified mode is exempt.
+        if mode.id in _RULELESS_SPECIFIED_MODE_IDS:
+            assert mode.intended_rules == (), mode.id
+            continue
         assert mode.intended_rules, mode.id
 
 
@@ -364,7 +394,9 @@ def test_ac2_condition_fields_are_populated():
         assert isinstance(value, str) and value, field_name
     assert condition.candidate_features
     assert condition.recording_rules
-    assert condition.exempting_rules
+    # item 191 (2026-09-28): exempting_rules renamed opting_in_rules -- the
+    # gate now belongs to the runner, and this field is its opt-in record.
+    assert condition.opting_in_rules
     assert condition.corpus_cases
 
 
@@ -468,12 +500,16 @@ def test_ac5_edge_set_equals_live_registry_declared_set(mode_id):
     so the "at least one registered rule declares it" precondition now
     applies to the specified entries only -- and is asserted for them, so
     the equality is never satisfied by two empty sets where it should not
-    be."""
+    be.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``) joins
+    the empty-declared-set branch too -- ``coverage`` moved to mode 10, and
+    mode 6's own rule is not yet written."""
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, mode_id)
     declared = _live_declared_rule_ids(mode_id)
-    if mode_id in _PROPOSED_MODE_IDS:
+    if mode_id in _PROPOSED_MODE_IDS or mode_id in _RULELESS_SPECIFIED_MODE_IDS:
         assert declared == set(), (mode_id, declared)
     else:
         assert declared, f"expected >=1 registered rule to declare mode {mode_id}"
@@ -509,18 +545,21 @@ def test_ac5_fov_truncation_is_recorded_by_border_which_declares_no_mode():
 
 
 def test_ac5_condition_exempting_rules_are_registered_and_distinct():
-    """The exemptions the condition grants are rules that exist, and are not
-    the rule that records it -- otherwise "recording" and "exempting" would
-    be one undifferentiated list."""
+    """The rules the condition names -- recording and opting-in -- are rules
+    that exist.
+
+    item 191 (2026-09-28): ``exempting_rules`` renamed ``opting_in_rules``,
+    and the recording rule now opts in to the condition it records, so the
+    old disjointness assertion inverts to a subset check."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     registered = {rule_id for rule_id, _declaration in iter_rule_declarations()}
-    assert condition.exempting_rules, condition.id
-    for rule_id in condition.recording_rules + condition.exempting_rules:
+    assert condition.opting_in_rules, condition.id
+    for rule_id in condition.recording_rules + condition.opting_in_rules:
         assert rule_id in registered, (rule_id, sorted(registered))
-    assert not set(condition.recording_rules) & set(condition.exempting_rules)
+    assert set(condition.recording_rules) <= set(condition.opting_in_rules)
 
 
 # =========================================================================== #
@@ -532,12 +571,16 @@ def test_ac5_condition_exempting_rules_are_registered_and_distinct():
 def test_ac6_mode_rung_is_the_strongest_of_its_own_edges(mode_id):
     """Unchanged in substance; a ``proposed`` entry has no edge at all, and
     ``derive_mode_rung`` returns ``None`` for it rather than computing a
-    ``min()`` over the empty set."""
+    ``min()`` over the empty set.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``, no
+    declaring rule) is the same edgeless shape, so the edgeless branch
+    accepts it alongside the proposed ids."""
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, mode_id)
     if not mode.intended_rules:
-        assert mode_id in _PROPOSED_MODE_IDS, mode_id
+        assert mode_id in _PROPOSED_MODE_IDS or mode_id in _RULELESS_SPECIFIED_MODE_IDS, mode_id
         assert fm.derive_mode_rung(mode) is None
         return
     strongest = min(
@@ -613,14 +656,21 @@ def test_ac8_every_synthetic_demonstrable_edge_is_demonstrated(measured):
 
 
 # =========================================================================== #
-# AC9: the three analytic-only edges are needs-real-data and undemonstrated
+# AC9: the analytic-only bounds edges are needs-real-data and undemonstrated
 # =========================================================================== #
 
 
-def test_ac9_the_three_analytic_only_edges_are_needs_real_data_and_undemonstrated(measured):
+def test_ac9_the_analytic_only_bounds_edges_are_needs_real_data_and_undemonstrated(measured):
+    """Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes
+    mode-less and declares no edge at all, so the three analytic-only edges
+    are now all ``bounds`` -- modes 1, 2 and 4.
+
+    Reconciled again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 at all (mode 1 is attributed only where no other mode applies),
+    so the analytic-only edges are now ``bounds``' modes 2 and 4."""
     import segfacet.failure_modes as fm
 
-    targets = {(1, "reference_delta"), (2, "reference_delta"), (2, "bounds")}
+    targets = {(2, "bounds"), (4, "bounds")}
     seen = set()
     for mode in fm.iter_modes():
         for edge in mode.intended_rules:
@@ -722,41 +772,35 @@ def test_ac10b_sequence_case_records_the_single_rank_descent_correction():
 # =========================================================================== #
 # AC11/AC12: the overlapping-segments mode's structural unobservability holds
 # live. Re-numbered from 8 to 9 by the item-150 sign-off and to 15 by its
-# 2026-09-15 revision; the corpus case id
-# `force_overlap` is unchanged (the `modeN_` prefixes are historical).
+# 2026-09-15 revision. Its corpus case (`force_overlap`) was removed by item
+# 195, 2026-09-28: a single-channel label map cannot express an overlap.
 # =========================================================================== #
 
 
 def test_ac11_overlap_mode_structural_unobservability_holds_live():
+    """Item 195 (2026-09-28): the case half is replaced -- force_overlap was
+    removed, a single-channel label map cannot express an overlap -- with
+    the live fact that mode 15 now carries no corpus case at all."""
     import segfacet.failure_modes as fm
-    from segfacet.synth.regression import pipeline_findings, reconstructed_findings
 
     mode = _mode(fm, 15)
     assert fm.derive_mode_rung(mode) == "structurally-unobservable"
-
-    case = _manifest_case("force_overlap")
-    assert case["detection"] == "reconstructed_record"
-
-    plain = pipeline_findings(case)
-    assert not any(f.rule_id == "overlap" for f in plain), plain
-
-    reconstructed = reconstructed_findings(case)
-    assert reconstructed, "expected >=1 finding from the reconstructed record"
-    reconstructed_ids = tuple(sorted({f.rule_id for f in reconstructed}))
-    assert reconstructed_ids == ("overlap",), reconstructed_ids
+    assert mode.corpus_cases == ()
 
 
 def test_ac12_overlap_mode_records_the_single_channel_mechanism():
+    """Item 195 (2026-09-28): re-pointed at ``mode.mechanism`` -- the
+    removed case's ``reason`` no longer exists -- with the same five
+    substring checks."""
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, 15)
-    case = _case(mode, "force_overlap")
-    assert case.reason.strip()
-    lowered = case.reason.lower()
-    assert "single" in lowered and "channel" in lowered, case.reason
-    assert "voxel" in lowered, case.reason
-    assert "one label" in lowered or "exactly one" in lowered, case.reason
-    assert "overlap" in lowered, case.reason
+    assert mode.mechanism.strip()
+    lowered = mode.mechanism.lower()
+    assert "single" in lowered and "channel" in lowered, mode.mechanism
+    assert "voxel" in lowered, mode.mechanism
+    assert "one label" in lowered or "exactly one" in lowered, mode.mechanism
+    assert "overlap" in lowered, mode.mechanism
 
 
 # =========================================================================== #
@@ -811,11 +855,23 @@ def test_ac13_derived_status_is_the_signed_off_ladder():
     sign-off left it. ``"validated"`` needs a declaring rule, every corpus
     case agreeing, **and** at least one case with a non-empty expected set
     naming one of the mode's own intended rules -- which is why fused (2,
-    co-detections only) and the proxy-only modes with no case (3, 8) sit at
-    ``"implemented"`` while every case they carry agrees perfectly, and why
-    vertebra not segmented (6) validates on ``remove_level``'s
-    ``coverage`` finding despite also carrying the empty "not detected today"
-    ``remove_level_relabel`` case."""
+    co-detections only) sits at ``"implemented"`` while every case it
+    carries agrees perfectly.
+
+    Stale as of item 193 (2026-09-28): mode 3 gained its own declaring rule
+    (``neighbour_contact``, item 187) and a demonstrating case (item 167),
+    deriving ``"validated"`` rather than ``"implemented"``; mode 8's only
+    rule (``reference_delta``) becomes mode-less, so mode 8 now derives the
+    authored ``"specified"`` (no declaring rule at all), like mode 6.
+
+    Reconciled (item 188, 2026-09-28): ``coverage`` moved off mode 6 onto
+    mode 10. Vertebra not segmented (6) no longer has a declaring rule, so
+    despite still agreeing on both its corpus cases (``remove_level``'s
+    ``coverage`` finding is now a recorded co-detection, and
+    ``remove_level_relabel`` is the empty "not detected today" case) it
+    derives the authored ``"specified"`` rather than ``"validated"``. Skipped
+    level label (10) reaches ``"implemented"`` instead -- its one declaring
+    rule (``coverage``), but no committed case of its own to validate on."""
     import segfacet.failure_modes as fm
 
     derived = {mode.id: fm.derive_status(mode) for mode in fm.iter_modes()}
@@ -827,8 +883,11 @@ def test_ac13_derived_status_is_the_signed_off_ladder():
 
 def test_ac13_co_detection_alone_does_not_validate():
     """The mechanism behind mode 2's ``"implemented"``: its one corpus case
-    (``fuse_adjacent``) agrees exactly, but everything it fires belongs to
-    another mode's detector (mode 1's fragmentation, mode 6's coverage).
+    (``fuse_adjacent``) agrees exactly, but expects no rule at all (item 176,
+    2026-09-24: the bridged, renumbered case designates none), so nothing it
+    fires can belong to mode 2's own declared rules -- unlike mode 6's
+    ``remove_level``, whose ``coverage`` finding is a genuine co-detection
+    (item 188, 2026-09-28: ``coverage`` now declares mode 10, not mode 6).
     Re-pointed from mode 1, which the 2026-09-15 revision made validated by
     homing ``fragment`` there. Asserted through the production
     derivation, with the disjointness recomputed rather than transcribed."""
@@ -852,20 +911,25 @@ def test_ac13_co_detection_alone_does_not_validate():
 
 
 def test_ac14_fov_truncation_case_expects_border_and_mislabel_with_reason():
+    # Item 189 (2026-09-28): the offset detector that co-fires on this case
+    # moved from mislabel to spline_offset.
+    # Item 191 (2026-09-28): the gate drops spline_offset's finding on the
+    # touching label (it does not opt in to fov_truncation), so the
+    # expectation narrows to border alone.
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert case.expected_firing == ("border", "mislabel")
+    assert case.expected_firing == ("border",)
     assert case.reason.strip()
     lowered = case.reason.lower()
     assert "crop" in lowered or "border" in lowered, case.reason
     assert "centroid" in lowered, case.reason
     assert "curve" in lowered or "spline" in lowered, case.reason
-    # `mislabel` co-fires but records nothing about this condition: it is one
-    # of the rules the condition *exempts*, never one that records it.
-    assert "mislabel" not in condition.recording_rules
-    assert "mislabel" in condition.exempting_rules
+    # `spline_offset` reads the crop-displaced centroid but does not opt in
+    # to the condition, so its finding on the touching label is gated.
+    assert "spline_offset" not in condition.recording_rules
+    assert "spline_offset" not in condition.opting_in_rules
 
 
 def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
@@ -884,12 +948,14 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
     expectation = _case(condition, "crop_at_border")
     assert set(case["expected_rule_ids"]) <= set(expectation.expected_firing)
 
-    # Only the two FOV crops name a condition, so the key is a real
-    # discriminator rather than a field that is always set.
     # Item 175 (2026-09-24): ["crop_at_border"] -> ["crop_at_border",
     # "crop_fov_si"], in manifest order.
+    # Item 189 (2026-09-28): displace also becomes a condition case
+    # (displaced_vertebra), and precedes both FOV crops in manifest order --
+    # so the key is no longer a fov_truncation-only discriminator, but it
+    # still discriminates condition cases from mode cases.
     conditioned = [c["case_id"] for c in _manifest_cases() if c.get("condition")]
-    assert conditioned == ["crop_at_border", "crop_fov_si"], conditioned
+    assert conditioned == ["displace", "crop_at_border", "crop_fov_si"], conditioned
 
 
 # =========================================================================== #
@@ -910,15 +976,23 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     What is checked instead is the claim itself, end to end and entirely
     from live measurement: the single label ``border`` names is the same
     label that carries a non-terminal, strictly positive spline offset, and
-    that same label is the one ``mislabel``'s co-detection names. If the
+    that same label is the one ``spline_offset``'s co-detection names. If the
     crop stopped displacing the centroid, or displaced a different label's,
     this fails.
+
+    Item 189 (2026-09-28): the offset detector that co-fires here moved from
+    ``mislabel`` to its own ``spline_offset`` rule.
+
+    Item 191 (2026-09-28): the runner gates a finding naming a label in a
+    condition unless its rule opts in; ``spline_offset`` does not opt in to
+    ``fov_truncation``, so its finding on this label is dropped and the
+    expectation narrows to ``border`` alone.
     """
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert set(case.expected_firing) == {"border", "mislabel"}
+    assert set(case.expected_firing) == {"border"}
 
     _detection, findings, record = corpus("crop_at_border")
     border_findings = [f for f in findings if f.rule_id == "border"]
@@ -948,11 +1022,12 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     assert others, offsets
     assert measured_offset > max(others), (measured_offset, others)
 
-    mislabel_findings = [f for f in findings if f.rule_id == "mislabel"]
-    assert mislabel_findings, "expected mislabel to co-fire on the condition's case"
-    assert any(label in set(f.labels) for f in mislabel_findings), (
+    # Item 191 (2026-09-28): spline_offset does not opt in to fov_truncation,
+    # so no surviving finding of its names the touching label.
+    spline_offset_findings = [f for f in findings if f.rule_id == "spline_offset"]
+    assert not any(label in set(f.labels) for f in spline_offset_findings), (
         label,
-        [f.labels for f in mislabel_findings],
+        [f.labels for f in spline_offset_findings],
     )
 
     # The condition's own mechanism names the exempting seam this rests on.
@@ -1014,36 +1089,38 @@ def test_ac17_fragment_vs_island_discriminator_holds_on_corpus(corpus):
 
 
 # =========================================================================== #
-# AC18: the two `mislabel` detectors are told apart by their leading tag.
-# The sign-off split them across the catalogue: the spline-offset detector
-# (`displace`) serves NO failure mode -- a spline offset is an
-# anatomy-classification signal -- while the ordering detector
-# (`relabel_swap`) serves mode 9. Distinguishing them therefore matters
-# more after the sign-off, not less.
+# AC18: the spline-offset and ordering detectors are told apart by their
+# leading tag and their rule. The sign-off split them across the catalogue:
+# the spline-offset detector (`displace`) serves NO failure mode -- a spline
+# offset is an anatomy-classification signal -- while the ordering detector
+# (`relabel_swap`) serves mode 9. Item 189 (2026-09-28) moved the
+# spline-offset detector into its own `spline_offset` rule, so the two are
+# now told apart by rule_id as well as by tag.
 # =========================================================================== #
 
 
 def test_ac18_mislabel_detector_leading_tags_differ(corpus):
-    from segfacet.heuristics.mislabel import _MISALIGN_TAG, _MISLABEL_TAG
+    from segfacet.heuristics.mislabel import _MISLABEL_TAG
+    from segfacet.heuristics.spline_offset import _MISALIGN_TAG
 
     assert _MISALIGN_TAG != _MISLABEL_TAG
 
     _detection1, findings1, _record1 = corpus("displace")
-    mode1_mislabel = [f for f in findings1 if f.rule_id == "mislabel"]
-    assert mode1_mislabel, "expected mislabel to fire on displace"
+    mode1_spline_offset = [f for f in findings1 if f.rule_id == "spline_offset"]
+    assert mode1_spline_offset, "expected spline_offset to fire on displace"
 
     _detection4, findings4, _record4 = corpus("relabel_swap")
     mode4_mislabel = [f for f in findings4 if f.rule_id == "mislabel"]
     assert mode4_mislabel, "expected mislabel to fire on relabel_swap"
 
-    assert any(f.reason.startswith(_MISALIGN_TAG) for f in mode1_mislabel), [
-        f.reason for f in mode1_mislabel
+    assert any(f.reason.startswith(_MISALIGN_TAG) for f in mode1_spline_offset), [
+        f.reason for f in mode1_spline_offset
     ]
     assert any(f.reason.startswith(_MISLABEL_TAG) for f in mode4_mislabel), [
         f.reason for f in mode4_mislabel
     ]
-    assert not any(f.reason.startswith(_MISLABEL_TAG) for f in mode1_mislabel), [
-        f.reason for f in mode1_mislabel
+    assert not any(f.reason.startswith(_MISLABEL_TAG) for f in mode1_spline_offset), [
+        f.reason for f in mode1_spline_offset
     ]
     assert not any(f.reason.startswith(_MISALIGN_TAG) for f in mode4_mislabel), [
         f.reason for f in mode4_mislabel
@@ -1131,10 +1208,12 @@ def test_ac20_detector_names_the_detector_that_actually_fired(corpus):
 
     "an edge that fired nothing carries an empty detector" is no longer
     true in that direction: an edge may name detectors that fire on none
-    of its mode's cases (mode 6's ``coverage`` edge also names the opt-in
-    span/count detectors, which ship **disabled**). The contrapositive is what survives and is asserted -- an edge
-    whose ``detector_ids`` is empty fired nothing -- which still catches an
-    unnamed detector that does fire.
+    of its mode's cases (``coverage``'s edge -- mode 6's before item 188,
+    2026-09-28, mode 10's since -- also names the opt-in span/count
+    detectors, which ship **disabled**). The contrapositive is what survives
+    and is asserted -- an edge whose ``detector_ids`` is empty fired nothing
+    -- which still catches an unnamed detector that does fire. Mode 6 itself
+    now has no edge, so this loop simply has nothing to check for it.
     """
     import segfacet.failure_modes as fm
 
@@ -1253,10 +1332,14 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
     "always contains at least one mode-8 mislabelling, so it fails like mode
     9"). For mode 9, every finding its own rules raise today is
     ``flagged-for-review``; if a rule is escalated to fail, or the mode is
-    re-authored down, this test is the one that says so. Mode 10 is
-    ``proposed`` with no rule and no case, so its severity leads *no*
-    measurement at all: that is asserted as such (no edge, no case, no
-    declaring rule) rather than passed by comparing an empty set."""
+    re-authored down, this test is the one that says so.
+
+    Reconciled (item 188, 2026-09-28): mode 10 is authored ``specified``, not
+    ``proposed``, since ``coverage`` re-homed onto it -- one declared edge
+    (``coverage``, at ``needs-real-data``), still no committed corpus case of
+    its own, so its severity still leads *no* measurement: that is asserted
+    as such (an edge with no case to measure) rather than passed by comparing
+    an empty set."""
     import segfacet.failure_modes as fm
 
     failing = [mode.id for mode in fm.iter_modes() if mode.severity == "fail"]
@@ -1274,10 +1357,11 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
     assert measured_severities == {"flagged-for-review"}, measured_severities
 
     skipped = _mode(fm, 10)
-    assert skipped.status == "proposed", skipped.status
-    assert skipped.intended_rules == (), skipped.intended_rules
+    assert skipped.status == "specified", skipped.status
+    # Item 192 (2026-09-28): sequence's skip detector also declares mode 10.
+    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage", "sequence"}
     assert skipped.corpus_cases == (), skipped.corpus_cases
-    assert _live_declared_rule_ids(10) == set()
+    assert _live_declared_rule_ids(10) == {"coverage", "sequence"}
 
 
 # =========================================================================== #
@@ -1292,10 +1376,20 @@ def test_ac22_implemented_derives_on_registered_rule_containment(mode_id):
     unchanged. A ``proposed`` entry has no declaring rule, so it falls back
     to its authored status instead; the expected value is pinned per id
     rather than recomputed from ``_live_declared_rule_ids``, which would
-    re-implement the function under test."""
+    re-implement the function under test.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``, no
+    declaring rule since ``coverage`` moved to mode 10) falls back to its
+    authored status the same way a ``proposed`` entry does. Mode 10 now has a
+    declaring rule, so it falls back to ``"implemented"`` like any other."""
     import segfacet.failure_modes as fm
 
-    expected = "proposed" if mode_id in _PROPOSED_MODE_IDS else "implemented"
+    if mode_id in _PROPOSED_MODE_IDS:
+        expected = "proposed"
+    elif mode_id in _RULELESS_SPECIFIED_MODE_IDS:
+        expected = "specified"
+    else:
+        expected = "implemented"
     mode = _mode(fm, mode_id)
     probe = dataclasses.replace(mode, corpus_cases=())
     assert fm.derive_status(probe) == expected
@@ -1414,12 +1508,17 @@ def test_adv_condition_case_narrowed_expectation_is_a_disagreement(measured):
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert "mislabel" in measured(case), (
-        "adversarial precondition: crop_at_border must actually fire mislabel too"
+    # Item 189 (2026-09-28): the co-firing offset detector moved to
+    # spline_offset.
+    # Item 191 (2026-09-28): the gate drops spline_offset's finding on the
+    # touching label, so the measured set is border alone; the narrowed copy
+    # must go one step further, to nothing, to still disagree.
+    assert measured(case) == ("border",), (
+        "adversarial precondition: crop_at_border must measure border alone"
     )
     assert fm.case_agrees(case) is True
 
-    narrowed_case = dataclasses.replace(case, expected_firing=("border",))
+    narrowed_case = dataclasses.replace(case, expected_firing=())
     assert fm.case_agrees(narrowed_case) is False
 
 
@@ -1473,9 +1572,13 @@ def test_adv_every_specified_mode_is_declared_and_no_proposed_one_is():
     """Negative control for AC22's containment reading: the live registry
     declares every ``specified`` id somewhere (so AC22's quantifier is not
     vacuous), and declares **no** ``proposed`` id (so the fallback branch
-    AC22 asserts for 5, 7 and 10-14 is reached for the stated reason and
+    AC22 asserts for 5, 7 and 11-14 is reached for the stated reason and
     not by accident). It also pins the other direction: no rule declares a
-    mode id the catalogue does not carry."""
+    mode id the catalogue does not carry.
+
+    Reconciled (item 188, 2026-09-28): mode 6 is authored ``specified`` but,
+    like a ``proposed`` id, is asserted **not** declared -- ``coverage``
+    moved to mode 10, and mode 6's own rule is not yet written."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
@@ -1486,7 +1589,7 @@ def test_adv_every_specified_mode_is_declared_and_no_proposed_one_is():
     assert declared_ids, "expected the registry to declare at least one mode"
 
     for mode in fm.iter_modes():
-        if mode.id in _PROPOSED_MODE_IDS:
+        if mode.id in _PROPOSED_MODE_IDS or mode.id in _RULELESS_SPECIFIED_MODE_IDS:
             assert mode.id not in declared_ids, (mode.id, sorted(declared_ids))
         else:
             assert mode.id in declared_ids, (mode.id, sorted(declared_ids))

@@ -196,7 +196,7 @@ _PRE_ITEM_U_VALUES = {
     "remove_level": [0.000000561, 0.244998545, 0.730526238, 0.999999440],
     "crop_at_border": [0.000000561, 0.219880162, 0.469887999, 0.757448722, 0.999999440],
     "sequence_break": [0.000000561, 0.245056802, 0.483088896, 0.730986720, 0.999999440],
-    "force_overlap": [0.000000561, 0.191287857, 0.443289958, 0.709487482, 0.999999440],
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
@@ -416,13 +416,19 @@ def test_ac12_pair_loop_still_uses_gte_not_strict_gt():
 
 
 def test_ac13_mode4_fires_exactly_one_mislabel_finding_on_21_22():
+    """Item 192 (2026-09-28): sequence's swap detector now also fires on this
+    case (per_label centroids replace the retired out_of_order_labels[]
+    input), so a second finding is expected alongside mislabel's."""
     case_result, _block = _run_qc_case("relabel_swap")
-    assert len(case_result.findings) == 1
+    assert len(case_result.findings) == 2
     finding = case_result.findings[0]
     assert finding.rule_id == "mislabel"
     assert finding.labels == frozenset({21, 22})
     assert finding.severity is Severity.FLAG
     assert finding.reason.startswith("Vertebra ordering inconsistent with label:")
+    assert case_result.findings[1].rule_id == "sequence"
+    assert case_result.findings[1].detector_id == "swap"
+    assert case_result.findings[1].labels == frozenset({21, 22})
 
 
 def test_ac14_mode4_verdict_is_flagged_for_review():
@@ -511,14 +517,21 @@ def test_ac20_test_040_detection_partition_reconciled():
     # remaining designated modes plus the mode-less clean/condition cases.
     # Mode 10 (skipped level label) has no corpus case; remove_level
     # is mode 6's. Item 166 (2026-09-20) added mode 3 (split).
-    assert t040._RECONSTRUCTED_MODES == {15}
+    # Item 195 (2026-09-28): force_overlap (mode 15) removed -- a
+    # single-channel label map cannot express an overlap -- so no committed
+    # case is reconstructed_record any more.
+    assert t040._RECONSTRUCTED_MODES == set()
     assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 3, 4, 6, 9}
     t040.test_ac8_modes_4_8_reconstructed_record_rest_pipeline()
 
 
 # =========================================================================== #
-# AC21/AC22: the relabel-swap case is claimed caught at full sensitivity; the
-# overall corpus sensitivity stays honestly below 1.0 (test_057)
+# AC21: the relabel-swap case is claimed caught at full sensitivity
+# (test_057). AC22 (overall corpus sensitivity stays honestly below 1.0) was
+# removed by item 195, 2026-09-28: with force_overlap gone, every remaining
+# expected-failure record is pipeline-detected, so the premise that overall
+# sensitivity sits below 1.0 is false by construction. The number itself
+# stays owned by test_057.
 # =========================================================================== #
 
 
@@ -538,20 +551,7 @@ def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
         if c["case_id"] == "relabel_swap"
     )
     assert swap_mode in t057._PIPELINE_DETECTABLE_MODES
-    assert swap_mode not in t057._RECONSTRUCTED_RECORD_MODES
     t057.test_ac9_pipeline_detectable_mode_sensitivity_is_one(swap_mode)
-
-
-def test_ac22_overall_corpus_sensitivity_is_not_over_claimed():
-    """AC22's subject is the honesty of the overall number, not its value:
-    catching the swap case must not be reported as catching everything. The
-    exact fraction is owned by test_057 (9/10 as of item 166, 2026-09-20) and
-    delegated to rather than copied here."""
-    import test_057_acceptance_stage7 as t057
-
-    t057.test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed()
-    metrics = t057._corpus_cohort_metrics()
-    assert metrics.sensitivity < 1.0
 
 
 # =========================================================================== #
@@ -573,19 +573,27 @@ def test_ac24_item_039_mode4_pin_flipped():
 
 
 def test_ac25_item_129_pre_findings_baseline_reconciled():
+    """Item 192 (2026-09-28): sequence's swap detector now also fires."""
     import test_129_coincident_centroids_and_held_out_floor as t129
 
-    assert t129._PRE_129_FINDINGS["relabel_swap"] == {("mislabel", (21, 22))}
+    assert t129._PRE_129_FINDINGS["relabel_swap"] == {
+        ("mislabel", (21, 22)),
+        ("sequence", (21, 22)),
+    }
     t129.test_ac29_no_corpus_case_changes_findings()
 
 
 def test_ac26_item_098_shared_golden_constant_reconciled():
+    """Item 192 (2026-09-28): sequence's swap finding now also fires, so
+    relabel_swap's golden entry carries two findings, mislabel then
+    sequence."""
     import test_098_stray_components as t098
 
     expected = t098._PRE_098_GOLDEN_VERDICT_AND_FINDINGS["relabel_swap"]
     assert expected["verdict"] == "flagged-for-review"
-    assert len(expected["findings"]) == 1
+    assert len(expected["findings"]) == 2
     assert expected["findings"][0]["rule_id"] == "mislabel"
+    assert expected["findings"][1]["rule_id"] == "sequence"
     t098.test_ac15_golden_verdict_and_findings_unchanged("relabel_swap")
 
 
@@ -651,13 +659,25 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # "constant-synthetic" (`observed_range._derive_verdict`'s final rule), not
 # "varies". 138 -> 140 total, "constant-synthetic" 4 -> 6, "varies" unchanged
 # at 83.
+#
+# Item 187 (2026-09-28): five more leaf paths join the components block
+# (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
+# `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`), moving
+# the total 140 -> 145. Measured against the regenerated committed catalogue
+# (this driver's fixed demo corpus, source: clean, fragmented, missing_level,
+# overlaps, sequence_break, single_label -- it does not include the `split`
+# case where the relative measure is non-zero): `.neighbour_label`,
+# `.contact_area_mm2`, `.contact_fraction` and `label_contact_fraction` are
+# flat 0.0 across that population, deriving "constant-synthetic" (four
+# paths, 6 -> 10); `.surface_area_mm2` is non-zero and non-constant across
+# it, deriving "varies" (one path, 83 -> 84).
 _PRE_ITEM_OBSERVED_SUMMARY = {
-    "constant-synthetic": 6,
+    "constant-synthetic": 10,
     "degenerate": 0,
     "non-numeric": 39,
     "placeholder": 12,
     "unobserved": 0,
-    "varies": 83,
+    "varies": 84,
 }
 
 
@@ -672,7 +692,7 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     entries_by_path = {e["path"]: e for g in fresh["groups"] for e in g["entries"]}
     leaf_count = sum(len(g["entries"]) for g in fresh["groups"])
 
-    assert leaf_count == 140, f"leaf-path count {leaf_count} != pre-item 140"
+    assert leaf_count == 145, f"leaf-path count {leaf_count} != pre-item 145"
     assert fresh["observed_summary"] == _PRE_ITEM_OBSERVED_SUMMARY
 
     is_mono = entries_by_path["stage3.monotonic_consistency.is_monotonic"]

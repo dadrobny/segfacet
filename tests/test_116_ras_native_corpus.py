@@ -388,13 +388,16 @@ _REFERENCE_MANIFEST_CASES = [
 
 
 #: Item 120 makes the per-vertebra spline offset a held-out measurement,
-#: which deliberately adds a ``mislabel`` finding on label 22 to these two
+#: which deliberately adds an offset finding on label 22 to these two
 #: cases (AC18/AC23) that the pre-120 reference snapshot's committed golden
 #: (``_REFERENCE_GOLDEN_SHA``) does not carry. Widened by human decision, 2026-08-28 -- see
 #: docs/aide/items/120-per-vertebra-offset-that-separates.md's Authorised
-#: paths entry for this test.
-_ITEM_120_ADDED_MISLABEL_PAIR = ("mislabel", (22,))
-_ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace", "crop_at_border"})
+#: paths entry for this test. Item 189 (2026-09-28) moved the detector from
+#: mislabel to its own spline_offset rule. Item 191 (2026-09-28): the runner
+#: gates spline_offset's finding on crop_at_border's touching label -- it
+#: does not opt in to fov_truncation -- so only displace still carries it.
+_ITEM_120_ADDED_MISLABEL_PAIR = ("spline_offset", (22,))
+_ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace"})
 
 #: Item 132 judges monotonicity against a traversal-ordered reference fit,
 #: which deliberately adds a ``mislabel`` finding on labels (21, 22) to
@@ -403,6 +406,16 @@ _ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace", "crop_at_border"})
 #: (``_REFERENCE_GOLDEN_SHA``) does not carry.
 _ITEM_132_ADDED_MISLABEL_PAIR = ("mislabel", (21, 22))
 _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
+
+#: Item 192 (2026-09-28): sequence's rewritten rule reads per_label centroids
+#: instead of relationships.out_of_order_labels[], adding a new finding to
+#: relabel_swap (swap, labels 21/22) and remove_level (skip, case-level).
+#: sequence_break's pair, ("sequence", (28,)), is unchanged against the
+#: aeb2f55 golden and needs no stripping.
+_ITEM_192_ADDED_SEQUENCE_PAIRS = {
+    "relabel_swap": ("sequence", (21, 22)),
+    "remove_level": ("sequence", ()),
+}
 
 
 @pytest.mark.skipif(
@@ -421,8 +434,10 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
 
     Except for ``displace`` and ``crop_at_border``, where item
     120 deliberately adds a ``mislabel`` finding on label 22 (AC18/AC23),
-    and ``relabel_swap``, where item 132 deliberately adds a
-    ``mislabel`` finding on labels (21, 22): those added pairs are stripped
+    ``relabel_swap``, where item 132 deliberately adds a
+    ``mislabel`` finding on labels (21, 22), and ``relabel_swap`` /
+    ``remove_level``, where item 192 (2026-09-28) deliberately adds a
+    ``sequence`` finding: those added pairs are stripped
     from the fresh side before comparing so the rest of each case's
     rule/label identity is still pinned exactly."""
     fresh = build_report_for_case(case)
@@ -443,6 +458,13 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
             "mislabel finding on labels (21, 22), but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != _ITEM_132_ADDED_MISLABEL_PAIR]
+    if case["case_id"] in _ITEM_192_ADDED_SEQUENCE_PAIRS:
+        added_pair = _ITEM_192_ADDED_SEQUENCE_PAIRS[case["case_id"]]
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 192's deliberate "
+            f"sequence finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (
         f"case {case['case_id']!r}: designated rule/labels changed relative "
         "to the pre-migration reference golden (aeb2f55)"
@@ -479,23 +501,23 @@ def _build_corpus_cohort():
 def test_ac8_mode6_crop_at_border_sensitivity_is_restored_to_one():
     """AC8 concerns the ``crop_at_border`` case (vision.md Sec.6's old
     mode 6). Since item 150 that case carries ``failure_mode == 0`` plus the
-    ``fov_truncation`` condition, so the eval harness groups it under
-    failure_mode 0 -- where, since item 175 (2026-09-24), it shares the
-    bucket with the ``crop_fov_si`` condition case (the clean control
-    expects "pass"). The per-mode entry is checked there, and
-    the crop case's own outcome is pinned so the bucket cannot be satisfied
-    by some other case."""
+    ``fov_truncation`` condition. Since item 190, the eval harness buckets
+    every condition case under its own condition-keyed entry rather than
+    under mode 0 -- so this case shares a ``fov_truncation`` bucket of its
+    own with the ``crop_fov_si`` condition case (the clean control expects
+    "pass" and stays out of every expected-failure bucket). The per-mode
+    entry is checked there, and the crop case's own outcome is pinned so the
+    bucket cannot be satisfied by some other case."""
     from segfacet.eval.outcome import Outcome
 
     cohort = evaluate_cohort(_build_corpus_cohort(), bundled_default_config())
     crop_case = next(c for c in _MANIFEST_CASES if c["case_id"] == "crop_at_border")
-    assert crop_case["failure_mode"] == 0
     assert crop_case["condition"] == "fov_truncation"
     crop_record = next(c for c in cohort.cases if c.case_id == "crop_at_border")
     assert crop_record.outcome.outcome is Outcome.TRUE_POSITIVE
 
     metrics = compute_cohort_metrics(cohort, failure_modes=FAILURE_MODE_NAMES)
-    entry = next(m for m in metrics.per_mode if m.failure_mode == 0)
+    entry = next(m for m in metrics.per_mode if m.condition == "fov_truncation")
     assert entry.n_cases > 0
     assert entry.sensitivity == 1.0
 

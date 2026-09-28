@@ -91,6 +91,7 @@ from segfacet.features.spline_offset import (
 )
 from segfacet.features.spline import fit_centroid_spline
 import segfacet.heuristics.mislabel  # noqa: F401 -- triggers MislabelRule registration
+import segfacet.heuristics.spline_offset  # noqa: F401 -- item 189: triggers SplineOffsetRule registration
 from segfacet.heuristics import run_rules
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import build_clean_spine
@@ -714,7 +715,9 @@ def test_adv_p99_exactly_at_half_mm_multiple_rounds_up_strictly():
 
 
 def test_ac12_shipped_default_equals_derived_value_from_committed_artifact():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): _DEFAULT_MAX_OFFSET_MM moved to spline_offset.py
+    # (Detector A moved out of mislabel); the value itself is unchanged (13.0).
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     rr = _load_tool()
     derived = rr.derive_max_offset_mm(bundled_production_reference())
@@ -722,26 +725,30 @@ def test_ac12_shipped_default_equals_derived_value_from_committed_artifact():
 
 
 def test_ac13_config_yaml_agrees_with_code_default():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): the constant moved to spline_offset.py. The
+    # shipped default_config.yaml still carries rules.mislabel.params.
+    # max_offset_mm as an unread key (spec A5 -- removing it would move
+    # config_hash), so the read below is unchanged.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     cfg = load_config(default_config_path())
     assert cfg.rule_param("mislabel", "max_offset_mm", None) == _DEFAULT_MAX_OFFSET_MM
 
 
 def test_ac13_default_is_no_longer_fifteen():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     assert _DEFAULT_MAX_OFFSET_MM != 15.0
 
 
 def test_ac14_threshold_strictly_above_non_firing_ceiling():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     assert _DEFAULT_MAX_OFFSET_MM > 5.143859
 
 
 def test_ac14_threshold_at_or_below_firing_floor():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     assert _DEFAULT_MAX_OFFSET_MM <= 17.507445
 
@@ -757,8 +764,11 @@ def _corpus_case(case_id):
 
 
 def test_ac15_mode1_displace_fires_mislabel_naming_exactly_label_22():
+    """Item 189 (2026-09-28): rule_id filter re-pointed to spline_offset --
+    Detector A (the offset detector) moved out of mislabel, and displace is
+    now the displaced_vertebra condition's fixture rather than mode 1's."""
     case = _corpus_case("displace")
-    findings = [f for f in pipeline_findings(case) if f.rule_id == "mislabel"]
+    findings = [f for f in pipeline_findings(case) if f.rule_id == "spline_offset"]
     assert findings
     union = set()
     for f in findings:
@@ -767,11 +777,17 @@ def test_ac15_mode1_displace_fires_mislabel_naming_exactly_label_22():
 
 
 def test_ac15_mode6_crop_at_border_fires_mislabel_and_border_on_label_22():
+    """Item 189 (2026-09-28): the offset finding's rule_id re-pointed to
+    spline_offset (Detector A moved); border is unchanged.
+
+    Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    touching label -- it does not opt in to fov_truncation -- so it no
+    longer survives."""
     case = _corpus_case("crop_at_border")
     findings = pipeline_findings(case)
-    mislabel = [f for f in findings if f.rule_id == "mislabel"]
+    offset = [f for f in findings if f.rule_id == "spline_offset"]
     border = [f for f in findings if f.rule_id == "border"]
-    assert mislabel and any(22 in f.labels for f in mislabel)
+    assert offset == []
     assert border and any(22 in f.labels for f in border)
 
 
@@ -786,9 +802,18 @@ def test_ac15_mode4_relabel_swap_fires_no_offset_misalignment_finding():
     ORDERING detector (Detector B, "Vertebra ordering inconsistent with
     label:") through plain run_qc, so the finding list is no longer empty --
     but Detector A's offset-MISALIGNMENT reason never fires on this case,
-    which is what this recalibration test preserves."""
+    which is what this recalibration test preserves.
+
+    Item 189 (2026-09-28): Detector A moved to spline_offset, so filtering
+    on rule_id == "mislabel" alone would now be vacuous (mislabel can never
+    emit the misalignment reason any more). Widened to both rules to keep
+    the claim live."""
     case = _corpus_case("relabel_swap")
-    findings = [f for f in pipeline_findings(case) if f.rule_id == "mislabel"]
+    findings = [
+        f
+        for f in pipeline_findings(case)
+        if f.rule_id in ("mislabel", "spline_offset")
+    ]
     assert not any(
         f.reason.startswith("Vertebra misaligned from spinal curve:")
         for f in findings
@@ -804,21 +829,29 @@ def test_ac16_docstring_records_the_margins_and_the_artifact_name():
     """Amended 2026-08-29: the docstring records the INTERIOR-only ceiling
     (2.510990 mm, relabel_swap) rather than the pre-amendment
     5.143859 mm (that reading is on mode4's cranial-terminal label 20, which
-    AC39 removes from the detector's consideration entirely)."""
-    import segfacet.heuristics.mislabel as mislabel_mod
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    AC39 removes from the detector's consideration entirely).
 
-    doc = mislabel_mod.__doc__ or ""
+    Item 189 (2026-09-28): Detector A (and its docstring section) moved to
+    ``segfacet.heuristics.spline_offset``. The margins are re-measured on
+    the current corpus (spec A6): relabel_swap's non-firing ceiling is now
+    5.624555 mm, crop_at_border's firing reading is 18.025609 mm, and
+    displace's firing reading is 14.615923 mm."""
+    import segfacet.heuristics.spline_offset as spline_offset_mod
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
+
+    doc = spline_offset_mod.__doc__ or ""
     assert "reference_verse_v1.json" in doc
-    for literal in ("2.510990", "17.507445", "18.718604"):
+    for literal in ("5.624555", "18.025609", "14.615923"):
         assert literal in doc, f"expected margin {literal!r} recorded in the module docstring"
     assert f"{_DEFAULT_MAX_OFFSET_MM}" in doc or f"{_DEFAULT_MAX_OFFSET_MM:.1f}" in doc
 
 
 def test_ac16_docstring_states_the_terminal_exclusion_and_why():
-    import segfacet.heuristics.mislabel as mislabel_mod
+    """Item 189 (2026-09-28): re-pointed to spline_offset.py, the moved
+    detector's new module."""
+    import segfacet.heuristics.spline_offset as spline_offset_mod
 
-    doc = (mislabel_mod.__doc__ or "").lower()
+    doc = (spline_offset_mod.__doc__ or "").lower()
     assert "terminal" in doc
     assert "extrapolat" in doc, "expected the held-out-refit-extrapolation rationale recorded"
 
@@ -1040,22 +1073,35 @@ def _all_offset_entries(golden: dict) -> list:
 
 
 def test_ac28_pinned_snapshot_reasons_name_the_current_threshold():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    """Item 189 (2026-09-28): the offset finding's rule_id is now
+    spline_offset (Detector A moved); the threshold constant moved with it.
+
+    Item 191 (2026-09-28): the runner gates spline_offset's finding on
+    crop_at_border's touching label -- it does not opt in to
+    fov_truncation -- so neither the constant nor a fresh report carries one
+    for that case; only the displace half is checked against the threshold."""
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
     from test_098_stray_components import _PRE_098_GOLDEN_VERDICT_AND_FINDINGS
 
     clause = f"(threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)"
     mode1_reason = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["displace"]["findings"][0]["reason"]
     mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
-    mode6_reason = next(f["reason"] for f in mode6_findings if f["rule_id"] == "mislabel")
 
     assert clause in mode1_reason
-    assert clause in mode6_reason
+    assert not any(f["rule_id"] == "spline_offset" for f in mode6_findings)
 
 
 def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
     """AC28 (item 126 replacement): re-pointed at fresh output; the
     committed golden this used to read was retired, see
-    docs/aide/golden-decision-table.md's "## Retirement execution log"."""
+    docs/aide/golden-decision-table.md's "## Retirement execution log".
+
+    Item 189 (2026-09-28): the offset finding's rule_id re-pointed to
+    spline_offset (Detector A moved).
+
+    Item 191 (2026-09-28): the runner gates spline_offset's finding on
+    crop_at_border's touching label, so neither the constant nor the fresh
+    report carries one for that case."""
     from test_098_stray_components import _PRE_098_GOLDEN_VERDICT_AND_FINDINGS
 
     manifest = load_manifest()
@@ -1063,16 +1109,13 @@ def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
 
     mode1_expected = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["displace"]["findings"][0]["reason"]
     mode1_report = build_report_for_case(cases_by_id["displace"])
-    mode1_actual = next(f["reason"] for f in mode1_report["findings"] if f["rule_id"] == "mislabel")
+    mode1_actual = next(f["reason"] for f in mode1_report["findings"] if f["rule_id"] == "spline_offset")
     assert mode1_actual == mode1_expected
 
-    mode6_expected = next(
-        f["reason"] for f in _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
-        if f["rule_id"] == "mislabel"
-    )
+    mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
+    assert not any(f["rule_id"] == "spline_offset" for f in mode6_findings)
     mode6_report = build_report_for_case(cases_by_id["crop_at_border"])
-    mode6_actual = next(f["reason"] for f in mode6_report["findings"] if f["rule_id"] == "mislabel")
-    assert mode6_actual == mode6_expected
+    assert not any(f["rule_id"] == "spline_offset" for f in mode6_report["findings"])
 
 
 # =========================================================================== #
@@ -1108,7 +1151,8 @@ def test_ac31_reference_build_doc_names_the_tool_and_resolution_order():
 
 
 def test_ac32_reference_build_doc_records_the_rebuild():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): constant moved to spline_offset.py.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     text = (_REPO_ROOT / "docs" / "reference-build.md").read_text(encoding="utf-8")
     assert "80" in text
@@ -1165,15 +1209,18 @@ def _straight_spine_centroids(n: int, spacing_mm: float = 10.0):
     ]
 
 
-def _write_mislabel_config(tmp_path, max_offset_mm: float):
+def _write_spline_offset_config(tmp_path, max_offset_mm: float):
+    """Item 189 (2026-09-28): writes to rules.spline_offset.params -- the
+    offset detector's own section (Detector A moved out of mislabel, spec
+    A3). Was ``_write_mislabel_config``, pointed at rules.mislabel.params."""
     from segfacet.config import SUPPORTED_SCHEMA_VERSION, load_config
 
     content = (
         f"schema_version: '{SUPPORTED_SCHEMA_VERSION}'\n"
-        "rules:\n  mislabel:\n    params:\n"
+        "rules:\n  spline_offset:\n    params:\n"
         f"      max_offset_mm: {max_offset_mm}\n"
     )
-    path = tmp_path / "mislabel_config.yaml"
+    path = tmp_path / "spline_offset_config.yaml"
     path.write_text(content, encoding="utf-8")
     return load_config(path)
 
@@ -1189,7 +1236,7 @@ def _offset_entry(label, level_name, offset_mm, is_terminal=None):
     return entry
 
 
-def _mislabel_record(entries):
+def _offset_record(entries):
     return {
         "stage3": {
             "per_label_offsets": list(entries),
@@ -1198,8 +1245,10 @@ def _mislabel_record(entries):
     }
 
 
-def _mislabel_findings(findings):
-    return [f for f in findings if f.rule_id == "mislabel"]
+def _spline_offset_findings(findings):
+    """Item 189 (2026-09-28): filters to spline_offset (Detector A's new
+    home). Was ``_mislabel_findings``, filtering rule_id == "mislabel"."""
+    return [f for f in findings if f.rule_id == "spline_offset"]
 
 
 # --- AC35: the field exists, defaults False, dataclass stays frozen ------- #
@@ -1281,34 +1330,34 @@ def test_ac38_reversal_invariance_matches_by_label_not_index():
 
 
 def test_ac39_terminal_entry_never_fires_even_at_forty_mm_over_a_thirteen_mm_threshold(tmp_path):
-    cfg = _write_mislabel_config(tmp_path, max_offset_mm=13.0)
+    cfg = _write_spline_offset_config(tmp_path, max_offset_mm=13.0)
     entry = _offset_entry(20, "L1", offset_mm=40.0, is_terminal=True)
-    findings = _mislabel_findings(run_rules(_mislabel_record([entry]), cfg))
+    findings = _spline_offset_findings(run_rules(_offset_record([entry]), cfg))
     assert findings == []
 
 
 def test_ac39_interior_entry_over_threshold_still_fires_alongside_a_terminal_one(tmp_path):
-    cfg = _write_mislabel_config(tmp_path, max_offset_mm=13.0)
+    cfg = _write_spline_offset_config(tmp_path, max_offset_mm=13.0)
     terminal_entry = _offset_entry(20, "L1", offset_mm=40.0, is_terminal=True)
     interior_entry = _offset_entry(21, "L2", offset_mm=20.0, is_terminal=False)
-    findings = _mislabel_findings(run_rules(_mislabel_record([terminal_entry, interior_entry]), cfg))
+    findings = _spline_offset_findings(run_rules(_offset_record([terminal_entry, interior_entry]), cfg))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({21})
 
 
 def test_ac40_none_is_terminal_value_still_fires(tmp_path):
-    cfg = _write_mislabel_config(tmp_path, max_offset_mm=13.0)
+    cfg = _write_spline_offset_config(tmp_path, max_offset_mm=13.0)
     entry = _offset_entry(20, "L1", offset_mm=41.3, is_terminal=None)
-    findings = _mislabel_findings(run_rules(_mislabel_record([entry]), cfg))
+    findings = _spline_offset_findings(run_rules(_offset_record([entry]), cfg))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({20})
 
 
 def test_ac40_absent_is_terminal_key_still_fires(tmp_path):
-    cfg = _write_mislabel_config(tmp_path, max_offset_mm=13.0)
+    cfg = _write_spline_offset_config(tmp_path, max_offset_mm=13.0)
     entry = _offset_entry(20, "L1", offset_mm=41.3)  # key omitted entirely
     assert "is_terminal" not in entry
-    findings = _mislabel_findings(run_rules(_mislabel_record([entry]), cfg))
+    findings = _spline_offset_findings(run_rules(_offset_record([entry]), cfg))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({20})
 
@@ -1318,12 +1367,15 @@ def test_ac40_test033_positional_terminal_fixtures_still_fire_unmodified():
     than re-declaring its ~20 cases here, drive its own boundary fixture
     directly through the shipped rule and confirm it still fires -- this
     fixture's offending entry sits at list index 0, which is exactly the
-    positional shape AC40 must not treat as terminal."""
+    positional shape AC40 must not treat as terminal.
+
+    Item 189 (2026-09-28): re-pointed to spline_offset (Detector A moved);
+    test_033's own offset-entry helper is unaffected by that item's edits."""
     import test_033_mislabel as t033
 
     offsets = [t033._make_offset_entry(t033._LABEL_L1, 41.3, "L1")]
     record = t033._make_record(offsets, [])
-    findings = _mislabel_findings(run_rules(record, t033.default_config()))
+    findings = _spline_offset_findings(run_rules(record, t033.default_config()))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({t033._LABEL_L1})
 
@@ -1425,7 +1477,8 @@ def test_ac43_level_with_no_interior_occurrence_still_loads():
 
 
 def test_ac44_default_max_offset_mm_is_thirteen():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): constant moved to spline_offset.py.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     assert _DEFAULT_MAX_OFFSET_MM == 13.0
 
@@ -1455,7 +1508,8 @@ def test_ac45_interior_corpus_ceiling_is_2_510990():
 
 
 def test_ac45_threshold_exceeds_the_interior_ceiling():
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): constant moved to spline_offset.py.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     ceiling = _interior_offset_ceiling_over_corpus(exclude_case_ids=_THRESHOLD_CARRYING_CASES)
     assert _DEFAULT_MAX_OFFSET_MM > ceiling
@@ -1465,6 +1519,9 @@ def test_ac45_threshold_exceeds_the_interior_ceiling():
 
 
 def test_ac46_feature_docs_entry_exists_with_rationale():
+    """Item 189 (2026-09-28): the docstring's rule reference re-pointed from
+    "the mislabel rule" to "the spline_offset rule" (spec step 7, the
+    detector's exclusion logic moved with it)."""
     from segfacet.feature_docs import FEATURE_DOCS
 
     key = "stage3.per_label_offsets[].is_terminal"
@@ -1472,7 +1529,7 @@ def test_ac46_feature_docs_entry_exists_with_rationale():
     doc = FEATURE_DOCS[key]
     text = " ".join(str(v) for v in vars(doc).values()).lower()
     assert "first" in text and "last" in text
-    assert "mislabel" in text
+    assert "spline_offset" in text
     assert "extrapolat" in text or "refit" in text
 
 
@@ -1585,10 +1642,10 @@ def test_adv_terminal_entry_with_astronomically_large_offset_never_fires(tmp_pat
     """Magnitude is never the discriminator: a 1e6 mm terminal reading fires
     nothing, while a modest interior entry over threshold in the same record
     still fires."""
-    cfg = _write_mislabel_config(tmp_path, max_offset_mm=13.0)
+    cfg = _write_spline_offset_config(tmp_path, max_offset_mm=13.0)
     huge_terminal = _offset_entry(20, "L1", offset_mm=1.0e6, is_terminal=True)
     modest_interior = _offset_entry(21, "L2", offset_mm=13.5, is_terminal=False)
-    findings = _mislabel_findings(run_rules(_mislabel_record([huge_terminal, modest_interior]), cfg))
+    findings = _spline_offset_findings(run_rules(_offset_record([huge_terminal, modest_interior]), cfg))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({21})
 

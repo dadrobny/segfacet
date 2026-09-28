@@ -81,7 +81,7 @@ import segfacet.failure_modes as fm
 import segfacet.traceability as tb
 from segfacet import feature_docs as feature_docs_module
 from segfacet.config import bundled_default_config
-from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM  # item 189 (2026-09-28)
 from segfacet.heuristics.rule import iter_rule_declarations
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth import corpus as corpus_module
@@ -92,7 +92,6 @@ from segfacet.synth.regression import (
     intensity_pipeline_findings,
     loaded_seg_image,
     pipeline_findings,
-    reconstructed_findings,
 )
 
 from run_process import run_utf8
@@ -146,9 +145,11 @@ def _record(case_id: str) -> dict:
 
 
 def _max_offset_mm() -> float:
+    # Item 189 (2026-09-28): the offset threshold is read from the new
+    # spline_offset rule's own section, not mislabel's.
     config = bundled_default_config()
     return float(
-        config.rule_param("mislabel", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM)
+        config.rule_param("spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM)
     )
 
 
@@ -346,7 +347,8 @@ def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
     # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
-    assert len(keys) == 18, keys
+    # Item 195 (2026-09-28): 18 -> 17 (force_overlap removed).
+    assert len(keys) == 17, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -364,7 +366,8 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
     # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
-    assert matrix.conformance.agree_count == 18
+    # Item 195 (2026-09-28): 18 -> 17 (force_overlap removed).
+    assert matrix.conformance.agree_count == 17
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
@@ -377,8 +380,13 @@ def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
     every case -- still finds a ``scan_fixture``/``seg_fixture`` pair to
     load; only ``case_id`` is overridden to one no ``ModeSpec.corpus_cases``
     entry carries.
+
+    Item 189 (2026-09-28): re-pointed from "displace" to "fragment" --
+    displace becomes the displaced_vertebra condition's fixture
+    (failure_mode 0), so it can no longer stand in for "a real case carrying
+    a real mode"; fragment stays mode 1's fixture.
     """
-    real_case = _manifest_case("displace")
+    real_case = _manifest_case("fragment")
     assert real_case["failure_mode"] == 1
 
     def _fake_load_manifest():
@@ -405,7 +413,12 @@ def test_ac10_condition_case_expects_border_and_mislabel_with_a_reason():
         (c for c in condition.corpus_cases if c.case_id == "crop_at_border"), None
     )
     assert case is not None
-    assert set(case.expected_firing) == {"border", "mislabel"}
+    # Item 189 (2026-09-28): the offset detector moved from mislabel to
+    # spline_offset.
+    # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation -- so the
+    # expectation narrows to border alone.
+    assert set(case.expected_firing) == {"border"}
     assert case.reason.strip()
 
 
@@ -454,12 +467,21 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
     # 17 -> 18: item 167 (docs/aide/items/167-mode-3s-own-feature-and-
     # detector.md, Correction 2026-09-20, C4) adds mode 3's third edge
     # (fragmentation, via the new neighbour_contact evidence).
+    # 18 -> 20: item 192 (2026-09-28) adds two edges -- sequence's skip
+    # (mode 10) and transitional (mode 11) detectors -- beside its existing
+    # mode-9 edge.
+    # 20 -> 14: item 193 (2026-09-28) removes every edge naming
+    # reference_delta (modes 1, 2, 3, 4, 8) and intensity_reference_delta
+    # (mode 16) -- both rules become mode-less (no mode's own detector).
+    # 14 -> 13: item 194 (2026-09-28) removes mode 1's bounds edge -- mode 1
+    # is attributed only where no other mode applies, and bounds serves
+    # modes 2, 3 and 4.
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 18, total_edges
+    assert total_edges == 13, total_edges
 
 
 # =========================================================================== #
@@ -560,29 +582,37 @@ def test_ac14_recorded_analytic_edge_list(matrix):
     )
     # Item 174 (2026-09-23): (3, "bounds") left the analytic list -- mode 3's
     # split_own_label case designates bounds, so that edge is now corpus.
+    # Item 193 (2026-09-28): every (mode, "reference_delta") and
+    # (16, "intensity_reference_delta") pair leaves the analytic list -- both
+    # rules become mode-less (no mode's own detector), declaring no edge at
+    # all.
+    # Item 194 (2026-09-28): (1, "bounds") leaves the analytic list -- mode 1
+    # is attributed only where no other mode applies, and bounds' volume/
+    # extent proxy serves modes 2, 3 and 4 instead.
     for expected in [
-        (1, "bounds"), (1, "reference_delta"),
-        (2, "bounds"), (2, "reference_delta"),
-        (3, "reference_delta"),
-        (4, "bounds"), (4, "reference_delta"),
-        (8, "reference_delta"),
-        (16, "intensity_reference_delta"),
+        (2, "bounds"),
+        (4, "bounds"),
     ]:
         assert expected in analytic, expected
 
 
 def test_adv_ac14_flipped_attribution_is_detected(matrix, conformance_index):
+    # Re-pointed (item 194, 2026-09-28) from mode 1 to mode 4: bounds no
+    # longer carries an analytic edge on mode 1 at all (mode 1 is attributed
+    # only where no other mode applies), so mode 1 can no longer witness a
+    # flipped-attribution regression. Mode 4 still carries bounds as
+    # analytic.
     independent = _independent_attribution(matrix, conformance_index)
-    mode1_row = next(m for m in matrix.modes if m.mode == 1)
-    mutated_attribution = list(mode1_row.rule_attribution)
+    mode4_row = next(m for m in matrix.modes if m.mode == 4)
+    mutated_attribution = list(mode4_row.rule_attribution)
     for i, (rule_id, attribution) in enumerate(mutated_attribution):
         if attribution == "analytic":
             mutated_attribution[i] = (rule_id, "corpus")
             break
     else:
-        pytest.fail("expected mode 1 to carry >=1 analytic edge to flip")
-    mutated_row = SimpleNamespace(mode=1, rules=mode1_row.rules, rule_attribution=tuple(mutated_attribution))
-    assert dict(mutated_row.rule_attribution) != independent[1]
+        pytest.fail("expected mode 4 to carry >=1 analytic edge to flip")
+    mutated_row = SimpleNamespace(mode=4, rules=mode4_row.rules, rule_attribution=tuple(mutated_attribution))
+    assert dict(mutated_row.rule_attribution) != independent[4]
 
 
 # =========================================================================== #
@@ -601,28 +631,20 @@ def test_ac15_mode15_mechanism_states_the_single_channel_invariant():
     assert "voxel" in mechanism
 
 
-def test_ac16_overlap_case_yields_no_overlap_through_the_pipeline():
-    case = _manifest_case("force_overlap")
-    record = _record("force_overlap")
-    assert record["overlaps"] == []
-    findings = pipeline_findings(case)
-    assert "overlap" not in {f.rule_id for f in findings}
+def test_ac16_no_committed_case_yields_an_overlap_through_the_pipeline():
+    """Re-pointed by item 195 (2026-09-28): force_overlap (the only
+    reconstructed-record case) was removed -- a single-channel label map
+    cannot express an overlap -- so the claim generalises to every
+    committed geometric case instead of one named case."""
+    for case in corpus_module.load_manifest()["cases"]:
+        record = _record(case["case_id"])
+        assert record["overlaps"] == [], case["case_id"]
+        findings = pipeline_findings(case)
+        assert "overlap" not in {f.rule_id for f in findings}, case["case_id"]
 
 
-def test_ac16_overlap_case_yields_overlap_through_the_reconstruction():
-    case = _manifest_case("force_overlap")
-    findings = reconstructed_findings(case)
-    assert findings, "expected >=1 reconstructed finding"
-    assert "overlap" in {f.rule_id for f in findings}
-
-
-def test_ac16_manifest_detection_is_reconstructed_record():
-    case = _manifest_case("force_overlap")
-    assert case["detection"] == "reconstructed_record"
-
-
-def test_ac16_mode15_carries_the_case():
-    assert "force_overlap" in {c.case_id for c in fm.SPECIFICATION[15].corpus_cases}
+def test_ac16_mode15_carries_no_corpus_case():
+    assert fm.SPECIFICATION[15].corpus_cases == ()
 
 
 # =========================================================================== #
@@ -757,13 +779,16 @@ def test_ac22_mode16_present_at_implemented_or_validated():
 
 
 def test_ac23_both_intensity_rules_declare_mode16():
+    """Reconciled (item 193, 2026-09-28): ``intensity_reference_delta``
+    becomes mode-less (no mode's own detector) -- ``intensity`` alone
+    declares mode 16 now."""
     declarations = dict(iter_rule_declarations())
-    for rule_id in ("intensity", "intensity_reference_delta"):
+    for rule_id in ("intensity",):
         declaration = declarations[rule_id]
         assert declaration is not None, rule_id
         assert 16 in declaration.modes, rule_id
     rule_ids = {edge.rule_id for edge in fm.SPECIFICATION[16].intended_rules}
-    assert {"intensity", "intensity_reference_delta"} <= rule_ids
+    assert {"intensity"} <= rule_ids
 
 
 def test_ac24_intensity_manifest_cases_carry_expected_firing_keyed_to_mode16():

@@ -360,7 +360,10 @@ def test_ac4_every_declaring_rule_classifies_exactly_what_it_consumes(shipped_ca
             declared_paths - consumed_paths,
         )
         checked += 1
-    assert checked == 10
+    # Item 187 (2026-09-27): neighbour_contact registered an eleventh
+    # declaring rule. Item 189 (2026-09-28): spline_offset registers a
+    # twelfth.
+    assert checked == 12
 
 
 # =========================================================================== #
@@ -609,6 +612,14 @@ def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_cat
 
 
 def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_catalogue):
+    """Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes
+    mode-less, so its own signal path (``robust_z``) no longer carries any
+    mode either -- it can no longer serve as this AC's "sibling signal path
+    still shows" control. Re-pointed to ``intensity``, a rule that still
+    declares a mode and still classifies both roles: a bookkeeping path
+    (``image_features.available``) stays honestly mode-less, and its own
+    signal path (``image_features.per_label.{label}.first_order.median``)
+    still carries mode 16."""
     cat = shipped_catalogue
     for path in (
         "reference_delta.lower_pct",
@@ -618,13 +629,17 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
         entry = _entry(cat, path)
         assert entry.failure_modes == (), path
 
-    # The sibling "signal" path on the same rule still carries every mode
-    # ``reference_delta`` declares -- (1, 2, 3, 4, 8) since the item-150
-    # sign-off's 2026-09-15 revision -- so the three bookkeeping paths above
-    # are dropped by their classification, not by the rule losing its modes.
-    robust_z_path = "reference_delta.{label}.features.physical_volume_mm3.robust_z"
-    entry = _entry(cat, robust_z_path)
-    assert entry.failure_modes == (1, 2, 3, 4, 8), robust_z_path
+    # The control: a bookkeeping path on `intensity` stays honestly
+    # mode-less, while its sibling signal path still carries mode 16 -- so
+    # the three bookkeeping paths above are dropped by their classification,
+    # not by every rule reaching them losing its modes.
+    bookkeeping_path = "image_features.available"
+    entry = _entry(cat, bookkeeping_path)
+    assert entry.failure_modes == (), bookkeeping_path
+
+    signal_path = "image_features.per_label.{label}.first_order.median"
+    entry = _entry(cat, signal_path)
+    assert entry.failure_modes == (16,), signal_path
 
 
 # =========================================================================== #
@@ -637,12 +652,18 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
     modes -- 5 (holes), 7 (hallucinated vertebra), 10 (skipped level label),
     11 (unprompted numbering
     variant), 12 (shifted label sequence), 13 (collapsed labels) and 14
-    (duplicated label) -- are ``proposed``: no rule declares them and no
+    (duplicated label) -- were ``proposed``: no rule declares them and no
     Stage-18 metric anchors them, so they reach no path *by design*. Every other catalogued mode must still reach at
     least one path, and only through a ``"signal"`` classification. The
     exempt set is derived from ``SPECIFICATION``/``MODE_ANCHOR_PATHS``, not
     hardcoded, so a rule declaring mode 7 tomorrow tightens this test rather
-    than leaving it stale."""
+    than leaving it stale.
+
+    Reconciled (item 188, 2026-09-28): ``coverage`` re-homed off mode 6 onto
+    mode 10. Mode 10 leaves the unreachable set (it now carries the
+    ``coverage`` edge). Mode 6 loses its edge but keeps its
+    ``MODE_ANCHOR_PATHS`` entry, so it does **not** join the set -- it still
+    reaches both level lists, through its anchor and the corpus map."""
     import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs
 
@@ -659,7 +680,9 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
         for mode in catalogued
         if not fm.SPECIFICATION[mode].intended_rules and mode not in feature_docs.MODE_ANCHOR_PATHS
     }
-    assert unreachable == {5, 7, 10, 11, 12, 13, 14}, unreachable
+    # Item 192 (2026-09-28): mode 11 gains an intended-rule edge (sequence's
+    # transitional detector), so it leaves this unreachable set.
+    assert unreachable == {5, 7, 12, 13, 14}, unreachable
     assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
 
     # Mode 16 ("implausible tissue under a label", entered as mode 9 by item
@@ -831,37 +854,47 @@ def test_ac15_schema_version_and_status_report_loader():
 
 _AC16_CASES = (
     ("crop_at_border", "geo", ("border",)),
-    ("displace", "geo", ("mislabel",)),
+    # Item 189 (2026-09-28): displace's offset detector moved to its own
+    # spline_offset rule; mislabel's remaining (ordering) coverage is now
+    # carried by relabel_swap alone, since it no longer fires on displace.
+    ("displace", "geo", ("spline_offset",)),
+    ("relabel_swap", "geo", ("mislabel",)),
     ("fragment", "geo", ("fragmentation",)),
     ("remove_level", "geo", ("coverage",)),
     ("sequence_break", "geo", ("sequence",)),
-    ("force_overlap", "overlap", ("overlap",)),
+    # Item 195 (2026-09-28): force_overlap (and its corpus case) was
+    # removed -- a single-channel label map cannot express an overlap --
+    # so the overlap-rule row is now driven by a hand-built record instead
+    # of a corpus case key.
+    ("planted_overlap", "overlap", ("overlap",)),
     ("clean_hu", "intensity", ("bounds", "reference_delta", "intensity_reference_delta")),
     ("implausible_metal", "intensity", ("intensity",)),
+    # Item 187 (2026-09-28): neighbour_contact fires on the split case alone.
+    ("split", "geo", ("neighbour_contact",)),
 )
 
 
-def _overlap_reconstructed_record(case, config):
-    """Rebuild the mode-8 reconstructed ``{"overlaps": [...]}`` record, the
-    same technique ``synth.regression._recon_overlap_mask_stack`` uses, so it
-    can be fed to ``run_rules`` directly (that helper evaluates
-    ``OverlapRule`` alone, not the full runner)."""
-    import numpy as np
+def _overlap_reconstructed_record():
+    """A hand-built ``{"overlaps": [...]}`` record driving the overlap rule.
 
-    from segfacet.features.overlap import detect_overlaps
-    from segfacet.feature_report import overlap_to_dict
-    from segfacet.synth.clean_gt import build_clean_spine
-    from segfacet.synth.regression import loaded_seg_image
-
-    seg_img = loaded_seg_image(case)
-    target = case["perturbation_params"]["target_label"]
-    neighbour = case["perturbation_params"]["neighbour_label"]
-    clean = build_clean_spine(**case["base"])
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    data = np.asanyarray(seg_img.dataobj)
-    stack = np.stack([data == target, clean_data == neighbour])
-    pairs = detect_overlaps(stack, np.array([target, neighbour]))
-    return {"overlaps": [overlap_to_dict(pair) for pair in pairs]}
+    Item 195 (2026-09-28): force_overlap (and the operator-specific
+    ``overlap_mask_stack`` reconstruction that used to build this record
+    from it) was removed -- a single-channel label map cannot express an
+    overlap -- so this is a planted record instead of one rebuilt from a
+    corpus case. Measured: ``run_rules`` on it yields exactly one
+    ``overlap`` finding (detector ``overlapping_segments``, labels
+    ``{20, 21}``)."""
+    return {
+        "overlaps": [
+            {
+                "label_a": 20,
+                "label_b": 21,
+                "name_a": "L1",
+                "name_b": "L2",
+                "overlap_voxels": 7,
+            }
+        ]
+    }
 
 
 def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference):
@@ -875,7 +908,9 @@ def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference
             intensity_pipeline_findings(intensity_by_id[case_key], config, reference=reference)
         )
     if kind == "overlap":
-        record = _overlap_reconstructed_record(geo_by_id[case_key], config)
+        # Item 195 (2026-09-28): the planted record ignores geo_by_id --
+        # there is no corpus case behind it any more.
+        record = _overlap_reconstructed_record()
         return list(run_rules(record, config))
     raise AssertionError(kind)  # pragma: no cover -- closed vocabulary above
 
@@ -987,13 +1022,18 @@ _EXPECTED_THRESHOLD_CONSTANTS = {
         "DEFAULT_MAX_ROBUST_Z": 3.5,
         "DEFAULT_MAX_DISTRIBUTION_DISTANCE": 3.0,
     },
-    "mislabel": {"_DEFAULT_MAX_OFFSET_MM": 13.0},
+    # Item 189 (2026-09-28): _DEFAULT_MAX_OFFSET_MM moved to spline_offset.
+    "mislabel": {},
+    # Item 187 (2026-09-27): neighbour_contact, mode 3's own rule.
+    "neighbour_contact": {"DEFAULT_CONTACT_FRACTION": 0.1},
     "overlap": {"_DEFAULT_MIN_OVERLAP_VOXELS": 1},
     "reference_delta": {
         "DEFAULT_MAX_ROBUST_Z": 3.5,
         "DEFAULT_MAX_DISTRIBUTION_DISTANCE": 3.0,
     },
     "sequence": {},
+    # Item 189 (2026-09-28): mislabel's Detector A moved here unchanged.
+    "spline_offset": {"_DEFAULT_MAX_OFFSET_MM": 13.0},
 }
 
 _RULE_MODULE_NAMES = tuple(sorted(_EXPECTED_THRESHOLD_CONSTANTS))
@@ -1021,7 +1061,9 @@ def test_ac17_no_rule_evaluate_body_references_declaration_symbols():
                 offenders = (names | attrs) & banned
                 assert not offenders, (module_name, offenders)
                 checked += 1
-    assert checked == 10
+    # Item 187 (2026-09-27): neighbour_contact.py was an eleventh rule
+    # module. Item 189 (2026-09-28): spline_offset.py is a twelfth.
+    assert checked == 12
 
 
 # =========================================================================== #
@@ -1055,7 +1097,9 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
         expected_paths = tuple(sorted(e.path for e in cat.entries if rr.rule_id in e.consuming_rules))
         assert rr.feature_paths == expected_paths, rr.rule_id
         checked += 1
-    assert checked == 10
+    # Item 187 (2026-09-27): neighbour_contact was an eleventh matrix row.
+    # Item 189 (2026-09-28): spline_offset is a twelfth.
+    assert checked == 12
 
 
 # =========================================================================== #
@@ -1066,8 +1110,10 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
 def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_catalogue):
     # Item 167 (2026-09-20): two new `components` leaf paths
     # (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
+    # Item 187 (2026-09-28): `component_contacts[].<four keys>` and
+    # `label_contact_fraction` move this 140 -> 145.
     cat = shipped_catalogue
-    assert len(cat.entries) == 140
+    assert len(cat.entries) == 145
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}

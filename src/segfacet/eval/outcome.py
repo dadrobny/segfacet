@@ -52,8 +52,9 @@ reporting; only the binary reduction drives ``outcome``.
   raised the flag.
 
 The ``expected`` mapping is consumed duck-typed (only ``expected_verdict`` is
-required; ``expected_rule_ids``, ``expected_labels``, ``failure_mode``, and
-``failure_mode_name`` default when absent). The ``actual`` object is likewise
+required; ``expected_rule_ids``, ``expected_labels``, ``failure_mode``,
+``failure_mode_name``, and ``condition`` default when absent). The ``actual``
+object is likewise
 duck-typed -- any object exposing ``.verdict.overall: Severity`` and an
 iterable ``.findings`` of objects with ``.rule_id`` / ``.labels`` works;
 ``segfacet.aggregate.CaseResult`` is the reference type.
@@ -179,6 +180,9 @@ class CaseOutcome:
         Whether a designated rule fired on >= 1 expected label (or, absent
         expected labels, fired at all) -- the strict per-mode sensitivity
         signal.
+    condition:
+        The expected side's condition id (e.g. ``"fov_truncation"``), or
+        ``None`` if not supplied or empty (item 190).
     """
 
     outcome: Outcome
@@ -194,6 +198,7 @@ class CaseOutcome:
     fired_rule_ids: Tuple[str, ...]
     designated_rule_fired: bool
     caught_by_designated_rule: bool
+    condition: Optional[str] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -223,13 +228,15 @@ def _severity_of(verdict_label: str) -> Severity:
 
 def _extract_expected(
     expected: Any,
-) -> Tuple[str, Tuple[str, ...], Tuple[int, ...], Optional[int], Optional[str]]:
+) -> Tuple[
+    str, Tuple[str, ...], Tuple[int, ...], Optional[int], Optional[str], Optional[str]
+]:
     """Validate and extract the expected-side mapping's fields.
 
     Returns
     -------
     (expected_verdict, expected_rule_ids, expected_labels, failure_mode,
-    failure_mode_name)
+    failure_mode_name, condition)
 
     Raises
     ------
@@ -254,8 +261,9 @@ def _extract_expected(
     labels = tuple(sorted(set(expected.get("expected_labels") or ())))
     failure_mode = expected.get("failure_mode")
     failure_mode_name = expected.get("failure_mode_name")
+    condition = expected.get("condition") or None
 
-    return expected_verdict, rule_ids, labels, failure_mode, failure_mode_name
+    return expected_verdict, rule_ids, labels, failure_mode, failure_mode_name, condition
 
 
 # --------------------------------------------------------------------------- #
@@ -332,8 +340,9 @@ def classify_outcome(
     expected:
         A mapping in the ``Expectation.to_dict()`` / ``tests/corpus``
         manifest-case shape. Only ``expected_verdict`` is required;
-        ``expected_rule_ids``, ``expected_labels``, ``failure_mode``, and
-        ``failure_mode_name`` default when absent. Not mutated.
+        ``expected_rule_ids``, ``expected_labels``, ``failure_mode``,
+        ``failure_mode_name``, and ``condition`` default when absent. Not
+        mutated.
     actual:
         The pipeline's actual result for the case -- duck-typed as any
         object exposing ``.verdict.overall: Severity`` and an iterable
@@ -363,6 +372,7 @@ def classify_outcome(
         expected_labels,
         failure_mode,
         failure_mode_name,
+        condition,
     ) = _extract_expected(expected)
     overall_severity, fired_rule_ids, findings_tuple = _extract_actual(actual)
 
@@ -395,4 +405,5 @@ def classify_outcome(
         fired_rule_ids=fired_rule_ids,
         designated_rule_fired=designated_rule_fired,
         caught_by_designated_rule=caught_by_designated_rule,
+        condition=condition,
     )

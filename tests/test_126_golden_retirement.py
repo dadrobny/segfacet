@@ -81,6 +81,11 @@ _CASE_IDS = (
 #: historical id only through the mapping, never a literal -- item 157).
 _OLD_CASE_ID = {new: old for old, new in RENAMED_CASE_IDS.items()}
 
+#: force_overlap removed by item 195, 2026-09-28: _CASE_IDS stays nine (for
+#: _RETIRED_PATHS, a frozen history set), but a live-measurement
+#: parametrisation must skip the id no manifest case carries any more.
+_LIVE_CASE_IDS = tuple(c for c in _CASE_IDS if c != "force_overlap")
+
 
 # =========================================================================== #
 # Shared helpers
@@ -154,7 +159,7 @@ def test_ac3_manifest_cases_resolve_to_existing_fixtures():
         assert seg_path.is_file(), f"missing seg fixture for {case['case_id']!r}: {seg_path}"
 
 
-@pytest.mark.parametrize("case_id", _CASE_IDS)
+@pytest.mark.parametrize("case_id", _LIVE_CASE_IDS)
 def test_ac3_fresh_report_validates_against_schema(case_id):
     import jsonschema
 
@@ -490,10 +495,12 @@ _RE_POINTED = (
     ("tests/test_042_golden_determinism.py", "test_ac6_exactly_one_golden_per_manifest_case_no_more_no_fewer"),
     ("tests/test_042_golden_determinism.py", "test_ac7_every_committed_golden_is_valid_json_and_validates"),
     ("tests/test_042_golden_determinism.py", "test_ac8_committed_golden_case_id_matches_filename"),
-    ("tests/test_042_golden_determinism.py", "test_ac16_reconstructed_golden_is_pipeline_blind"),
+    # test_ac16_reconstructed_golden_is_pipeline_blind and
+    # test_adv_reconstructed_golden_blindness_is_checked_via_rule_ids_not_empty_findings
+    # rows dropped by item 195, 2026-09-28: both tests were deleted
+    # (_RECONSTRUCTED_CASES is now empty).
     ("tests/test_042_golden_determinism.py", "test_adv_mode5_remove_level_golden_canonicalises_without_crashing_on_empty_labels"),
     ("tests/test_042_golden_determinism.py", "test_adv_clean_control_golden_passes_with_no_findings"),
-    ("tests/test_042_golden_determinism.py", "test_adv_reconstructed_golden_blindness_is_checked_via_rule_ids_not_empty_findings"),
     ("tests/test_089_fov_aware_coverage_border.py", "test_ac16_committed_corpus_coverage_and_border_findings_unchanged"),
     ("tests/test_090_reference_derived_defaults.py", "test_ac15_all_committed_goldens_still_check_true"),
     ("tests/test_094_tptbox_image_layer.py", "test_ac7_report_matches_committed_golden_within_tolerance"),
@@ -529,8 +536,8 @@ _RE_POINTED += tuple(
     )
 )
 
-assert len(_RE_POINTED) == 34, (
-    "34 = 24 individually-listed re-point rows plus the 10 test_111 functions "
+assert len(_RE_POINTED) == 32, (
+    "32 = 22 individually-listed re-point rows plus the 10 test_111 functions "
     "the item spec bundles as a single table row"
 )
 
@@ -854,11 +861,17 @@ def _execution_log_body() -> str:
 
 
 def _execution_log_paths(body: str) -> set:
-    found = set()
-    for path in list(_AC18_PRE_ITEM_ROW_DIGESTS.keys()):
-        if path in body:
-            found.add(path)
-    return found
+    # item 195, 2026-09-28: was hardcoded to the item-126 retirement set only
+    # (_AC18_PRE_ITEM_ROW_DIGESTS), so a later item's own execution-log line
+    # (e.g. force_overlap_seg.nii.gz) was never recognised and AC20's
+    # both-directions check flagged it as an unexplained absent row. Mirror
+    # test_105's AC3 approach instead: any Section-1 fixture path named in
+    # the execution-log body is explained, not just the item-126 eleven.
+    # AC18/AC19's own assertions still narrow to the item-126 set themselves
+    # (via `expected = set(_AC18_PRE_ITEM_ROW_DIGESTS.keys())`), so their
+    # failure mode for a genuinely unlogged item-126 path is unchanged.
+    candidates = {r["fixture"] for r in _section1_rows()}
+    return {path for path in candidates if path in body}
 
 
 def test_ac19_execution_log_names_every_retired_path_dated_item126():
@@ -1023,7 +1036,7 @@ def test_ac22_test105_evidence_test_reads_fresh_output_not_committed_file():
     )
 
 
-@pytest.mark.parametrize("case_id", _CASE_IDS)
+@pytest.mark.parametrize("case_id", _LIVE_CASE_IDS)
 def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     """Item 134: the signed row no longer carries the N/M fraction (it
     carries a stable pointer, see test_105's AC9 test), so the pin now reads
@@ -1035,7 +1048,18 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     and-detector.md, Correction 2026-09-20, C2) adds two leaf paths
     (stray_contact_area_mm2, stray_contact_label), both wired by the
     fragmentation rule's declaration, so the unwired count n stays 26 and
-    only the total m moves."""
+    only the total m moves.
+
+    (26, 96) -> (31, 101): item 187 (2026-09-28) adds five leaf paths under
+    per_label.{label}.components (component_contacts[]'s four keys,
+    label_contact_fraction); three are unconsumed by any rule
+    (contact_area_mm2, surface_area_mm2, label_contact_fraction), so m moves
+    by 5 and n gains those 3. fragmentation also stops reading
+    stray_contact_area_mm2/stray_contact_label at all (neighbour_contact
+    reads the relative measure instead), so both of item 167's previously
+    wired paths become unwired too, adding 2 more to n. Total: n gains 5
+    (3 + 2), m gains 5 (the five new paths only) -- (26, 96) -> (31, 101),
+    verified against segfacet.catalogue.build_catalogue() live."""
     import segfacet.catalogue as catalogue
 
     from segfacet.synth.golden import build_report_for_case
@@ -1045,8 +1069,8 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     assert case_id in companion["cases"], f"{case_id!r} missing from the companion"
     entry = companion["cases"][case_id]
     documented_n, documented_m = entry["unwired_leaf_paths"], entry["total_leaf_paths"]
-    assert (documented_n, documented_m) == (26, 96), (
-        f"{case_id!r}'s documented evidence has moved off the pinned 26/96 "
+    assert (documented_n, documented_m) == (31, 101), (
+        f"{case_id!r}'s documented evidence has moved off the pinned 31/101 "
         f"value: {documented_n}/{documented_m}"
     )
 

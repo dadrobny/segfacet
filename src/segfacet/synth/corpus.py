@@ -1,7 +1,7 @@
 """Committed synthetic fixture corpus for the failure-mode specification plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
-Materialises the **fourteen canonical cases** -- item 040's original nine (the
+Materialises the **thirteen canonical cases** -- item 040's original nine (the
 clean control plus one per mode of the vision.md v3 seed list, history ids
 1-8, whose case ids name
 the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
@@ -19,9 +19,8 @@ each manifest entry's
 and ``condition`` by ``segfacet.synth.perturbation.case_kind`` -- using
 the merged Stage 5 generators (items 036-039): :func:`build_clean_spine`
 (item 036) as the shared base, and the registered operators from item 037
-(``fragment``), item 038 (``remove_level``, ``crop_at_border``,
-``force_overlap``), and item 039 (``displace``, ``relabel_swap``,
-``sequence_break``).
+(``fragment``), item 038 (``remove_level``, ``crop_at_border``), and item
+039 (``displace``, ``relabel_swap``, ``sequence_break``).
 
 Two public surfaces:
 
@@ -32,20 +31,18 @@ Two public surfaces:
   (:func:`main`), regenerating the committed corpus under
   ``tests/corpus/`` by default.
 
-One of the fourteen cases (mode 15 -- ``force_overlap``) is documented by item 038
-as **structurally invisible** to the plain ``run_qc`` pipeline (a
-single-integer label map cannot encode an overlap). This module faithfully
-represents that fact: its manifest entry carries
-``detection == "reconstructed_record"`` and a ``reconstruction`` technique
-key, rather than pretending ``run_qc`` would catch it. Mode 1 (``displace``)
+No committed case is ``detection == "reconstructed_record"`` any more: the
+``force_overlap`` case (mode 15) was removed by item 195 (2026-09-28)
+because a single-channel label map cannot express an overlap, so its
+fixture never expressed the mode it was attributed to. Mode 1 (``displace``)
 was reconstructed_record before item 120 promoted a held-out per-label
 spline offset into the pipeline itself; it is now ``detection == "pipeline"``.
 The mode-9 ``relabel_swap`` case was reconstructed_record before item 132 (2026-08-31)
 made ``compute_monotonic_consistency`` judge against a curve fitted in
 geometric traversal order rather than the ordering under test, so the swap
 now reads out of order through plain ``run_qc``; it is now
-``detection == "pipeline"`` like every case but the overlap one. See the item 040
-spec's Assumptions for the full rationale.
+``detection == "pipeline"``. See the item 040 spec's Assumptions for the
+full rationale.
 
 Item 157 (2026-09-17) dropped the ``modeN_`` prefixes above; the mapping is
 also recorded in code as :data:`RENAMED_CASE_IDS`, a frozen historical record
@@ -167,7 +164,7 @@ class _RecipeEntry:
     reconstruction: Optional[str] = None
 
 
-#: The fourteen canonical cases (item 040 spec's case table, then item 150's
+#: The thirteen canonical cases (item 040 spec's case table, then item 150's
 #: two, then item 166's split, then item 174's split_own_label, then item 175's crop_fov_si), in table
 #: order.
 CASE_RECIPE: List[_RecipeEntry] = [
@@ -222,13 +219,6 @@ CASE_RECIPE: List[_RecipeEntry] = [
         perturbation="sequence_break",
         perturbation_params={},
         detection="pipeline",
-    ),
-    _RecipeEntry(
-        case_id="force_overlap",
-        perturbation="force_overlap",
-        perturbation_params={"target_label": 20, "neighbour_label": 21},
-        detection="reconstructed_record",
-        reconstruction="overlap_mask_stack",
     ),
     # Item 150 (2026-09-14): the two cases the signed-off taxonomy needed.
     # Case ids name the case's perturbation operator, like the cases above

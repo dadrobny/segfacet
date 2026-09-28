@@ -58,6 +58,14 @@ Design decisions (recorded per item 028 spec, extended by item 090):
 - Shipped hand-set defaults (0.75 / 50) are unchanged fallback placeholders.
 - The caller's record, its attached ``reference``, and ``config`` are never
   mutated (AC18 / item 090 AC17).
+
+Item 187 moved mode 3's (split vertebra segment) detector out of this rule
+into ``heuristics/neighbour_contact.py``: this rule no longer declares mode 3,
+and its ``neighbour_contact`` detector, ``_NEIGHBOUR_CONTACT_TAG``,
+``DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2`` and the two ``stray_contact_*``
+consumed paths are gone. The relative (surface-normalised) contact fraction
+the new rule reads instead lives on ``ComponentsInfo.component_contacts`` /
+``label_contact_fraction``.
 """
 
 from __future__ import annotations
@@ -81,7 +89,6 @@ __all__ = [
     "FragmentationRule",
     "DEFAULT_FRAGMENTATION_INDEX_THRESHOLD",
     "DEFAULT_ISLAND_MIN_VOXELS",
-    "DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2",
     "DEFAULT_SOURCE",
     "DEFAULT_REFERENCE_LOWER_PCT",
     "DEFAULT_REFERENCE_UPPER_PCT",
@@ -102,19 +109,6 @@ DEFAULT_FRAGMENTATION_INDEX_THRESHOLD: float = 0.75
 
 DEFAULT_ISLAND_MIN_VOXELS: int = 50
 """Non-dominant component strictly below this many voxels is a rogue island."""
-
-DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2: float = 100.0
-"""Fire when a label's stray-component contact area (mm^2) with a
-neighbouring label strictly exceeds this value (item 167, mode 3 -- split
-vertebra segment). Calibrated on the synthetic corpus only: measured
-2026-09-23 on the lordotic base (item 173) with item 174's 20 % caudal cap,
-the only firing value is 806.0 mm^2 (+706.0 above threshold) and every
-non-firing value measures 0.0 (-100.0 below it). Re-examined by item 174:
-thinner caps on the same body read 31 (one slice, an island), 155, 248 and
-341 mm^2, so the threshold stays. Documented as a comment only in
-``default_config.yaml`` -- a new parsed key would move ``config_hash`` in
-every report (item 048/090's house pattern)."""
-
 
 # --------------------------------------------------------------------------- #
 # Reference-derived source switch (item 090, mirroring bounds.py item 048)
@@ -222,7 +216,6 @@ def reference_fragmentation_for_level(
 
 _FRAGMENTATION_TAG = "Fragmentation:"
 _ISLAND_TAG = "Rogue island(s):"
-_NEIGHBOUR_CONTACT_TAG = "Neighbour contact:"
 
 
 # --------------------------------------------------------------------------- #
@@ -294,7 +287,7 @@ class FragmentationRule(Rule):
     # Expectation(..., expected_rule_ids={"fragmentation"}). FusePerturbation
     # designates mode 2 (fused), which this rule only co-detects.
     mode_declaration = RuleModeDeclaration(
-        modes=(1, 3, 4),
+        modes=(1, 4),
         evidence=(
             "corpus-manifest",
             "tests/corpus/manifest.json's fragment designates this "
@@ -304,14 +297,8 @@ class FragmentationRule(Rule):
             "(2026-09-14, revised 2026-09-15) -- the Fragmentation: "
             "detector for the first, the Rogue island(s): detector for the "
             "second. The per-mode evidence claims are the per-edge rungs in "
-            "segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 167 adds "
-            "mode 3 (split vertebra segment): the split manifest case "
-            "measures a 806.0 mm^2 stray-component contact between labels "
-            "24 and 23 (+706.0 above the 100.0 mm^2 threshold; measured "
-            "2026-09-23 on item 174's 20% caudal cap of item 173's lordotic "
-            "base), none of the other sixteen committed corpus cases "
-            "(both manifests, every label) measures more than 0.0 mm^2 -- "
-            "the Neighbour contact: detector.",
+            "segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 187 moved "
+            "mode 3 (split vertebra segment) to heuristics/neighbour_contact.py.",
         ),
         consumed_paths=(
             ConsumedPath(
@@ -343,19 +330,6 @@ class FragmentationRule(Rule):
                 role="signal",
             ),
             ConsumedPath(
-                path="per_label.{label}.components.stray_contact_area_mm2",
-                role="signal",
-            ),
-            ConsumedPath(
-                path="per_label.{label}.components.stray_contact_label",
-                role="bookkeeping",
-                reason=(
-                    "identity: names the label that claimed the stray part "
-                    "in the finding's reason; stray_contact_area_mm2 is the "
-                    "fragmentation/mode-3 evidence"
-                ),
-            ),
-            ConsumedPath(
                 path="per_label.{label}.level_name",
                 role="bookkeeping",
                 reason=(
@@ -385,13 +359,6 @@ class FragmentationRule(Rule):
                     "per_label.{label}.components.fragmentation_index",
                     "per_label.{label}.components.largest_component_fraction",
                     "per_label.{label}.components.stray_component_sizes[]",
-                ),
-            ),
-            RuleDetector(
-                detector_id="neighbour_contact",
-                description=_NEIGHBOUR_CONTACT_TAG,
-                signal_paths=(
-                    "per_label.{label}.components.stray_contact_area_mm2",
                 ),
             ),
         ),
@@ -606,35 +573,5 @@ class FragmentationRule(Rule):
                             detector_id="islands",
                         )
                     )
-
-            # ----------------------------------------------------------------- #
-            # Neighbour-contact check (specification mode 3, split vertebra
-            # segment; item 167). Appended after the fragmentation and island
-            # findings so within-label output order stays deterministic.
-            # Absence-tolerant (A5): a record predating the field reads the
-            # 0.0 default and never fires.
-            # ----------------------------------------------------------------- #
-            contact_area = comp.get("stray_contact_area_mm2", 0.0)
-            neighbour_contact_threshold: float = config.rule_param(
-                self.rule_id,
-                "neighbour_contact_area_mm2_threshold",
-                default=DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2,
-            )
-            if contact_area is not None and contact_area > neighbour_contact_threshold:
-                contact_label = comp.get("stray_contact_label", 0)
-                findings.append(
-                    Finding(
-                        rule_id=self.rule_id,
-                        severity=severity,
-                        reason=(
-                            f"{_NEIGHBOUR_CONTACT_TAG} Label {label_int}: "
-                            f"stray_contact_area_mm2={contact_area:.6g} exceeds "
-                            f"threshold {neighbour_contact_threshold:.6g}. "
-                            f"Label {contact_label} claimed the part."
-                        ),
-                        labels=frozenset({label_int}),
-                        detector_id="neighbour_contact",
-                    )
-                )
 
         return findings

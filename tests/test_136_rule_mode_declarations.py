@@ -96,20 +96,29 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # with the modes each one declares after the item-150 sign-off, as revised
 # 2026-09-15 (sixteen modes: coverage carries 6 "vertebra not segmented" --
 # mode 10 is now "skipped level label", label-only and proposed, with no
-# rule; fragmentation carries 1 "segmentation accuracy", 3 "split vertebra
-# segment" (item 167's own `neighbour_contact` detector) and 4 "islands";
-# mislabel and sequence carry 9 "out-of-order
+# rule; fragmentation carries 1 "segmentation accuracy" and 4 "islands"
+# (item 187, 2026-09-27: mode 3 "split vertebra segment" moved off
+# fragmentation onto its own neighbour_contact rule); mislabel and sequence
+# carry 9 "out-of-order
 # label sequence"; overlap carries 15 "overlapping segments").
 # `border` is now mode-less on purpose: it records the `fov_truncation`
 # condition (`segfacet.failure_modes.CONDITIONS`), which is not a failure
 # mode, so it maps to the empty tuple here and is asserted mode-less below.
+# Item 188 (2026-09-28): coverage re-homed from mode 6 (vertebra not
+# segmented) to mode 10 (skipped level label) -- the rule reads a label gap,
+# not vertebra presence. Mode 6's `remove_level` case still fires it, now as
+# a recorded co-detection.
 _CORROBORATED = {
     "border": (),
-    "coverage": (6,),
-    "fragmentation": (1, 3, 4),
+    "coverage": (10,),
+    # Item 187 (2026-09-27): mode 3 (split vertebra segment) moved off
+    # fragmentation onto its own neighbour_contact rule.
+    "fragmentation": (1, 4),
     "mislabel": (9,),
     "overlap": (15,),
-    "sequence": (9,),
+    # Item 192 (2026-09-28): sequence's skip and transitional detectors serve
+    # modes 10 and 11 respectively, alongside swap/shift on mode 9.
+    "sequence": (9, 10, 11),
 }
 _CONTESTED = ("bounds", "intensity", "reference_delta", "intensity_reference_delta")
 
@@ -181,8 +190,11 @@ def test_ac1_reexported_from_heuristics_package():
 
 
 def test_ac1_iter_rule_declarations_ascending_by_rule_id():
+    # Item 187 (2026-09-27): the new neighbour_contact rule brought the
+    # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
+    # (mislabel's moved Detector A) brings it to twelve.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 10
+    assert len(pairs) == 12
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -241,7 +253,10 @@ def test_ac2_ill_formed_declaration_raises_naming_field(kwargs, expected_field_n
 
 
 def test_ac3_ten_rules_registered():
-    assert len(list(iter_rules())) == 10
+    # Item 187 (2026-09-27): the new neighbour_contact rule brought the
+    # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
+    # brings it to twelve.
+    assert len(list(iter_rules())) == 12
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
@@ -318,8 +333,14 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # co-detection.
     # Revised 2026-09-24 (item 176): ("coverage", 2) and ("fragmentation", 2)
     # left the set -- the bridged, renumbered fuse_adjacent designates no rule.
+    # Revised 2026-09-28 (item 188): ("coverage", 6) enters the set --
+    # coverage now declares mode 10, so its firing on `remove_level` (mode 6)
+    # is a recorded co-detection rather than the rule's own declaration.
     expected_co_detections = {
-        ("mislabel", 1),  # displace is detected only as a co-detection
+        # Item 189 (2026-09-28): ("mislabel", 1) left the set -- the
+        # spline_offset detector that co-detected displace moved to its own
+        # mode-less spline_offset rule.
+        ("coverage", 6),  # coverage now declares mode 10, not mode 6
     }
 
     measured_co_detections = set()
@@ -348,6 +369,12 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
 # each realises exactly one of the two non-pending states. The full content
 # of each disposition (which modes, which reason, evidence quality) is
 # item 137's own test module (``tests/test_137_mode_less_rule_disposition.py``).
+#
+# Stale as of item 193 (2026-09-28): ``reference_delta`` no longer declares
+# mode 2 analytically -- it, too, is mode-less now (no mode's own detector).
+# The roll call and the "none of the four is pending" assertion are
+# unaffected; only the "analytic mode 2" half of the historical note above is
+# out of date.
 # =========================================================================== #
 
 
@@ -797,17 +824,30 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     moving the total 138 -> 140. Both new entries carry the fragmentation
     rule's ``mode_evidence``, so they land in neither the ``()`` bucket nor
     the ``("rule_unmapped",)`` bucket: ``stayed_empty`` stays 86 and
-    ``stayed_rule_unmapped`` stays 0 (re-measured, not assumed)."""
+    ``stayed_rule_unmapped`` stays 0 (re-measured, not assumed).
+
+    Reconciled again (item 187, 2026-09-28): the catalogue gains five entries
+    (``component_contacts[].<four keys>``, ``label_contact_fraction``),
+    moving the total 140 -> 145. ``fragmentation`` no longer reads
+    ``stray_contact_area_mm2``/``stray_contact_label`` (``neighbour_contact``
+    reads the relative measure instead), so both fall to no consuming rule and
+    join the ``()`` bucket, alongside three of the five new paths
+    (``contact_area_mm2``, ``surface_area_mm2``, ``label_contact_fraction``,
+    also unconsumed): ``stayed_empty`` moves 86 -> 91. The other two new
+    paths (``contact_fraction``, ``neighbour_label``) are consumed by
+    ``neighbour_contact``, so neither lands in ``()``.
+    ``stayed_rule_unmapped`` stays 0 (re-measured against the regenerated
+    committed catalogue, not assumed)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 140
+    assert len(entries) == 145
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
 
     assert stayed_rule_unmapped == 0
-    assert stayed_empty == 86
+    assert stayed_empty == 91
 
 
 # =========================================================================== #

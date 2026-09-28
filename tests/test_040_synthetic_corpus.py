@@ -97,7 +97,6 @@ _VALID_DETECTIONS = {"pipeline", "reconstructed_record"}
 _VALID_VERDICTS = {"pass", "flagged-for-review", "fail"}
 _VALID_RECONSTRUCTIONS = {
     "monotonic_true_spatial_order",
-    "overlap_mask_stack",
 }
 # 2026-08-31 (item 132): the swap case moved from _RECONSTRUCTED_MODES to
 # _PIPELINE_ONLY_MODES -- the traversal-ordered reference fit surfaces the
@@ -105,18 +104,21 @@ _VALID_RECONSTRUCTIONS = {
 #
 # Re-keyed for item 150's catalogue revision (2026-09-15). These are
 # failure-mode ids of ``segfacet.failure_modes.SPECIFICATION``, not vision.md
-# §6's old numbering: "overlapping segments" is now mode 15, and the corpus's
-# remaining cases sit at 0, 1 (displace and fragment), 2 (fuse), 4 (islands),
-# 6 (remove_level and remove_level_relabel) and 9 (relabel swap and sequence
-# break). Mode 0 covers both the clean control and the
-# FOV-truncation *condition* case, which carries no mode. Together they must
-# still partition every mode the corpus uses -- AC8's ``else`` branch is what
-# enforces that.
+# §6's old numbering: the corpus's cases sit at 0, 1 (displace and
+# fragment), 2 (fuse), 4 (islands), 6 (remove_level and
+# remove_level_relabel) and 9 (relabel swap and sequence break). Mode 0
+# covers both the clean control and the FOV-truncation *condition* case,
+# which carries no mode. Together they must still partition every mode the
+# corpus uses -- AC8's ``else`` branch is what enforces that.
 #
 # Item 166 (2026-09-20) added mode 3 (split): a co-detection-only case
 # (fragmentation fires on the receiving label), pipeline-detected like the
 # rest.
-_RECONSTRUCTED_MODES = {15}
+#
+# Item 195 (2026-09-28): mode 15's force_overlap case was removed -- a
+# single-channel label map cannot express an overlap -- so no committed
+# case is reconstructed_record any more.
+_RECONSTRUCTED_MODES = set()
 _PIPELINE_ONLY_MODES = {0, 1, 2, 3, 4, 6, 9}
 
 _CASE_ID_RE = re.compile(r"^[a-z0-9_]+$")
@@ -310,8 +312,10 @@ def test_ac8_modes_4_8_reconstructed_record_rest_pipeline():
     promoted a held-out per-label spline offset into the pipeline itself;
     the relabel-swap case moved into the pipeline set in item 132
     (2026-08-31), which judges monotonicity against a traversal-ordered
-    reference fit. Only the overlap case -- mode 15 since item 150's
-    catalogue revision (2026-09-15) -- remains reconstructed_record."""
+    reference fit. Item 195 (2026-09-28) removed the last reconstructed
+    case (the overlap case, mode 15): no committed case is
+    reconstructed_record any more, so ``_RECONSTRUCTED_MODES`` is empty and
+    every case takes the ``_PIPELINE_ONLY_MODES`` branch."""
     for case in _cases():
         mode = case["failure_mode"]
         if mode in _RECONSTRUCTED_MODES:
@@ -322,19 +326,6 @@ def test_ac8_modes_4_8_reconstructed_record_rest_pipeline():
             assert not case.get("reconstruction")
         else:
             raise AssertionError(f"unexpected failure_mode {mode!r}")
-
-
-def test_ac9_reconstructed_record_fixtures_hide_mode_from_run_qc():
-    """AC9: for each detection == "reconstructed_record" case, running the
-    loaded seg through run_qc emits no finding whose rule_id is among that
-    case's expected_rule_ids."""
-    reconstructed = [c for c in _cases() if c["detection"] == "reconstructed_record"]
-    assert reconstructed  # sanity: the partition is non-trivial
-    for case in reconstructed:
-        seg_img = _seg_nifti_from_case(case)
-        findings = _findings(seg_img)
-        expected_rule_ids = set(case["expected_rule_ids"])
-        assert not any(f.rule_id in expected_rule_ids for f in findings)
 
 
 # =========================================================================== #

@@ -30,8 +30,8 @@ scalar metrics, each optionally homed on a specification failure mode (item
 complementing item 054's per-mode
 *sensitivity* (a cohort-wide *detection-rate*, not a per-case magnitude), and
 the **severity-ladder monotonicity & cross-mode specificity harness** (item
-100; see :mod:`segfacet.eval.severity_ladder`) that runs item 099's eight
-metrics over a *graded* synthetic-severity stimulus per mode, proving each
+100; see :mod:`segfacet.eval.severity_ladder`) that runs every laddered
+metric over a *graded* synthetic-severity stimulus per mode, proving each
 metric moves monotonically with its own mode's severity and is comparatively
 insensitive to the others -- the graded-stimulus counterpart to item 099's
 per-case isolation surface, and the **cohort-level per-mode report with

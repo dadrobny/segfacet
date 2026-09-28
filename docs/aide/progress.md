@@ -1112,6 +1112,10 @@ rule(s) and any features they need; features may be added alone, modes and rules
   - **2026-09-20** → retracted: Attested from inside item 163, but item 163's own spec assigns this attestation elsewhere: its Dependencies section records that item 169 'drives it from a clean clone and attests Stage 20 criteria 3-5'. AC2's *(closes Stage 20 criterion 4)* annotation marks which deliverable makes the criterion true, not permission for this item to tick it -- item 162 carried the identical *(closes Stage 20 criterion 3)* annotation one item earlier in this same queue and deliberately left criterion 3 unticked for the same reason. The substance now holds (tests/test_163_specificity_ratchet.py drives set(measured_firing)==set(expected_firing) over all 15 committed corpus cases, with AC4/AC6 proving the comparison is not vacuous), but it was measured in the working checkout, not the clean-clone replay this stage's attestations are routed through after the 2026-09-02 mismapping retractions. Leaving criterion 4 ticked while 3 and 5 stay open would also make the stage's record incoherent.
 - [x] The end-to-end detection count is stated honestly here rather than implied (**G7**). *(Full suite run 2026-09-02: test_ac5_mode_less_rule_declares_no_modes_not_pending passed for both rules)* *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
   - **2026-09-02** → retracted: Retracting an attestation-mapping error: this criterion (end-to-end detection count stated honestly) was mistakenly ticked using item 137's AC5 test as evidence by positional mismapping; that test verifies mode-less declarations, not this stage-level claim, which remains open (Item 142).
+  - **2026-09-28** → Item 188 (2026-09-28): coverage re-homed from mode 6 to mode 10; mode 6 derives specified with no rule, mode 10 implemented at needs-real-data. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 1, proposed 6. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
+  - **2026-09-28** → Item 192 (2026-09-28): sequence serves modes 9-11 by sub-type; mode 11 derives implemented at needs-real-data, mode 10 gains a second edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 4, specified 1, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 4, structurally-unobservable 1, none 6.
+  - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
+  - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed; mode 15 derives implemented. Re-measured live: derived status counts over 16 modes: validated 5, implemented 4, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
 
 > **Not required:** feature→rule completeness. Unwired features are a designed state.
 
@@ -1628,6 +1632,10 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   live state, and a hand-set status that disagrees with the registry or the corpus fails
   a test naming the mode (**G8**).
   - **2026-09-20** → Item 167 (2026-09-20): mode 3 gains fragmentation's neighbour_contact detector, moving it from implemented to validated. Re-measured live: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7; validated through a pipeline-detected case 6, through a reconstructed record only 1.
+  - **2026-09-28** → Item 188 (2026-09-28): coverage re-homed from mode 6 to mode 10; mode 6 derives specified with no rule, mode 10 implemented at needs-real-data. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 1, proposed 6; validated through a pipeline-detected case 5, through a reconstructed record only 1.
+  - **2026-09-28** → Item 192 (2026-09-28): sequence serves modes 9-11 by sub-type; mode 11 derives implemented at needs-real-data, mode 10 gains a second edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 4, specified 1, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 1.
+  - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 1.
+  - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed; mode 15 keeps the overlap rule's declaration and carries no corpus case, so it derives implemented. Re-measured live: derived status counts over 16 modes: validated 5, implemented 4, specified 2, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 0.
 - [x] For every corpus case across both committed corpora, the measured firing set equals *(AC8 measured all 15 manifest cases (11 geometric + 4 intensity) in clone 6464b2e: every measured firing set equals expected; matrix.conformance.agree_count=15, unspecified_cases=(), disagreements=(); AC10/AC11 mode6_crop_at_border expects {border, mislabel} with reason, measured label 22 touches_anterior=True, offset_mm=17.507 (>13.0 max), is_terminal=False; clean_control label 22 touches_anterior=False. Reading D2 (clean, condition-less cases scored against the empty set) and D3 (mode6_crop_at_border is the fov_truncation condition's fixture, no longer a Stage 20 gate-3 co-detection claim))*
   the specification's expected firing set, and `mode6_crop_at_border` expects
   `{border, mislabel}` with a recorded reason (**G2**).
@@ -1635,6 +1643,11 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   derived from its edges; the analytic-only edges are rendered as such, and mode 8's rung
   names the single-channel mechanism (**G2**).
   - **2026-09-20** → Item 167 (2026-09-20): mode 3's new fragmentation/neighbour_contact edge is synthetic-demonstrable, moving its derived rung from needs-real-data/none to synthetic-demonstrable and adding one edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7; per-edge rung counts over 18 edges: synthetic-demonstrable 6, needs-real-data 11, structurally-unobservable 1.
+  - **2026-09-28** → Item 188 (2026-09-28): coverage re-homed from mode 6 to mode 10; mode 6 derives specified with no rule, mode 10 implemented at needs-real-data. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 18 edges: synthetic-demonstrable 5, needs-real-data 12, structurally-unobservable 1.
+  - **2026-09-28** → Item 192 (2026-09-28): sequence serves modes 9-11 by sub-type; mode 11 derives implemented at needs-real-data, mode 10 gains a second edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 4, structurally-unobservable 1, none 6; per-edge rung counts over 20 edges: synthetic-demonstrable 5, needs-real-data 14, structurally-unobservable 1.
+  - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 14 edges: synthetic-demonstrable 5, needs-real-data 8, structurally-unobservable 1.
+  - **2026-09-28** → Item 194 (2026-09-28): bounds no longer declares mode 1 and mode 1 loses its bounds edge, so mode 1 is attributed only as the catch-all. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 13 edges: synthetic-demonstrable 5, needs-real-data 7, structurally-unobservable 1.
+  - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed. Mode 15 keeps its overlap edge at structurally-unobservable and carries no corpus case; the AC15/AC16 force_overlap evidence above is history. test_151's AC16 now asserts that mode 15 carries no corpus case and that no committed geometric case yields an overlap through the pipeline.
 - [x] `failure_modes.generated.{md,json}` and the traceability matrix regenerate *(AC2/AC7 clean-clone regeneration in clone 6464b2e: failure_modes.generated.{json,md} and traceability_matrix.generated.{json,md} cmp exit 0 against committed copies, a second independent regeneration cmp-identical to the first; feature_catalogue.generated.md cmp-identical, .json accepted by assert_matches_committed_artifact and also byte-identical; AC3 matrix primary_source == src/segfacet/failure_modes.py, resolves to the loaded module, per-mode title/authored_status/edge_rungs match SPECIFICATION, row key set == set(SPECIFICATION); AC4 JSON/Markdown notes name the module, modes/conditions lists equal specification_to_dict() live; AC5 matrix header carries both 'Stage-18 metric anchor paths' and 'Rule signal read paths', anchor_paths equals MODE_ANCHOR_PATHS, columns differ for modes 6/8/9/16; AC6 every stage18-metric-anchor candidate renders under the anchor label only, no rule read path under it. Reading D4 (matrix renders the two labelled columns; the specification's own rendering labels anchors only and its 'primary source' reading is via its note + specification_to_dict() equality))*
   byte-identically from a clean tree, name the specification as their primary source, and
   render the metric anchor path and the rule's read paths as separately labelled columns.
@@ -1842,16 +1855,57 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   *(Item 176)*
 - ✅ **D2** `displace` moves mostly left-right (14 voxels right, 5 anterior).
   *(Item 177)*
-- ⏸️ **D2** `force_overlap` retired or declared multi-channel, and `fragment` parked.
-  Parked 2026-09-24 by the maintainer: no overlap fixture is needed while multi-channel
-  segmentation is unsupported, and no follow-up is planned (`insights.md`, `knowledge`
-  entry dated 2026-09-23).
-- 📋 **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+- ✅ **D2** `force_overlap` retired or declared multi-channel, and `fragment` parked.
+  Resolved 2026-09-28: the fixture, operator and ladder were removed, and the `overlap`
+  rule stays, declared to need multi-channel input; mode 15 derives `implemented`, with
+  no fixture claiming it. `fragment` stays parked as mode 1's catch-all case. The
+  2026-09-24 park was superseded by the maintainer on 2026-09-25. *(Item 195)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
   mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
   `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
   transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
-  *(Items 186, 187, 188, 189, 190, 191, 192, 193, 194)*
-- 📋 **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
+  *(Item 186)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 187)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 188)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 189)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 190)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 191)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 192)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 193)*
+- ✅ **D3** Rules re-homed: `neighbour_contact` as its own rule for mode 3, `coverage` to
+  mode 10, `mislabel`'s `spline_offset` to a displaced-vertebra condition, border-gated
+  `bounds`/`reference_delta` size features, `sequence` sub-types, `CANONICAL_ORDER`
+  transitional variants, mode-1 catch-all attribution, and a condition-keyed eval bucket.
+  *(Item 194)*
+- ✅ **D3** `force_overlap` removed: operator, corpus case, ladder entries and mode-15
   corpus attribution (maintainer, 2026-09-25, superseding the 2026-09-24 park).
   *(Item 195)*
 - ✅ **Maintenance** `segfacet evaluate` reports a `FacetInputError` as an error, not a
@@ -1883,7 +1937,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   corpora (**G2**, **G7**).
 - [ ] No rule declares a mode through a detector that reads another mode's signal. Condition
   4 of the bar is checked mechanically at detector granularity (**G2**, **G8**).
-- [ ] A label map holding both T12 and L1, and no T13, produces no missing-level finding
-  (**G2**).
+- [x] A label map holding both T12 and L1, and no T13, produces no missing-level finding
+  (**G2**). *(item 186 AC2 (test_ac2_t12_map_no_coverage_finding, tests/test_186_expected_level_sequence.py): full suite run 2026-09-27, 9330 passed, 72 env-gated skips; T12 map produces no coverage finding)*
 - [ ] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
   as measured numbers with what they were measured on (**G7**).

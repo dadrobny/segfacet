@@ -69,7 +69,9 @@ def test_reference_verse_v1_still_loads_and_scores_a_case():
     from segfacet.synth.regression import loaded_seg_image
 
     manifest = load_manifest()
-    case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
+    # 2026-09-28 (item 191): the fov_truncation condition gate drops crop_at_border's
+    # label-22 bounds finding, since bounds does not opt in; clean_control's is ungated.
+    case = next(c for c in manifest["cases"] if c["case_id"] == "clean_control")
     seg_img = loaded_seg_image(case)
     reference = bundled_production_reference()
     case_result, _block, _delta = run_qc_with_reference(

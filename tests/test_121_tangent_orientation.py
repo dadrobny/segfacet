@@ -443,7 +443,8 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
     sign (``crop_at_border`` label 22 reads ``[-1.0, ...]``). 1e-12 is about
     2 000 times that residue and far below the ~0.09 off-axis the sibling
     0.996-dot test admits."""
-    exceptions = {"inject_islands", "force_overlap", "fuse_adjacent", "split"}
+    # "force_overlap" dropped by item 195, 2026-09-28: the case was removed.
+    exceptions = {"inject_islands", "fuse_adjacent", "split"}
     cases = load_manifest()["cases"]
     assert exceptions <= {c["case_id"] for c in cases}, (
         "named principal-axis exception(s) are not in the corpus manifest"

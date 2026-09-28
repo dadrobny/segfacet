@@ -573,6 +573,11 @@ _INVENTORY_ADDED_AFTER_126 = {
     "tests/corpus/fixtures/crop_fov_si_scan.nii.gz",
 }
 
+#: Removed by item 195 (2026-09-28): the force_overlap case (and its
+#: fixture) was retired -- a single-channel label map cannot express an
+#: overlap.
+_INVENTORY_REMOVED_AFTER_126 = {"tests/corpus/fixtures/force_overlap_seg.nii.gz"}
+
 
 def test_ac18_test105_inventory_unchanged_by_this_item():
     import test_105_golden_decision_table as mod105
@@ -582,9 +587,17 @@ def test_ac18_test105_inventory_unchanged_by_this_item():
         "expected post-item-126 fixtures are missing from the tests/ tree: "
         f"{sorted(_INVENTORY_ADDED_AFTER_126 - inventory)}"
     )
-    assert len(inventory) == _ITEM_126_INVENTORY_COUNT + len(_INVENTORY_ADDED_AFTER_126), (
+    assert _INVENTORY_REMOVED_AFTER_126.isdisjoint(inventory), (
+        "fixtures item 195 removed are still present in the tests/ tree: "
+        f"{sorted(_INVENTORY_REMOVED_AFTER_126 & inventory)}"
+    )
+    assert len(inventory) == (
+        _ITEM_126_INVENTORY_COUNT
+        + len(_INVENTORY_ADDED_AFTER_126)
+        - len(_INVENTORY_REMOVED_AFTER_126)
+    ), (
         "tests/ inventory moved by something other than the named "
-        f"post-item-126 additions: {sorted(inventory)}"
+        f"post-item-126 additions/removals: {sorted(inventory)}"
     )
     # The claim this item is actually responsible for: its own artifact is a
     # docs/ companion and must never appear in the tests/ inventory.

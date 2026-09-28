@@ -56,6 +56,7 @@ from segfacet.features.consistency import compute_monotonic_consistency
 from segfacet.features.spline import fit_centroid_spline
 from segfacet.features.spline_offset import compute_spline_offsets
 from segfacet.heuristics.mislabel import MislabelRule
+from segfacet.heuristics.spline_offset import SplineOffsetRule  # item 189 (2026-09-28)
 from segfacet.io import FacetInputError
 from segfacet.pipeline import extract_feature_record, run_qc
 from segfacet.synth import (
@@ -158,19 +159,21 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
             if entry["label"] == target:
                 entry["offset_mm"] = loo
                 target_is_terminal = bool(entry.get("is_terminal"))
-        findings = MislabelRule().evaluate(record, cfg)
+        # Item 189 (2026-09-28): the offset detector moved to its own
+        # spline_offset rule.
+        findings = SplineOffsetRule().evaluate(record, cfg)
         fires = any(
-            f.rule_id == "mislabel"
+            f.rule_id == "spline_offset"
             and f.reason.startswith("Vertebra misaligned from spinal curve:")
             and f.labels == frozenset({target})
             for f in findings
         )
         if target_is_terminal:
             # AC39 (docs/aide/items/123-recalibrate-and-regenerate-
-            # downstream-artifacts.md): mislabel never fires an offset
-            # finding on a terminal vertebra, regardless of magnitude -- the
-            # designated rule NOT firing here is the exclusion working as
-            # designed, not a self-consistency failure (AC55).
+            # downstream-artifacts.md): the offset detector never fires on a
+            # terminal vertebra, regardless of magnitude -- the designated
+            # rule NOT firing here is the exclusion working as designed, not
+            # a self-consistency failure (AC55).
             return not fires
         return fires
     if operator_name == "relabel_swap":
@@ -245,20 +248,23 @@ def test_ac3_displace_translates_body_wholesale_no_spurious_flags():
 def test_ac4_displace_fires_misalignment_finding_via_run_qc():
     """AC4: the item-120 held-out per-label spline offset makes the
     displaced label's own offset_mm large through plain extract_feature_record
-    (no reconstruction needed), and feeding that record to MislabelRule fires
-    a "mislabel" finding tagged "Vertebra misaligned from spinal curve:" on
-    {22}."""
+    (no reconstruction needed), and feeding that record to SplineOffsetRule
+    fires a "spline_offset" finding tagged "Vertebra misaligned from spinal
+    curve:" on {22}.
+
+    Item 189 (2026-09-28): the offset detector moved from MislabelRule to its
+    own SplineOffsetRule."""
     clean = _clean()
     cfg = bundled_default_config()
     result = DisplacePerturbation(target_label=22).apply(clean.seg_img, seed=0)
 
     record = extract_feature_record(result.labelmap, cfg)
 
-    findings = MislabelRule().evaluate(record, cfg)
+    findings = SplineOffsetRule().evaluate(record, cfg)
     matches = [
         f
         for f in findings
-        if f.rule_id == "mislabel"
+        if f.rule_id == "spline_offset"
         and f.reason.startswith("Vertebra misaligned from spinal curve:")
         and f.labels == frozenset({22})
     ]
@@ -266,35 +272,39 @@ def test_ac4_displace_fires_misalignment_finding_via_run_qc():
 
 
 def test_ac5_displace_run_qc_surfaces_mislabel_finding():
-    """AC5: plain run_qc on the displaced map emits a "mislabel" finding on
-    the displaced label -- the pipeline's held-out per-label spline offset
+    """AC5: plain run_qc on the displaced map emits a "spline_offset" finding
+    on the displaced label -- the pipeline's held-out per-label spline offset
     (item 120) measures the target against a curve it did not shape, so the
-    displacement is no longer absorbed."""
+    displacement is no longer absorbed.
+
+    Item 189 (2026-09-28): the finding's rule_id moved from mislabel to
+    spline_offset."""
     clean = _clean()
     result = DisplacePerturbation(target_label=22).apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
-    mislabel = [f for f in findings if f.rule_id == "mislabel"]
-    assert mislabel
+    spline_offset = [f for f in findings if f.rule_id == "spline_offset"]
+    assert spline_offset
     union = set()
-    for f in mislabel:
+    for f in spline_offset:
         union |= set(f.labels)
     assert union == {22}
 
 
 def test_ac6_displace_expectation_well_formed():
-    """AC6: Expectation fields are pinned."""
+    """AC6: Expectation fields are pinned.
+
+    Item 189 (2026-09-28): displace is re-homed from mode 1 (a recorded
+    co-detection) to the displaced_vertebra CONDITION it is now the fixture
+    of; its designated rule moves from mislabel to spline_offset."""
+    import segfacet.failure_modes as fm
+
     clean = _clean()
     result = DisplacePerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
-    # Item 150 (2026-09-14): the old mode 1 ("label not aligned with the
-    # vertebra it names") was retired, and this case now records mode 1 of
-    # the signed-off catalogue, "segmentation accuracy". ``mislabel`` stays
-    # its designated rule as a recorded *co-detection* -- the spline-offset
-    # detector that fires serves no mode of its own.
-    assert exp.failure_mode == 1
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[1]
-    assert exp.condition == ""
-    assert exp.expected_rule_ids == frozenset({"mislabel"})
+    assert exp.failure_mode == 0
+    assert exp.failure_mode_name == fm.CONDITIONS["displaced_vertebra"].short_name
+    assert exp.condition == "displaced_vertebra"
+    assert exp.expected_rule_ids == frozenset({"spline_offset"})
     assert exp.expected_labels == frozenset({22})
     assert exp.expected_verdict == "flagged-for-review"
 

@@ -396,3 +396,12 @@ fresh-report schema validity, the narrow `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`
 verdict+findings shape, and the shared `tests/golden/report_format_contract.json`
 format fixture) are described in item 126's own spec
 (`docs/aide/items/126-execute-the-golden-retirement.md`).
+
+Item 195 records one removal outside that shared disposition. The
+signed `keep` row for the fixture below is not rewritten. The
+maintainer's 2026-09-25 decision to remove the `force_overlap` corpus
+case (a single-channel label map cannot express mode 15; roadmap
+Stage 33 D2) took its fixture with it.
+
+- `tests/corpus/fixtures/force_overlap_seg.nii.gz` removed 2026-09-28,
+  item 195.

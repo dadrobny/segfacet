@@ -140,6 +140,7 @@ def test_ac1_case_outcome_is_frozen_dataclass_with_fields():
         "fired_rule_ids",
         "designated_rule_fired",
         "caught_by_designated_rule",
+        "condition",
     }
     assert CaseOutcome.__dataclass_params__.frozen is True
 

@@ -216,17 +216,24 @@ def test_ac11_size_distorting_perturbation_flags_label_22_out_of_range(
     assert [p_clean, p_case] == [False, True]
 
 
-@pytest.mark.parametrize("case_id", ["inject_islands", "crop_at_border"])
+@pytest.mark.parametrize(
+    "case_id, expected_case",
+    [("inject_islands", True), ("crop_at_border", False)],
+)
 def test_ac11_size_distorting_perturbation_fires_reference_delta_finding_on_label_22(
-    case_id, bracketing_reference
+    case_id, expected_case, bracketing_reference
 ):
     # A1 precondition -- see the sibling test above.
     assert _case("clean_control")["perturbation"] == "identity"
     assert _case("clean_control")["base"] == _case(case_id)["base"]
 
+    # item 191 (2026-09-28): the runner gates reference_delta's finding on
+    # crop_at_border's touching label 22 -- reference_delta does not opt in
+    # to fov_truncation -- although the delta block itself (read in the
+    # sibling test above) is unaffected.
     q_clean = _reference_delta_finding_on_label_22("clean_control", bracketing_reference)
     q_case = _reference_delta_finding_on_label_22(case_id, bracketing_reference)
-    assert [q_clean, q_case] == [False, True]
+    assert [q_clean, q_case] == [False, expected_case]
 
 
 # =========================================================================== #

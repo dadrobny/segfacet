@@ -75,7 +75,8 @@ measuring each level against a curve it did not shape:
 levels, an interior level displaced by a full **15 mm** still reads a
 held-out ``offset_mm`` below **0.001 mm** -- both the held-out and in-sample
 paths read essentially zero, so a four-level field of view cannot raise a
-``mislabel`` offset finding under any threshold. Measured 2026-08-31 (item
+``spline_offset`` offset finding under any threshold (item 189 moved this
+detector out of ``mislabel``). Measured 2026-08-31 (item
 129); asserted, not only documented, by
 ``tests/test_129_coincident_centroids_and_held_out_floor.py``'s
 four-level-blind-spot tests. Closing this gap needs a change to the fit's
@@ -120,12 +121,13 @@ point, but the terminal level's closest-approach search runs past the last
 interior control point rather than between two of them, which can read an
 implausibly large offset for a vertebra that is not actually displaced.
 Measured on the real VerSe19 cohort while calibrating this module's
-``mislabel`` threshold (item 123): the caudal-terminal level (`L5` in most
+``spline_offset`` threshold (item 123; the detector moved to that rule at
+item 189): the caudal-terminal level (`L5` in most
 of the cohort) reached a `p99` of `21.209` mm against an *interior* maximum
 of `1.00` mm at the same level -- a purely positional artefact, not
-deformity. `heuristics/mislabel.py`, `reference/ingest.py` and
+deformity. `heuristics/spline_offset.py`, `reference/ingest.py` and
 `reference/delta.py` all read this flag and exclude a terminal entry from
-their respective offset judgements (never Detector B's ordering check, which
+their respective offset judgements (never ``mislabel``'s ordering check, which
 does not use per-vertebra offsets at all). This is a stop-gap accepted
 knowingly, not a model of the true uncertainty: a genuinely displaced
 terminal vertebra is not detected by this rule at all until a smarter
@@ -224,8 +226,8 @@ class VertebralSplineOffset:
         the same two anatomical ends (see the module docstring's
         "Terminal-vertebra exclusion" section). Defaults to ``False`` so
         existing hand-built records (an entry with no key, or ``None``) read
-        as interior -- item 123's ``mislabel``/reference consumers rely on
-        this default.
+        as interior -- item 123's ``spline_offset``/reference consumers rely
+        on this default (the detector moved to that rule at item 189).
     """
 
     label: int

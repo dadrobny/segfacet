@@ -59,9 +59,13 @@ def _mode1_record() -> dict:
 
 
 def test_ac19_mode1_misalignment_fires_mislabel():
-    """AC19: mode 1 (misalignment) fires 'mislabel' with labels == {L1 (20)}."""
+    """AC19: mode 1 (misalignment) fires 'spline_offset' with labels ==
+    {L1 (20)}.
+
+    Item 189 (2026-09-28): the offset detector (Detector A) moved out of
+    mislabel into its own rule, spline_offset."""
     findings = run_rules(_mode1_record(), _cfg())
-    hits = [f for f in findings if f.rule_id == "mislabel"]
+    hits = [f for f in findings if f.rule_id == "spline_offset"]
     assert hits
     assert any(f.labels == frozenset({_L1}) for f in hits)
 
@@ -236,10 +240,16 @@ def test_ac24_mode6_border_partial_fires_border():
 
 
 def _mode7_record() -> dict:
+    """Item 192 (2026-09-28): the rewritten sequence rule reads per_label
+    centroids, not out_of_order_labels[]; each entry gains a synthetic
+    centroid, and a third, in-order L2 tail level is added (a two-label
+    record is never out of order under the rule's inversion-count
+    tie-break)."""
     return {
         "per_label": {
-            _L1: {"label": _L1, "level_name": "L1"},
-            _T12: {"label": _T12, "level_name": "T12"},
+            _L1: {"label": _L1, "level_name": "L1", "centroid": {"centroid_mm": [0.0, 0.0, 3.0]}},
+            _T12: {"label": _T12, "level_name": "T12", "centroid": {"centroid_mm": [0.0, 0.0, 2.0]}},
+            _L2: {"label": _L2, "level_name": "L2", "centroid": {"centroid_mm": [0.0, 0.0, 1.0]}},
         },
         "relationships": {
             "present_levels": ["T12", "L1"],
@@ -295,7 +305,8 @@ def test_ac26_mode8_overlapping_segments_fires_overlap():
 
 
 _MODE_RECORDS_AND_RULE_IDS = [
-    (1, _mode1_record, "mislabel"),
+    # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+    (1, _mode1_record, "spline_offset"),
     (2, _mode2_record, "bounds"),
     (3, _mode3_record, "fragmentation"),
     (4, _mode4_record, "mislabel"),

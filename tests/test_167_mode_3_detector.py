@@ -20,6 +20,17 @@ Plus exactly the nine adversarial cases the Testing Strategy names:
 ``spacing-is-read-from-the-header``, plus one more named by the item's
 Correction (2026-09-20, C6): ``largest-component-tie-is-broken-by-
 ascending-id``.
+
+Item 187 (2026-09-27) moved the ``neighbour_contact`` detector off
+``fragmentation`` onto its own ``NeighbourContactRule``, on the relative
+``contact_fraction`` measure: AC4-AC11's rule/detector-id literals moved
+accordingly, and ``threshold-margin-on-the-committed-corpora`` (pinned to the
+now-retired absolute ``DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2`` constant) is
+retired in favour of ``tests/test_187_neighbour_contact_rule.py``'s own case
+of the same name, on the new relative threshold.
+``absence-tolerant-detector`` is re-pointed to ``NeighbourContactRule``. The
+absolute ``stray_contact_area_mm2`` / ``stray_contact_label`` fields
+(AC1-AC3) and every other named case are unaffected (A4).
 """
 
 from __future__ import annotations
@@ -35,10 +46,8 @@ from segfacet import failure_modes, traceability
 from segfacet.catalogue import build_catalogue
 from segfacet.config import bundled_default_config
 from segfacet.features.components import compute_components
-from segfacet.heuristics.fragmentation import (
-    DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2,
-    FragmentationRule,
-)
+from segfacet.heuristics.fragmentation import FragmentationRule
+from segfacet.heuristics.neighbour_contact import NeighbourContactRule
 from segfacet.pipeline import extract_feature_record, run_qc
 from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.component_shape import SplitPerturbation
@@ -303,10 +312,16 @@ def test_ac3_silent_everywhere_else_in_both_corpora(stray_contact_sweep):
 
 
 def test_ac4_detector_declared_with_first_class_id():
-    detectors = FragmentationRule.mode_declaration.detectors
-    matches = [d for d in detectors if d.detector_id == "neighbour_contact"]
+    # Item 187 (2026-09-27): the neighbour_contact detector moved off
+    # FragmentationRule onto its own NeighbourContactRule, and its signal
+    # path moved from the absolute stray_contact_area_mm2 onto the relative
+    # per-component contact_fraction; detector_id moved to "stray_contact".
+    detectors = NeighbourContactRule.mode_declaration.detectors
+    matches = [d for d in detectors if d.detector_id == "stray_contact"]
     assert len(matches) == 1, detectors
-    assert matches[0].signal_paths == ("per_label.{label}.components.stray_contact_area_mm2",)
+    assert matches[0].signal_paths == (
+        "per_label.{label}.components.component_contacts[].contact_fraction",
+    )
 
 
 # =========================================================================== #
@@ -315,7 +330,8 @@ def test_ac4_detector_declared_with_first_class_id():
 
 
 def test_ac5_detector_serves_mode_3_and_no_other():
-    assert failure_modes.modes_for_detector("fragmentation", "neighbour_contact") == (3,)
+    # Item 187 (2026-09-27): moved rule/detector id pair.
+    assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (3,)
 
 
 # =========================================================================== #
@@ -326,8 +342,9 @@ def test_ac5_detector_serves_mode_3_and_no_other():
 def test_ac6_detector_fires_on_the_split_case():
     case = _split_case_dict()
     findings = pipeline_findings(case)
+    # Item 187 (2026-09-27): moved rule/detector id pair.
     matches = [
-        f for f in findings if (f.rule_id, f.detector_id) == ("fragmentation", "neighbour_contact")
+        f for f in findings if (f.rule_id, f.detector_id) == ("neighbour_contact", "stray_contact")
     ]
     assert len(matches) == 1, findings
     # Item 174 (2026-09-23): frozenset({23}) -> frozenset({24}).
@@ -340,10 +357,11 @@ def test_ac6_detector_fires_on_the_split_case():
 
 
 def test_ac7_detector_fires_on_no_other_case(all_corpus_findings):
+    # Item 187 (2026-09-27): moved rule/detector id pair.
     firing_cases = {
         (corpus, case_id)
         for corpus, case_id, finding in all_corpus_findings
-        if finding.rule_id == "fragmentation" and finding.detector_id == "neighbour_contact"
+        if finding.rule_id == "neighbour_contact" and finding.detector_id == "stray_contact"
     }
     assert firing_cases == {("geometric", "split")}
 
@@ -363,7 +381,9 @@ def test_ac8_split_case_expected_firing_unmoved():
     assert len(cases) == 1, cases
     case = cases[0]
     assert case.case_id == "split"
-    assert case.expected_firing == ("fragmentation",)
+    # Item 187 (2026-09-27): mode 3's split case moved from fragmentation to
+    # neighbour_contact alone.
+    assert case.expected_firing == ("neighbour_contact",)
     assert set(case.expected_firing) == set(failure_modes.measured_firing(case))
 
 
@@ -386,13 +406,14 @@ def test_ac9_signal_path_extracted_and_catalogued():
 
 
 def test_ac10_mode_3_owns_the_edge():
+    # Item 187 (2026-09-27): mode 3's edge moved onto neighbour_contact.
     edges = [
         edge
         for edge in failure_modes.SPECIFICATION[3].intended_rules
-        if edge.rule_id == "fragmentation"
+        if edge.rule_id == "neighbour_contact"
     ]
     assert len(edges) == 1, failure_modes.SPECIFICATION[3].intended_rules
-    assert edges[0].detector_ids == ("neighbour_contact",)
+    assert edges[0].detector_ids == ("stray_contact",)
     assert edges[0].evidence_rung == "synthetic-demonstrable"
 
 
@@ -408,38 +429,21 @@ def test_ac11_mode_3_meets_all_five_bar_conditions():
 
     condition_4 = [c for c in bar if c.number == 4]
     assert len(condition_4) == 1, condition_4
-    assert condition_4[0].subjects == ("fragmentation/neighbour_contact",)
+    # Item 187 (2026-09-27): moved rule/detector id pair.
+    assert condition_4[0].subjects == ("neighbour_contact/stray_contact",)
 
 
-# =========================================================================== #
-# Named adversarial case: threshold-margin-on-the-committed-corpora
-# =========================================================================== #
+# Item 187 (2026-09-27): retired -- DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 no
+# longer exists (the threshold moved onto the relative measure, on
+# NeighbourContactRule). Replaced by
+# tests/test_187_neighbour_contact_rule.py's
+# threshold-margin-on-the-committed-corpora case, on the new relative
+# threshold.
 
 
-def test_threshold_margin_on_the_committed_corpora(stray_contact_sweep):
-    firing_values = [area for area in stray_contact_sweep.values() if area > 0.0]
-    non_firing_values = [area for area in stray_contact_sweep.values() if area <= 0.0]
-    assert firing_values, "expected at least one firing value in the sweep"
-    assert non_firing_values, "expected at least one non-firing value in the sweep"
-
-    for value in firing_values:
-        assert value - DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 >= 100.0, value
-    for value in non_firing_values:
-        assert DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 - value >= 100.0, value
-
-
-# =========================================================================== #
-# Named adversarial case: force-overlap-stays-silent
-# =========================================================================== #
-
-
-def test_force_overlap_stays_silent():
-    case = _manifest_case("force_overlap")
-    seg_img = loaded_seg_image(case)
-    config = bundled_default_config()
-    for label in (20, 21):
-        info = compute_components(seg_img, label, config)
-        assert info.stray_contact_area_mm2 == 0.0, label
+# test_force_overlap_stays_silent removed by item 195, 2026-09-28: its
+# subject (the force_overlap case) was removed -- a single-channel label
+# map cannot express an overlap.
 
 
 # =========================================================================== #
@@ -495,6 +499,8 @@ def test_single_component_label_is_the_sentinel():
 
 
 def test_absence_tolerant_detector():
+    # Item 187 (2026-09-27): re-pointed to NeighbourContactRule, the
+    # detector's new home.
     config = bundled_default_config()
     record = {
         "per_label": {
@@ -506,17 +512,17 @@ def test_absence_tolerant_detector():
                     "largest_component_fraction": 1.0,
                     "component_count": 1,
                     "component_sizes": [1000],
-                    # Deliberately no stray_contact_area_mm2 / stray_contact_label --
-                    # a legacy, pre-item-167 record shape (A5).
+                    # Deliberately no component_contacts / label_contact_fraction --
+                    # a legacy, pre-item-187 record shape (A7).
                 },
             },
         },
         "relationships": {},
         "overlaps": {},
     }
-    findings = FragmentationRule().evaluate(record, config)
+    findings = NeighbourContactRule().evaluate(record, config)
     assert isinstance(findings, list)
-    assert not any(f.detector_id == "neighbour_contact" for f in findings)
+    assert findings == []
 
 
 # =========================================================================== #

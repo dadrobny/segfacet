@@ -342,8 +342,8 @@ class FusePerturbation(Perturbation):
                 "off at item 150; what plain run_qc fires on it today are "
                 "co-detections -- fragmentation on the two disconnected "
                 "bodies under one label, coverage on the absorbed level "
-                "missing from the span -- not mode 2's own bounds / "
-                "reference_delta proxies, which need a reference."
+                "missing from the span -- not mode 2's own bounds proxy, "
+                "which needs a reference."
             )
         else:
             if labels.index(neighbour) != labels.index(target) + 1:
@@ -503,7 +503,7 @@ class SplitPerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=3,
             failure_mode_name=FAILURE_MODE_NAMES[3],
-            expected_rule_ids=frozenset({"fragmentation"}),
+            expected_rule_ids=frozenset({"neighbour_contact"}),
             expected_labels=frozenset({neighbour}),
             expected_verdict="flagged-for-review",
             detail=(

@@ -756,7 +756,8 @@ def block_d():
 
 
 # Item 153: keyed by operator (the ladder registry key), not the retired
-# legacy mode int -- same eight ladders, same order, values unchanged.
+# legacy mode int -- same seven ladders (item 195, 2026-09-28: force_overlap
+# removed), same order, values unchanged.
 _LADDER_OPERATORS = (
     "displace",
     "fragment",
@@ -765,9 +766,8 @@ _LADDER_OPERATORS = (
     "remove_level",
     "crop_at_border",
     "sequence_break",
-    "force_overlap",
 )
-_EXPECTED_RUNG_COUNTS = dict(zip(_LADDER_OPERATORS, (5, 5, 5, 3, 4, 4, 2, 5)))
+_EXPECTED_RUNG_COUNTS = dict(zip(_LADDER_OPERATORS, (5, 5, 5, 3, 4, 4, 2)))
 _EXPECTED_SEVERITY_KINDS = dict(
     zip(
         _LADDER_OPERATORS,
@@ -779,7 +779,6 @@ _EXPECTED_SEVERITY_KINDS = dict(
             "affected-label-count",
             "affected-label-count",
             "degenerate",
-            "continuous",
         ),
     )
 )
@@ -788,12 +787,12 @@ _EXPECTED_MARGINS = dict(
         _LADDER_OPERATORS,
         # Re-measured 2026-09-23 on item 173's lordotic base (box base:
         # 112.037, 0.3585, 1.0386).
-        (math.inf, math.inf, 118.4907, math.inf, math.inf, 0.3253, math.inf, 1.7418),
+        (math.inf, math.inf, 118.4907, math.inf, math.inf, 0.3253, math.inf),
     )
 )
 
 
-def test_ac14_harness_passes_monotone_strictly_changing_for_all_eight_modes(block_d):
+def test_ac14_harness_passes_monotone_strictly_changing_for_all_seven_ladders(block_d):
     assert block_d.passed is True
     for operator in _LADDER_OPERATORS:
         lv = block_d.per_ladder[operator]
@@ -832,18 +831,13 @@ def test_ac16_every_mode_margin_satisfies_the_frozen_ratchet(block_d):
             assert math.isclose(lv.margin, expected, abs_tol=2e-3), (operator, lv.margin)
 
 
-def test_ac17_the_two_shortfall_modes_are_asserted_as_such(block_d):
+def test_ac17_the_shortfall_ladder_is_asserted_as_such(block_d):
     from segfacet.eval.severity_ladder import SEVERITY_LADDERS
 
     lv6 = block_d.per_ladder["crop_at_border"]
     assert lv6.status == "coupled"
     assert lv6.coupled_metrics == ("unanchored_foreground_fraction",)
     assert lv6.margin < 1.0
-
-    lv8 = block_d.per_ladder["force_overlap"]
-    assert lv8.status == "coupled"
-    assert lv8.coupled_metrics == ("unanchored_foreground_fraction",)
-    assert lv8.margin > 1.0
 
     for operator in (
         "displace",

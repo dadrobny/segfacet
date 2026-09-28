@@ -237,10 +237,13 @@ def test_ac8_case_scan_is_the_base_scan_on_the_case_grid():
 
 
 def test_ac9_case_fires_bounds_on_the_remnant_and_nothing_else():
+    # item 191 (2026-09-28): the runner gates bounds's two findings on the
+    # touching label 24 -- bounds does not opt in to fov_truncation -- so
+    # the case fires nothing at all.
     case = _manifest_case("crop_fov_si")
     findings = pipeline_findings(case)
     triples = {(f.rule_id, f.detector_id, frozenset(f.labels)) for f in findings}
-    assert triples == {("bounds", "metric_out_of_range", frozenset({24}))}
+    assert triples == set()
 
 
 # =========================================================================== #

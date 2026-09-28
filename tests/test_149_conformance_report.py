@@ -11,8 +11,12 @@ deliberately altered expected set (AC17, the headline check), an emptied
 ``corpus_cases`` (AC14), a dropped ``ConsumedPath`` (AC12), ``derive_status``/
 ``SPECIFICATION`` patched (AC4/AC30 no-cache proof), a re-narrowed rule
 declaration (AC10/AC19), determinism/immutability (AC20/AC32), degenerate
-rows (the seven proposed modes 5, 7, 10-14, AC7; overlap mode 15, AC18), and
+rows (seven rule-less modes, AC7; overlap mode 15, AC18), and
 the guard's non-vacuity proof (AC25).
+
+Reconciled (item 188, 2026-09-28): ``coverage`` re-homed off mode 6 onto mode
+10, so the degenerate seven became 5, 6, 7, 11, 12, 13, 14 -- six still
+``proposed``, plus mode 6 (authored ``specified``, no declaring rule).
 
 Field-name note (same discipline as ``test_138_traceability_matrix.py``):
 the item spec pins the JSON's *content* precisely per-AC but leaves several
@@ -256,9 +260,18 @@ def matrix_consumed_path_dropped(monkeypatch):
     """AC12: drop one ``ConsumedPath`` (the "signal" robust_z entry) from
     ``reference_delta``'s live declaration, so
     ``catalogue.path_classification_conflicts()`` reports a soundness
-    disagreement naming the rule and the path."""
+    disagreement naming the rule and the path.
+
+    Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less,
+    and dropping a bookkeeping path reports no completeness message -- so the
+    replacement now preserves the declaration's shape with
+    ``dataclasses.replace`` and drops the path anyway. Measured: this still
+    reports exactly one completeness message naming ``reference_delta`` and
+    the dropped path, because the check fires on any consumed path with no
+    catalogue-side counterpart, regardless of its role."""
+    import dataclasses
+
     from segfacet.heuristics.rule import _RULES
-    import segfacet.heuristics.rule as rule_mod
     import segfacet.traceability as traceability
 
     rule = _RULES["reference_delta"]
@@ -266,9 +279,7 @@ def matrix_consumed_path_dropped(monkeypatch):
     dropped_path = "reference_delta.{label}.features.physical_volume_mm3.robust_z"
     remaining = tuple(cp for cp in original_decl.consumed_paths if cp.path != dropped_path)
     assert len(remaining) == len(original_decl.consumed_paths) - 1, "fixture assumption violated"
-    replacement = rule_mod.RuleModeDeclaration(
-        modes=original_decl.modes, evidence=original_decl.evidence, consumed_paths=remaining
-    )
+    replacement = dataclasses.replace(original_decl, consumed_paths=remaining)
     monkeypatch.setattr(rule, "mode_declaration", replacement)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -308,20 +319,32 @@ def matrix_mode8_name_patched(monkeypatch):
 
 @pytest.fixture
 def matrix_reference_delta_renarrowed(monkeypatch):
-    """AC10/AC19: narrowing reference_delta back to modes=(2,) must shrink
-    both mode 1's read_paths (AC10) and its rule_attribution (AC19), from
-    the live declaration rather than any literal -- the same re-narrowing
+    """AC10/AC19: narrowing a mode-1 rule's declaration must shrink both
+    mode 1's read_paths (AC10) and its rule_attribution (AC19), from the
+    live declaration rather than any literal -- the same re-narrowing
     test_138's own AC32 adversarial fixture exercises, copied here
     (module-independence convention) because it demonstrates a different
-    pair of claims."""
+    pair of claims.
+
+    Re-pointed (item 193, 2026-09-28) from ``reference_delta`` (now
+    mode-less, so it carries no mode 1 to narrow away) to ``bounds``,
+    narrowed from ``(1, 2, 3, 4)`` to ``(2, 3, 4)``. Measured: mode 1 loses
+    its four ``per_label.{label}.geometry.*`` read paths and the ``bounds``
+    attribution.
+
+    Re-narrowed (item 194, 2026-09-28): ``bounds`` no longer declares mode 1
+    on the unpatched tree at all (mode 1 is attributed only where no other
+    mode applies), so a narrowing that drops only mode 1 proves nothing any
+    more. Narrowed to ``(2, 3)`` instead, which drops mode 4 -- the patched
+    matrix still differs from the unpatched one (mode 4 loses its ``bounds``
+    read paths and attribution), which is what the consuming tests assert."""
+    import dataclasses
+
     from segfacet.heuristics.rule import _RULES
-    import segfacet.heuristics.rule as rule_mod
     import segfacet.traceability as traceability
 
-    rule = _RULES["reference_delta"]
-    narrowed = rule_mod.RuleModeDeclaration(
-        modes=(2,), evidence=("analytic", "AC149 adversarial: re-narrowed back to modes=(2,)")
-    )
+    rule = _RULES["bounds"]
+    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3))
     monkeypatch.setattr(rule, "mode_declaration", narrowed)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -498,8 +521,9 @@ def test_ac5_derived_and_authored_status_are_two_independent_fields(matrix):
     """Both fields are carried per mode, and they genuinely differ somewhere:
     mode 1 is authored ``specified`` but derives ``validated`` (since the
     2026-09-15 revision its corpus case fragment fires its own
-    ``fragmentation`` edge), while mode 7 -- one of the seven ``proposed``
-    entries the item-150 sign-off left unimplemented -- derives ``proposed``
+    ``fragmentation`` edge), while mode 7 -- one of the six ``proposed``
+    entries left unimplemented since item 188 (2026-09-28) moved mode 10 to
+    ``specified`` -- derives ``proposed``
     too, so the pair agrees there. Agreement on one row is not evidence of
     one field."""
     import segfacet.failure_modes as failure_modes_module
@@ -554,8 +578,18 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
 #: The item-150 sign-off's seven ``proposed`` entries (2026-09-15 revision):
 #: no rules, no corpus cases, no derived rung. They are the degenerate rows
 #: this AC exists for (mode 10 carried that role before the sign-off
-#: re-numbered the catalogue, and carries it again as "skipped level label").
-_DEGENERATE_MODES = (5, 7, 10, 11, 12, 13, 14)
+#: re-numbered the catalogue, and carried it again as "skipped level label").
+#: Item 188 (2026-09-28): ``coverage`` re-homed off mode 6 onto mode 10 --
+#: mode 10 leaves this set (it now derives ``"implemented"`` with a
+#: ``needs-real-data`` rung) and mode 6 joins it instead (authored
+#: ``"specified"``, no declaring rule, no derived rung).
+#: Item 192 (2026-09-28): mode 11 leaves this set -- sequence's transitional
+#: detector now declares it, deriving "implemented" with a needs-real-data
+#: rung.
+#: Item 193 (2026-09-28): mode 8 joins this set -- reference_delta, its only
+#: rule, becomes mode-less, leaving mode 8 authored "specified" with no
+#: declaring rule and no derived rung.
+_DEGENERATE_MODES = (5, 6, 7, 8, 12, 13, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)
@@ -604,24 +638,27 @@ def test_ac8_committed_markdown_carries_both_headers_verbatim():
 # AC9: a mode whose two columns differ renders both (modes 8 and 9 since the
 # item-150 sign-off's 2026-09-15 revision re-numbered the catalogue -- they
 # were 4 and 7 before item 150, 5 and 6 at the 2026-09-14 pass)
+#
+# Since item 193 (2026-09-28) the roll call holds mode 9 alone, because mode 8
+# has read nothing since reference_delta became mode-less.
 # =========================================================================== #
 
 #: ``(mode, anchor path, a read path that is not the anchor)``. Mode 8
-#: (semantic mislabelling) is anchored by the Stage-18 monotonic-consistency
-#: metric but read through ``reference_delta``'s per-level z-score; mode 9
+#: (semantic mislabelling) was anchored by the Stage-18 monotonic-consistency
+#: metric but read through ``reference_delta``'s per-level z-score; item 193
+#: (2026-09-28) makes ``reference_delta`` mode-less, so mode 8 no longer
+#: reads anything and drops out of this split-column roll call. Mode 9
 #: (out-of-order label sequence) is anchored by ``relationships.is_continuous``
 #: and read through the sequence/ordering paths.
 _AC9_SPLIT_COLUMN_MODES = (
-    (
-        8,
-        "stage3.monotonic_consistency.is_monotonic",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-    ),
-    (9, "relationships.is_continuous", "relationships.out_of_order_labels[]"),
+    # Item 192 (2026-09-28): sequence reads per_label centroids, not
+    # relationships.out_of_order_labels[]; relationships.is_continuous stays
+    # the metric anchor no rule reads.
+    (9, "relationships.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
 )
 
 
-def test_ac9_modes_8_and_9_anchor_and_read_paths_differ(matrix):
+def test_ac9_split_column_modes_anchor_and_read_paths_differ(matrix):
     for mode, anchor, read_path in _AC9_SPLIT_COLUMN_MODES:
         record = _mode_record(matrix, mode)
         assert tuple(record["anchor_paths"]) == (anchor,), mode
@@ -651,7 +688,7 @@ def _mode_table(md_text: str):
     return header_cells, rows
 
 
-def test_ac9_committed_markdown_renders_both_cells_for_modes_8_and_9():
+def test_ac9_committed_markdown_renders_both_cells_for_split_column_modes():
     header_cells, rows = _mode_table(_COMMITTED_MD.read_text(encoding="utf-8"))
     anchor_col = header_cells.index("Stage-18 metric anchor paths")
     read_col = header_cells.index("Rule signal read paths")
@@ -671,8 +708,19 @@ def test_ac9_committed_markdown_renders_both_cells_for_modes_8_and_9():
 
 
 def test_ac10_mode1_read_paths_are_signal_classified_only(matrix):
+    """Reconciled (item 193, 2026-09-28): ``reference_delta``'s robust_z path
+    re-classifies ``bookkeeping`` (mode-less rule), so it no longer shows for
+    mode 1 -- ``bounds``'s own signal path takes its place as the positive
+    control.
+
+    Reconciled again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 at all (mode 1 is attributed only where no other mode applies), so
+    its geometry path leaves mode 1's read_paths too -- ``fragmentation``'s
+    own signal path (mode 1's sole remaining declaring rule) is the new
+    positive control."""
     mode1 = _mode_record(matrix, 1)
-    assert "reference_delta.{label}.features.physical_volume_mm3.robust_z" in mode1["read_paths"]
+    assert "per_label.{label}.components.fragmentation_index" in mode1["read_paths"]
+    assert "per_label.{label}.geometry.physical_volume_mm3" not in mode1["read_paths"]
     assert "reference_delta.{label}.level_name" not in mode1["read_paths"]
     assert "reference_delta.lower_pct" not in mode1["read_paths"]
 
@@ -694,13 +742,22 @@ def test_ac10_read_paths_equal_the_sorted_union_of_declaring_rules_signal_paths(
     assert record["read_paths"] == sorted(expected), mode
 
 
-def test_adv_ac10_renarrowed_reference_delta_shrinks_mode1_read_paths(
+def test_adv_ac10_renarrowed_bounds_shrinks_mode4_read_paths(
     matrix, matrix_reference_delta_renarrowed
 ):
-    before = set(_mode_record(matrix, 1)["read_paths"])
-    after = set(_mode_record(matrix_reference_delta_renarrowed, 1)["read_paths"])
+    """Re-pointed (item 193, 2026-09-28): the fixture narrows ``bounds``, not
+    ``reference_delta`` (now mode-less).
+
+    Re-pointed again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 on the unpatched tree at all, so mode 1 can no longer witness a
+    narrowing regression. Reads mode 4 instead: it loses the four
+    ``per_label.{label}.geometry.*`` paths and keeps its five
+    ``per_label.{label}.components.*`` paths (``fragmentation``'s islands
+    detector, still declared)."""
+    before = set(_mode_record(matrix, 4)["read_paths"])
+    after = set(_mode_record(matrix_reference_delta_renarrowed, 4)["read_paths"])
     assert after < before, (before, after)
-    assert "reference_delta.{label}.features.physical_volume_mm3.robust_z" not in after
+    assert "per_label.{label}.geometry.physical_volume_mm3" not in after
 
 
 # =========================================================================== #
@@ -773,12 +830,13 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     # item 166 (2026-09-20) added the split (mode 3) fixture; 17 since
     # item 174 (2026-09-23) added split_own_label (mode 3); 18 since
     # item 175 (2026-09-24) added crop_fov_si (the fov_truncation
-    # condition): 14 geometric + 4 intensity.
+    # condition); 17 since item 195 (2026-09-28) removed force_overlap
+    # (mode 15): 13 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
-    assert len(cases) == 18, len(cases)
+    assert len(cases) == 17, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
     intensity = [c for c in cases if c["corpus"] == "intensity"]
-    assert len(geometric) == len(_geometric_manifest_cases()) == 14, len(geometric)
+    assert len(geometric) == len(_geometric_manifest_cases()) == 13, len(geometric)
     assert len(intensity) == len(_intensity_manifest_cases()) == 4, len(intensity)
     for case in cases:
         for key in ("corpus", "case_id", "mode", "expected_firing", "measured_firing", "agrees", "expected_source"):
@@ -825,15 +883,19 @@ def test_ac15_clean_controls_labelled_manifest_clean_control(matrix):
 def test_ac15_condition_case_labelled_specification_condition(matrix):
     """``crop_at_border`` is no longer a failure-mode case: the
     item-150 sign-off retired mode 6 into the ``fov_truncation`` *condition*,
-    whose fixture it is. It is still scored, still expects ``{border,
-    mislabel}``, and its source names where that expectation now lives."""
+    whose fixture it is. It is still scored, and its source names where that
+    expectation now lives.
+
+    item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    touching label -- it does not opt in to fov_truncation -- so the
+    expectation narrows to ``border`` alone."""
     cases_by_key = {(c["corpus"], c["case_id"]): c for c in matrix["conformance"]["cases"]}
     key = ("geometric", "crop_at_border")
     assert key in cases_by_key, sorted(cases_by_key)
     entry = cases_by_key[key]
     assert entry["expected_source"] == "specification-condition", entry
     assert entry["mode"] == 0, entry
-    assert sorted(entry["expected_firing"]) == ["border", "mislabel"], entry
+    assert sorted(entry["expected_firing"]) == ["border"], entry
     assert entry["agrees"] is True, entry
 
 
@@ -915,12 +977,12 @@ def test_ac18_intensity_mode_cases_and_pipeline_detected_span_both_corpora(matri
 
 def test_ac18_overlap_mode_pipeline_detected_stays_false(matrix):
     """Overlapping segments (mode 8 before the sign-off, 9 at its first
-    pass, 15 since the 2026-09-15 revision): its one case is reconstructed,
-    never pipeline-detected."""
+    pass, 15 since the 2026-09-15 revision): its case was removed by item
+    195 (2026-09-28; a single-channel label map cannot express an overlap),
+    so it carries no corpus case at all and is never pipeline-detected."""
     mode9 = _mode_record(matrix, 15)
     assert mode9["pipeline_detected"] is False
-    detections = {c["detection"] for c in mode9["cases"]}
-    assert detections == {"reconstructed_record"}, detections
+    assert mode9["cases"] == []
 
 
 def test_ac18_no_geometric_only_mode_cases_change_from_the_committed_artifact(matrix):
@@ -948,10 +1010,13 @@ def test_ac18_no_geometric_only_mode_cases_change_from_the_committed_artifact(ma
 
 
 def test_ac19_intensity_mode_attributes_corpus_and_reference_delta_analytic(matrix):
-    """The intensity mode is 16 under the item-150 2026-09-15 ids."""
+    """The intensity mode is 16 under the item-150 2026-09-15 ids.
+
+    Reconciled (item 193, 2026-09-28): ``intensity_reference_delta`` becomes
+    mode-less, so it no longer attributes mode 16 at all."""
     mode10 = _mode_record(matrix, 16)
     assert mode10["rule_attribution"]["intensity"] == "corpus"
-    assert mode10["rule_attribution"]["intensity_reference_delta"] == "analytic"
+    assert "intensity_reference_delta" not in mode10["rule_attribution"]
 
 
 def test_ac19_geometric_modes_attribution_matches_the_base_artifact(matrix):
@@ -964,13 +1029,21 @@ def test_ac19_geometric_modes_attribution_matches_the_base_artifact(matrix):
         assert fresh_attribution == committed_attribution, mode
 
 
-def test_adv_ac19_renarrowed_reference_delta_shrinks_mode1_attribution(
+def test_adv_ac19_renarrowed_bounds_shrinks_mode4_attribution(
     matrix, matrix_reference_delta_renarrowed
 ):
-    before = _mode_record(matrix, 1)["rule_attribution"]
-    after = _mode_record(matrix_reference_delta_renarrowed, 1)["rule_attribution"]
-    assert "reference_delta" in before
-    assert "reference_delta" not in after
+    """Re-pointed (item 193, 2026-09-28): the fixture narrows ``bounds``, not
+    ``reference_delta`` (now mode-less).
+
+    Re-pointed again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 on the unpatched tree at all, so mode 1 can no longer witness a
+    narrowing regression. Reads mode 4 instead: its attribution goes from
+    ``{"bounds": "analytic", "fragmentation": "corpus"}`` to
+    ``{"fragmentation": "corpus"}``."""
+    before = _mode_record(matrix, 4)["rule_attribution"]
+    after = _mode_record(matrix_reference_delta_renarrowed, 4)["rule_attribution"]
+    assert "bounds" in before
+    assert "bounds" not in after
 
 
 # =========================================================================== #

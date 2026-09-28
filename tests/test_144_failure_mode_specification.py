@@ -731,10 +731,12 @@ def test_ac9_multi_mode_declaration_implements_every_mode_it_lists():
     **every** mode it lists, not only for one it declares alone.
 
     The subject is found live in the registry rather than named: the
-    item-150 sign-off (2026-09-15 revision) made ``fragmentation`` ``(1, 4)``,
-    ``coverage`` ``(6, 10)`` and ``bounds``/``reference_delta`` the widest
-    multi-mode declarations, so naming one would be a pin that moves with
-    the next re-organisation. The test is still able to fail -- it asserts
+    item-150 sign-off (2026-09-15 revision) made ``fragmentation`` ``(1, 4)``
+    and ``bounds``/``reference_delta`` the widest multi-mode declarations
+    (``coverage`` was briefly ``(6, 10)`` at that pass; item 188, 2026-09-28,
+    narrowed it back to ``(10,)`` alone), so naming one would be a pin that
+    moves with the next re-organisation. The test is still able to fail -- it
+    asserts
     such a declaration exists at all, then that *every* mode it lists
     derives ``"implemented"`` (or better) off the unmodified registry.
     """
@@ -1243,7 +1245,19 @@ def test_ac16_proposed_entries_are_the_empty_ones():
     ``"proposed"`` entry is listed and deliberately unimplemented (no
     intended-rule edges, no corpus cases), while every ``"specified"``
     entry carries at least one intended-rule edge. Derived from the
-    ``status`` field, so it keeps holding as entries are re-authored."""
+    ``status`` field, so it keeps holding as entries are re-authored.
+
+    Reconciled (item 188, 2026-09-28): mode 6 is exempted by name -- it is
+    authored ``"specified"`` with no declaring rule (its rule is named in
+    prose but not yet written, per the maintainer decision of 2026-09-25) --
+    rather than the invariant being widened to "any mode with no rule". Any
+    other ``specified`` entry losing its rule still fails here.
+
+    Reconciled (item 193, 2026-09-28): mode 8 joins mode 6 by name --
+    ``reference_delta``, its only rule, becomes mode-less (no mode's own
+    detector), leaving mode 8 authored ``specified`` with no declaring rule
+    either (A4: the definition/discriminator/observability sign-off at item
+    150 stands)."""
     import segfacet.failure_modes as fm
 
     proposed = [m for m in fm.iter_modes() if m.status == "proposed"]
@@ -1254,6 +1268,9 @@ def test_ac16_proposed_entries_are_the_empty_ones():
         assert mode.intended_rules == (), mode.id
         assert mode.corpus_cases == (), mode.id
     for mode in specified:
+        if mode.id in (6, 8):
+            assert mode.intended_rules == (), mode.id
+            continue
         assert mode.intended_rules, mode.id
 
 
@@ -1641,19 +1658,6 @@ def test_adv_islands_corpus_case_is_pipeline_detected_and_measured_live():
     assert set(measured) == set(case_expectation.expected_firing)
 
 
-def test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live():
-    """``force_overlap`` is the case id the corpus has always carried
-    (the ``modeN_`` prefixes are historical), but the mode it belongs to is
-    **15** since the item-150 sign-off re-assigned ids -- the mode id is read
-    from the manifest rather than named, so the test follows the case."""
-    import segfacet.failure_modes as fm
-
-    case = _manifest_case("force_overlap")
-    assert case["detection"] == "reconstructed_record"
-
-    mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
-    assert len(mode.corpus_cases) >= 1
-    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "force_overlap")
-    measured = fm.measured_firing(case_expectation)
-    assert measured, "expected a non-empty measured firing set for a genuinely-firing case"
-    assert set(measured) == set(case_expectation.expected_firing)
+# test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live
+# removed by item 195, 2026-09-28: force_overlap (its subject) was removed
+# -- a single-channel label map cannot express an overlap.

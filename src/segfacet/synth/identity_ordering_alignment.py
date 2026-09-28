@@ -16,11 +16,12 @@ the offending label(s):
   (item 177) the translation is resolved anatomically instead -- mostly
   toward the right face, partly toward anterior -- which is the committed
   corpus fixture's form; the diagonal default is kept for the severity
-  ladder. Targets the misalignment
-  detector of
-  :class:`~segfacet.heuristics.mislabel.MislabelRule` (item 033, Detector A,
-  which serves no failure mode; the case is filed under specification mode 1,
-  segmentation accuracy). Since item 120 promoted a **held-out** (leave-one-out,
+  ladder. Targets the
+  :class:`~segfacet.heuristics.spline_offset.SplineOffsetRule` detector
+  (item 189, moved unchanged from ``MislabelRule``'s former Detector A, which
+  serves no failure mode); the case is filed under the ``displaced_vertebra``
+  CONDITION (``segfacet.failure_modes.CONDITIONS``), not a failure mode --
+  item 189 moved it off specification mode 1. Since item 120 promoted a **held-out** (leave-one-out,
   down-weighted) per-label spline offset into the pipeline itself, the
   target's ``offset_mm`` is measured against a curve it did not shape, so
   the displacement separates through plain ``run_qc`` -- no reconstruction
@@ -63,9 +64,11 @@ from typing import List, Optional, Sequence, Tuple
 import numpy as np
 import nibabel as nib
 
+from segfacet.failure_modes import CONDITIONS
 from segfacet.io import FacetInputError
 from segfacet.synth.axes import non_stacking_axes, resolve_face
 from segfacet.synth.perturbation import (
+    CLEAN_CONTROL_MODE,
     Expectation,
     FAILURE_MODE_NAMES,
     Perturbation,
@@ -89,6 +92,12 @@ _DEFAULT_DISPLACEMENT_MM: float = 18.0
 # canonical rank (19, below L1) diverges from its integer value (see
 # segfacet.labels.DEFAULT_LABEL_MAP / CANONICAL_ORDER).
 _DEFAULT_NEW_LABEL: int = 28
+
+# Item 189: `displace`'s Expectation now names the displaced_vertebra
+# CONDITION (segfacet.failure_modes.CONDITIONS), not failure mode 1 -- mirrors
+# coverage_border_overlap.py's FOV_TRUNCATION_CONDITION constant pattern.
+DISPLACED_VERTEBRA_CONDITION: str = "displaced_vertebra"
+DISPLACED_VERTEBRA_CONDITION_NAME: str = CONDITIONS[DISPLACED_VERTEBRA_CONDITION].short_name
 
 
 # --------------------------------------------------------------------------- #
@@ -163,7 +172,8 @@ class DisplacePerturbation(Perturbation):
     by ``displacement_mm`` (split evenly across the two axes, spacing-aware),
     keeping the body >= 1 voxel inset from every face so it stays a single
     solid block with no bounds / fragmentation / border side-effect (filed
-    under specification mode 1, segmentation accuracy). The pipeline's held-out per-label spline offset (item 120) measures
+    under the ``displaced_vertebra`` CONDITION, item 189 -- not a failure
+    mode). The pipeline's held-out per-label spline offset (item 120) measures
     the target against a curve it did not shape, so the misalignment
     finding is asserted through plain ``run_qc`` -- see the module
     docstring. Rejects an explicit target not present, or a
@@ -225,9 +235,10 @@ class DisplacePerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=1,
-            failure_mode_name=FAILURE_MODE_NAMES[1],
-            expected_rule_ids=frozenset({"mislabel"}),
+            failure_mode=CLEAN_CONTROL_MODE,
+            failure_mode_name=DISPLACED_VERTEBRA_CONDITION_NAME,
+            condition=DISPLACED_VERTEBRA_CONDITION,
+            expected_rule_ids=frozenset({"spline_offset"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
             detail=detail,

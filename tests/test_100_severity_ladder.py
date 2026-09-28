@@ -5,9 +5,12 @@ Covers Acceptance Criteria AC1-AC26:
 
 - AC1:  the module's public surface (18 names, incl. eight frozen
         dataclasses) exists, is exported via ``__all__``, and is re-exported
-        from ``segfacet.eval``.
-- AC2:  ``SEVERITY_LADDERS`` covers exactly modes 1-8, name-consistent with
-        ``FAILURE_MODE_NAMES``.
+        from ``segfacet.eval``. Item 195 (2026-09-28) dropped the
+        ``LadderSpec.overlap_reconstruction`` field; the name count is
+        otherwise unchanged.
+- AC2:  ``SEVERITY_LADDERS`` covers exactly the seven registered operators
+        (mode 8/``force_overlap`` removed by item 195, 2026-09-28),
+        name-consistent with ``FAILURE_MODE_NAMES``.
 - AC3:  every ladder step names a registered operator, constructible with
         its declared kwargs.
 - AC4:  the metric assignment is item 099's -- a drift guard reads the
@@ -28,9 +31,10 @@ Covers Acceptance Criteria AC1-AC26:
 - AC16: the coupling table is a ratchet (response/margin inequalities).
 - AC17: a coupled ladder is reported as coupled, not as a pass.
 - AC18: the negative control (mode 2/3 swap) fails; identity still passes.
-- AC19: the mode-8 ladder's ``overlap_depth == 3`` rung reproduces the
-        committed corpus's ``1950.0``.
-- AC20: ``overlapping_voxel_count`` is 0.0 on every non-mode-8 ladder.
+- AC19: removed by item 195, 2026-09-28 -- the mode-8 (``force_overlap``)
+        ladder is gone.
+- AC20: ``overlapping_voxel_count`` is 0.0 on every ladder (it has had no
+        ladder of its own since item 195, 2026-09-28).
 - AC21: the supplementary ``fuse`` ladder closes mode 2's fused half.
 - AC22: the harness is deterministic (two runs; per-rung array replay).
 - AC23: the harness is pure (no file/clock access, no base mutation).
@@ -116,9 +120,12 @@ _LEGACY_TO_OPERATOR = {
     5: "remove_level",
     6: "crop_at_border",
     7: "sequence_break",
-    8: "force_overlap",
+    # 8: "force_overlap" dropped by item 195, 2026-09-28 -- the operator, its
+    # case and its ladder were removed.
 }
 _OPERATOR_TO_LEGACY = {v: k for k, v in _LEGACY_TO_OPERATOR.items()}
+#: The seven registered ladders' legacy mode ids (item 195, 2026-09-28).
+_LADDER_MODES = range(1, 8)
 _LEGACY_TO_METRIC_NAME = {
     1: "unanchored_foreground_fraction",
     2: "min_dominant_component_fraction",
@@ -151,7 +158,7 @@ def _spans_table(harness_result) -> dict:
     still indexed by the legacy int pair -- only the registry access at each
     cell is translated to operator/metric_name (item 153)."""
     spans = {}
-    for ladder_mode in range(1, 9):
+    for ladder_mode in _LADDER_MODES:
         lr = harness_result.by_operator(_LEGACY_TO_OPERATOR[ladder_mode])
         for metric_mode in range(1, 9):
             values = [
@@ -170,7 +177,7 @@ def _response(spans: dict, m: int, f: int) -> float:
 
 
 def _margin(spans: dict, m: int) -> float:
-    others = [_response(spans, m, f) for f in range(1, 9) if f != m]
+    others = [_response(spans, m, f) for f in _LADDER_MODES if f != m]
     mx = max(others) if others else 0.0
     if mx == 0:
         return math.inf
@@ -334,11 +341,12 @@ def test_ac1_frozen_instances_raise_on_mutation(harness):
 
 
 # =========================================================================== #
-# AC2: the ladder registry covers exactly the eight §6 modes
+# AC2: the ladder registry covers exactly the seven registered operators
+# (item 195, 2026-09-28: force_overlap's ladder was removed)
 # =========================================================================== #
 
 
-def test_ac2_key_set_is_exactly_the_eight_operators():
+def test_ac2_key_set_is_exactly_the_seven_operators():
     sl = _sl()
     assert set(sl.SEVERITY_LADDERS.keys()) == set(_LADDER_OPERATORS)
 
@@ -424,7 +432,7 @@ def test_ac4_module_contains_no_metric_rederivation():
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac5_rung_zero_has_no_steps_and_zero_severity(mode, harness):
     sl = _sl()
     ladder = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]]
@@ -433,7 +441,7 @@ def test_ac5_rung_zero_has_no_steps_and_zero_severity(mode, harness):
     assert rung0.severity == 0.0
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac5_rung_zero_metrics_are_at_baseline_for_all_eight_modes(mode, harness):
     ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
     rung0_point = ladder_result.points[0]
@@ -450,7 +458,7 @@ def test_ac5_rung_zero_metrics_are_at_baseline_for_all_eight_modes(mode, harness
 
 
 def test_ac6_no_metric_value_is_ever_none(harness):
-    for mode in range(1, 9):
+    for mode in _LADDER_MODES:
         ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
         for point in ladder_result.points:
             for metric_mode in range(1, 9):
@@ -471,7 +479,7 @@ def test_ac6_supplementary_no_metric_value_is_ever_none(harness):
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac7_rung_severities_strictly_increasing(mode):
     sl = _sl()
     rungs = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].rungs
@@ -485,7 +493,7 @@ def test_ac7_rung_severities_strictly_increasing(mode):
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac8_rung_counts_per_degenerate_status(mode):
     sl = _sl()
     n_rungs = len(sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].rungs)
@@ -500,7 +508,7 @@ def test_ac8_rung_counts_per_degenerate_status(mode):
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac9_designated_metric_monotone_in_declared_direction(mode, harness):
     from segfacet.eval.per_mode import PER_MODE_METRIC_SPECS
 
@@ -513,7 +521,7 @@ def test_ac9_designated_metric_monotone_in_declared_direction(mode, harness):
         assert all(a >= b for a, b in zip(values, values[1:])), values
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac10_designated_metric_changes_strictly_at_every_rung_transition(mode, harness):
     ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
     values = [pt.metrics.by_metric(_LEGACY_TO_METRIC_NAME[mode]).value for pt in ladder_result.points]
@@ -537,7 +545,7 @@ _EXPECTED_SEVERITY_KIND = {
     5: "affected-label-count",
     6: "affected-label-count",
     7: "degenerate",
-    8: "continuous",
+    # 8 dropped by item 195, 2026-09-28 -- force_overlap's ladder is gone.
 }
 _EXPECTED_SEVERITY_PARAMETER = {
     1: "displacement_mm",
@@ -547,17 +555,17 @@ _EXPECTED_SEVERITY_PARAMETER = {
     5: "n_affected_labels",
     6: "n_affected_labels",
     7: None,  # degenerate -- parameter naming not load-bearing here
-    8: "overlap_depth",
+    # 8 dropped by item 195, 2026-09-28 -- force_overlap's ladder is gone.
 }
 
 
-@pytest.mark.parametrize("mode", range(1, 9))
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac11_severity_kind_matches_the_spec_table(mode):
     sl = _sl()
     assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].severity_kind == _EXPECTED_SEVERITY_KIND[mode]
 
 
-@pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 8])
+@pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6])
 def test_ac11_severity_parameter_matches_the_spec_table(mode):
     sl = _sl()
     assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].severity_parameter == _EXPECTED_SEVERITY_PARAMETER[mode]
@@ -566,7 +574,7 @@ def test_ac11_severity_parameter_matches_the_spec_table(mode):
 def test_ac11_only_three_severity_kind_values_are_ever_used():
     sl = _sl()
     allowed = {"continuous", "affected-label-count", "degenerate"}
-    for mode in range(1, 9):
+    for mode in _LADDER_MODES:
         assert sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]].severity_kind in allowed
 
 
@@ -617,10 +625,10 @@ def test_ac13_response_surface_matches_independent_recomputation(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
     spans = _spans_table(harness)
-    for m in range(1, 9):
+    for m in _LADDER_MODES:
         lv = _verdict_for(verdict, m)
         assert lv.responses[_LEGACY_TO_METRIC_NAME[m]] == pytest.approx(1.0, abs=1e-9)
-        for f in range(1, 9):
+        for f in _LADDER_MODES:
             if f == m:
                 continue
             expected = _response(spans, m, f)
@@ -641,10 +649,10 @@ def test_ac14_uncoupled_ladders_are_strictly_specific(harness):
     coupled_ladder_modes = {
         _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
     }
-    for m in range(1, 9):
+    for m in _LADDER_MODES:
         if m in coupled_ladder_modes:
             continue
-        for f in range(1, 9):
+        for f in _LADDER_MODES:
             if f == m:
                 continue
             assert _response(spans, m, f) < 1.0, (m, f)
@@ -662,8 +670,8 @@ def test_ac15_coupling_table_matches_measurement_both_directions(harness):
     sl = _sl()
     spans = _spans_table(harness)
     measured = set()
-    for m in range(1, 9):
-        for f in range(1, 9):
+    for m in _LADDER_MODES:
+        for f in _LADDER_MODES:
             if f == m:
                 continue
             if _response(spans, m, f) >= sl.COUPLING_THRESHOLD:
@@ -704,7 +712,7 @@ def test_ac16_coupling_response_ratchet_holds(harness):
         assert measured <= c.recorded_response * 1.05, c
 
 
-def test_ac16_recorded_margins_has_all_eight_modes():
+def test_ac16_recorded_margins_has_all_seven_ladders():
     sl = _sl()
     assert set(sl.RECORDED_MARGINS.keys()) == set(_LADDER_OPERATORS)
 
@@ -712,7 +720,7 @@ def test_ac16_recorded_margins_has_all_eight_modes():
 def test_ac16_margin_ratchet_holds(harness):
     sl = _sl()
     spans = _spans_table(harness)
-    for mode in range(1, 9):
+    for mode in _LADDER_MODES:
         measured_margin = _margin(spans, mode)
         recorded_margin = sl.RECORDED_MARGINS[_LEGACY_TO_OPERATOR[mode]]
         assert measured_margin >= recorded_margin * 0.95, mode
@@ -783,24 +791,17 @@ def test_ac18_identity_assignment_on_the_same_harness_still_passes(harness):
 
 # =========================================================================== #
 # AC19: the mode-8 ladder reproduces the committed corpus's overlap count
+# removed by item 195, 2026-09-28 -- force_overlap (and its ladder) is gone.
 # =========================================================================== #
 
 
-def test_ac19_mode8_overlap_depth_three_rung_reproduces_corpus_1950(harness):
-    ladder8 = harness.by_operator(_LEGACY_TO_OPERATOR[8])
-    rung3 = next(pt for pt in ladder8.points if pt.severity == 3.0)
-    # Cross-referenced against tests/test_099_per_mode_metrics.py's AC14
-    # (force_overlap's overlapping_voxel_count == 1085.0 on item 173's lordotic
-    # base, 2026-09-23; 1950.0 on the box base -- the name records the latter).
-    assert rung3.metrics.by_metric(_LEGACY_TO_METRIC_NAME[8]).value == pytest.approx(1085.0, abs=1e-9)
-
-
 # =========================================================================== #
-# AC20: overlapping_voxel_count is 0.0 on every non-mode-8 ladder
+# AC20: overlapping_voxel_count is 0.0 on every ladder (it has no ladder of
+# its own since item 195, 2026-09-28)
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("mode", [1, 2, 3, 4, 5, 6, 7])
+@pytest.mark.parametrize("mode", _LADDER_MODES)
 def test_ac20_mode8_metric_is_zero_on_every_other_ladder(mode, harness):
     ladder_result = harness.by_operator(_LEGACY_TO_OPERATOR[mode])
     for point in ladder_result.points:
@@ -857,7 +858,7 @@ def test_ac22_two_full_harness_runs_produce_equal_to_dict(harness):
 
 def test_ac22_per_rung_perturbed_arrays_are_deterministic(harness):
     sl = _sl()
-    for mode in range(1, 9):
+    for mode in _LADDER_MODES:
         spec = sl.SEVERITY_LADDERS[_LEGACY_TO_OPERATOR[mode]]
         for rung in spec.rungs:
             replays = []
@@ -989,7 +990,6 @@ def test_ac25_out_of_range_displacement_raises_facet_input_error():
         severity_kind="continuous",
         rungs=(rung0, rung1),
         rationale="",
-        overlap_reconstruction=None,
     )
     with pytest.raises(FacetInputError):
         sl.evaluate_ladder(spec)
@@ -1014,7 +1014,6 @@ def test_ac25_unregistered_operator_raises_key_error_not_skipped():
         severity_kind="continuous",
         rungs=(rung0, rung1),
         rationale="",
-        overlap_reconstruction=None,
     )
     with pytest.raises(KeyError):
         sl.evaluate_ladder(spec)

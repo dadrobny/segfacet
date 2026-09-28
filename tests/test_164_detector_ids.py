@@ -324,8 +324,10 @@ def test_ac8_detector_to_edge_holes_match_recomputation(raw_matrix):
     direction = raw_matrix.detector_to_edge
     assert direction.holes == expected_holes
     assert direction.complete == (not expected_holes)
-    # Non-vacuous on this tree (item spec: three detectors carry a
-    # mode_less_reason and are excluded by it rather than by having no edge).
+    # Non-vacuous on this tree (item spec: nine detectors carry a
+    # mode_less_reason as of item 193, 2026-09-28 -- border 2, spline_offset
+    # 1, and three each for reference_delta and intensity_reference_delta --
+    # and are excluded by it rather than by having no edge).
     assert any(
         detector.mode_less_reason
         for rule in iter_rules()
@@ -593,7 +595,9 @@ def matrix_with_spline_offset_reason_dropped(monkeypatch):
     import segfacet.traceability as traceability
     from segfacet.heuristics.rule import iter_rules
 
-    target = next(rule for rule in iter_rules() if rule.rule_id == "mislabel")
+    # Item 189 (2026-09-28): the mode-less offset detector moved from
+    # mislabel to its own spline_offset rule.
+    target = next(rule for rule in iter_rules() if rule.rule_id == "spline_offset")
     detectors = target.mode_declaration.detectors
     offset_detector = next(d for d in detectors if d.mode_less_reason)
 

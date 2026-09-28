@@ -13,10 +13,10 @@ Covers Acceptance Criteria AC1-AC12:
   control passes with no findings; every ``pipeline`` case's
   ``pipeline_verdict_label`` matches the manifest; every non-clean
   ``pipeline`` case's designated rule fires; the offending labels match.
-- AC7-AC8 (Group C, reconstructed-record cases): every
-  ``reconstructed_record`` case's plain ``run_qc`` hides the designated
-  rule; the reconstruction technique fires the designated rule with the
-  expected labels.
+- AC7-AC8 (Group C, reconstructed-record cases) removed by item 195
+  (2026-09-28): the overlap case, the last ``reconstructed_record`` case,
+  was removed, so ``_RECONSTRUCTED_CASES`` is now empty and both
+  parametrisations would collect zero cases.
 - AC9-AC12 (Group D, negative controls & skip-guard): verdict / fired-rule /
   offending-label drift is caught by the corresponding predicate; an
   unrecognised ``reconstruction`` string raises ``ValueError`` from
@@ -31,10 +31,6 @@ Adversarial / edge-case scenarios included:
 - A drift meta-test targets a genuinely-fired pipeline case
   (``sequence_break``), so AC9-AC11 exercise the fired path rather
   than a no-op.
-- Cross-check: for every ``reconstructed_record`` case, the designated rule
-  filtered out of plain ``run_qc`` (AC7) is indeed the same rule the
-  reconstruction fires (AC8) — the two paths are consistent, not just each
-  individually true.
 """
 
 from __future__ import annotations
@@ -130,7 +126,6 @@ def test_ac2_every_case_routes_to_exactly_one_handled_path(case):
         assert case["reconstruction"] in RECONSTRUCTIONS
         assert case["reconstruction"] in {
             "monotonic_true_spatial_order",
-            "overlap_mask_stack",
         }
 
 
@@ -191,29 +186,10 @@ def test_ac6_offending_labels_match_manifest_for_pipeline_cases(case):
 
 
 # =========================================================================== #
-# C. Reconstructed-record cases (AC7-AC8)
+# C. Reconstructed-record cases (AC7-AC8) removed by item 195, 2026-09-28:
+# no committed case is reconstructed_record any more, so _RECONSTRUCTED_CASES
+# is empty and both parametrisations would collect zero cases.
 # =========================================================================== #
-
-
-@pytest.mark.parametrize("case", _RECONSTRUCTED_CASES, ids=_case_id)
-def test_ac7_plain_pipeline_hides_designated_rule_for_reconstructed_cases(case):
-    """AC7: for every detection == "reconstructed_record" case,
-    pipeline_hides_designated_rule(case) is True -- run_qc emits no finding
-    whose rule_id is in expected_rule_ids."""
-    assert _RECONSTRUCTED_CASES  # sanity: partition is non-trivial
-    assert pipeline_hides_designated_rule(case) is True
-
-
-@pytest.mark.parametrize("case", _RECONSTRUCTED_CASES, ids=_case_id)
-def test_ac8_reconstruction_fires_designated_rule_with_expected_labels(case):
-    """AC8: driving the technique named by case["reconstruction"] and
-    feeding the reconstructed record to the designated rule yields a finding
-    with rule_id in expected_rule_ids, and offending_labels_match(case) is
-    True."""
-    expected_rule_ids = set(case["expected_rule_ids"])
-    findings = reconstructed_findings(case)
-    assert any(f.rule_id in expected_rule_ids for f in findings)
-    assert offending_labels_match(case) is True
 
 
 # =========================================================================== #
@@ -331,14 +307,5 @@ def test_adv_loaded_seg_image_succeeds_for_every_case(case):
         assert pipeline_hides_designated_rule(case) in (True, False)
 
 
-@pytest.mark.parametrize("case", _RECONSTRUCTED_CASES, ids=_case_id)
-def test_adv_reconstructed_case_hidden_rule_matches_reconstruction_fired_rule(case):
-    """Adversarial cross-check: the designated rule that AC7 confirms is
-    absent from plain run_qc is the very rule that AC8's reconstruction
-    fires -- the two paths are consistent, not just individually true."""
-    expected_rule_ids = set(case["expected_rule_ids"])
-    plain_findings = pipeline_findings(case)
-    assert not any(f.rule_id in expected_rule_ids for f in plain_findings)
-
-    reconstructed = reconstructed_findings(case)
-    assert any(f.rule_id in expected_rule_ids for f in reconstructed)
+# test_adv_reconstructed_case_hidden_rule_matches_reconstruction_fired_rule
+# removed by item 195, 2026-09-28: _RECONSTRUCTED_CASES is now empty.

@@ -42,6 +42,13 @@ Adversarial / edge-case scenarios included:
 - Inclusive-threshold boundary at max_offset_mm.
 - Determinism across two run_rules calls, including ordering guarantees.
 - Mutation guard via deep-copy equality of the record and nested blocks.
+
+Item 189 (2026-09-28): Detector A (the offset detector) moved out of
+mislabel into its own rule, spline_offset -- the AC numbers above are kept
+as item 033's own criterion numbers (conventions.md §6), but the
+Detector-A-labelled criteria (AC3-AC7, AC11, half of AC13-AC15, part of
+AC18-AC19) and adversarials now assert on spline_offset findings/config
+instead of mislabel's. mislabel keeps only Detector B (ordering).
 """
 
 from __future__ import annotations
@@ -52,6 +59,7 @@ import pathlib
 import pytest
 
 import segfacet.heuristics.mislabel  # noqa: F401 — triggers MislabelRule registration
+import segfacet.heuristics.spline_offset  # noqa: F401 — item 189: triggers SplineOffsetRule registration
 from segfacet.heuristics import Finding, Rule, get_rule, iter_rules, run_rules
 from segfacet.heuristics.mislabel import MislabelRule
 from segfacet.heuristics.rule import _RULES
@@ -137,9 +145,27 @@ def _mislabel_yaml_header() -> str:
     )
 
 
+def _spline_offset_yaml_header() -> str:
+    """Item 189: return a YAML preamble placing the cursor inside
+    spline_offset params -- the offset detector's own rule/config section
+    since Detector A moved out of mislabel."""
+    return (
+        f"schema_version: '{SUPPORTED_SCHEMA_VERSION}'\n"
+        "rules:\n"
+        "  spline_offset:\n"
+        "    params:\n"
+    )
+
+
 def _mislabel_findings(findings):
     """Filter to only mislabel-rule findings."""
     return [f for f in findings if f.rule_id == "mislabel"]
+
+
+def _spline_offset_findings(findings):
+    """Item 189: filter to only spline_offset-rule findings -- Detector A's
+    new home."""
+    return [f for f in findings if f.rule_id == "spline_offset"]
 
 
 # =========================================================================== #
@@ -203,28 +229,36 @@ def test_ac2_well_aligned_record_no_finding():
 
 def test_ac3_detector_a_fires_for_displaced_vertebra():
     """AC3: One offset entry at/above threshold (41.3mm) emits exactly one
-    Finding with rule_id == 'mislabel'."""
+    Finding with rule_id == 'spline_offset'.
+
+    Item 189 (2026-09-28): Detector A moved out of mislabel into its own
+    rule, spline_offset -- the same threshold, comparison and reason text,
+    verbatim (spec A2)."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     record = _make_record(offsets, [])
-    findings = _mislabel_findings(run_rules(record, default_config()))
+    findings = _spline_offset_findings(run_rules(record, default_config()))
     assert len(findings) == 1
-    assert findings[0].rule_id == "mislabel"
+    assert findings[0].rule_id == "spline_offset"
 
 
 def test_ac4_detector_a_finding_attributed_to_single_label():
-    """AC4: labels == frozenset({20}) for the AC3 entry."""
+    """AC4: labels == frozenset({20}) for the AC3 entry.
+
+    Item 189 (2026-09-28): re-pointed to spline_offset (Detector A moved)."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     record = _make_record(offsets, [])
-    findings = _mislabel_findings(run_rules(record, default_config()))
+    findings = _spline_offset_findings(run_rules(record, default_config()))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({_LABEL_L1})
 
 
 def test_ac5_detector_a_reason_carries_offset_magnitude():
-    """AC5: The finding's reason contains the offset magnitude ('41.3')."""
+    """AC5: The finding's reason contains the offset magnitude ('41.3').
+
+    Item 189 (2026-09-28): re-pointed to spline_offset (Detector A moved)."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     record = _make_record(offsets, [])
-    findings = _mislabel_findings(run_rules(record, default_config()))
+    findings = _spline_offset_findings(run_rules(record, default_config()))
     assert len(findings) == 1
     assert "41.3" in findings[0].reason
     assert findings[0].reason.startswith(_MISALIGN_TAG)
@@ -237,15 +271,19 @@ def test_ac5_detector_a_reason_carries_offset_magnitude():
 
 def test_ac6_config_threshold_inclusive_boundary(tmp_path):
     """AC6: With max_offset_mm == 20.0, a 19.9mm entry yields no finding while
-    a 20.0mm entry yields exactly one (inclusive >=)."""
+    a 20.0mm entry yields exactly one (inclusive >=).
+
+    Item 189 (2026-09-28): config section re-pointed from rules.mislabel to
+    rules.spline_offset -- max_offset_mm now lives under the new rule (spec
+    A3)."""
     offsets = [
         _make_offset_entry(_LABEL_T12, 19.9, "T12"),
         _make_offset_entry(_LABEL_L1, 20.0, "L1"),
     ]
     record = _make_record(offsets, [])
-    content = _mislabel_yaml_header() + "      max_offset_mm: 20.0\n"
+    content = _spline_offset_yaml_header() + "      max_offset_mm: 20.0\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
+    findings = _spline_offset_findings(run_rules(record, cfg))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({_LABEL_L1})
 
@@ -256,14 +294,16 @@ def test_ac6_config_threshold_inclusive_boundary(tmp_path):
 
 
 def test_ac7_default_threshold_flags_large_not_small():
-    """AC7: Under default_config() (15.0mm), a 3.0mm entry yields no finding
-    while a 40.0mm entry yields exactly one."""
+    """AC7: Under default_config() (13.0mm), a 3.0mm entry yields no finding
+    while a 40.0mm entry yields exactly one.
+
+    Item 189 (2026-09-28): re-pointed to spline_offset (Detector A moved)."""
     offsets = [
         _make_offset_entry(_LABEL_T12, 3.0, "T12"),
         _make_offset_entry(_LABEL_L1, 40.0, "L1"),
     ]
     record = _make_record(offsets, [])
-    findings = _mislabel_findings(run_rules(record, default_config()))
+    findings = _spline_offset_findings(run_rules(record, default_config()))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({_LABEL_L1})
 
@@ -319,14 +359,16 @@ def test_ac10_both_offending_levels_named_in_reason():
 
 def test_ac11_multiple_offset_outliers_ascending_label_order():
     """AC11: Three above-threshold entries with labels 21, 19, 20 (fed
-    unsorted) emit three findings ordered 19, 20, 21."""
+    unsorted) emit three findings ordered 19, 20, 21.
+
+    Item 189 (2026-09-28): re-pointed to spline_offset (Detector A moved)."""
     offsets = [
         _make_offset_entry(_LABEL_L2, 30.0, "L2"),
         _make_offset_entry(_LABEL_T12, 25.0, "T12"),
         _make_offset_entry(_LABEL_L1, 20.0, "L1"),
     ]
     record = _make_record(offsets, [])
-    findings = _mislabel_findings(run_rules(record, default_config()))
+    findings = _spline_offset_findings(run_rules(record, default_config()))
     assert len(findings) == 3
     assert findings[0].labels == frozenset({_LABEL_T12})
     assert findings[1].labels == frozenset({_LABEL_L1})
@@ -360,17 +402,29 @@ def test_ac12_multiple_pairs_ascending_name_pair_order():
 
 
 def test_ac13_flag_offset_outliers_false_suppresses_detector_a(tmp_path):
-    """AC13: With flag_offset_outliers == false, a record carrying an
+    """AC13: With the offset detector's rule disabled, a record carrying an
     above-threshold offset and a non-monotonic pair yields no offset finding
-    but still yields the order finding."""
+    but still yields the order finding.
+
+    Item 189 (2026-09-28): ``flag_offset_outliers`` is retired now that
+    Detector A is its own rule; ``rules.spline_offset.enabled: false``
+    replaces it (spec A3). mislabel's own params are untouched, so its order
+    detector still fires."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
-    content = _mislabel_yaml_header() + "      flag_offset_outliers: false\n"
+    content = (
+        f"schema_version: '{SUPPORTED_SCHEMA_VERSION}'\n"
+        "rules:\n"
+        "  spline_offset:\n"
+        "    enabled: false\n"
+    )
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
-    assert len(findings) == 1
-    assert findings[0].reason.startswith(_MISLABEL_TAG)
+    findings = run_rules(record, cfg)
+    assert _spline_offset_findings(findings) == []
+    mislabel = _mislabel_findings(findings)
+    assert len(mislabel) == 1
+    assert mislabel[0].reason.startswith(_MISLABEL_TAG)
 
 
 # =========================================================================== #
@@ -381,7 +435,11 @@ def test_ac13_flag_offset_outliers_false_suppresses_detector_a(tmp_path):
 def test_ac14_flag_order_inconsistency_false_suppresses_detector_b(tmp_path):
     """AC14: With flag_order_inconsistency == false, a record carrying an
     above-threshold offset and a non-monotonic pair yields no order finding
-    but still yields the offset finding."""
+    but still yields the offset finding.
+
+    Item 189 (2026-09-28): the offset finding now comes from spline_offset
+    (Detector A moved), which reads its own, untouched default config, so it
+    still fires alongside mislabel's suppressed order detector."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
@@ -389,9 +447,11 @@ def test_ac14_flag_order_inconsistency_false_suppresses_detector_b(tmp_path):
         _mislabel_yaml_header() + "      flag_order_inconsistency: false\n"
     )
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
-    assert len(findings) == 1
-    assert findings[0].reason.startswith(_MISALIGN_TAG)
+    findings = run_rules(record, cfg)
+    assert _mislabel_findings(findings) == []
+    offset = _spline_offset_findings(findings)
+    assert len(offset) == 1
+    assert offset[0].reason.startswith(_MISALIGN_TAG)
 
 
 # =========================================================================== #
@@ -401,28 +461,48 @@ def test_ac14_flag_order_inconsistency_false_suppresses_detector_b(tmp_path):
 
 def test_ac15_default_severity_is_flag_for_both_detectors():
     """AC15: With no severity param, both an offset finding and an order
-    finding have Severity.FLAG."""
+    finding have Severity.FLAG.
+
+    Item 189 (2026-09-28): the offset finding now comes from spline_offset
+    (Detector A moved); combining both rules' findings preserves the
+    original claim that both detectors default to FLAG."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
-    findings = _mislabel_findings(run_rules(record, default_config()))
-    assert len(findings) == 2
-    assert all(f.severity is Severity.FLAG for f in findings)
+    findings = run_rules(record, default_config())
+    combined = _mislabel_findings(findings) + _spline_offset_findings(findings)
+    assert len(combined) == 2
+    assert all(f.severity is Severity.FLAG for f in combined)
 
 
 def test_ac15_severity_param_fail_overrides_default_for_both_detectors(
     tmp_path,
 ):
     """AC15: With params.severity = 'fail', both emitted findings have
-    Severity.FAIL."""
+    Severity.FAIL.
+
+    Item 189 (2026-09-28): severity is now config-driven per rule, so the
+    config sets it in both the mislabel and spline_offset sections (spec
+    A3: mislabel keeps reading its own severity; spline_offset reads its
+    own)."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
-    content = _mislabel_yaml_header() + "      severity: fail\n"
+    content = (
+        f"schema_version: '{SUPPORTED_SCHEMA_VERSION}'\n"
+        "rules:\n"
+        "  mislabel:\n"
+        "    params:\n"
+        "      severity: fail\n"
+        "  spline_offset:\n"
+        "    params:\n"
+        "      severity: fail\n"
+    )
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
-    assert len(findings) == 2
-    assert all(f.severity is Severity.FAIL for f in findings)
+    findings = run_rules(record, cfg)
+    combined = _mislabel_findings(findings) + _spline_offset_findings(findings)
+    assert len(combined) == 2
+    assert all(f.severity is Severity.FAIL for f in combined)
 
 
 # =========================================================================== #
@@ -604,19 +684,26 @@ def test_ac18_non_monotonic_pairs_non_list_no_raise():
 
 def test_ac18_offset_entry_missing_offset_mm_treated_as_zero():
     """AC18: An offset entry missing offset_mm is treated as 0.0, hence not
-    flagged."""
+    flagged.
+
+    Item 189 (2026-09-28): this claim moved with Detector A -- mislabel no
+    longer reads per_label_offsets at all, so it is rewritten against
+    spline_offset, the detector's new home."""
     offsets = [{"label": _LABEL_L1, "level_name": "L1"}]
     record = _make_record(offsets, [])
-    result = _mislabel_findings(run_rules(record, default_config()))
+    result = _spline_offset_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac18_offset_entry_missing_label_skipped():
     """AC18: An offset entry missing label is skipped, even though its
-    offset_mm is above threshold."""
+    offset_mm is above threshold.
+
+    Item 189 (2026-09-28): rewritten against spline_offset (Detector A
+    moved; mislabel no longer reads per_label_offsets)."""
     offsets = [{"level_name": "L1", "offset_mm": 41.3}]
     record = _make_record(offsets, [])
-    result = _mislabel_findings(run_rules(record, default_config()))
+    result = _spline_offset_findings(run_rules(record, default_config()))
     assert result == []
 
 
@@ -646,13 +733,18 @@ def test_ac18_per_label_absent_unresolvable_name_omitted_from_labels():
 
 
 def test_ac19_field_isolation_identical_findings():
-    """AC19: Two records with identical per_label_offsets, monotonic
-    consistency, and per_label but different overlaps / relationships /
-    stage3.spacing_consistency / stage3.curvature / geometry fields yield
-    identical finding lists.
+    """AC19: Two records with identical monotonic consistency and per_label
+    but different overlaps / relationships / stage3.spacing_consistency /
+    stage3.curvature / geometry fields yield identical finding lists.
 
     Evaluated directly via MislabelRule().evaluate() (rather than run_rules)
-    so the comparison isolates AC19's claim about the mislabel rule alone."""
+    so the comparison isolates AC19's claim about the mislabel rule alone.
+
+    Item 189 (2026-09-28): mislabel no longer reads per_label_offsets
+    (Detector A moved to spline_offset), so it now declares only one
+    finding (the order finding) per record instead of two; the offsets are
+    still present in the record (unvaried between record_a/record_b) to
+    prove mislabel's read is unaffected by their presence."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
 
@@ -678,7 +770,7 @@ def test_ac19_field_isolation_identical_findings():
     )
     findings_a = MislabelRule().evaluate(record_a, default_config())
     findings_b = MislabelRule().evaluate(record_b, default_config())
-    assert len(findings_a) == 2 and len(findings_b) == 2
+    assert len(findings_a) == 1 and len(findings_b) == 1
     for fa, fb in zip(findings_a, findings_b):
         assert fa.rule_id == fb.rule_id
         assert fa.severity == fb.severity
@@ -745,54 +837,81 @@ def test_adv_bad_severity_raises_even_with_degenerate_stage3(tmp_path):
 
 
 def test_adv_offset_findings_ordered_before_order_findings():
-    """Adversarial: the combined finding list is offset findings first, then
-    order findings — verified with both detectors firing simultaneously."""
+    """Adversarial: with both mislabel and spline_offset firing on the same
+    record, the combined run_rules output is deterministically ordered by
+    rule_id -- mislabel ('m') sorts before spline_offset ('s').
+
+    Item 189 (2026-09-28): the original claim (offset findings before order
+    findings) was Detector A/B's internal ordering *within* mislabel; that
+    ordering no longer exists now that each detector is its own rule with a
+    single detector. Rewritten to the analogous claim now visible: the
+    runner's own deterministic rule_id-sorted ordering (conventions.md §6,
+    "one test per criterion" reconciliation) across the two rules."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
-    findings = _mislabel_findings(run_rules(record, default_config()))
-    assert len(findings) == 2
-    assert findings[0].reason.startswith(_MISALIGN_TAG)
-    assert findings[1].reason.startswith(_MISLABEL_TAG)
+    findings = run_rules(record, default_config())
+    combined = _mislabel_findings(findings) + _spline_offset_findings(findings)
+    assert len(combined) == 2
+    ordered_ids = [f.rule_id for f in findings if f.rule_id in ("mislabel", "spline_offset")]
+    assert ordered_ids == ["mislabel", "spline_offset"]
+    mislabel_finding = _mislabel_findings(findings)[0]
+    offset_finding = _spline_offset_findings(findings)[0]
+    assert mislabel_finding.reason.startswith(_MISLABEL_TAG)
+    assert offset_finding.reason.startswith(_MISALIGN_TAG)
 
 
 def test_adv_all_offsets_below_threshold_yield_no_findings(tmp_path):
     """Adversarial: every offset entry below a high threshold yields zero
-    findings, not a partial/empty-but-crashing result."""
+    findings, not a partial/empty-but-crashing result.
+
+    Item 189 (2026-09-28): config section re-pointed to rules.spline_offset
+    (Detector A moved)."""
     offsets = [
         _make_offset_entry(_LABEL_T12, 1.0, "T12"),
         _make_offset_entry(_LABEL_L1, 2.0, "L1"),
     ]
     record = _make_record(offsets, [])
-    content = _mislabel_yaml_header() + "      max_offset_mm: 100.0\n"
+    content = _spline_offset_yaml_header() + "      max_offset_mm: 100.0\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
+    findings = _spline_offset_findings(run_rules(record, cfg))
     assert findings == []
 
 
 def test_adv_max_offset_mm_boundary_exactly_at_threshold(tmp_path):
     """Adversarial: an offset exactly equal to a custom max_offset_mm fires
-    (inclusive >= comparison), reinforcing AC6's boundary semantics."""
+    (inclusive >= comparison), reinforcing AC6's boundary semantics.
+
+    Item 189 (2026-09-28): config section re-pointed to rules.spline_offset
+    (Detector A moved)."""
     offsets = [_make_offset_entry(_LABEL_L1, 7.5, "L1")]
     record = _make_record(offsets, [])
-    content = _mislabel_yaml_header() + "      max_offset_mm: 7.5\n"
+    content = _spline_offset_yaml_header() + "      max_offset_mm: 7.5\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
+    findings = _spline_offset_findings(run_rules(record, cfg))
     assert len(findings) == 1
 
 
 def test_adv_both_gates_false_yields_no_findings(tmp_path):
-    """Adversarial: with both flag_offset_outliers and
+    """Adversarial: with both the offset rule disabled and
     flag_order_inconsistency disabled, no findings are emitted even though
-    both signals would otherwise fire."""
+    both signals would otherwise fire.
+
+    Item 189 (2026-09-28): ``flag_offset_outliers`` is retired;
+    ``rules.spline_offset.enabled: false`` replaces it (spec A3)."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
     content = (
-        _mislabel_yaml_header()
-        + "      flag_offset_outliers: false\n"
-        + "      flag_order_inconsistency: false\n"
+        f"schema_version: '{SUPPORTED_SCHEMA_VERSION}'\n"
+        "rules:\n"
+        "  mislabel:\n"
+        "    params:\n"
+        "      flag_order_inconsistency: false\n"
+        "  spline_offset:\n"
+        "    enabled: false\n"
     )
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _mislabel_findings(run_rules(record, cfg))
-    assert findings == []
+    findings = run_rules(record, cfg)
+    combined = _mislabel_findings(findings) + _spline_offset_findings(findings)
+    assert combined == []

@@ -59,7 +59,7 @@ from segfacet.features.spline_offset import (
     compute_leave_one_out_spline_offsets,
     compute_spline_offsets,
 )
-import segfacet.heuristics.mislabel  # noqa: F401 -- triggers MislabelRule registration
+import segfacet.heuristics.spline_offset  # noqa: F401 -- triggers SplineOffsetRule registration (item 189)
 from segfacet.heuristics import run_rules
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import build_clean_spine
@@ -159,7 +159,9 @@ def _mislabel_record(offsets: list, pairs: list = ()) -> dict:
 
 
 def _mislabel_findings(findings):
-    return [f for f in findings if f.rule_id == "mislabel"]
+    # Item 189 (2026-09-28): the offset detector moved to its own
+    # spline_offset rule.
+    return [f for f in findings if f.rule_id == "spline_offset"]
 
 
 # =========================================================================== #
@@ -612,7 +614,8 @@ def test_ac17_threshold_margins_hold_on_corpus():
     # Item 177 (2026-09-24), re-derived premise: "15.0 is the firing
     # threshold" has been false since item 123 (13.0), and the re-authored
     # displace (14.616 mm) falls between -- so read the live threshold.
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     assert displaced["offset_mm"] > _DEFAULT_MAX_OFFSET_MM, "displaced label 22 must exceed the threshold"
 
@@ -675,9 +678,10 @@ def test_ac21_leave_one_out_reconstruction_retired():
 
     assert "leave_one_out_offset" not in regression_mod.RECONSTRUCTIONS
     assert not hasattr(regression_mod, "_recon_leave_one_out_offset")
+    # Item 195 (2026-09-28): "overlap_mask_stack" dropped -- force_overlap
+    # (and its operator-specific reconstruction) was removed.
     assert set(regression_mod.RECONSTRUCTIONS) == {
         "monotonic_true_spatial_order",
-        "overlap_mask_stack",
     }
 
 
@@ -701,16 +705,16 @@ def test_ac22_every_corpus_case_verifies():
 
 
 def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
+    # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation -- so the
+    # offset finding no longer survives; border and the offset itself
+    # (read off the unmasked record) are unaffected.
     manifest = load_manifest()
     case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
 
     findings = pipeline_findings(case)
     mislabel = _mislabel_findings(findings)
-    assert mislabel
-    union = set()
-    for f in mislabel:
-        union |= set(f.labels)
-    assert 22 in union
+    assert mislabel == []
 
     assert pipeline_verdict_label(case) == "flagged-for-review"
 
@@ -765,7 +769,7 @@ def _corpus_cohort_metrics():
     return compute_cohort_metrics(evaluation, failure_modes=FAILURE_MODE_NAMES)
 
 
-def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
+def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     """Item 132 judges monotonicity against a traversal-ordered reference
     fit, which newly detects the relabel-swap case -- corpus sensitivity
     rose from 6/8 to 7/8. Re-measured 2026-09-14 under the item-150
@@ -791,23 +795,53 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     Re-measured 2026-09-24 (item 176) -- the bridged, renumbered
     `fuse_adjacent` expects "pass" and is no longer an expected-failure
     record, so overall sensitivity is 10/11 over eleven records and mode 2
-    scores no case. The test name keeps the old value."""
+    scores no case. The test name keeps the old value.
+    Re-measured 2026-09-28 (item 190) -- every condition case (`displace`
+    under `displaced_vertebra`, `crop_at_border`/`crop_fov_si` under
+    `fov_truncation`) now buckets under its own condition-keyed entry
+    instead of mode 0/1, so the `(0, None)` entry has `n_cases == 0` and is
+    dropped from the per-mode map.
+    Re-measured 2026-09-28 (item 191) -- the gate drops `bounds`'s two
+    findings on `crop_fov_si`'s label 24, so that case no longer fires and
+    its expected verdict becomes "pass": it is no longer an expected-failure
+    record, so overall sensitivity is 9/10 over ten records.
+    Re-measured 2026-09-28 (item 195) -- force_overlap (mode 15) removed, a
+    single-channel label map cannot express an overlap, so every remaining
+    expected-failure record is pipeline-detected: overall sensitivity is
+    9/9 over nine records."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
     # Item 176 (2026-09-24): 11/12 -> 10/11.
-    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
+    # Item 191 (2026-09-28): 10/11 -> 9/10.
+    # Item 195 (2026-09-28): 9/10 -> 9/9 (force_overlap removed).
+    assert metrics.sensitivity == pytest.approx(1.0)
 
     # Item 176 (2026-09-24): mode 2's entry (2: 1.0) removed -- no case left.
-    expected_sensitivity = {0: 1.0, 1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+    # Item 190 (2026-09-28): mode 0's entry removed -- condition cases moved
+    # to their own condition-keyed buckets, checked separately below.
+    # Item 195 (2026-09-28): mode 15's entry (15: 0.0) removed -- no
+    # corpus case left, force_overlap was removed.
+    expected_sensitivity = {1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
         assert entry.sensitivity == pytest.approx(expected), f"mode {mode}"
+
+    expected_condition_sensitivity = {"fov_truncation": 1.0, "displaced_vertebra": 1.0}
+    for condition, expected in expected_condition_sensitivity.items():
+        entry = next(m for m in metrics.per_mode if m.condition == condition)
+        assert entry.n_cases > 0, f"condition {condition}"
+        assert entry.sensitivity == pytest.approx(expected), f"condition {condition}"
+
     # Item 174 (2026-09-23): 10 -> 11.
     # Item 175 (2026-09-24): 11 -> 12.
     # Item 176 (2026-09-24): 12 -> 11.
-    assert sum(m.n_cases for m in metrics.per_mode) == 11
+    # Item 191 (2026-09-28): crop_fov_si's expected verdict becomes "pass",
+    # dropping it out of the mode/condition n_cases sum: 11 -> 10.
+    # Item 195 (2026-09-28): force_overlap removed, dropping mode 15's
+    # zero-case entry out of the per-mode map: 10 -> 9.
+    assert sum(m.n_cases for m in metrics.per_mode) == 9
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

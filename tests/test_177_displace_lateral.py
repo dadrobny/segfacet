@@ -143,12 +143,17 @@ def test_ac4_committed_displacement_is_mostly_left_right():
 
 
 def test_ac5_expected_set_equals_measured_firing():
+    # Item 189 (2026-09-28): displace is re-homed from mode 1's corpus_cases
+    # to the displaced_vertebra CONDITION's, and its designated rule from
+    # mislabel to spline_offset.
     matches = [
-        c for c in failure_modes.SPECIFICATION[1].corpus_cases if c.case_id == "displace"
+        c
+        for c in failure_modes.CONDITIONS["displaced_vertebra"].corpus_cases
+        if c.case_id == "displace"
     ]
     assert len(matches) == 1, matches
     case = matches[0]
-    assert failure_modes.measured_firing(case) == case.expected_firing == ("mislabel",)
+    assert failure_modes.measured_firing(case) == case.expected_firing == ("spline_offset",)
 
 
 # =========================================================================== #

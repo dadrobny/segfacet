@@ -264,11 +264,13 @@ def test_ac3_current_tree_has_30_non_py_fixtures():
     Item 150 (2026-09-14) added two corpus fixtures (fuse_adjacent,
     remove_level_relabel) = 22. Item 166 (2026-09-20) added one more
     (split) = 23. Item 174 (2026-09-23) added one more (split_own_label)
-    = 24. Item 175 (2026-09-24) added two (crop_fov_si's seg and scan) = 26;
+    = 24. Item 175 (2026-09-24) added two (crop_fov_si's seg and scan) = 26.
+    Item 195 (2026-09-28) removed one (force_overlap's seg fixture) = 25;
     the test name keeps the old value."""
     # Item 174 (2026-09-23): 23 -> 24.
     # Item 175 (2026-09-24): 24 -> 26.
-    assert len(_walk_tests_non_py_files()) == 26
+    # Item 195 (2026-09-28): 26 -> 25.
+    assert len(_walk_tests_non_py_files()) == 25
 
 
 def test_ac3_section1_fixture_set_equals_filesystem_walk_both_directions(section1_rows, sections):
@@ -388,9 +390,13 @@ _OLD_GOLDEN_CASE_ID = {new: old for old, new in _RENAMED_CASE_IDS.items()}
 _RETIRED_GOLDEN_FIXTURE_IDS = tuple(
     _OLD_GOLDEN_CASE_ID.get(cid, cid) for cid in _GOLDEN_CASE_IDS
 )
+#: force_overlap removed by item 195, 2026-09-28: AC7's live-measurement
+#: parametrisation drops it, while AC9's frozen nine-id table (above) keeps
+#: it -- it is retired history, not a live case.
+_LIVE_GOLDEN_CASE_IDS = tuple(c for c in _GOLDEN_CASE_IDS if c != "force_overlap")
 
 
-@pytest.mark.parametrize("case_id", _GOLDEN_CASE_IDS)
+@pytest.mark.parametrize("case_id", _LIVE_GOLDEN_CASE_IDS)
 def test_ac7_golden_row_evidence_is_measured_not_transcribed(case_id):
     """Item 134: the signed row's evidence cell is now a stable pointer (see
     test_ac9 below), not a transcribed N/M fraction -- so the drift oracle
@@ -703,7 +709,8 @@ def test_adv_ac3_empty_header_only_table_fails_with_full_missing_list():
     missing = sorted(_walk_tests_non_py_files() - documented_set)
     # Item 174 (2026-09-23): 23 -> 24 (split_own_label_seg.nii.gz).
     # Item 175 (2026-09-24): 24 -> 26 (crop_fov_si_seg/_scan.nii.gz).
-    assert len(missing) == 26, "an empty table must not trivially pass on two empty sets"
+    # Item 195 (2026-09-28): 26 -> 25 (force_overlap_seg.nii.gz removed).
+    assert len(missing) == 25, "an empty table must not trivially pass on two empty sets"
 
 
 def test_adv_ac6_asserted_by_naming_nonexistent_module_is_detectable():

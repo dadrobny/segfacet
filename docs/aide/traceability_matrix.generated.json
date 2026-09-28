@@ -1,7 +1,7 @@
 {
   "classification_conflicts": [],
   "conformance": {
-    "agree_count": 18,
+    "agree_count": 17,
     "cases": [
       {
         "agrees": true,
@@ -17,13 +17,11 @@
         "case_id": "crop_at_border",
         "corpus": "geometric",
         "expected_firing": [
-          "border",
-          "mislabel"
+          "border"
         ],
         "expected_source": "specification-condition",
         "measured_firing": [
-          "border",
-          "mislabel"
+          "border"
         ],
         "mode": 0
       },
@@ -31,13 +29,9 @@
         "agrees": true,
         "case_id": "crop_fov_si",
         "corpus": "geometric",
-        "expected_firing": [
-          "bounds"
-        ],
+        "expected_firing": [],
         "expected_source": "specification-condition",
-        "measured_firing": [
-          "bounds"
-        ],
+        "measured_firing": [],
         "mode": 0
       },
       {
@@ -45,26 +39,13 @@
         "case_id": "displace",
         "corpus": "geometric",
         "expected_firing": [
-          "mislabel"
+          "spline_offset"
         ],
-        "expected_source": "specification",
+        "expected_source": "specification-condition",
         "measured_firing": [
-          "mislabel"
+          "spline_offset"
         ],
-        "mode": 1
-      },
-      {
-        "agrees": true,
-        "case_id": "force_overlap",
-        "corpus": "geometric",
-        "expected_firing": [
-          "overlap"
-        ],
-        "expected_source": "specification",
-        "measured_firing": [
-          "overlap"
-        ],
-        "mode": 15
+        "mode": 0
       },
       {
         "agrees": true,
@@ -106,11 +87,13 @@
         "case_id": "relabel_swap",
         "corpus": "geometric",
         "expected_firing": [
-          "mislabel"
+          "mislabel",
+          "sequence"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "mislabel"
+          "mislabel",
+          "sequence"
         ],
         "mode": 9
       },
@@ -119,11 +102,13 @@
         "case_id": "remove_level",
         "corpus": "geometric",
         "expected_firing": [
-          "coverage"
+          "coverage",
+          "sequence"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "coverage"
+          "coverage",
+          "sequence"
         ],
         "mode": 6
       },
@@ -154,11 +139,11 @@
         "case_id": "split",
         "corpus": "geometric",
         "expected_firing": [
-          "fragmentation"
+          "neighbour_contact"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "fragmentation"
+          "neighbour_contact"
         ],
         "mode": 3
       },
@@ -167,13 +152,11 @@
         "case_id": "split_own_label",
         "corpus": "geometric",
         "expected_firing": [
-          "bounds",
-          "coverage"
+          "bounds"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "bounds",
-          "coverage"
+          "bounds"
         ],
         "mode": 3
       },
@@ -244,13 +227,13 @@
     "mode_to_rule": {
       "complete": false,
       "holes": [
-        "10",
-        "11",
         "12",
         "13",
         "14",
         "5",
-        "7"
+        "6",
+        "7",
+        "8"
       ]
     },
     "operator_exercise": {
@@ -289,14 +272,6 @@
           "displace"
         ],
         "name": "displace",
-        "reason": "",
-        "state": "used"
-      },
-      "force_overlap": {
-        "cases": [
-          "force_overlap"
-        ],
-        "name": "force_overlap",
         "reason": "",
         "state": "used"
       },
@@ -398,10 +373,6 @@
         "exercised_by": [
           [
             "geometric",
-            "crop_fov_si"
-          ],
-          [
-            "geometric",
             "split_own_label"
           ]
         ],
@@ -415,10 +386,6 @@
           [
             "geometric",
             "remove_level"
-          ],
-          [
-            "geometric",
-            "split_own_label"
           ]
         ],
         "reason": "",
@@ -435,10 +402,6 @@
           [
             "geometric",
             "inject_islands"
-          ],
-          [
-            "geometric",
-            "split"
           ]
         ],
         "reason": "",
@@ -469,22 +432,12 @@
       "intensity_reference_delta": {
         "exercised_by": [],
         "reason": "needs-real-data",
-        "reason_modes": [
-          16
-        ],
+        "reason_modes": [],
         "rule_id": "intensity_reference_delta",
         "state": "unexercised"
       },
       "mislabel": {
         "exercised_by": [
-          [
-            "geometric",
-            "crop_at_border"
-          ],
-          [
-            "geometric",
-            "displace"
-          ],
           [
             "geometric",
             "relabel_swap"
@@ -495,33 +448,44 @@
         "rule_id": "mislabel",
         "state": "exercised"
       },
-      "overlap": {
+      "neighbour_contact": {
         "exercised_by": [
           [
             "geometric",
-            "force_overlap"
+            "split"
           ]
         ],
         "reason": "",
         "reason_modes": [],
-        "rule_id": "overlap",
+        "rule_id": "neighbour_contact",
         "state": "exercised"
+      },
+      "overlap": {
+        "exercised_by": [],
+        "reason": "structurally-unobservable",
+        "reason_modes": [
+          15
+        ],
+        "rule_id": "overlap",
+        "state": "unexercised"
       },
       "reference_delta": {
         "exercised_by": [],
         "reason": "needs-real-data",
-        "reason_modes": [
-          1,
-          2,
-          3,
-          4,
-          8
-        ],
+        "reason_modes": [],
         "rule_id": "reference_delta",
         "state": "unexercised"
       },
       "sequence": {
         "exercised_by": [
+          [
+            "geometric",
+            "relabel_swap"
+          ],
+          [
+            "geometric",
+            "remove_level"
+          ],
           [
             "geometric",
             "sequence_break"
@@ -531,6 +495,18 @@
         "reason_modes": [],
         "rule_id": "sequence",
         "state": "exercised"
+      },
+      "spline_offset": {
+        "exercised_by": [
+          [
+            "geometric",
+            "displace"
+          ]
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "spline_offset",
+        "state": "exercised"
       }
     }
   },
@@ -539,22 +515,24 @@
       "border": 9,
       "bounds": 6,
       "coverage": 4,
-      "fragmentation": 9,
+      "fragmentation": 7,
       "intensity": 5,
       "intensity_reference_delta": 8,
-      "mislabel": 9,
+      "mislabel": 2,
+      "neighbour_contact": 5,
       "overlap": 6,
       "reference_delta": 11,
-      "sequence": 5
+      "sequence": 4,
+      "spline_offset": 7
     },
     "read_by_no_rule": {
-      "count": 88,
+      "count": 93,
       "qualifier": "a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.",
       "required": false
     },
     "read_by_rule": 52,
-    "total_paths": 140,
-    "unwired": 30
+    "total_paths": 145,
+    "unwired": 35
   },
   "modes": {
     "1": {
@@ -563,10 +541,6 @@
       ],
       "authored_status": "specified",
       "cases": [
-        {
-          "case_id": "displace",
-          "detection": "pipeline"
-        },
         {
           "case_id": "fragment",
           "detection": "pipeline"
@@ -579,26 +553,10 @@
             "components"
           ],
           "synthetic-demonstrable"
-        ],
-        [
-          "bounds",
-          [
-            "metric_out_of_range"
-          ],
-          "needs-real-data"
-        ],
-        [
-          "reference_delta",
-          [
-            "distance",
-            "out_of_range",
-            "robust_z"
-          ],
-          "needs-real-data"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. The corpus case displace (a rigidly translated vertebra, which is over-segmentation into background plus under-segmentation of the true body) fires mislabel's spline-offset detector via stage3.per_label_offsets[].offset_mm -- a detector that serves no failure mode (the spline offset is an anatomy-classification signal), so that case is a recorded co-detection.",
+      "mechanism": "No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy. Item 193, 2026-09-28: reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode -- see mode 8's mechanism. Item 194, 2026-09-28: bounds' per-label volume/extent range is no longer this mode's proxy -- it serves modes 2, 3 and 4, and a detector that serves another mode is never also attributed to this catch-all.)",
       "mode": 1,
       "pipeline_detected": true,
       "read_paths": [
@@ -606,26 +564,14 @@
         "per_label.{label}.components.component_sizes[]",
         "per_label.{label}.components.fragmentation_index",
         "per_label.{label}.components.largest_component_fraction",
-        "per_label.{label}.components.stray_component_sizes[]",
-        "per_label.{label}.components.stray_contact_area_mm2",
-        "per_label.{label}.geometry.extent_x_mm",
-        "per_label.{label}.geometry.extent_y_mm",
-        "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3",
-        "reference_delta.{label}.distribution_distance",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-        "reference_delta.{label}.out_of_range_features[]"
+        "per_label.{label}.components.stray_component_sizes[]"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "bounds": "analytic",
-        "fragmentation": "corpus",
-        "reference_delta": "analytic"
+        "fragmentation": "corpus"
       },
       "rules": [
-        "bounds",
-        "fragmentation",
-        "reference_delta"
+        "fragmentation"
       ],
       "rung": "synthetic-demonstrable",
       "status": "validated",
@@ -633,36 +579,79 @@
     },
     "10": {
       "anchor_paths": [],
-      "authored_status": "proposed",
+      "authored_status": "specified",
       "cases": [],
-      "edge_rungs": [],
+      "edge_rungs": [
+        [
+          "coverage",
+          [
+            "count_shortfall",
+            "incomplete_span",
+            "missing_interior"
+          ],
+          "needs-real-data"
+        ],
+        [
+          "sequence",
+          [
+            "skip"
+          ],
+          "needs-real-data"
+        ]
+      ],
       "granularity": "signal",
-      "mechanism": "No rule decides this mode and no corpus case exercises it: listed as proposed. coverage's interior-gap detector fires on the label gap it leaves (relationships.missing_levels[]) but cannot tell it from a missed vertebra, so that detector serves mode 6. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]), which no rule reads, and a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not yet authored.",
+      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.",
       "mode": 10,
       "pipeline_detected": false,
-      "read_paths": [],
+      "read_paths": [
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name",
+        "relationships.missing_levels[]",
+        "relationships.present_levels[]"
+      ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {},
-      "rules": [],
-      "rung": null,
-      "status": "proposed",
+      "rule_attribution": {
+        "coverage": "analytic",
+        "sequence": "analytic"
+      },
+      "rules": [
+        "coverage",
+        "sequence"
+      ],
+      "rung": "needs-real-data",
+      "status": "implemented",
       "title": "Skipped level label"
     },
     "11": {
       "anchor_paths": [],
-      "authored_status": "proposed",
+      "authored_status": "specified",
       "cases": [],
-      "edge_rungs": [],
+      "edge_rungs": [
+        [
+          "sequence",
+          [
+            "transitional"
+          ],
+          "needs-real-data"
+        ]
+      ],
       "granularity": "signal",
-      "mechanism": "No rule and no corpus case: listed as proposed. The candidate detector reads relationships.present_levels[] for a transitional label and a configuration flag saying whether variants are admitted; neither the flag nor the detector exists.",
+      "mechanism": "sequence's transitional detector reads per_label.{label}.level_name (item 192, 2026-09-28): it resolves the section counts the present levels read and names any non-default thoracic or lumbar reading the field of view does not corroborate (segfacet.labels.resolve_section_counts's unaccepted mapping), plus any kept level outside the resulting reading's expected sequence. No committed corpus case designates it, so the edge is analytic.",
       "mode": 11,
       "pipeline_detected": false,
-      "read_paths": [],
+      "read_paths": [
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name"
+      ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {},
-      "rules": [],
-      "rung": null,
-      "status": "proposed",
+      "rule_attribution": {
+        "sequence": "analytic"
+      },
+      "rules": [
+        "sequence"
+      ],
+      "rung": "needs-real-data",
+      "status": "implemented",
       "title": "Unprompted numbering variant"
     },
     "12": {
@@ -721,12 +710,7 @@
         "overlaps[].overlap_voxels"
       ],
       "authored_status": "specified",
-      "cases": [
-        {
-          "case_id": "force_overlap",
-          "detection": "reconstructed_record"
-        }
-      ],
+      "cases": [],
       "edge_rungs": [
         [
           "overlap",
@@ -737,7 +721,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "A single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a case deliberately corrupted to violate that invariant, which no real segmenter output can be; force_overlap therefore stays detection=\"reconstructed_record\" rather than pipeline-detected, while the overlap rule and the paths it reads remain correct and fully wired.",
+      "mechanism": "A single-channel integer label map holds exactly one label per voxel, so overlaps[].overlap_voxels can be non-zero only on a multi-channel input, which no FACET input path supplies: the pipeline builds its mask stack from the one label map. The overlap rule reads that path, is correct and fully wired, and is declared to need multi-channel input. No committed corpus case expresses this mode, because a single-channel fixture cannot hold an overlap (item 195, 2026-09-28).",
       "mode": 15,
       "pipeline_detected": false,
       "read_paths": [
@@ -745,13 +729,13 @@
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "overlap": "corpus"
+        "overlap": "analytic"
       },
       "rules": [
         "overlap"
       ],
       "rung": "structurally-unobservable",
-      "status": "validated",
+      "status": "implemented",
       "title": "Overlapping segments"
     },
     "16": {
@@ -780,19 +764,10 @@
             "too_low"
           ],
           "synthetic-demonstrable"
-        ],
-        [
-          "intensity_reference_delta",
-          [
-            "distance",
-            "out_of_range",
-            "robust_z"
-          ],
-          "needs-real-data"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "The committed intensity corpus demonstrates this mode end-to-end three times over: implausible_metal (label 22's median reads 2999 HU, above the plausible bone band's ceiling), implausible_soft_tissue (40 HU, below its floor) and degenerate_uniform (a constant fill, zero spread) each drive the intensity rule through segfacet.synth.regression.intensity_pipeline_findings, which is why that edge sits at the strongest rung. intensity_reference_delta stays a rung below: the synthetic intensity corpus is built against no reference distribution and the harness attaches none, so nothing in the committed corpus can exercise it.",
+      "mechanism": "The committed intensity corpus demonstrates this mode end-to-end three times over: implausible_metal (label 22's median reads 2999 HU, above the plausible bone band's ceiling), implausible_soft_tissue (40 HU, below its floor) and degenerate_uniform (a constant fill, zero spread) each drive the intensity rule through segfacet.synth.regression.intensity_pipeline_findings, which is why that edge sits at the strongest rung. intensity_reference_delta declares no mode since item 193 (2026-09-28): none of its consumed_paths entries is classified signal, so it contributes no mode to any path. It cannot fire on the committed corpus in any case: the synthetic intensity corpus is built against no reference distribution and the harness attaches none.",
       "mode": 16,
       "pipeline_detected": true,
       "read_paths": [
@@ -801,12 +776,10 @@
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "intensity": "corpus",
-        "intensity_reference_delta": "analytic"
+        "intensity": "corpus"
       },
       "rules": [
-        "intensity",
-        "intensity_reference_delta"
+        "intensity"
       ],
       "rung": "synthetic-demonstrable",
       "status": "validated",
@@ -828,38 +801,24 @@
             "metric_out_of_range"
           ],
           "needs-real-data"
-        ],
-        [
-          "reference_delta",
-          [
-            "distance",
-            "out_of_range",
-            "robust_z"
-          ],
-          "needs-real-data"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Observable from the label map via proxies, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both edges needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.",
+      "mechanism": "Observable from the label map via a proxy, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3), needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.",
       "mode": 2,
       "pipeline_detected": true,
       "read_paths": [
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",
         "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3",
-        "reference_delta.{label}.distribution_distance",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-        "reference_delta.{label}.out_of_range_features[]"
+        "per_label.{label}.geometry.physical_volume_mm3"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "bounds": "analytic",
-        "reference_delta": "analytic"
+        "bounds": "analytic"
       },
       "rules": [
-        "bounds",
-        "reference_delta"
+        "bounds"
       ],
       "rung": "needs-real-data",
       "status": "implemented",
@@ -887,51 +846,32 @@
           "needs-real-data"
         ],
         [
-          "reference_delta",
+          "neighbour_contact",
           [
-            "distance",
-            "out_of_range",
-            "robust_z"
-          ],
-          "needs-real-data"
-        ],
-        [
-          "fragmentation",
-          [
-            "neighbour_contact"
+            "stray_contact"
           ],
           "synthetic-demonstrable"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Its own detector as of item 167: fragmentation's neighbour_contact detector fires on per_label.{label}.components.stray_contact_area_mm2 -- the maximum, over a label's non-largest connected components, of that component's 6-neighbour face-contact area with any single other non-zero label -- strictly above DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 (100.0 mm^2). Measured over both committed corpora (2026-09-23, item 174's 20% caudal cap on item 173's lordotic base): the only firing value is 806.0 mm^2 (label 24 against label 23 on the split case, +706.0 above threshold) and every other label of every other case measures 0.0 mm^2 (-100.0 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (per_label.{label}.components.fragmentation_index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure. A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.",
+      "mechanism": "Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.",
       "mode": 3,
       "pipeline_detected": true,
       "read_paths": [
-        "per_label.{label}.components.component_count",
-        "per_label.{label}.components.component_sizes[]",
-        "per_label.{label}.components.fragmentation_index",
-        "per_label.{label}.components.largest_component_fraction",
-        "per_label.{label}.components.stray_component_sizes[]",
-        "per_label.{label}.components.stray_contact_area_mm2",
+        "per_label.{label}.components.component_contacts[].contact_fraction",
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",
         "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3",
-        "reference_delta.{label}.distribution_distance",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-        "reference_delta.{label}.out_of_range_features[]"
+        "per_label.{label}.geometry.physical_volume_mm3"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
         "bounds": "corpus",
-        "fragmentation": "corpus",
-        "reference_delta": "analytic"
+        "neighbour_contact": "corpus"
       },
       "rules": [
         "bounds",
-        "fragmentation",
-        "reference_delta"
+        "neighbour_contact"
       ],
       "rung": "synthetic-demonstrable",
       "status": "validated",
@@ -962,19 +902,10 @@
             "metric_out_of_range"
           ],
           "needs-real-data"
-        ],
-        [
-          "reference_delta",
-          [
-            "distance",
-            "out_of_range",
-            "robust_z"
-          ],
-          "needs-real-data"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "fragmentation's Rogue island(s): detector serves this mode end-to-end on the committed corpus: inject_islands adds tiny rogue blocks beside label 22 and the detector fires via per_label.{label}.components.stray_component_sizes[]. bounds and reference_delta stay needs-real-data: a stray island shifts volume only marginally.",
+      "mechanism": "fragmentation's Rogue island(s): detector serves this mode end-to-end on the committed corpus: inject_islands adds tiny rogue blocks beside label 22 and the detector fires via per_label.{label}.components.stray_component_sizes[]. bounds stays needs-real-data: a stray island shifts volume only marginally.",
       "mode": 4,
       "pipeline_detected": true,
       "read_paths": [
@@ -983,25 +914,19 @@
         "per_label.{label}.components.fragmentation_index",
         "per_label.{label}.components.largest_component_fraction",
         "per_label.{label}.components.stray_component_sizes[]",
-        "per_label.{label}.components.stray_contact_area_mm2",
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",
         "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3",
-        "reference_delta.{label}.distribution_distance",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-        "reference_delta.{label}.out_of_range_features[]"
+        "per_label.{label}.geometry.physical_volume_mm3"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
         "bounds": "analytic",
-        "fragmentation": "corpus",
-        "reference_delta": "analytic"
+        "fragmentation": "corpus"
       },
       "rules": [
         "bounds",
-        "fragmentation",
-        "reference_delta"
+        "fragmentation"
       ],
       "rung": "synthetic-demonstrable",
       "status": "validated",
@@ -1039,34 +964,17 @@
           "detection": "pipeline"
         }
       ],
-      "edge_rungs": [
-        [
-          "coverage",
-          [
-            "count_shortfall",
-            "incomplete_span",
-            "missing_interior"
-          ],
-          "synthetic-demonstrable"
-        ]
-      ],
+      "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). From the label map alone: coverage's always-active interior-gap detector fires on relationships.missing_levels[] when the remaining labels are kept -- remove_level deletes L3 without renumbering and drives it end-to-end -- although the same gap is what a skipped label (mode 10) leaves, which centroid spacing would separate and no rule reads. coverage's opt-in expected-span and expected-count checks over relationships.present_levels[] ship disabled (needs-real-data). The renumbered form is not detected: remove_level_relabel deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a double inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no shipped rule reads, so its expected firing set is empty. Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
+      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
       "mode": 6,
       "pipeline_detected": true,
-      "read_paths": [
-        "relationships.missing_levels[]",
-        "relationships.present_levels[]"
-      ],
+      "read_paths": [],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {
-        "coverage": "corpus"
-      },
-      "rules": [
-        "coverage"
-      ],
-      "rung": "synthetic-demonstrable",
-      "status": "validated",
+      "rule_attribution": {},
+      "rules": [],
+      "rung": null,
+      "status": "specified",
       "title": "Vertebra not segmented"
     },
     "7": {
@@ -1092,35 +1000,17 @@
       ],
       "authored_status": "specified",
       "cases": [],
-      "edge_rungs": [
-        [
-          "reference_delta",
-          [
-            "distance",
-            "out_of_range",
-            "robust_z"
-          ],
-          "needs-real-data"
-        ]
-      ],
+      "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "Single-channel-observable only where the mislabelled vertebra's geometry does not fit the level it is named: reference_delta's per-level cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z) are the shipped proxy, needs-real-data. The whole-sequence shift is mode 12 and needs an external vertebra classifier. The corpus swap case (relabel_swap) is a mode-9 case: a swap breaks the order of the sequence, which is the observable form.",
+      "mechanism": "No shipped rule decides this mode itself since item 193 (2026-09-28): reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode. The observable forms are the sub-modes': an out-of-order sequence (mode 9), a skipped level label (mode 10) and an unprompted numbering variant (mode 11) each carry their own rules. A wrong identity that keeps the sequence valid needs an external vertebra-level classifier (vertebra_level_classifier_output); against ground truth it is eval.per_mode.mislabelled_volume_fraction. The whole-sequence shift is mode 12. The corpus swap case (relabel_swap) is a mode-9 case.",
       "mode": 8,
       "pipeline_detected": false,
-      "read_paths": [
-        "reference_delta.{label}.distribution_distance",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-        "reference_delta.{label}.out_of_range_features[]"
-      ],
+      "read_paths": [],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {
-        "reference_delta": "analytic"
-      },
-      "rules": [
-        "reference_delta"
-      ],
-      "rung": "needs-real-data",
-      "status": "implemented",
+      "rule_attribution": {},
+      "rules": [],
+      "rung": null,
+      "status": "specified",
       "title": "Semantic mislabelling (wrong vertebra identification)"
     },
     "9": {
@@ -1142,7 +1032,8 @@
         [
           "sequence",
           [
-            "discontinuity"
+            "shift",
+            "swap"
           ],
           "needs-real-data"
         ],
@@ -1155,11 +1046,12 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Two detectors serve this mode: sequence fires on relationships.out_of_order_labels[] (sequence_break relabels the tail to T13 -- one rank descent, since segfacet.labels.CANONICAL_ORDER ranks T13 between T12 and L1); mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
+      "mechanism": "Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
       "mode": 9,
       "pipeline_detected": true,
       "read_paths": [
-        "relationships.out_of_order_labels[]",
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name",
         "stage3.monotonic_consistency.non_monotonic_pairs[]"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
@@ -1176,7 +1068,7 @@
       "title": "Out-of-order label sequence"
     }
   },
-  "note": "Generated by `python -m segfacet.traceability` (item 138; re-pointed at src/segfacet/failure_modes.py as its primary source by item 149). Do not hand-edit this document -- edit the authored failure-mode specification in src/segfacet/failure_modes.py (every mode's title, status, per-edge evidence rung, mechanism sentence and per-corpus-case expected firing set is read live from it) or the underlying rule/catalogue sources this matrix also derives from, then regenerate. mode -> rule and rule -> mode each report their own completeness and name every hole: read the `complete`/`holes` fields rather than assuming either is complete. Since item 146 a mode may legitimately carry no rule -- a `proposed` entry in segfacet.failure_modes.SPECIFICATION is listed and defined but deliberately unimplemented -- and it appears as a mode -> rule hole. feature -> rule is deliberately incomplete -- see the `features.read_by_no_rule.qualifier` field. The `conformance` section (item 149) drives every corpus case in both committed manifests through the specification's expected firing set and the live measured firing set: read `conformance.disagreements` and `conformance.unspecified_cases` for the live answer, never assume `conformant`. The `exercise` section (item 162) reports, per registered rule and per registered perturbation operator, whether it is exercised/used by >=1 committed corpus case or recorded unexercised/unused with a reason: read `directions.rule_exercise`/`directions.operator_exercise` for the live answer, never assume either is complete.",
+  "note": "Generated by `python -m segfacet.traceability` (item 138; re-pointed at src/segfacet/failure_modes.py as its primary source by item 149). Do not hand-edit this document -- edit the authored failure-mode specification in src/segfacet/failure_modes.py (every mode's title, status, per-edge evidence rung, mechanism sentence and per-corpus-case expected firing set is read live from it) or the underlying rule/catalogue sources this matrix also derives from, then regenerate. mode -> rule and rule -> mode each report their own completeness and name every hole: read the `complete`/`holes` fields rather than assuming either is complete. Since item 146 a mode may legitimately carry no rule -- a `proposed` entry in segfacet.failure_modes.SPECIFICATION is listed and defined but deliberately unimplemented -- and it appears as a mode -> rule hole. Since item 188 (2026-09-28) a `specified` entry may also carry no rule -- its rule is named but not yet written, or (item 193, 2026-09-28) no rule decides it itself once its only rule became mode-less -- and that is a recorded gap, not an excused one: modes 6 and 8 are the two such entries, and each appears as a mode -> rule hole. feature -> rule is deliberately incomplete -- see the `features.read_by_no_rule.qualifier` field. The `conformance` section (item 149) drives every corpus case in both committed manifests through the specification's expected firing set and the live measured firing set: read `conformance.disagreements` and `conformance.unspecified_cases` for the live answer, never assume `conformant`. The `exercise` section (item 162) reports, per registered rule and per registered perturbation operator, whether it is exercised/used by >=1 committed corpus case or recorded unexercised/unused with a reason: read `directions.rule_exercise`/`directions.operator_exercise` for the live answer, never assume either is complete.",
   "primary_source": "src/segfacet/failure_modes.py",
   "rules": {
     "border": {
@@ -1202,7 +1094,7 @@
       "declaration_state": "declared",
       "evidence": [
         "analytic",
-        "per-label physical volume and x/y/z extent are compared against level-aware plausible ranges: an over-segmented vertebra or a fused pair reads over the maximum, an under-segmented, split or island-depleted vertebra reads under the minimum -- the volume proxy for modes 1 (segmentation accuracy), 2 (fused), 3 (split) and 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15); every edge needs-real-data."
+        "per-label physical volume and x/y/z extent are compared against level-aware plausible ranges: a fused pair reads over the maximum, a split or island-depleted vertebra reads under the minimum -- the volume proxy for modes 2 (fused), 3 (split) and 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15); every edge needs-real-data. Not mode 1: mode 1 is the catch-all, attributed only where no other mode applies, and this detector serves modes 2-4 (item 194)."
       ],
       "feature_path_count": 6,
       "feature_paths": [
@@ -1215,7 +1107,6 @@
       ],
       "mode_less_reason": "",
       "modes": [
-        1,
         2,
         3,
         4
@@ -1225,8 +1116,8 @@
     "coverage": {
       "declaration_state": "declared",
       "evidence": [
-        "corpus-manifest",
-        "tests/corpus/manifest.json's remove_level designates this rule for mode 6 (vertebra not segmented) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the corpus operator deletes an interior vertebra without renumbering, and the always-active detector fires on the resulting gap in relationships.missing_levels[]. The two opt-in checks (expected span, expected count) over relationships.present_levels[] serve the same mode, needs-real-data. A skipped label on a segmented vertebra (mode 10) leaves the same gap, but this rule cannot tell the two apart and does not declare mode 10; the other mode-6 fixture remove_level_relabel renumbers the labels to stay continuous and fires nothing."
+        "analytic",
+        "the always-active missing_interior detector reads the label gap in relationships.missing_levels[] -- what a skipped level label (mode 10) leaves -- but the rule cannot see whether the vertebra behind the gap is actually present, so it cannot distinguish a skipped label from a missed vertebra (mode 6). remove_level (mode 6, tests/corpus/manifest.json) therefore fires this detector as a recorded co-detection, not a validation of mode 10: no committed case expresses mode 10 itself (item 188, 2026-09-28). The two opt-in checks (expected span, expected count) over relationships.present_levels[] moved with the rule and serve the same mode, needs-real-data."
       ],
       "feature_path_count": 4,
       "feature_paths": [
@@ -1237,7 +1128,7 @@
       ],
       "mode_less_reason": "",
       "modes": [
-        6
+        10
       ],
       "rule_id": "coverage"
     },
@@ -1245,9 +1136,9 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's fragment designates this rule for mode 1 (segmentation accuracy: a vertebra cut into large same-label pieces) and inject_islands for mode 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- the Fragmentation: detector for the first, the Rogue island(s): detector for the second. The per-mode evidence claims are the per-edge rungs in segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 167 adds mode 3 (split vertebra segment): the split manifest case measures a 806.0 mm^2 stray-component contact between labels 24 and 23 (+706.0 above the 100.0 mm^2 threshold; measured 2026-09-23 on item 174's 20% caudal cap of item 173's lordotic base), none of the other sixteen committed corpus cases (both manifests, every label) measures more than 0.0 mm^2 -- the Neighbour contact: detector."
+        "tests/corpus/manifest.json's fragment designates this rule for mode 1 (segmentation accuracy: a vertebra cut into large same-label pieces) and inject_islands for mode 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- the Fragmentation: detector for the first, the Rogue island(s): detector for the second. The per-mode evidence claims are the per-edge rungs in segfacet.failure_modes.SPECIFICATION[1] and [4]. Item 187 moved mode 3 (split vertebra segment) to heuristics/neighbour_contact.py."
       ],
-      "feature_path_count": 9,
+      "feature_path_count": 7,
       "feature_paths": [
         "per_label",
         "per_label.{label}.components.component_count",
@@ -1255,14 +1146,11 @@
         "per_label.{label}.components.fragmentation_index",
         "per_label.{label}.components.largest_component_fraction",
         "per_label.{label}.components.stray_component_sizes[]",
-        "per_label.{label}.components.stray_contact_area_mm2",
-        "per_label.{label}.components.stray_contact_label",
         "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [
         1,
-        3,
         4
       ],
       "rule_id": "fragmentation"
@@ -1288,11 +1176,8 @@
       "rule_id": "intensity"
     },
     "intensity_reference_delta": {
-      "declaration_state": "declared",
-      "evidence": [
-        "intensity-corpus-manifest",
-        "This rule is the reference-relative form of the intensity rule's tissue-plausibility judgement: it thresholds how far a labelled region's intensity statistics deviate from a level-aware VerSe-derived reference distribution, which is the same claim mode 16 (implausible tissue under a label; mode 9 before the item-150 sign-off) names, measured against a cohort instead of against a fixed HU band. It shares mode 16's corpus, tests/corpus/intensity/manifest.json, but fires on none of its four cases: that corpus is built against no reference distribution and the item-146 harness attaches none, so this rule's mode-16 edge sits at the needs-real-data rung -- the same analytic-only shape item 137 recorded for reference_delta."
-      ],
+      "declaration_state": "mode_less",
+      "evidence": [],
       "feature_path_count": 8,
       "feature_paths": [
         "per_label",
@@ -1304,29 +1189,20 @@
         "reference_delta.{label}.features.physical_volume_mm3.value",
         "reference_delta.{label}.out_of_range_features[]"
       ],
-      "mode_less_reason": "",
-      "modes": [
-        16
-      ],
+      "mode_less_reason": "none of this rule's consumed_paths entries is classified 'signal' (it reads record['intensity_reference_delta'], a block no driver realises, so it has no catalogued leaf path of its own): a mode claim with no signal path contributes no mode to any path (item 193, 2026-09-28, superseding item 146's mode-16 declaration). The rule still runs and fires exactly as before -- no threshold, condition, severity or evaluate line changed.",
+      "modes": [],
       "rule_id": "intensity_reference_delta"
     },
     "mislabel": {
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Detector A (spline offset) serves NO failure mode since that sign-off: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis), so its firing on displace and on the FOV-truncation condition's fixture crop_at_border is a recorded co-detection, and its read paths are classified bookkeeping below rather than attributed to mode 9."
+        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Item 189 (2026-09-28) moved the former Detector A (spline offset), which served no failure mode, to heuristics.spline_offset -- see that module's declaration for its evidence."
       ],
-      "feature_path_count": 9,
+      "feature_path_count": 2,
       "feature_paths": [
         "per_label",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]",
-        "stage3.per_label_offsets[].dx_mm",
-        "stage3.per_label_offsets[].dy_mm",
-        "stage3.per_label_offsets[].dz_mm",
-        "stage3.per_label_offsets[].is_terminal",
-        "stage3.per_label_offsets[].label",
-        "stage3.per_label_offsets[].level_name",
-        "stage3.per_label_offsets[].offset_mm"
+        "stage3.monotonic_consistency.non_monotonic_pairs[]"
       ],
       "mode_less_reason": "",
       "modes": [
@@ -1334,11 +1210,31 @@
       ],
       "rule_id": "mislabel"
     },
-    "overlap": {
+    "neighbour_contact": {
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's force_overlap designates this rule for mode 15 (overlapping segments) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15). That case is detection=\"reconstructed_record\", not pipeline-detected: a single-channel integer label map cannot assign two labels to one voxel, so overlaps[] populates only on a deliberately corrupted record. Free-form provenance -- item 147 retired the reserved 'corpus' evidence tag, and the mode 15 <-> overlap evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[15]."
+        "tests/corpus/manifest.json's split designates this rule for mode 3 (split vertebra segment) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15). Item 187 moved the detector here from fragmentation.py and re-expressed the threshold on the relative measure: measured 2026-09-27, the split case's label-24 stray component reads a contact_fraction of 0.3317, +0.2317 above the 0.1 threshold (3.3x), and every other stray component in either corpus measures 0.0 -- the stray_contact detector. The mode 3 <-> neighbour_contact evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[3]."
+      ],
+      "feature_path_count": 5,
+      "feature_paths": [
+        "per_label",
+        "per_label.{label}.components.component_contacts[].contact_fraction",
+        "per_label.{label}.components.component_contacts[].neighbour_label",
+        "per_label.{label}.components.component_sizes[]",
+        "per_label.{label}.level_name"
+      ],
+      "mode_less_reason": "",
+      "modes": [
+        3
+      ],
+      "rule_id": "neighbour_contact"
+    },
+    "overlap": {
+      "declaration_state": "declared",
+      "evidence": [
+        "analytic",
+        "needs multi-channel input: overlaps[] is non-empty only when two labels claim one voxel, which a single-channel integer label map cannot express, so the pipeline's one-hot mask stack yields no overlap on any input FACET accepts today. Mode 15 (overlapping segments) of the catalogue signed off at item 150; the per-edge rung in segfacet.failure_modes.SPECIFICATION[15] is structurally-unobservable, and no committed corpus case designates this rule (item 195, 2026-09-28)."
       ],
       "feature_path_count": 6,
       "feature_paths": [
@@ -1356,11 +1252,8 @@
       "rule_id": "overlap"
     },
     "reference_delta": {
-      "declaration_state": "declared",
-      "evidence": [
-        "analytic",
-        "compute_reference_delta scores every feature the reference artifact tracks, not a single feature: both committed reference artifacts carry 21 per-label features, spanning physical_volume_mm3 and extent_{x,y,z}_mm -- the same magnitude signal 'bounds' targets, measured against a cohort instead of hand-set bounds, so the cohort proxy for modes 1 (segmentation accuracy), 2 (fused), 3 (split) and 4 (islands) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) -- and, because the reference is per level, a vertebra whose geometry does not fit the level it is named is mode 8's (semantic mislabelling) single-channel proxy. Every edge needs-real-data."
-      ],
+      "declaration_state": "mode_less",
+      "evidence": [],
       "feature_path_count": 11,
       "feature_paths": [
         "per_label",
@@ -1375,35 +1268,47 @@
         "reference_delta.{label}.level_name",
         "reference_delta.{label}.out_of_range_features[]"
       ],
-      "mode_less_reason": "",
-      "modes": [
-        1,
-        2,
-        3,
-        4,
-        8
-      ],
+      "mode_less_reason": "general outlier detector, not a failure mode's own signal: this rule thresholds a label's deviation from its level's cohort reference distribution (item 193, 2026-09-28, superseding item 137's modes-1/2/3/4/8 declaration). The rule still runs and fires exactly as before -- no threshold, condition, severity or evaluate line changed. failure_modes.SPECIFICATION carries no IntendedRule edge naming this rule for any mode.",
+      "modes": [],
       "rule_id": "reference_delta"
     },
     "sequence": {
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's sequence_break designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15): the fixture relabels one vertebra to the transitional label T13, and this rule fires on the resulting non-monotonic sequence. The mode 9 <-> sequence evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[9]."
+        "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (swap of two adjacent labels) and sequence_break for mode 9 (a single-label tail shift); remove_level co-detects this rule's skip on mode 10 beside coverage; mode 11 (a non-default section reading the field of view does not corroborate) has no committed corpus case, so that edge is analytic. Re-measured live, item 192 (2026-09-28), after the rule stopped reading relationships.out_of_order_labels[] (ascending integer-label order, item 186's defect) in favour of per_label centroids ranked by CANONICAL_ORDER."
       ],
-      "feature_path_count": 5,
+      "feature_path_count": 4,
       "feature_paths": [
         "per_label",
+        "per_label.{label}.centroid.centroid_mm[]",
         "per_label.{label}.label",
-        "per_label.{label}.level_name",
-        "relationships",
-        "relationships.out_of_order_labels[]"
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [
-        9
+        9,
+        10,
+        11
       ],
       "rule_id": "sequence"
+    },
+    "spline_offset": {
+      "declaration_state": "mode_less",
+      "evidence": [],
+      "feature_path_count": 7,
+      "feature_paths": [
+        "stage3.per_label_offsets[].dx_mm",
+        "stage3.per_label_offsets[].dy_mm",
+        "stage3.per_label_offsets[].dz_mm",
+        "stage3.per_label_offsets[].is_terminal",
+        "stage3.per_label_offsets[].label",
+        "stage3.per_label_offsets[].level_name",
+        "stage3.per_label_offsets[].offset_mm"
+      ],
+      "mode_less_reason": "records the displaced_vertebra CONDITION (failure_modes.CONDITIONS['displaced_vertebra']), not a failure mode: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement), not a defect of the segmentation -- item-150 sign-off, moved here from mislabel.py's Detector A at item 189 (2026-09-28). tests/corpus/manifest.json's displace is that condition's fixture.",
+      "modes": [],
+      "rule_id": "spline_offset"
     }
   },
   "schema_version": "1.2"

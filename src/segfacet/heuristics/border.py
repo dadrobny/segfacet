@@ -37,6 +37,11 @@ Design decisions (recorded per item 031 spec):
   processing; ``end_severity`` is validated only when ``report_expected_ends``
   is true.
 - The caller's record is never mutated.
+- This rule is ``fov_truncation``'s **recording** rule (item 191): it opts in
+  to that condition via ``condition_opt_ins``, so the runner's condition gate
+  (``segfacet.heuristics.runner.run_rules``) never drops this rule's own
+  finding on a label it names -- the touch flags are the condition's own
+  evidence.
 """
 
 from __future__ import annotations
@@ -46,6 +51,7 @@ from typing import Dict, List
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.heuristics.rule import (
+    ConditionOptIn,
     ConsumedPath,
     Rule,
     RuleDetector,
@@ -124,6 +130,27 @@ class BorderRule(Rule):
     """
 
     rule_id = "border"
+
+    # This rule is fov_truncation's recording rule (item 191): its own
+    # finding on a border-touching label must always survive the runner's
+    # condition gate.
+    condition_opt_ins = (
+        ConditionOptIn(
+            condition="fov_truncation",
+            paths=(
+                "per_label.{label}.geometry.touches_anterior",
+                "per_label.{label}.geometry.touches_inferior",
+                "per_label.{label}.geometry.touches_left",
+                "per_label.{label}.geometry.touches_posterior",
+                "per_label.{label}.geometry.touches_right",
+                "per_label.{label}.geometry.touches_superior",
+            ),
+            reason=(
+                "the touch flags are the fov_truncation condition's own "
+                "evidence: this rule is its recording rule"
+            ),
+        ),
+    )
 
     # No failure mode (item 150): CropAtBorderPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) is the fixture of the

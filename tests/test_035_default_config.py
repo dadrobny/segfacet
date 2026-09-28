@@ -140,8 +140,13 @@ def test_ac3_max_offset_mm_matches_code_default():
     Re-expressed against ``_DEFAULT_MAX_OFFSET_MM`` (item 123,
     docs/aide/items/123-recalibrate-and-regenerate-downstream-artifacts.md)
     rather than the superseded literal ``15.0`` -- this test pins the
-    code<->config agreement, not a specific number."""
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    code<->config agreement, not a specific number.
+
+    Item 189 (2026-09-28): the constant now lives on the new
+    ``spline_offset`` rule, but ``default_config.yaml`` keeps
+    ``mislabel.max_offset_mm`` as a retained, unread key equal to it (A5),
+    so the shipped-value comparison is unchanged."""
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     cfg = load_config(default_config_path())
     assert cfg.rule_param("mislabel", "max_offset_mm", None) == _DEFAULT_MAX_OFFSET_MM

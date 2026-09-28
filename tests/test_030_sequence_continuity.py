@@ -31,6 +31,16 @@ Adversarial / edge-case scenarios included:
 - relationships that is not a mapping (e.g. a string) is tolerated.
 - per_label entries that are not mappings are tolerated when scanning for a
   level_name match.
+
+**Item 192 (2026-09-28).** The rewritten rule no longer reads
+``relationships.out_of_order_labels[]`` (item 186's integer-label-order
+defect); it orders each kept ``per_label`` entry head-to-tail by
+``centroid.centroid_mm`` and ranks that order by ``CANONICAL_ORDER``. Every
+record below gains a synthetic ``centroid_mm`` per entry (``z = n - i`` for
+the *i*-th level of the record's ``present_levels`` order) so the rewritten
+rule has a position to read; a two-label record is never out of order under
+item 192's inversion-count tie-break, so several records below gain a third,
+in-order tail level.
 """
 
 from __future__ import annotations
@@ -59,6 +69,7 @@ from segfacet.config import (
 _LABEL_T12 = 19
 _LABEL_L1 = 20
 _LABEL_L2 = 21
+_LABEL_L3 = 22
 _LABEL_L5 = 24
 
 
@@ -79,9 +90,22 @@ def _make_record(
     (item 014 shape); ``per_label`` is keyed by each entry's integer label.
     If *is_continuous* is not given, it is derived from out_of_order_labels
     being empty (matching item 014's pinned coupling).
+
+    Item 192 (2026-09-28): the rewritten rule reads each entry's
+    ``centroid.centroid_mm`` instead of ``out_of_order_labels[]``, so any
+    entry whose ``level_name`` appears in *present_levels* gains a synthetic
+    centroid: ``z = n - i`` for the *i*-th (1-indexed) level of
+    *present_levels*, i.e. descending z in *present_levels* order.
     """
     if is_continuous is None:
         is_continuous = len(out_of_order_labels) == 0
+    entries = [dict(e) for e in (label_entries or [])]
+    n = len(present_levels)
+    z_by_level = {name: float(n - i) for i, name in enumerate(present_levels, start=1)}
+    for e in entries:
+        z = z_by_level.get(e.get("level_name"))
+        if z is not None:
+            e["centroid"] = {"centroid_mm": [0.0, 0.0, z]}
     return {
         "relationships": {
             "present_levels": list(present_levels),
@@ -89,7 +113,7 @@ def _make_record(
             "is_continuous": is_continuous,
             "out_of_order_labels": list(out_of_order_labels),
         },
-        "per_label": {e["label"]: e for e in (label_entries or [])},
+        "per_label": {e["label"]: e for e in entries},
         "overlaps": {},
     }
 
@@ -179,13 +203,18 @@ def test_ac2_in_order_fixture_no_finding():
 
 
 def test_ac3_single_reversal_fires_exactly_one_finding():
-    """AC3: out_of_order_labels == ['T12'] emits exactly one Finding naming T12."""
+    """AC3: out_of_order_labels == ['T12'] emits exactly one Finding naming T12.
+
+    Item 192 (2026-09-28): a two-label record is never out of order under the
+    rewritten rule's inversion-count tie-break, so L2 is added as a third,
+    in-order tail level (measured: still one swap finding on L1, T12)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     findings = _seq_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -201,17 +230,22 @@ def test_ac3_single_reversal_fires_exactly_one_finding():
 
 def test_ac4_offending_vertebra_attributed_by_integer_label():
     """AC4: T12 present in per_label as label 19 => finding.labels ==
-    frozenset({19})."""
+    frozenset({19, 20}).
+
+    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
+    two-label record is never out of order); a swap names both exchanged
+    labels, so the finding now names L1 (20) too."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     findings = _seq_findings(run_rules(record, default_config()))
     assert len(findings) == 1
-    assert findings[0].labels == frozenset({_LABEL_T12})
+    assert findings[0].labels == frozenset({_LABEL_T12, _LABEL_L1})
 
 
 # =========================================================================== #
@@ -220,8 +254,13 @@ def test_ac4_offending_vertebra_attributed_by_integer_label():
 
 
 def test_ac5_two_offenders_one_finding_in_order():
-    """AC5: out_of_order_labels == ['T12', 'L1'] fires a single finding naming
-    both in that order, with labels == frozenset of both integer labels."""
+    """AC5: L2, T12, L1 fires a single swap finding naming both T12 and L1,
+    with labels == frozenset of both integer labels.
+
+    Item 192 (2026-09-28): the rewritten rule chooses whichever traversal
+    direction (ascending/descending centroid_mm) has fewer rank inversions.
+    Measured: ascending has fewer, so the reported order is L1 before T12
+    (the reverse of the pre-192 out_of_order_labels-order assertion)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
@@ -237,8 +276,8 @@ def test_ac5_two_offenders_one_finding_in_order():
     assert len(findings) == 1, "Both offenders must be named in one finding"
     reason = findings[0].reason
     assert "T12" in reason and "L1" in reason
-    assert reason.index("T12") < reason.index("L1"), (
-        f"T12 must precede L1 in out_of_order_labels order; reason={reason!r}"
+    assert reason.index("L1") < reason.index("T12"), (
+        f"L1 must precede T12 in the chosen traversal order; reason={reason!r}"
     )
     assert findings[0].labels == frozenset({_LABEL_T12, _LABEL_L1})
 
@@ -249,8 +288,13 @@ def test_ac5_two_offenders_one_finding_in_order():
 
 
 def test_ac6_canonical_non_anatomical_jump_l1_t12_l2_l5():
-    """AC6: L1 -> T12 -> L2 -> L5 with out_of_order_labels == ['T12'] emits
-    exactly one finding naming T12 and carrying T12's integer label."""
+    """AC6: L1 -> T12 -> L2 -> L5 emits two findings: a skip (L3, L4 absent
+    between present levels) and a swap of L1, T12.
+
+    Item 192 (2026-09-28): the rewritten rule reads per_label centroids, not
+    out_of_order_labels[]. Measured: descending has fewer inversions (1 vs
+    5), so L1/T12 swap and the L2..L5 gap is reported as a skip. Findings are
+    emitted in ascending detector_id order (shift, skip, swap, transitional)."""
     entries = [
         _make_per_label_entry(_LABEL_L1, "L1"),
         _make_per_label_entry(_LABEL_T12, "T12"),
@@ -264,9 +308,15 @@ def test_ac6_canonical_non_anatomical_jump_l1_t12_l2_l5():
         label_entries=entries,
     )
     findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    assert "T12" in findings[0].reason
-    assert findings[0].labels == frozenset({_LABEL_T12})
+    assert len(findings) == 2
+    assert findings[0].detector_id == "skip"
+    assert findings[0].labels == frozenset()
+    assert findings[0].reason == (
+        "Skipped level label: L3, L4 absent between present levels."
+    )
+    assert findings[1].detector_id == "swap"
+    assert findings[1].labels == frozenset({_LABEL_T12, _LABEL_L1})
+    assert findings[1].reason == "Non-continuous label sequence: swap of L1, T12."
 
 
 # =========================================================================== #
@@ -321,8 +371,11 @@ def test_ac9_out_of_order_and_is_continuous_absent_no_raise():
 
 
 def test_ac9_per_label_empty_no_raise():
-    """AC9: per_label == {} does not crash the rule when it must still emit a
-    finding (offenders simply go unattributed)."""
+    """AC9: per_label == {} does not crash the rule.
+
+    Item 192 (2026-09-28): the rewritten rule reads per_label centroids only;
+    an offender with no per-label entry has no position to judge, so an empty
+    per_label now yields no finding rather than an unattributed one."""
     record = {
         "relationships": {
             "present_levels": ["L1", "T12"],
@@ -333,12 +386,14 @@ def test_ac9_per_label_empty_no_raise():
         "overlaps": {},
     }
     findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    assert findings[0].labels == frozenset()
+    assert findings == []
 
 
 def test_ac9_per_label_absent_no_raise():
-    """AC9: record has no 'per_label' key at all."""
+    """AC9: record has no 'per_label' key at all.
+
+    Item 192 (2026-09-28): with no per_label, no entry has a position to
+    judge, so the result is empty rather than a single unattributed finding."""
     record = {
         "relationships": {
             "present_levels": ["L1", "T12"],
@@ -348,8 +403,7 @@ def test_ac9_per_label_absent_no_raise():
         "overlaps": {},
     }
     result = _seq_findings(run_rules(record, default_config()))
-    assert isinstance(result, list)
-    assert len(result) == 1
+    assert result == []
 
 
 def test_ac9_malformed_relationships_not_a_mapping_no_raise():
@@ -367,21 +421,23 @@ def test_ac9_malformed_relationships_not_a_mapping_no_raise():
 
 
 def test_ac10_unmappable_offender_reported_without_label():
-    """AC10: out_of_order_labels == ['T12'] with no per_label entry named
-    'T12' still emits one finding naming T12, with T12 omitted from labels."""
+    """AC10: no per_label entry named 'T12' leaves only L1 as a kept entry.
+
+    Item 192 (2026-09-28): a single kept entry has no position to judge
+    against, so this now yields no finding rather than an unattributed one."""
     entries = [_make_per_label_entry(_LABEL_L1, "L1")]
     record = _make_record(
         ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
     )
     findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    assert "T12" in findings[0].reason
-    assert findings[0].labels == frozenset()
+    assert findings == []
 
 
 def test_ac10_mixed_mappable_and_unmappable_offenders():
-    """AC10: One offender maps to a label, the other doesn't; labels contains
-    only the mappable one, both are named in reason."""
+    """AC10: 'T12' and 'GHOST_LEVEL' have no per_label entry; only L1 is kept.
+
+    Item 192 (2026-09-28): a single kept entry has no position to judge
+    against, so this now yields no finding."""
     entries = [_make_per_label_entry(_LABEL_L1, "L1")]
     record = _make_record(
         ["L1", "T12"],
@@ -390,9 +446,7 @@ def test_ac10_mixed_mappable_and_unmappable_offenders():
         label_entries=entries,
     )
     findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    assert "T12" in findings[0].reason and "GHOST_LEVEL" in findings[0].reason
-    assert findings[0].labels == frozenset()
+    assert findings == []
 
 
 # =========================================================================== #
@@ -401,13 +455,17 @@ def test_ac10_mixed_mappable_and_unmappable_offenders():
 
 
 def test_ac11_default_severity_is_flag():
-    """AC11: With no severity param, an emitted finding has Severity.FLAG."""
+    """AC11: With no severity param, an emitted finding has Severity.FLAG.
+
+    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
+    two-label record is never out of order)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     findings = _seq_findings(run_rules(record, default_config()))
     assert findings
@@ -416,13 +474,17 @@ def test_ac11_default_severity_is_flag():
 
 def test_ac11_severity_param_fail_overrides_default(tmp_path):
     """AC11: With params.severity = 'fail', the emitted finding has
-    Severity.FAIL."""
+    Severity.FAIL.
+
+    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
+    two-label record is never out of order)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     content = _sequence_yaml_header() + "      severity: fail\n"
     cfg = load_config(_write_yaml(tmp_path, content))
@@ -437,13 +499,17 @@ def test_ac11_severity_param_fail_overrides_default(tmp_path):
 
 
 def test_ac12_unrecognised_severity_raises_value_error(tmp_path):
-    """AC12: An unrecognised severity param string raises ValueError."""
+    """AC12: An unrecognised severity param string raises ValueError.
+
+    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
+    two-label record is never out of order)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     content = _sequence_yaml_header() + "      severity: xyz_not_a_severity\n"
     cfg = load_config(_write_yaml(tmp_path, content))
@@ -499,15 +565,19 @@ def test_ac13_two_runs_return_equal_lists():
 
 def test_ac13_reason_names_offenders_in_out_of_order_labels_order():
     """AC13: Within the single emitted finding, offending level names appear
-    in the reason in out_of_order_labels order, not canonical order."""
+    in the chosen traversal order.
+
+    Item 192 (2026-09-28): L3 is added as a third, in-order tail level (a
+    two-label record is never out of order). Measured: one swap on
+    frozenset({20, 21}), reason 'swap of L2, L1.', preserving the L2-before-L1
+    order this test pins."""
     entries = [
         _make_per_label_entry(_LABEL_L2, "L2"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L3, "L3"),
     ]
-    # out_of_order_labels order is L2 before L1 — the reverse of canonical
-    # order — to assert the rule preserves item 014's observed order.
     record = _make_record(
-        ["L2", "L1"], ["L2", "L1"], is_continuous=False, label_entries=entries
+        ["L2", "L1", "L3"], ["L2", "L1"], is_continuous=False, label_entries=entries
     )
     findings = _seq_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -564,13 +634,17 @@ def test_ac14_evaluate_does_not_mutate_record(tmp_path):
 
 def test_ac14_out_of_order_labels_list_not_mutated():
     """AC14: The out_of_order_labels list inside relationships is unchanged
-    after evaluate."""
+    after evaluate.
+
+    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
+    two-label record is never out of order)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     original = list(record["relationships"]["out_of_order_labels"])
     run_rules(record, default_config())
@@ -579,13 +653,17 @@ def test_ac14_out_of_order_labels_list_not_mutated():
 
 def test_ac14_per_label_dict_not_mutated():
     """AC14: per_label mapping (including nested entries) is unchanged after
-    evaluate, even when the offender-to-label lookup succeeds."""
+    evaluate, even when the offender-to-label lookup succeeds.
+
+    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
+    two-label record is never out of order)."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
+        _make_per_label_entry(_LABEL_L2, "L2"),
     ]
     record = _make_record(
-        ["L1", "T12"], ["T12"], is_continuous=False, label_entries=entries
+        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
     original = copy.deepcopy(record["per_label"])
     run_rules(record, default_config())
@@ -604,7 +682,11 @@ def test_adv_per_label_entry_not_a_mapping_no_raise():
     Invoked directly against SequenceRule (not run_rules) so this exercises
     only sequence.py's own robustness in isolation: BoundsRule (item 027) is
     not defensive against a non-mapping per_label entry and would otherwise
-    crash before SequenceRule is ever reached."""
+    crash before SequenceRule is ever reached.
+
+    Item 192 (2026-09-28): the non-mapping entry is ignored and the sole
+    remaining entry (L1) has no position to judge against, so this now
+    yields no finding."""
     record = {
         "relationships": {
             "present_levels": ["L1", "T12"],
@@ -615,8 +697,7 @@ def test_adv_per_label_entry_not_a_mapping_no_raise():
         "overlaps": {},
     }
     findings = get_rule("sequence").evaluate(record, default_config())
-    assert len(findings) == 1
-    assert findings[0].labels == frozenset()
+    assert findings == []
 
 
 def test_adv_out_of_order_labels_absent_key_treated_as_continuous():
@@ -635,8 +716,12 @@ def test_adv_out_of_order_labels_absent_key_treated_as_continuous():
 
 
 def test_adv_three_offenders_all_named_and_attributed():
-    """Adversarial: three offending level names in one out_of_order_labels
-    list all appear in the single finding's reason and labels frozenset."""
+    """Adversarial: L5, T12, L1, L2 emits two findings: a shift of L5 and a
+    skip (L3, L4 absent between present levels).
+
+    Item 192 (2026-09-28): the rewritten rule reads per_label centroids.
+    Measured: the inversion counts for the ascending/descending traversal
+    tie (3 and 3), so descending (anatomical head-to-tail) is kept."""
     entries = [
         _make_per_label_entry(_LABEL_T12, "T12"),
         _make_per_label_entry(_LABEL_L1, "L1"),
@@ -650,10 +735,15 @@ def test_adv_three_offenders_all_named_and_attributed():
         label_entries=entries,
     )
     findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    reason = findings[0].reason
-    assert "T12" in reason and "L1" in reason and "L2" in reason
-    assert findings[0].labels == frozenset({_LABEL_T12, _LABEL_L1, _LABEL_L2})
+    assert len(findings) == 2
+    assert findings[0].detector_id == "shift"
+    assert findings[0].labels == frozenset({_LABEL_L5})
+    assert findings[0].reason == "Non-continuous label sequence: shift of L5."
+    assert findings[1].detector_id == "skip"
+    assert findings[1].labels == frozenset()
+    assert findings[1].reason == (
+        "Skipped level label: L3, L4 absent between present levels."
+    )
 
 
 def test_adv_determinism_with_unmappable_offender(tmp_path):

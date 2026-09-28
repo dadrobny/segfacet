@@ -68,7 +68,8 @@ _OPERATORS = (
     "remove_level",
     "crop_at_border",
     "sequence_break",
-    "force_overlap",
+    # "force_overlap" dropped by item 195, 2026-09-28: the operator, its
+    # case and its ladder were removed.
 )
 _RECORDED_REHOMING = {
     "unanchored_foreground_fraction": 1,
@@ -137,9 +138,9 @@ def _rule_b_home(operator: str, specification, conditions):
 
 
 def _metric_to_operator() -> dict:
-    """``{designated_metric: operator}`` for the eight primary ladders,
-    read live from ``SEVERITY_LADDERS`` (AC18 guarantees this covers every
-    registry key exactly once)."""
+    """``{designated_metric: operator}`` for the seven primary ladders
+    (item 195, 2026-09-28: force_overlap's ladder was removed), read live
+    from ``SEVERITY_LADDERS``."""
     return {
         ladder.designated_metric: ladder.operator
         for ladder in severity_ladder.SEVERITY_LADDERS.values()
@@ -403,11 +404,14 @@ def test_ac17_ladders_are_keyed_by_operator():
 
 
 def test_ac18_designated_metrics_cover_the_registry():
+    """Item 195 (2026-09-28): ``overlapping_voxel_count`` has had no ladder
+    since force_overlap was removed, so the designated set is the registry
+    minus that one metric."""
     designated = [
         spec.designated_metric for spec in severity_ladder.SEVERITY_LADDERS.values()
     ]
     assert len(designated) == len(set(designated))
-    assert set(designated) == set(per_mode.PER_MODE_METRIC_SPECS)
+    assert set(designated) == set(per_mode.PER_MODE_METRIC_SPECS) - {"overlapping_voxel_count"}
 
 
 def test_ac19_ladder_homes_are_derived_from_the_specification():
@@ -466,10 +470,12 @@ def test_ac23_the_rekeyed_ratchet_still_passes(harness_verdict):
 
 
 def test_ac24_verdict_responses_are_keyed_by_metric(harness_verdict):
-    registry_keys = set(per_mode.PER_MODE_METRIC_SPECS)
+    laddered_keys = {
+        spec.designated_metric for spec in severity_ladder.SEVERITY_LADDERS.values()
+    }
     assert set(harness_verdict.per_ladder) == set(severity_ladder.SEVERITY_LADDERS)
     for verdict in harness_verdict.per_ladder.values():
-        assert set(verdict.responses) == registry_keys
+        assert set(verdict.responses) == laddered_keys
 
 
 def test_ac25_unknown_assignments_are_rejected(harness_result):

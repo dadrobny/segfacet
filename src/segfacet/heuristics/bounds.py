@@ -19,10 +19,12 @@ Design decisions (recorded per item 027 spec):
 - Missing geometry keys are silently skipped (not crashed) so partially-
   populated records remain safe to evaluate.
 - The caller's record is never mutated.
-- Targets failure modes 1 (segmentation accuracy), 2 (fused), 3 (split) and
-  4 (islands) in ``failure_modes.SPECIFICATION`` as a volume/extent proxy,
-  declared on analytic grounds (item 137, re-keyed at the item-150 sign-off)
-  -- see ``BoundsRule.mode_declaration``.
+- Targets failure modes 2 (fused), 3 (split) and 4 (islands) in
+  ``failure_modes.SPECIFICATION`` as a volume/extent proxy, declared on
+  analytic grounds (item 137, re-keyed at the item-150 sign-off) -- see
+  ``BoundsRule.mode_declaration``. Not mode 1: mode 1 is attributed only when
+  no other mode applies, and this detector serves modes 2-4 (item 194,
+  2026-09-28).
 """
 
 from __future__ import annotations
@@ -302,21 +304,27 @@ class BoundsRule(Rule):
     # case designates "bounds" for any mode, so evidence carries "analytic"
     # plus the mechanism sentence, never "corpus". Mode 6 (vertebra not
     # segmented) is structurally out of reach: evaluate() iterates labels
-    # *present* in per_label and can never observe an absent one -- coverage
-    # owns mode 6. The FOV-truncation condition is the border rule's to
+    # *present* in per_label and can never observe an absent one -- no
+    # shipped rule decides mode 6 since item 188 (2026-09-28; coverage
+    # serves mode 10). The FOV-truncation condition is the border rule's to
     # record, not a mode. Item 137 Assumptions A2 argues this under the
     # pre-renumbering v3 ids.
+    # Item 194, 2026-09-28: the mode 1 edge is dropped -- mode 1 is the
+    # catch-all, attributed only when no other mode applies, and this
+    # detector serves modes 2-4.
     mode_declaration = RuleModeDeclaration(
-        modes=(1, 2, 3, 4),
+        modes=(2, 3, 4),
         evidence=(
             "analytic",
             "per-label physical volume and x/y/z extent are compared against "
-            "level-aware plausible ranges: an over-segmented vertebra or a "
-            "fused pair reads over the maximum, an under-segmented, split or "
-            "island-depleted vertebra reads under the minimum -- the volume "
-            "proxy for modes 1 (segmentation accuracy), 2 (fused), 3 (split) "
-            "and 4 (islands) of the catalogue signed off at item 150 "
-            "(2026-09-14, revised 2026-09-15); every edge needs-real-data.",
+            "level-aware plausible ranges: a fused pair reads over the "
+            "maximum, a split or island-depleted vertebra reads under the "
+            "minimum -- the volume proxy for modes 2 (fused), 3 (split) and "
+            "4 (islands) of the catalogue signed off at item 150 "
+            "(2026-09-14, revised 2026-09-15); every edge needs-real-data. "
+            "Not mode 1: mode 1 is the catch-all, attributed only where no "
+            "other mode applies, and this detector serves modes 2-4 "
+            "(item 194).",
         ),
         consumed_paths=(
             ConsumedPath(

@@ -353,6 +353,9 @@ def test_ac4_mode16_anchor_role_candidate_rejected_naming_mode_and_anchor_paths(
 
 
 def test_ac5_mode16_edge_set_equals_live_registry_declared_set():
+    """Reconciled (item 193, 2026-09-28): ``intensity_reference_delta``
+    becomes mode-less (no mode's own detector), so it no longer declares mode
+    16 -- ``intensity`` alone does."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
@@ -361,7 +364,7 @@ def test_ac5_mode16_edge_set_equals_live_registry_declared_set():
         for rule_id, decl in iter_rule_declarations()
         if decl is not None and 16 in decl.modes
     }
-    assert declared == {"intensity", "intensity_reference_delta"}, declared
+    assert declared == {"intensity"}, declared
 
     mode = fm.SPECIFICATION[16]
     edge_ids = {edge.rule_id for edge in mode.intended_rules}
@@ -390,7 +393,9 @@ def test_ac6_mode16_edge_rungs_match_a_fresh_measurement(measured):
             assert edge.evidence_rung == "synthetic-demonstrable", (edge, fired_anywhere)
         else:
             assert edge.evidence_rung == "needs-real-data", (edge, fired_anywhere)
-    assert checked == 2, checked
+    # Reconciled (item 193, 2026-09-28): intensity_reference_delta's edge is
+    # dropped (mode-less), leaving intensity's alone.
+    assert checked == 1, checked
 
 
 # =========================================================================== #
@@ -467,7 +472,7 @@ def test_ac8_weakened_strongest_edge_derives_weaker_rung():
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("rule_id", ["intensity", "intensity_reference_delta"])
+@pytest.mark.parametrize("rule_id", ["intensity"])
 def test_ac9_both_intensity_rules_declare_mode16(rule_id):
     from segfacet.heuristics.rule import _RULES
 
@@ -485,7 +490,7 @@ def test_ac9_both_intensity_rules_declare_mode16(rule_id):
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("rule_id", ["intensity", "intensity_reference_delta"])
+@pytest.mark.parametrize("rule_id", ["intensity"])
 def test_ac10_neither_declaration_binds_reserved_corpus_tag(rule_id):
     from segfacet.heuristics.rule import _RULES
 
@@ -865,10 +870,11 @@ def test_ac20_mode16_cases_measure_to_expected_sets(measured):
 # The old form's second assertion (`derive_status(mode) == "validated"` for
 # each) is deliberately not carried over: it is false by design since the
 # sign-off tightened `"validated"` to need a case demonstrating one of the
-# mode's OWN rules, so modes whose only geometric evidence is a co-detection
-# (mode 2) or a recorded "not detected today" (mode 6) derive
-# `"implemented"`. That derivation is pinned per mode by
-# `test_147_specification_is_the_record.py::test_ac26_*`.
+# mode's OWN rules, so a mode whose only geometric evidence is a co-detection
+# (mode 2) derives `"implemented"`. Mode 6 (item 188, 2026-09-28: coverage
+# re-homed off it) derives `"specified"` instead -- it has no declaring rule
+# at all, so it never reaches the corpus-agreement clause. That derivation is
+# pinned per mode by `test_147_specification_is_the_record.py::test_ac26_*`.
 # =========================================================================== #
 
 
@@ -1211,11 +1217,27 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     # the seven `proposed` ones (5 holes, 7 hallucinated vertebra, 10 skipped
     # level label, 11 numbering variant, 12 shifted sequence, 13 collapsed,
     # 14 duplicated) is authored `specified`.
-    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 15, 16], specified_ids
+    # Reconciled (item 188, 2026-09-28): mode 10 left the `proposed` set and
+    # joined `specified` (coverage re-homed onto it, now `implemented`); the
+    # six remaining proposed ids are 5, 7, 11, 12, 13, 14.
+    # Reconciled (item 192, 2026-09-28): mode 11 left the `proposed` set and
+    # joined `specified` (sequence's `transitional` detector declares it, now
+    # `implemented`); the five remaining proposed ids are 5, 7, 12, 13, 14.
+    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 11, 15, 16], specified_ids
 
     for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]
         derived = fm.derive_status(mode)
+        if mode_id in (6, 8):
+            # Item 188 (2026-09-28), maintainer decision of 2026-09-25: mode
+            # 6 lost its declaring rule (coverage moved to mode 10) and its
+            # own rule is left to a later per-mode queue, so it derives no
+            # further than its authored `specified` -- exempted by name, not
+            # by widening this invariant to "any mode with no rule".
+            # Item 193 (2026-09-28): mode 8 joins it -- reference_delta, its
+            # only rule, becomes mode-less.
+            assert derived == "specified", (mode_id, derived)
+            continue
         assert derived in ("implemented", "validated"), (mode_id, derived)
         assert derived != mode.status, (mode_id, derived)
 
@@ -1348,7 +1370,10 @@ def test_ac34_mode16_catalogue_attribution_equals_declaring_rules_reach():
     drops from the declarers' whole reach (12 paths, pre-148) to exactly the
     two ``first_order`` paths either rule classifies signal.
 
-    (The implausible-tissue mode is mode 16 since the item-150 sign-off.)"""
+    (The implausible-tissue mode is mode 16 since the item-150 sign-off.)
+
+    Reconciled (item 193, 2026-09-28): ``intensity_reference_delta`` becomes
+    mode-less, so ``intensity`` is the sole declarer left."""
     import segfacet.catalogue as catalogue
     from segfacet.heuristics.rule import iter_rule_declarations
 
@@ -1357,7 +1382,7 @@ def test_ac34_mode16_catalogue_attribution_equals_declaring_rules_reach():
         for rule_id, decl in iter_rule_declarations()
         if decl is not None and 16 in decl.modes
     }
-    assert declarers == {"intensity", "intensity_reference_delta"}
+    assert declarers == {"intensity"}
 
     cat = catalogue.build_catalogue(strict=True)
     assert cat.entries, "expected a non-empty catalogue"
@@ -1697,8 +1722,10 @@ def test_review_declaration_replacement_invariant_on_a_case_the_rule_fires_on(
 def test_review_derive_status_requires_a_declaring_rule_for_validated():
     """The declaring-rule precondition this item added to ``derive_status``
     (the item-145 review finding, ``docs/aide/insights.md`` 2026-09-03) had
-    no test: every shipped mode that reaches the corpus-agreement clause is
-    also declared, and ``test_144``'s
+    no test at the time: every shipped mode that reached the
+    corpus-agreement clause was also declared (mode 6 is the one exception
+    since item 188, 2026-09-28: it reaches the clause undeclared and derives
+    its authored ``specified``), and ``test_144``'s
     ``test_adv_empty_corpus_cases_and_intended_rules_derives_specified_not_validated``
     empties the registry only for a mode with *no* corpus cases. Deleting
     the ``declared and`` guard therefore left the whole suite green.
@@ -1749,8 +1776,11 @@ def test_review_derive_status_requires_a_declaring_rule_for_validated():
     assert fm.derive_status(probe) != "validated", fm.derive_status(probe)
     assert fm.derive_status(probe) == "specified", fm.derive_status(probe)
 
-    # The shipped modes are unmoved by the guard: every one of them that
-    # reaches the corpus-agreement clause is declared.
+    # The shipped modes are unmoved by the guard: modes 4 and 16 reach the
+    # corpus-agreement clause declared, as they always did. (Mode 6 reaches
+    # it undeclared since item 188, 2026-09-28 -- the one named exception,
+    # asserted above and in test_review_mode_to_rule_holes_are_exactly_the_
+    # proposed_modes -- not a counter-example to this pair.)
     assert fm.derive_status(fm.SPECIFICATION[4]) == "validated"
     assert fm.derive_status(fm.SPECIFICATION[16]) == "validated"
 
@@ -1812,11 +1842,14 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
 
     ``build_matrix`` grants ``proposed`` no exemption: every known mode with
     no declaring rule becomes a hole regardless of status. That is correct
-    only while the holes *are* the proposed modes. A ``specified`` mode that
-    lost its last declaring rule would be a genuine mode -> rule defect
-    (``roadmap.md`` Stage 20: "a catalogued §6 failure mode nothing can
-    detect ... a defect"), silently excused by the note's wording -- this
-    test is what makes that loud."""
+    only while the holes *are* the proposed modes, plus modes 6 and 8 -- the
+    named, recorded exceptions item 188 (2026-09-28) and item 193
+    (2026-09-28) introduce (A7/A5, revised ``traceability._NOTE``). A
+    ``specified`` mode that lost its last declaring rule would be a genuine
+    mode -> rule defect (``roadmap.md`` Stage 20: "a catalogued §6 failure
+    mode nothing can detect ... a defect"), silently excused by the note's
+    wording -- this test is what makes that loud for every mode except the
+    named exceptions."""
     import segfacet.failure_modes as fm
     import segfacet.traceability as traceability
 
@@ -1832,7 +1865,17 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
         for mode_id, mode in fm.SPECIFICATION.items()
         if fm.derive_status(mode) == "proposed"
     )
-    assert hole_mode_ids == proposed_mode_ids, (hole_mode_ids, proposed_mode_ids)
+    # Item 188 (2026-09-28): mode 6 is authored `specified` with no
+    # declaring rule (coverage moved to mode 10, mode 6's own rule left to a
+    # later per-mode queue per the maintainer decision of 2026-09-25) -- the
+    # one named exception, not a widened invariant. Any other `specified`
+    # mode losing its rule still fails this test.
+    # Item 193 (2026-09-28): mode 8 joins mode 6 -- reference_delta, its only
+    # rule, becomes mode-less. `traceability._NOTE` is revised to name both.
+    assert hole_mode_ids == sorted(proposed_mode_ids + [6, 8]), (
+        hole_mode_ids,
+        proposed_mode_ids,
+    )
 
     # ... and the direction's own boolean agrees with its holes, in both the
     # live matrix and the committed markdown the reader actually opens.

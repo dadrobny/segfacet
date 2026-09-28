@@ -86,13 +86,10 @@ from synthetic import make_labelmap
 
 from segfacet.config import bundled_default_config
 from segfacet.eval.overlap import compute_overlap
-from segfacet.feature_report import overlap_to_dict
-from segfacet.features.overlap import detect_overlaps
 from segfacet.heuristics.border import BorderRule
 from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.io import FacetInputError
 from segfacet.pipeline import extract_feature_record
-from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.corpus import load_manifest
 from segfacet.synth.perturbation import FAILURE_MODE_NAMES
 from segfacet.synth.regression import loaded_seg_image
@@ -128,31 +125,6 @@ _RECORDS = {
 _GT_ARRAY = _ARRAYS["clean_control"]
 
 
-def _mode8_record_with_overlaps() -> dict:
-    """``force_overlap``'s record with its ``overlaps`` block replaced
-    by the committed ``overlap_mask_stack`` reconstruction technique
-    (mirrors ``synth.regression._recon_overlap_mask_stack``) -- a plain
-    single-integer label map cannot encode a genuine overlap (item 040), so
-    mode 8's signal must come from this reconstructed block."""
-    case = _CASES["force_overlap"]
-    target = case["perturbation_params"]["target_label"]
-    neighbour = case["perturbation_params"]["neighbour_label"]
-
-    clean = build_clean_spine(**case["base"])
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    data = _ARRAYS["force_overlap"]
-
-    stack = np.stack([data == target, clean_data == neighbour])
-    pairs = detect_overlaps(stack, np.array([target, neighbour]))
-
-    record = dict(_RECORDS["force_overlap"])
-    record["overlaps"] = [overlap_to_dict(p) for p in pairs]
-    return record
-
-
-_MODE8_RECORD = _mode8_record_with_overlaps()
-
-
 def _value(result, failure_mode: int):
     """Fetch a result's entry for the metric the retired legacy mode id
     *failure_mode* named, by the registry's guaranteed ascending order
@@ -164,12 +136,16 @@ def _value(result, failure_mode: int):
     return entry.value
 
 
+# _mode8_record_with_overlaps and _MODE8_RECORD removed by item 195,
+# 2026-09-28: force_overlap (and its reconstruction) is gone, and mode 8's
+# signal is now exercised via a hand-built clean_control-derived record
+# (see test_ac14_mode8_matches_hand_formula).
+
+
 def _record_for(cid: str) -> dict:
     """The record to feed for the record-sourced metrics of case *cid* --
-    the mode-8 reconstructed record for ``force_overlap``, the plain
-    corpus record otherwise."""
-    if cid == "force_overlap":
-        return _MODE8_RECORD
+    the plain corpus record (item 195, 2026-09-28: the mode-8 reconstructed
+    ``force_overlap`` branch was removed)."""
     return _RECORDS[cid]
 
 
@@ -844,18 +820,20 @@ def test_ac14_mode8_plain_extract_feature_record_is_zero(cid):
     assert _value(result, 8) == 0.0, cid
 
 
-def test_ac14_mode8_reconstructed_overlaps_is_1950():
-    pm = _per_mode()
-    result = pm.compute_per_mode_metrics(_MODE8_RECORD)
-    # 1950 on the box base; 1085 on item 173's lordotic base (2026-09-23).
-    # The name records the box-base value.
-    assert _value(result, 8) == pytest.approx(1085.0, abs=1e-9)
+# test_ac14_mode8_reconstructed_overlaps_is_1950 removed by item 195,
+# 2026-09-28: force_overlap (and _MODE8_RECORD) is gone.
 
 
 def test_ac14_mode8_matches_hand_formula():
+    """Re-pointed by item 195 (2026-09-28) at a hand-built record derived
+    from clean_control's -- force_overlap is gone, so mode 8's signal is
+    exercised via two planted overlap entries instead."""
     pm = _per_mode()
-    expected = float(sum(e["overlap_voxels"] for e in _MODE8_RECORD["overlaps"]))
-    result = pm.compute_per_mode_metrics(_MODE8_RECORD)
+    record = dict(_RECORDS["clean_control"])
+    record["overlaps"] = [{"overlap_voxels": 3}, {"overlap_voxels": 4}]
+    expected = float(sum(e["overlap_voxels"] for e in record["overlaps"]))
+    result = pm.compute_per_mode_metrics(record)
+    assert _value(result, 8) == 7.0
     assert _value(result, 8) == expected
 
 
@@ -888,7 +866,8 @@ _OWN_CASE = {
     "missing_level_count": "remove_level",
     "fov_clipped_label_count": "crop_at_border",
     "out_of_order_label_count": "sequence_break",
-    "overlapping_voxel_count": "force_overlap",
+    # "overlapping_voxel_count": "force_overlap" dropped by item 195,
+    # 2026-09-28 -- the case (and its metric's ladder) is gone.
 }
 
 # Item 177 (2026-09-24), the maintainer's decision recorded as item 177
@@ -918,7 +897,6 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 0.0,
         "crop_at_border": 0.1429485129517109,
         "sequence_break": 0.0,
-        "force_overlap": 0.07515190278221938,
     },
     "min_dominant_component_fraction": {
         "clean_control": 1.0,
@@ -929,7 +907,6 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 1.0,
         "crop_at_border": 1.0,
         "sequence_break": 1.0,
-        "force_overlap": 1.0,
     },
     "rogue_island_count": {
         "clean_control": 0.0,
@@ -940,7 +917,6 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 0.0,
         "crop_at_border": 0.0,
         "sequence_break": 0.0,
-        "force_overlap": 0.0,
     },
     "mislabelled_volume_fraction": {
         "clean_control": 0.0,
@@ -951,7 +927,6 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 0.0,
         "crop_at_border": 0.0,
         "sequence_break": 0.0,
-        "force_overlap": 0.011192836584585865,
     },
     "missing_level_count": {
         "clean_control": 0.0,
@@ -962,7 +937,6 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 1.0,
         "crop_at_border": 0.0,
         "sequence_break": 0.0,
-        "force_overlap": 0.0,
     },
     "fov_clipped_label_count": {
         "clean_control": 0.0,
@@ -973,7 +947,6 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 0.0,
         "crop_at_border": 1.0,
         "sequence_break": 0.0,
-        "force_overlap": 0.0,
     },
     "out_of_order_label_count": {
         "clean_control": 0.0,
@@ -984,19 +957,9 @@ _EXPECTED_ISOLATION_MATRIX = {
         "remove_level": 0.0,
         "crop_at_border": 0.0,
         "sequence_break": 1.0,
-        "force_overlap": 0.0,
     },
-    "overlapping_voxel_count": {
-        "clean_control": 0.0,
-        "displace": 0.0,
-        "fragment": 0.0,
-        "inject_islands": 0.0,
-        "relabel_swap": 0.0,
-        "remove_level": 0.0,
-        "crop_at_border": 0.0,
-        "sequence_break": 0.0,
-        "force_overlap": 1085.0,
-    },
+    # "overlapping_voxel_count" row dropped by item 195, 2026-09-28 -- the
+    # force_overlap case (its only non-zero column) is gone.
 }
 
 
@@ -1025,7 +988,10 @@ _LEGACY_CASE_IDS = sorted({"clean_control", *_OWN_CASE.values()})
 
 
 def _build_actual_matrix(pm, island_size_ratio: float = 0.10):
-    matrix = {name: {} for name in _LEGACY_TO_METRIC_NAME.values()}
+    """Rows only for ``_OWN_CASE``'s metrics (item 195, 2026-09-28):
+    ``overlapping_voxel_count`` has no own case in the isolation matrix any
+    more, since ``force_overlap`` was removed."""
+    matrix = {name: {} for name in _OWN_CASE}
     for cid in _LEGACY_CASE_IDS:
         result = pm.compute_per_mode_metrics(
             _record_for(cid),
@@ -1034,7 +1000,8 @@ def _build_actual_matrix(pm, island_size_ratio: float = 0.10):
             island_size_ratio=island_size_ratio,
         )
         for entry in result.per_mode:
-            matrix[entry.metric_name][cid] = entry.value
+            if entry.metric_name in matrix:
+                matrix[entry.metric_name][cid] = entry.value
     return matrix
 
 

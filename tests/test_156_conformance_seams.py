@@ -7,12 +7,16 @@ Covers Acceptance Criteria AC1-AC14:
   specification direction agrees with the specification's own edges on the
   shipped tree, computed live from both sides.
 - AC2-AC6: the new direction fires under the queue's own perturbations
-  (``reference_delta`` widened to ``(1, 2, 3, 4, 6, 8)`` and to the queue's
-  ``(1, 2, 5)`` control, ``fragmentation`` widened to ``(1, 2, 4)`` to show
-  the check is unconditional on corpus evidence, and ``reference_delta``
-  widened to an out-of-key-set mode to show that direction still reports
-  exactly once -- ``bounds`` until item 174, 2026-09-24, whose
-  ``split_own_label`` case gave ``bounds`` a corpus-designated mode 3).
+  (``bounds`` widened to ``(2, 3, 4, 6)`` and to the queue's ``(1, 2, 5)``
+  control, ``fragmentation`` widened to ``(1, 2, 4)`` to show the check is
+  unconditional on corpus evidence, and ``bounds`` widened to an
+  out-of-key-set mode to show that direction still reports exactly once.
+  Reconciled (item 193, 2026-09-28): every perturbation moves from
+  ``reference_delta`` (now mode-less, no mode's own detector) to ``bounds``,
+  which declares and mirrors modes 1-4.
+  Reconciled again (item 194, 2026-09-28): mode 1 is attributed only where
+  no other mode applies, and ``bounds``' volume/extent proxy serves modes 2,
+  3 and 4 -- every perturbation naming mode 1 in its widened tuple drops it.
 - AC7-AC10: ``traceability.build_matrix()``'s
   ``corpus_designated_unregistered_rule_ids`` is derived from the two
   committed manifests (geometric ``expected_rule_ids`` + intensity
@@ -110,27 +114,45 @@ def test_ac1_declarations_mirror_specification_edges_on_shipped_tree():
 
 
 def test_ac2_unmirrored_declaration_on_specified_mode_is_reported(monkeypatch):
+    """Re-pointed (item 193, 2026-09-28) from ``reference_delta`` (now
+    mode-less, so it has no declaration left to widen) to ``bounds``.
+    Measured on the prototype against an empty baseline:
+    ``modes=(1, 2, 3, 4, 6)`` gives exactly one new message, naming
+    ``bounds`` and 6.
+
+    Re-based (item 194, 2026-09-28): ``bounds`` no longer declares mode 1
+    (mode 1 is attributed only where no other mode applies), so widening it
+    onto ``(1, 2, 3, 4, 6)`` would also re-add mode 1 and give a second
+    message. ``modes=(2, 3, 4, 6)`` widens only onto the new out-of-key mode
+    6, still giving exactly one new message naming ``bounds`` and 6."""
     baseline = catalogue_module.rule_declaration_conflicts()
 
-    rule = _RULES["reference_delta"]
-    replacement = dataclasses.replace(rule.mode_declaration, modes=(1, 2, 3, 4, 6, 8))
+    rule = _RULES["bounds"]
+    replacement = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4, 6))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     new_messages = set(catalogue_module.rule_declaration_conflicts()) - set(baseline)
     assert len(new_messages) == 1, new_messages
     (message,) = new_messages
-    assert "reference_delta" in message
+    assert "bounds" in message
     assert re.search(r"\b6\b", message), message
 
 
 def test_ac3_queue_control_1_2_5_is_reported(monkeypatch):
-    rule = _RULES["reference_delta"]
+    """Re-pointed (item 193, 2026-09-28) to ``bounds``: ``modes=(1, 2, 5)``
+    gives a message naming ``bounds`` and 5.
+
+    Item 194 (2026-09-28): measured, this now gives three messages -- modes 1
+    and 5 both unmirrored (``bounds`` no longer declares mode 1) plus mode 3
+    corpus-designated (dropped from the declaration) -- and this test still
+    reads with ``any``, so it holds unchanged."""
+    rule = _RULES["bounds"]
     replacement = dataclasses.replace(rule.mode_declaration, modes=(1, 2, 5))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     messages = catalogue_module.rule_declaration_conflicts()
     assert any(
-        "reference_delta" in msg and re.search(r"\b5\b", msg) for msg in messages
+        "bounds" in msg and re.search(r"\b5\b", msg) for msg in messages
     ), messages
 
 
@@ -146,8 +168,14 @@ def test_ac4_check_is_unconditional_on_corpus_evidence(monkeypatch):
 
 
 def test_ac5_new_message_is_not_read_as_a_rule_to_mode_hole(monkeypatch):
-    rule = _RULES["reference_delta"]
-    replacement = dataclasses.replace(rule.mode_declaration, modes=(1, 2, 3, 4, 6, 8))
+    """Re-pointed (item 193, 2026-09-28) to ``bounds``: ``modes=(1, 2, 3, 4,
+    6)`` gives ``rule_to_mode.holes == ()``.
+
+    Re-based (item 194, 2026-09-28): ``bounds`` no longer declares mode 1, so
+    ``modes=(2, 3, 4, 6)`` is the widening that still gives
+    ``rule_to_mode.holes == ()``."""
+    rule = _RULES["bounds"]
+    replacement = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4, 6))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     matrix = traceability.build_matrix()
@@ -159,14 +187,23 @@ def test_ac6_mode_outside_key_set_reported_exactly_once(monkeypatch):
     # no corpus-designated mode, or replacing its declaration adds a second
     # "corpus designates" message. split_own_label designates bounds for
     # mode 3, so the subject is now reference_delta (was bounds).
-    rule = _RULES["reference_delta"]
-    replacement = dataclasses.replace(rule.mode_declaration, modes=(999,))
+    # Re-pointed again (item 193, 2026-09-28): reference_delta becomes
+    # mode-less, so ``bounds`` is the subject once more -- but bounds' own
+    # mode 3 must stay declared, or dropping it adds a second message
+    # ("corpus designates failure mode 3"). modes=(1, 2, 3, 4, 999) keeps
+    # bounds' own four modes and appends the out-of-key-set one.
+    # Re-based (item 194, 2026-09-28): ``bounds`` no longer declares mode 1
+    # (mode 1 is attributed only where no other mode applies), so
+    # modes=(2, 3, 4, 999) is now the tuple that keeps bounds' own modes and
+    # appends only the out-of-key-set one.
+    rule = _RULES["bounds"]
+    replacement = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4, 999))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     matching = [
         msg
         for msg in catalogue_module.rule_declaration_conflicts()
-        if "reference_delta" in msg and re.search(r"\b999\b", msg)
+        if "bounds" in msg and re.search(r"\b999\b", msg)
     ]
     assert len(matching) == 1, matching
 
@@ -334,29 +371,42 @@ def test_ac13_every_proposed_mode_is_a_mode_to_rule_hole(raw_matrix):
 
 
 def test_adv_known_and_unknown_mode_only_the_unknown_one_is_reported(monkeypatch):
-    """``reference_delta`` already declares (and mirrors) mode 1. Widening it
-    to ``(1, 999)`` must add only the "outside the key set" message for 999
-    -- mode 1 is already mirrored, so it must gain nothing new.
+    """``bounds`` declares (and mirrors) modes 2-4 (item 194: mode 1 is
+    attributed only where no other mode applies). Widening it to
+    ``(2, 3, 4, 999)`` must add only the "outside the key set" message for
+    999 -- modes 2-4 are already mirrored, so they must gain nothing new.
 
     Item 174 (2026-09-24), re-derived premise: the subject was ``bounds``
     until item 174's ``split_own_label`` case designated ``bounds`` for mode
     3, which makes narrowing its declaration add a second message.
-    ``reference_delta`` has no corpus-designated mode."""
+
+    Re-pointed again (item 193, 2026-09-28): ``reference_delta`` becomes
+    mode-less, so ``bounds`` is the subject once more, and ``(999,)`` or
+    ``(1, 999)`` cannot be used -- either drops mode 3, which adds a second,
+    unwanted "corpus designates failure mode 3" message. ``(1, 2, 3, 4,
+    999)`` keeps every mode bounds already mirrors and appends only the
+    out-of-key-set one.
+
+    Re-based (item 194, 2026-09-28): ``bounds`` no longer declares mode 1 at
+    all (mode 1 is attributed only where no other mode applies), so
+    ``(1, ...)`` would re-add a mode ``bounds`` no longer mirrors and give a
+    second message. ``(2, 3, 4, 999)`` keeps every mode bounds now mirrors
+    and appends only the out-of-key-set one."""
     baseline = catalogue_module.rule_declaration_conflicts()
 
-    rule = _RULES["reference_delta"]
-    replacement = dataclasses.replace(rule.mode_declaration, modes=(1, 999))
+    rule = _RULES["bounds"]
+    replacement = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4, 999))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
 
     new_messages = set(catalogue_module.rule_declaration_conflicts()) - set(baseline)
     assert len(new_messages) == 1, new_messages
     (message,) = new_messages
-    assert "reference_delta" in message
+    assert "bounds" in message
     assert "outside" in message
     assert re.search(r"\b999\b", message), message
-    # Mode 1 is already mirrored/known, so it must not earn a message of its
-    # own: exactly one new message total (asserted above) is what proves
-    # that -- a mode-1 message would have made this a set of two.
+    # Modes 2-4 are already mirrored/known, so they must not earn a message
+    # of their own: exactly one new message total (asserted above) is what
+    # proves that.
 
 
 def test_adv_rule_declaration_conflicts_is_pure_and_repeatable():
@@ -366,10 +416,15 @@ def test_adv_rule_declaration_conflicts_is_pure_and_repeatable():
 
 
 def test_adv_monkeypatch_undo_restores_the_baseline_exactly(monkeypatch):
+    """Re-pointed (item 193, 2026-09-28) to ``bounds``: ``modes=(1, 2, 3, 4,
+    6)`` gives exactly one new message, naming ``bounds`` and 6 (AC2).
+
+    Re-based (item 194, 2026-09-28): ``modes=(2, 3, 4, 6)`` is now the
+    widening that gives exactly one new message (AC2)."""
     baseline = catalogue_module.rule_declaration_conflicts()
 
-    rule = _RULES["reference_delta"]
-    replacement = dataclasses.replace(rule.mode_declaration, modes=(1, 2, 3, 4, 6, 8))
+    rule = _RULES["bounds"]
+    replacement = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4, 6))
     monkeypatch.setattr(rule, "mode_declaration", replacement)
     assert catalogue_module.rule_declaration_conflicts() != baseline
 

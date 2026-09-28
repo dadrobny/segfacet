@@ -144,13 +144,20 @@ def test_ac2_renamed_case_ids_is_a_dict_literal_of_string_constants():
 # AC3/AC4: every new id is live, no old id is live
 # =========================================================================== #
 
+#: New ids whose live case was removed after the rename (item 195,
+#: 2026-09-28: force_overlap -- a single-channel label map cannot express
+#: an overlap). RENAMED_CASE_IDS itself is a frozen history record and
+#: keeps the pair (A5); only the live-resolution checks below exempt it.
+_REMOVED_NEW_IDS = frozenset({"force_overlap"})
+
 
 def test_ac3_every_new_id_is_exactly_one_live_case():
     recipe_ids = [entry.case_id for entry in CASE_RECIPE]
     for new_id in RENAMED_CASE_IDS.values():
-        assert recipe_ids.count(new_id) == 1, (
-            f"{new_id!r} does not resolve to exactly one CASE_RECIPE entry: "
-            f"count={recipe_ids.count(new_id)}"
+        expected_count = 0 if new_id in _REMOVED_NEW_IDS else 1
+        assert recipe_ids.count(new_id) == expected_count, (
+            f"{new_id!r} does not resolve to exactly {expected_count} "
+            f"CASE_RECIPE entry(ies): count={recipe_ids.count(new_id)}"
         )
 
 
@@ -609,8 +616,10 @@ def test_a8_each_new_id_resolves_to_exactly_one_manifest_case():
     manifest = load_manifest()
     ids = [c["case_id"] for c in manifest["cases"]]
     for new_id in RENAMED_CASE_IDS.values():
-        assert ids.count(new_id) == 1, (
-            f"{new_id!r} does not resolve to exactly one manifest case: count={ids.count(new_id)}"
+        expected_count = 0 if new_id in _REMOVED_NEW_IDS else 1
+        assert ids.count(new_id) == expected_count, (
+            f"{new_id!r} does not resolve to exactly {expected_count} "
+            f"manifest case(s): count={ids.count(new_id)}"
         )
 
 

@@ -51,7 +51,11 @@ Covers Acceptance Criteria AC1-AC25:
         item 137, then item 146, then item 150: the rule that now declares
         itself mode-less is ``border`` (FOV truncation became a condition),
         and its ``touches_*`` paths carry the ``condition-signal`` role; see
-        the reconciled tests' own docstrings.
+        the reconciled tests' own docstrings. Since item 193 (2026-09-28),
+        ``reference_delta`` and ``intensity_reference_delta`` are mode-less
+        too (no mode's own detector), joining ``border`` and
+        ``spline_offset`` in the mode-less roll call this AC's tests read
+        live.
 - AC16: an undocumented realised path raises ``FeatureDocMissing`` (strict)
         naming the path, and degrades to ``documented=False`` (non-strict).
 - AC17: a stale ``FEATURE_DOCS`` key raises ``CatalogueError`` naming it; on
@@ -376,7 +380,13 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # detector.md, Correction 2026-09-20, C2) adds two leaf paths,
     # per_label.{label}.components.stray_contact_area_mm2 and
     # per_label.{label}.components.stray_contact_label.
-    assert len(paths) == 96
+    # 96 -> 101: item 187 (2026-09-28) adds five leaf paths,
+    # per_label.{label}.components.component_contacts[].<neighbour_label,
+    # contact_area_mm2, surface_area_mm2, contact_fraction> and
+    # per_label.{label}.components.label_contact_fraction; clean_control's
+    # single-component label still emits a one-entry component_contacts[],
+    # so all five appear.
+    assert len(paths) == 101
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):
@@ -529,9 +539,12 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.geometry.touches_right", "border"),
         ("per_label.{label}.geometry.touches_anterior", "border"),
         ("per_label.{label}.geometry.touches_posterior", "border"),
-        ("relationships.out_of_order_labels[]", "sequence"),
+        # Item 192 (2026-09-28): sequence reads per_label centroids, not
+        # relationships.out_of_order_labels[].
+        ("per_label.{label}.centroid.centroid_mm[]", "sequence"),
         ("relationships.missing_levels[]", "coverage"),
-        ("stage3.per_label_offsets[].offset_mm", "mislabel"),
+        # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+        ("stage3.per_label_offsets[].offset_mm", "spline_offset"),
         ("per_label.{label}.geometry.physical_volume_mm3", "bounds"),
     ],
 )
@@ -582,15 +595,24 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 #: attributes no mode to it; the mode-less half of AC15 covers it instead.
 #: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
-    "mislabel": (1, 9),  # displace (1), relabel_swap (9)
+    # Item 189 (2026-09-28): displace no longer designates mislabel (its
+    # offset detector moved to spline_offset, and displace now carries
+    # failure_mode=0, the displaced_vertebra condition), so the corpus scan
+    # attributes mislabel to relabel_swap (9) alone.
+    "mislabel": (9,),  # relabel_swap (9)
     # Item 176 (2026-09-24): the bridged fuse_adjacent designates no rule, so
     # fragmentation (1, 2, 3, 4) -> (1, 3, 4) and coverage (2, 6) -> (6,).
-    "fragmentation": (1, 3, 4),  # fragment (1), split (3), islands (4)
+    # Item 187 (2026-09-28): the split case's rule_id moved from
+    # fragmentation to its own neighbour_contact, so fragmentation
+    # (1, 3, 4) -> (1, 4) and a new neighbour_contact (3,) entry appears.
+    "fragmentation": (1, 4),  # fragment (1), islands (4)
     "coverage": (6,),  # remove_level (6)
     "sequence": (9,),  # sequence_break
-    "overlap": (15,),  # force_overlap
+    # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the
+    # only case that scanned to "overlap") was removed.
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
     "bounds": (3,),  # split_own_label (3)
+    "neighbour_contact": (3,),  # split (3)
 }
 
 
@@ -619,9 +641,13 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     Reconciled again (item 150, 2026-09-14): the sign-off split the corpus
     map and the rules' own ``RuleModeDeclaration`` apart -- on the
     2026-09-15 revision ``coverage``'s corpus modes were ``(2, 6)`` while it
-    declares ``(6,)`` (``(6,)`` for both since item 176, 2026-09-24), and
-    ``mislabel``'s are ``(1, 9)`` against a
-    declared ``(9,)``. An entry's
+    declares ``(6,)`` (``(6,)`` for both since item 176, 2026-09-24; item 188,
+    2026-09-28, moved the declaration alone to ``(10,)``, so the corpus map
+    still gives ``(6,)`` and the declaration gives ``(10,)`` -- the corpus
+    scan itself is unchanged, so ``_RULE_MODE_MAP["coverage"] == (6,)``
+    stays correct), and
+    ``mislabel``'s corpus modes are ``(9,)`` against a declared ``(9,)``
+    (item 189, 2026-09-28: displace no longer designates mislabel). An entry's
     ``failure_modes`` is the *union* of every source that spoke, so the exact
     expected set is derived here from all three live sources (corpus map,
     declaration, mode anchor) and the corpus map's own contribution is
@@ -713,7 +739,12 @@ def test_ac14_condition_anchor_paths_key_set_is_the_catalogued_conditions(
     condition id. Pin the same two properties there: the keys are catalogued
     conditions, and each carries at least one path."""
     condition_anchors = feature_docs_module.CONDITION_ANCHOR_PATHS
-    assert set(condition_anchors) == set(failure_modes_module.CONDITIONS)
+    # Item 189 (2026-09-28): displaced_vertebra is exempted by name -- no
+    # per-mode metric reads the offset, so CONDITION_ANCHOR_PATHS is not
+    # extended for it.
+    assert set(condition_anchors) == set(failure_modes_module.CONDITIONS) - {
+        "displaced_vertebra"
+    }
     for condition_id, paths in condition_anchors.items():
         assert len(paths) >= 1, condition_id
 
@@ -767,7 +798,14 @@ def test_ac15_declared_mode_less_rule_only_entry_is_honestly_mode_less(
     What ``mode_evidence == ("rule_unmapped",)`` means -- a consuming rule
     with no declaration at all -- is exercised by
     ``tests/test_137_mode_less_rule_disposition.py``'s adversarial stub-rule
-    test, since no such rule ships on this tree (item 137 AC1)."""
+    test, since no such rule ships on this tree (item 137 AC1).
+
+    Stale as of item 193 (2026-09-28): ``border`` is no longer the only
+    mode-less rule -- ``reference_delta`` and ``intensity_reference_delta``
+    join it (and ``spline_offset``), so ``mode_less_rules`` and the loop
+    below now also cover their ``bookkeeping``-role entries, not only
+    ``border``'s ``condition-signal`` ones. The assertions are unchanged and
+    read the set live."""
     mode_less_rules = {
         rule_id
         for rule_id, decl in rule_declarations.items()

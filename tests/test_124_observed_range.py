@@ -545,8 +545,12 @@ def test_ac18_entry_set_has_138_paths(full_catalogue):
     # (`stray_contact_area_mm2`, `stray_contact_label`), 138 -> 140. Name kept
     # for AC18 provenance; the docstring above still names 138 as the
     # pre-item figure.
+    # Item 187 (2026-09-27): five more leaf paths join the components block
+    # (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
+    # `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`),
+    # 140 -> 145. The two item-167 paths stay (A4).
     paths = {e.path for e in full_catalogue.entries}
-    assert len(paths) == 140
+    assert len(paths) == 145
 
 
 def test_ac18_committed_entry_set_matches_regenerated(full_catalogue, committed_json_dict):

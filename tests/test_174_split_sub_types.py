@@ -214,6 +214,13 @@ def test_ac7_split_own_label_record_verifies():
 
 # =========================================================================== #
 # AC8: ``split_own_label`` fires ``bounds`` and ``coverage``
+#
+# Reconciled 2026-09-27 (item 186): ``relationships.missing_levels`` now walks
+# an expected sequence built from section counts rather than the full
+# ``CANONICAL_ORDER`` span, so T12->L1 is continuous under the default
+# thoracic count and ``coverage`` no longer fires here. See
+# ``tests/test_186_expected_level_sequence.py::test_ac16_...`` for the
+# up-to-date assertion of this same fact.
 # =========================================================================== #
 
 
@@ -225,7 +232,7 @@ def test_ac8_split_own_label_fires_bounds_and_coverage():
     ]
     assert len(matches) == 1, matches
     case = matches[0]
-    assert set(failure_modes.measured_firing(case)) == {"bounds", "coverage"}
+    assert set(failure_modes.measured_firing(case)) == {"bounds"}
 
 
 # =========================================================================== #
@@ -234,10 +241,11 @@ def test_ac8_split_own_label_fires_bounds_and_coverage():
 
 
 def test_ac9_split_fires_neighbour_contact_alone():
+    # Item 187 (2026-09-27): moved rule/detector id pair.
     case = _manifest_case("split")
     findings = pipeline_findings(case)
     pairs = {(f.rule_id, f.detector_id) for f in findings}
-    assert pairs == {("fragmentation", "neighbour_contact")}
+    assert pairs == {("neighbour_contact", "stray_contact")}
 
 
 # =========================================================================== #

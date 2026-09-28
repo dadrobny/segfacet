@@ -14,7 +14,10 @@ the level-1 verdict ``outcome`` (item 052), the level-2 DICE ``overlap``
    the expected-failure cases, the fraction caught by its **designated**
    Stage-4 rule (``outcome.caught_by_designated_rule``), with a coarser
    caught-at-all rate (``outcome.caught``) reported alongside (roadmap
-   **G7**).
+   **G7**). A case carrying a condition (``outcome.condition`` set, e.g.
+   ``"fov_truncation"``) is reported in a bucket of its own, keyed by the
+   condition id and appended after the mode entries, rather than folded into
+   the ``failure_mode=0`` (clean control) bucket (item 190).
 3. **DICE-vs-flag correlation** -- a correlation coefficient between each
    case's DICE (the level-2 overlap aggregate) and its flag signal, plus a
    parallel feature-divergence-vs-flag correlation using the level-3
@@ -133,6 +136,10 @@ class PerModeSensitivity:
         ``n_cases == 0``.
     caught_rate:
         ``n_caught / n_cases``, or ``None`` if ``n_cases == 0``.
+    condition:
+        The condition id (e.g. ``"fov_truncation"``) this bucket is keyed on,
+        or ``None`` for a failure-mode bucket. A condition bucket always
+        carries ``failure_mode=None`` (item 190).
     """
 
     failure_mode: Optional[int]
@@ -142,6 +149,7 @@ class PerModeSensitivity:
     n_caught_by_designated_rule: int
     sensitivity: Optional[float]
     caught_rate: Optional[float]
+    condition: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -298,6 +306,8 @@ def _per_mode_entry(
     mode: Optional[int],
     requested_name: Optional[str],
     records: List[Any],
+    *,
+    condition: Optional[str] = None,
 ) -> PerModeSensitivity:
     """Build one :class:`PerModeSensitivity` from a mode key's grouped records."""
     n_cases = len(records)
@@ -323,6 +333,7 @@ def _per_mode_entry(
         n_caught_by_designated_rule=n_caught_by_designated_rule,
         sensitivity=sensitivity,
         caught_rate=caught_rate,
+        condition=condition,
     )
 
 
@@ -331,18 +342,35 @@ def _compute_per_mode(
     failure_modes: Optional[Union[Sequence[int], Mapping[int, str]]],
 ) -> Tuple[PerModeSensitivity, ...]:
     """Group expected-failure records by ``outcome.failure_mode`` and build
-    the reported per-mode breakdown (see step 8 of the item spec)."""
+    the reported per-mode breakdown (see step 8 of the item spec).
+
+    A record whose ``outcome.condition`` is set is routed to a bucket of its
+    own, keyed by the condition id, instead of the ``failure_mode`` bucket
+    (item 190) -- so a condition case never lands in the mode-0 (clean
+    control) bucket under whatever name that bucket happens to carry.
+    Condition buckets are appended, in ascending condition-id order, after
+    every mode entry.
+    """
     observed: Dict[Optional[int], List[Any]] = {}
+    observed_conditions: Dict[str, List[Any]] = {}
     for record in records:
         if record.outcome.expected_failure is not True:
             continue
-        observed.setdefault(record.outcome.failure_mode, []).append(record)
+        condition = getattr(record.outcome, "condition", None)
+        if condition is not None:
+            observed_conditions.setdefault(condition, []).append(record)
+        else:
+            observed.setdefault(record.outcome.failure_mode, []).append(record)
 
     reported = _requested_modes(failure_modes, observed)
     entries = [
         _per_mode_entry(mode, name, observed.get(mode, []))
         for mode, name in reported
     ]
+    entries.extend(
+        _per_mode_entry(None, None, observed_conditions[cid], condition=cid)
+        for cid in sorted(observed_conditions)
+    )
     return tuple(entries)
 
 
@@ -469,7 +497,9 @@ def compute_cohort_metrics(
         ``None`` (default, report one entry per distinct observed mode), a
         sequence of mode ints, or a ``{int: name}`` mapping (report exactly
         one entry per requested mode, in order, including a sentinel entry
-        for a mode absent from the cohort).
+        for a mode absent from the cohort). Either way, one further entry is
+        appended per condition id observed among the expected-failure
+        records, in ascending order, after the mode entries (item 190).
 
     Returns
     -------

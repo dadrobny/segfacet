@@ -1,14 +1,8 @@
-"""Mislabel / misalignment rule (item 033).
+"""Mislabel / ordering rule (item 033, Detector A moved out at item 189).
 
-Implements a **mislabel / misalignment rule** with two detectors, which
-originally targeted two related modes of the v3 vision.md seed list (history;
-the current ids are ``failure_modes.SPECIFICATION``'s):
+Implements a **mislabel rule** with one detector, serving one mode of
+``failure_modes.SPECIFICATION``:
 
-- **Misalignment — label not aligned with the vertebra it names.** Serves no
-  failure mode since the item-150 sign-off (the spline offset is an
-  anatomy-classification signal). Detector A flags a vertebra whose centroid is a large outlier from the
-  fitted spinal curve, via the per-vertebra perpendicular spline offset
-  (``stage3.per_label_offsets[*].offset_mm``, item 018).
 - **Mode 9 — out-of-order label sequence** (a sub-mode of mode 8, semantic
   mislabelling / wrong vertebra identification).
   Detector B flags a vertebra whose physical position is inconsistent with
@@ -16,86 +10,46 @@ the current ids are ``failure_modes.SPECIFICATION``'s):
   monotonic-progression metric
   (``stage3.monotonic_consistency.non_monotonic_pairs``, item 020).
 
-It consumes three already-serialised sub-blocks of the per-case feature
-record — ``stage3.per_label_offsets`` (item 018), ``stage3.
-monotonic_consistency`` (item 020), and ``per_label`` (item 016) — and never
-recomputes any geometry, offset, spline, or ordering itself.
+Item 033's Detector A (spline-offset misalignment) moved to
+``heuristics/spline_offset.py`` at item 189: it served no failure mode since
+the item-150 sign-off (the spline offset is an anatomy-classification
+signal, not a segmentation defect), and its firing is now the recording rule
+of the ``displaced_vertebra`` CONDITION (``failure_modes.CONDITIONS``,
+alongside ``fov_truncation``) -- see that module for its docstring,
+threshold-calibration history and corpus margins.
+
+It consumes two already-serialised sub-blocks of the per-case feature
+record — ``stage3.monotonic_consistency`` (item 020) and ``per_label``
+(item 016) — and never recomputes any geometry, spline, or ordering itself.
 
 Design decisions (recorded per item 033 spec):
-- Two independent, config-gated detectors, combined with OR: a record may
-  produce findings from either or both.
-- Detector A fires on ``offset_mm >= max_offset_mm`` (default ``13.0``,
-  inclusive) and is label-attributed (single offending label).
-- Detector A never fires on a **terminal** entry (``is_terminal`` truthy,
-  item 123) -- an entry with no ``is_terminal`` key, or one carrying
-  ``None``, is interior and still fires. See "Threshold calibration
-  (item 123)" below for why, and ``features/spline_offset.py``'s "Terminal-
-  vertebra exclusion" section for the mechanism. Detector B (ordering) is
-  unaffected -- it does not read per-vertebra offsets at all.
-- Detector A reads ``dx_mm``/``dy_mm``/``dz_mm`` when all three are present
-  and finite (item 120), naming the dominant displacement direction as one
-  of ``"left-right"``, ``"anterior-posterior"`` or ``"cranio-caudal"`` --
-  the largest of ``|dx_mm|``, ``|dy_mm|``, ``|dz_mm|``, ties broken
-  x -> y -> z. This reading rests on the RAS axis contract stated in
-  ``features/spline_offset.py``'s module docstring: array axis 0 is
-  left-right, axis 1 anterior-posterior, axis 2 cranio-caudal, because
-  ``io.load_volume`` reorients every volume to ``("R", "A", "S")`` and
-  ``centroid_mm`` carries no affine of its own. An entry missing any
-  component, or carrying a non-finite one, omits the direction clause
-  entirely rather than guessing or raising.
 - Detector B fires on each ``non_monotonic_pairs`` entry, resolving both
   level names to integer labels via ``per_label``; an unresolvable name is
   omitted from ``labels`` but still named in the ``reason``.
-- Offset findings are emitted first (ascending label), then order findings
-  (ascending ``(level_a, level_b)`` name-pair order); both detectors re-sort
-  defensively so output never depends on the input list order.
+- Order findings are emitted in ascending ``(level_a, level_b)`` name-pair
+  order; the detector re-sorts defensively so output never depends on the
+  input list order.
 - Unrecognised severity string raises ValueError before any per-record
   processing.
 - The caller's record is never mutated.
-
-Threshold calibration (item 123, recalibrated 2026-08-29)
------------------------------------------------------------
-``_DEFAULT_MAX_OFFSET_MM`` is derived (``scripts/rebuild_verse_reference.py
-::derive_max_offset_mm``) from the real, 80-subject VerSe19 training cohort's
-committed ``reference_verse_v1.json``: the smallest multiple of ``0.5`` mm
-strictly above ``P``, floored at ``6.0`` mm, where ``P`` is the maximum
-``spline_offset_mm`` ``p99`` over levels with at least 10 **interior**
-(non-terminal, see below) occurrences. The measured ceiling is
-``P = 12.91`` mm at level ``T10``, giving ``_DEFAULT_MAX_OFFSET_MM = 13.0``.
-
-**Terminal vertebrae are excluded from this measurement and from Detector A
-itself** (item 123, human decision 2026-08-29): the first calibration run
-measured `P = 21.209` mm at `L5`, driven entirely by the held-out
-estimator's terminal-extrapolation artefact (`features/spline_offset.py`'s
-"Terminal-vertebra exclusion" section) rather than real anatomy -- `L5`'s
-*interior* offset never exceeds `1.00` mm in the same cohort. Excluding
-terminal entries from both the reference distribution
-(`reference/ingest.py`) and Detector A brought the measurement back inside
-the approved corpus window.
-
-Corpus margins (from `tests/corpus/manifest.json`'s nine cases, each measured
-via a freshly built `build_report_for_case` report -- item 126 retired the
-committed corpus-golden snapshots these margins used to cite),
-all measured on **interior** entries only:
-- `relabel_swap`'s largest interior reading (label 23 / L4) is
-  `2.510990` mm and must **not** fire -- the non-firing ceiling. (Its larger
-  `5.143859` mm reading, label 20, is that case's cranial-terminal vertebra
-  and is excluded from consideration entirely.)
-- `crop_at_border`'s firing reading is `17.507445` mm and **must**
-  fire -- so ``_DEFAULT_MAX_OFFSET_MM`` sits in `(2.510990, 17.507445]`
-  (`13.0` qualifies).
-- `displace`'s firing reading is `18.718604` mm and **must** fire.
-
-Distribution calibrated against: `src/segfacet/reference/reference_verse_v1.json`.
+- This rule opts in to the ``displaced_vertebra`` condition (item 191,
+  2026-09-28): a mislabelled vertebra can itself read as displaced
+  (``spline_offset`` fires on it too), and the runner's condition gate would
+  otherwise drop this rule's own ordering finding on that label, hiding a
+  genuine segmentation defect behind an anatomy condition. The ordering
+  signal is not spoiled by a displacement: it is judged against a reference
+  curve fitted in S-sorted label order, and a swapped label keeps its place
+  in that order unless it moves past a neighbour -- which is exactly what
+  this rule reports.
 """
 
 from __future__ import annotations
 
-import math
 from typing import Dict, List, Optional
 
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.rule import (
+    ConditionOptIn,
     ConsumedPath,
     Rule,
     RuleDetector,
@@ -111,10 +65,7 @@ __all__ = ["MislabelRule"]
 # Reason tag constants — stable, testable start-of-reason markers
 # --------------------------------------------------------------------------- #
 
-_MISALIGN_TAG = "Vertebra misaligned from spinal curve:"
 _MISLABEL_TAG = "Vertebra ordering inconsistent with label:"
-
-_DEFAULT_MAX_OFFSET_MM = 13.0
 
 
 # --------------------------------------------------------------------------- #
@@ -164,23 +115,38 @@ def _label_for_level(per_label: dict, level_name: str) -> Optional[int]:
 
 @register_rule
 class MislabelRule(Rule):
-    """Mislabel / misalignment rule (item 033).
+    """Mislabel / ordering rule (item 033; Detector A moved to
+    ``spline_offset`` at item 189).
 
-    Runs two independent, config-gated detectors and returns their combined
-    findings: spline-offset outliers (Detector A, no failure mode) first in
-    ascending label order, then monotonic-progression inconsistencies
+    Runs one config-gated detector: monotonic-progression inconsistencies
     (Detector B, specification mode 9, out-of-order label sequence) in
     ascending name-pair order.
     """
 
     rule_id = "mislabel"
 
+    # This rule opts in to displaced_vertebra (item 191): a mislabelled
+    # vertebra can itself read as displaced, and the ordering signal is not
+    # spoiled by the displacement (see module docstring).
+    condition_opt_ins = (
+        ConditionOptIn(
+            condition="displaced_vertebra",
+            paths=("stage3.monotonic_consistency.non_monotonic_pairs[]",),
+            reason=(
+                "a mislabelled vertebra can read as displaced "
+                "(spline_offset fires on it too), but the ordering is "
+                "judged against a reference curve fitted in S-sorted label "
+                "order, which a displacement does not spoil"
+            ),
+        ),
+    )
+
     # Specification mode 9 (out-of-order label sequence):
     # RelabelSwapPerturbation designates mode 9
     # (src/segfacet/synth/identity_ordering_alignment.py) via
-    # Expectation(..., expected_rule_ids={"mislabel"}). DisplacePerturbation
-    # designates mode 1 (segmentation accuracy), which this rule's mode-less
-    # Detector A only co-detects.
+    # Expectation(..., expected_rule_ids={"mislabel"}). Item 189 moved the
+    # former mode-less Detector A (spline offset) to its own rule,
+    # heuristics.spline_offset; this rule now declares only mode 9.
     mode_declaration = RuleModeDeclaration(
         modes=(9,),
         evidence=(
@@ -188,14 +154,10 @@ class MislabelRule(Rule):
             "tests/corpus/manifest.json's relabel_swap designates "
             "this rule for mode 9 (out-of-order label sequence) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
-            "2026-09-15) via Detector B "
-            "(ordering). Detector A (spline offset) serves NO failure mode "
-            "since that sign-off: the offset from the spinal curve is an "
-            "anatomy-classification signal (spondylolisthesis, scoliosis), "
-            "so its firing on displace and on the FOV-truncation "
-            "condition's fixture crop_at_border is a recorded "
-            "co-detection, and its read paths are classified bookkeeping "
-            "below rather than attributed to mode 9.",
+            "2026-09-15) via Detector B (ordering). Item 189 (2026-09-28) "
+            "moved the former Detector A (spline offset), which served no "
+            "failure mode, to heuristics.spline_offset -- see that "
+            "module's declaration for its evidence.",
         ),
         consumed_paths=(
             ConsumedPath(
@@ -204,75 +166,13 @@ class MislabelRule(Rule):
                 reason=(
                     "container: scanned by _label_for_level to resolve a "
                     "non-monotonic pair's level names back to integer label "
-                    "ids for the finding's labels set; the offsets carry the "
-                    "evidence"
+                    "ids for the finding's labels set; "
+                    "non_monotonic_pairs[] carries the evidence"
                 ),
             ),
             ConsumedPath(
                 path="stage3.monotonic_consistency.non_monotonic_pairs[]",
                 role="signal",
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].dx_mm",
-                role="bookkeeping",
-                reason=(
-                    "message interpolation only (the ', predominantly "
-                    "<axis>' clause), and read by Detector A, which serves "
-                    "no failure mode since item 150"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].dy_mm",
-                role="bookkeeping",
-                reason=(
-                    "message interpolation only (the ', predominantly "
-                    "<axis>' clause), and read by Detector A, which serves "
-                    "no failure mode since item 150"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].dz_mm",
-                role="bookkeeping",
-                reason=(
-                    "message interpolation only (the ', predominantly "
-                    "<axis>' clause), and read by Detector A, which serves "
-                    "no failure mode since item 150"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].is_terminal",
-                role="bookkeeping",
-                reason=(
-                    "gate: detector A's terminal exemption, which "
-                    "suppresses a finding rather than evidencing one"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].label",
-                role="bookkeeping",
-                reason=(
-                    "identity: the label id carried into the finding's "
-                    "labels set"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].level_name",
-                role="bookkeeping",
-                reason=(
-                    "identity and message interpolation: names the level "
-                    "in the finding"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].offset_mm",
-                role="bookkeeping",
-                reason=(
-                    "Detector A's firing signal, and Detector A serves no "
-                    "failure mode since item 150 (the spline offset is an "
-                    "anatomy-classification signal); it cannot evidence "
-                    "mode 6, which Detector B decides on "
-                    "non_monotonic_pairs[]"
-                ),
             ),
         ),
         detectors=(
@@ -283,27 +183,17 @@ class MislabelRule(Rule):
                     "stage3.monotonic_consistency.non_monotonic_pairs[]",
                 ),
             ),
-            RuleDetector(
-                detector_id="spline_offset",
-                description=_MISALIGN_TAG,
-                mode_less_reason=(
-                    "the offset from the spinal curve is an "
-                    "anatomy-classification signal (spondylolisthesis, "
-                    "scoliosis), not a failure mode -- item-150 sign-off"
-                ),
-            ),
         ),
     )
 
     def evaluate(self, record, config) -> List[Finding]:  # type: ignore[override]
-        """Evaluate mislabel / misalignment signals for *record*.
+        """Evaluate mislabel / ordering signals for *record*.
 
         Parameters
         ----------
         record:
             Per-case feature dict (read-only). Reads
-            ``record["stage3"]["per_label_offsets"]``,
-            ``record["stage3"]["monotonic_consistency"]``, and
+            ``record["stage3"]["monotonic_consistency"]`` and
             ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads ``rules.mislabel.params``.
@@ -311,8 +201,7 @@ class MislabelRule(Rule):
         Returns
         -------
         list[Finding]
-            Zero or more findings: offset findings first (ascending label),
-            then order findings (ascending name-pair order).
+            Zero or more order findings (ascending name-pair order).
 
         Raises
         ------
@@ -326,14 +215,6 @@ class MislabelRule(Rule):
         )
         severity = _severity_from_param(sev_label)
 
-        max_offset = float(
-            config.rule_param(
-                self.rule_id, "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
-            )
-        )
-        flag_offset = bool(
-            config.rule_param(self.rule_id, "flag_offset_outliers", default=True)
-        )
         flag_order = bool(
             config.rule_param(
                 self.rule_id, "flag_order_inconsistency", default=True
@@ -344,103 +225,10 @@ class MislabelRule(Rule):
         if not isinstance(stage3, dict):
             stage3 = {}
 
-        offset_findings: List[Finding] = []
-        order_findings: List[Finding] = []
-
-        if flag_offset:
-            offset_findings = self._detect_offset_outliers(
-                stage3, severity, max_offset
-            )
-
-        if flag_order:
-            order_findings = self._detect_order_inconsistency(
-                stage3, record, severity
-            )
-
-        return offset_findings + order_findings
-
-    @staticmethod
-    def _dominant_direction(entry: dict) -> Optional[str]:
-        """Return the dominant displacement direction name for *entry*, or
-        ``None`` when any of ``dx_mm``/``dy_mm``/``dz_mm`` is missing or
-        non-finite (item 120, AC14/AC15).
-
-        Selected as the largest of ``|dx_mm|``, ``|dy_mm|``, ``|dz_mm|``,
-        ties broken x -> y -> z (left-right -> anterior-posterior ->
-        cranio-caudal), per the RAS axis contract in
-        ``features/spline_offset.py``.
-        """
-        components = []
-        for key, name in (
-            ("dx_mm", "left-right"),
-            ("dy_mm", "anterior-posterior"),
-            ("dz_mm", "cranio-caudal"),
-        ):
-            if key not in entry:
-                return None
-            try:
-                value = float(entry[key])
-            except (TypeError, ValueError):
-                return None
-            if not math.isfinite(value):
-                return None
-            components.append((abs(value), name))
-
-        # Stable sort by descending magnitude keeps x -> y -> z tie order
-        # (the insertion order above) for equal magnitudes.
-        best = max(components, key=lambda c: c[0])
-        return best[1]
-
-    @staticmethod
-    def _detect_offset_outliers(
-        stage3: dict, severity: Severity, max_offset: float
-    ) -> List[Finding]:
-        """Detector A: spline-offset outliers (misalignment, no failure mode)."""
-        offsets = stage3.get("per_label_offsets")
-        if not isinstance(offsets, list):
+        if not flag_order:
             return []
 
-        normalised = []
-        for entry in offsets:
-            if not isinstance(entry, dict) or "label" not in entry:
-                continue
-            if entry.get("is_terminal"):
-                # A terminal (sequence-first/last) entry's held-out offset
-                # extrapolates past the end of the estimator's own parameter
-                # domain rather than measuring a genuine displacement -- item
-                # 123, see this module's docstring. A missing key or `None`
-                # is falsy and therefore interior, unchanged from before.
-                continue
-            try:
-                label = int(entry["label"])
-            except (TypeError, ValueError):
-                continue
-            offset = float(entry.get("offset_mm", 0.0) or 0.0)
-            name = entry.get("level_name")
-            direction = MislabelRule._dominant_direction(entry)
-            normalised.append((label, name, offset, direction))
-
-        normalised.sort(key=lambda t: t[0])
-
-        findings: List[Finding] = []
-        for label, name, offset, direction in normalised:
-            if offset >= max_offset:
-                direction_clause = f", predominantly {direction}" if direction else ""
-                findings.append(
-                    Finding(
-                        rule_id="mislabel",
-                        severity=severity,
-                        reason=(
-                            f"{_MISALIGN_TAG} label {label} ({name}) centroid "
-                            f"lies {offset:.1f} mm off the fitted spinal curve"
-                            f"{direction_clause} "
-                            f"(threshold {max_offset:.1f} mm)."
-                        ),
-                        labels=frozenset({label}),
-                        detector_id="spline_offset",
-                    )
-                )
-        return findings
+        return self._detect_order_inconsistency(stage3, record, severity)
 
     @staticmethod
     def _detect_order_inconsistency(

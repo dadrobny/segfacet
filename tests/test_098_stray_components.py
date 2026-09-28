@@ -71,7 +71,7 @@ from segfacet.config import HeuristicConfig, bundled_default_config, default_con
 from segfacet.features.components import ComponentsInfo, compute_components
 from segfacet.feature_report import components_to_dict
 from segfacet.heuristics import run_rules
-from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM  # item 189 (2026-09-28)
 from segfacet.pipeline import extract_feature_record
 from segfacet.reference import (
     ALL_STRATUM,
@@ -425,6 +425,8 @@ def test_ac8_dict_key_set_is_exactly_the_components_block_field_set():
     d = components_to_dict(info)
     # Six pre-098 keys + item 098's four + item 167's two
     # (stray_contact_area_mm2, stray_contact_label) = twelve in all.
+    # Item 187 (2026-09-28) adds two more: component_contacts and
+    # label_contact_fraction -- fourteen in all.
     expected_keys = {
         "component_count",
         "component_sizes",
@@ -438,6 +440,8 @@ def test_ac8_dict_key_set_is_exactly_the_components_block_field_set():
         "stray_volume_fraction",
         "stray_contact_area_mm2",
         "stray_contact_label",
+        "component_contacts",
+        "label_contact_fraction",
     }
     assert set(d.keys()) == expected_keys
 
@@ -683,7 +687,7 @@ _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
     "remove_level": [],
     "crop_at_border": [],
     "sequence_break": [],
-    "force_overlap": [],
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
@@ -869,7 +873,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "verdict": "flagged-for-review",
         "findings": [
             {
-                "rule_id": "mislabel",
+                # Item 189 (2026-09-28): the offset detector moved to its own
+                # spline_offset rule.
+                "rule_id": "spline_offset",
                 "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],
@@ -917,6 +923,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     # 2026-08-31 (item 132): the traversal-ordered monotonicity fit now
     # surfaces the swap through plain run_qc's mislabel Detector B, so this
     # entry moved from {"verdict": "pass", "findings": []}.
+    # 2026-09-28 (item 192): sequence's swap detector now also fires on this
+    # case (per_label centroids replace the integer-ordered
+    # out_of_order_labels[] input); verdict is unchanged.
     "relabel_swap": {
         "verdict": "flagged-for-review",
         "findings": [
@@ -930,9 +939,18 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "(L2) and 22 (L3) are out of expected order along the "
                     "spine (spline parameter does not advance)."
                 ),
-            }
+            },
+            {
+                "rule_id": "sequence",
+                "detector_id": "swap",
+                "severity": "flagged-for-review",
+                "labels": [21, 22],
+                "reason": "Non-continuous label sequence: swap of L3, L2.",
+            },
         ],
     },
+    # 2026-09-28 (item 192): sequence's skip detector now also fires on this
+    # case, co-detecting alongside coverage; verdict is unchanged.
     "remove_level": {
         "verdict": "flagged-for-review",
         "findings": [
@@ -945,10 +963,23 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "Missing interior level(s): L3 absent within the "
                     "observed present-level span."
                 ),
-            }
+            },
+            {
+                "rule_id": "sequence",
+                "detector_id": "skip",
+                "severity": "flagged-for-review",
+                "labels": [],
+                "reason": "Skipped level label: L3 absent between present levels.",
+            },
         ],
     },
     "crop_at_border": {
+        # Item 189 (2026-09-28): the offset detector moved to its own
+        # spline_offset rule.
+        # Item 191 (2026-09-28): the runner gates spline_offset's finding on
+        # the touching label -- it does not opt in to fov_truncation -- so
+        # it no longer survives, leaving border alone; the verdict is
+        # unchanged.
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -961,31 +992,23 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "image face(s): anterior."
                 ),
             },
-            {
-                "rule_id": "mislabel",
-                "detector_id": "spline_offset",
-                "severity": "flagged-for-review",
-                "labels": [22],
-                "reason": (
-                    "Vertebra misaligned from spinal curve: label 22 (L3) "
-                    "centroid lies 18.0 mm off the fitted spinal curve, "
-                    f"predominantly anterior-posterior (threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)."
-                ),
-            },
         ],
     },
+    # 2026-09-28 (item 192): sequence names its sub-type; this case's finding
+    # is now the shift detector. Verdict is unchanged.
     "sequence_break": {
         "verdict": "flagged-for-review",
         "findings": [
             {
                 "rule_id": "sequence",
+                "detector_id": "shift",
                 "severity": "flagged-for-review",
                 "labels": [28],
-                "reason": "Non-continuous label sequence: T13 out of anatomical order.",
+                "reason": "Non-continuous label sequence: shift of T13.",
             }
         ],
     },
-    "force_overlap": {"verdict": "pass", "findings": []},
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
