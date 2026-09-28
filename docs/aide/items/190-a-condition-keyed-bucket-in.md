@@ -355,7 +355,15 @@ probe on 2026-09-28 and are exact.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented per the spec's Implementation Steps with no deviation:
+`CaseOutcome.condition` and `PerModeSensitivity.condition` were added as the
+last field with `Optional[str] = None`, `_extract_expected` now returns
+`expected.get("condition") or None`, and `_compute_per_mode` splits records
+into `observed` (keyed by `failure_mode`, unchanged) and
+`observed_conditions` (keyed by condition id, read via
+`getattr(record.outcome, "condition", None)`), appending one
+`_per_mode_entry(None, None, records, condition=cid)` per `cid` in
+`sorted(observed_conditions)` after the requested-mode entries.
 
 - **Left open:** the detection-rate join for a condition-homed magnitude
   metric. `per_mode_cohort.summarise_run_per_mode` joins sensitivity entries
