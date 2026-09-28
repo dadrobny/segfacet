@@ -178,6 +178,12 @@ committed documents. The builder re-measures each value on the real change.
   `EVIDENCE_RUNGS[1:]`, which `tests/test_162_corpus_exercise_report.py`'s AC4
   requires. The module's scope-fence sentence, "the sole authored string is an
   unused operator's reason", gains a dated item-193 correction.
+  - *Corrected 2026-09-28 (validation round 1):* the map's values are not
+    written as string literals. `tests/test_147_specification_is_the_record.py`'s
+    AC2 allows a rung-vocabulary string literal in `failure_modes.py` only, so
+    each value is `EVIDENCE_RUNGS[1]` read from `segfacet.failure_modes`. The
+    map's keys and resolved values are unchanged. See "Correction — 2026-09-28
+    (validation round 1)", C1.
 - **A6 (measured: what moves).**
   - Declarations: the mode-less rules go from `{border, spline_offset}` to
     `{border, intensity_reference_delta, reference_delta, spline_offset}`.
@@ -241,6 +247,15 @@ committed documents. The builder re-measures each value on the real change.
     `rule 'intensity_reference_delta': declares failure mode(s) [16] but none of its 8 'consumed_paths' entries is classified 'signal', so it contributes no mode to any path.`
     With the planted declaration's `consumed_paths` also set to `()`, only the
     existing empty-classification message appears, not both.
+    - *Corrected 2026-09-28 (validation round 1):* the "only the existing
+      message" half of that sentence was wrong, and the "not both" half holds.
+      With `consumed_paths=()`, `path_classification_conflicts()` adds nine
+      messages naming the rule, not one. One is the empty-classification
+      message. The other eight are completeness messages ("consumes leaf path
+      … does not cover it"), one per leaf path the catalogue attributes to the
+      rule, because completeness is measured against the catalogue's
+      attribution rather than the declaration. The new check's message is
+      absent. See "Correction — 2026-09-28 (validation round 1)", C2.
 - **A7 (defensible default: `PROXY_RULE_IDS` and `BAR_CONDITIONS` stay).**
   After this item no edge names `reference_delta`, so its place in
   `PROXY_RULE_IDS` is inert. That tuple exists so that a later edge cannot
@@ -336,6 +351,8 @@ committed documents. The builder re-measures each value on the real change.
 6. **`src/segfacet/traceability.py`.**
    - Add `UNEXERCISED_RULE_REASONS` below `UNUSED_OPERATOR_REASONS`, with a
      comment (A5), and add it to `__all__`.
+     *Corrected 2026-09-28:* its values are read from
+     `failure_modes.EVIDENCE_RUNGS`, never written as literals (C1).
    - In `_build_exercise`, before the existing
      `if strongest_rung is None or strongest_rung == evidence_rungs[0]:` add a
      branch: when `strongest_rung is None` and the rule id is in the map, the
@@ -457,6 +474,8 @@ Named adversarial cases, and no others:
   `set(path_classification_conflicts()) - set(<the live conflicts>)` contains
   `'intensity_reference_delta'`. It guards the new check double-reporting the
   empty-classification state, which the existing message already covers.
+  *Corrected 2026-09-28:* the assertion changes, and the failure mode it
+  guards does not (C2).
 
 **Existing tests to reconcile.** Four read-only sweeps over `tests/`, plus
 `docs/aide/progress.md` and `src/segfacet/`, found these. They covered
@@ -724,3 +743,145 @@ them, per the spec).
   to mode 16 once a reference-backed intensity corpus exists. It would need a
   `signal` path, which it cannot have while no driver realises the
   `intensity_reference_delta` block.
+
+## Correction — 2026-09-28 (validation round 1)
+
+Validation round 1 failed on two tests. The builder and the test-writer
+followed the spec, and the spec was wrong in both places. The review of the
+same round found one minor naming defect in an authorised test file. Every
+section above stands as written, and these three corrections apply on top of
+it. No acceptance criterion changes. No path is added to Authorised paths:
+`src/segfacet/traceability.py`, `tests/test_193_reference_delta_mode_less.py`
+and `tests/test_149_conformance_report.py` are already listed under **May
+change**. The corrected tests come first (C2, C3), then the builder's change
+(C1). The two are independent.
+
+### C1 — the unexercised-rule reasons are not rung literals (builder, `src`)
+
+**Defect.** A5 and Step 6 wrote the map as
+`{"intensity_reference_delta": "needs-real-data", "reference_delta": "needs-real-data"}`.
+`tests/test_147_specification_is_the_record.py::test_ac2_one_source_for_rung_vocabulary`
+AST-walks every `src/segfacet/**/*.py` file, collects every string
+`ast.Constant`, and requires that only `src/segfacet/failure_modes.py` holds
+a value equal to a member of `failure_modes.EVIDENCE_RUNGS`. The match is
+exact, so a docstring or comment that mentions a rung does not count. The two
+map values at `src/segfacet/traceability.py` lines 231–232 are the only
+offending constants in that file. The module's own item-147 banner already
+forbids re-introducing a rung literal there.
+
+**Decision.** The values are read from the vocabulary. `test_147`'s AC2 is
+not widened to exempt `traceability.py`: it is the single-source guard for
+the rung vocabulary, and the fence above forbids loosening a test. No named
+constant is added to `failure_modes.py` either: `EVIDENCE_RUNGS` is already
+the vocabulary, and one consumer does not justify a second public name for
+one of its members.
+
+**Builder changes, in `src/segfacet/traceability.py` only:**
+
+1. Below the `from typing import …` line, add one module-level import:
+   `from segfacet.failure_modes import EVIDENCE_RUNGS as _EVIDENCE_RUNGS`.
+   At module level `segfacet.failure_modes` imports only the standard
+   library and nothing from `segfacet`. So `traceability` stays light for
+   `tests/test_159_prerequisite_test_and_import_defects.py::test_ac2_traceability_imports_light`,
+   and there is no import cycle.
+2. Replace both map values with `_EVIDENCE_RUNGS[1]`. The dict keeps its
+   name, its annotation `Dict[str, str]`, its two keys in that order, its
+   place in `__all__`, and its resolved values (`"needs-real-data"`).
+3. In the comment above the map, replace "each value is validated to sit
+   inside ``failure_modes.EVIDENCE_RUNGS[1:]``" with wording that says what
+   actually holds. No code validates the values. `test_162`'s AC4 requires
+   each reported reason to lie in `EVIDENCE_RUNGS[1:]`, and index 1 is the
+   `needs-real-data` rung. Add that the values are read from the vocabulary
+   rather than written as literals, because `test_147`'s AC2 allows a rung
+   literal only in `failure_modes.py`.
+4. Change nothing else. `_build_exercise` already reads the map by key.
+
+**Measured 2026-09-28** with `.venv/bin/python`, as an AST probe of the
+current file and of a copy with steps 1 and 2 applied. The current file has
+rung constants at lines 231 and 232. The patched copy has none.
+`failure_modes.EVIDENCE_RUNGS[1] == "needs-real-data"`. Offenders on the
+current tree: `failure_modes.py` and `traceability.py`. After the change the
+set is `{"src/segfacet/failure_modes.py"}`, which is what AC2 asserts.
+
+### C2 — the empty-classification adversarial case asserts what is measured (test-writer, `tests`)
+
+**Defect.** A6's last bullet said that with `consumed_paths=()` "only the
+existing empty-classification message appears". The Testing Strategy turned
+that into "exactly one message … contains `'intensity_reference_delta'`".
+The completeness check in `catalogue.path_classification_conflicts()` takes
+the rule's consumed paths from the catalogue's static attribution, not from
+the declaration. So an emptied classification also reports every attributed
+path as unclassified.
+
+**Measured 2026-09-28** with `.venv/bin/python` on this branch at
+`c26757a`, by monkeypatching `rule_mod._RULES["intensity_reference_delta"].mode_declaration`
+and diffing against the live `()`:
+
+- With AC5's planted declaration there is one new message. It is the new
+  check's message, containing `"is classified 'signal'"`.
+- With the planted declaration plus `consumed_paths=()` there are nine new
+  messages, all naming `'intensity_reference_delta'`:
+  - one contains `"declares failure mode(s)"` and
+    `"'consumed_paths' classification is empty"`;
+  - eight contain `"does not cover it"`, one per catalogue-attributed leaf
+    path (`per_label`, `reference_delta.lower_pct`,
+    `reference_delta.upper_pct` and the five `reference_delta.{label}.*`
+    paths);
+  - none contains `"is classified 'signal'"`.
+
+**Decision.** The guarded property is unchanged: the new check must not also
+report an empty classification. The case asserts that property through the
+one fragment the two mode-claim messages share, and it does not count
+completeness messages. The count of those tracks the catalogue's attribution
+of the rule, which this case does not guard. Both mode-claim messages start
+`rule '<id>': declares failure mode(s)`. No completeness or soundness
+message contains that fragment.
+
+**Test-writer changes, in
+`tests/test_193_reference_delta_mode_less.py::test_adv_empty_classification_reported_once`
+only.** Keep the setup: the live baseline, the planted declaration with
+`consumed_paths=()`, the monkeypatch and `new_conflicts`. Replace the
+`matching` assertion with three assertions over `new_conflicts`:
+
+1. Exactly one message contains `"declares failure mode(s)"`.
+2. That message contains `"classification is empty"`.
+3. No message contains `"is classified 'signal'"`.
+
+Update the docstring to say this, with a dated item-193 line recording that
+the completeness messages are expected and not counted. Do not pin `9` or
+`8`. The case fails for the defect it names. If the new check lost its
+`decl.consumed_paths` condition, `not any(...)` over an empty tuple is true.
+The check would then fire beside the existing one, and assertions 1 and 3
+both go red.
+
+### C3 — two `test_149` names still say "modes 8 and 9" (test-writer, `tests`)
+
+**Defect (reviewer, minor).** The Testing Strategy took the mode-8 tuple out
+of `_AC9_SPLIT_COLUMN_MODES` but left the names that describe it. The section
+comment above it (about line 631 of `tests/test_149_conformance_report.py`)
+and two test names still say modes 8 and 9:
+`test_ac9_modes_8_and_9_anchor_and_read_paths_differ` (about line 651) and
+`test_ac9_committed_markdown_renders_both_cells_for_modes_8_and_9` (about
+line 681).
+
+**Test-writer changes, in `tests/test_149_conformance_report.py`:**
+
+- Rename them to `test_ac9_split_column_modes_anchor_and_read_paths_differ`
+  and `test_ac9_committed_markdown_renders_both_cells_for_split_column_modes`.
+  The names then describe the roll call they iterate, so a later change to
+  the tuple leaves them true. The bodies do not change.
+- Append one dated item-193 line to the section comment: since item 193
+  (2026-09-28) the roll call holds mode 9 alone, because mode 8 has read
+  nothing since `reference_delta` became mode-less. The comment's earlier
+  numbering history stays.
+
+**Checked 2026-09-28: nothing else names either function.** The repository
+was searched under `tests/`, `src/`, `docs/` and `.github/`.
+`tests/test_126_golden_retirement.py`'s `_RE_POINTED` lists
+`test_042`/`089`/`090`/`094`/`098`/`105`/`106`/`108`/`111`/`120`–`123`
+functions only. The one other hit is a line in the per-machine permission
+log `docs/aide/permissions/log.jsonl`, which no test reads.
+
+**Fence addition.** The reconciliation fence under Authorised paths gains one
+more permitted kind of edit: a test renamed so that its name states what it
+iterates, with its body unchanged. No other edit is widened by it.
