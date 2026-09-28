@@ -462,9 +462,9 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     # A deliberate non-empty overlaps block: reuse the clean record's other
     # blocks verbatim, replacing only "overlaps" with a real
     # detect_overlaps() result over a two-channel stack sharing every voxel
-    # of the first label (the technique synth/regression.py's
-    # _recon_overlap_mask_stack uses, built here instead of reaching outside
-    # this package).
+    # of the first label -- a multi-channel input the catalogue builds
+    # itself, since no committed corpus case can express one (item 195,
+    # 2026-09-28).
     data = np.asanyarray(clean.seg_img.dataobj)
     label_a, label_b = clean.labels[0], clean.labels[1]
     mask_a = data == label_a

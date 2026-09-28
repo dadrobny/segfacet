@@ -44,7 +44,6 @@ from segfacet.synth.component_shape import (
 )
 from segfacet.synth.coverage_border_overlap import (
     CropAtBorderPerturbation,
-    ForceOverlapPerturbation,
     RemoveLevelPerturbation,
     RemoveLevelRelabelPerturbation,
 )
@@ -131,7 +130,6 @@ __all__ = [
     "RemoveLevelPerturbation",
     "RemoveLevelRelabelPerturbation",
     "CropAtBorderPerturbation",
-    "ForceOverlapPerturbation",
     "DisplacePerturbation",
     "RelabelSwapPerturbation",
     "SequenceBreakPerturbation",

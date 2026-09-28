@@ -10,9 +10,9 @@ array axis, and which end, is the 'superior' face on *this* volume's own
 affine?" (:func:`resolve_face`), or "which array axis carries S/I on this
 volume?" (:func:`si_axis`), instead of hardcoding an axis index. Every
 operator that names a face or must stay off the stacking axis
-(``CropAtBorderPerturbation``, ``ForceOverlapPerturbation``,
-``FragmentPerturbation``, ``DisplacePerturbation``) resolves through this one
-module rather than repeating the ``aff2axcodes`` logic locally.
+(``CropAtBorderPerturbation``, ``FragmentPerturbation``,
+``DisplacePerturbation``) resolves through this one module rather than
+repeating the ``aff2axcodes`` logic locally.
 
 Deliberately independent of :mod:`segfacet.features.geometry` (not imported
 from it): that module is owned by item 108 and not modified here, and the

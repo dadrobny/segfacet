@@ -10,15 +10,15 @@ predicates that dispatch on the case's ``detection`` discriminator (item 040):
 * ``detection == "pipeline"`` -- the failure mode is directly observable by
   the plain pipeline; assert straight against ``run_qc``'s output.
 * ``detection == "reconstructed_record"`` -- the failure mode is structurally
-  invisible to plain ``run_qc`` (item 040's documented limitation, now
-  mode 15's overlap case only -- item 120 promoted the displace case's
-  held-out spline offset into the pipeline itself, retiring its
-  reconstruction technique, and item 132 did the same for the mode-9
-  relabel-swap case); assert
-  instead via the same reconstruction technique items 038/039 used in their
-  own tests, feeding a reconstructed feature record directly to the
-  designated rule (:class:`~segfacet.heuristics.mislabel.MislabelRule` /
-  :class:`~segfacet.heuristics.overlap.OverlapRule`).
+  invisible to plain ``run_qc`` (item 040's documented limitation). No
+  committed case uses this path any more -- item 120 promoted the displace
+  case's held-out spline offset into the pipeline itself, item 132 did the
+  same for the mode-9 relabel-swap case, and item 195 removed the
+  ``force_overlap`` case (mode 15) outright, since a single-channel label
+  map cannot express it. The path is kept for a future reconstructed case,
+  asserting via the same reconstruction technique item 039 used in its own
+  tests, feeding a reconstructed feature record directly to the designated
+  rule (:class:`~segfacet.heuristics.mislabel.MislabelRule`).
 
 This module is a small, importable verification library -- **not** a pytest
 module itself -- so the parametrised suite and any future drift/meta-tests
@@ -51,15 +51,11 @@ import numpy as np
 from segfacet.config import bundled_default_config
 from segfacet.features.centroids import compute_centroid
 from segfacet.features.consistency import compute_monotonic_consistency
-from segfacet.features.overlap import detect_overlaps
 from segfacet.features.spline import fit_centroid_spline
-from segfacet.feature_report import overlap_to_dict
 from segfacet.heuristics.mislabel import MislabelRule
-from segfacet.heuristics.overlap import OverlapRule
 from segfacet.io import load_case
 from segfacet.pipeline import extract_feature_record, run_qc, run_qc_with_intensity
 from segfacet.synth.axes import si_axis
-from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.corpus import CORPUS_DIR
 from segfacet.synth.intensity import INTENSITY_CORPUS_DIR
 from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, corpus_case_kind
@@ -225,29 +221,8 @@ def _recon_monotonic_true_spatial_order(case: dict, config) -> List:
     return MislabelRule().evaluate(record, config)
 
 
-def _recon_overlap_mask_stack(case: dict, config) -> List:
-    """Mode 8 (``force_overlap``): rebuild the clean base spine, build a
-    two-channel one-hot stack ``[perturbed == target, clean_base ==
-    neighbour]``, run ``detect_overlaps``, wrap as an ``{"overlaps": [...]}``
-    record, and feed it to :class:`OverlapRule`."""
-    seg_img = loaded_seg_image(case)
-    target = case["perturbation_params"]["target_label"]
-    neighbour = case["perturbation_params"]["neighbour_label"]
-
-    clean = build_clean_spine(**case["base"])
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    data = np.asanyarray(seg_img.dataobj)
-
-    stack = np.stack([data == target, clean_data == neighbour])
-    pairs = detect_overlaps(stack, np.array([target, neighbour]))
-    record = {"overlaps": [overlap_to_dict(pair) for pair in pairs]}
-
-    return OverlapRule().evaluate(record, config)
-
-
 RECONSTRUCTIONS: Dict[str, Callable] = {
     "monotonic_true_spatial_order": _recon_monotonic_true_spatial_order,
-    "overlap_mask_stack": _recon_overlap_mask_stack,
 }
 
 
