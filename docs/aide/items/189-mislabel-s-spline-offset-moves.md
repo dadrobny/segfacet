@@ -490,6 +490,21 @@ hand-back to spec-author.
 - `tests/test_090_reference_derived_defaults.py` — AC16 proves A5.
 - `docs/aide/golden_evidence.generated.json` — must not move (A6).
 
+This section was amended on 2026-09-28, after `aide scope 189` reported
+`tests/test_035_failure_modes.py` outside the list above. The list above
+stands as written; this note adds one path and nothing else. The Testing
+Strategy's reconciliation sweep missed the file, which is distinct from the
+listed `tests/test_035_default_config.py`. Its edit (commit `32bd207`)
+changes two things: `test_ac19_mode1_misalignment_fires_mislabel`'s filter,
+and the mode-1 row of `_MODE_RECORDS_AND_RULE_IDS`. Both go from `"mislabel"`
+to `"spline_offset"`, and each carries a dated item-189 comment. That is the
+fence's "an offset finding's rule id changed from mislabel to spline_offset"
+shape. No assertion is removed or loosened, and the test keeps its name.
+
+**May change:**
+
+- `tests/test_035_failure_modes.py` — mode 1's offset-finding rule id, in `test_ac19_mode1_misalignment_fires_mislabel` and `_MODE_RECORDS_AND_RULE_IDS` (amended 2026-09-28).
+
 ## Testing Strategy
 
 The test module is `tests/test_189_spline_offset_condition.py`, with one test
