@@ -178,7 +178,7 @@ signed text.
 | tests/corpus/fixtures/remove_level_seg.nii.gz | The remove_level corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/crop_at_border_seg.nii.gz | The crop_at_border corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/sequence_break_seg.nii.gz | The sequence_break corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
-| tests/corpus/fixtures/force_overlap_seg.nii.gz | The force_overlap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice), and is also read by test_094's AC3 loader-invariance snapshot. | tests/test_040_synthetic_corpus.py, tests/test_094_tptbox_image_layer.py | n/a | keep | — |
+| tests/corpus/fixtures/force_overlap_seg.nii.gz | The force_overlap corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice), and is also read by test_094's AC3 loader-invariance snapshot. (Removed 2026-09-28 with its corpus case, item 195; see Retirement execution log.) | tests/test_040_synthetic_corpus.py, tests/test_094_tptbox_image_layer.py | n/a | keep | — |
 | tests/corpus/fixtures/fuse_adjacent_seg.nii.gz | The fuse_adjacent corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/remove_level_relabel_seg.nii.gz | The remove_level_relabel corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/split_seg.nii.gz | The split corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
@@ -293,6 +293,8 @@ with the reason it earns its keep rather than following Group A:
   not a report snapshot.
 - `tests/corpus/fixtures/force_overlap_seg.nii.gz` — input fixture, not
   a report snapshot; also underlies test_094's loader-invariance snapshot.
+  (Removed 2026-09-28 with its corpus case, item 195; see Retirement
+  execution log.)
 - `tests/corpus/fixtures/fuse_adjacent_seg.nii.gz` — input fixture, not a
   report snapshot (added by item 150, 2026-09-14).
 - `tests/corpus/fixtures/remove_level_relabel_seg.nii.gz` — input fixture,
