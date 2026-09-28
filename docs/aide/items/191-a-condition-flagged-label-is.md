@@ -169,6 +169,21 @@ None of these closes a Stage 33 acceptance criterion. Criterion 2 ("every
 case's measured firing equals its expected set, across both corpora") is
 attested by D6's stage validation over the whole corpus.
 
+**Correction (2026-09-28, after validation round 1): AC13 is added.** AC1–AC12
+stand as written. A3's correction of the same date gives the reason.
+
+- [ ] **AC13: a mislabel on a label that reads as displaced still fires.** Let
+  `swap` be `loaded_seg_image(<the clean_control case>)` with its voxel values
+  20 and 21 exchanged, on the same affine and header, and
+  `r = extract_feature_record(swap, cfg)`. Then
+  `{(f.rule_id, f.detector_id, f.labels) for f in gate(r, cfg) if f.rule_id in {"mislabel", "spline_offset"}} == {("mislabel", "ordering", frozenset({20, 21})), ("spline_offset", "spline_offset", frozenset({21}))}`.
+
+Why it is written: it fails if `mislabel` does not opt in to
+`displaced_vertebra`. The gate then drops the ordering finding, and a genuine
+label swap is reported only as an anatomy condition. The `spline_offset` member
+of the set is the precondition: if label 21 stopped reading as displaced, the
+equality fails instead of passing without exercising the gate.
+
 ## Assumptions
 
 `loop.clarify = "assume"` (`aide.toml`), vision posture `prototype`. Every
@@ -225,6 +240,38 @@ real change.
     `displaced_vertebra` either, although a rigid displacement leaves volume
     unchanged: the roadmap decides validity per rule when the rule needs it,
     and no case needs it yet (Left open).
+  - **Corrected 2026-09-28, after validation round 1: `mislabel` also opts in
+    to `displaced_vertebra`.** The default above stands as the record of what
+    round 1 was built from. It is wrong for `mislabel`, for two reasons.
+    - A genuine mislabel can read as displaced. Measured on this branch with
+      `.venv/bin/python`: exchange two labels of the `clean_control` fixture
+      and run the real gate. For 20↔21, `spline_offset` fires on 21, and the
+      gate drops `mislabel`'s only finding (`ordering` on {20, 21}). The
+      report then names an anatomy condition and hides the segmentation
+      defect. Of the ten pairwise swaps of labels 20–24, three lose a
+      `mislabel` finding this way (20↔21, 20↔22, 22↔24). No other rule's
+      finding is dropped on any of them.
+    - The ordering signal is not spoiled by a displacement.
+      `stage3.monotonic_consistency.non_monotonic_pairs[]` is judged against
+      a reference curve fitted in S-sorted traversal order (item 132,
+      `compute_monotonic_consistency`). A vertebra moved off the curve keeps
+      its place in that order unless it moves past a neighbour, and a label
+      order that disagrees with the vertebrae's positions is exactly what the
+      rule reports.
+  - `mislabel`'s opt-in names one path,
+    `stage3.monotonic_consistency.non_monotonic_pairs[]`. The live catalogue
+    lists it among `mislabel`'s consumed paths (with `per_label`), so AC12
+    holds. `CONDITIONS["displaced_vertebra"].opting_in_rules` becomes
+    `("mislabel", "spline_offset")`, sorted as AC10 derives it.
+  - `mislabel` still does not opt in to `fov_truncation`: the crop spoils a
+    truncated label's centroid, and the ordering is read from centroids.
+  - Measured with the opt-in applied in-process: the plain pipeline over every
+    geometric-corpus case is unchanged, and so are the reference-backed
+    findings of `clean_control`, `displace`, `crop_at_border`, `crop_fov_si`
+    and `relabel_swap`. AC8 still reads `{"spline_offset"}`: `mislabel` does
+    not fire on `displace`. A5 therefore stands. The three
+    `tests/test_033_mislabel.py` tests that went red in round 1 read both
+    findings again, on {19, 20} and {20}.
 - **A4 (defensible default: the specification record).**
   - `ConditionSpec.exempting_rules` is renamed `opting_in_rules`, validated as a
     tuple like the field it replaces. `fov_truncation` carries `("border",)` and
@@ -362,6 +409,29 @@ real change.
 
 No dependency is added.
 
+**Correction (2026-09-28, after validation round 1): one step is added.** Steps
+1–10 stand; the builder has already carried them out.
+
+11. **`mislabel` opts in to `displaced_vertebra`** (A3's correction).
+    - `src/segfacet/heuristics/mislabel.py`: set `condition_opt_ins` to one
+      `ConditionOptIn(condition="displaced_vertebra", paths=("stage3.monotonic_consistency.non_monotonic_pairs[]",), reason=...)`.
+      The `reason` says that a mislabelled vertebra can read as displaced, and
+      that the ordering is judged against the S-sorted reference curve, which
+      a displacement does not spoil. Add one design-decision line to the
+      module docstring, dated, naming item 191.
+    - `src/segfacet/failure_modes.py`: `_CONDITION_DISPLACED_VERTEBRA`'s
+      `opting_in_rules=("mislabel", "spline_offset")`. Add one sentence to its
+      `mechanism`: `mislabel` opts in, because a label swap can put a centroid
+      off the curve fitted in label order.
+    - Regenerate `failure_modes.generated.{json,md}` and
+      `traceability_matrix.generated.{json,md}` as step 8 does, with two runs
+      byte-compared. `feature_catalogue.generated.json` and
+      `golden_evidence.generated.json` must come out unchanged, because the
+      catalogue does not read opt-ins. `tests/corpus/manifest.json` and
+      `docs/aide/corpus_sheet.png` do not move.
+    - Re-run `python .aide/scripts/aide.py scope 191` and
+      `python .aide/scripts/aide.py check`.
+
 ## Authorised paths
 
 **May change:**
@@ -440,6 +510,19 @@ ungated rule's evaluate instead of from pipeline_findings.
 
 - `tests/test_128_reference_verse_v1_integrity.py` — the load-and-score companion's case becomes `clean_control` (amended 2026-09-28).
 - `tests/test_128_relocation_checks.py` — `test_ac8_companion_actually_runs_and_finds_label_22_bounds_finding`'s case becomes `clean_control` (amended 2026-09-28).
+
+A second amendment, dated 2026-09-28 and made after validation round 1, adds
+one path to each list. The lists above stand. `mislabel` opts in to
+`displaced_vertebra` (A3's correction, step 11). `tests/test_033_mislabel.py`
+is not edited: its three round-1 failures pass again once the opt-in exists.
+
+**May change:**
+
+- `src/segfacet/heuristics/mislabel.py` — its `displaced_vertebra` opt-in (step 11, amended 2026-09-28).
+
+**Asserts against:**
+
+- `tests/test_033_mislabel.py` — AC15's two tests and `test_adv_offset_findings_ordered_before_order_findings` go green unedited (amended 2026-09-28).
 
 ## Testing Strategy
 
@@ -639,6 +722,34 @@ gate by hand to the ungated findings.
   `18.025609`, and keep `5.624555` and `14.615923`, because
   `test_189` AC14 checks that all three appear in the docstring.
 
+**Correction (2026-09-28, after validation round 1): AC13's test, and no
+reconciliation.**
+
+- The test-writer adds one test to `tests/test_191_condition_gate.py` for
+  AC13. It builds `swap` with NumPy on `loaded_seg_image`'s data and
+  `nibabel.Nifti1Image(data, img.affine, img.header)`, and asserts AC13's
+  equality. No adversarial case is added.
+- Probe-verified on 2026-09-28, on this branch with `mislabel`'s opt-in
+  applied in-process: the gated findings of `mislabel` and `spline_offset` on
+  the swapped record are exactly AC13's set. Without the opt-in they are
+  `{("spline_offset", "spline_offset", frozenset({21}))}` only.
+- `tests/test_033_mislabel.py` is **not** reconciled. Its synthetic record
+  (offset 41.3 mm on L1, label 20; ordering pair T12/L1, labels 19 and 20) is
+  a small copy of the case AC13 guards: a label that is both displaced and out
+  of order. Its round-1 failures show the gate's defect, not a stale
+  assertion. Probe-verified with the opt-in: `run_rules` returns
+  `mislabel/ordering` on {19, 20} and `spline_offset` on {20}, both `FLAG`
+  under the default config, in `mislabel`, `spline_offset` order.
+- Other test files checked:
+  - `tests/test_191_condition_gate.py` AC10 derives the expected tuple from
+    the registry and needs no edit.
+  - `tests/test_145_eight_hypothesised_modes.py` AC5 still holds
+    (`recording_rules <= opting_in_rules`).
+  - `tests/test_189_spline_offset_condition.py` AC12 and `test_145` line 921
+    read `fov_truncation`, which does not move.
+  - No test pins `displaced_vertebra`'s `opting_in_rules` or `mislabel`'s
+    `condition_opt_ins` as a literal.
+
 ## Validation
 
 1. Replay `crop_fov_si` through the CLI, without a reference:
@@ -712,6 +823,10 @@ case was independently verified against the real change before committing
   and intensity is not spoiled by truncation, but no committed case needs
   either opt-in yet, and the roadmap decides validity per rule when a rule
   needs it.
+  - 2026-09-28, after validation round 1: decided for `mislabel`, which opts
+    in to `displaced_vertebra` (A3's correction). It stays open for every other
+    rule. `sequence` and `overlap` were not measured on a displaced label: no
+    case or swap probe put one of their findings there.
 - **Left open:** per-detector or per-feature opt-in. An opt-in admits all of a
   rule's findings on a condition's labels; a rule that needs only some of its
   detectors admitted needs a finer grain than this item builds.
