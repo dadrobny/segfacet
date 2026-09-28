@@ -379,8 +379,13 @@ def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
     every case -- still finds a ``scan_fixture``/``seg_fixture`` pair to
     load; only ``case_id`` is overridden to one no ``ModeSpec.corpus_cases``
     entry carries.
+
+    Item 189 (2026-09-28): re-pointed from "displace" to "fragment" --
+    displace becomes the displaced_vertebra condition's fixture
+    (failure_mode 0), so it can no longer stand in for "a real case carrying
+    a real mode"; fragment stays mode 1's fixture.
     """
-    real_case = _manifest_case("displace")
+    real_case = _manifest_case("fragment")
     assert real_case["failure_mode"] == 1
 
     def _fake_load_manifest():

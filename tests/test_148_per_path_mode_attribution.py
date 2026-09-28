@@ -841,8 +841,10 @@ def test_ac15_schema_version_and_status_report_loader():
 _AC16_CASES = (
     ("crop_at_border", "geo", ("border",)),
     # Item 189 (2026-09-28): displace's offset detector moved to its own
-    # spline_offset rule.
+    # spline_offset rule; mislabel's remaining (ordering) coverage is now
+    # carried by relabel_swap alone, since it no longer fires on displace.
     ("displace", "geo", ("spline_offset",)),
+    ("relabel_swap", "geo", ("mislabel",)),
     ("fragment", "geo", ("fragmentation",)),
     ("remove_level", "geo", ("coverage",)),
     ("sequence_break", "geo", ("sequence",)),

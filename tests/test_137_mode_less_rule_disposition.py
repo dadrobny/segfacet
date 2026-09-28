@@ -867,8 +867,11 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert len(entries) == 145
 
     # The two analytic rules' own declared modes ...
+    # Item 189 (2026-09-28): 13 -> 12 -- displace's per-vertebra offset
+    # candidate feature is removed from mode 1 (spec A9); the offset moved
+    # to the displaced_vertebra condition's signal instead.
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 13
+    assert mode1_count == 12
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     # Item 176 (2026-09-24): 15 -> 7.
@@ -883,18 +886,26 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     expected = {
         # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
         (): 91,
-        ("rule_bookkeeping",): 20,
+        # Item 189 (2026-09-28): 20 -> 13 -- the six stage3.per_label_offsets[]
+        # bookkeeping paths (dx_mm, dy_mm, dz_mm, is_terminal, label,
+        # level_name) move to spline_offset, a mode-less rule, so they join
+        # ("rule_mode_less", "rule_bookkeeping") below instead.
+        ("rule_bookkeeping",): 13,
         # Item 174 (2026-09-23): bounds' four signal paths gain rule_mode_map
         # evidence (split_own_label, mode 3), moving 6 -> 2 and 7 -> 11.
         # Item 187 (2026-09-28): 11 -> 10 (stray_contact_area_mm2 unwired).
         ("rule_declaration",): 2,
-        ("rule_mode_less", "rule_condition_signal"): 6,
+        # Item 189 (2026-09-28): 6 -> 7 -- offset_mm's role becomes
+        # condition-signal for spline_offset (mode-less).
+        ("rule_mode_less", "rule_condition_signal"): 7,
         ("rule_mode_map", "rule_declaration"): 10,
         ("rule_bookkeeping", "rule_not_read"): 4,
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
         ("rule_declaration", "rule_not_read"): 3,
         ("per_mode_metric",): 2,
-        ("rule_mode_less", "rule_bookkeeping"): 1,
+        # Item 189 (2026-09-28): 1 -> 7 -- the six stage3.per_label_offsets[]
+        # bookkeeping paths moved here from ("rule_bookkeeping",) above.
+        ("rule_mode_less", "rule_bookkeeping"): 7,
         ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 1,
         (
             "per_mode_metric",

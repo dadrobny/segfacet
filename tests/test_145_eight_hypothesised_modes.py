@@ -929,12 +929,14 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
     expectation = _case(condition, "crop_at_border")
     assert set(case["expected_rule_ids"]) <= set(expectation.expected_firing)
 
-    # Only the two FOV crops name a condition, so the key is a real
-    # discriminator rather than a field that is always set.
     # Item 175 (2026-09-24): ["crop_at_border"] -> ["crop_at_border",
     # "crop_fov_si"], in manifest order.
+    # Item 189 (2026-09-28): displace also becomes a condition case
+    # (displaced_vertebra), and precedes both FOV crops in manifest order --
+    # so the key is no longer a fov_truncation-only discriminator, but it
+    # still discriminates condition cases from mode cases.
     conditioned = [c["case_id"] for c in _manifest_cases() if c.get("condition")]
-    assert conditioned == ["crop_at_border", "crop_fov_si"], conditioned
+    assert conditioned == ["displace", "crop_at_border", "crop_fov_si"], conditioned
 
 
 # =========================================================================== #
@@ -1480,8 +1482,10 @@ def test_adv_condition_case_narrowed_expectation_is_a_disagreement(measured):
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert "mislabel" in measured(case), (
-        "adversarial precondition: crop_at_border must actually fire mislabel too"
+    # Item 189 (2026-09-28): the co-firing offset detector moved to
+    # spline_offset.
+    assert "spline_offset" in measured(case), (
+        "adversarial precondition: crop_at_border must actually fire spline_offset too"
     )
     assert fm.case_agrees(case) is True
 
