@@ -469,12 +469,15 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
     # 18 -> 20: item 192 (2026-09-28) adds two edges -- sequence's skip
     # (mode 10) and transitional (mode 11) detectors -- beside its existing
     # mode-9 edge.
+    # 20 -> 14: item 193 (2026-09-28) removes every edge naming
+    # reference_delta (modes 1, 2, 3, 4, 8) and intensity_reference_delta
+    # (mode 16) -- both rules become mode-less (no mode's own detector).
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 20, total_edges
+    assert total_edges == 14, total_edges
 
 
 # =========================================================================== #
@@ -575,13 +578,14 @@ def test_ac14_recorded_analytic_edge_list(matrix):
     )
     # Item 174 (2026-09-23): (3, "bounds") left the analytic list -- mode 3's
     # split_own_label case designates bounds, so that edge is now corpus.
+    # Item 193 (2026-09-28): every (mode, "reference_delta") and
+    # (16, "intensity_reference_delta") pair leaves the analytic list -- both
+    # rules become mode-less (no mode's own detector), declaring no edge at
+    # all.
     for expected in [
-        (1, "bounds"), (1, "reference_delta"),
-        (2, "bounds"), (2, "reference_delta"),
-        (3, "reference_delta"),
-        (4, "bounds"), (4, "reference_delta"),
-        (8, "reference_delta"),
-        (16, "intensity_reference_delta"),
+        (1, "bounds"),
+        (2, "bounds"),
+        (4, "bounds"),
     ]:
         assert expected in analytic, expected
 
@@ -772,13 +776,16 @@ def test_ac22_mode16_present_at_implemented_or_validated():
 
 
 def test_ac23_both_intensity_rules_declare_mode16():
+    """Reconciled (item 193, 2026-09-28): ``intensity_reference_delta``
+    becomes mode-less (no mode's own detector) -- ``intensity`` alone
+    declares mode 16 now."""
     declarations = dict(iter_rule_declarations())
-    for rule_id in ("intensity", "intensity_reference_delta"):
+    for rule_id in ("intensity",):
         declaration = declarations[rule_id]
         assert declaration is not None, rule_id
         assert 16 in declaration.modes, rule_id
     rule_ids = {edge.rule_id for edge in fm.SPECIFICATION[16].intended_rules}
-    assert {"intensity", "intensity_reference_delta"} <= rule_ids
+    assert {"intensity"} <= rule_ids
 
 
 def test_ac24_intensity_manifest_cases_carry_expected_firing_keyed_to_mode16():

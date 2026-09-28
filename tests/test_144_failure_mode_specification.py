@@ -1251,7 +1251,13 @@ def test_ac16_proposed_entries_are_the_empty_ones():
     authored ``"specified"`` with no declaring rule (its rule is named in
     prose but not yet written, per the maintainer decision of 2026-09-25) --
     rather than the invariant being widened to "any mode with no rule". Any
-    other ``specified`` entry losing its rule still fails here."""
+    other ``specified`` entry losing its rule still fails here.
+
+    Reconciled (item 193, 2026-09-28): mode 8 joins mode 6 by name --
+    ``reference_delta``, its only rule, becomes mode-less (no mode's own
+    detector), leaving mode 8 authored ``specified`` with no declaring rule
+    either (A4: the definition/discriminator/observability sign-off at item
+    150 stands)."""
     import segfacet.failure_modes as fm
 
     proposed = [m for m in fm.iter_modes() if m.status == "proposed"]
@@ -1262,7 +1268,7 @@ def test_ac16_proposed_entries_are_the_empty_ones():
         assert mode.intended_rules == (), mode.id
         assert mode.corpus_cases == (), mode.id
     for mode in specified:
-        if mode.id == 6:
+        if mode.id in (6, 8):
             assert mode.intended_rules == (), mode.id
             continue
         assert mode.intended_rules, mode.id

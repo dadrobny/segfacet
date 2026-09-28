@@ -324,8 +324,10 @@ def test_ac8_detector_to_edge_holes_match_recomputation(raw_matrix):
     direction = raw_matrix.detector_to_edge
     assert direction.holes == expected_holes
     assert direction.complete == (not expected_holes)
-    # Non-vacuous on this tree (item spec: three detectors carry a
-    # mode_less_reason and are excluded by it rather than by having no edge).
+    # Non-vacuous on this tree (item spec: nine detectors carry a
+    # mode_less_reason as of item 193, 2026-09-28 -- border 2, spline_offset
+    # 1, and three each for reference_delta and intensity_reference_delta --
+    # and are excluded by it rather than by having no edge).
     assert any(
         detector.mode_less_reason
         for rule in iter_rules()

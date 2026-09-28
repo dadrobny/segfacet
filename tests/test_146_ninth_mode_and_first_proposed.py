@@ -353,6 +353,9 @@ def test_ac4_mode16_anchor_role_candidate_rejected_naming_mode_and_anchor_paths(
 
 
 def test_ac5_mode16_edge_set_equals_live_registry_declared_set():
+    """Reconciled (item 193, 2026-09-28): ``intensity_reference_delta``
+    becomes mode-less (no mode's own detector), so it no longer declares mode
+    16 -- ``intensity`` alone does."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
@@ -361,7 +364,7 @@ def test_ac5_mode16_edge_set_equals_live_registry_declared_set():
         for rule_id, decl in iter_rule_declarations()
         if decl is not None and 16 in decl.modes
     }
-    assert declared == {"intensity", "intensity_reference_delta"}, declared
+    assert declared == {"intensity"}, declared
 
     mode = fm.SPECIFICATION[16]
     edge_ids = {edge.rule_id for edge in mode.intended_rules}
@@ -390,7 +393,9 @@ def test_ac6_mode16_edge_rungs_match_a_fresh_measurement(measured):
             assert edge.evidence_rung == "synthetic-demonstrable", (edge, fired_anywhere)
         else:
             assert edge.evidence_rung == "needs-real-data", (edge, fired_anywhere)
-    assert checked == 2, checked
+    # Reconciled (item 193, 2026-09-28): intensity_reference_delta's edge is
+    # dropped (mode-less), leaving intensity's alone.
+    assert checked == 1, checked
 
 
 # =========================================================================== #
@@ -467,7 +472,7 @@ def test_ac8_weakened_strongest_edge_derives_weaker_rung():
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("rule_id", ["intensity", "intensity_reference_delta"])
+@pytest.mark.parametrize("rule_id", ["intensity"])
 def test_ac9_both_intensity_rules_declare_mode16(rule_id):
     from segfacet.heuristics.rule import _RULES
 
@@ -485,7 +490,7 @@ def test_ac9_both_intensity_rules_declare_mode16(rule_id):
 # =========================================================================== #
 
 
-@pytest.mark.parametrize("rule_id", ["intensity", "intensity_reference_delta"])
+@pytest.mark.parametrize("rule_id", ["intensity"])
 def test_ac10_neither_declaration_binds_reserved_corpus_tag(rule_id):
     from segfacet.heuristics.rule import _RULES
 
@@ -1223,12 +1228,14 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]
         derived = fm.derive_status(mode)
-        if mode_id == 6:
+        if mode_id in (6, 8):
             # Item 188 (2026-09-28), maintainer decision of 2026-09-25: mode
             # 6 lost its declaring rule (coverage moved to mode 10) and its
             # own rule is left to a later per-mode queue, so it derives no
             # further than its authored `specified` -- exempted by name, not
             # by widening this invariant to "any mode with no rule".
+            # Item 193 (2026-09-28): mode 8 joins it -- reference_delta, its
+            # only rule, becomes mode-less.
             assert derived == "specified", (mode_id, derived)
             continue
         assert derived in ("implemented", "validated"), (mode_id, derived)
@@ -1363,7 +1370,10 @@ def test_ac34_mode16_catalogue_attribution_equals_declaring_rules_reach():
     drops from the declarers' whole reach (12 paths, pre-148) to exactly the
     two ``first_order`` paths either rule classifies signal.
 
-    (The implausible-tissue mode is mode 16 since the item-150 sign-off.)"""
+    (The implausible-tissue mode is mode 16 since the item-150 sign-off.)
+
+    Reconciled (item 193, 2026-09-28): ``intensity_reference_delta`` becomes
+    mode-less, so ``intensity`` is the sole declarer left."""
     import segfacet.catalogue as catalogue
     from segfacet.heuristics.rule import iter_rule_declarations
 
@@ -1372,7 +1382,7 @@ def test_ac34_mode16_catalogue_attribution_equals_declaring_rules_reach():
         for rule_id, decl in iter_rule_declarations()
         if decl is not None and 16 in decl.modes
     }
-    assert declarers == {"intensity", "intensity_reference_delta"}
+    assert declarers == {"intensity"}
 
     cat = catalogue.build_catalogue(strict=True)
     assert cat.entries, "expected a non-empty catalogue"
@@ -1832,14 +1842,14 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
 
     ``build_matrix`` grants ``proposed`` no exemption: every known mode with
     no declaring rule becomes a hole regardless of status. That is correct
-    only while the holes *are* the proposed modes, plus mode 6 -- the one
-    named, recorded exception item 188 (2026-09-28) introduces (A7,
-    revised ``traceability._NOTE``). A ``specified`` mode that
-    lost its last declaring rule would be a genuine mode -> rule defect
-    (``roadmap.md`` Stage 20: "a catalogued §6 failure mode nothing can
-    detect ... a defect"), silently excused by the note's wording -- this
-    test is what makes that loud for every mode except the one named
-    exception."""
+    only while the holes *are* the proposed modes, plus modes 6 and 8 -- the
+    named, recorded exceptions item 188 (2026-09-28) and item 193
+    (2026-09-28) introduce (A7/A5, revised ``traceability._NOTE``). A
+    ``specified`` mode that lost its last declaring rule would be a genuine
+    mode -> rule defect (``roadmap.md`` Stage 20: "a catalogued §6 failure
+    mode nothing can detect ... a defect"), silently excused by the note's
+    wording -- this test is what makes that loud for every mode except the
+    named exceptions."""
     import segfacet.failure_modes as fm
     import segfacet.traceability as traceability
 
@@ -1860,7 +1870,9 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
     # later per-mode queue per the maintainer decision of 2026-09-25) -- the
     # one named exception, not a widened invariant. Any other `specified`
     # mode losing its rule still fails this test.
-    assert hole_mode_ids == sorted(proposed_mode_ids + [6]), (
+    # Item 193 (2026-09-28): mode 8 joins mode 6 -- reference_delta, its only
+    # rule, becomes mode-less. `traceability._NOTE` is revised to name both.
+    assert hole_mode_ids == sorted(proposed_mode_ids + [6, 8]), (
         hole_mode_ids,
         proposed_mode_ids,
     )

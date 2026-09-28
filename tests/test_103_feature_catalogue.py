@@ -51,7 +51,11 @@ Covers Acceptance Criteria AC1-AC25:
         item 137, then item 146, then item 150: the rule that now declares
         itself mode-less is ``border`` (FOV truncation became a condition),
         and its ``touches_*`` paths carry the ``condition-signal`` role; see
-        the reconciled tests' own docstrings.
+        the reconciled tests' own docstrings. Since item 193 (2026-09-28),
+        ``reference_delta`` and ``intensity_reference_delta`` are mode-less
+        too (no mode's own detector), joining ``border`` and
+        ``spline_offset`` in the mode-less roll call this AC's tests read
+        live.
 - AC16: an undocumented realised path raises ``FeatureDocMissing`` (strict)
         naming the path, and degrades to ``documented=False`` (non-strict).
 - AC17: a stale ``FEATURE_DOCS`` key raises ``CatalogueError`` naming it; on
@@ -793,7 +797,14 @@ def test_ac15_declared_mode_less_rule_only_entry_is_honestly_mode_less(
     What ``mode_evidence == ("rule_unmapped",)`` means -- a consuming rule
     with no declaration at all -- is exercised by
     ``tests/test_137_mode_less_rule_disposition.py``'s adversarial stub-rule
-    test, since no such rule ships on this tree (item 137 AC1)."""
+    test, since no such rule ships on this tree (item 137 AC1).
+
+    Stale as of item 193 (2026-09-28): ``border`` is no longer the only
+    mode-less rule -- ``reference_delta`` and ``intensity_reference_delta``
+    join it (and ``spline_offset``), so ``mode_less_rules`` and the loop
+    below now also cover their ``bookkeeping``-role entries, not only
+    ``border``'s ``condition-signal`` ones. The assertions are unchanged and
+    read the set live."""
     mode_less_rules = {
         rule_id
         for rule_id, decl in rule_declarations.items()

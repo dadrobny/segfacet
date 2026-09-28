@@ -27,13 +27,17 @@ Covers Acceptance Criteria AC1-AC18:
 - AC3:  ``reference_delta`` likewise -- ``(1, 2)`` at item 137 (corrected
         2026-09-02, commit b1c593c, from a false-premised ``(2,)``; see the
         module note above), ``(1, 2, 3, 5)`` after the sign-off,
-        ``(1, 2, 3, 4, 8)`` on its 2026-09-15 revision.
+        ``(1, 2, 3, 4, 8)`` on its 2026-09-15 revision, mode-less
+        (``modes == ()``) since item 193 (2026-09-28: it is no mode's own
+        detector).
 - AC4:  both analytic declarations are analytic (``"analytic" in evidence``,
         ``"corpus" not in evidence``) and name the mechanism (>= 40 chars).
 - AC5:  ``intensity`` / ``intensity_reference_delta`` are dispositioned, not
         pending -- mode-less at item 137, declaring mode 9 from item 146 and
         mode 10 after the item-150 re-assignment of ids, mode 16 on the
-        2026-09-15 revision.
+        2026-09-15 revision. ``intensity_reference_delta`` returns to
+        mode-less (this time with a substantive reason) at item 193
+        (2026-09-28); ``intensity`` is unaffected.
 - AC6:  both mode-less reasons are substantive (>= 120 chars, contain "§6").
 - AC7:  ``intensity``'s reason cites the corpus manifest path.
 - AC8:  the cited manifest evidence actually holds (no ``failure_mode`` key,
@@ -111,7 +115,7 @@ def _catalogue():
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-_ANALYTIC_RULES = ("bounds", "reference_delta")
+_ANALYTIC_RULES = ("bounds",)
 # bounds declares mode 2 alone; reference_delta declares modes 1 and 2
 # (corrected 2026-09-02, commit b1c593c -- see the module note above).
 # Reconciled (item 150, 2026-09-14): the maintainer sign-off re-assigned the
@@ -123,7 +127,10 @@ _ANALYTIC_RULES = ("bounds", "reference_delta")
 # Revised 2026-09-15 (sixteen-mode catalogue): bounds (1, 2, 3, 4) --
 # accuracy, fused, split, islands; reference_delta (1, 2, 3, 4, 8) -- the
 # same four plus semantic mislabelling.
-_ANALYTIC_DECLARED_MODES = {"bounds": (1, 2, 3, 4), "reference_delta": (1, 2, 3, 4, 8)}
+# Reconciled (item 193, 2026-09-28): reference_delta becomes mode-less (a
+# general outlier detector, no mode's own detector) -- it drops out of the
+# analytic roll call, which is now bounds alone.
+_ANALYTIC_DECLARED_MODES = {"bounds": (1, 2, 3, 4)}
 # Item 146 (2026-09-03): no rule ships mode-less any more -- intensity /
 # intensity_reference_delta move from mode-less to declaring §6 mode 9 -- so
 # this roll call becomes empty rather than removed (its consumers below are
@@ -141,7 +148,12 @@ _INTENSITY_RULES = ("intensity", "intensity_reference_delta")
 # `test_adv_dispositioned_declarations_are_frozen` -- a narrowing, not the
 # rescoping the item's Testing Strategy called for. The two intensity rules
 # are still dispositioned; only their disposition changed.
-_DISPOSITIONED = _ANALYTIC_RULES + _INTENSITY_RULES
+# Reconciled (item 193, 2026-09-28): spelled out explicitly rather than
+# composed from `_ANALYTIC_RULES`, so it does not shrink again now that
+# `reference_delta` leaves the analytic roll call -- all four of item 137's
+# dispositioned rules are still dispositioned; only reference_delta's
+# disposition changed (analytic -> mode-less).
+_DISPOSITIONED = ("bounds", "intensity", "intensity_reference_delta", "reference_delta")
 
 # Reconciled (item 148, 2026-09-04): the per-path classification appends two
 # more evidence tags -- "rule_bookkeeping" and "rule_not_read" -- last, so
@@ -351,11 +363,19 @@ def test_ac5_mode_less_rule_declares_no_modes_not_pending(rule_id):
     Reconciled (item 150, 2026-09-14): the sign-off re-assigned the ids, and
     "implausible tissue under a label" is now mode 10; the rules' disposition
     is otherwise untouched. Revised 2026-09-15: the sixteen-mode catalogue
-    re-numbers it mode 16."""
+    re-numbers it mode 16.
+
+    Reconciled (item 193, 2026-09-28): ``intensity_reference_delta`` becomes
+    mode-less (no consumed_paths entry is classified ``signal``); ``intensity``
+    is unaffected."""
     decl = _RULES[rule_id].mode_declaration
-    assert decl.modes == (16,)
+    if rule_id == "intensity_reference_delta":
+        assert decl.modes == ()
+        assert decl.mode_less_reason != ""
+    else:
+        assert decl.modes == (16,)
+        assert decl.mode_less_reason == ""
     assert decl.pending_reason == ""
-    assert decl.mode_less_reason == ""
 
 
 # =========================================================================== #
@@ -367,11 +387,18 @@ def test_ac5_mode_less_rule_declares_no_modes_not_pending(rule_id):
 def test_ac6_mode_less_reason_is_substantive(rule_id):
     """Rescoped (item 146, 2026-09-03): mode_less_reason is now "" for both
     intensity rules; the substantive claim moves to the declaration's
-    evidence tuple (item 146 AC9/AC10)."""
+    evidence tuple (item 146 AC9/AC10).
+
+    Reconciled (item 193, 2026-09-28): ``intensity_reference_delta`` is
+    mode-less again, this time via a substantive ``mode_less_reason`` rather
+    than an empty one; ``intensity``'s evidence-length branch is unchanged."""
     decl = _RULES[rule_id].mode_declaration
-    assert decl.mode_less_reason == ""
-    evidence_text = " ".join(decl.evidence)
-    assert len(evidence_text) >= 40, (rule_id, decl.evidence)
+    if rule_id == "intensity_reference_delta":
+        assert decl.mode_less_reason != ""
+    else:
+        assert decl.mode_less_reason == ""
+        evidence_text = " ".join(decl.evidence)
+        assert len(evidence_text) >= 40, (rule_id, decl.evidence)
 
 
 # =========================================================================== #
@@ -515,7 +542,7 @@ def test_adv_entry_with_no_consuming_rules_has_neither_declaration_tag():
         assert "rule_mode_less" not in entry.mode_evidence, entry.path
 
 
-def test_adv_shared_reference_delta_and_intensity_entry_carries_declaration_tag():
+def test_adv_shared_reference_delta_and_intensity_entry_is_mode_less():
     """Rescoped (item 146, 2026-09-03): the two intensity rules no longer
     ship mode-less -- they now declare mode 9 -- so no entry can carry both
     'rule_declaration' and 'rule_mode_less' any more. The reference_delta.*
@@ -533,7 +560,12 @@ def test_adv_shared_reference_delta_and_intensity_entry_carries_declaration_tag(
     reference_delta and an intensity rule classify the path signal, a
     narrower subset where only one does, and () where neither does even
     though a consuming rule still declares modes (the not-read/bookkeeping
-    honesty this item adds)."""
+    honesty this item adds).
+
+    Rewritten (item 193, 2026-09-28): both reference_delta and
+    intensity_reference_delta are now mode-less, so a reference_delta.*
+    entry shared between them carries no declared modes at all -- it is
+    honestly mode-less, not signal-attributed."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
 
@@ -541,30 +573,17 @@ def test_adv_shared_reference_delta_and_intensity_entry_carries_declaration_tag(
         e
         for e in cat.entries
         if e.path.startswith("reference_delta.")
-        and set(e.consuming_rules) & set(_ANALYTIC_RULES)
-        and set(e.consuming_rules) & set(_INTENSITY_RULES)
+        and "reference_delta" in e.consuming_rules
+        and "intensity_reference_delta" in e.consuming_rules
     ]
     assert candidates, (
-        "expected at least one reference_delta.* entry shared between an "
-        "analytic and an intensity (mode-9-declaring) rule"
+        "expected at least one reference_delta.* entry shared between "
+        "reference_delta and intensity_reference_delta"
     )
-    signal_checked = 0
     for entry in candidates:
-        role_by_rule = dict(entry.mode_roles)
-        assert "rule_mode_less" not in entry.mode_evidence, entry.path
-        signal_modes: set = set()
-        for rule_id in set(entry.consuming_rules) & (set(_ANALYTIC_RULES) | set(_INTENSITY_RULES)):
-            if role_by_rule.get(rule_id) != "signal":
-                continue
-            decl = _RULES[rule_id].mode_declaration
-            signal_modes |= set(decl.modes)
-        if signal_modes:
-            assert "rule_declaration" in entry.mode_evidence, entry.path
-            assert set(entry.failure_modes) == signal_modes, entry.path
-            signal_checked += 1
-        else:
-            assert entry.failure_modes == (), entry.path
-    assert signal_checked, "expected >=1 shared entry with a signal-classified declarer"
+        assert "rule_mode_less" in entry.mode_evidence, entry.path
+        assert "rule_declaration" not in entry.mode_evidence, entry.path
+        assert entry.failure_modes == (), entry.path
 
 
 def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last():
@@ -647,7 +666,11 @@ def test_ac13_bounds_or_reference_delta_consumers_carry_mode_two():
     """Reconciled (item 148, 2026-09-04): restricted to entries ``bounds``
     or ``reference_delta`` classify ``"signal"`` -- a path either rule only
     reaches ``bookkeeping`` (e.g. ``per_label``, ``per_label.{label}.level_name``)
-    no longer inherits mode 2."""
+    no longer inherits mode 2.
+
+    Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less,
+    so ``_ANALYTIC_RULES`` is now ``bounds`` alone -- the candidates below are
+    bounds' own signal-classified entries."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     candidates = [
@@ -860,22 +883,39 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     displaced ``stray_contact_*`` paths (86 -> 91). mode2_count and
     mode16_count do not move (none of these seven paths carries either mode).
     All figures below are read live off the regenerated committed catalogue,
-    not re-derived by hand."""
+    not re-derived by hand.
+
+    Re-measured (item 193, 2026-09-28): ``reference_delta`` and
+    ``intensity_reference_delta`` both become mode-less. ``reference_delta``'s
+    three signal paths (``distribution_distance``, ``robust_z``,
+    ``out_of_range_features[]``) re-classify ``bookkeeping``, so mode1_count
+    12 -> 9 and mode2_count 7 -> 4 -- those three paths drop out of
+    ``failure_modes`` and join ``("rule_mode_less", "rule_bookkeeping")``:
+    6 -> 9. Seven more ``reference_delta.*`` entries, consumed by both
+    now-mode-less rules, gain ``"rule_mode_less"`` at the head of their
+    evidence and fall out of ``("rule_declaration", "rule_not_read")``
+    (3 -> absent) and part of ``("rule_bookkeeping",)`` into
+    ``("rule_mode_less", "rule_bookkeeping", "rule_not_read")``: 1 -> 8, and
+    ``("rule_bookkeeping",)``: 13 -> 10. The one ``("rule_declaration",)``
+    entry not shared with ``intensity_reference_delta`` keeps that bucket at
+    2 (A6: "the other buckets ... do not move"). mode16_count is unaffected: 2.
+    ``("rule_bookkeeping", "rule_not_read")`` (4) and
+    ``("rule_declaration", "rule_not_read")`` (3) are removed from the table
+    because the movement empties them; the table is exhaustive."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
     assert len(entries) == 145
 
     # The two analytic rules' own declared modes ...
-    # Item 189 (2026-09-28): 13 -> 12 -- displace's per-vertebra offset
-    # candidate feature is removed from mode 1 (spec A9); the offset moved
-    # to the displaced_vertebra condition's signal instead.
+    # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
+    # re-classify bookkeeping (mode-less).
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 12
+    assert mode1_count == 9
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
-    # Item 176 (2026-09-24): 15 -> 7.
-    assert mode2_count == 7
+    # Item 193 (2026-09-28): 7 -> 4.
+    assert mode2_count == 4
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
@@ -886,30 +926,26 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     expected = {
         # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
         (): 91,
-        # Item 189 (2026-09-28): 20 -> 13 -- the six stage3.per_label_offsets[]
-        # bookkeeping paths (dx_mm, dy_mm, dz_mm, is_terminal, label,
-        # level_name) move to spline_offset, a mode-less rule, so they join
-        # ("rule_mode_less", "rule_bookkeeping") below instead.
-        ("rule_bookkeeping",): 13,
-        # Item 174 (2026-09-23): bounds' four signal paths gain rule_mode_map
-        # evidence (split_own_label, mode 3), moving 6 -> 2 and 7 -> 11.
-        # Item 187 (2026-09-28): 11 -> 10 (stray_contact_area_mm2 unwired).
-        ("rule_declaration",): 2,
-        # Item 189 (2026-09-28): 6 -> 7 -- offset_mm's role becomes
-        # condition-signal for spline_offset (mode-less).
+        # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
+        # reference_delta signal paths and the movement out of
+        # ("rule_declaration",) net into the mode-less buckets below).
+        ("rule_bookkeeping",): 10,
+        # Item 193 (2026-09-28): entries consumed only by reference_delta
+        # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
         ("rule_mode_map", "rule_declaration"): 10,
-        ("rule_bookkeeping", "rule_not_read"): 4,
+        # Unmoved by item 193 (A6: "the other buckets ... do not move").
+        ("rule_declaration",): 2,
         ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
-        ("rule_declaration", "rule_not_read"): 3,
         ("per_mode_metric",): 2,
-        # Item 189 (2026-09-28): 1 -> 7 -- the six stage3.per_label_offsets[]
-        # bookkeeping paths moved here from ("rule_bookkeeping",) above.
-        # Item 192 (2026-09-28): 7 -> 6 -- per_label.{label}.level_name gains
-        # rule_mode_map/rule_declaration evidence (sequence now declares
-        # modes), moving it to the combined bucket below instead.
-        ("rule_mode_less", "rule_bookkeeping"): 6,
-        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 1,
+        # Item 193 (2026-09-28): 6 -> 9 -- reference_delta's three
+        # re-classified signal paths join here.
+        ("rule_mode_less", "rule_bookkeeping"): 9,
+        # Item 193 (2026-09-28): 1 -> 8 -- the seven reference_delta.*
+        # entries shared with intensity_reference_delta (previously
+        # ("rule_declaration",) or ("rule_declaration", "rule_not_read"))
+        # join here now both consuming rules are mode-less.
+        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 8,
         (
             "per_mode_metric",
             "rule_mode_map",

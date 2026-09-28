@@ -386,7 +386,11 @@ def test_mode_3_proxy_edges_unchanged():
     neighbour_contact evidence), so the exact-equality claim this test used
     to make is corrected here rather than left red. Item 187 (2026-09-27)
     moved that third edge from fragmentation onto its own neighbour_contact
-    rule."""
+    rule.
+
+    Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less
+    (no mode's own detector) and loses its mode-3 edge, leaving ``bounds``
+    and ``neighbour_contact``."""
     rule_ids = {edge.rule_id for edge in failure_modes.SPECIFICATION[3].intended_rules}
-    assert {"bounds", "reference_delta"} <= rule_ids
-    assert rule_ids == {"bounds", "reference_delta", "neighbour_contact"}
+    assert {"bounds"} <= rule_ids
+    assert rule_ids == {"bounds", "neighbour_contact"}

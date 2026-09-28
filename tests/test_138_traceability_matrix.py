@@ -138,7 +138,10 @@ PROPOSED_MODES = _proposed_mode_ids()
 #: to a later per-mode queue) -- distinct from ``proposed`` (which additionally
 #: means no corpus case), but the same "declares no rule" case for every
 #: branch below that currently reads ``PROPOSED_MODES`` alone.
-RULELESS_SPECIFIED_MODES = frozenset({6})
+#: Item 193 (2026-09-28): mode 8 (semantic mislabelling) joins mode 6 -- its
+#: only rule, ``reference_delta``, becomes mode-less (no mode's own detector),
+#: leaving mode 8 with no declaring rule either.
+RULELESS_SPECIFIED_MODES = frozenset({6, 8})
 
 #: The mode used by the "named anchor path is not consumed by any declared
 #: rule" adversarial pair (fixture + test). Mode 8 (semantic mislabelling)
@@ -146,7 +149,12 @@ RULELESS_SPECIFIED_MODES = frozenset({6})
 #: ``matrix_anchor_not_consumed_bogus_mechanism``. The test asserts the
 #: fixture assumption (anchor present, declared rules do not consume it) rather
 #: than trusting this constant.
-_ANCHOR_NOT_CONSUMED_MODE = 8
+#: Re-pointed to mode 9 (item 193, 2026-09-28): mode 8 is now rule-less
+#: outright (``RULELESS_SPECIFIED_MODES``), so it no longer fits "an anchor
+#: present but not consumed by a *declared* rule" -- mode 9 (out-of-order
+#: sequence) keeps a declared rule (``sequence``) that does not consume its
+#: anchor path.
+_ANCHOR_NOT_CONSUMED_MODE = 9
 
 #: "Overlapping segments" -- mode 15 after the item-150 sign-off's 2026-09-15
 #: revision (it was 8 before item 150, 9 at the 2026-09-14 pass). Its one
@@ -502,13 +510,22 @@ def matrix_anchor_not_consumed_bogus_mechanism(monkeypatch, matrix):
     rule is ``reference_delta``, which never reads it. The old mode 4 no
     longer exhibits it -- its anchor ``relationships.present_levels[]`` (now
     mode 6's anchor, though coverage has declared mode 10 since item 188,
-    2026-09-28) is genuinely consumed by ``coverage``."""
+    2026-09-28) is genuinely consumed by ``coverage``.
+
+    Re-pointed again (item 193, 2026-09-28) from mode 8 to mode 9: mode 8
+    loses its only rule (``reference_delta`` becomes mode-less), so it joins
+    ``RULELESS_SPECIFIED_MODES`` and no longer fits this fixture's premise
+    (a mode with a *declared* rule that just doesn't consume its anchor).
+    Mode 9 (out-of-order sequence) keeps that shape: its declared rules
+    (``mislabel``, ``sequence``) and its co-detecting rules (every rule id in
+    ``SPECIFICATION[9].corpus_cases``' ``expected_firing``) do not consume
+    ``relationships.is_continuous``, its anchor path."""
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
     before = _mode_record(matrix, _ANCHOR_NOT_CONSUMED_MODE)
     bogus_path = before["anchor_paths"][0]
-    bogus_mechanism = f"caught by reference_delta via {bogus_path}, on purpose, for a test."
+    bogus_mechanism = f"caught by mislabel via {bogus_path}, on purpose, for a test."
     _patch_specification_mode(
         monkeypatch, failure_modes_module, _ANCHOR_NOT_CONSUMED_MODE, mechanism=bogus_mechanism
     )
@@ -549,14 +566,19 @@ def matrix_uncatalogued_mode_rule_registered(isolated_registry):
 
 @pytest.fixture
 def matrix_reference_delta_renarrowed(monkeypatch):
+    """Re-pointed (item 193, 2026-09-28) from ``reference_delta`` to
+    ``bounds``: ``reference_delta`` becomes mode-less, so re-narrowing its
+    (now empty) ``modes`` proves nothing -- the level-check regression this
+    fixture guards needs a rule that still declares a mode to narrow.
+    ``bounds`` (modes 1-4) narrowed to ``(2, 3, 4)`` drops it out of mode 1's
+    rule list, which is what the consuming test asserts."""
+    import dataclasses
+
     from segfacet.heuristics.rule import _RULES
-    import segfacet.heuristics.rule as rule_mod
     import segfacet.traceability as traceability
 
-    rule = _RULES["reference_delta"]
-    narrowed = rule_mod.RuleModeDeclaration(
-        modes=(2,), evidence=("analytic", "AC32 adversarial: re-narrowed back to modes=(2,)")
-    )
+    rule = _RULES["bounds"]
+    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4))
     monkeypatch.setattr(rule, "mode_declaration", narrowed)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -983,8 +1005,12 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
     # but not yet written since ``coverage`` moved to mode 10. Mode 11 leaves
     # the proposed set: item 192 gives it a ``sequence`` edge
     # (``transitional``), deriving ``implemented``.
+    # Re-measured (item 193, 2026-09-28): mode 8 (semantic mislabelling)
+    # loses its only rule (``reference_delta`` becomes mode-less) and joins
+    # the rule-less set, still authored ``specified`` (not ``proposed`` --
+    # the corpus/definition/discriminator sign-off at item 150 stands).
     assert proposed_mode_ids == {"5", "7", "12", "13", "14"}
-    assert no_rule_mode_ids == {"5", "6", "7", "12", "13", "14"}
+    assert no_rule_mode_ids == {"5", "6", "7", "8", "12", "13", "14"}
 
 
 # =========================================================================== #
@@ -1165,11 +1191,15 @@ def test_adv_ac16_rung_unmoved_by_weaker_rules_joining_a_modes_rule_list(matrix)
     volume/extent proxies. The mode keeps the strongest edge's rung.
     Re-pointed again (2026-09-15 revision) to mode 4 (islands), which keeps
     that shape: ``fragmentation``'s Rogue island(s): edge is demonstrated on
-    inject_islands, and ``bounds``/``reference_delta`` sit below it."""
+    inject_islands, and ``bounds``/``reference_delta`` sit below it.
+
+    Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less
+    and no longer declares mode 4, so it drops out of the rule list and the
+    edge-rung check -- ``bounds`` alone remains the weaker edge."""
     import segfacet.failure_modes as failure_modes_module
 
     record = _mode_record(matrix, 4)
-    assert set(record["rules"]) == {"bounds", "fragmentation", "reference_delta"}, record["rules"]
+    assert set(record["rules"]) == {"bounds", "fragmentation"}, record["rules"]
     assert record["rung"] == "synthetic-demonstrable"
     assert record["pipeline_detected"] is True
 
@@ -1180,7 +1210,6 @@ def test_adv_ac16_rung_unmoved_by_weaker_rules_joining_a_modes_rule_list(matrix)
     }
     assert edge_rungs["fragmentation"] == "synthetic-demonstrable", edge_rungs
     assert edge_rungs["bounds"] == "needs-real-data", edge_rungs
-    assert edge_rungs["reference_delta"] == "needs-real-data", edge_rungs
 
 
 # =========================================================================== #
@@ -1308,10 +1337,12 @@ def test_ac19_every_mode_to_rule_edge_is_attributed_from_the_specification(matri
         assert record["rule_attribution"] == {}, record
         assert record["read_paths"] == [], record
 
+    # Reconciled (item 193, 2026-09-28): intensity_reference_delta becomes
+    # mode-less (no signal-classified consumed_paths), leaving no mode-16
+    # edge and no rule_attribution entry for it.
     intensity_mode = modes[16]
     assert intensity_mode["rule_attribution"] == {
         "intensity": "corpus",
-        "intensity_reference_delta": "analytic",
     }, intensity_mode
 
     expected_corpus_edges = set()
@@ -1403,19 +1434,17 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # witness -- sequence's skip and transitional detectors declare modes 10
     # and 11, both needs-real-data with no committed case attributed to
     # either mode.
+    # 2026-09-28, item 193: every (mode, "reference_delta") and
+    # (16, "intensity_reference_delta") edge leaves the witness -- both rules
+    # become mode-less (no mode's own detector), so neither declares any
+    # mode -> rule edge at all.
     witness = {
         (1, "bounds"),
-        (1, "reference_delta"),
         (2, "bounds"),
-        (2, "reference_delta"),
-        (3, "reference_delta"),
         (4, "bounds"),
-        (4, "reference_delta"),
-        (8, "reference_delta"),
         (10, "coverage"),
         (10, "sequence"),
         (11, "sequence"),
-        (16, "intensity_reference_delta"),
     }
     assert actual_analytic == witness
 
@@ -1826,6 +1855,24 @@ def test_ac31_mode_mechanism_names_a_resolvable_live_token(mode, matrix):
 
     candidate_tokens = _live_token_candidates(record, mode)
     assert candidate_tokens, mode
+
+    # Reconciled (item 193, 2026-09-28, A9): a rule-less `specified` mode
+    # (mode 8 joins mode 6) has no declaring rule to name, so its candidate
+    # tokens also include its own candidate-feature paths, matched by
+    # substring as test_147's AC9 does for dotted paths.
+    if mode in RULELESS_SPECIFIED_MODES:
+        candidate_feature_paths = {
+            f.path for f in failure_modes_module.SPECIFICATION[mode].candidate_features
+        }
+        if candidate_feature_paths and any(path in mechanism for path in candidate_feature_paths):
+            return
+        assert any(_token_in_mechanism(token, mechanism) for token in candidate_tokens), (
+            mode,
+            mechanism,
+            candidate_tokens,
+        )
+        return
+
     assert any(_token_in_mechanism(token, mechanism) for token in candidate_tokens), (
         mode,
         mechanism,
@@ -2039,26 +2086,41 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
     onto mode 8, which carries that configuration after the sign-off's
     2026-09-15 revision; see ``matrix_anchor_not_consumed_bogus_mechanism``.
 
-    The fixture assumptions are asserted, not assumed: the mode's anchor
-    exists, its declared rules do not consume it, and -- since check (1) now
-    also permits a co-detecting rule's paths -- the mode designates no corpus
-    case at all, so the widening cannot rescue the bogus claim either."""
+    Re-pointed again (item 193, 2026-09-28) to mode 9: mode 8 loses its only
+    rule (``reference_delta`` becomes mode-less) and joins
+    ``RULELESS_SPECIFIED_MODES``, so it no longer fits "a mode with a
+    declared rule that just doesn't consume its anchor". Mode 9's declared
+    rules are ``mislabel`` and ``sequence``; its anchor
+    (``relationships.is_continuous``) is consumed by neither -- and, since
+    check (1) also permits a co-detecting rule's paths, is consumed by none
+    of mode 9's co-detecting rules (every rule id in its corpus cases'
+    ``expected_firing``) either, so the widening cannot rescue the bogus
+    claim.
+
+    The fixture assumptions are asserted, not assumed."""
     import segfacet.failure_modes as failure_modes_module
 
     mode = _ANCHOR_NOT_CONSUMED_MODE
     before = _mode_record(matrix, mode)
     declared_rules = set(before["rules"])
-    assert declared_rules == {"reference_delta"}, declared_rules
-    assert failure_modes_module.SPECIFICATION[mode].corpus_cases == (), mode
+    assert declared_rules == {"mislabel", "sequence"}, declared_rules
+
+    co_detecting_rules = {
+        rule_id
+        for case in failure_modes_module.SPECIFICATION[mode].corpus_cases
+        for rule_id in case.expected_firing
+    }
+    assert co_detecting_rules == {"mislabel", "sequence"}, co_detecting_rules
 
     assert before["anchor_paths"], mode
     bogus_path = before["anchor_paths"][0]
-    assert bogus_path == "stage3.monotonic_consistency.is_monotonic", bogus_path
+    assert bogus_path == "relationships.is_continuous", bogus_path
 
     rules_before = _rule_records(matrix)
-    assert bogus_path not in rules_before["reference_delta"]["feature_paths"], (
-        "fixture assumption violated: reference_delta now consumes this anchor path"
-    )
+    for rule_id in declared_rules | co_detecting_rules:
+        assert bogus_path not in rules_before[rule_id]["feature_paths"], (
+            f"fixture assumption violated: {rule_id} now consumes this anchor path"
+        )
 
     d = matrix_anchor_not_consumed_bogus_mechanism
     patched = _mode_record(d, mode)
@@ -2297,14 +2359,21 @@ def test_ac32_mode1_rule_list_contains_every_feature_derived_required_rule(matri
 
 
 def test_adv_ac32_renarrowed_reference_delta_declaration_fails_the_matrix_level_check(
-    matrix_reference_delta_renarrowed,
+    matrix, matrix_reference_delta_renarrowed
 ):
-    """The false-premised shape commit b1c593c corrected -- narrowing
-    reference_delta back to modes=(2,) must make the matrix under-report
-    mode 1's rule list, from the feature-level derivation rather than any
-    literal."""
-    mode1 = _mode_record(matrix_reference_delta_renarrowed, 1)
-    assert "reference_delta" not in mode1["rules"], mode1["rules"]
+    """The false-premised shape commit b1c593c corrected -- narrowing a
+    mode-1 rule's declaration must make the matrix under-report mode 1's
+    rule list, from the feature-level derivation rather than any literal.
+
+    Re-pointed (item 193, 2026-09-28) from ``reference_delta`` (now
+    mode-less, so it carries no mode 1 to narrow away) to ``bounds``,
+    narrowed from ``(1, 2, 3, 4)`` to ``(2, 3, 4)``. Measured: mode 1's rules
+    go from ``["bounds", "fragmentation"]`` to ``["fragmentation"]``."""
+    mode1_before = _mode_record(matrix, 1)
+    assert "bounds" in mode1_before["rules"], mode1_before["rules"]
+
+    mode1_after = _mode_record(matrix_reference_delta_renarrowed, 1)
+    assert "bounds" not in mode1_after["rules"], mode1_after["rules"]
 
 
 # =========================================================================== #

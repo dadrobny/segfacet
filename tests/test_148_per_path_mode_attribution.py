@@ -612,6 +612,14 @@ def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_cat
 
 
 def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_catalogue):
+    """Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes
+    mode-less, so its own signal path (``robust_z``) no longer carries any
+    mode either -- it can no longer serve as this AC's "sibling signal path
+    still shows" control. Re-pointed to ``intensity``, a rule that still
+    declares a mode and still classifies both roles: a bookkeeping path
+    (``image_features.available``) stays honestly mode-less, and its own
+    signal path (``image_features.per_label.{label}.first_order.median``)
+    still carries mode 16."""
     cat = shipped_catalogue
     for path in (
         "reference_delta.lower_pct",
@@ -621,13 +629,17 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
         entry = _entry(cat, path)
         assert entry.failure_modes == (), path
 
-    # The sibling "signal" path on the same rule still carries every mode
-    # ``reference_delta`` declares -- (1, 2, 3, 4, 8) since the item-150
-    # sign-off's 2026-09-15 revision -- so the three bookkeeping paths above
-    # are dropped by their classification, not by the rule losing its modes.
-    robust_z_path = "reference_delta.{label}.features.physical_volume_mm3.robust_z"
-    entry = _entry(cat, robust_z_path)
-    assert entry.failure_modes == (1, 2, 3, 4, 8), robust_z_path
+    # The control: a bookkeeping path on `intensity` stays honestly
+    # mode-less, while its sibling signal path still carries mode 16 -- so
+    # the three bookkeeping paths above are dropped by their classification,
+    # not by every rule reaching them losing its modes.
+    bookkeeping_path = "image_features.available"
+    entry = _entry(cat, bookkeeping_path)
+    assert entry.failure_modes == (), bookkeeping_path
+
+    signal_path = "image_features.per_label.{label}.first_order.median"
+    entry = _entry(cat, signal_path)
+    assert entry.failure_modes == (16,), signal_path
 
 
 # =========================================================================== #

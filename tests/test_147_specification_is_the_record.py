@@ -11,9 +11,10 @@ it about are the signed-off ones. The three AC whose subject moved carry the
 reason at their own section heading: AC5 (§6 titles are provenance, not
 names), AC8 (the rung-less entries were the six ``proposed`` modes, not the
 single mode 10 -- item 188, 2026-09-28, moved mode 10 onto its own edge and
-onto that set mode 6 instead, so the edgeless set is now {5, 6, 7, 11, 12,
-13, 14}) and AC10 (the corrected label-sequence sentence is mode
-9's).
+onto that set mode 6 instead; item 192 moved mode 11 off it onto its own
+edge; item 193 moved mode 8 onto it (reference_delta becomes mode-less), so
+the edgeless set is now {5, 6, 7, 8, 12, 13, 14}) and AC10 (the corrected
+label-sequence sentence is mode 9's).
 
 AC -> test map (house style, items 144-146):
 
@@ -476,6 +477,9 @@ def test_ac7_mode_rungs_are_derived_from_the_specification(matrix):
 # Reconciled (item 188, 2026-09-28): coverage re-homed off mode 6 onto mode
 # 10. Mode 10 leaves this edgeless set (it now carries the coverage edge),
 # and mode 6 joins it (authored `specified`, no declaring rule).
+#
+# Reconciled (item 193, 2026-09-28): mode 8 joins this edgeless set --
+# reference_delta, its only rule, becomes mode-less (no mode's own detector).
 # =========================================================================== #
 
 
@@ -486,7 +490,9 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     edgeless = [mode for mode in fm.SPECIFICATION.values() if not mode.intended_rules]
     # Item 192 (2026-09-28): mode 11 leaves this edgeless set -- sequence's
     # transitional detector now gives it an intended-rule edge.
-    assert {mode.id for mode in edgeless} == {5, 6, 7, 12, 13, 14}, [
+    # Item 193 (2026-09-28): mode 8 joins this edgeless set -- reference_delta,
+    # its only rule, becomes mode-less (no mode's own detector).
+    assert {mode.id for mode in edgeless} == {5, 6, 7, 8, 12, 13, 14}, [
         mode.id for mode in edgeless
     ]
 
@@ -1234,7 +1240,7 @@ _EXPECTED_DERIVED_STATUS = {
                          # remove_level's coverage finding is now a recorded
                          # co-detection, and mode 6 has no declaring rule
     7: "proposed",
-    8: "implemented",   # no corpus case
+    8: "specified",     # item 193 (2026-09-28): reference_delta becomes mode-less
     9: "validated",
     10: "implemented",   # item 188 (2026-09-28): coverage's new home, still no case
     11: "implemented",   # item 192 (2026-09-28): sequence's new home, still no case

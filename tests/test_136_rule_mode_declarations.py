@@ -369,6 +369,12 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
 # each realises exactly one of the two non-pending states. The full content
 # of each disposition (which modes, which reason, evidence quality) is
 # item 137's own test module (``tests/test_137_mode_less_rule_disposition.py``).
+#
+# Stale as of item 193 (2026-09-28): ``reference_delta`` no longer declares
+# mode 2 analytically -- it, too, is mode-less now (no mode's own detector).
+# The roll call and the "none of the four is pending" assertion are
+# unaffected; only the "analytic mode 2" half of the historical note above is
+# out of date.
 # =========================================================================== #
 
 

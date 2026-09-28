@@ -154,32 +154,36 @@ def matrix_recorded_unused_operator(_isolated_perturbation_registry, monkeypatch
 
 @pytest.fixture
 def matrix_demonstrable_rule_unexercised(monkeypatch):
-    """``reference_delta`` is unexercised on the committed tree, named only
-    at ``needs-real-data``, and carries a mode-1 edge. Patching mode 1's
-    ``reference_delta`` edge alone to ``synthetic-demonstrable`` makes that
-    the strongest rung across all of its edges -- and a
-    ``synthetic-demonstrable``-only-derivable reason is, by the module's
-    scope fence, no reason at all: a hole.
+    """``reference_delta`` is unexercised on the committed tree.
 
     Item 174 (2026-09-23), re-derived premise: this fixture used ``bounds``
     until item 174's ``split_own_label`` case made ``bounds`` exercised
     (it fires on the cap), so the unexercised rule is now
-    ``reference_delta``."""
+    ``reference_delta``.
+
+    Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less
+    and carries no edge at all any more, so its strongest rung can no longer
+    be found on a mode -- it is planted instead. Mode 1 gains an added
+    ``reference_delta`` edge at ``synthetic-demonstrable``; once an edge
+    names the rule its strongest rung decides and
+    ``UNEXERCISED_RULE_REASONS`` is never read, so a
+    ``synthetic-demonstrable``-only-derivable reason is, by the module's
+    scope fence, no reason at all: a hole."""
     import dataclasses as dc
 
     import segfacet.failure_modes as failure_modes_module
+    from segfacet.failure_modes import IntendedRule
     import segfacet.traceability as traceability
 
     original_map = failure_modes_module.SPECIFICATION
     mode1 = original_map[1]
-    assert any(r.rule_id == "reference_delta" for r in mode1.intended_rules), mode1.intended_rules
-    new_edges = tuple(
-        dc.replace(edge, evidence_rung="synthetic-demonstrable")
-        if edge.rule_id == "reference_delta"
-        else edge
-        for edge in mode1.intended_rules
+    assert not any(r.rule_id == "reference_delta" for r in mode1.intended_rules), mode1.intended_rules
+    planted_edge = IntendedRule(
+        rule_id="reference_delta",
+        detector_ids=("distance", "out_of_range", "robust_z"),
+        evidence_rung="synthetic-demonstrable",
     )
-    assert new_edges != mode1.intended_rules, "fixture assumption violated"
+    new_edges = mode1.intended_rules + (planted_edge,)
     patched_map = dict(original_map)
     patched_map[1] = dc.replace(mode1, intended_rules=new_edges)
     monkeypatch.setattr(failure_modes_module, "SPECIFICATION", patched_map)
@@ -316,6 +320,7 @@ def test_ac4_rule_record_is_exercised_or_reasoned_never_both_never_neither(matri
 
 def test_ac5_unexercised_reason_and_reason_modes_derived_from_specification(matrix):
     import segfacet.failure_modes as failure_modes_module
+    import segfacet.traceability as traceability
 
     specification = failure_modes_module.SPECIFICATION
     strength = {rung: idx for idx, rung in enumerate(failure_modes_module.EVIDENCE_RUNGS)}
@@ -330,7 +335,12 @@ def test_ac5_unexercised_reason_and_reason_modes_derived_from_specification(matr
                 if edge.rule_id == rule_id:
                     edges.append((mode_id, edge.evidence_rung))
         if not edges:
-            assert record["reason"] == "", record
+            # Reconciled (item 193, 2026-09-28, A5): a rule with no edge at
+            # all (reference_delta, intensity_reference_delta) now reads its
+            # reason from the authored map rather than defaulting to "" --
+            # Stage 20's "every registered rule is exercised or reasoned"
+            # attestation would otherwise break for both.
+            assert record["reason"] == traceability.UNEXERCISED_RULE_REASONS.get(rule_id, ""), record
             assert record["reason_modes"] == [], record
             continue
         rungs = [rung for _mode_id, rung in edges]

@@ -260,9 +260,18 @@ def matrix_consumed_path_dropped(monkeypatch):
     """AC12: drop one ``ConsumedPath`` (the "signal" robust_z entry) from
     ``reference_delta``'s live declaration, so
     ``catalogue.path_classification_conflicts()`` reports a soundness
-    disagreement naming the rule and the path."""
+    disagreement naming the rule and the path.
+
+    Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less,
+    and dropping a bookkeeping path reports no completeness message -- so the
+    replacement now preserves the declaration's shape with
+    ``dataclasses.replace`` and drops the path anyway. Measured: this still
+    reports exactly one completeness message naming ``reference_delta`` and
+    the dropped path, because the check fires on any consumed path with no
+    catalogue-side counterpart, regardless of its role."""
+    import dataclasses
+
     from segfacet.heuristics.rule import _RULES
-    import segfacet.heuristics.rule as rule_mod
     import segfacet.traceability as traceability
 
     rule = _RULES["reference_delta"]
@@ -270,9 +279,7 @@ def matrix_consumed_path_dropped(monkeypatch):
     dropped_path = "reference_delta.{label}.features.physical_volume_mm3.robust_z"
     remaining = tuple(cp for cp in original_decl.consumed_paths if cp.path != dropped_path)
     assert len(remaining) == len(original_decl.consumed_paths) - 1, "fixture assumption violated"
-    replacement = rule_mod.RuleModeDeclaration(
-        modes=original_decl.modes, evidence=original_decl.evidence, consumed_paths=remaining
-    )
+    replacement = dataclasses.replace(original_decl, consumed_paths=remaining)
     monkeypatch.setattr(rule, "mode_declaration", replacement)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -312,20 +319,25 @@ def matrix_mode8_name_patched(monkeypatch):
 
 @pytest.fixture
 def matrix_reference_delta_renarrowed(monkeypatch):
-    """AC10/AC19: narrowing reference_delta back to modes=(2,) must shrink
-    both mode 1's read_paths (AC10) and its rule_attribution (AC19), from
-    the live declaration rather than any literal -- the same re-narrowing
+    """AC10/AC19: narrowing a mode-1 rule's declaration must shrink both
+    mode 1's read_paths (AC10) and its rule_attribution (AC19), from the
+    live declaration rather than any literal -- the same re-narrowing
     test_138's own AC32 adversarial fixture exercises, copied here
     (module-independence convention) because it demonstrates a different
-    pair of claims."""
+    pair of claims.
+
+    Re-pointed (item 193, 2026-09-28) from ``reference_delta`` (now
+    mode-less, so it carries no mode 1 to narrow away) to ``bounds``,
+    narrowed from ``(1, 2, 3, 4)`` to ``(2, 3, 4)``. Measured: mode 1 loses
+    its four ``per_label.{label}.geometry.*`` read paths and the ``bounds``
+    attribution."""
+    import dataclasses
+
     from segfacet.heuristics.rule import _RULES
-    import segfacet.heuristics.rule as rule_mod
     import segfacet.traceability as traceability
 
-    rule = _RULES["reference_delta"]
-    narrowed = rule_mod.RuleModeDeclaration(
-        modes=(2,), evidence=("analytic", "AC149 adversarial: re-narrowed back to modes=(2,)")
-    )
+    rule = _RULES["bounds"]
+    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4))
     monkeypatch.setattr(rule, "mode_declaration", narrowed)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -567,7 +579,10 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
 #: Item 192 (2026-09-28): mode 11 leaves this set -- sequence's transitional
 #: detector now declares it, deriving "implemented" with a needs-real-data
 #: rung.
-_DEGENERATE_MODES = (5, 6, 7, 12, 13, 14)
+#: Item 193 (2026-09-28): mode 8 joins this set -- reference_delta, its only
+#: rule, becomes mode-less, leaving mode 8 authored "specified" with no
+#: declaring rule and no derived rung.
+_DEGENERATE_MODES = (5, 6, 7, 8, 12, 13, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)
@@ -619,16 +634,13 @@ def test_ac8_committed_markdown_carries_both_headers_verbatim():
 # =========================================================================== #
 
 #: ``(mode, anchor path, a read path that is not the anchor)``. Mode 8
-#: (semantic mislabelling) is anchored by the Stage-18 monotonic-consistency
-#: metric but read through ``reference_delta``'s per-level z-score; mode 9
+#: (semantic mislabelling) was anchored by the Stage-18 monotonic-consistency
+#: metric but read through ``reference_delta``'s per-level z-score; item 193
+#: (2026-09-28) makes ``reference_delta`` mode-less, so mode 8 no longer
+#: reads anything and drops out of this split-column roll call. Mode 9
 #: (out-of-order label sequence) is anchored by ``relationships.is_continuous``
 #: and read through the sequence/ordering paths.
 _AC9_SPLIT_COLUMN_MODES = (
-    (
-        8,
-        "stage3.monotonic_consistency.is_monotonic",
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z",
-    ),
     # Item 192 (2026-09-28): sequence reads per_label centroids, not
     # relationships.out_of_order_labels[]; relationships.is_continuous stays
     # the metric anchor no rule reads.
@@ -686,8 +698,12 @@ def test_ac9_committed_markdown_renders_both_cells_for_modes_8_and_9():
 
 
 def test_ac10_mode1_read_paths_are_signal_classified_only(matrix):
+    """Reconciled (item 193, 2026-09-28): ``reference_delta``'s robust_z path
+    re-classifies ``bookkeeping`` (mode-less rule), so it no longer shows for
+    mode 1 -- ``bounds``'s own signal path takes its place as the positive
+    control."""
     mode1 = _mode_record(matrix, 1)
-    assert "reference_delta.{label}.features.physical_volume_mm3.robust_z" in mode1["read_paths"]
+    assert "per_label.{label}.geometry.physical_volume_mm3" in mode1["read_paths"]
     assert "reference_delta.{label}.level_name" not in mode1["read_paths"]
     assert "reference_delta.lower_pct" not in mode1["read_paths"]
 
@@ -712,10 +728,12 @@ def test_ac10_read_paths_equal_the_sorted_union_of_declaring_rules_signal_paths(
 def test_adv_ac10_renarrowed_reference_delta_shrinks_mode1_read_paths(
     matrix, matrix_reference_delta_renarrowed
 ):
+    """Re-pointed (item 193, 2026-09-28): the fixture narrows ``bounds``, not
+    ``reference_delta`` (now mode-less)."""
     before = set(_mode_record(matrix, 1)["read_paths"])
     after = set(_mode_record(matrix_reference_delta_renarrowed, 1)["read_paths"])
     assert after < before, (before, after)
-    assert "reference_delta.{label}.features.physical_volume_mm3.robust_z" not in after
+    assert "per_label.{label}.geometry.physical_volume_mm3" not in after
 
 
 # =========================================================================== #
@@ -967,10 +985,13 @@ def test_ac18_no_geometric_only_mode_cases_change_from_the_committed_artifact(ma
 
 
 def test_ac19_intensity_mode_attributes_corpus_and_reference_delta_analytic(matrix):
-    """The intensity mode is 16 under the item-150 2026-09-15 ids."""
+    """The intensity mode is 16 under the item-150 2026-09-15 ids.
+
+    Reconciled (item 193, 2026-09-28): ``intensity_reference_delta`` becomes
+    mode-less, so it no longer attributes mode 16 at all."""
     mode10 = _mode_record(matrix, 16)
     assert mode10["rule_attribution"]["intensity"] == "corpus"
-    assert mode10["rule_attribution"]["intensity_reference_delta"] == "analytic"
+    assert "intensity_reference_delta" not in mode10["rule_attribution"]
 
 
 def test_ac19_geometric_modes_attribution_matches_the_base_artifact(matrix):
@@ -986,10 +1007,12 @@ def test_ac19_geometric_modes_attribution_matches_the_base_artifact(matrix):
 def test_adv_ac19_renarrowed_reference_delta_shrinks_mode1_attribution(
     matrix, matrix_reference_delta_renarrowed
 ):
+    """Re-pointed (item 193, 2026-09-28): the fixture narrows ``bounds``, not
+    ``reference_delta`` (now mode-less)."""
     before = _mode_record(matrix, 1)["rule_attribution"]
     after = _mode_record(matrix_reference_delta_renarrowed, 1)["rule_attribution"]
-    assert "reference_delta" in before
-    assert "reference_delta" not in after
+    assert "bounds" in before
+    assert "bounds" not in after
 
 
 # =========================================================================== #

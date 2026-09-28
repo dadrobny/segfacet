@@ -102,7 +102,9 @@ _PROPOSED_MODE_IDS = (5, 7, 12, 13, 14)
 #: 6's own rule is left to a later per-mode queue (maintainer decision of
 #: 2026-09-25). Distinct from ``_PROPOSED_MODE_IDS``: mode 6 keeps its two
 #: corpus cases and its candidate features.
-_RULELESS_SPECIFIED_MODE_IDS = (6,)
+#: Item 193 (2026-09-28): mode 8 joins mode 6 -- ``reference_delta``, its
+#: only rule, becomes mode-less (no mode's own detector).
+_RULELESS_SPECIFIED_MODE_IDS = (6, 8)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
@@ -128,7 +130,7 @@ _EXPECTED_DERIVED_STATUS = {
     5: "proposed",
     6: "specified",  # item 188 (2026-09-28): coverage re-homed to mode 10
     7: "proposed",
-    8: "implemented",
+    8: "specified",  # item 193 (2026-09-28): reference_delta becomes mode-less
     9: "validated",
     10: "implemented",  # item 188 (2026-09-28): coverage's new home
     11: "implemented",  # item 192 (2026-09-28): sequence's new home
@@ -659,9 +661,12 @@ def test_ac8_every_synthetic_demonstrable_edge_is_demonstrated(measured):
 
 
 def test_ac9_the_three_analytic_only_edges_are_needs_real_data_and_undemonstrated(measured):
+    """Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes
+    mode-less and declares no edge at all, so the three analytic-only edges
+    are now all ``bounds`` -- modes 1, 2 and 4."""
     import segfacet.failure_modes as fm
 
-    targets = {(1, "reference_delta"), (2, "reference_delta"), (2, "bounds")}
+    targets = {(1, "bounds"), (2, "bounds"), (4, "bounds")}
     seen = set()
     for mode in fm.iter_modes():
         for edge in mode.intended_rules:
@@ -852,8 +857,14 @@ def test_ac13_derived_status_is_the_signed_off_ladder():
     sign-off left it. ``"validated"`` needs a declaring rule, every corpus
     case agreeing, **and** at least one case with a non-empty expected set
     naming one of the mode's own intended rules -- which is why fused (2,
-    co-detections only) and the proxy-only modes with no case (3, 8) sit at
-    ``"implemented"`` while every case they carry agrees perfectly.
+    co-detections only) sits at ``"implemented"`` while every case it
+    carries agrees perfectly.
+
+    Stale as of item 193 (2026-09-28): mode 3 gained its own declaring rule
+    (``neighbour_contact``, item 187) and a demonstrating case (item 167),
+    deriving ``"validated"`` rather than ``"implemented"``; mode 8's only
+    rule (``reference_delta``) becomes mode-less, so mode 8 now derives the
+    authored ``"specified"`` (no declaring rule at all), like mode 6.
 
     Reconciled (item 188, 2026-09-28): ``coverage`` moved off mode 6 onto
     mode 10. Vertebra not segmented (6) no longer has a declaring rule, so
