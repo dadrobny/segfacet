@@ -447,9 +447,7 @@ class SequenceRule(Rule):
     def _skip_names(cls, present_names: List[str]) -> Tuple[str, ...]:
         _, reading, reading_rank = cls._reading(present_names)
         elems = {
-            _element(name)
-            for name in present_names
-            if name != "Cocc" and _element(name) in reading_rank
+            _element(name) for name in present_names if _element(name) in reading_rank
         }
         if len(elems) < 2:
             return ()
