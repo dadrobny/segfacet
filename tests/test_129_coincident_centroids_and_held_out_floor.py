@@ -59,7 +59,7 @@ from segfacet.features.spline_offset import (
     compute_leave_one_out_spline_offsets,
     compute_spline_offsets,
 )
-import segfacet.heuristics.mislabel as mislabel_mod  # noqa: F401 -- registration + AC32
+import segfacet.heuristics.spline_offset as spline_offset_mod  # noqa: F401 -- registration + AC32 (item 189, 2026-09-28)
 from segfacet.human_report import render_human_report
 from segfacet.pipeline import extract_feature_record, run_qc
 from segfacet.report import _SCHEMA, serialize_report
@@ -701,7 +701,7 @@ def test_ac28_mode5_remove_level_offsets_numerically_unmoved():
     for o in offsets:
         expected = _PRE_129_MODE5_REMOVE_LEVEL_OFFSETS_MM[o["label"]]
         assert o["offset_mm"] == pytest.approx(expected, abs=1e-9)
-        assert o["offset_mm"] < mislabel_mod._DEFAULT_MAX_OFFSET_MM
+        assert o["offset_mm"] < spline_offset_mod._DEFAULT_MAX_OFFSET_MM
         seen.add(o["label"])
     assert seen == set(_PRE_129_MODE5_REMOVE_LEVEL_OFFSETS_MM)
 
@@ -715,14 +715,17 @@ def test_ac28_mode5_remove_level_offsets_numerically_unmoved():
 # case in tests/corpus/manifest.json.
 _PRE_129_FINDINGS = {
     "clean_control": set(),
-    "displace": {("mislabel", (22,))},
+    # Item 189 (2026-09-28): displace's offset detector moved to spline_offset.
+    "displace": {("spline_offset", (22,))},
     "fragment": {("fragmentation", (22,))},
     "inject_islands": {("fragmentation", (22,))},
     # 2026-08-31 (item 132): traversal-ordered monotonicity now surfaces the
     # swap through plain run_qc, moved from set().
     "relabel_swap": {("mislabel", (21, 22))},
     "remove_level": {("coverage", ())},
-    "crop_at_border": {("border", (22,)), ("mislabel", (22,))},
+    # Item 189 (2026-09-28): the co-firing offset detector moved to
+    # spline_offset.
+    "crop_at_border": {("border", (22,)), ("spline_offset", (22,))},
     "sequence_break": {("sequence", (28,))},
     "force_overlap": set(),
 }
@@ -804,8 +807,8 @@ def test_ac32_calibrated_max_offset_mm_unchanged():
     from segfacet.reference.artifact import bundled_production_reference
 
     tool = _load_rebuild_tool()
-    assert mislabel_mod._DEFAULT_MAX_OFFSET_MM == 13.0
-    assert mislabel_mod._DEFAULT_MAX_OFFSET_MM == pytest.approx(
+    assert spline_offset_mod._DEFAULT_MAX_OFFSET_MM == 13.0
+    assert spline_offset_mod._DEFAULT_MAX_OFFSET_MM == pytest.approx(
         tool.derive_max_offset_mm(bundled_production_reference())
     )
 

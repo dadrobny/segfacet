@@ -81,7 +81,7 @@ import segfacet.failure_modes as fm
 import segfacet.traceability as tb
 from segfacet import feature_docs as feature_docs_module
 from segfacet.config import bundled_default_config
-from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM  # item 189 (2026-09-28)
 from segfacet.heuristics.rule import iter_rule_declarations
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth import corpus as corpus_module
@@ -146,9 +146,11 @@ def _record(case_id: str) -> dict:
 
 
 def _max_offset_mm() -> float:
+    # Item 189 (2026-09-28): the offset threshold is read from the new
+    # spline_offset rule's own section, not mislabel's.
     config = bundled_default_config()
     return float(
-        config.rule_param("mislabel", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM)
+        config.rule_param("spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM)
     )
 
 
@@ -405,7 +407,9 @@ def test_ac10_condition_case_expects_border_and_mislabel_with_a_reason():
         (c for c in condition.corpus_cases if c.case_id == "crop_at_border"), None
     )
     assert case is not None
-    assert set(case.expected_firing) == {"border", "mislabel"}
+    # Item 189 (2026-09-28): the offset detector moved from mislabel to
+    # spline_offset.
+    assert set(case.expected_firing) == {"border", "spline_offset"}
     assert case.reason.strip()
 
 

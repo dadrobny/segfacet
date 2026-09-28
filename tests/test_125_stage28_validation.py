@@ -359,9 +359,16 @@ def test_ac7_mode4_run_qc_is_deterministic_across_two_calls():
 
 
 def test_ac9_mode1_displace_exceeds_threshold_and_clean_control_stays_below():
+    # Item 189 (2026-09-28): the offset threshold is read from the new
+    # spline_offset rule's section, which default_config.yaml documents only
+    # in a comment (A5) -- so the read falls back to the rule's own default.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
+
     config = bundled_default_config()
-    max_offset_mm = config.rule_param("mislabel", "max_offset_mm", default=None)
-    assert max_offset_mm is not None, "expected a shipped mislabel.max_offset_mm"
+    max_offset_mm = config.rule_param(
+        "spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
+    )
+    assert max_offset_mm is not None, "expected a shipped spline_offset.max_offset_mm"
 
     _cr_mode1, block_mode1 = _run_qc("displace")
     _cr_clean, block_clean = _run_qc("clean_control")
@@ -499,10 +506,12 @@ def test_ac15_agrees_with_test_057_pipeline_detectable_modes():
 
 
 def test_ac16_mode6_fires_both_border_and_mislabel():
+    # Item 189 (2026-09-28): the offset detector that co-fires here moved
+    # from mislabel to spline_offset.
     case_result, _block = _run_qc("crop_at_border")
     rule_ids = {f.rule_id for f in case_result.findings}
     assert "border" in rule_ids, rule_ids
-    assert "mislabel" in rule_ids, rule_ids
+    assert "spline_offset" in rule_ids, rule_ids
 
 
 def test_ac16_mode6_manifest_expected_rule_ids_is_border_alone():
@@ -691,16 +700,23 @@ def test_ac11_scoliotic_cases_mislabel_flagging_is_measured_and_recorded():
     _all_masks, selected = _selected_scoliotic_masks(mod, root)
     assert selected, "expected at least one selected scoliotic case"
 
+    # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
+
     config = bundled_default_config()
-    max_offset_mm = config.rule_param("mislabel", "max_offset_mm", default=None)
+    max_offset_mm = config.rule_param(
+        "spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
+    )
     assert max_offset_mm is not None
 
     flagged = {}
     for mask_path in selected:
         seg_img = nib.load(str(mask_path))
         case_result, block = run_qc(seg_img, config)
-        mislabel_findings = [f for f in case_result.findings if f.rule_id == "mislabel"]
-        if mislabel_findings:
+        spline_offset_findings = [
+            f for f in case_result.findings if f.rule_id == "spline_offset"
+        ]
+        if spline_offset_findings:
             flagged[mod._case_stem(mask_path)] = _max_offset_mm(block)
 
     # Whichever shape this measures, it must never be a silently wrong shape:

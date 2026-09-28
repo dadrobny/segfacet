@@ -247,7 +247,9 @@ def test_ac4_unfragmented_label_carries_label_level_fraction(split_case_image):
 
 
 def test_ac5_rule_count_is_eleven():
-    assert len(list(iter_rules())) == 11
+    # Item 189 (2026-09-28): the new spline_offset rule brings the registry
+    # from eleven to twelve.
+    assert len(list(iter_rules())) == 12
 
 
 # =========================================================================== #

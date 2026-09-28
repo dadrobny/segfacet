@@ -59,7 +59,7 @@ from segfacet.features.spline_offset import (
     compute_leave_one_out_spline_offsets,
     compute_spline_offsets,
 )
-import segfacet.heuristics.mislabel  # noqa: F401 -- triggers MislabelRule registration
+import segfacet.heuristics.spline_offset  # noqa: F401 -- triggers SplineOffsetRule registration (item 189)
 from segfacet.heuristics import run_rules
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import build_clean_spine
@@ -159,7 +159,9 @@ def _mislabel_record(offsets: list, pairs: list = ()) -> dict:
 
 
 def _mislabel_findings(findings):
-    return [f for f in findings if f.rule_id == "mislabel"]
+    # Item 189 (2026-09-28): the offset detector moved to its own
+    # spline_offset rule.
+    return [f for f in findings if f.rule_id == "spline_offset"]
 
 
 # =========================================================================== #
@@ -612,7 +614,8 @@ def test_ac17_threshold_margins_hold_on_corpus():
     # Item 177 (2026-09-24), re-derived premise: "15.0 is the firing
     # threshold" has been false since item 123 (13.0), and the re-authored
     # displace (14.616 mm) falls between -- so read the live threshold.
-    from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+    # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     assert displaced["offset_mm"] > _DEFAULT_MAX_OFFSET_MM, "displaced label 22 must exceed the threshold"
 

@@ -388,12 +388,13 @@ _REFERENCE_MANIFEST_CASES = [
 
 
 #: Item 120 makes the per-vertebra spline offset a held-out measurement,
-#: which deliberately adds a ``mislabel`` finding on label 22 to these two
+#: which deliberately adds an offset finding on label 22 to these two
 #: cases (AC18/AC23) that the pre-120 reference snapshot's committed golden
 #: (``_REFERENCE_GOLDEN_SHA``) does not carry. Widened by human decision, 2026-08-28 -- see
 #: docs/aide/items/120-per-vertebra-offset-that-separates.md's Authorised
-#: paths entry for this test.
-_ITEM_120_ADDED_MISLABEL_PAIR = ("mislabel", (22,))
+#: paths entry for this test. Item 189 (2026-09-28) moved the detector from
+#: mislabel to its own spline_offset rule.
+_ITEM_120_ADDED_MISLABEL_PAIR = ("spline_offset", (22,))
 _ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace", "crop_at_border"})
 
 #: Item 132 judges monotonicity against a traversal-ordered reference fit,

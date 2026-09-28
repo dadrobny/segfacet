@@ -71,7 +71,7 @@ from segfacet.config import HeuristicConfig, bundled_default_config, default_con
 from segfacet.features.components import ComponentsInfo, compute_components
 from segfacet.feature_report import components_to_dict
 from segfacet.heuristics import run_rules
-from segfacet.heuristics.mislabel import _DEFAULT_MAX_OFFSET_MM
+from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM  # item 189 (2026-09-28)
 from segfacet.pipeline import extract_feature_record
 from segfacet.reference import (
     ALL_STRATUM,
@@ -873,7 +873,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         "verdict": "flagged-for-review",
         "findings": [
             {
-                "rule_id": "mislabel",
+                # Item 189 (2026-09-28): the offset detector moved to its own
+                # spline_offset rule.
+                "rule_id": "spline_offset",
                 "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],
@@ -966,7 +968,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 ),
             },
             {
-                "rule_id": "mislabel",
+                # Item 189 (2026-09-28): the offset detector moved to its own
+                # spline_offset rule.
+                "rule_id": "spline_offset",
                 "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [22],

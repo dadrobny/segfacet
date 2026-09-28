@@ -537,7 +537,8 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.geometry.touches_posterior", "border"),
         ("relationships.out_of_order_labels[]", "sequence"),
         ("relationships.missing_levels[]", "coverage"),
-        ("stage3.per_label_offsets[].offset_mm", "mislabel"),
+        # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+        ("stage3.per_label_offsets[].offset_mm", "spline_offset"),
         ("per_label.{label}.geometry.physical_volume_mm3", "bounds"),
     ],
 )
@@ -588,7 +589,11 @@ def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
 #: attributes no mode to it; the mode-less half of AC15 covers it instead.
 #: (``remove_level_relabel``, mode 6, expects no rule, so it adds nothing.)
 _RULE_MODE_MAP = {
-    "mislabel": (1, 9),  # displace (1), relabel_swap (9)
+    # Item 189 (2026-09-28): displace no longer designates mislabel (its
+    # offset detector moved to spline_offset, and displace now carries
+    # failure_mode=0, the displaced_vertebra condition), so the corpus scan
+    # attributes mislabel to relabel_swap (9) alone.
+    "mislabel": (9,),  # relabel_swap (9)
     # Item 176 (2026-09-24): the bridged fuse_adjacent designates no rule, so
     # fragmentation (1, 2, 3, 4) -> (1, 3, 4) and coverage (2, 6) -> (6,).
     # Item 187 (2026-09-28): the split case's rule_id moved from
@@ -634,8 +639,8 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     still gives ``(6,)`` and the declaration gives ``(10,)`` -- the corpus
     scan itself is unchanged, so ``_RULE_MODE_MAP["coverage"] == (6,)``
     stays correct), and
-    ``mislabel``'s are ``(1, 9)`` against a
-    declared ``(9,)``. An entry's
+    ``mislabel``'s corpus modes are ``(9,)`` against a declared ``(9,)``
+    (item 189, 2026-09-28: displace no longer designates mislabel). An entry's
     ``failure_modes`` is the *union* of every source that spoke, so the exact
     expected set is derived here from all three live sources (corpus map,
     declaration, mode anchor) and the corpus map's own contribution is
@@ -727,7 +732,12 @@ def test_ac14_condition_anchor_paths_key_set_is_the_catalogued_conditions(
     condition id. Pin the same two properties there: the keys are catalogued
     conditions, and each carries at least one path."""
     condition_anchors = feature_docs_module.CONDITION_ANCHOR_PATHS
-    assert set(condition_anchors) == set(failure_modes_module.CONDITIONS)
+    # Item 189 (2026-09-28): displaced_vertebra is exempted by name -- no
+    # per-mode metric reads the offset, so CONDITION_ANCHOR_PATHS is not
+    # extended for it.
+    assert set(condition_anchors) == set(failure_modes_module.CONDITIONS) - {
+        "displaced_vertebra"
+    }
     for condition_id, paths in condition_anchors.items():
         assert len(paths) >= 1, condition_id
 

@@ -218,10 +218,11 @@ def _firing_record():
 
 
 def test_ac1_all_ten_rules_declared_and_not_pending():
-    # Item 187 (2026-09-27): the new neighbour_contact rule brings the
-    # registry to eleven.
+    # Item 187 (2026-09-27): the new neighbour_contact rule brought the
+    # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
+    # brings it to twelve.
     rules = list(iter_rules())
-    assert len(rules) == 11
+    assert len(rules) == 12
     for rule in rules:
         decl = rule.mode_declaration
         assert decl is not None, rule.rule_id
@@ -979,7 +980,10 @@ def test_ac17_mode_anchor_paths_keys_are_signed_off_mode_ids():
     assert anchor_keys <= set(fm.SPECIFICATION)
 
     condition_keys = set(feature_docs_module.CONDITION_ANCHOR_PATHS)
-    assert condition_keys == set(fm.CONDITIONS)
+    # Item 189 (2026-09-28): CONDITION_ANCHOR_PATHS is not extended for the
+    # new displaced_vertebra condition -- no per-mode metric reads the
+    # offset, so it is exempted by name.
+    assert condition_keys == set(fm.CONDITIONS) - {"displaced_vertebra"}
     assert condition_keys, "expected at least one condition anchor"
     assert not condition_keys & {str(k) for k in anchor_keys}
 

@@ -165,6 +165,8 @@ RULE_IDS = (
     "overlap",
     "reference_delta",
     "sequence",
+    # Item 189 (2026-09-28): new mode-less rule, mislabel's moved Detector A.
+    "spline_offset",
 )
 
 _COMMITTED_JSON = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"

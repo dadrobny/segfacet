@@ -188,10 +188,11 @@ def test_ac1_reexported_from_heuristics_package():
 
 
 def test_ac1_iter_rule_declarations_ascending_by_rule_id():
-    # Item 187 (2026-09-27): the new neighbour_contact rule brings the
-    # registry to eleven.
+    # Item 187 (2026-09-27): the new neighbour_contact rule brought the
+    # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
+    # (mislabel's moved Detector A) brings it to twelve.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 11
+    assert len(pairs) == 12
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -250,9 +251,10 @@ def test_ac2_ill_formed_declaration_raises_naming_field(kwargs, expected_field_n
 
 
 def test_ac3_ten_rules_registered():
-    # Item 187 (2026-09-27): the new neighbour_contact rule brings the
-    # registry to eleven.
-    assert len(list(iter_rules())) == 11
+    # Item 187 (2026-09-27): the new neighbour_contact rule brought the
+    # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
+    # brings it to twelve.
+    assert len(list(iter_rules())) == 12
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
@@ -333,7 +335,9 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # coverage now declares mode 10, so its firing on `remove_level` (mode 6)
     # is a recorded co-detection rather than the rule's own declaration.
     expected_co_detections = {
-        ("mislabel", 1),  # displace is detected only as a co-detection
+        # Item 189 (2026-09-28): ("mislabel", 1) left the set -- the
+        # spline_offset detector that co-detected displace moved to its own
+        # mode-less spline_offset rule.
         ("coverage", 6),  # coverage now declares mode 10, not mode 6
     }
 

@@ -895,20 +895,22 @@ def test_ac13_co_detection_alone_does_not_validate():
 
 
 def test_ac14_fov_truncation_case_expects_border_and_mislabel_with_reason():
+    # Item 189 (2026-09-28): the offset detector that co-fires on this case
+    # moved from mislabel to spline_offset.
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert case.expected_firing == ("border", "mislabel")
+    assert case.expected_firing == ("border", "spline_offset")
     assert case.reason.strip()
     lowered = case.reason.lower()
     assert "crop" in lowered or "border" in lowered, case.reason
     assert "centroid" in lowered, case.reason
     assert "curve" in lowered or "spline" in lowered, case.reason
-    # `mislabel` co-fires but records nothing about this condition: it is one
-    # of the rules the condition *exempts*, never one that records it.
-    assert "mislabel" not in condition.recording_rules
-    assert "mislabel" in condition.exempting_rules
+    # `spline_offset` co-fires but records nothing about this condition: it
+    # is one of the rules the condition *exempts*, never one that records it.
+    assert "spline_offset" not in condition.recording_rules
+    assert "spline_offset" in condition.exempting_rules
 
 
 def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
@@ -953,15 +955,18 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     What is checked instead is the claim itself, end to end and entirely
     from live measurement: the single label ``border`` names is the same
     label that carries a non-terminal, strictly positive spline offset, and
-    that same label is the one ``mislabel``'s co-detection names. If the
+    that same label is the one ``spline_offset``'s co-detection names. If the
     crop stopped displacing the centroid, or displaced a different label's,
     this fails.
+
+    Item 189 (2026-09-28): the offset detector that co-fires here moved from
+    ``mislabel`` to its own ``spline_offset`` rule.
     """
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert set(case.expected_firing) == {"border", "mislabel"}
+    assert set(case.expected_firing) == {"border", "spline_offset"}
 
     _detection, findings, record = corpus("crop_at_border")
     border_findings = [f for f in findings if f.rule_id == "border"]
@@ -991,11 +996,11 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     assert others, offsets
     assert measured_offset > max(others), (measured_offset, others)
 
-    mislabel_findings = [f for f in findings if f.rule_id == "mislabel"]
-    assert mislabel_findings, "expected mislabel to co-fire on the condition's case"
-    assert any(label in set(f.labels) for f in mislabel_findings), (
+    spline_offset_findings = [f for f in findings if f.rule_id == "spline_offset"]
+    assert spline_offset_findings, "expected spline_offset to co-fire on the condition's case"
+    assert any(label in set(f.labels) for f in spline_offset_findings), (
         label,
-        [f.labels for f in mislabel_findings],
+        [f.labels for f in spline_offset_findings],
     )
 
     # The condition's own mechanism names the exempting seam this rests on.
@@ -1057,36 +1062,38 @@ def test_ac17_fragment_vs_island_discriminator_holds_on_corpus(corpus):
 
 
 # =========================================================================== #
-# AC18: the two `mislabel` detectors are told apart by their leading tag.
-# The sign-off split them across the catalogue: the spline-offset detector
-# (`displace`) serves NO failure mode -- a spline offset is an
-# anatomy-classification signal -- while the ordering detector
-# (`relabel_swap`) serves mode 9. Distinguishing them therefore matters
-# more after the sign-off, not less.
+# AC18: the spline-offset and ordering detectors are told apart by their
+# leading tag and their rule. The sign-off split them across the catalogue:
+# the spline-offset detector (`displace`) serves NO failure mode -- a spline
+# offset is an anatomy-classification signal -- while the ordering detector
+# (`relabel_swap`) serves mode 9. Item 189 (2026-09-28) moved the
+# spline-offset detector into its own `spline_offset` rule, so the two are
+# now told apart by rule_id as well as by tag.
 # =========================================================================== #
 
 
 def test_ac18_mislabel_detector_leading_tags_differ(corpus):
-    from segfacet.heuristics.mislabel import _MISALIGN_TAG, _MISLABEL_TAG
+    from segfacet.heuristics.mislabel import _MISLABEL_TAG
+    from segfacet.heuristics.spline_offset import _MISALIGN_TAG
 
     assert _MISALIGN_TAG != _MISLABEL_TAG
 
     _detection1, findings1, _record1 = corpus("displace")
-    mode1_mislabel = [f for f in findings1 if f.rule_id == "mislabel"]
-    assert mode1_mislabel, "expected mislabel to fire on displace"
+    mode1_spline_offset = [f for f in findings1 if f.rule_id == "spline_offset"]
+    assert mode1_spline_offset, "expected spline_offset to fire on displace"
 
     _detection4, findings4, _record4 = corpus("relabel_swap")
     mode4_mislabel = [f for f in findings4 if f.rule_id == "mislabel"]
     assert mode4_mislabel, "expected mislabel to fire on relabel_swap"
 
-    assert any(f.reason.startswith(_MISALIGN_TAG) for f in mode1_mislabel), [
-        f.reason for f in mode1_mislabel
+    assert any(f.reason.startswith(_MISALIGN_TAG) for f in mode1_spline_offset), [
+        f.reason for f in mode1_spline_offset
     ]
     assert any(f.reason.startswith(_MISLABEL_TAG) for f in mode4_mislabel), [
         f.reason for f in mode4_mislabel
     ]
-    assert not any(f.reason.startswith(_MISLABEL_TAG) for f in mode1_mislabel), [
-        f.reason for f in mode1_mislabel
+    assert not any(f.reason.startswith(_MISLABEL_TAG) for f in mode1_spline_offset), [
+        f.reason for f in mode1_spline_offset
     ]
     assert not any(f.reason.startswith(_MISALIGN_TAG) for f in mode4_mislabel), [
         f.reason for f in mode4_mislabel

@@ -835,14 +835,15 @@ def test_ac15_condition_case_labelled_specification_condition(matrix):
     """``crop_at_border`` is no longer a failure-mode case: the
     item-150 sign-off retired mode 6 into the ``fov_truncation`` *condition*,
     whose fixture it is. It is still scored, still expects ``{border,
-    mislabel}``, and its source names where that expectation now lives."""
+    spline_offset}`` (item 189, 2026-09-28: the offset detector moved from
+    ``mislabel``), and its source names where that expectation now lives."""
     cases_by_key = {(c["corpus"], c["case_id"]): c for c in matrix["conformance"]["cases"]}
     key = ("geometric", "crop_at_border")
     assert key in cases_by_key, sorted(cases_by_key)
     entry = cases_by_key[key]
     assert entry["expected_source"] == "specification-condition", entry
     assert entry["mode"] == 0, entry
-    assert sorted(entry["expected_firing"]) == ["border", "mislabel"], entry
+    assert sorted(entry["expected_firing"]) == ["border", "spline_offset"], entry
     assert entry["agrees"] is True, entry
 
 

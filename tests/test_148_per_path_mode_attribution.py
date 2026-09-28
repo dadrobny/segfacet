@@ -360,9 +360,10 @@ def test_ac4_every_declaring_rule_classifies_exactly_what_it_consumes(shipped_ca
             declared_paths - consumed_paths,
         )
         checked += 1
-    # Item 187 (2026-09-28): neighbour_contact registers an eleventh
-    # declaring rule.
-    assert checked == 11
+    # Item 187 (2026-09-27): neighbour_contact registered an eleventh
+    # declaring rule. Item 189 (2026-09-28): spline_offset registers a
+    # twelfth.
+    assert checked == 12
 
 
 # =========================================================================== #
@@ -839,7 +840,9 @@ def test_ac15_schema_version_and_status_report_loader():
 
 _AC16_CASES = (
     ("crop_at_border", "geo", ("border",)),
-    ("displace", "geo", ("mislabel",)),
+    # Item 189 (2026-09-28): displace's offset detector moved to its own
+    # spline_offset rule.
+    ("displace", "geo", ("spline_offset",)),
     ("fragment", "geo", ("fragmentation",)),
     ("remove_level", "geo", ("coverage",)),
     ("sequence_break", "geo", ("sequence",)),
@@ -997,8 +1000,9 @@ _EXPECTED_THRESHOLD_CONSTANTS = {
         "DEFAULT_MAX_ROBUST_Z": 3.5,
         "DEFAULT_MAX_DISTRIBUTION_DISTANCE": 3.0,
     },
-    "mislabel": {"_DEFAULT_MAX_OFFSET_MM": 13.0},
-    # Item 187 (2026-09-28): neighbour_contact, mode 3's own rule.
+    # Item 189 (2026-09-28): _DEFAULT_MAX_OFFSET_MM moved to spline_offset.
+    "mislabel": {},
+    # Item 187 (2026-09-27): neighbour_contact, mode 3's own rule.
     "neighbour_contact": {"DEFAULT_CONTACT_FRACTION": 0.1},
     "overlap": {"_DEFAULT_MIN_OVERLAP_VOXELS": 1},
     "reference_delta": {
@@ -1006,6 +1010,8 @@ _EXPECTED_THRESHOLD_CONSTANTS = {
         "DEFAULT_MAX_DISTRIBUTION_DISTANCE": 3.0,
     },
     "sequence": {},
+    # Item 189 (2026-09-28): mislabel's Detector A moved here unchanged.
+    "spline_offset": {"_DEFAULT_MAX_OFFSET_MM": 13.0},
 }
 
 _RULE_MODULE_NAMES = tuple(sorted(_EXPECTED_THRESHOLD_CONSTANTS))
@@ -1033,8 +1039,9 @@ def test_ac17_no_rule_evaluate_body_references_declaration_symbols():
                 offenders = (names | attrs) & banned
                 assert not offenders, (module_name, offenders)
                 checked += 1
-    # Item 187 (2026-09-28): neighbour_contact.py is an eleventh rule module.
-    assert checked == 11
+    # Item 187 (2026-09-27): neighbour_contact.py was an eleventh rule
+    # module. Item 189 (2026-09-28): spline_offset.py is a twelfth.
+    assert checked == 12
 
 
 # =========================================================================== #
@@ -1068,8 +1075,9 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
         expected_paths = tuple(sorted(e.path for e in cat.entries if rr.rule_id in e.consuming_rules))
         assert rr.feature_paths == expected_paths, rr.rule_id
         checked += 1
-    # Item 187 (2026-09-28): neighbour_contact is an eleventh matrix row.
-    assert checked == 11
+    # Item 187 (2026-09-27): neighbour_contact was an eleventh matrix row.
+    # Item 189 (2026-09-28): spline_offset is a twelfth.
+    assert checked == 12
 
 
 # =========================================================================== #
