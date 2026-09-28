@@ -224,10 +224,13 @@ def test_ac14_recorded_corpus_margins_are_live():
 
     non_firing_interior_offsets = []
     for case in cases:
-        fires = any(f.rule_id == "spline_offset" for f in pipeline_findings(case))
+        record = extract_feature_record(loaded_seg_image(case), config)
+        # 2026-09-28 (item 191): read "fires" from the ungated rule, not the pipeline
+        # -- the runner's fov_truncation gate drops crop_at_border's finding since
+        # spline_offset does not opt in, but the margin is a property of evaluate().
+        fires = bool(get_rule("spline_offset").evaluate(record, config))
         if fires:
             continue
-        record = extract_feature_record(loaded_seg_image(case), config)
         for entry in record["stage3"]["per_label_offsets"]:
             if entry.get("is_terminal"):
                 continue
