@@ -472,12 +472,15 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
     # 20 -> 14: item 193 (2026-09-28) removes every edge naming
     # reference_delta (modes 1, 2, 3, 4, 8) and intensity_reference_delta
     # (mode 16) -- both rules become mode-less (no mode's own detector).
+    # 14 -> 13: item 194 (2026-09-28) removes mode 1's bounds edge -- mode 1
+    # is attributed only where no other mode applies, and bounds serves
+    # modes 2, 3 and 4.
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 14, total_edges
+    assert total_edges == 13, total_edges
 
 
 # =========================================================================== #
@@ -582,8 +585,10 @@ def test_ac14_recorded_analytic_edge_list(matrix):
     # (16, "intensity_reference_delta") pair leaves the analytic list -- both
     # rules become mode-less (no mode's own detector), declaring no edge at
     # all.
+    # Item 194 (2026-09-28): (1, "bounds") leaves the analytic list -- mode 1
+    # is attributed only where no other mode applies, and bounds' volume/
+    # extent proxy serves modes 2, 3 and 4 instead.
     for expected in [
-        (1, "bounds"),
         (2, "bounds"),
         (4, "bounds"),
     ]:
@@ -591,17 +596,22 @@ def test_ac14_recorded_analytic_edge_list(matrix):
 
 
 def test_adv_ac14_flipped_attribution_is_detected(matrix, conformance_index):
+    # Re-pointed (item 194, 2026-09-28) from mode 1 to mode 4: bounds no
+    # longer carries an analytic edge on mode 1 at all (mode 1 is attributed
+    # only where no other mode applies), so mode 1 can no longer witness a
+    # flipped-attribution regression. Mode 4 still carries bounds as
+    # analytic.
     independent = _independent_attribution(matrix, conformance_index)
-    mode1_row = next(m for m in matrix.modes if m.mode == 1)
-    mutated_attribution = list(mode1_row.rule_attribution)
+    mode4_row = next(m for m in matrix.modes if m.mode == 4)
+    mutated_attribution = list(mode4_row.rule_attribution)
     for i, (rule_id, attribution) in enumerate(mutated_attribution):
         if attribution == "analytic":
             mutated_attribution[i] = (rule_id, "corpus")
             break
     else:
-        pytest.fail("expected mode 1 to carry >=1 analytic edge to flip")
-    mutated_row = SimpleNamespace(mode=1, rules=mode1_row.rules, rule_attribution=tuple(mutated_attribution))
-    assert dict(mutated_row.rule_attribution) != independent[1]
+        pytest.fail("expected mode 4 to carry >=1 analytic edge to flip")
+    mutated_row = SimpleNamespace(mode=4, rules=mode4_row.rules, rule_attribution=tuple(mutated_attribution))
+    assert dict(mutated_row.rule_attribution) != independent[4]
 
 
 # =========================================================================== #

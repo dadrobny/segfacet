@@ -23,7 +23,9 @@ Covers Acceptance Criteria AC1-AC18:
 - AC2:  ``bounds`` declares an exact analytic mode tuple -- ``(2,)`` at item
         137, ``(1, 2, 3)`` after the item-150 sign-off re-assigned the ids
         and widened the declaration, ``(1, 2, 3, 4)`` on its 2026-09-15
-        revision.
+        revision, ``(2, 3, 4)`` since item 194 (2026-09-28: mode 1 is
+        attributed only where no other mode applies, and this detector
+        serves modes 2-4).
 - AC3:  ``reference_delta`` likewise -- ``(1, 2)`` at item 137 (corrected
         2026-09-02, commit b1c593c, from a false-premised ``(2,)``; see the
         module note above), ``(1, 2, 3, 5)`` after the sign-off,
@@ -130,7 +132,10 @@ _ANALYTIC_RULES = ("bounds",)
 # Reconciled (item 193, 2026-09-28): reference_delta becomes mode-less (a
 # general outlier detector, no mode's own detector) -- it drops out of the
 # analytic roll call, which is now bounds alone.
-_ANALYTIC_DECLARED_MODES = {"bounds": (1, 2, 3, 4)}
+# Reconciled (item 194, 2026-09-28): mode 1 is attributed only where no other
+# mode applies, and bounds' volume/extent proxy serves modes 2-4 -- its
+# mode-1 edge and declaration both go.
+_ANALYTIC_DECLARED_MODES = {"bounds": (2, 3, 4)}
 # Item 146 (2026-09-03): no rule ships mode-less any more -- intensity /
 # intensity_reference_delta move from mode-less to declaring §6 mode 9 -- so
 # this roll call becomes empty rather than removed (its consumers below are
@@ -901,7 +906,17 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     2 (A6: "the other buckets ... do not move"). mode16_count is unaffected: 2.
     ``("rule_bookkeeping", "rule_not_read")`` (4) and
     ``("rule_declaration", "rule_not_read")`` (3) are removed from the table
-    because the movement empties them; the table is exhaustive."""
+    because the movement empties them; the table is exhaustive.
+
+    Re-measured (item 194, 2026-09-28): the four ``per_label.{label}.geometry.*``
+    paths (``physical_volume_mm3``, ``extent_x_mm``, ``extent_y_mm``,
+    ``extent_z_mm``) leave mode 1, because ``bounds`` no longer declares it --
+    mode 1 is attributed only where no other mode applies. mode1_count moves
+    9 -> 5. ``len(entries)`` (145), mode2_count (4), mode16_count (2) and the
+    whole ``mode_evidence`` bucket table do not move: those four paths keep
+    their ``("rule_mode_map", "rule_declaration")`` evidence and their modes
+    2, 3 and 4 (the corpus still designates ``bounds`` for mode 3 via
+    ``split_own_label``)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -910,8 +925,10 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     # The two analytic rules' own declared modes ...
     # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
     # re-classify bookkeeping (mode-less).
+    # Item 194 (2026-09-28): 9 -> 5 -- bounds' four geometry.* paths leave
+    # mode 1 (mode 1 is attributed only where no other mode applies).
     mode1_count = sum(1 for e in entries if 1 in e.failure_modes)
-    assert mode1_count == 9
+    assert mode1_count == 5
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     # Item 193 (2026-09-28): 7 -> 4.

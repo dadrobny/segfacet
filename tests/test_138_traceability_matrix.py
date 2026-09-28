@@ -571,14 +571,21 @@ def matrix_reference_delta_renarrowed(monkeypatch):
     (now empty) ``modes`` proves nothing -- the level-check regression this
     fixture guards needs a rule that still declares a mode to narrow.
     ``bounds`` (modes 1-4) narrowed to ``(2, 3, 4)`` drops it out of mode 1's
-    rule list, which is what the consuming test asserts."""
+    rule list, which is what the consuming test asserts.
+
+    Re-narrowed (item 194, 2026-09-28): ``bounds`` no longer declares mode 1
+    at all (mode 1 is attributed only where no other mode applies, and this
+    detector serves modes 2-4), so a narrowing that drops only mode 1 proves
+    nothing any more. Narrowed to ``(2, 3)`` instead, which drops mode 4 --
+    the level-check regression this fixture guards now needs a mode ``bounds``
+    still declares on the unpatched tree to narrow away."""
     import dataclasses
 
     from segfacet.heuristics.rule import _RULES
     import segfacet.traceability as traceability
 
     rule = _RULES["bounds"]
-    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4))
+    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3))
     monkeypatch.setattr(rule, "mode_declaration", narrowed)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -1438,8 +1445,11 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # (16, "intensity_reference_delta") edge leaves the witness -- both rules
     # become mode-less (no mode's own detector), so neither declares any
     # mode -> rule edge at all.
+    # 2026-09-28, item 194: (1, "bounds") leaves the witness -- mode 1 is
+    # attributed only where no other mode applies, and bounds' volume/extent
+    # proxy serves modes 2, 3 and 4, none of which the corpus designates it
+    # for except mode 3 (split_own_label, already corpus-attributed).
     witness = {
-        (1, "bounds"),
         (2, "bounds"),
         (4, "bounds"),
         (10, "coverage"),
@@ -1476,6 +1486,9 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # 2026-09-28, item 192: {"bounds"} -> {"bounds", "sequence"}. sequence is
     # corpus-attributed for mode 9 (relabel_swap, sequence_break) and
     # analytic for modes 10 and 11.
+    # 2026-09-28, item 194: bounds no longer declares mode 1 at all -- it is
+    # corpus-attributed for mode 3 (split_own_label) and analytic for modes
+    # 2 and 4.
     assert mixed == {"bounds", "sequence"}, by_rule
 
 
@@ -2368,12 +2381,19 @@ def test_adv_ac32_renarrowed_reference_delta_declaration_fails_the_matrix_level_
     Re-pointed (item 193, 2026-09-28) from ``reference_delta`` (now
     mode-less, so it carries no mode 1 to narrow away) to ``bounds``,
     narrowed from ``(1, 2, 3, 4)`` to ``(2, 3, 4)``. Measured: mode 1's rules
-    go from ``["bounds", "fragmentation"]`` to ``["fragmentation"]``."""
-    mode1_before = _mode_record(matrix, 1)
-    assert "bounds" in mode1_before["rules"], mode1_before["rules"]
+    go from ``["bounds", "fragmentation"]`` to ``["fragmentation"]``.
 
-    mode1_after = _mode_record(matrix_reference_delta_renarrowed, 1)
-    assert "bounds" not in mode1_after["rules"], mode1_after["rules"]
+    Re-pointed again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 on the unpatched tree at all (mode 1 is attributed only where no
+    other mode applies), so mode 1 can no longer witness a narrowing
+    regression. Reads mode 4 instead, narrowed from ``(2, 3, 4)`` to
+    ``(2, 3)`` (the fixture above). Measured: mode 4's rules go from
+    ``["bounds", "fragmentation"]`` to ``["fragmentation"]``."""
+    mode4_before = _mode_record(matrix, 4)
+    assert "bounds" in mode4_before["rules"], mode4_before["rules"]
+
+    mode4_after = _mode_record(matrix_reference_delta_renarrowed, 4)
+    assert "bounds" not in mode4_after["rules"], mode4_after["rules"]
 
 
 # =========================================================================== #

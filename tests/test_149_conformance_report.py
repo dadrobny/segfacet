@@ -330,14 +330,21 @@ def matrix_reference_delta_renarrowed(monkeypatch):
     mode-less, so it carries no mode 1 to narrow away) to ``bounds``,
     narrowed from ``(1, 2, 3, 4)`` to ``(2, 3, 4)``. Measured: mode 1 loses
     its four ``per_label.{label}.geometry.*`` read paths and the ``bounds``
-    attribution."""
+    attribution.
+
+    Re-narrowed (item 194, 2026-09-28): ``bounds`` no longer declares mode 1
+    on the unpatched tree at all (mode 1 is attributed only where no other
+    mode applies), so a narrowing that drops only mode 1 proves nothing any
+    more. Narrowed to ``(2, 3)`` instead, which drops mode 4 -- the patched
+    matrix still differs from the unpatched one (mode 4 loses its ``bounds``
+    read paths and attribution), which is what the consuming tests assert."""
     import dataclasses
 
     from segfacet.heuristics.rule import _RULES
     import segfacet.traceability as traceability
 
     rule = _RULES["bounds"]
-    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3, 4))
+    narrowed = dataclasses.replace(rule.mode_declaration, modes=(2, 3))
     monkeypatch.setattr(rule, "mode_declaration", narrowed)
     return traceability.matrix_to_dict(traceability.build_matrix())
 
@@ -704,9 +711,16 @@ def test_ac10_mode1_read_paths_are_signal_classified_only(matrix):
     """Reconciled (item 193, 2026-09-28): ``reference_delta``'s robust_z path
     re-classifies ``bookkeeping`` (mode-less rule), so it no longer shows for
     mode 1 -- ``bounds``'s own signal path takes its place as the positive
-    control."""
+    control.
+
+    Reconciled again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 at all (mode 1 is attributed only where no other mode applies), so
+    its geometry path leaves mode 1's read_paths too -- ``fragmentation``'s
+    own signal path (mode 1's sole remaining declaring rule) is the new
+    positive control."""
     mode1 = _mode_record(matrix, 1)
-    assert "per_label.{label}.geometry.physical_volume_mm3" in mode1["read_paths"]
+    assert "per_label.{label}.components.fragmentation_index" in mode1["read_paths"]
+    assert "per_label.{label}.geometry.physical_volume_mm3" not in mode1["read_paths"]
     assert "reference_delta.{label}.level_name" not in mode1["read_paths"]
     assert "reference_delta.lower_pct" not in mode1["read_paths"]
 
@@ -728,13 +742,20 @@ def test_ac10_read_paths_equal_the_sorted_union_of_declaring_rules_signal_paths(
     assert record["read_paths"] == sorted(expected), mode
 
 
-def test_adv_ac10_renarrowed_reference_delta_shrinks_mode1_read_paths(
+def test_adv_ac10_renarrowed_bounds_shrinks_mode4_read_paths(
     matrix, matrix_reference_delta_renarrowed
 ):
     """Re-pointed (item 193, 2026-09-28): the fixture narrows ``bounds``, not
-    ``reference_delta`` (now mode-less)."""
-    before = set(_mode_record(matrix, 1)["read_paths"])
-    after = set(_mode_record(matrix_reference_delta_renarrowed, 1)["read_paths"])
+    ``reference_delta`` (now mode-less).
+
+    Re-pointed again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 on the unpatched tree at all, so mode 1 can no longer witness a
+    narrowing regression. Reads mode 4 instead: it loses the four
+    ``per_label.{label}.geometry.*`` paths and keeps its five
+    ``per_label.{label}.components.*`` paths (``fragmentation``'s islands
+    detector, still declared)."""
+    before = set(_mode_record(matrix, 4)["read_paths"])
+    after = set(_mode_record(matrix_reference_delta_renarrowed, 4)["read_paths"])
     assert after < before, (before, after)
     assert "per_label.{label}.geometry.physical_volume_mm3" not in after
 
@@ -1007,13 +1028,19 @@ def test_ac19_geometric_modes_attribution_matches_the_base_artifact(matrix):
         assert fresh_attribution == committed_attribution, mode
 
 
-def test_adv_ac19_renarrowed_reference_delta_shrinks_mode1_attribution(
+def test_adv_ac19_renarrowed_bounds_shrinks_mode4_attribution(
     matrix, matrix_reference_delta_renarrowed
 ):
     """Re-pointed (item 193, 2026-09-28): the fixture narrows ``bounds``, not
-    ``reference_delta`` (now mode-less)."""
-    before = _mode_record(matrix, 1)["rule_attribution"]
-    after = _mode_record(matrix_reference_delta_renarrowed, 1)["rule_attribution"]
+    ``reference_delta`` (now mode-less).
+
+    Re-pointed again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 on the unpatched tree at all, so mode 1 can no longer witness a
+    narrowing regression. Reads mode 4 instead: its attribution goes from
+    ``{"bounds": "analytic", "fragmentation": "corpus"}`` to
+    ``{"fragmentation": "corpus"}``."""
+    before = _mode_record(matrix, 4)["rule_attribution"]
+    after = _mode_record(matrix_reference_delta_renarrowed, 4)["rule_attribution"]
     assert "bounds" in before
     assert "bounds" not in after
 

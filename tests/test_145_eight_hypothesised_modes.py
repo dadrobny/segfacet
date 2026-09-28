@@ -656,17 +656,21 @@ def test_ac8_every_synthetic_demonstrable_edge_is_demonstrated(measured):
 
 
 # =========================================================================== #
-# AC9: the three analytic-only edges are needs-real-data and undemonstrated
+# AC9: the analytic-only bounds edges are needs-real-data and undemonstrated
 # =========================================================================== #
 
 
-def test_ac9_the_three_analytic_only_edges_are_needs_real_data_and_undemonstrated(measured):
+def test_ac9_the_analytic_only_bounds_edges_are_needs_real_data_and_undemonstrated(measured):
     """Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes
     mode-less and declares no edge at all, so the three analytic-only edges
-    are now all ``bounds`` -- modes 1, 2 and 4."""
+    are now all ``bounds`` -- modes 1, 2 and 4.
+
+    Reconciled again (item 194, 2026-09-28): ``bounds`` no longer declares
+    mode 1 at all (mode 1 is attributed only where no other mode applies),
+    so the analytic-only edges are now ``bounds``' modes 2 and 4."""
     import segfacet.failure_modes as fm
 
-    targets = {(1, "bounds"), (2, "bounds"), (4, "bounds")}
+    targets = {(2, "bounds"), (4, "bounds")}
     seen = set()
     for mode in fm.iter_modes():
         for edge in mode.intended_rules:
