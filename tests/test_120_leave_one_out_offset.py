@@ -678,9 +678,10 @@ def test_ac21_leave_one_out_reconstruction_retired():
 
     assert "leave_one_out_offset" not in regression_mod.RECONSTRUCTIONS
     assert not hasattr(regression_mod, "_recon_leave_one_out_offset")
+    # Item 195 (2026-09-28): "overlap_mask_stack" dropped -- force_overlap
+    # (and its operator-specific reconstruction) was removed.
     assert set(regression_mod.RECONSTRUCTIONS) == {
         "monotonic_true_spatial_order",
-        "overlap_mask_stack",
     }
 
 
@@ -768,7 +769,7 @@ def _corpus_cohort_metrics():
     return compute_cohort_metrics(evaluation, failure_modes=FAILURE_MODE_NAMES)
 
 
-def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
+def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     """Item 132 judges monotonicity against a traversal-ordered reference
     fit, which newly detects the relabel-swap case -- corpus sensitivity
     rose from 6/8 to 7/8. Re-measured 2026-09-14 under the item-150
@@ -803,18 +804,25 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     Re-measured 2026-09-28 (item 191) -- the gate drops `bounds`'s two
     findings on `crop_fov_si`'s label 24, so that case no longer fires and
     its expected verdict becomes "pass": it is no longer an expected-failure
-    record, so overall sensitivity is 9/10 over ten records."""
+    record, so overall sensitivity is 9/10 over ten records.
+    Re-measured 2026-09-28 (item 195) -- force_overlap (mode 15) removed, a
+    single-channel label map cannot express an overlap, so every remaining
+    expected-failure record is pipeline-detected: overall sensitivity is
+    9/9 over nine records."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
     # Item 176 (2026-09-24): 11/12 -> 10/11.
     # Item 191 (2026-09-28): 10/11 -> 9/10.
-    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
+    # Item 195 (2026-09-28): 9/10 -> 9/9 (force_overlap removed).
+    assert metrics.sensitivity == pytest.approx(1.0)
 
     # Item 176 (2026-09-24): mode 2's entry (2: 1.0) removed -- no case left.
     # Item 190 (2026-09-28): mode 0's entry removed -- condition cases moved
     # to their own condition-keyed buckets, checked separately below.
-    expected_sensitivity = {1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0, 15: 0.0}
+    # Item 195 (2026-09-28): mode 15's entry (15: 0.0) removed -- no
+    # corpus case left, force_overlap was removed.
+    expected_sensitivity = {1: 1.0, 3: 1.0, 4: 1.0, 6: 1.0, 9: 1.0}
     for mode, expected in expected_sensitivity.items():
         entry = next(m for m in metrics.per_mode if m.failure_mode == mode)
         assert entry.n_cases > 0, f"mode {mode}"
@@ -831,7 +839,9 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     # Item 176 (2026-09-24): 12 -> 11.
     # Item 191 (2026-09-28): crop_fov_si's expected verdict becomes "pass",
     # dropping it out of the mode/condition n_cases sum: 11 -> 10.
-    assert sum(m.n_cases for m in metrics.per_mode) == 10
+    # Item 195 (2026-09-28): force_overlap removed, dropping mode 15's
+    # zero-case entry out of the per-mode map: 10 -> 9.
+    assert sum(m.n_cases for m in metrics.per_mode) == 9
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

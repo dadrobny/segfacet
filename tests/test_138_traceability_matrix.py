@@ -157,8 +157,9 @@ RULELESS_SPECIFIED_MODES = frozenset({6, 8})
 _ANCHOR_NOT_CONSUMED_MODE = 9
 
 #: "Overlapping segments" -- mode 15 after the item-150 sign-off's 2026-09-15
-#: revision (it was 8 before item 150, 9 at the 2026-09-14 pass). Its one
-#: corpus case keeps the historical id ``force_overlap``.
+#: revision (it was 8 before item 150, 9 at the 2026-09-14 pass). Its
+#: corpus case (historical id ``force_overlap``) was removed by item 195,
+#: 2026-09-28: a single-channel label map cannot express an overlap.
 _OVERLAP_MODE = 15
 RULE_IDS = (
     "border",
@@ -481,12 +482,15 @@ def matrix_overlap_mode_bogus_mechanism(monkeypatch):
 
 @pytest.fixture
 def matrix_overlap_mode_typo_mechanism(monkeypatch):
+    """Item 195 (2026-09-28): re-pointed at a rule-id typo -- mode 15 has no
+    corpus case (force_overlap was removed) any more, so the "one character
+    off" probe now targets the "overlap" rule id it still declares."""
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
     typo_mechanism = (
-        "The mechanism names force_overlaps, one character off the "
-        "real case id, on purpose, for a test."
+        "The mechanism names overlapp, one character off the real rule "
+        "id, on purpose, for a test."
     )
     _patch_specification_mode(
         monkeypatch, failure_modes_module, _OVERLAP_MODE, mechanism=typo_mechanism
@@ -1106,27 +1110,20 @@ def test_ac13_overlap_mode_rung_and_mechanism_name_the_single_channel_mechanism(
 
 
 # =========================================================================== #
-# AC14: the overlapping-segments mode is not pipeline-detected, from the
-# manifest. Re-pointed (item 150) from mode 8 to mode 15 (2026-09-15
-# revision); the fixture case id (``force_overlap``) is historical and
-# unchanged.
+# AC14: the overlapping-segments mode is not pipeline-detected, and (item
+# 195, 2026-09-28: force_overlap removed -- a single-channel label map
+# cannot express an overlap) carries no corpus case any more.
 # =========================================================================== #
 
 
-def test_ac14_overlap_mode_not_pipeline_detected_names_reconstructed_case(matrix):
-    manifest_detection = _manifest_detection_by_case_id()
-    assert "force_overlap" in manifest_detection
+def test_ac14_overlap_mode_not_pipeline_detected_names_no_case(matrix):
+    mode15 = _mode_record(matrix, _OVERLAP_MODE)
+    assert mode15["pipeline_detected"] is False
+    assert mode15["cases"] == []
 
-    mode8 = _mode_record(matrix, _OVERLAP_MODE)
-    assert mode8["pipeline_detected"] is False
-
-    cases = mode8["cases"]
-    assert cases, "expected the overlap mode to name at least one corpus case"
-    case_ids = {c["case_id"] for c in cases}
-    assert "force_overlap" in case_ids
-    named = next(c for c in cases if c["case_id"] == "force_overlap")
-    assert named["detection"] == manifest_detection["force_overlap"]
-    assert named["detection"] == "reconstructed_record"
+    assert not any(
+        c.get("failure_mode") == _OVERLAP_MODE for c in _manifest_cases()
+    )
 
 
 # =========================================================================== #
@@ -1449,12 +1446,17 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # attributed only where no other mode applies, and bounds' volume/extent
     # proxy serves modes 2, 3 and 4, none of which the corpus designates it
     # for except mode 3 (split_own_label, already corpus-attributed).
+    # 2026-09-28, item 195: (15, "overlap") enters the witness --
+    # force_overlap (mode 15's only corpus case) was removed, so the edge is
+    # no longer corpus-designated; the overlap rule stays, declared
+    # multi-channel.
     witness = {
         (2, "bounds"),
         (4, "bounds"),
         (10, "coverage"),
         (10, "sequence"),
         (11, "sequence"),
+        (15, "overlap"),
     }
     assert actual_analytic == witness
 
@@ -1936,20 +1938,15 @@ def test_adv_ac31_stale_mechanism_naming_no_live_identifier_is_detectable(
     assert not any(_token_in_mechanism(token, record["mechanism"]) for token in candidate_tokens)
 
 
-def test_adv_ac31_stale_mechanism_one_character_off_the_real_case_id_is_detectable(
+def test_adv_ac31_stale_mechanism_one_character_off_the_real_rule_id_is_detectable(
     matrix_overlap_mode_typo_mechanism,
 ):
-    """Re-pointed (item 150) from mode 8 to mode 15 (2026-09-15 revision);
-    the corpus case id (``force_overlap``) is historical and
-    unchanged."""
-    case_ids = {
-        c["case_id"] for c in _manifest_cases() if c.get("failure_mode") == _OVERLAP_MODE
-    }
-    assert case_ids, "expected at least one overlap-mode corpus case"
-    assert "force_overlap" in case_ids
-
+    """Re-pointed (item 195, 2026-09-28) from the corpus case id to the rule
+    id: mode 15's only corpus case (force_overlap) was removed -- a
+    single-channel label map cannot express an overlap -- so the probe now
+    targets the "overlap" rule id, which mode 15 still declares."""
     record = _mode_record(matrix_overlap_mode_typo_mechanism, _OVERLAP_MODE)
-    assert record["rules"], "expected the overlap mode to still declare a rule"
+    assert "overlap" in record["rules"], "expected the overlap mode to still declare a rule"
 
     candidate_tokens = _live_token_candidates(record, _OVERLAP_MODE)
     assert candidate_tokens, "expected at least one live token candidate"

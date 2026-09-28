@@ -92,7 +92,6 @@ from segfacet.synth.regression import (
     intensity_pipeline_findings,
     loaded_seg_image,
     pipeline_findings,
-    reconstructed_findings,
 )
 
 from run_process import run_utf8
@@ -348,7 +347,8 @@ def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     keys = _all_manifest_case_keys()
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
     # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
-    assert len(keys) == 18, keys
+    # Item 195 (2026-09-28): 18 -> 17 (force_overlap removed).
+    assert len(keys) == 17, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -366,7 +366,8 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     assert matrix.conformance.agree_count == len(matrix.conformance.cases)
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
     # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
-    assert matrix.conformance.agree_count == 18
+    # Item 195 (2026-09-28): 18 -> 17 (force_overlap removed).
+    assert matrix.conformance.agree_count == 17
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
@@ -630,28 +631,20 @@ def test_ac15_mode15_mechanism_states_the_single_channel_invariant():
     assert "voxel" in mechanism
 
 
-def test_ac16_overlap_case_yields_no_overlap_through_the_pipeline():
-    case = _manifest_case("force_overlap")
-    record = _record("force_overlap")
-    assert record["overlaps"] == []
-    findings = pipeline_findings(case)
-    assert "overlap" not in {f.rule_id for f in findings}
+def test_ac16_no_committed_case_yields_an_overlap_through_the_pipeline():
+    """Re-pointed by item 195 (2026-09-28): force_overlap (the only
+    reconstructed-record case) was removed -- a single-channel label map
+    cannot express an overlap -- so the claim generalises to every
+    committed geometric case instead of one named case."""
+    for case in corpus_module.load_manifest()["cases"]:
+        record = _record(case["case_id"])
+        assert record["overlaps"] == [], case["case_id"]
+        findings = pipeline_findings(case)
+        assert "overlap" not in {f.rule_id for f in findings}, case["case_id"]
 
 
-def test_ac16_overlap_case_yields_overlap_through_the_reconstruction():
-    case = _manifest_case("force_overlap")
-    findings = reconstructed_findings(case)
-    assert findings, "expected >=1 reconstructed finding"
-    assert "overlap" in {f.rule_id for f in findings}
-
-
-def test_ac16_manifest_detection_is_reconstructed_record():
-    case = _manifest_case("force_overlap")
-    assert case["detection"] == "reconstructed_record"
-
-
-def test_ac16_mode15_carries_the_case():
-    assert "force_overlap" in {c.case_id for c in fm.SPECIFICATION[15].corpus_cases}
+def test_ac16_mode15_carries_no_corpus_case():
+    assert fm.SPECIFICATION[15].corpus_cases == ()
 
 
 # =========================================================================== #

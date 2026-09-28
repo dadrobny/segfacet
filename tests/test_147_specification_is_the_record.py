@@ -1247,7 +1247,7 @@ _EXPECTED_DERIVED_STATUS = {
     12: "proposed",
     13: "proposed",
     14: "proposed",
-    15: "validated",
+    15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",
 }
 

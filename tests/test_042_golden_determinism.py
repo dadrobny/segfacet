@@ -86,7 +86,8 @@ from segfacet.synth.regression import loaded_seg_image
 _MANIFEST = load_manifest()
 _CASES = _MANIFEST["cases"]
 _COMMITTED_CASE_IDS = {c["case_id"] for c in _CASES}
-_RECONSTRUCTED_CASES = [c for c in _CASES if c["detection"] == "reconstructed_record"]
+# _RECONSTRUCTED_CASES dropped by item 195, 2026-09-28: no committed case is
+# reconstructed_record any more.
 
 _VOLATILE_KEY_DENYLIST = {
     "timestamp",
@@ -334,29 +335,9 @@ def test_ac15_mutated_golden_is_caught(tmp_path):
 
 # =========================================================================== #
 # G. The reconstructed goldens are known pipeline-blind snapshots (AC16)
+# removed by item 195, 2026-09-28: no committed case is reconstructed_record
+# any more, so _RECONSTRUCTED_CASES is empty.
 # =========================================================================== #
-
-
-@pytest.mark.parametrize("case", _RECONSTRUCTED_CASES, ids=_case_id)
-def test_ac16_reconstructed_golden_is_pipeline_blind(case):
-    """AC16 (item 126 replacement): for every detection ==
-    "reconstructed_record" case, its freshly built report has verdict ==
-    "pass" and no finding's rule_id is in case["expected_rule_ids"] --
-    re-pointed at fresh output; the committed golden this used to read was
-    retired."""
-    assert _RECONSTRUCTED_CASES  # sanity: modes 1, 4, 8
-    report = _fresh_report(case["case_id"])
-    assert report["verdict"] == "pass"
-
-    expected_rule_ids = set(case["expected_rule_ids"])
-    fired_designated_rule_ids = {
-        f["rule_id"] for f in report.get("findings", []) if f["rule_id"] in expected_rule_ids
-    }
-    assert fired_designated_rule_ids == set(), (
-        f"case {case['case_id']!r} fresh report unexpectedly carries a "
-        f"designated finding {fired_designated_rule_ids!r} -- it should be "
-        "pipeline-blind"
-    )
 
 
 # =========================================================================== #
@@ -444,22 +425,6 @@ def test_adv_clean_control_golden_passes_with_no_findings():
     report = _fresh_report(case["case_id"])
     assert report["verdict"] == "pass"
     assert report["findings"] == []
-
-
-def test_adv_reconstructed_golden_blindness_is_checked_via_rule_ids_not_empty_findings():
-    """Adversarial (item 126 replacement): AC16's "no designated finding"
-    fact is verified by explicit rule_id inspection, not merely by an
-    accidentally-empty findings list -- a reconstructed case whose fresh
-    report happens to carry unrelated (non-designated) findings would still
-    correctly pass."""
-    for case in _RECONSTRUCTED_CASES:
-        report = _fresh_report(case["case_id"])
-        expected_rule_ids = set(case["expected_rule_ids"])
-        all_rule_ids = {f["rule_id"] for f in report.get("findings", [])}
-        # The check must be about rule_id membership, not about the list
-        # being empty -- assert the discriminator explicitly rather than
-        # via report["findings"] == [].
-        assert not (all_rule_ids & expected_rule_ids)
 
 
 # =========================================================================== #

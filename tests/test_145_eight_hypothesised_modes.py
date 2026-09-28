@@ -137,7 +137,7 @@ _EXPECTED_DERIVED_STATUS = {
     12: "proposed",
     13: "proposed",
     14: "proposed",
-    15: "validated",
+    15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",
 }
 
@@ -772,41 +772,35 @@ def test_ac10b_sequence_case_records_the_single_rank_descent_correction():
 # =========================================================================== #
 # AC11/AC12: the overlapping-segments mode's structural unobservability holds
 # live. Re-numbered from 8 to 9 by the item-150 sign-off and to 15 by its
-# 2026-09-15 revision; the corpus case id
-# `force_overlap` is unchanged (the `modeN_` prefixes are historical).
+# 2026-09-15 revision. Its corpus case (`force_overlap`) was removed by item
+# 195, 2026-09-28: a single-channel label map cannot express an overlap.
 # =========================================================================== #
 
 
 def test_ac11_overlap_mode_structural_unobservability_holds_live():
+    """Item 195 (2026-09-28): the case half is replaced -- force_overlap was
+    removed, a single-channel label map cannot express an overlap -- with
+    the live fact that mode 15 now carries no corpus case at all."""
     import segfacet.failure_modes as fm
-    from segfacet.synth.regression import pipeline_findings, reconstructed_findings
 
     mode = _mode(fm, 15)
     assert fm.derive_mode_rung(mode) == "structurally-unobservable"
-
-    case = _manifest_case("force_overlap")
-    assert case["detection"] == "reconstructed_record"
-
-    plain = pipeline_findings(case)
-    assert not any(f.rule_id == "overlap" for f in plain), plain
-
-    reconstructed = reconstructed_findings(case)
-    assert reconstructed, "expected >=1 finding from the reconstructed record"
-    reconstructed_ids = tuple(sorted({f.rule_id for f in reconstructed}))
-    assert reconstructed_ids == ("overlap",), reconstructed_ids
+    assert mode.corpus_cases == ()
 
 
 def test_ac12_overlap_mode_records_the_single_channel_mechanism():
+    """Item 195 (2026-09-28): re-pointed at ``mode.mechanism`` -- the
+    removed case's ``reason`` no longer exists -- with the same five
+    substring checks."""
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, 15)
-    case = _case(mode, "force_overlap")
-    assert case.reason.strip()
-    lowered = case.reason.lower()
-    assert "single" in lowered and "channel" in lowered, case.reason
-    assert "voxel" in lowered, case.reason
-    assert "one label" in lowered or "exactly one" in lowered, case.reason
-    assert "overlap" in lowered, case.reason
+    assert mode.mechanism.strip()
+    lowered = mode.mechanism.lower()
+    assert "single" in lowered and "channel" in lowered, mode.mechanism
+    assert "voxel" in lowered, mode.mechanism
+    assert "one label" in lowered or "exactly one" in lowered, mode.mechanism
+    assert "overlap" in lowered, mode.mechanism
 
 
 # =========================================================================== #

@@ -1658,19 +1658,6 @@ def test_adv_islands_corpus_case_is_pipeline_detected_and_measured_live():
     assert set(measured) == set(case_expectation.expected_firing)
 
 
-def test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live():
-    """``force_overlap`` is the case id the corpus has always carried
-    (the ``modeN_`` prefixes are historical), but the mode it belongs to is
-    **15** since the item-150 sign-off re-assigned ids -- the mode id is read
-    from the manifest rather than named, so the test follows the case."""
-    import segfacet.failure_modes as fm
-
-    case = _manifest_case("force_overlap")
-    assert case["detection"] == "reconstructed_record"
-
-    mode = next(m for m in fm.iter_modes() if m.id == case["failure_mode"])
-    assert len(mode.corpus_cases) >= 1
-    case_expectation = next(c for c in mode.corpus_cases if c.case_id == "force_overlap")
-    measured = fm.measured_firing(case_expectation)
-    assert measured, "expected a non-empty measured firing set for a genuinely-firing case"
-    assert set(measured) == set(case_expectation.expected_firing)
+# test_adv_overlap_mode_corpus_case_is_reconstructed_and_measured_live
+# removed by item 195, 2026-09-28: force_overlap (its subject) was removed
+# -- a single-channel label map cannot express an overlap.

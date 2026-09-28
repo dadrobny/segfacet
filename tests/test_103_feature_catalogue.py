@@ -608,7 +608,8 @@ _RULE_MODE_MAP = {
     "fragmentation": (1, 4),  # fragment (1), islands (4)
     "coverage": (6,),  # remove_level (6)
     "sequence": (9,),  # sequence_break
-    "overlap": (15,),  # force_overlap
+    # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the
+    # only case that scanned to "overlap") was removed.
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
     "bounds": (3,),  # split_own_label (3)
     "neighbour_contact": (3,),  # split (3)

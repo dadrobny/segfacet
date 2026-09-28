@@ -441,18 +441,9 @@ def test_ac11_mode_3_meets_all_five_bar_conditions():
 # threshold.
 
 
-# =========================================================================== #
-# Named adversarial case: force-overlap-stays-silent
-# =========================================================================== #
-
-
-def test_force_overlap_stays_silent():
-    case = _manifest_case("force_overlap")
-    seg_img = loaded_seg_image(case)
-    config = bundled_default_config()
-    for label in (20, 21):
-        info = compute_components(seg_img, label, config)
-        assert info.stray_contact_area_mm2 == 0.0, label
+# test_force_overlap_stays_silent removed by item 195, 2026-09-28: its
+# subject (the force_overlap case) was removed -- a single-channel label
+# map cannot express an overlap.
 
 
 # =========================================================================== #

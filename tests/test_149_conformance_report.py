@@ -830,12 +830,13 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     # item 166 (2026-09-20) added the split (mode 3) fixture; 17 since
     # item 174 (2026-09-23) added split_own_label (mode 3); 18 since
     # item 175 (2026-09-24) added crop_fov_si (the fov_truncation
-    # condition): 14 geometric + 4 intensity.
+    # condition); 17 since item 195 (2026-09-28) removed force_overlap
+    # (mode 15): 13 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
-    assert len(cases) == 18, len(cases)
+    assert len(cases) == 17, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
     intensity = [c for c in cases if c["corpus"] == "intensity"]
-    assert len(geometric) == len(_geometric_manifest_cases()) == 14, len(geometric)
+    assert len(geometric) == len(_geometric_manifest_cases()) == 13, len(geometric)
     assert len(intensity) == len(_intensity_manifest_cases()) == 4, len(intensity)
     for case in cases:
         for key in ("corpus", "case_id", "mode", "expected_firing", "measured_firing", "agrees", "expected_source"):
@@ -976,12 +977,12 @@ def test_ac18_intensity_mode_cases_and_pipeline_detected_span_both_corpora(matri
 
 def test_ac18_overlap_mode_pipeline_detected_stays_false(matrix):
     """Overlapping segments (mode 8 before the sign-off, 9 at its first
-    pass, 15 since the 2026-09-15 revision): its one case is reconstructed,
-    never pipeline-detected."""
+    pass, 15 since the 2026-09-15 revision): its case was removed by item
+    195 (2026-09-28; a single-channel label map cannot express an overlap),
+    so it carries no corpus case at all and is never pipeline-detected."""
     mode9 = _mode_record(matrix, 15)
     assert mode9["pipeline_detected"] is False
-    detections = {c["detection"] for c in mode9["cases"]}
-    assert detections == {"reconstructed_record"}, detections
+    assert mode9["cases"] == []
 
 
 def test_ac18_no_geometric_only_mode_cases_change_from_the_committed_artifact(matrix):

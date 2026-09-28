@@ -731,7 +731,8 @@ _PRE_129_FINDINGS = {
     # touching label -- it does not opt in to fov_truncation.
     "crop_at_border": {("border", (22,))},
     "sequence_break": {("sequence", (28,))},
-    "force_overlap": set(),
+    # "force_overlap" key dropped by item 195, 2026-09-28: the case was
+    # removed.
 }
 
 

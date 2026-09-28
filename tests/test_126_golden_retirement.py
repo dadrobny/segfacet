@@ -81,6 +81,11 @@ _CASE_IDS = (
 #: historical id only through the mapping, never a literal -- item 157).
 _OLD_CASE_ID = {new: old for old, new in RENAMED_CASE_IDS.items()}
 
+#: force_overlap removed by item 195, 2026-09-28: _CASE_IDS stays nine (for
+#: _RETIRED_PATHS, a frozen history set), but a live-measurement
+#: parametrisation must skip the id no manifest case carries any more.
+_LIVE_CASE_IDS = tuple(c for c in _CASE_IDS if c != "force_overlap")
+
 
 # =========================================================================== #
 # Shared helpers
@@ -154,7 +159,7 @@ def test_ac3_manifest_cases_resolve_to_existing_fixtures():
         assert seg_path.is_file(), f"missing seg fixture for {case['case_id']!r}: {seg_path}"
 
 
-@pytest.mark.parametrize("case_id", _CASE_IDS)
+@pytest.mark.parametrize("case_id", _LIVE_CASE_IDS)
 def test_ac3_fresh_report_validates_against_schema(case_id):
     import jsonschema
 
@@ -490,10 +495,12 @@ _RE_POINTED = (
     ("tests/test_042_golden_determinism.py", "test_ac6_exactly_one_golden_per_manifest_case_no_more_no_fewer"),
     ("tests/test_042_golden_determinism.py", "test_ac7_every_committed_golden_is_valid_json_and_validates"),
     ("tests/test_042_golden_determinism.py", "test_ac8_committed_golden_case_id_matches_filename"),
-    ("tests/test_042_golden_determinism.py", "test_ac16_reconstructed_golden_is_pipeline_blind"),
+    # test_ac16_reconstructed_golden_is_pipeline_blind and
+    # test_adv_reconstructed_golden_blindness_is_checked_via_rule_ids_not_empty_findings
+    # rows dropped by item 195, 2026-09-28: both tests were deleted
+    # (_RECONSTRUCTED_CASES is now empty).
     ("tests/test_042_golden_determinism.py", "test_adv_mode5_remove_level_golden_canonicalises_without_crashing_on_empty_labels"),
     ("tests/test_042_golden_determinism.py", "test_adv_clean_control_golden_passes_with_no_findings"),
-    ("tests/test_042_golden_determinism.py", "test_adv_reconstructed_golden_blindness_is_checked_via_rule_ids_not_empty_findings"),
     ("tests/test_089_fov_aware_coverage_border.py", "test_ac16_committed_corpus_coverage_and_border_findings_unchanged"),
     ("tests/test_090_reference_derived_defaults.py", "test_ac15_all_committed_goldens_still_check_true"),
     ("tests/test_094_tptbox_image_layer.py", "test_ac7_report_matches_committed_golden_within_tolerance"),
@@ -529,8 +536,8 @@ _RE_POINTED += tuple(
     )
 )
 
-assert len(_RE_POINTED) == 34, (
-    "34 = 24 individually-listed re-point rows plus the 10 test_111 functions "
+assert len(_RE_POINTED) == 32, (
+    "32 = 22 individually-listed re-point rows plus the 10 test_111 functions "
     "the item spec bundles as a single table row"
 )
 
@@ -1023,7 +1030,7 @@ def test_ac22_test105_evidence_test_reads_fresh_output_not_committed_file():
     )
 
 
-@pytest.mark.parametrize("case_id", _CASE_IDS)
+@pytest.mark.parametrize("case_id", _LIVE_CASE_IDS)
 def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     """Item 134: the signed row no longer carries the N/M fraction (it
     carries a stable pointer, see test_105's AC9 test), so the pin now reads

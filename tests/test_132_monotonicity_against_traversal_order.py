@@ -196,7 +196,7 @@ _PRE_ITEM_U_VALUES = {
     "remove_level": [0.000000561, 0.244998545, 0.730526238, 0.999999440],
     "crop_at_border": [0.000000561, 0.219880162, 0.469887999, 0.757448722, 0.999999440],
     "sequence_break": [0.000000561, 0.245056802, 0.483088896, 0.730986720, 0.999999440],
-    "force_overlap": [0.000000561, 0.191287857, 0.443289958, 0.709487482, 0.999999440],
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
@@ -517,14 +517,21 @@ def test_ac20_test_040_detection_partition_reconciled():
     # remaining designated modes plus the mode-less clean/condition cases.
     # Mode 10 (skipped level label) has no corpus case; remove_level
     # is mode 6's. Item 166 (2026-09-20) added mode 3 (split).
-    assert t040._RECONSTRUCTED_MODES == {15}
+    # Item 195 (2026-09-28): force_overlap (mode 15) removed -- a
+    # single-channel label map cannot express an overlap -- so no committed
+    # case is reconstructed_record any more.
+    assert t040._RECONSTRUCTED_MODES == set()
     assert t040._PIPELINE_ONLY_MODES == {0, 1, 2, 3, 4, 6, 9}
     t040.test_ac8_modes_4_8_reconstructed_record_rest_pipeline()
 
 
 # =========================================================================== #
-# AC21/AC22: the relabel-swap case is claimed caught at full sensitivity; the
-# overall corpus sensitivity stays honestly below 1.0 (test_057)
+# AC21: the relabel-swap case is claimed caught at full sensitivity
+# (test_057). AC22 (overall corpus sensitivity stays honestly below 1.0) was
+# removed by item 195, 2026-09-28: with force_overlap gone, every remaining
+# expected-failure record is pipeline-detected, so the premise that overall
+# sensitivity sits below 1.0 is false by construction. The number itself
+# stays owned by test_057.
 # =========================================================================== #
 
 
@@ -544,20 +551,7 @@ def test_ac21_test_057_swap_case_claimed_caught_at_full_sensitivity():
         if c["case_id"] == "relabel_swap"
     )
     assert swap_mode in t057._PIPELINE_DETECTABLE_MODES
-    assert swap_mode not in t057._RECONSTRUCTED_RECORD_MODES
     t057.test_ac9_pipeline_detectable_mode_sensitivity_is_one(swap_mode)
-
-
-def test_ac22_overall_corpus_sensitivity_is_not_over_claimed():
-    """AC22's subject is the honesty of the overall number, not its value:
-    catching the swap case must not be reported as catching everything. The
-    exact fraction is owned by test_057 (9/10 as of item 166, 2026-09-20) and
-    delegated to rather than copied here."""
-    import test_057_acceptance_stage7 as t057
-
-    t057.test_overall_corpus_sensitivity_is_nine_of_ten_not_over_claimed()
-    metrics = t057._corpus_cohort_metrics()
-    assert metrics.sensitivity < 1.0
 
 
 # =========================================================================== #

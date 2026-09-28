@@ -687,7 +687,7 @@ _PRE_098_HAND_SET_FRAGMENTATION_FINDINGS = {
     "remove_level": [],
     "crop_at_border": [],
     "sequence_break": [],
-    "force_overlap": [],
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
@@ -1008,7 +1008,7 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             }
         ],
     },
-    "force_overlap": {"verdict": "pass", "findings": []},
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 

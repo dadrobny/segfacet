@@ -1,7 +1,7 @@
 """Tests for item 038 — coverage, border & overlap perturbations:
-remove_level, crop_at_border, force_overlap.
+remove_level, crop_at_border.
 
-Covers Acceptance Criteria AC1-AC28:
+Covers Acceptance Criteria AC1-AC17, AC24-AC28:
 
 Plus Group A2 (``remove_level_relabel``), the operator item 150's sign-off
 added on 2026-09-14: the same deletion with the caudal labels renumbered, so
@@ -20,25 +20,21 @@ into the Group D cross-cutting parametrizations.
   bounds flag; Expectation well-formed and pipeline agrees; other present
   labels stay unflagged; default in-plane face flags a terminal target too;
   rejects an unknown face string.
-- AC18-AC23 (Group C, ``force_overlap``): registration; assigns shared
-  voxels to the target; drives the overlap rule via a reconstructed
-  mask-stack + OverlapRule; Expectation well-formed; run_qc shows NO overlap
-  finding (documented one-hot limitation); rejects a too-small / non-adjacent
-  input.
+- Group C (``force_overlap``, AC18-AC23) removed by item 195, 2026-09-28: a
+  single-channel label map cannot express an overlap, so the case was
+  attributed to a mode its fixture does not express.
 - AC24-AC28 (Group D, cross-cutting): dtype/affine/shape/zooms preservation;
   same-seed reproducibility; non-mutation of the caller's input; unspecified
   target selection is seed-deterministic and self-consistent; spacing-aware
   under anisotropic spacing.
 
 Adversarial / edge-case scenarios included:
-- ``remove_level`` / ``crop_at_border`` / ``force_overlap`` with an explicit
-  target not present in the map raise FacetInputError.
+- ``remove_level`` / ``crop_at_border`` with an explicit target not present
+  in the map raise FacetInputError.
 - ``crop_at_border`` against each of the four in-plane faces sets the
   matching ``touches_*`` flag and fires ``border``.
 - ``crop_at_border`` retains a physical volume above the level group's
   minimum (no spurious ``bounds``).
-- ``force_overlap`` under anisotropic spacing still yields ``k > 0`` shared
-  voxels.
 - Two different seeds with an unspecified target may pick different
   offenders, but each result stays self-consistent.
 """
@@ -50,11 +46,8 @@ import pytest
 
 import segfacet.synth  # noqa: F401 -- triggers self-registration of the three operators
 from segfacet.config import bundled_default_config
-from segfacet.feature_report import overlap_to_dict
 from segfacet.features.geometry import compute_label_geometry
-from segfacet.features.overlap import detect_overlaps
 from segfacet.heuristics.bounds import DEFAULT_BOUNDS
-from segfacet.heuristics.overlap import OverlapRule
 from segfacet.io import FacetInputError
 from segfacet.pipeline import run_qc
 from segfacet.failure_modes import CONDITIONS
@@ -67,7 +60,6 @@ from segfacet.synth import (
 )
 from segfacet.synth.coverage_border_overlap import (
     CropAtBorderPerturbation,
-    ForceOverlapPerturbation,
     RemoveLevelPerturbation,
     RemoveLevelRelabelPerturbation,
 )
@@ -84,10 +76,8 @@ def _clean():
 
 
 def _ac27_input(name):
-    """AC27's operator input: ``_clean()`` for every operator but
-    ``force_overlap``, which gets the L1-L3 span (item 173, see AC27)."""
-    if name == "force_overlap":
-        return build_clean_spine(levels=("L1", "L2", "L3"))
+    """AC27's operator input: ``_clean()`` for every operator (item 195,
+    2026-09-28: the ``force_overlap`` branch was removed with the operator)."""
     return _clean()
 
 
@@ -110,7 +100,6 @@ _EXPLICIT_TARGET_FACTORIES = [
     lambda: RemoveLevelPerturbation(target_label=22),
     lambda: RemoveLevelRelabelPerturbation(target_label=22),
     lambda: CropAtBorderPerturbation(target_label=22, face="anterior"),
-    lambda: ForceOverlapPerturbation(target_label=20, neighbour_label=21),
 ]
 
 # Unspecified-target operator factories shared by AC27 and the adversarial
@@ -119,14 +108,12 @@ _UNSPECIFIED_TARGET_FACTORIES = [
     lambda: RemoveLevelPerturbation(),
     lambda: RemoveLevelRelabelPerturbation(),
     lambda: CropAtBorderPerturbation(),
-    lambda: ForceOverlapPerturbation(),
 ]
 
 _OPERATOR_IDS = [
     "remove_level",
     "remove_level_relabel",
     "crop_at_border",
-    "force_overlap",
 ]
 
 
@@ -154,12 +141,6 @@ def _designated_rule_fires(operator_name, labelmap, clean_data, expectation):
         return any(
             f.rule_id == "border" and target in f.labels for f in findings
         )
-    if operator_name == "force_overlap":
-        target, neighbour = sorted(expectation.expected_labels)
-        data = np.asanyarray(labelmap.dataobj)
-        stack = np.stack([data == target, clean_data == neighbour])
-        pairs = detect_overlaps(stack, np.array([target, neighbour]))
-        return len(pairs) > 0 and pairs[0].overlap_voxels > 0
     raise AssertionError(f"unknown operator {operator_name!r}")
 
 
@@ -523,100 +504,9 @@ def test_ac17_crop_at_border_rejects_unknown_face_string():
 
 
 # =========================================================================== #
-# C. force_overlap (AC18-AC23)
+# Group C (force_overlap, AC18-AC23) removed by item 195, 2026-09-28: a
+# single-channel label map cannot express an overlap.
 # =========================================================================== #
-
-
-def test_ac18_force_overlap_registered_under_force_overlap_name():
-    """AC18: get_perturbation("force_overlap") is ForceOverlapPerturbation;
-    "force_overlap" is in perturbation_names()."""
-    assert get_perturbation("force_overlap") is ForceOverlapPerturbation
-    assert "force_overlap" in perturbation_names()
-
-
-def test_ac19_force_overlap_assigns_shared_voxels_to_target():
-    """AC19: intersection of perturbed target mask and clean neighbour mask
-    is k > 0; neighbour's perturbed count equals clean count minus k."""
-    clean = _clean()
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    result = ForceOverlapPerturbation(
-        target_label=20, neighbour_label=21, overlap_depth=3
-    ).apply(clean.seg_img, seed=0)
-    data = np.asanyarray(result.labelmap.dataobj)
-    k = int(np.count_nonzero((data == 20) & (clean_data == 21)))
-    assert k > 0
-    neighbour_after = int(np.count_nonzero(data == 21))
-    assert neighbour_after == clean.voxel_counts[21] - k
-
-
-def test_ac20_force_overlap_drives_overlap_rule_with_offending_pair():
-    """AC20: detect_overlaps over a reconstructed two-channel mask stack
-    [(perturbed==20), (clean==21)] -> OverlapRule fires a "overlap" finding
-    tagged "Overlapping segments:" on {20, 21}."""
-    clean = _clean()
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    result = ForceOverlapPerturbation(
-        target_label=20, neighbour_label=21, overlap_depth=3
-    ).apply(clean.seg_img, seed=0)
-    data = np.asanyarray(result.labelmap.dataobj)
-
-    stack = np.stack([data == 20, clean_data == 21])
-    pairs = detect_overlaps(stack, np.array([20, 21]))
-    record = {"overlaps": [overlap_to_dict(p) for p in pairs]}
-    findings = OverlapRule().evaluate(record, bundled_default_config())
-
-    matches = [
-        f
-        for f in findings
-        if f.rule_id == "overlap"
-        and f.reason.startswith("Overlapping segments:")
-        and f.labels == frozenset({20, 21})
-    ]
-    assert matches
-
-
-def test_ac21_force_overlap_expectation_well_formed():
-    """AC21: Expectation fields are pinned."""
-    clean = _clean()
-    result = ForceOverlapPerturbation(
-        target_label=20, neighbour_label=21, overlap_depth=3
-    ).apply(clean.seg_img, seed=0)
-    exp = result.expectation
-    # Item 150 (2026-09-15): "overlapping segments" is mode 15 in the
-    # revised catalogue (it was 8 under vision.md §6's numbering).
-    assert exp.failure_mode == 15
-    assert exp.failure_mode_name == FAILURE_MODE_NAMES[15]
-    assert exp.condition == ""
-    assert exp.expected_rule_ids == frozenset({"overlap"})
-    assert exp.expected_labels == frozenset({20, 21})
-    assert exp.expected_verdict == "flagged-for-review"
-
-
-def test_ac22_force_overlap_run_qc_shows_no_overlap_finding():
-    """AC22: run_qc on the perturbed labelmap emits NO "overlap" finding --
-    a single-integer label map cannot carry a voxel shared by two labels, so
-    the overlap is structurally invisible to the plain run_qc path
-    (documented limitation, not a bug)."""
-    clean = _clean()
-    result = ForceOverlapPerturbation(
-        target_label=20, neighbour_label=21, overlap_depth=3
-    ).apply(clean.seg_img, seed=0)
-    findings = _findings(result.labelmap)
-    assert not any(f.rule_id == "overlap" for f in findings)
-
-
-def test_ac23_force_overlap_rejects_too_small_or_non_adjacent_input():
-    """AC23: a single-label map raises FacetInputError; a non-adjacent
-    explicit pair (20, 23) raises FacetInputError."""
-    single = build_clean_spine(levels=["L3"]).seg_img
-    with pytest.raises(FacetInputError):
-        ForceOverlapPerturbation().apply(single, seed=0)
-
-    clean = _clean()
-    with pytest.raises(FacetInputError):
-        ForceOverlapPerturbation(target_label=20, neighbour_label=23).apply(
-            clean.seg_img, seed=0
-        )
 
 
 # =========================================================================== #
@@ -673,10 +563,9 @@ def test_ac27_unspecified_target_is_seed_deterministic_and_self_consistent(
     target (identical output arrays), and the designated rule fires for the
     label(s)/level actually recorded in result.expectation.
 
-    ``force_overlap`` runs on ``build_clean_spine(levels=("L1", "L2", "L3"))``
-    (2026-09-23, item 173): on the lordotic base the operator overlaps 20->21
-    and 21->22 only, and the maintainer declined to fix it on 2026-09-23, so
-    its input is a span on which every pair it can draw overlaps."""
+    ``force_overlap``'s own span (item 173) is history: the operator was
+    removed by item 195 (2026-09-28), and ``_ac27_input`` now returns
+    ``_clean()`` for every remaining operator."""
     clean = _ac27_input(name)
     clean_data = np.asanyarray(clean.seg_img.dataobj)
     r1 = make_operator().apply(clean.seg_img, seed=3)
@@ -726,26 +615,6 @@ def test_adv_crop_at_border_explicit_target_absent_raises_clear_error():
         CropAtBorderPerturbation(target_label=999).apply(clean.seg_img, seed=0)
 
 
-def test_adv_force_overlap_explicit_target_absent_raises_clear_error():
-    """Adversarial: an explicit target_label not present in the map raises
-    FacetInputError."""
-    clean = _clean()
-    with pytest.raises(FacetInputError):
-        ForceOverlapPerturbation(target_label=999, neighbour_label=21).apply(
-            clean.seg_img, seed=0
-        )
-
-
-def test_adv_force_overlap_explicit_neighbour_absent_raises_clear_error():
-    """Adversarial: an explicit neighbour_label not present in the map
-    raises FacetInputError."""
-    clean = _clean()
-    with pytest.raises(FacetInputError):
-        ForceOverlapPerturbation(target_label=20, neighbour_label=999).apply(
-            clean.seg_img, seed=0
-        )
-
-
 @pytest.mark.parametrize("face", ["left", "right", "anterior", "posterior"])
 def test_adv_crop_at_border_each_in_plane_face_sets_touches_flag_and_fires(face):
     """Adversarial: crop_at_border against each of the four in-plane faces
@@ -774,20 +643,6 @@ def test_adv_crop_at_border_retains_volume_above_group_minimum():
     assert geo.physical_volume_mm3 >= bounds["min_volume_mm3"]
     findings = _findings(result.labelmap)
     assert not any(f.rule_id == "bounds" for f in findings)
-
-
-def test_adv_force_overlap_anisotropic_spacing_still_yields_shared_voxels():
-    """Adversarial: force_overlap under anisotropic spacing still produces
-    k > 0 shared voxels (the reassigned slab is a voxel count, independent
-    of spacing)."""
-    clean = build_clean_spine(spacing=(1.0, 1.0, 3.0))
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    result = ForceOverlapPerturbation(
-        target_label=20, neighbour_label=21, overlap_depth=3
-    ).apply(clean.seg_img, seed=0)
-    data = np.asanyarray(result.labelmap.dataobj)
-    k = int(np.count_nonzero((data == 20) & (clean_data == 21)))
-    assert k > 0
 
 
 @pytest.mark.parametrize(

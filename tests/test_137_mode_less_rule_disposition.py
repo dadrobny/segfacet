@@ -953,7 +953,13 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("rule_mode_map", "rule_declaration"): 10,
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
         ("rule_declaration",): 2,
-        ("per_mode_metric", "rule_mode_map", "rule_declaration"): 3,
+        # Item 195 (2026-09-28): 3 -> 2 -- overlaps[].overlap_voxels lost
+        # its rule_mode_map source (the "overlap" key of _RULE_MODE_MAP,
+        # which force_overlap alone scanned to, is gone).
+        ("per_mode_metric", "rule_mode_map", "rule_declaration"): 2,
+        # Item 195 (2026-09-28): new -- overlaps[].overlap_voxels, still
+        # consumed by "overlap" (rule_declaration) but no longer corpus-mapped.
+        ("per_mode_metric", "rule_declaration"): 1,
         ("per_mode_metric",): 2,
         # Item 193 (2026-09-28): 6 -> 9 -- reference_delta's three
         # re-classified signal paths join here.

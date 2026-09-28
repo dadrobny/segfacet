@@ -353,7 +353,7 @@ _PRE_ITEM_TANGENT_ANGLES_DEG = {
     "remove_level": [7.9542, 0.3797, 19.3691, 33.9343],
     "crop_at_border": [26.3425, 28.4101, 3.3337, 44.8979, 3.7078],
     "sequence_break": [7.5755, 0.2549, 8.338, 19.241, 33.59],
-    "force_overlap": [9.5721, 1.5117, 8.781, 19.7507, 32.4681],
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 #: Item 143 corrected the synthetic corpus's S-axis stacking so ascending
@@ -370,7 +370,7 @@ _PRE_ITEM_NET_ADVANCE_S_MM = {
     "remove_level": -131.97402926021348,
     "crop_at_border": -131.97402926021348,
     "sequence_break": -131.97402926021348,
-    "force_overlap": -121.97402926021348,
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
@@ -420,7 +420,7 @@ _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
     "remove_level": [7.574565, 19.748784, 14.565142],
     "crop_at_border": [54.752541, 31.743766, 41.564217, 48.605677],
     "sequence_break": [7.320601, 8.592928, 10.902949, 14.349002],
-    "force_overlap": [8.060493, 10.292691, 10.969692, 12.717367],
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 
@@ -860,14 +860,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
         "sagittal_tangent_angles_deg": [-7.575496, -0.254895, 8.338034, 19.240983, 33.589985],
     },
-    "force_overlap": {
-        "total_curvature_deg": 42.040243,
-        "coronal_curvature_deg": 0.0,
-        "sagittal_curvature_deg": 42.040243,
-        "curvature_plane": "sagittal",
-        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
-        "sagittal_tangent_angles_deg": [-9.572145, -1.511652, 8.781039, 19.750731, 32.468098],
-    },
+    # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
 

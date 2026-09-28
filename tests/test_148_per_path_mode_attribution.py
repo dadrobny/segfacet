@@ -862,7 +862,11 @@ _AC16_CASES = (
     ("fragment", "geo", ("fragmentation",)),
     ("remove_level", "geo", ("coverage",)),
     ("sequence_break", "geo", ("sequence",)),
-    ("force_overlap", "overlap", ("overlap",)),
+    # Item 195 (2026-09-28): force_overlap (and its corpus case) was
+    # removed -- a single-channel label map cannot express an overlap --
+    # so the overlap-rule row is now driven by a hand-built record instead
+    # of a corpus case key.
+    ("planted_overlap", "overlap", ("overlap",)),
     ("clean_hu", "intensity", ("bounds", "reference_delta", "intensity_reference_delta")),
     ("implausible_metal", "intensity", ("intensity",)),
     # Item 187 (2026-09-28): neighbour_contact fires on the split case alone.
@@ -870,27 +874,27 @@ _AC16_CASES = (
 )
 
 
-def _overlap_reconstructed_record(case, config):
-    """Rebuild the mode-8 reconstructed ``{"overlaps": [...]}`` record, the
-    same technique ``synth.regression._recon_overlap_mask_stack`` uses, so it
-    can be fed to ``run_rules`` directly (that helper evaluates
-    ``OverlapRule`` alone, not the full runner)."""
-    import numpy as np
+def _overlap_reconstructed_record():
+    """A hand-built ``{"overlaps": [...]}`` record driving the overlap rule.
 
-    from segfacet.features.overlap import detect_overlaps
-    from segfacet.feature_report import overlap_to_dict
-    from segfacet.synth.clean_gt import build_clean_spine
-    from segfacet.synth.regression import loaded_seg_image
-
-    seg_img = loaded_seg_image(case)
-    target = case["perturbation_params"]["target_label"]
-    neighbour = case["perturbation_params"]["neighbour_label"]
-    clean = build_clean_spine(**case["base"])
-    clean_data = np.asanyarray(clean.seg_img.dataobj)
-    data = np.asanyarray(seg_img.dataobj)
-    stack = np.stack([data == target, clean_data == neighbour])
-    pairs = detect_overlaps(stack, np.array([target, neighbour]))
-    return {"overlaps": [overlap_to_dict(pair) for pair in pairs]}
+    Item 195 (2026-09-28): force_overlap (and the operator-specific
+    ``overlap_mask_stack`` reconstruction that used to build this record
+    from it) was removed -- a single-channel label map cannot express an
+    overlap -- so this is a planted record instead of one rebuilt from a
+    corpus case. Measured: ``run_rules`` on it yields exactly one
+    ``overlap`` finding (detector ``overlapping_segments``, labels
+    ``{20, 21}``)."""
+    return {
+        "overlaps": [
+            {
+                "label_a": 20,
+                "label_b": 21,
+                "name_a": "L1",
+                "name_b": "L2",
+                "overlap_voxels": 7,
+            }
+        ]
+    }
 
 
 def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference):
@@ -904,7 +908,9 @@ def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference
             intensity_pipeline_findings(intensity_by_id[case_key], config, reference=reference)
         )
     if kind == "overlap":
-        record = _overlap_reconstructed_record(geo_by_id[case_key], config)
+        # Item 195 (2026-09-28): the planted record ignores geo_by_id --
+        # there is no corpus case behind it any more.
+        record = _overlap_reconstructed_record()
         return list(run_rules(record, config))
     raise AssertionError(kind)  # pragma: no cover -- closed vocabulary above
 
