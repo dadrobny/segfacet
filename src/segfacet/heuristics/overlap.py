@@ -97,23 +97,22 @@ class OverlapRule(Rule):
 
     rule_id = "overlap"
 
-    # Specification mode 15 (overlapping segments): ForceOverlapPerturbation
-    # (src/segfacet/synth/coverage_border_overlap.py) designates "overlap"
-    # for mode 15 via its Expectation(failure_mode=15, expected_rule_ids={"overlap"}).
+    # Specification mode 15 (overlapping segments): this rule is kept and
+    # declared to need multi-channel input, which no committed corpus case
+    # can express (item 195, 2026-09-28) -- see the per-edge rung in
+    # segfacet.failure_modes.SPECIFICATION[15].
     mode_declaration = RuleModeDeclaration(
         modes=(15,),
         evidence=(
-            "corpus-manifest",
-            "tests/corpus/manifest.json's force_overlap designates "
-            "this rule for mode 15 (overlapping segments) of the catalogue "
-            "signed off at item 150 (2026-09-14, revised 2026-09-15). That case is "
-            "detection=\"reconstructed_record\", not pipeline-detected: a "
-            "single-channel integer label map cannot assign two labels to "
-            "one voxel, so overlaps[] populates only on a deliberately "
-            "corrupted record. Free-form provenance -- item 147 retired "
-            "the reserved 'corpus' evidence tag, and the mode 15 <-> "
-            "overlap evidence claim is the per-edge rung in "
-            "segfacet.failure_modes.SPECIFICATION[15].",
+            "analytic",
+            "needs multi-channel input: overlaps[] is non-empty only when two "
+            "labels claim one voxel, which a single-channel integer label map "
+            "cannot express, so the pipeline's one-hot mask stack yields no "
+            "overlap on any input FACET accepts today. Mode 15 (overlapping "
+            "segments) of the catalogue signed off at item 150; the per-edge "
+            "rung in segfacet.failure_modes.SPECIFICATION[15] is "
+            "structurally-unobservable, and no committed corpus case designates "
+            "this rule (item 195, 2026-09-28).",
         ),
         consumed_paths=(
             ConsumedPath(

@@ -5,7 +5,7 @@ Item 099 proved *isolation on nine fixed corpus cases*: each of its eight
 per-mode metrics (:mod:`segfacet.eval.per_mode`) attains its largest
 deviation from baseline on its own designated case. That is a **one-point**
 result. This module builds the strictly stronger, **graded** counterpart
-Stage 18's G2 acceptance actually asks for: for each of the eight metrics, a
+Stage 18's G2 acceptance actually asks for: for each laddered metric, a
 **severity ladder** -- an ordered sequence of rungs, rung 0 the untouched
 clean control and each later rung applying the ladder's perturbation
 operator at a strictly greater severity -- run through item 099's
@@ -21,7 +21,7 @@ diagonal), then scored for:
   response to *this* ladder's severity relative to every *foreign* metric's
   response to the *same* ladder.
 
-The eight ladders
+The seven ladders
 ------------------
 ========  ================================  ======================  ==================
 operator  designated_metric                 severity knob           kind
@@ -33,11 +33,15 @@ relabel_swap     mislabelled_volume_fraction (up)      n_affected_labels       a
 remove_level     missing_level_count (up)              n_affected_labels       affected-label-count
 crop_at_border   fov_clipped_label_count (up)          n_affected_labels       affected-label-count
 sequence_break   out_of_order_label_count (up)         --                      degenerate (2-rung)
-force_overlap    overlapping_voxel_count (up)          overlap_depth           continuous
 ========  ================================  ======================  ==================
 
-Plus one **supplementary** ladder, outside the eight and outside the
-cross-mode matrix: the ``fragment`` ladder's *fused* counterpart via
+``overlapping_voxel_count`` has had no ladder since item 195 (2026-09-28):
+its ``force_overlap`` operator and corpus case were removed (a
+single-channel label map cannot express an overlap), so the metric is not
+scored by :func:`score_harness`.
+
+Plus one **supplementary** ladder, outside the primary ladders and outside
+the cross-mode matrix: the ``fragment`` ladder's *fused* counterpart via
 cumulative ``fuse`` steps (see below).
 
 Why three ladders have no continuous knob
@@ -184,8 +188,6 @@ import numpy as np
 
 from segfacet.config import bundled_default_config
 from segfacet.eval.per_mode import PER_MODE_METRIC_SPECS, PerModeMetrics, compute_per_mode_metrics
-from segfacet.feature_report import overlap_to_dict
-from segfacet.features.overlap import detect_overlaps
 from segfacet.io import FacetInputError
 from segfacet.pipeline import extract_feature_record
 from segfacet.synth.clean_gt import DEFAULT_LEVELS, build_clean_spine
@@ -241,8 +243,7 @@ DEGENERATE_LADDERS = frozenset({"sequence_break"})
 #: every ladder's rung 0 -- and every later rung's fresh copy -- derives
 #: from. Identical to the committed corpus's ``_DEFAULT_BASE_PARAMS``
 #: (``synth/corpus.py``), so item 099's measured baselines carry over
-#: unchanged and the ``force_overlap`` ladder's AC19 cross-check against the
-#: corpus's ``1950.0`` holds.
+#: unchanged.
 _BASE_PARAMS: Mapping[str, Any] = MappingProxyType(
     {
         "levels": tuple(DEFAULT_LEVELS),
@@ -323,10 +324,6 @@ class LadderSpec:
     rationale:
         Free-text rationale; non-empty and names the transitional-label cap
         (contains ``"28"``) for the degenerate ``sequence_break`` ladder.
-    overlap_reconstruction:
-        ``(target_label, neighbour_label)`` when this ladder needs the
-        reconstructed ``overlaps`` block (``force_overlap`` only); ``None``
-        otherwise.
     """
 
     failure_mode: Optional[int]
@@ -338,7 +335,6 @@ class LadderSpec:
     severity_kind: str
     rungs: Tuple[LadderRungSpec, ...]
     rationale: str
-    overlap_reconstruction: Optional[Tuple[int, int]]
 
     def to_dict(self) -> dict:
         return {
@@ -351,11 +347,6 @@ class LadderSpec:
             "severity_kind": self.severity_kind,
             "rungs": [r.to_dict() for r in self.rungs],
             "rationale": self.rationale,
-            "overlap_reconstruction": (
-                list(self.overlap_reconstruction)
-                if self.overlap_reconstruction is not None
-                else None
-            ),
             "degenerate": self.severity_kind == "degenerate",
         }
 
@@ -394,8 +385,8 @@ class LadderResult:
 
 @dataclass(frozen=True)
 class HarnessResult:
-    """The full ladder x metric response surface: all eight ladders plus the
-    supplementary ``fuse`` ladder."""
+    """The full ladder x metric response surface: all seven primary ladders
+    plus the supplementary ``fuse`` ladder."""
 
     ladders: Tuple[LadderResult, ...]
     supplementary: Tuple[LadderResult, ...]
@@ -526,8 +517,9 @@ class LadderVerdict:
         ``"strict"`` (uncoupled, ``margin > 1.0``) or ``"coupled"`` (carries
         a :data:`KNOWN_CROSS_MODE_COUPLINGS` entry).
     responses:
-        ``{metric_name: response(this_ladder, metric_name)}`` over all eight
-        metrics; ``responses[this_ladder.designated_metric] == 1.0``.
+        ``{metric_name: response(this_ladder, metric_name)}`` over every
+        laddered metric (item 195: the metric some ladder designates);
+        ``responses[this_ladder.designated_metric] == 1.0``.
     margin:
         ``1.0 / max_{f != designated_metric} responses[f]`` (``math.inf`` if
         that max is ``0.0``).
@@ -658,7 +650,6 @@ _LADDER_HOMES: Mapping[str, Tuple[Optional[int], Optional[str]]] = MappingProxyT
         "remove_level": (6, None),
         "crop_at_border": (None, "fov_truncation"),
         "sequence_break": (9, None),
-        "force_overlap": (15, None),
         "fuse": (2, None),
     }
 )
@@ -712,7 +703,6 @@ def _displace_ladder() -> LadderSpec:
         severity_kind="continuous",
         rungs=tuple(rungs),
         rationale="",
-        overlap_reconstruction=None,
     )
 
 
@@ -738,7 +728,6 @@ def _fragment_ladder() -> LadderSpec:
         severity_kind="continuous",
         rungs=tuple(rungs),
         rationale="",
-        overlap_reconstruction=None,
     )
 
 
@@ -769,7 +758,6 @@ def _inject_islands_ladder() -> LadderSpec:
         severity_kind="continuous",
         rungs=tuple(rungs),
         rationale="",
-        overlap_reconstruction=None,
     )
 
 
@@ -797,7 +785,6 @@ def _relabel_swap_ladder() -> LadderSpec:
             "Only 2 disjoint adjacent label pairs exist among the 5-level "
             "base, so this ladder is 3 rungs (not 4)."
         ),
-        overlap_reconstruction=None,
     )
 
 
@@ -823,7 +810,6 @@ def _remove_level_ladder() -> LadderSpec:
         severity_kind="affected-label-count",
         rungs=tuple(rungs),
         rationale="Removes the 3 interior levels (21, 22, 23) one at a time.",
-        overlap_reconstruction=None,
     )
 
 
@@ -855,7 +841,6 @@ def _crop_at_border_ladder() -> LadderSpec:
             "crop_depth (pinned at the corpus's 5); the severity axis is "
             "the number of clipped labels instead."
         ),
-        overlap_reconstruction=None,
     )
 
 
@@ -891,38 +876,6 @@ def _sequence_break_ladder() -> LadderSpec:
             "give ranks 20, 21, 32, 19, 27, i.e. two descents, not the one "
             "an earlier draft assumed (item 154)."
         ),
-        overlap_reconstruction=None,
-    )
-
-
-def _force_overlap_ladder() -> LadderSpec:
-    rungs = [_rung0()]
-    for i, s in enumerate((1.0, 2.0, 3.0, 4.0), start=1):
-        rungs.append(
-            _rung(
-                i,
-                s,
-                f"overlap_depth={int(s)}",
-                [
-                    (
-                        "force_overlap",
-                        {"target_label": 20, "neighbour_label": 21, "overlap_depth": int(s)},
-                    )
-                ],
-            )
-        )
-    failure_mode, condition = _ladder_home("force_overlap")
-    return LadderSpec(
-        failure_mode=failure_mode,
-        failure_mode_name=_mode_name(failure_mode),
-        operator="force_overlap",
-        designated_metric="overlapping_voxel_count",
-        condition=condition,
-        severity_parameter="overlap_depth",
-        severity_kind="continuous",
-        rungs=tuple(rungs),
-        rationale="",
-        overlap_reconstruction=(20, 21),
     )
 
 
@@ -953,14 +906,12 @@ def _fuse_ladder() -> LadderSpec:
         rationale=(
             "Supplementary: closes the fragment ladder's designated "
             "metric's fused half (fragment itself covers the fragmented "
-            "half). Excluded from the eight-ladder cross-mode matrix so "
-            "that matrix stays a square 8x8."
+            "half). Excluded from the primary ladders' cross-mode matrix."
         ),
-        overlap_reconstruction=None,
     )
 
 
-#: The eight severity ladders, keyed by operator.
+#: The seven severity ladders, keyed by operator.
 SEVERITY_LADDERS: Mapping[str, LadderSpec] = MappingProxyType(
     {
         "displace": _displace_ladder(),
@@ -970,12 +921,11 @@ SEVERITY_LADDERS: Mapping[str, LadderSpec] = MappingProxyType(
         "remove_level": _remove_level_ladder(),
         "crop_at_border": _crop_at_border_ladder(),
         "sequence_break": _sequence_break_ladder(),
-        "force_overlap": _force_overlap_ladder(),
     }
 )
 
 #: The supplementary ``fuse`` ladder closing the fragment ladder's designated
-#: metric's fused half -- outside the eight-ladder cross-mode matrix
+#: metric's fused half -- outside the primary ladders' cross-mode matrix
 #: (``score_harness`` ignores it entirely).
 SUPPLEMENTARY_LADDERS: Tuple[LadderSpec, ...] = (_fuse_ladder(),)
 
@@ -1021,13 +971,6 @@ def _measure(
     """Build the :class:`LadderPoint` for one already-perturbed rung."""
     perturbed_arr = np.asanyarray(perturbed_img.dataobj)
     record = extract_feature_record(perturbed_img, config)
-
-    if spec.overlap_reconstruction is not None:
-        target, neighbour = spec.overlap_reconstruction
-        stack = np.stack([perturbed_arr == target, base_arr == neighbour])
-        pairs = detect_overlaps(stack, np.array([target, neighbour]))
-        record = dict(record)
-        record["overlaps"] = [overlap_to_dict(p) for p in pairs]
 
     spacing = tuple(float(z) for z in perturbed_img.header.get_zooms()[:3])
     metrics = compute_per_mode_metrics(
@@ -1093,7 +1036,7 @@ def evaluate_ladder(spec: LadderSpec, *, base=None, config=None) -> LadderResult
 
 
 def run_severity_harness(*, base=None, config=None) -> HarnessResult:
-    """Evaluate the eight ladders plus the supplementary one.
+    """Evaluate the primary ladders plus the supplementary one.
 
     Parameters
     ----------
@@ -1194,13 +1137,18 @@ def score_harness(
     if not ladders:
         return HarnessVerdict(passed=True, per_ladder=MappingProxyType({}))
 
-    metric_names = list(PER_MODE_METRIC_SPECS)
+    # Only the metrics some ladder designates are scored (item 195,
+    # 2026-09-28): ``overlapping_voxel_count`` has had no ladder since
+    # ``force_overlap`` was removed, and is not scored.
+    laddered = {spec.designated_metric for spec in SEVERITY_LADDERS.values()}
+    metric_names = [f for f in PER_MODE_METRIC_SPECS if f in laddered]
 
     # Each metric's own ladder -- the operator whose designated_metric is
     # that metric (AC18 guarantees this is total and one-to-one over the
     # ladders present). Needed because operators and metric names are
     # different key spaces here (unlike the legacy scheme, where a ladder's
-    # own mode number doubled as its metric's identity).
+    # own mode number doubled as its metric's identity). Coverage is total
+    # over the scored (laddered) metrics.
     owning_operator = {lr.spec.designated_metric: lr.spec.operator for lr in ladders}
 
     # Spans over every (ladder_operator, metric_name) pair -- assignment-independent.
@@ -1350,29 +1298,17 @@ _MEASUREMENT_PROVENANCE = MeasurementProvenance(
     measured_on="2026-09-23",
 )
 
-#: Two measured cross-mode couplings. ``crop_at_border`` ->
+#: One measured cross-mode coupling. ``crop_at_border`` ->
 #: ``unanchored_foreground_fraction`` was anticipated by item 099 (see the
-#: module docstring and the item's Assumptions): ``crop_at_border``,
-#: ``displace`` and ``force_overlap`` all translate a body rigidly, so all
-#: three put candidate foreground over GT background -- and the ``displace``
-#: ladder is FOV-capped (~20.5 mm max ``displacement_mm`` for label 22 on
-#: the lordotic base, measured 2026-09-23) while
-#: ``crop_at_border``'s scales linearly with the number of cropped labels, so
-#: it *exceeds* the strict bar (response > 1.0), exactly as predicted.
-#: ``force_overlap`` -> ``unanchored_foreground_fraction`` was **not**
-#: anticipated by item 099 (whose Assumptions named only the crop coupling)
-#: and is recorded here per the item's instruction to call out any
-#: additional measured coupling in the Decisions log: ``force_overlap``
-#: shifts the whole target body by ``gap + overlap_depth`` voxels along the
-#: stacking axis, and the bounding-box gap between labels 20 and 21 (7
-#: voxels on the lordotic base: the 8 mm disc gap, narrowed by L1's tilt)
-#: dominates that shift, so much of ``force_overlap``'s
-#: ``unanchored_foreground_fraction`` response is a rigid-translation
-#: artefact largely independent of ``overlap_depth`` -- over half the
-#: ``displace`` ladder's own full swing (measured response 0.5741, margin
-#: ~1.742, 2026-09-23), even though
-#: ``force_overlap``'s own designated metric (``overlapping_voxel_count``)
-#: remains a clean, strictly specific isolator.
+#: module docstring and the item's Assumptions): ``crop_at_border`` and
+#: ``displace`` both translate a body rigidly, so both put candidate
+#: foreground over GT background -- and the ``displace`` ladder is
+#: FOV-capped (~20.5 mm max ``displacement_mm`` for label 22 on the lordotic
+#: base, measured 2026-09-23) while ``crop_at_border``'s scales linearly with
+#: the number of cropped labels, so it *exceeds* the strict bar (response >
+#: 1.0), exactly as predicted. The ``force_overlap`` ->
+#: ``unanchored_foreground_fraction`` coupling this table once also recorded
+#: was removed with the ``force_overlap`` ladder (item 195, 2026-09-28).
 KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
     CrossModeCoupling(
         ladder_operator="crop_at_border",
@@ -1380,26 +1316,11 @@ KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
         recorded_response=3.075,
         cause=(
             "crop_at_border rigidly translates each cropped body toward the "
-            "FOV face (like displace/force_overlap), placing candidate "
-            "foreground over GT background; crop_at_border's "
-            "n_affected_labels axis scales this linearly across 3 rungs "
-            "while the displace ladder is capped by the FOV (~20.5mm max "
-            "displacement_mm for label 22 on the lordotic base)."
-        ),
-        provenance=_MEASUREMENT_PROVENANCE,
-    ),
-    CrossModeCoupling(
-        ladder_operator="force_overlap",
-        foreign_metric="unanchored_foreground_fraction",
-        recorded_response=0.5742,
-        cause=(
-            "force_overlap shifts the whole target body by gap + "
-            "overlap_depth voxels along the stacking axis; the 7-voxel "
-            "bounding-box gap between labels 20 and 21 on the lordotic base "
-            "(the 8mm disc gap, narrowed by L1's tilt) dominates that "
-            "shift, so much of the unanchored-foreground signal is a "
-            "rigid-translation artefact largely independent of "
-            "overlap_depth, over half the displace ladder's own full swing."
+            "FOV face (like displace), placing candidate foreground over "
+            "GT background; crop_at_border's n_affected_labels axis scales "
+            "this linearly across 3 rungs while the displace ladder is "
+            "capped by the FOV (~20.5mm max displacement_mm for label 22 "
+            "on the lordotic base)."
         ),
         provenance=_MEASUREMENT_PROVENANCE,
     ),
@@ -1420,7 +1341,6 @@ RECORDED_MARGINS: Mapping[str, float] = MappingProxyType(
         "remove_level": math.inf,
         "crop_at_border": 0.3253,
         "sequence_break": math.inf,
-        "force_overlap": 1.741,
     }
 )
 

@@ -466,9 +466,10 @@ def _normalise_evidence(evidence) -> Tuple[str, ...]:
 
 #: Manifest ``detection`` values that mean "produced by a real (or intensity)
 #: pipeline run", as opposed to a deliberately-reconstructed record
-#: (``"reconstructed_record"``, mode 15's overlap case -- structurally
-#: impossible for any real segmenter output, so it never counts as
-#: pipeline-detected).
+#: (``"reconstructed_record"`` -- structurally impossible for any real
+#: segmenter output, so it never counts as pipeline-detected). No committed
+#: case is ``"reconstructed_record"`` any more since item 195 (2026-09-28)
+#: removed the overlap case (mode 15).
 _PIPELINE_DETECTIONS = frozenset({"pipeline", "intensity_pipeline"})
 
 

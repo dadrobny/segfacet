@@ -3,7 +3,8 @@ re-keyed item 153).
 
 Items 099/100 built and validated a **per-case** magnitude surface: eight
 named scalar metrics (:data:`segfacet.eval.per_mode.PER_MODE_METRIC_SPECS`),
-each proven monotone in its own severity ladder (item 100). Nothing before
+each laddered metric proven monotone in its own severity ladder (item 100;
+``overlapping_voxel_count`` has had no ladder since item 195). Nothing before
 this module aggregated those metrics over a cohort, and nothing diffed two
 cohorts. This module closes that gap with two entry points:
 

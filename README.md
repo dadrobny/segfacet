@@ -24,7 +24,7 @@ L1).
   first-order intensity statistics (optionally PyRadiomics).
 - **Perturb** — fabricate deliberately-broken label maps from clean ones, each
   carrying a machine-readable record of *what was broken*: fragmentation, fusion,
-  stray islands, missing levels, border truncation, overlap, displacement,
+  stray islands, missing levels, border truncation, displacement,
   relabelling and sequence breaks. This is the stress-test corpus that makes
   detection claims quantitative.
 - **Score** — compare a case against reference feature distributions built from

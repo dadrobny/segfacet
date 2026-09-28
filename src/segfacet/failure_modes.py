@@ -311,6 +311,21 @@ vertebra wording: mode 2 is one label over parts of several vertebrae, mode
 ``split_own_label`` (item 174), which the prior wording excluded. No rule
 ``evaluate``, threshold, corpus case or rendering code changed.
 
+``force_overlap`` removed (item 195, 2026-09-28)
+------------------------------------------------------
+:data:`SPECIFICATION`'s mode 15 (overlapping segments) loses its corpus
+case: a single-channel integer label map cannot hold an overlap, so the
+committed ``force_overlap`` fixture never expressed the mode it was
+attributed to (the maintainer's 2026-09-25 decision, roadmap Stage 33 D2).
+``corpus_cases`` becomes ``()``, the mode's derived status moves from
+``validated`` to ``implemented``, and its ``mechanism`` is rewritten to
+state the multi-channel requirement. The ``overlap`` rule's
+``IntendedRule`` edge stays, at rung ``structurally-unobservable``; mode
+15 gains the candidate feature ``eval.per_mode.overlapping_voxel_count``
+(``hypothesised``) so that metric's home stays derivable now that no
+severity ladder designates it. Mode 3's ``mechanism`` drops its
+``force_overlap`` cross-reference.
+
 Lifecycle status
 -----------------
 ``status`` is **authored only** for ``"proposed"`` and ``"specified"``
@@ -1211,10 +1226,9 @@ _MODE_3 = ModeSpec(
         "stray component against label 23 on the split case: 806.0 mm^2 "
         "over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, "
         "3.3x) and every other stray component of every other case measures "
-        "0.0 (0.1 below it) -- including force_overlap (mode 15), whose "
-        "contacting components are each label's largest, and fuse_adjacent "
-        "(mode 2, this mode's converse), whose fused label is a single "
-        "component, so it has no stray component to measure (item 176). "
+        "0.0 (0.1 below it) -- including fuse_adjacent (mode 2, this mode's "
+        "converse), whose fused label is a single component, so it has no "
+        "stray component to measure (item 176). "
         "The absolute measure item 167 introduced "
         "(per_label.{label}.components.stray_contact_area_mm2) is unchanged "
         "and still available, but is no longer read by any rule: it "
@@ -2071,19 +2085,24 @@ _MODE_15 = ModeSpec(
         "per-label statistics, ground truth or an external input."
     ),
     mechanism=(
-        "A single-channel integer label map cannot assign two labels to one "
-        "voxel, so overlaps[] populates only on a case deliberately "
-        "corrupted to violate that invariant, which no real segmenter "
-        "output can be; force_overlap therefore stays "
-        "detection=\"reconstructed_record\" rather than pipeline-detected, "
-        "while the overlap rule and the paths it reads remain correct and "
-        "fully wired."
+        "A single-channel integer label map holds exactly one label per "
+        "voxel, so overlaps[].overlap_voxels can be non-zero only on a "
+        "multi-channel input, which no FACET input path supplies: the "
+        "pipeline builds its mask stack from the one label map. The "
+        "overlap rule reads that path, is correct and fully wired, and is "
+        "declared to need multi-channel input. No committed corpus case "
+        "expresses this mode, because a single-channel fixture cannot hold "
+        "an overlap (item 195, 2026-09-28)."
     ),
     observability="structurally-unobservable",
     candidate_features=(
         CandidateFeature(
             path="overlaps[].overlap_voxels",
             role="stage18-metric-anchor",
+        ),
+        CandidateFeature(
+            path="eval.per_mode.overlapping_voxel_count",
+            role="hypothesised",
         ),
     ),
     intended_rules=(
@@ -2093,22 +2112,7 @@ _MODE_15 = ModeSpec(
             evidence_rung="structurally-unobservable",
         ),
     ),
-    corpus_cases=(
-        CorpusCaseExpectation(
-            case_id="force_overlap",
-            corpus="geometric",
-            expected_firing=("overlap",),
-            reason=(
-                "reconstructed-record-detected; overlap is the sole rule "
-                "that fires on this corpus case, measured live via "
-                "segfacet.synth.regression.reconstructed_findings "
-                "(2026-09-14). A voxel in a single-channel integer label map "
-                "holds exactly one label, so overlaps[] can only populate "
-                "when the record is deliberately corrupted to violate that "
-                "invariant -- which this case's reconstruction does."
-            ),
-        ),
-    ),
+    corpus_cases=(),
     severity="flagged-for-review",
     status="specified",
     provenance="hypothesised",

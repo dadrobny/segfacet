@@ -147,8 +147,8 @@ class RuleModeDeclaration:
       ``src/segfacet/`` reads an element of ``evidence`` for meaning::
 
           RuleModeDeclaration(
-              modes=(15,),
-              evidence=("corpus-manifest", "tests/corpus/manifest.json's force_overlap ..."),
+              modes=(3,),
+              evidence=("corpus-manifest", "tests/corpus/manifest.json's split ..."),
           )
 
     - **Mode-less**: the rule deliberately targets no failure mode, with the
