@@ -704,16 +704,16 @@ def test_ac22_every_corpus_case_verifies():
 
 
 def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
+    # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation -- so the
+    # offset finding no longer survives; border and the offset itself
+    # (read off the unmasked record) are unaffected.
     manifest = load_manifest()
     case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
 
     findings = pipeline_findings(case)
     mislabel = _mislabel_findings(findings)
-    assert mislabel
-    union = set()
-    for f in mislabel:
-        union |= set(f.labels)
-    assert 22 in union
+    assert mislabel == []
 
     assert pipeline_verdict_label(case) == "flagged-for-review"
 
@@ -799,12 +799,17 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     under `displaced_vertebra`, `crop_at_border`/`crop_fov_si` under
     `fov_truncation`) now buckets under its own condition-keyed entry
     instead of mode 0/1, so the `(0, None)` entry has `n_cases == 0` and is
-    dropped from the per-mode map."""
+    dropped from the per-mode map.
+    Re-measured 2026-09-28 (item 191) -- the gate drops `bounds`'s two
+    findings on `crop_fov_si`'s label 24, so that case no longer fires and
+    its expected verdict becomes "pass": it is no longer an expected-failure
+    record, so overall sensitivity is 9/10 over ten records."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
     # Item 176 (2026-09-24): 11/12 -> 10/11.
-    assert metrics.sensitivity == pytest.approx(10.0 / 11.0)
+    # Item 191 (2026-09-28): 10/11 -> 9/10.
+    assert metrics.sensitivity == pytest.approx(9.0 / 10.0)
 
     # Item 176 (2026-09-24): mode 2's entry (2: 1.0) removed -- no case left.
     # Item 190 (2026-09-28): mode 0's entry removed -- condition cases moved
@@ -824,7 +829,9 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_ten():
     # Item 174 (2026-09-23): 10 -> 11.
     # Item 175 (2026-09-24): 11 -> 12.
     # Item 176 (2026-09-24): 12 -> 11.
-    assert sum(m.n_cases for m in metrics.per_mode) == 11
+    # Item 191 (2026-09-28): crop_fov_si's expected verdict becomes "pass",
+    # dropping it out of the mode/condition n_cases sum: 11 -> 10.
+    assert sum(m.n_cases for m in metrics.per_mode) == 10
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

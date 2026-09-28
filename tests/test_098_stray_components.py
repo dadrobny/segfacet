@@ -955,6 +955,12 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         ],
     },
     "crop_at_border": {
+        # Item 189 (2026-09-28): the offset detector moved to its own
+        # spline_offset rule.
+        # Item 191 (2026-09-28): the runner gates spline_offset's finding on
+        # the touching label -- it does not opt in to fov_truncation -- so
+        # it no longer survives, leaving border alone; the verdict is
+        # unchanged.
         "verdict": "flagged-for-review",
         "findings": [
             {
@@ -965,19 +971,6 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "reason": (
                     "Partial vertebra clipped by FOV: label 22 (L3) touches "
                     "image face(s): anterior."
-                ),
-            },
-            {
-                # Item 189 (2026-09-28): the offset detector moved to its own
-                # spline_offset rule.
-                "rule_id": "spline_offset",
-                "detector_id": "spline_offset",
-                "severity": "flagged-for-review",
-                "labels": [22],
-                "reason": (
-                    "Vertebra misaligned from spinal curve: label 22 (L3) "
-                    "centroid lies 18.0 mm off the fitted spinal curve, "
-                    f"predominantly anterior-posterior (threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)."
                 ),
             },
         ],

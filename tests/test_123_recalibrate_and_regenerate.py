@@ -778,12 +778,16 @@ def test_ac15_mode1_displace_fires_mislabel_naming_exactly_label_22():
 
 def test_ac15_mode6_crop_at_border_fires_mislabel_and_border_on_label_22():
     """Item 189 (2026-09-28): the offset finding's rule_id re-pointed to
-    spline_offset (Detector A moved); border is unchanged."""
+    spline_offset (Detector A moved); border is unchanged.
+
+    Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    touching label -- it does not opt in to fov_truncation -- so it no
+    longer survives."""
     case = _corpus_case("crop_at_border")
     findings = pipeline_findings(case)
     offset = [f for f in findings if f.rule_id == "spline_offset"]
     border = [f for f in findings if f.rule_id == "border"]
-    assert offset and any(22 in f.labels for f in offset)
+    assert offset == []
     assert border and any(22 in f.labels for f in border)
 
 
@@ -1070,17 +1074,21 @@ def _all_offset_entries(golden: dict) -> list:
 
 def test_ac28_pinned_snapshot_reasons_name_the_current_threshold():
     """Item 189 (2026-09-28): the offset finding's rule_id is now
-    spline_offset (Detector A moved); the threshold constant moved with it."""
+    spline_offset (Detector A moved); the threshold constant moved with it.
+
+    Item 191 (2026-09-28): the runner gates spline_offset's finding on
+    crop_at_border's touching label -- it does not opt in to
+    fov_truncation -- so neither the constant nor a fresh report carries one
+    for that case; only the displace half is checked against the threshold."""
     from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
     from test_098_stray_components import _PRE_098_GOLDEN_VERDICT_AND_FINDINGS
 
     clause = f"(threshold {_DEFAULT_MAX_OFFSET_MM:.1f} mm)"
     mode1_reason = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["displace"]["findings"][0]["reason"]
     mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
-    mode6_reason = next(f["reason"] for f in mode6_findings if f["rule_id"] == "spline_offset")
 
     assert clause in mode1_reason
-    assert clause in mode6_reason
+    assert not any(f["rule_id"] == "spline_offset" for f in mode6_findings)
 
 
 def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
@@ -1089,7 +1097,11 @@ def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
     docs/aide/golden-decision-table.md's "## Retirement execution log".
 
     Item 189 (2026-09-28): the offset finding's rule_id re-pointed to
-    spline_offset (Detector A moved)."""
+    spline_offset (Detector A moved).
+
+    Item 191 (2026-09-28): the runner gates spline_offset's finding on
+    crop_at_border's touching label, so neither the constant nor the fresh
+    report carries one for that case."""
     from test_098_stray_components import _PRE_098_GOLDEN_VERDICT_AND_FINDINGS
 
     manifest = load_manifest()
@@ -1100,13 +1112,10 @@ def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
     mode1_actual = next(f["reason"] for f in mode1_report["findings"] if f["rule_id"] == "spline_offset")
     assert mode1_actual == mode1_expected
 
-    mode6_expected = next(
-        f["reason"] for f in _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
-        if f["rule_id"] == "spline_offset"
-    )
+    mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
+    assert not any(f["rule_id"] == "spline_offset" for f in mode6_findings)
     mode6_report = build_report_for_case(cases_by_id["crop_at_border"])
-    mode6_actual = next(f["reason"] for f in mode6_report["findings"] if f["rule_id"] == "spline_offset")
-    assert mode6_actual == mode6_expected
+    assert not any(f["rule_id"] == "spline_offset" for f in mode6_report["findings"])
 
 
 # =========================================================================== #

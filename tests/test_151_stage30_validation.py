@@ -414,7 +414,10 @@ def test_ac10_condition_case_expects_border_and_mislabel_with_a_reason():
     assert case is not None
     # Item 189 (2026-09-28): the offset detector moved from mislabel to
     # spline_offset.
-    assert set(case.expected_firing) == {"border", "spline_offset"}
+    # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation -- so the
+    # expectation narrows to border alone.
+    assert set(case.expected_firing) == {"border"}
     assert case.reason.strip()
 
 

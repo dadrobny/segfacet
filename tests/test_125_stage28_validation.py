@@ -513,10 +513,12 @@ def test_ac15_agrees_with_test_057_pipeline_detectable_modes():
 def test_ac16_mode6_fires_both_border_and_mislabel():
     # Item 189 (2026-09-28): the offset detector that co-fires here moved
     # from mislabel to spline_offset.
+    # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation.
     case_result, _block = _run_qc("crop_at_border")
     rule_ids = {f.rule_id for f in case_result.findings}
     assert "border" in rule_ids, rule_ids
-    assert "spline_offset" in rule_ids, rule_ids
+    assert "spline_offset" not in rule_ids, rule_ids
 
 
 def test_ac16_mode6_manifest_expected_rule_ids_is_border_alone():

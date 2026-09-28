@@ -725,7 +725,9 @@ _PRE_129_FINDINGS = {
     "remove_level": {("coverage", ())},
     # Item 189 (2026-09-28): the co-firing offset detector moved to
     # spline_offset.
-    "crop_at_border": {("border", (22,)), ("spline_offset", (22,))},
+    # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation.
+    "crop_at_border": {("border", (22,))},
     "sequence_break": {("sequence", (28,))},
     "force_overlap": set(),
 }

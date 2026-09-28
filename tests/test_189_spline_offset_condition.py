@@ -168,10 +168,13 @@ def test_ac10_condition_is_recorded_on_displace():
 
 
 def test_ac11_crop_at_border_firing_is_remeasured():
+    # item 191 (2026-09-28): the runner gates spline_offset's finding on the
+    # touching label -- it does not opt in to fov_truncation -- so the
+    # measured set narrows to border alone.
     condition = failure_modes.CONDITIONS["fov_truncation"]
     matches = [c for c in condition.corpus_cases if c.case_id == "crop_at_border"]
     assert len(matches) == 1, matches
-    assert set(failure_modes.measured_firing(matches[0])) == {"border", "spline_offset"}
+    assert set(failure_modes.measured_firing(matches[0])) == {"border"}
 
 
 # =========================================================================== #
@@ -180,8 +183,11 @@ def test_ac11_crop_at_border_firing_is_remeasured():
 
 
 def test_ac12_terminal_skip_exemption_moves_with_detector():
+    # item 191 (2026-09-28): exempting_rules renamed opting_in_rules; coverage
+    # no longer belongs (its findings are case-level, so the gate never
+    # reaches them -- A3), leaving only the recording rule, which now opts in.
     condition = failure_modes.CONDITIONS["fov_truncation"]
-    assert set(condition.exempting_rules) == {"coverage", "spline_offset"}
+    assert set(condition.opting_in_rules) == {"border"}
 
 
 # =========================================================================== #

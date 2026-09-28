@@ -390,7 +390,9 @@ def test_ac2_condition_fields_are_populated():
         assert isinstance(value, str) and value, field_name
     assert condition.candidate_features
     assert condition.recording_rules
-    assert condition.exempting_rules
+    # item 191 (2026-09-28): exempting_rules renamed opting_in_rules -- the
+    # gate now belongs to the runner, and this field is its opt-in record.
+    assert condition.opting_in_rules
     assert condition.corpus_cases
 
 
@@ -539,18 +541,21 @@ def test_ac5_fov_truncation_is_recorded_by_border_which_declares_no_mode():
 
 
 def test_ac5_condition_exempting_rules_are_registered_and_distinct():
-    """The exemptions the condition grants are rules that exist, and are not
-    the rule that records it -- otherwise "recording" and "exempting" would
-    be one undifferentiated list."""
+    """The rules the condition names -- recording and opting-in -- are rules
+    that exist.
+
+    item 191 (2026-09-28): ``exempting_rules`` renamed ``opting_in_rules``,
+    and the recording rule now opts in to the condition it records, so the
+    old disjointness assertion inverts to a subset check."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     registered = {rule_id for rule_id, _declaration in iter_rule_declarations()}
-    assert condition.exempting_rules, condition.id
-    for rule_id in condition.recording_rules + condition.exempting_rules:
+    assert condition.opting_in_rules, condition.id
+    for rule_id in condition.recording_rules + condition.opting_in_rules:
         assert rule_id in registered, (rule_id, sorted(registered))
-    assert not set(condition.recording_rules) & set(condition.exempting_rules)
+    assert set(condition.recording_rules) <= set(condition.opting_in_rules)
 
 
 # =========================================================================== #
@@ -897,20 +902,23 @@ def test_ac13_co_detection_alone_does_not_validate():
 def test_ac14_fov_truncation_case_expects_border_and_mislabel_with_reason():
     # Item 189 (2026-09-28): the offset detector that co-fires on this case
     # moved from mislabel to spline_offset.
+    # Item 191 (2026-09-28): the gate drops spline_offset's finding on the
+    # touching label (it does not opt in to fov_truncation), so the
+    # expectation narrows to border alone.
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert case.expected_firing == ("border", "spline_offset")
+    assert case.expected_firing == ("border",)
     assert case.reason.strip()
     lowered = case.reason.lower()
     assert "crop" in lowered or "border" in lowered, case.reason
     assert "centroid" in lowered, case.reason
     assert "curve" in lowered or "spline" in lowered, case.reason
-    # `spline_offset` co-fires but records nothing about this condition: it
-    # is one of the rules the condition *exempts*, never one that records it.
+    # `spline_offset` reads the crop-displaced centroid but does not opt in
+    # to the condition, so its finding on the touching label is gated.
     assert "spline_offset" not in condition.recording_rules
-    assert "spline_offset" in condition.exempting_rules
+    assert "spline_offset" not in condition.opting_in_rules
 
 
 def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
@@ -963,12 +971,17 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
 
     Item 189 (2026-09-28): the offset detector that co-fires here moved from
     ``mislabel`` to its own ``spline_offset`` rule.
+
+    Item 191 (2026-09-28): the runner gates a finding naming a label in a
+    condition unless its rule opts in; ``spline_offset`` does not opt in to
+    ``fov_truncation``, so its finding on this label is dropped and the
+    expectation narrows to ``border`` alone.
     """
     import segfacet.failure_modes as fm
 
     condition = _condition(fm, _FOV_CONDITION_ID)
     case = _case(condition, "crop_at_border")
-    assert set(case.expected_firing) == {"border", "spline_offset"}
+    assert set(case.expected_firing) == {"border"}
 
     _detection, findings, record = corpus("crop_at_border")
     border_findings = [f for f in findings if f.rule_id == "border"]
@@ -998,9 +1011,10 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     assert others, offsets
     assert measured_offset > max(others), (measured_offset, others)
 
+    # Item 191 (2026-09-28): spline_offset does not opt in to fov_truncation,
+    # so no surviving finding of its names the touching label.
     spline_offset_findings = [f for f in findings if f.rule_id == "spline_offset"]
-    assert spline_offset_findings, "expected spline_offset to co-fire on the condition's case"
-    assert any(label in set(f.labels) for f in spline_offset_findings), (
+    assert not any(label in set(f.labels) for f in spline_offset_findings), (
         label,
         [f.labels for f in spline_offset_findings],
     )
@@ -1484,12 +1498,15 @@ def test_adv_condition_case_narrowed_expectation_is_a_disagreement(measured):
     case = _case(condition, "crop_at_border")
     # Item 189 (2026-09-28): the co-firing offset detector moved to
     # spline_offset.
-    assert "spline_offset" in measured(case), (
-        "adversarial precondition: crop_at_border must actually fire spline_offset too"
+    # Item 191 (2026-09-28): the gate drops spline_offset's finding on the
+    # touching label, so the measured set is border alone; the narrowed copy
+    # must go one step further, to nothing, to still disagree.
+    assert measured(case) == ("border",), (
+        "adversarial precondition: crop_at_border must measure border alone"
     )
     assert fm.case_agrees(case) is True
 
-    narrowed_case = dataclasses.replace(case, expected_firing=("border",))
+    narrowed_case = dataclasses.replace(case, expected_firing=())
     assert fm.case_agrees(narrowed_case) is False
 
 

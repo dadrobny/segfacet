@@ -393,9 +393,11 @@ _REFERENCE_MANIFEST_CASES = [
 #: (``_REFERENCE_GOLDEN_SHA``) does not carry. Widened by human decision, 2026-08-28 -- see
 #: docs/aide/items/120-per-vertebra-offset-that-separates.md's Authorised
 #: paths entry for this test. Item 189 (2026-09-28) moved the detector from
-#: mislabel to its own spline_offset rule.
+#: mislabel to its own spline_offset rule. Item 191 (2026-09-28): the runner
+#: gates spline_offset's finding on crop_at_border's touching label -- it
+#: does not opt in to fov_truncation -- so only displace still carries it.
 _ITEM_120_ADDED_MISLABEL_PAIR = ("spline_offset", (22,))
-_ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace", "crop_at_border"})
+_ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace"})
 
 #: Item 132 judges monotonicity against a traversal-ordered reference fit,
 #: which deliberately adds a ``mislabel`` finding on labels (21, 22) to
