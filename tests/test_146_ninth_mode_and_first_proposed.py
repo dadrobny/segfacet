@@ -865,10 +865,11 @@ def test_ac20_mode16_cases_measure_to_expected_sets(measured):
 # The old form's second assertion (`derive_status(mode) == "validated"` for
 # each) is deliberately not carried over: it is false by design since the
 # sign-off tightened `"validated"` to need a case demonstrating one of the
-# mode's OWN rules, so modes whose only geometric evidence is a co-detection
-# (mode 2) or a recorded "not detected today" (mode 6) derive
-# `"implemented"`. That derivation is pinned per mode by
-# `test_147_specification_is_the_record.py::test_ac26_*`.
+# mode's OWN rules, so a mode whose only geometric evidence is a co-detection
+# (mode 2) derives `"implemented"`. Mode 6 (item 188, 2026-09-28: coverage
+# re-homed off it) derives `"specified"` instead -- it has no declaring rule
+# at all, so it never reaches the corpus-agreement clause. That derivation is
+# pinned per mode by `test_147_specification_is_the_record.py::test_ac26_*`.
 # =========================================================================== #
 
 
@@ -1211,11 +1212,22 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     # the seven `proposed` ones (5 holes, 7 hallucinated vertebra, 10 skipped
     # level label, 11 numbering variant, 12 shifted sequence, 13 collapsed,
     # 14 duplicated) is authored `specified`.
-    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 15, 16], specified_ids
+    # Reconciled (item 188, 2026-09-28): mode 10 left the `proposed` set and
+    # joined `specified` (coverage re-homed onto it, now `implemented`); the
+    # six remaining proposed ids are 5, 7, 11, 12, 13, 14.
+    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 15, 16], specified_ids
 
     for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]
         derived = fm.derive_status(mode)
+        if mode_id == 6:
+            # Item 188 (2026-09-28), maintainer decision of 2026-09-25: mode
+            # 6 lost its declaring rule (coverage moved to mode 10) and its
+            # own rule is left to a later per-mode queue, so it derives no
+            # further than its authored `specified` -- exempted by name, not
+            # by widening this invariant to "any mode with no rule".
+            assert derived == "specified", (mode_id, derived)
+            continue
         assert derived in ("implemented", "validated"), (mode_id, derived)
         assert derived != mode.status, (mode_id, derived)
 
@@ -1697,8 +1709,10 @@ def test_review_declaration_replacement_invariant_on_a_case_the_rule_fires_on(
 def test_review_derive_status_requires_a_declaring_rule_for_validated():
     """The declaring-rule precondition this item added to ``derive_status``
     (the item-145 review finding, ``docs/aide/insights.md`` 2026-09-03) had
-    no test: every shipped mode that reaches the corpus-agreement clause is
-    also declared, and ``test_144``'s
+    no test at the time: every shipped mode that reached the
+    corpus-agreement clause was also declared (mode 6 is the one exception
+    since item 188, 2026-09-28: it reaches the clause undeclared and derives
+    its authored ``specified``), and ``test_144``'s
     ``test_adv_empty_corpus_cases_and_intended_rules_derives_specified_not_validated``
     empties the registry only for a mode with *no* corpus cases. Deleting
     the ``declared and`` guard therefore left the whole suite green.
@@ -1749,8 +1763,11 @@ def test_review_derive_status_requires_a_declaring_rule_for_validated():
     assert fm.derive_status(probe) != "validated", fm.derive_status(probe)
     assert fm.derive_status(probe) == "specified", fm.derive_status(probe)
 
-    # The shipped modes are unmoved by the guard: every one of them that
-    # reaches the corpus-agreement clause is declared.
+    # The shipped modes are unmoved by the guard: modes 4 and 16 reach the
+    # corpus-agreement clause declared, as they always did. (Mode 6 reaches
+    # it undeclared since item 188, 2026-09-28 -- the one named exception,
+    # asserted above and in test_review_mode_to_rule_holes_are_exactly_the_
+    # proposed_modes -- not a counter-example to this pair.)
     assert fm.derive_status(fm.SPECIFICATION[4]) == "validated"
     assert fm.derive_status(fm.SPECIFICATION[16]) == "validated"
 
@@ -1812,11 +1829,14 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
 
     ``build_matrix`` grants ``proposed`` no exemption: every known mode with
     no declaring rule becomes a hole regardless of status. That is correct
-    only while the holes *are* the proposed modes. A ``specified`` mode that
+    only while the holes *are* the proposed modes, plus mode 6 -- the one
+    named, recorded exception item 188 (2026-09-28) introduces (A7,
+    revised ``traceability._NOTE``). A ``specified`` mode that
     lost its last declaring rule would be a genuine mode -> rule defect
     (``roadmap.md`` Stage 20: "a catalogued §6 failure mode nothing can
     detect ... a defect"), silently excused by the note's wording -- this
-    test is what makes that loud."""
+    test is what makes that loud for every mode except the one named
+    exception."""
     import segfacet.failure_modes as fm
     import segfacet.traceability as traceability
 
@@ -1832,7 +1852,15 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
         for mode_id, mode in fm.SPECIFICATION.items()
         if fm.derive_status(mode) == "proposed"
     )
-    assert hole_mode_ids == proposed_mode_ids, (hole_mode_ids, proposed_mode_ids)
+    # Item 188 (2026-09-28): mode 6 is authored `specified` with no
+    # declaring rule (coverage moved to mode 10, mode 6's own rule left to a
+    # later per-mode queue per the maintainer decision of 2026-09-25) -- the
+    # one named exception, not a widened invariant. Any other `specified`
+    # mode losing its rule still fails this test.
+    assert hole_mode_ids == sorted(proposed_mode_ids + [6]), (
+        hole_mode_ids,
+        proposed_mode_ids,
+    )
 
     # ... and the direction's own boolean agrees with its holes, in both the
     # live matrix and the committed markdown the reader actually opens.

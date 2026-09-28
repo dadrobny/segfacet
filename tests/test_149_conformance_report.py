@@ -11,8 +11,12 @@ deliberately altered expected set (AC17, the headline check), an emptied
 ``corpus_cases`` (AC14), a dropped ``ConsumedPath`` (AC12), ``derive_status``/
 ``SPECIFICATION`` patched (AC4/AC30 no-cache proof), a re-narrowed rule
 declaration (AC10/AC19), determinism/immutability (AC20/AC32), degenerate
-rows (the seven proposed modes 5, 7, 10-14, AC7; overlap mode 15, AC18), and
+rows (seven rule-less modes, AC7; overlap mode 15, AC18), and
 the guard's non-vacuity proof (AC25).
+
+Reconciled (item 188, 2026-09-28): ``coverage`` re-homed off mode 6 onto mode
+10, so the degenerate seven became 5, 6, 7, 11, 12, 13, 14 -- six still
+``proposed``, plus mode 6 (authored ``specified``, no declaring rule).
 
 Field-name note (same discipline as ``test_138_traceability_matrix.py``):
 the item spec pins the JSON's *content* precisely per-AC but leaves several
@@ -498,8 +502,9 @@ def test_ac5_derived_and_authored_status_are_two_independent_fields(matrix):
     """Both fields are carried per mode, and they genuinely differ somewhere:
     mode 1 is authored ``specified`` but derives ``validated`` (since the
     2026-09-15 revision its corpus case fragment fires its own
-    ``fragmentation`` edge), while mode 7 -- one of the seven ``proposed``
-    entries the item-150 sign-off left unimplemented -- derives ``proposed``
+    ``fragmentation`` edge), while mode 7 -- one of the six ``proposed``
+    entries left unimplemented since item 188 (2026-09-28) moved mode 10 to
+    ``specified`` -- derives ``proposed``
     too, so the pair agrees there. Agreement on one row is not evidence of
     one field."""
     import segfacet.failure_modes as failure_modes_module
@@ -554,8 +559,12 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
 #: The item-150 sign-off's seven ``proposed`` entries (2026-09-15 revision):
 #: no rules, no corpus cases, no derived rung. They are the degenerate rows
 #: this AC exists for (mode 10 carried that role before the sign-off
-#: re-numbered the catalogue, and carries it again as "skipped level label").
-_DEGENERATE_MODES = (5, 7, 10, 11, 12, 13, 14)
+#: re-numbered the catalogue, and carried it again as "skipped level label").
+#: Item 188 (2026-09-28): ``coverage`` re-homed off mode 6 onto mode 10 --
+#: mode 10 leaves this set (it now derives ``"implemented"`` with a
+#: ``needs-real-data`` rung) and mode 6 joins it instead (authored
+#: ``"specified"``, no declaring rule, no derived rung).
+_DEGENERATE_MODES = (5, 6, 7, 11, 12, 13, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)

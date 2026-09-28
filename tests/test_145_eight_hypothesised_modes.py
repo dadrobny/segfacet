@@ -59,6 +59,15 @@ which derives ``validated``. ``fragment``
 and ``fragmentation``'s Fragmentation: detector sit at the parent, mode 1,
 which therefore derives ``validated``. The groups below are re-pinned to
 those ids; each test keeps its claim.
+
+Reconciled again (item 188, 2026-09-28): ``coverage`` re-homed from mode 6 to
+mode 10. Mode 10 is now authored ``"specified"`` and derives ``"implemented"``
+at ``needs-real-data`` (still no committed case); mode 6 loses its edge, stays
+authored ``"specified"``, and derives ``"specified"`` with a ``None`` rung --
+the maintainer decision of 2026-09-25 leaves mode 6's own rule to a later
+per-mode queue, so mode 6 is now the one ``"specified"`` mode with no
+declaring rule (``_RULELESS_SPECIFIED_MODE_IDS``), exempted by name rather
+than by widening the "specified means it has a rule" invariant.
 """
 
 from __future__ import annotations
@@ -82,15 +91,25 @@ _MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 
 #: The entries authored ``"proposed"``: listed and deliberately unimplemented,
 #: so they carry no intended-rule edge, no corpus case and no declaring rule.
-_PROPOSED_MODE_IDS = (5, 7, 10, 11, 12, 13, 14)
+#: Item 188 (2026-09-28): mode 10 left this set when ``coverage`` re-homed
+#: onto it (it now derives ``"implemented"``).
+_PROPOSED_MODE_IDS = (5, 7, 11, 12, 13, 14)
+
+#: Item 188 (2026-09-28): the one entry authored ``"specified"`` that carries
+#: no declaring rule -- ``coverage`` moved off mode 6 onto mode 10, and mode
+#: 6's own rule is left to a later per-mode queue (maintainer decision of
+#: 2026-09-25). Distinct from ``_PROPOSED_MODE_IDS``: mode 6 keeps its two
+#: corpus cases and its candidate features.
+_RULELESS_SPECIFIED_MODE_IDS = (6,)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
 #: fixture and ``_manifest_case`` resolve against. Mode 8 is specified but
 #: carries no case; mode 3 gained its ``split`` case at item 166
 #: (2026-09-20); mode 16's three cases are in the intensity
-#: corpus; the proposed entries (mode 10 among them since the maintainer
-#: narrowed it to a skipped label) carry none.
+#: corpus; the proposed entries carry none, and so does mode 10 (item 188,
+#: 2026-09-28: implemented at needs-real-data, but no committed case
+#: expresses it).
 _GEOMETRIC_CORPUS_MODE_IDS = (1, 2, 3, 4, 6, 9, 15)
 
 #: The condition the sign-off retired failure mode 6 into.
@@ -105,11 +124,11 @@ _EXPECTED_DERIVED_STATUS = {
     3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
-    6: "validated",
+    6: "specified",  # item 188 (2026-09-28): coverage re-homed to mode 10
     7: "proposed",
     8: "implemented",
     9: "validated",
-    10: "proposed",
+    10: "implemented",  # item 188 (2026-09-28): coverage's new home
     11: "proposed",
     12: "proposed",
     13: "proposed",
@@ -303,7 +322,8 @@ def test_ac1_fov_truncation_is_a_condition_and_not_a_mode():
 def test_ac2_every_field_populated(mode_id):
     """Re-pointed at the signed-off catalogue: ``parent`` is legitimately
     ``None`` on a top-level mode, and ``intended_rules`` / ``corpus_cases``
-    are legitimately empty on a ``proposed`` entry (5, 7, 10-14), and
+    are legitimately empty on a ``proposed`` entry (5, 7, 11-14; item 188,
+    2026-09-28, moved mode 10 out of this set), and
     ``corpus_cases`` on a specified mode with no fixture of its own (3, 8).
     ``scope`` (added 2026-09-15) must be a ``SCOPES`` member on every
     shipped entry. Those absences are the
@@ -350,6 +370,12 @@ def test_ac2_proposed_entries_carry_no_edges_and_no_cases():
         if mode.status == "proposed":
             continue
         assert mode.status == "specified", (mode.id, mode.status)
+        # Item 188 (2026-09-28): mode 6 is exempted by name -- authored
+        # specified, but its rule is left to a later per-mode queue
+        # (coverage moved to mode 10). No other specified mode is exempt.
+        if mode.id in _RULELESS_SPECIFIED_MODE_IDS:
+            assert mode.intended_rules == (), mode.id
+            continue
         assert mode.intended_rules, mode.id
 
 
@@ -468,12 +494,16 @@ def test_ac5_edge_set_equals_live_registry_declared_set(mode_id):
     so the "at least one registered rule declares it" precondition now
     applies to the specified entries only -- and is asserted for them, so
     the equality is never satisfied by two empty sets where it should not
-    be."""
+    be.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``) joins
+    the empty-declared-set branch too -- ``coverage`` moved to mode 10, and
+    mode 6's own rule is not yet written."""
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, mode_id)
     declared = _live_declared_rule_ids(mode_id)
-    if mode_id in _PROPOSED_MODE_IDS:
+    if mode_id in _PROPOSED_MODE_IDS or mode_id in _RULELESS_SPECIFIED_MODE_IDS:
         assert declared == set(), (mode_id, declared)
     else:
         assert declared, f"expected >=1 registered rule to declare mode {mode_id}"
@@ -532,12 +562,16 @@ def test_ac5_condition_exempting_rules_are_registered_and_distinct():
 def test_ac6_mode_rung_is_the_strongest_of_its_own_edges(mode_id):
     """Unchanged in substance; a ``proposed`` entry has no edge at all, and
     ``derive_mode_rung`` returns ``None`` for it rather than computing a
-    ``min()`` over the empty set."""
+    ``min()`` over the empty set.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``, no
+    declaring rule) is the same edgeless shape, so the edgeless branch
+    accepts it alongside the proposed ids."""
     import segfacet.failure_modes as fm
 
     mode = _mode(fm, mode_id)
     if not mode.intended_rules:
-        assert mode_id in _PROPOSED_MODE_IDS, mode_id
+        assert mode_id in _PROPOSED_MODE_IDS or mode_id in _RULELESS_SPECIFIED_MODE_IDS, mode_id
         assert fm.derive_mode_rung(mode) is None
         return
     strongest = min(
@@ -812,10 +846,16 @@ def test_ac13_derived_status_is_the_signed_off_ladder():
     case agreeing, **and** at least one case with a non-empty expected set
     naming one of the mode's own intended rules -- which is why fused (2,
     co-detections only) and the proxy-only modes with no case (3, 8) sit at
-    ``"implemented"`` while every case they carry agrees perfectly, and why
-    vertebra not segmented (6) validates on ``remove_level``'s
-    ``coverage`` finding despite also carrying the empty "not detected today"
-    ``remove_level_relabel`` case."""
+    ``"implemented"`` while every case they carry agrees perfectly.
+
+    Reconciled (item 188, 2026-09-28): ``coverage`` moved off mode 6 onto
+    mode 10. Vertebra not segmented (6) no longer has a declaring rule, so
+    despite still agreeing on both its corpus cases (``remove_level``'s
+    ``coverage`` finding is now a recorded co-detection, and
+    ``remove_level_relabel`` is the empty "not detected today" case) it
+    derives the authored ``"specified"`` rather than ``"validated"``. Skipped
+    level label (10) reaches ``"implemented"`` instead -- its one declaring
+    rule (``coverage``), but no committed case of its own to validate on."""
     import segfacet.failure_modes as fm
 
     derived = {mode.id: fm.derive_status(mode) for mode in fm.iter_modes()}
@@ -827,8 +867,11 @@ def test_ac13_derived_status_is_the_signed_off_ladder():
 
 def test_ac13_co_detection_alone_does_not_validate():
     """The mechanism behind mode 2's ``"implemented"``: its one corpus case
-    (``fuse_adjacent``) agrees exactly, but everything it fires belongs to
-    another mode's detector (mode 1's fragmentation, mode 6's coverage).
+    (``fuse_adjacent``) agrees exactly, but expects no rule at all (item 176,
+    2026-09-24: the bridged, renumbered case designates none), so nothing it
+    fires can belong to mode 2's own declared rules -- unlike mode 6's
+    ``remove_level``, whose ``coverage`` finding is a genuine co-detection
+    (item 188, 2026-09-28: ``coverage`` now declares mode 10, not mode 6).
     Re-pointed from mode 1, which the 2026-09-15 revision made validated by
     homing ``fragment`` there. Asserted through the production
     derivation, with the disjointness recomputed rather than transcribed."""
@@ -1131,10 +1174,12 @@ def test_ac20_detector_names_the_detector_that_actually_fired(corpus):
 
     "an edge that fired nothing carries an empty detector" is no longer
     true in that direction: an edge may name detectors that fire on none
-    of its mode's cases (mode 6's ``coverage`` edge also names the opt-in
-    span/count detectors, which ship **disabled**). The contrapositive is what survives and is asserted -- an edge
-    whose ``detector_ids`` is empty fired nothing -- which still catches an
-    unnamed detector that does fire.
+    of its mode's cases (``coverage``'s edge -- mode 6's before item 188,
+    2026-09-28, mode 10's since -- also names the opt-in span/count
+    detectors, which ship **disabled**). The contrapositive is what survives
+    and is asserted -- an edge whose ``detector_ids`` is empty fired nothing
+    -- which still catches an unnamed detector that does fire. Mode 6 itself
+    now has no edge, so this loop simply has nothing to check for it.
     """
     import segfacet.failure_modes as fm
 
@@ -1253,10 +1298,14 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
     "always contains at least one mode-8 mislabelling, so it fails like mode
     9"). For mode 9, every finding its own rules raise today is
     ``flagged-for-review``; if a rule is escalated to fail, or the mode is
-    re-authored down, this test is the one that says so. Mode 10 is
-    ``proposed`` with no rule and no case, so its severity leads *no*
-    measurement at all: that is asserted as such (no edge, no case, no
-    declaring rule) rather than passed by comparing an empty set."""
+    re-authored down, this test is the one that says so.
+
+    Reconciled (item 188, 2026-09-28): mode 10 is authored ``specified``, not
+    ``proposed``, since ``coverage`` re-homed onto it -- one declared edge
+    (``coverage``, at ``needs-real-data``), still no committed corpus case of
+    its own, so its severity still leads *no* measurement: that is asserted
+    as such (an edge with no case to measure) rather than passed by comparing
+    an empty set."""
     import segfacet.failure_modes as fm
 
     failing = [mode.id for mode in fm.iter_modes() if mode.severity == "fail"]
@@ -1274,10 +1323,10 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
     assert measured_severities == {"flagged-for-review"}, measured_severities
 
     skipped = _mode(fm, 10)
-    assert skipped.status == "proposed", skipped.status
-    assert skipped.intended_rules == (), skipped.intended_rules
+    assert skipped.status == "specified", skipped.status
+    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage"}
     assert skipped.corpus_cases == (), skipped.corpus_cases
-    assert _live_declared_rule_ids(10) == set()
+    assert _live_declared_rule_ids(10) == {"coverage"}
 
 
 # =========================================================================== #
@@ -1292,10 +1341,20 @@ def test_ac22_implemented_derives_on_registered_rule_containment(mode_id):
     unchanged. A ``proposed`` entry has no declaring rule, so it falls back
     to its authored status instead; the expected value is pinned per id
     rather than recomputed from ``_live_declared_rule_ids``, which would
-    re-implement the function under test."""
+    re-implement the function under test.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``, no
+    declaring rule since ``coverage`` moved to mode 10) falls back to its
+    authored status the same way a ``proposed`` entry does. Mode 10 now has a
+    declaring rule, so it falls back to ``"implemented"`` like any other."""
     import segfacet.failure_modes as fm
 
-    expected = "proposed" if mode_id in _PROPOSED_MODE_IDS else "implemented"
+    if mode_id in _PROPOSED_MODE_IDS:
+        expected = "proposed"
+    elif mode_id in _RULELESS_SPECIFIED_MODE_IDS:
+        expected = "specified"
+    else:
+        expected = "implemented"
     mode = _mode(fm, mode_id)
     probe = dataclasses.replace(mode, corpus_cases=())
     assert fm.derive_status(probe) == expected
@@ -1473,9 +1532,13 @@ def test_adv_every_specified_mode_is_declared_and_no_proposed_one_is():
     """Negative control for AC22's containment reading: the live registry
     declares every ``specified`` id somewhere (so AC22's quantifier is not
     vacuous), and declares **no** ``proposed`` id (so the fallback branch
-    AC22 asserts for 5, 7 and 10-14 is reached for the stated reason and
+    AC22 asserts for 5, 7 and 11-14 is reached for the stated reason and
     not by accident). It also pins the other direction: no rule declares a
-    mode id the catalogue does not carry."""
+    mode id the catalogue does not carry.
+
+    Reconciled (item 188, 2026-09-28): mode 6 is authored ``specified`` but,
+    like a ``proposed`` id, is asserted **not** declared -- ``coverage``
+    moved to mode 10, and mode 6's own rule is not yet written."""
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import iter_rule_declarations
 
@@ -1486,7 +1549,7 @@ def test_adv_every_specified_mode_is_declared_and_no_proposed_one_is():
     assert declared_ids, "expected the registry to declare at least one mode"
 
     for mode in fm.iter_modes():
-        if mode.id in _PROPOSED_MODE_IDS:
+        if mode.id in _PROPOSED_MODE_IDS or mode.id in _RULELESS_SPECIFIED_MODE_IDS:
             assert mode.id not in declared_ids, (mode.id, sorted(declared_ids))
         else:
             assert mode.id in declared_ids, (mode.id, sorted(declared_ids))

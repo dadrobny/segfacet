@@ -639,12 +639,18 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
     modes -- 5 (holes), 7 (hallucinated vertebra), 10 (skipped level label),
     11 (unprompted numbering
     variant), 12 (shifted label sequence), 13 (collapsed labels) and 14
-    (duplicated label) -- are ``proposed``: no rule declares them and no
+    (duplicated label) -- were ``proposed``: no rule declares them and no
     Stage-18 metric anchors them, so they reach no path *by design*. Every other catalogued mode must still reach at
     least one path, and only through a ``"signal"`` classification. The
     exempt set is derived from ``SPECIFICATION``/``MODE_ANCHOR_PATHS``, not
     hardcoded, so a rule declaring mode 7 tomorrow tightens this test rather
-    than leaving it stale."""
+    than leaving it stale.
+
+    Reconciled (item 188, 2026-09-28): ``coverage`` re-homed off mode 6 onto
+    mode 10. Mode 10 leaves the unreachable set (it now carries the
+    ``coverage`` edge). Mode 6 loses its edge but keeps its
+    ``MODE_ANCHOR_PATHS`` entry, so it does **not** join the set -- it still
+    reaches both level lists, through its anchor and the corpus map."""
     import segfacet.failure_modes as fm
     import segfacet.feature_docs as feature_docs
 
@@ -661,7 +667,7 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
         for mode in catalogued
         if not fm.SPECIFICATION[mode].intended_rules and mode not in feature_docs.MODE_ANCHOR_PATHS
     }
-    assert unreachable == {5, 7, 10, 11, 12, 13, 14}, unreachable
+    assert unreachable == {5, 7, 11, 12, 13, 14}, unreachable
     assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
 
     # Mode 16 ("implausible tissue under a label", entered as mode 9 by item

@@ -232,9 +232,11 @@ def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():
     Re-pinned for item 150's catalogue revision (2026-09-15): a vertebra
     that was never segmented is mode 6, "vertebra not segmented", whether
     or not the labels hide the gap -- mode 10 ("skipped level label") is
-    about the label only. ``remove_level`` is mode 6's detectable form (the
-    coverage rule sees the gap); ``remove_level_relabel`` (Group A2 below)
-    is its undetected form."""
+    about the label only. ``remove_level`` is mode 6's detectable form; the
+    ``coverage`` rule sees the label gap and co-detects it (item 188,
+    2026-09-28: ``coverage`` declares mode 10, not mode 6, so this firing is
+    a recorded co-detection rather than mode 6's own rule).
+    ``remove_level_relabel`` (Group A2 below) is its undetected form."""
     clean = _clean()
     result = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
@@ -288,7 +290,9 @@ def test_ac9_remove_level_rejects_explicit_terminal_target():
 #
 # Both operators are mode 6 ("vertebra not segmented") since item 150's
 # 2026-09-15 revision. ``remove_level`` leaves the label sequence
-# discontinuous, which the ``coverage`` rule sees -- Group A above.
+# discontinuous, which the ``coverage`` rule sees and co-detects -- Group A
+# above (item 188, 2026-09-28: ``coverage`` declares mode 10, not mode 6, so
+# this is a recorded co-detection, not mode 6's own rule).
 # ``remove_level_relabel`` is the form a real segmenter produces: the vertebra is
 # gone AND the caudal labels are renumbered, so the sequence stays
 # continuous and no shipped rule sees anything. This group mirrors Group A's

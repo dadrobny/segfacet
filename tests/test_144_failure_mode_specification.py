@@ -731,10 +731,12 @@ def test_ac9_multi_mode_declaration_implements_every_mode_it_lists():
     **every** mode it lists, not only for one it declares alone.
 
     The subject is found live in the registry rather than named: the
-    item-150 sign-off (2026-09-15 revision) made ``fragmentation`` ``(1, 4)``,
-    ``coverage`` ``(6, 10)`` and ``bounds``/``reference_delta`` the widest
-    multi-mode declarations, so naming one would be a pin that moves with
-    the next re-organisation. The test is still able to fail -- it asserts
+    item-150 sign-off (2026-09-15 revision) made ``fragmentation`` ``(1, 4)``
+    and ``bounds``/``reference_delta`` the widest multi-mode declarations
+    (``coverage`` was briefly ``(6, 10)`` at that pass; item 188, 2026-09-28,
+    narrowed it back to ``(10,)`` alone), so naming one would be a pin that
+    moves with the next re-organisation. The test is still able to fail -- it
+    asserts
     such a declaration exists at all, then that *every* mode it lists
     derives ``"implemented"`` (or better) off the unmodified registry.
     """
@@ -1243,7 +1245,13 @@ def test_ac16_proposed_entries_are_the_empty_ones():
     ``"proposed"`` entry is listed and deliberately unimplemented (no
     intended-rule edges, no corpus cases), while every ``"specified"``
     entry carries at least one intended-rule edge. Derived from the
-    ``status`` field, so it keeps holding as entries are re-authored."""
+    ``status`` field, so it keeps holding as entries are re-authored.
+
+    Reconciled (item 188, 2026-09-28): mode 6 is exempted by name -- it is
+    authored ``"specified"`` with no declaring rule (its rule is named in
+    prose but not yet written, per the maintainer decision of 2026-09-25) --
+    rather than the invariant being widened to "any mode with no rule". Any
+    other ``specified`` entry losing its rule still fails here."""
     import segfacet.failure_modes as fm
 
     proposed = [m for m in fm.iter_modes() if m.status == "proposed"]
@@ -1254,6 +1262,9 @@ def test_ac16_proposed_entries_are_the_empty_ones():
         assert mode.intended_rules == (), mode.id
         assert mode.corpus_cases == (), mode.id
     for mode in specified:
+        if mode.id == 6:
+            assert mode.intended_rules == (), mode.id
+            continue
         assert mode.intended_rules, mode.id
 
 

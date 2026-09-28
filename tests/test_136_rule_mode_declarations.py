@@ -104,9 +104,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 # `border` is now mode-less on purpose: it records the `fov_truncation`
 # condition (`segfacet.failure_modes.CONDITIONS`), which is not a failure
 # mode, so it maps to the empty tuple here and is asserted mode-less below.
+# Item 188 (2026-09-28): coverage re-homed from mode 6 (vertebra not
+# segmented) to mode 10 (skipped level label) -- the rule reads a label gap,
+# not vertebra presence. Mode 6's `remove_level` case still fires it, now as
+# a recorded co-detection.
 _CORROBORATED = {
     "border": (),
-    "coverage": (6,),
+    "coverage": (10,),
     # Item 187 (2026-09-27): mode 3 (split vertebra segment) moved off
     # fragmentation onto its own neighbour_contact rule.
     "fragmentation": (1, 4),
@@ -325,8 +329,12 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # co-detection.
     # Revised 2026-09-24 (item 176): ("coverage", 2) and ("fragmentation", 2)
     # left the set -- the bridged, renumbered fuse_adjacent designates no rule.
+    # Revised 2026-09-28 (item 188): ("coverage", 6) enters the set --
+    # coverage now declares mode 10, so its firing on `remove_level` (mode 6)
+    # is a recorded co-detection rather than the rule's own declaration.
     expected_co_detections = {
         ("mislabel", 1),  # displace is detected only as a co-detection
+        ("coverage", 6),  # coverage now declares mode 10, not mode 6
     }
 
     measured_co_detections = set()

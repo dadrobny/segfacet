@@ -629,7 +629,11 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     Reconciled again (item 150, 2026-09-14): the sign-off split the corpus
     map and the rules' own ``RuleModeDeclaration`` apart -- on the
     2026-09-15 revision ``coverage``'s corpus modes were ``(2, 6)`` while it
-    declares ``(6,)`` (``(6,)`` for both since item 176, 2026-09-24), and
+    declares ``(6,)`` (``(6,)`` for both since item 176, 2026-09-24; item 188,
+    2026-09-28, moved the declaration alone to ``(10,)``, so the corpus map
+    still gives ``(6,)`` and the declaration gives ``(10,)`` -- the corpus
+    scan itself is unchanged, so ``_RULE_MODE_MAP["coverage"] == (6,)``
+    stays correct), and
     ``mislabel``'s are ``(1, 9)`` against a
     declared ``(9,)``. An entry's
     ``failure_modes`` is the *union* of every source that spoke, so the exact

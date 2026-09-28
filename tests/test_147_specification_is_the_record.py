@@ -9,8 +9,10 @@ names" to provenance (``VISION_SEED_DISPOSITION``). Every AC below is
 unchanged in what it claims; the ids, counts and section headings it claims
 it about are the signed-off ones. The three AC whose subject moved carry the
 reason at their own section heading: AC5 (§6 titles are provenance, not
-names), AC8 (the rung-less entries are the six ``proposed`` modes, not the
-single mode 10) and AC10 (the corrected label-sequence sentence is mode
+names), AC8 (the rung-less entries were the six ``proposed`` modes, not the
+single mode 10 -- item 188, 2026-09-28, moved mode 10 onto its own edge and
+onto that set mode 6 instead, so the edgeless set is now {5, 6, 7, 11, 12,
+13, 14}) and AC10 (the corrected label-sequence sentence is mode
 9's).
 
 AC -> test map (house style, items 144-146):
@@ -464,12 +466,16 @@ def test_ac7_mode_rungs_are_derived_from_the_specification(matrix):
 # =========================================================================== #
 # AC8: a mode with no edges renders its absent rung explicitly
 #
-# The catalogue's rung-less entries are its `proposed` ones: modes 5
+# The catalogue's rung-less entries were its `proposed` ones: modes 5
 # (holes), 7 (hallucinated vertebra), 10 (skipped level label), 11
 # (unprompted numbering variant), 12 (shifted label sequence), 13 (collapsed
 # labels) and 14 (duplicated label) since the item-150 sign-off's 2026-09-15
 # revision, which narrowed mode 10 to the label alone. AC8 was written when
 # that was the single mode 10.
+#
+# Reconciled (item 188, 2026-09-28): coverage re-homed off mode 6 onto mode
+# 10. Mode 10 leaves this edgeless set (it now carries the coverage edge),
+# and mode 6 joins it (authored `specified`, no declaring rule).
 # =========================================================================== #
 
 
@@ -478,7 +484,7 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     import segfacet.traceability as traceability
 
     edgeless = [mode for mode in fm.SPECIFICATION.values() if not mode.intended_rules]
-    assert {mode.id for mode in edgeless} == {5, 7, 10, 11, 12, 13, 14}, [
+    assert {mode.id for mode in edgeless} == {5, 6, 7, 11, 12, 13, 14}, [
         mode.id for mode in edgeless
     ]
 
@@ -1198,11 +1204,13 @@ _EXPECTED_DERIVED_STATUS = {
                          # stray_contact_label), 2026-09-20
     4: "validated",
     5: "proposed",
-    6: "validated",     # remove_level fires coverage (remove_level_relabel expects {})
+    6: "specified",     # item 188 (2026-09-28): coverage re-homed to mode 10;
+                         # remove_level's coverage finding is now a recorded
+                         # co-detection, and mode 6 has no declaring rule
     7: "proposed",
     8: "implemented",   # no corpus case
     9: "validated",
-    10: "proposed",      # skipped level label: no rule, no case
+    10: "implemented",   # item 188 (2026-09-28): coverage's new home, still no case
     11: "proposed",
     12: "proposed",
     13: "proposed",

@@ -24,7 +24,10 @@ rather than the id-bearing list -- so the mode roll call is derived from
 ``failure_modes.SPECIFICATION`` (``MODES``) instead of ``range(1, 9)``, mode
 titles are ground-truthed against the hand-transcribed
 ``SIGNED_OFF_MODE_TITLES``, and the ``proposed`` modes (``PROPOSED_MODES``,
-derived; seven since the 2026-09-15 revision) carry a ``None`` derived rung -- legal for them alone, rendered
+derived; six since item 188, 2026-09-28, moved coverage off mode 6 onto mode
+10 -- mode 10 left the proposed set, and mode 6 joined ``RULELESS_
+SPECIFIED_MODES`` instead) carry a ``None`` derived rung -- legal for them and
+for ``RULELESS_SPECIFIED_MODES`` alike, rendered
 ``(none)`` in the Markdown. Four further consequences are recorded on the
 tests that carry them: attribution is per-edge, not per-rule (on the 2026-09-14
 sign-off ``coverage`` mixed an analytic and a corpus edge); a mechanism may name a
@@ -129,6 +132,13 @@ def _proposed_mode_ids():
 
 MODES = _specification_mode_ids()
 PROPOSED_MODES = _proposed_mode_ids()
+
+#: Item 188 (2026-09-28): mode 6 is authored ``specified`` with no declaring
+#: rule (``coverage`` moved to mode 10, and mode 6's own spacing rule is left
+#: to a later per-mode queue) -- distinct from ``proposed`` (which additionally
+#: means no corpus case), but the same "declares no rule" case for every
+#: branch below that currently reads ``PROPOSED_MODES`` alone.
+RULELESS_SPECIFIED_MODES = frozenset({6})
 
 #: The mode used by the "named anchor path is not consumed by any declared
 #: rule" adversarial pair (fixture + test). Mode 8 (semantic mislabelling)
@@ -489,7 +499,8 @@ def matrix_anchor_not_consumed_bogus_mechanism(monkeypatch, matrix):
     mislabelling (mode 8 since the 2026-09-15 revision), whose only declared
     rule is ``reference_delta``, which never reads it. The old mode 4 no
     longer exhibits it -- its anchor ``relationships.present_levels[]`` (now
-    mode 6's) is genuinely consumed by ``coverage``."""
+    mode 6's anchor, though coverage has declared mode 10 since item 188,
+    2026-09-28) is genuinely consumed by ``coverage``."""
     import segfacet.failure_modes as failure_modes_module
     import segfacet.traceability as traceability
 
@@ -694,19 +705,21 @@ def test_ac5_markdown_rows_agree_with_json_for_every_mode_and_rule():
         assert row is not None, mode
         # Reconciled (item 146, 2026-09-04): a bare non-empty-rules
         # requirement pinned the pre-146 shape, where every catalogued mode
-        # declared >=1 rule. Mode 10 (the first `proposed` entry) legitimately
-        # declares none (AC27) -- completeness of the rules a mode *does*
-        # carry is AC10's claim, not this row-agreement one, so this loop
-        # only asserts what it is actually about: every rule the JSON lists
-        # for a mode is also present in that mode's markdown row.
+        # declared >=1 rule. Mode 10 legitimately declared none before item
+        # 188 (2026-09-28) re-homed coverage onto it (AC27) -- completeness of
+        # the rules a mode *does* carry is AC10's claim, not this
+        # row-agreement one, so this loop only asserts what it is actually
+        # about: every rule the JSON lists for a mode is also present in that
+        # mode's markdown row.
         for rule_id in record["rules"]:
             assert rule_id in row, (mode, rule_id)
         # Reconciled (item 147, 2026-09-04): an absent rung is `null` in the
-        # JSON and `(none)` in the markdown -- mode 10, the first `proposed`
-        # entry, has no edges to derive a rung from, and both serialisers now
-        # say so explicitly rather than writing a blank indistinguishable
-        # from a failed lookup (AC8). The agreement this test is about is
-        # unchanged; only the pair of tokens it compares.
+        # JSON and `(none)` in the markdown -- a rule-less mode (mode 10
+        # before item 188, mode 6 since) has no edges to derive a rung from,
+        # and both serialisers now say so explicitly rather than writing a
+        # blank indistinguishable from a failed lookup (AC8). The agreement
+        # this test is about is unchanged; only the pair of tokens it
+        # compares.
         assert (record["rung"] or "(none)") in row, mode
 
     rules = _rule_records(committed_payload)
@@ -930,7 +943,13 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
     hole. Which mode(s) that is stays live-derived from
     ``failure_modes.derive_status`` (never hardcoded to "10" alone): every
     mode whose live-derived status is not "proposed" must still carry >=1
-    rule, exactly as before."""
+    rule, exactly as before.
+
+    Reconciled (item 188, 2026-09-28): ``coverage`` moves off mode 6 onto
+    mode 10, so mode 10 (now ``implemented``) leaves the hole set and mode 6
+    (authored ``specified``, no rule) joins it -- a mode with no declaring
+    rule for a reason ``derive_status == "proposed"`` alone no longer covers.
+    ``RULELESS_SPECIFIED_MODES`` names that one mode (A7)."""
     import segfacet.failure_modes as failure_modes_module
 
     d = matrix
@@ -943,22 +962,25 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
         if failure_modes_module.derive_status(spec) == "proposed"
     }
     assert proposed_mode_ids, "expected >=1 live-derived proposed mode on this tree"
+    no_rule_mode_ids = proposed_mode_ids | {str(m) for m in RULELESS_SPECIFIED_MODES}
 
     for mode, record in modes.items():
-        if str(mode) in proposed_mode_ids:
+        if str(mode) in no_rule_mode_ids:
             assert record["rules"] == [], mode
         else:
             assert record["rules"], mode
 
     direction = d["directions"]["mode_to_rule"]
     assert direction["complete"] is False
-    assert set(direction["holes"]) == proposed_mode_ids
-    # Witness (item 150, 2026-09-15 revision): the sign-off's seven proposed
-    # entries -- 5 holes, 7 hallucinated vertebra, 10 skipped level label
-    # (label-only; a missed vertebra is mode 6), 11 unprompted numbering
-    # variant, 12 shifted label sequence (needs an external classifier), 13
-    # collapsed labels and 14 duplicated label (no detector exists for any).
-    assert proposed_mode_ids == {"5", "7", "10", "11", "12", "13", "14"}
+    assert set(direction["holes"]) == no_rule_mode_ids
+    # Witness (item 188, 2026-09-28): six proposed entries -- 5 holes, 7
+    # hallucinated vertebra, 11 unprompted numbering variant, 12 shifted
+    # label sequence (needs an external classifier), 13 collapsed labels and
+    # 14 duplicated label (no detector exists for any) -- plus mode 6
+    # (vertebra not segmented), authored ``specified`` with its rule named
+    # but not yet written since ``coverage`` moved to mode 10.
+    assert proposed_mode_ids == {"5", "7", "11", "12", "13", "14"}
+    assert no_rule_mode_ids == {"5", "6", "7", "11", "12", "13", "14"}
 
 
 # =========================================================================== #
@@ -997,9 +1019,14 @@ def test_ac12_mode_rung_is_member_of_closed_vocabulary_or_none_when_proposed(mod
     rule, hence no edge -- derives ``None`` rather than a vocabulary member.
     ``None`` is therefore legal for exactly the proposed modes and illegal for
     every other one; the Markdown rendering of that ``None`` is pinned by
-    ``test_ac12_proposed_mode_rung_renders_as_none_in_the_markdown``."""
+    ``test_ac12_proposed_mode_rung_renders_as_none_in_the_markdown``.
+
+    Reconciled (item 188, 2026-09-28): mode 6 (authored ``specified``, no
+    declaring rule since ``coverage`` moved to mode 10) derives ``None`` the
+    same way a ``proposed`` mode does -- no edge, no rung -- so ``None`` is
+    legal for it too."""
     record = _mode_record(matrix, mode)
-    if mode in PROPOSED_MODES:
+    if mode in PROPOSED_MODES | RULELESS_SPECIFIED_MODES:
         assert record["rung"] is None, (mode, record["rung"])
     else:
         assert record["rung"] in RUNGS, (mode, record["rung"])
@@ -1171,8 +1198,11 @@ def test_ac17_label_sequence_mode_mechanism_records_the_corrected_rank_claim(mat
     mechanism naming the live tokens the correction rests on.
 
     Re-pointed (item 150, 2026-09-14): "non-continuous label sequence" is
-    mode 6 after the sign-off. Two things about it moved with the ids and are
-    restated rather than dropped. Its *mode* rung is now
+    mode 6 after the sign-off (the pre-2026-09-15-revision numbering, before
+    the implausible label sequence split three ways -- unrelated to the
+    *current* mode 6, "vertebra not segmented", which item 188 (2026-09-28)
+    left with no declaring rule). Two things about it moved with the ids and
+    are restated rather than dropped. Its *mode* rung is now
     synthetic-demonstrable (``mislabel``'s and ``coverage``'s edges are
     demonstrated on committed cases), so the needs-real-data cap this test is
     named for is recorded where it now lives -- on the ``sequence`` edge
@@ -1259,9 +1289,14 @@ def test_ac19_every_mode_to_rule_edge_is_attributed_from_the_specification(matri
     # Re-pointed (item 150, 2026-09-15 revision): the rule-less `proposed`
     # entries are modes 5, 7, 11, 12, 13 and 14, and the intensity pair's
     # mode is 16.
-    assert PROPOSED_MODES == {5, 7, 10, 11, 12, 13, 14}, PROPOSED_MODES
-    for proposed_mode in sorted(PROPOSED_MODES):
-        record = modes[proposed_mode]
+    # Re-pointed (item 188, 2026-09-28): mode 10 leaves `PROPOSED_MODES`
+    # (coverage now declares it, so it derives `implemented`) and mode 6
+    # joins the rule-less set as `RULELESS_SPECIFIED_MODES` -- authored
+    # `specified`, no declaring rule.
+    assert PROPOSED_MODES == {5, 7, 11, 12, 13, 14}, PROPOSED_MODES
+    no_rule_modes = PROPOSED_MODES | RULELESS_SPECIFIED_MODES
+    for no_rule_mode in sorted(no_rule_modes):
+        record = modes[no_rule_mode]
         assert record["rules"] == [], record
         assert record["rule_attribution"] == {}, record
         assert record["read_paths"] == [], record
@@ -1281,7 +1316,7 @@ def test_ac19_every_mode_to_rule_edge_is_attributed_from_the_specification(matri
 
     checked = False
     for mode, record in modes.items():
-        if mode in PROPOSED_MODES:
+        if mode in no_rule_modes:
             continue
         attribution = record["rule_attribution"]
         assert attribution, mode
@@ -1348,11 +1383,15 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # witness, not a floor a future change must match. The revision split
     # the paired sub-modes and re-assigned the ids: bounds declares 1-4,
     # reference_delta 1-4 and 8. (6, "coverage") is a corpus edge: mode 6
-    # ("vertebra not segmented") carries remove_level, which expects
-    # coverage to fire, alongside remove_level_relabel, which expects nothing.
-    # Mode 10 ("skipped level label") is proposed and declares no rule.
     # 2026-09-23, item 174: (3, "bounds") left the witness -- mode 3's
     # split_own_label case designates bounds, so that edge is now corpus.
+    # 2026-09-28, item 188: (10, "coverage") enters the witness -- coverage
+    # now declares mode 10 ("skipped level label"), analytically
+    # (needs-real-data, no committed case attributed to mode 10). Mode 6
+    # ("vertebra not segmented") carries remove_level, which still expects
+    # coverage to fire as a recorded co-detection, alongside
+    # remove_level_relabel, which expects nothing; mode 6 itself now declares
+    # no rule (authored specified).
     witness = {
         (1, "bounds"),
         (1, "reference_delta"),
@@ -1362,6 +1401,7 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
         (4, "bounds"),
         (4, "reference_delta"),
         (8, "reference_delta"),
+        (10, "coverage"),
         (16, "intensity_reference_delta"),
     }
     assert actual_analytic == witness
@@ -1376,9 +1416,11 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # declared one analytic and one corpus mode), so the invariant is
     # restated as the per-edge derivation it always was. On the 2026-09-15
     # revision (mode 10 narrowed to a label-only, rule-less proposed mode;
-    # coverage declares only mode 6, which remove_level designates) no
-    # rule is mixed again -- asserted as a dated witness so a rule that
-    # becomes mixed is noticed here rather than passing silently.
+    # coverage declared only mode 6, which remove_level designates) no
+    # rule was mixed. Item 188 (2026-09-28) re-homed coverage onto mode 10,
+    # which remove_level does not designate (only mode 6 does, as a
+    # co-detection) -- still no rule is mixed, asserted as a dated witness so
+    # a rule that becomes mixed is noticed here rather than passing silently.
     by_rule: dict = {}
     for mode, rule_id in actual_analytic:
         by_rule.setdefault(rule_id, set()).add("analytic")
@@ -1487,8 +1529,10 @@ def test_ac23_rule_feature_paths_are_derived_from_the_catalogue(rule_id, matrix)
 # ``tests/test_149_conformance_report.py`` carries the full per-rule
 # derivation proof (its own AC10); this reconciliation asserts the shape
 # survives here: the field exists, is disjoint in *purpose* from
-# anchor_paths (never unioned), and mode 10 -- the one mode with zero
-# declaring rules -- carries an empty read_paths.
+# anchor_paths (never unioned), and mode 10 -- one of the modes with zero
+# declaring rules before item 188 (2026-09-28) re-homed coverage onto it --
+# carries an empty read_paths. Mode 6 carries one now instead (RULELESS_
+# SPECIFIED_MODES).
 # =========================================================================== #
 
 
@@ -1499,7 +1543,9 @@ def test_ac24_mode_read_paths_and_anchor_paths_are_two_separate_fields(mode, mat
     # Reconciled (item 150, 2026-09-14): a `proposed` mode legitimately
     # declares no rule, so the "has rules" precondition is scoped to the
     # modes that do -- the field-shape claim below holds for every mode.
-    if mode in PROPOSED_MODES:
+    # Reconciled (item 188, 2026-09-28): mode 6 (authored specified, no
+    # declaring rule) shares that shape, so the no-rule branch uses the union.
+    if mode in PROPOSED_MODES | RULELESS_SPECIFIED_MODES:
         assert record["rules"] == [], mode
         assert record["read_paths"] == [], mode
     else:
@@ -1730,7 +1776,8 @@ def test_ac31_mode_mechanism_names_a_resolvable_live_token(mode, matrix):
     must still name an anchor, a case or one of its own rules; a proposed
     mode must name a path the feature catalogue actually carries.
 
-    Reconciled again (item 150, 2026-09-15 revision): seven proposed modes now.
+    Reconciled again (item 150, 2026-09-15 revision): seven proposed modes
+    then, six since item 188 (2026-09-28) moved mode 10 to `implemented`.
     Five name a catalogued path. Mode 5 (holes) cannot: none of its
     hypothesised candidate features is extracted, and its authored sentence
     says so. The claim is split once more rather than weakened: a proposed
@@ -1926,7 +1973,14 @@ def test_ac31_named_feature_path_is_consumed_by_one_of_the_modes_declared_rules(
             assert declared_rules == set(), mode
             assert mechanism, mode
             continue
-        assert declared_rules, mode
+        # Reconciled (item 188, 2026-09-28): mode 6 is authored `specified`
+        # with no declaring rule (coverage moved to mode 10) -- distinct from
+        # `proposed`. It is not skipped like a proposed mode: its mechanism
+        # still names a path, and that path must be consumed by one of its
+        # co-detecting rules (the union below narrows to just those, since
+        # `declared_rules` is empty).
+        if mode not in RULELESS_SPECIFIED_MODES:
+            assert declared_rules, mode
 
         # Reconciled (item 150, 2026-09-14): a mechanism sentence may also
         # name a path belonging to a rule that CO-DETECTS the mode -- the
