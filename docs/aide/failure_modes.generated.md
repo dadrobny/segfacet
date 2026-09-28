@@ -30,13 +30,12 @@ Candidate features:
 - `hypothesised` candidate path: `local_blob_error_volume_mm3`
 - `hypothesised` candidate path: `error_spatial_distribution`
 
-Mechanism: No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxies are the bounds rule's per-label volume/extent ranges (per_label.{label}.geometry.physical_volume_mm3) and reference_delta's cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z), both declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy.)
+Mechanism: No shipped rule decides this mode in general: it needs a ground-truth label map, which the per-case pipeline never sees. The label-map proxy is the bounds rule's per-label volume/extent range (per_label.{label}.geometry.physical_volume_mm3), declared at needs-real-data. One form is demonstrated end-to-end: fragment cuts a background slab through label 22 and fragmentation's Fragmentation: detector fires on the two comparably-sized same-label pieces via per_label.{label}.components.fragmentation_index. (Item 189, 2026-09-28: displace, a rigidly translated vertebra, is no longer one of this mode's corpus cases -- its spline-offset firing is the displaced_vertebra CONDITION's own signature, not evidence of segmentation accuracy. Item 193, 2026-09-28: reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode -- see mode 8's mechanism.)
 
 Intended rules:
 
 - `fragmentation` (detector: components) -- evidence rung: synthetic-demonstrable
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
-- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -67,12 +66,11 @@ Candidate features:
 - `hypothesised` candidate path: `metric_change_under_split_candidate`
 - `hypothesised` candidate path: `disc_labels_inside_sacrum_label`
 
-Mechanism: Observable from the label map via proxies, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z), both edges needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.
+Mechanism: Observable from the label map via a proxy, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3), needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.
 
 Intended rules:
 
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
-- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -102,17 +100,16 @@ Candidate features:
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
 - `hypothesised` candidate path: `metric_change_under_merge_candidate`
 
-Mechanism: Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3; reference_delta, reference_delta.{label}.features.physical_volume_mm3.robust_z). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.
+Mechanism: Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including force_overlap (mode 15), whose contacting components are each label's largest, and fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.
 
 Intended rules:
 
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
-- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 - `neighbour_contact` (detector: stray_contact) -- evidence rung: synthetic-demonstrable
 
 Corpus cases:
 
-- `split` (geometric): expected firing = [neighbour_contact]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 187): mode 3 sub-type (a) -- the caudal cap of label 23 (L4) holding 20% of its voxels (4030 of 19344, slices 49-57) is given to label 24 (L5). Label 24 carries this mode's own Neighbour contact: finding alone (detector id stray_contact, item 187): contact_fraction=0.3317 (806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, +0.2317 above the 0.1 threshold. fragmentation no longer fires on this case: mode 3's edge moved from its neighbour_contact detector (item 167) to this rule; mode 1's Fragmentation: detector (detector id components) is separately silent: label 24's fragmentation_index is 0.8276, above its 0.75 threshold. Neither of the two needs-real-data intended rules (bounds, reference_delta) fires without a reference: the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, inside the lumbar bounds.
+- `split` (geometric): expected firing = [neighbour_contact]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 187): mode 3 sub-type (a) -- the caudal cap of label 23 (L4) holding 20% of its voxels (4030 of 19344, slices 49-57) is given to label 24 (L5). Label 24 carries this mode's own Neighbour contact: finding alone (detector id stray_contact, item 187): contact_fraction=0.3317 (806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, +0.2317 above the 0.1 threshold. fragmentation no longer fires on this case: mode 3's edge moved from its neighbour_contact detector (item 167) to this rule; mode 1's Fragmentation: detector (detector id components) is separately silent: label 24's fragmentation_index is 0.8276, above its 0.75 threshold. The needs-real-data intended rule (bounds) does not fire without a reference: the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, inside the lumbar bounds.
 - `split_own_label` (geometric): expected firing = [bounds]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 186): mode 3 sub-type (b) -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). bounds fires twice on the cap (label 23): volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's own needs-real-data proxy. coverage no longer fires: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure; its label_contact_fraction (the same relative measure over the whole label) reads about 0.33, which no rule reads.
 
 ## Mode 4 (1.3, sub-mode of 1): Islands (disconnected components)
@@ -136,13 +133,12 @@ Candidate features:
 - `hypothesised` candidate path: `per_label.{label}.components.largest_component_fraction`
 - `hypothesised` candidate path: `island_distance_from_main_body_mm`
 
-Mechanism: fragmentation's Rogue island(s): detector serves this mode end-to-end on the committed corpus: inject_islands adds tiny rogue blocks beside label 22 and the detector fires via per_label.{label}.components.stray_component_sizes[]. bounds and reference_delta stay needs-real-data: a stray island shifts volume only marginally.
+Mechanism: fragmentation's Rogue island(s): detector serves this mode end-to-end on the committed corpus: inject_islands adds tiny rogue blocks beside label 22 and the detector fires via per_label.{label}.components.stray_component_sizes[]. bounds stays needs-real-data: a stray island shifts volume only marginally.
 
 Intended rules:
 
 - `fragmentation` (detector: islands) -- evidence rung: synthetic-demonstrable
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
-- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -257,8 +253,8 @@ Corpus cases:
 - Severity: flagged-for-review
 - Provenance: hypothesised
 - Status, authored: specified
-- Status, derived (live): implemented
-- Derived rung (strongest edge, live): needs-real-data
+- Status, derived (live): specified
+- Derived rung (strongest edge, live): none
 - Maintainer sign-off: (none recorded)
 
 Candidate features:
@@ -268,11 +264,11 @@ Candidate features:
 - `hypothesised` candidate path: `eval.per_mode.mislabelled_volume_fraction`
 - `hypothesised` candidate path: `vertebra_level_classifier_output`
 
-Mechanism: Single-channel-observable only where the mislabelled vertebra's geometry does not fit the level it is named: reference_delta's per-level cohort z-scores (reference_delta.{label}.features.physical_volume_mm3.robust_z) are the shipped proxy, needs-real-data. The whole-sequence shift is mode 12 and needs an external vertebra classifier. The corpus swap case (relabel_swap) is a mode-9 case: a swap breaks the order of the sequence, which is the observable form.
+Mechanism: No shipped rule decides this mode itself since item 193 (2026-09-28): reference_delta, which scored a vertebra's geometry against its named level's cohort, is a general outlier detector and serves no mode. The observable forms are the sub-modes': an out-of-order sequence (mode 9), a skipped level label (mode 10) and an unprompted numbering variant (mode 11) each carry their own rules. A wrong identity that keeps the sequence valid needs an external vertebra-level classifier (vertebra_level_classifier_output); against ground truth it is eval.per_mode.mislabelled_volume_fraction. The whole-sequence shift is mode 12. The corpus swap case (relabel_swap) is a mode-9 case.
 
 Intended rules:
 
-- `reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
+- (none)
 
 Corpus cases:
 
@@ -512,18 +508,17 @@ Candidate features:
 - `hypothesised` candidate path: `image_features.per_label[].std_hu`
 - `hypothesised` candidate path: `intensity_reference_delta.per_label[].robust_z`
 
-Mechanism: The committed intensity corpus demonstrates this mode end-to-end three times over: implausible_metal (label 22's median reads 2999 HU, above the plausible bone band's ceiling), implausible_soft_tissue (40 HU, below its floor) and degenerate_uniform (a constant fill, zero spread) each drive the intensity rule through segfacet.synth.regression.intensity_pipeline_findings, which is why that edge sits at the strongest rung. intensity_reference_delta stays a rung below: the synthetic intensity corpus is built against no reference distribution and the harness attaches none, so nothing in the committed corpus can exercise it.
+Mechanism: The committed intensity corpus demonstrates this mode end-to-end three times over: implausible_metal (label 22's median reads 2999 HU, above the plausible bone band's ceiling), implausible_soft_tissue (40 HU, below its floor) and degenerate_uniform (a constant fill, zero spread) each drive the intensity rule through segfacet.synth.regression.intensity_pipeline_findings, which is why that edge sits at the strongest rung. intensity_reference_delta declares no mode since item 193 (2026-09-28): none of its consumed_paths entries is classified signal, so it contributes no mode to any path. It cannot fire on the committed corpus in any case: the synthetic intensity corpus is built against no reference distribution and the harness attaches none.
 
 Intended rules:
 
 - `intensity` (detector: degenerate, too_high, too_low) -- evidence rung: synthetic-demonstrable
-- `intensity_reference_delta` (detector: distance, out_of_range, robust_z) -- evidence rung: needs-real-data
 
 Corpus cases:
 
-- `implausible_metal` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14): label 22 (L3)'s median reads 2999 HU, above the plausible bone band's 2000 HU ceiling. intensity_reference_delta cannot fire here because the synthetic intensity corpus is built against no reference distribution and the harness attaches none (item 146 A3), which is why its edge stays at needs-real-data.
-- `implausible_soft_tissue` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14): label 22 (L3)'s median reads 40 HU, below the plausible bone band's 100 HU floor -- soft tissue under a vertebra label. intensity_reference_delta attaches no reference here (item 146 A3), so it stays needs-real-data.
-- `degenerate_uniform` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14). It raises two findings, both from the same rule: the degenerate/uniform detector (std 0.00 HU, at or below the 1.00 HU threshold) and, because the constant fill is 0 HU, the too-low detector as well -- so the firing SET is still {intensity}. intensity_reference_delta attaches no reference here (item 146 A3), so it stays needs-real-data.
+- `implausible_metal` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14): label 22 (L3)'s median reads 2999 HU, above the plausible bone band's 2000 HU ceiling. intensity_reference_delta has no edge (item 193): it declares no mode, and it cannot fire on this case in any event because the synthetic intensity corpus is built against no reference distribution and the harness attaches none (item 146 A3).
+- `implausible_soft_tissue` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14): label 22 (L3)'s median reads 40 HU, below the plausible bone band's 100 HU floor -- soft tissue under a vertebra label. intensity_reference_delta has no edge (item 193): it declares no mode, and it attaches no reference here in any event (item 146 A3).
+- `degenerate_uniform` (intensity): expected firing = [intensity]; agrees with live measurement: True. intensity-pipeline-detected; intensity is the sole rule that fires on this case, measured live via segfacet.synth.regression.intensity_pipeline_findings over tests/corpus/intensity/manifest.json (2026-09-14). It raises two findings, both from the same rule: the degenerate/uniform detector (std 0.00 HU, at or below the 1.00 HU threshold) and, because the constant fill is 0 HU, the too-low detector as well -- so the firing SET is still {intensity}. intensity_reference_delta has no edge (item 193): it declares no mode, and it attaches no reference here in any event (item 146 A3).
 
 ## Condition displaced_vertebra: Displaced vertebra (centroid off the spinal curve)
 

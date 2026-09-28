@@ -7073,6 +7073,7 @@
           "failure_modes": [],
           "measures": "The lower percentile bound defining the reference in-range band.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping",
             "rule_not_read"
           ],
@@ -7321,6 +7322,7 @@
           "failure_modes": [],
           "measures": "The upper percentile bound defining the reference in-range band.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping",
             "rule_not_read"
           ],
@@ -7392,6 +7394,7 @@
           "failure_modes": [],
           "measures": "Whether this label's level (and stratum) is covered by the reference.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping"
           ],
           "mode_roles": [
@@ -7448,16 +7451,11 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2,
-            3,
-            4,
-            8
-          ],
+          "failure_modes": [],
           "measures": "Per-label aggregate anomaly score against the reference.",
           "mode_evidence": [
-            "rule_declaration",
+            "rule_mode_less",
+            "rule_bookkeeping",
             "rule_not_read"
           ],
           "mode_roles": [
@@ -7467,7 +7465,7 @@
             ],
             [
               "reference_delta",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -7573,6 +7571,7 @@
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping",
             "rule_not_read"
           ],
@@ -7638,16 +7637,11 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2,
-            3,
-            4,
-            8
-          ],
+          "failure_modes": [],
           "measures": "Outlier-resistant z-score against the reference.",
           "mode_evidence": [
-            "rule_declaration",
+            "rule_mode_less",
+            "rule_bookkeeping",
             "rule_not_read"
           ],
           "mode_roles": [
@@ -7657,7 +7651,7 @@
             ],
             [
               "reference_delta",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -7719,6 +7713,7 @@
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping",
             "rule_not_read"
           ],
@@ -7830,6 +7825,7 @@
           "failure_modes": [],
           "measures": "The integer label this reference-delta entry describes.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping"
           ],
           "mode_roles": [
@@ -7888,6 +7884,7 @@
           "failure_modes": [],
           "measures": "Anatomical vertebra name for this reference-delta entry.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping"
           ],
           "mode_roles": [
@@ -7944,16 +7941,11 @@
             "reference_delta"
           ],
           "documented": true,
-          "failure_modes": [
-            1,
-            2,
-            3,
-            4,
-            8
-          ],
+          "failure_modes": [],
           "measures": "Feature names whose case value falls outside the reference's percentile band.",
           "mode_evidence": [
-            "rule_declaration",
+            "rule_mode_less",
+            "rule_bookkeeping",
             "rule_not_read"
           ],
           "mode_roles": [
@@ -7963,7 +7955,7 @@
             ],
             [
               "reference_delta",
-              "signal"
+              "bookkeeping"
             ]
           ],
           "observed": {

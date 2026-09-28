@@ -275,6 +275,27 @@ its place in that order unless it moves past a neighbour. ``mislabel``
 still does not opt in to ``fov_truncation``: the crop spoils a truncated
 label's measured centroid, and the ordering is read from centroids.
 
+``reference_delta`` and ``intensity_reference_delta`` become mode-less
+(item 193, 2026-09-28)
+------------------------------------------------------------------------
+Both rules threshold a label's deviation from its level's cohort reference
+distribution; the roadmap keeps them as general outlier detectors that are
+no mode's own detector. ``reference_delta`` loses its ``IntendedRule`` edge
+on modes 1, 2, 3, 4 and 8; ``intensity_reference_delta`` loses its edge on
+mode 16. Mode 8 loses its only edge and derives ``"specified"`` with no
+rung, joining mode 6 (2026-09-28's A4: re-authoring a signed-off status is
+the maintainer's call). Modes 1-4 and 16 keep their remaining rules and
+mechanism prose; mode 8's mechanism now names its hypothesised candidate
+features (``vertebra_level_classifier_output``,
+``eval.per_mode.mislabelled_volume_fraction``) instead of its anchor, since
+no declared or co-detecting rule of a rule-less mode consumes an anchor
+path. ``catalogue.path_classification_conflicts()`` gained a check for a
+declaration with a non-empty ``modes`` and a non-empty ``consumed_paths``
+carrying no ``signal`` entry -- the pre-item shape
+``intensity_reference_delta`` (whose eight ``consumed_paths`` entries were
+all ``not-read``) sat in and the existing empty-classification check could
+not see.
+
 Lifecycle status
 -----------------
 ``status`` is **authored only** for ``"proposed"`` and ``"specified"``
@@ -956,19 +977,20 @@ _MODE_1 = ModeSpec(
     mechanism=(
         "No shipped rule decides this mode in general: it needs a "
         "ground-truth label map, which the per-case pipeline never sees. "
-        "The label-map proxies are the bounds rule's per-label volume/extent "
-        "ranges (per_label.{label}.geometry.physical_volume_mm3) and "
-        "reference_delta's cohort z-scores "
-        "(reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both declared at needs-real-data. One form is demonstrated "
-        "end-to-end: fragment cuts a background slab through label 22 "
-        "and fragmentation's Fragmentation: detector fires on the two "
-        "comparably-sized same-label pieces via "
+        "The label-map proxy is the bounds rule's per-label volume/extent "
+        "range (per_label.{label}.geometry.physical_volume_mm3), declared at "
+        "needs-real-data. One form is demonstrated end-to-end: fragment cuts "
+        "a background slab through label 22 and fragmentation's "
+        "Fragmentation: detector fires on the two comparably-sized "
+        "same-label pieces via "
         "per_label.{label}.components.fragmentation_index. (Item 189, "
         "2026-09-28: displace, a rigidly translated vertebra, is no longer "
         "one of this mode's corpus cases -- its spline-offset firing is the "
         "displaced_vertebra CONDITION's own signature, not evidence of "
-        "segmentation accuracy.)"
+        "segmentation accuracy. Item 193, 2026-09-28: reference_delta, "
+        "which scored a vertebra's geometry against its named level's "
+        "cohort, is a general outlier detector and serves no mode -- see "
+        "mode 8's mechanism.)"
     ),
     observability="needs-ground-truth",
     candidate_features=(
@@ -1014,11 +1036,6 @@ _MODE_1 = ModeSpec(
         IntendedRule(
             rule_id="bounds",
             detector_ids=("metric_out_of_range",),
-            evidence_rung="needs-real-data",
-        ),
-        IntendedRule(
-            rule_id="reference_delta",
-            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1072,11 +1089,10 @@ _MODE_2 = ModeSpec(
         "sharing the label are not adjacent."
     ),
     mechanism=(
-        "Observable from the label map via proxies, still to be proven: a "
+        "Observable from the label map via a proxy, still to be proven: a "
         "fused segment reads over its level's volume/extent range (bounds, "
-        "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z), "
-        "both edges needs-real-data. The corpus case fuse_adjacent (item "
+        "per_label.{label}.geometry.physical_volume_mm3), needs-real-data. "
+        "The corpus case fuse_adjacent (item "
         "176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label "
         "over two bodies, with L5 renumbered 23 so the sequence stays "
         "continuous -- and fires nothing: its signature is the doubled "
@@ -1119,11 +1135,6 @@ _MODE_2 = ModeSpec(
         IntendedRule(
             rule_id="bounds",
             detector_ids=("metric_out_of_range",),
-            evidence_rung="needs-real-data",
-        ),
-        IntendedRule(
-            rule_id="reference_delta",
-            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1208,11 +1219,9 @@ _MODE_3 = ModeSpec(
         "which no rule reads (Left open, item 187). A secondary, "
         "needs-real-data proxy remains: the split vertebra reading under "
         "its level's volume/extent range (bounds, "
-        "per_label.{label}.geometry.physical_volume_mm3; reference_delta, "
-        "reference_delta.{label}.features.physical_volume_mm3.robust_z). "
-        "The neighbour that takes the part reads over its range, which is "
-        "mode 2's proxy, so on a real case the two modes' proxy signals "
-        "co-occur."
+        "per_label.{label}.geometry.physical_volume_mm3). The neighbour "
+        "that takes the part reads over its range, which is mode 2's "
+        "proxy, so on a real case the two modes' proxy signals co-occur."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1248,11 +1257,6 @@ _MODE_3 = ModeSpec(
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
-            rule_id="reference_delta",
-            detector_ids=("distance", "out_of_range", "robust_z"),
-            evidence_rung="needs-real-data",
-        ),
-        IntendedRule(
             rule_id="neighbour_contact",
             detector_ids=("stray_contact",),
             evidence_rung="synthetic-demonstrable",
@@ -1277,10 +1281,10 @@ _MODE_3 = ModeSpec(
                 "neighbour_contact detector (item 167) to this rule; mode "
                 "1's Fragmentation: detector (detector id components) is "
                 "separately silent: label 24's fragmentation_index is "
-                "0.8276, above its 0.75 threshold. Neither of the two "
-                "needs-real-data intended rules (bounds, reference_delta) "
-                "fires without a reference: the donor keeps 15314 mm^3 and "
-                "extents 31 / 31 / 23 mm, inside the lumbar bounds."
+                "0.8276, above its 0.75 threshold. The needs-real-data "
+                "intended rule (bounds) does not fire without a reference: "
+                "the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, "
+                "inside the lumbar bounds."
             ),
         ),
         CorpusCaseExpectation(
@@ -1341,9 +1345,9 @@ _MODE_4 = ModeSpec(
         "fragmentation's Rogue island(s): detector serves this mode "
         "end-to-end on the committed corpus: inject_islands adds tiny "
         "rogue blocks beside label 22 and the detector fires via "
-        "per_label.{label}.components.stray_component_sizes[]. bounds and "
-        "reference_delta stay needs-real-data: a stray island shifts volume "
-        "only marginally."
+        "per_label.{label}.components.stray_component_sizes[]. bounds "
+        "stays needs-real-data: a stray island shifts volume only "
+        "marginally."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1369,11 +1373,6 @@ _MODE_4 = ModeSpec(
         IntendedRule(
             rule_id="bounds",
             detector_ids=("metric_out_of_range",),
-            evidence_rung="needs-real-data",
-        ),
-        IntendedRule(
-            rule_id="reference_delta",
-            detector_ids=("distance", "out_of_range", "robust_z"),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1639,14 +1638,18 @@ _MODE_8 = ModeSpec(
         "and correspondence defects."
     ),
     mechanism=(
-        "Single-channel-observable only where the mislabelled vertebra's "
-        "geometry does not fit the level it is named: reference_delta's "
-        "per-level cohort z-scores "
-        "(reference_delta.{label}.features.physical_volume_mm3.robust_z) "
-        "are the shipped proxy, needs-real-data. The whole-sequence shift "
-        "is mode 12 and needs an external vertebra classifier. The corpus "
-        "swap case (relabel_swap) is a mode-9 case: a swap breaks the "
-        "order of the sequence, which is the observable form."
+        "No shipped rule decides this mode itself since item 193 "
+        "(2026-09-28): reference_delta, which scored a vertebra's geometry "
+        "against its named level's cohort, is a general outlier detector "
+        "and serves no mode. The observable forms are the sub-modes': an "
+        "out-of-order sequence (mode 9), a skipped level label (mode 10) "
+        "and an unprompted numbering variant (mode 11) each carry their own "
+        "rules. A wrong identity that keeps the sequence valid needs an "
+        "external vertebra-level classifier "
+        "(vertebra_level_classifier_output); against ground truth it is "
+        "eval.per_mode.mislabelled_volume_fraction. The whole-sequence "
+        "shift is mode 12. The corpus swap case (relabel_swap) is a "
+        "mode-9 case."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1667,13 +1670,7 @@ _MODE_8 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(
-        IntendedRule(
-            rule_id="reference_delta",
-            detector_ids=("distance", "out_of_range", "robust_z"),
-            evidence_rung="needs-real-data",
-        ),
-    ),
+    intended_rules=(),
     corpus_cases=(),
     severity="flagged-for-review",
     status="specified",
@@ -2136,9 +2133,11 @@ _MODE_16 = ModeSpec(
         "intensity rule through "
         "segfacet.synth.regression.intensity_pipeline_findings, which is "
         "why that edge sits at the strongest rung. intensity_reference_delta "
-        "stays a rung below: the synthetic intensity corpus is built "
-        "against no reference distribution and the harness attaches none, "
-        "so nothing in the committed corpus can exercise it."
+        "declares no mode since item 193 (2026-09-28): none of its "
+        "consumed_paths entries is classified signal, so it contributes no "
+        "mode to any path. It cannot fire on the committed corpus in any "
+        "case: the synthetic intensity corpus is built against no reference "
+        "distribution and the harness attaches none."
     ),
     observability="needs-paired-scan",
     candidate_features=(
@@ -2161,11 +2160,6 @@ _MODE_16 = ModeSpec(
             detector_ids=("degenerate", "too_high", "too_low"),
             evidence_rung="synthetic-demonstrable",
         ),
-        IntendedRule(
-            rule_id="intensity_reference_delta",
-            detector_ids=("distance", "out_of_range", "robust_z"),
-            evidence_rung="needs-real-data",
-        ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
@@ -2178,11 +2172,11 @@ _MODE_16 = ModeSpec(
                 "segfacet.synth.regression.intensity_pipeline_findings over "
                 "tests/corpus/intensity/manifest.json (2026-09-14): label 22 "
                 "(L3)'s median reads 2999 HU, above the plausible bone "
-                "band's 2000 HU ceiling. intensity_reference_delta cannot "
-                "fire here because the synthetic intensity corpus is built "
-                "against no reference distribution and the harness attaches "
-                "none (item 146 A3), which is why its edge stays at "
-                "needs-real-data."
+                "band's 2000 HU ceiling. intensity_reference_delta has no "
+                "edge (item 193): it declares no mode, and it cannot fire "
+                "on this case in any event because the synthetic intensity "
+                "corpus is built against no reference distribution and the "
+                "harness attaches none (item 146 A3)."
             ),
         ),
         CorpusCaseExpectation(
@@ -2196,8 +2190,9 @@ _MODE_16 = ModeSpec(
                 "tests/corpus/intensity/manifest.json (2026-09-14): label 22 "
                 "(L3)'s median reads 40 HU, below the plausible bone band's "
                 "100 HU floor -- soft tissue under a vertebra label. "
-                "intensity_reference_delta attaches no reference here (item "
-                "146 A3), so it stays needs-real-data."
+                "intensity_reference_delta has no edge (item 193): it "
+                "declares no mode, and it attaches no reference here in any "
+                "event (item 146 A3)."
             ),
         ),
         CorpusCaseExpectation(
@@ -2213,8 +2208,9 @@ _MODE_16 = ModeSpec(
                 "degenerate/uniform detector (std 0.00 HU, at or below the "
                 "1.00 HU threshold) and, because the constant fill is 0 HU, "
                 "the too-low detector as well -- so the firing SET is still "
-                "{intensity}. intensity_reference_delta attaches no "
-                "reference here (item 146 A3), so it stays needs-real-data."
+                "{intensity}. intensity_reference_delta has no edge (item "
+                "193): it declares no mode, and it attaches no reference "
+                "here in any event (item 146 A3)."
             ),
         ),
     ),

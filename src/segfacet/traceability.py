@@ -92,7 +92,10 @@ threshold, extractor, verdict, report schema, or CLI behaviour, and
 regenerates neither of item 103's catalogue artifacts. It adds no corpus
 case, attaches no reference to any harness path, edits no ``ModeSpec``, and
 authors no reason a rule's specification edges do not already carry (the
-sole authored string is an unused operator's reason, and it ships empty). The
+authored strings are an unused operator's reason, which ships empty, and
+:data:`UNEXERCISED_RULE_REASONS` (item 193, 2026-09-28), a map of two
+mode-less rules to the reason neither can derive one from an edge it no
+longer carries). The
 specificity ratchet (item 163) -- no unintended rule may fire, and none may
 go silent, without the change being authored in ``SPECIFICATION``/
 ``CONDITIONS`` -- is enforced by ``tests/test_163_specificity_ratchet.py``
@@ -157,6 +160,7 @@ __all__ = [
     "BAR_CONDITIONS",
     "PROXY_RULE_IDS",
     "operator_reason_conflicts",
+    "UNEXERCISED_RULE_REASONS",
 ]
 
 SCHEMA_VERSION = "1.2"
@@ -211,6 +215,23 @@ OPERATOR_STATES: Tuple[str, ...] = ("used", "unused")
 #: uses is reported as a conflict.
 UNUSED_OPERATOR_REASONS: Dict[str, str] = {}
 
+#: An authored reason for a registered rule that carries no specification
+#: edge and so cannot derive an unexercised reason from one (item 193,
+#: 2026-09-28): ``reference_delta`` and ``intensity_reference_delta`` both
+#: became mode-less, losing every ``IntendedRule`` edge that used to carry
+#: their rule-exercise rung, and neither fires on either committed corpus
+#: (no harness attaches a reference block). Without this map both would
+#: silently become ``rule_exercise`` holes, breaking Stage 20's attested
+#: "every registered rule is exercised by >=1 case or recorded as
+#: unexercised with a reason" criterion. Read by :func:`_build_exercise`
+#: only when no edge names the rule; each value is validated to sit inside
+#: ``failure_modes.EVIDENCE_RUNGS[1:]`` (never the strongest rung, since no
+#: edge backs it).
+UNEXERCISED_RULE_REASONS: Dict[str, str] = {
+    "intensity_reference_delta": "needs-real-data",
+    "reference_delta": "needs-real-data",
+}
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.json"
 MD_PATH = _REPO_ROOT / "docs" / "aide" / "traceability_matrix.generated.md"
@@ -232,9 +253,10 @@ _NOTE = (
     "segfacet.failure_modes.SPECIFICATION is listed and defined but "
     "deliberately unimplemented -- and it appears as a mode -> rule hole. "
     "Since item 188 (2026-09-28) a `specified` entry may also carry no rule "
-    "-- its rule is named but not yet written -- and that is a recorded gap, "
-    "not an excused one: mode 6 is the one such entry, and it too appears as "
-    "a mode -> rule hole. "
+    "-- its rule is named but not yet written, or (item 193, 2026-09-28) no "
+    "rule decides it itself once its only rule became mode-less -- and that "
+    "is a recorded gap, not an excused one: modes 6 and 8 are the two such "
+    "entries, and each appears as a mode -> rule hole. "
     "feature -> rule is deliberately incomplete -- see "
     "the `features.read_by_no_rule.qualifier` field. "
     "The `conformance` section (item 149) drives every corpus case in both "
@@ -656,7 +678,13 @@ def _build_exercise(
                 if strongest_rung is None or rung_strength[edge.evidence_rung] < rung_strength[strongest_rung]:
                     strongest_rung = edge.evidence_rung
 
-        if strongest_rung is None or strongest_rung == evidence_rungs[0]:
+        if strongest_rung is None and rule_id in UNEXERCISED_RULE_REASONS:
+            # No edge names the rule (it is mode-less), but item 193's
+            # authored map records why it is real -- see
+            # UNEXERCISED_RULE_REASONS.
+            reason = UNEXERCISED_RULE_REASONS[rule_id]
+            reason_modes = ()
+        elif strongest_rung is None or strongest_rung == evidence_rungs[0]:
             # No edge names the rule at all, or the specification's own
             # strongest claim is that the corpus demonstrates it -- a hole
             # by design (Step 4; no derivable reason).
@@ -998,9 +1026,10 @@ def build_matrix() -> TraceabilityMatrix:
         # substitute either and see the matrix follow.
         mode_spec = specification[mode]
         derived_rung = failure_modes_module.derive_mode_rung(mode_spec)
-        # ``None`` is a legitimate answer -- mode 6, a `specified` entry with
-        # no rule declaring it since item 188 (2026-09-28), has no edges to
-        # derive a rung from. It is carried as "" through the frozen record
+        # ``None`` is a legitimate answer -- modes 6 and 8, `specified`
+        # entries with no rule declaring them since items 188 and 193
+        # (2026-09-28), have no edges to derive a rung from. It is carried
+        # as "" through the frozen record
         # and rendered as an explicit absence by both serialisers, never as a
         # blank indistinguishable from a failed lookup.
         rung = derived_rung or ""
@@ -1263,10 +1292,10 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 "status": m.status,
                 "authored_status": m.authored_status,
                 "edge_rungs": [list(edge) for edge in m.edge_rungs],
-                # An absent rung is `null`, not `""` (item 147 AC8): mode 6
-                # legitimately has no edges to derive one from since item 188
-                # (2026-09-28), and a JSON reader must be able to tell that
-                # apart from a rung whose lookup failed.
+                # An absent rung is `null`, not `""` (item 147 AC8): modes 6
+                # and 8 legitimately have no edges to derive one from since
+                # items 188 and 193 (2026-09-28), and a JSON reader must be
+                # able to tell that apart from a rung whose lookup failed.
                 "rung": m.rung or None,
                 "mechanism": m.mechanism,
                 "rules": list(m.rules),

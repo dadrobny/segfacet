@@ -42,11 +42,15 @@ in the same order. Findings are emitted ascending by integer label; within a
 label, in fixed condition order (distribution-distance -> out-of-range ->
 robust-z), with per-feature findings in ascending feature-name order.
 
-Targets failure modes 1 (segmentation accuracy), 2 (fused), 3 (split),
-4 (islands) and 8 (semantic mislabelling) in ``failure_modes.SPECIFICATION``
-as a cohort proxy, declared on analytic grounds (item 137, corrected
-2026-09-02, re-keyed at the item-150 sign-off) -- see
-``ReferenceDeltaRule.mode_declaration``.
+Mode-less (item 193, 2026-09-28): this rule declared modes 1 (segmentation
+accuracy), 2 (fused), 3 (split), 4 (islands) and 8 (semantic mislabelling) in
+``failure_modes.SPECIFICATION`` as a cohort proxy from item 137 (corrected
+2026-09-02, re-keyed at the item-150 sign-off) until item 193. It is a
+general outlier detector -- it thresholds a label's deviation from its
+level's cohort reference distribution, which is no failure mode's own
+signal -- so it now declares no mode (roadmap Stage 33 D3). It still runs
+and fires exactly as before: no threshold, condition, severity or
+``evaluate`` line changed. See ``ReferenceDeltaRule.mode_declaration``.
 """
 
 from __future__ import annotations
@@ -120,42 +124,23 @@ class ReferenceDeltaRule(Rule):
 
     rule_id = "reference_delta"
 
-    # Disposition (item 137, corrected 2026-09-02, re-keyed at the item-150
-    # sign-off): declares failure_modes.SPECIFICATION modes 1, 2, 3, 4 and 8
-    # on analytic grounds -- no committed corpus case designates
-    # "reference_delta" for any mode, so evidence carries "analytic" plus the
-    # mechanism sentence, never "corpus". compute_reference_delta scores
-    # every feature the reference artifact tracks
-    # (`tracked_features = tuple(sorted(reference.features))`,
-    # segfacet/reference/delta.py), not physical_volume_mm3 alone: both
-    # committed reference artifacts (reference_verse_v1.json,
-    # reference_default.json) track 21 per-label features. That set spans
-    # physical_volume_mm3 and extent_{x,y,z}_mm -- the same magnitude
-    # features "bounds" targets verbatim (modes 1-4), here measured against a
-    # cohort instead of hand-set bounds. Because the reference is per level, a
-    # vertebra whose geometry does not fit the level it is named is also mode
-    # 8's (semantic mislabelling) single-channel proxy. Mode 1 is re-anchored
-    # onto per_label.{label}.components.fragmentation_index (item 154,
-    # feature_docs.MODE_ANCHOR_PATHS) and spline_offset's offset paths are a
-    # mode-less rule's condition-signal serving no mode (item-150 sign-off,
-    # moved off mislabel at item 189); this declaration rests
-    # on SPECIFICATION[1].intended_rules alone, not on either premise.
+    # Disposition (item 193, 2026-09-28, superseding item 137's
+    # modes-1/2/3/4/8 declaration corrected 2026-09-02 and re-keyed at the
+    # item-150 sign-off): mode-less. This rule is a general outlier
+    # detector -- it thresholds a label's deviation from its level's cohort
+    # reference distribution, which is no failure mode's own signal
+    # (roadmap Stage 33 D3). failure_modes.SPECIFICATION no longer carries an
+    # IntendedRule edge naming this rule for any mode.
     mode_declaration = RuleModeDeclaration(
-        modes=(1, 2, 3, 4, 8),
-        evidence=(
-            "analytic",
-            "compute_reference_delta scores every feature the reference "
-            "artifact tracks, not a single feature: both committed reference "
-            "artifacts carry 21 per-label features, spanning "
-            "physical_volume_mm3 and extent_{x,y,z}_mm -- the same magnitude "
-            "signal 'bounds' targets, measured against a cohort instead of "
-            "hand-set bounds, so the cohort proxy for modes 1 (segmentation "
-            "accuracy), 2 (fused), 3 (split) and 4 (islands) of the "
-            "catalogue signed off at item 150 (2026-09-14, revised "
-            "2026-09-15) -- and, because the reference is per level, a "
-            "vertebra whose geometry does not fit the level it is named is "
-            "mode 8's (semantic mislabelling) single-channel proxy. Every "
-            "edge needs-real-data.",
+        mode_less_reason=(
+            "general outlier detector, not a failure mode's own signal: "
+            "this rule thresholds a label's deviation from its level's "
+            "cohort reference distribution (item 193, 2026-09-28,"
+            " superseding item 137's modes-1/2/3/4/8 declaration). The "
+            "rule still runs and fires exactly as before -- no threshold, "
+            "condition, severity or evaluate line changed. "
+            "failure_modes.SPECIFICATION carries no IntendedRule edge "
+            "naming this rule for any mode."
         ),
         consumed_paths=(
             ConsumedPath(
@@ -194,7 +179,12 @@ class ReferenceDeltaRule(Rule):
             ),
             ConsumedPath(
                 path="reference_delta.{label}.distribution_distance",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
+                ),
             ),
             ConsumedPath(
                 path="reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
@@ -207,7 +197,12 @@ class ReferenceDeltaRule(Rule):
             ),
             ConsumedPath(
                 path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
+                ),
             ),
             ConsumedPath(
                 path="reference_delta.{label}.features.physical_volume_mm3.value",
@@ -235,25 +230,40 @@ class ReferenceDeltaRule(Rule):
             ),
             ConsumedPath(
                 path="reference_delta.{label}.out_of_range_features[]",
-                role="signal",
+                role="bookkeeping",
+                reason=(
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
+                ),
             ),
         ),
         detectors=(
             RuleDetector(
                 detector_id="distance",
                 description=_DISTANCE_TAG,
-                signal_paths=("reference_delta.{label}.distribution_distance",),
+                mode_less_reason=(
+                    "records this mode-less rule's own firing value (item "
+                    "193, 2026-09-28) -- same disposition as the rule "
+                    "overall"
+                ),
             ),
             RuleDetector(
                 detector_id="out_of_range",
                 description=_OUT_OF_RANGE_TAG,
-                signal_paths=("reference_delta.{label}.out_of_range_features[]",),
+                mode_less_reason=(
+                    "records this mode-less rule's own firing value (item "
+                    "193, 2026-09-28) -- same disposition as the rule "
+                    "overall"
+                ),
             ),
             RuleDetector(
                 detector_id="robust_z",
                 description=_ROBUST_Z_TAG,
-                signal_paths=(
-                    "reference_delta.{label}.features.physical_volume_mm3.robust_z",
+                mode_less_reason=(
+                    "records this mode-less rule's own firing value (item "
+                    "193, 2026-09-28) -- same disposition as the rule "
+                    "overall"
                 ),
             ),
         ),

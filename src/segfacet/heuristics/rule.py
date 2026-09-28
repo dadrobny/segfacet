@@ -58,7 +58,8 @@ _DETECTOR_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 #: - ``"bookkeeping"`` — the rule reads it, but it cannot evidence a mode:
 #:   label ids, level names, containers iterated, availability gates, band
 #:   values and other message interpolation, context that only gates or
-#:   exempts.
+#:   exempts. A mode-less rule's own firing value is also classified
+#:   ``"bookkeeping"``, because a ``"signal"`` path needs a mode (item 193).
 #: - ``"condition-signal"`` — (item 150) the path carries a case
 #:   **condition**'s evidence -- a state of the case that gates other rules
 #:   and is deliberately not a failure mode (``segfacet.failure_modes.

@@ -701,7 +701,14 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented as specced; every A6 value was re-measured live on the real
+change (not the prototype scratch copy) and matched the assumption exactly:
+derived status 6/3/2/5, derived mode rung 5/3/1/7, per-edge rung over 14
+edges 5/8/1, `path_classification_conflicts()` live `()`, the planted
+declaration reproducing AC5's exact message, `rule_exercise` holes `[]`
+with both rules reading reason `needs-real-data`. `golden_evidence` and the
+corpus manifests were confirmed byte-unmoved (no regeneration run against
+them, per the spec).
 
 - **Left open:** mode 8's own detection. After this item no rule decides
   mode 8 itself. Its sub-modes 9–11 carry the observable forms, and a wrong

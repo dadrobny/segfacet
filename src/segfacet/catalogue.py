@@ -1268,6 +1268,10 @@ def path_classification_conflicts() -> Tuple[str, ...]:
       ``consumed_paths`` — it contributes no mode to any path, and that is a
       declaration gap rather than a silent fall-back to item 136's
       rule-granular behaviour;
+    - a registered rule with a non-empty ``modes`` and a non-empty
+      ``consumed_paths`` whose entries carry no ``"signal"`` role (item 193)
+      — the declaration still contributes no mode to any path, a state the
+      previous check cannot see because ``consumed_paths`` is not empty;
     - a consumed ``(rule, path)`` pair with **no classification**
       (completeness);
     - a classified path the rule does **not** consume (soundness);
@@ -1313,6 +1317,15 @@ def path_classification_conflicts() -> Tuple[str, ...]:
                 f"its 'consumed_paths' classification is empty, so it contributes "
                 f"no mode to any of the {len(consumed)} leaf path(s) the catalogue "
                 f"attributes to it."
+            )
+        elif decl.modes and decl.consumed_paths and not any(
+            cp.role == "signal" for cp in decl.consumed_paths
+        ):
+            messages.append(
+                f"rule {rule_id!r}: declares failure mode(s) {sorted(decl.modes)!r} "
+                f"but none of its {len(decl.consumed_paths)} 'consumed_paths' "
+                f"entries is classified 'signal', so it contributes no mode to "
+                f"any path."
             )
 
         for path in sorted(consumed - set(classified)):

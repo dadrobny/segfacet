@@ -50,14 +50,16 @@ robust-z), with per-feature findings in ascending feature-name order.
 Reason tags are distinct from item 047's geometric ``"Reference ..."`` tags
 so a reader can tell the two reference-delta families apart.
 
-Failure mode 16 (implausible tissue under a label) in
-``segfacet.failure_modes.SPECIFICATION``: the reference-relative form of
-"intensity"'s tissue-plausibility judgement. Dispositioned mode-less by item
-137 because the eight-mode seed list of vision.md v3 named no such failure;
-item 146 entered the mode into the specification (as mode 9, renumbered 16
-at the item-150 sign-off) and moved this declaration onto it
--- see ``IntensityReferenceDeltaRule.mode_declaration``. No threshold,
-condition, severity or ``evaluate`` line changed with it.
+Mode-less (item 193, 2026-09-28). This rule was dispositioned mode-less by
+item 137, entered onto failure mode 16 (implausible tissue under a label;
+mode 9 before the item-150 sign-off) by item 146 as the reference-relative
+form of "intensity"'s tissue-plausibility judgement, and made mode-less
+again by item 193: none of its ``consumed_paths`` entries is classified
+``signal`` (it reads ``record["intensity_reference_delta"]``, a block no
+driver realises, so it has no catalogued leaf path of its own), so it
+contributes no mode to any path (roadmap Stage 33 D3). No threshold,
+condition, severity or ``evaluate`` line changed with it -- see
+``IntensityReferenceDeltaRule.mode_declaration``.
 """
 
 from __future__ import annotations
@@ -131,27 +133,23 @@ class IntensityReferenceDeltaRule(Rule):
 
     rule_id = "intensity_reference_delta"
 
-    # Disposition (item 146, superseding item 137's mode-less
-    # disposition): specification mode 16 (mode 9 before the item-150
-    # sign-off), for the same reason as "intensity" -- it is the
-    # reference-relative form of the same tissue-plausibility judgement.
+    # Disposition (item 193, 2026-09-28, superseding item 146's mode-16
+    # declaration): mode-less. None of this rule's consumed_paths entries is
+    # classified 'signal' -- it reads record["intensity_reference_delta"], a
+    # block no driver realises, so it has no catalogued leaf path of its
+    # own -- and a mode claim with no signal path contributes no mode to any
+    # path (catalogue.path_classification_conflicts(), item 193). roadmap
+    # Stage 33 D3.
     mode_declaration = RuleModeDeclaration(
-        modes=(16,),
-        evidence=(
-            "intensity-corpus-manifest",
-            "This rule is the reference-relative form of the intensity "
-            "rule's tissue-plausibility judgement: it thresholds how far a "
-            "labelled region's intensity statistics deviate from a "
-            "level-aware VerSe-derived reference distribution, which is the "
-            "same claim mode 16 (implausible tissue under a label; mode 9 "
-            "before the item-150 sign-off) names, "
-            "measured against a cohort instead of against a fixed HU band. "
-            "It shares mode 16's corpus, tests/corpus/intensity/manifest.json, "
-            "but fires on none of its four cases: that corpus is built "
-            "against no reference distribution and the item-146 harness "
-            "attaches none, so this rule's mode-16 edge sits at the "
-            "needs-real-data rung -- the same analytic-only shape item 137 "
-            "recorded for reference_delta."
+        mode_less_reason=(
+            "none of this rule's consumed_paths entries is classified "
+            "'signal' (it reads record['intensity_reference_delta'], a "
+            "block no driver realises, so it has no catalogued leaf path "
+            "of its own): a mode claim with no signal path contributes no "
+            "mode to any path (item 193, 2026-09-28, superseding item "
+            "146's mode-16 declaration). The rule still runs and fires "
+            "exactly as before -- no threshold, condition, severity or "
+            "evaluate line changed."
         ),
         consumed_paths=(
             ConsumedPath(
@@ -231,9 +229,33 @@ class IntensityReferenceDeltaRule(Rule):
             ),
         ),
         detectors=(
-            RuleDetector(detector_id="distance", description=_DISTANCE_TAG),
-            RuleDetector(detector_id="out_of_range", description=_OUT_OF_RANGE_TAG),
-            RuleDetector(detector_id="robust_z", description=_ROBUST_Z_TAG),
+            RuleDetector(
+                detector_id="distance",
+                description=_DISTANCE_TAG,
+                mode_less_reason=(
+                    "records this mode-less rule's own firing value (item "
+                    "193, 2026-09-28) -- same disposition as the rule "
+                    "overall"
+                ),
+            ),
+            RuleDetector(
+                detector_id="out_of_range",
+                description=_OUT_OF_RANGE_TAG,
+                mode_less_reason=(
+                    "records this mode-less rule's own firing value (item "
+                    "193, 2026-09-28) -- same disposition as the rule "
+                    "overall"
+                ),
+            ),
+            RuleDetector(
+                detector_id="robust_z",
+                description=_ROBUST_Z_TAG,
+                mode_less_reason=(
+                    "records this mode-less rule's own firing value (item "
+                    "193, 2026-09-28) -- same disposition as the rule "
+                    "overall"
+                ),
+            ),
         ),
     )
 
