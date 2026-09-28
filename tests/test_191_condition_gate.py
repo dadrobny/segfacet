@@ -9,7 +9,7 @@ condition is dropped unless the rule that produced it opts in, via a new
 ``ConditionSpec.exempting_rules`` becomes ``ConditionSpec.opting_in_rules``,
 the specification's record of which rules opt in.
 
-Covers Acceptance Criteria AC1-AC12 from
+Covers Acceptance Criteria AC1-AC13 from
 ``docs/aide/items/191-a-condition-flagged-label-is.md``, one test each, plus
 exactly the six named adversarial cases from its Testing Strategy:
 ``any-member-label-gates``, ``case-level-finding-passes``,
@@ -26,6 +26,8 @@ from __future__ import annotations
 import copy
 import dataclasses
 
+import nibabel as nib
+import numpy as np
 import pytest
 
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
@@ -364,3 +366,29 @@ def test_border_aware_span_control():
 def test_opt_in_rejects_bare_string():
     with pytest.raises(ValueError):
         ConditionOptIn(condition="fov_truncation", paths="per_label", reason="x")
+
+
+# =========================================================================== #
+# AC13: a mislabel on a label that reads as displaced still fires
+# =========================================================================== #
+
+
+def test_ac13_mislabel_on_a_label_that_reads_as_displaced_still_fires():
+    img = loaded_seg_image(_manifest_case("clean_control"))
+    data = np.array(img.get_fdata(), dtype=img.get_data_dtype())
+    swapped = data.copy()
+    swapped[data == 20] = 21
+    swapped[data == 21] = 20
+    swap = nib.Nifti1Image(swapped, img.affine, header=img.header, dtype=swapped.dtype)
+
+    cfg = bundled_default_config()
+    record = extract_feature_record(swap, cfg)
+    pairs = {
+        (f.rule_id, f.detector_id, f.labels)
+        for f in run_rules(record, cfg)
+        if f.rule_id in {"mislabel", "spline_offset"}
+    }
+    assert pairs == {
+        ("mislabel", "ordering", frozenset({20, 21})),
+        ("spline_offset", "spline_offset", frozenset({21})),
+    }
