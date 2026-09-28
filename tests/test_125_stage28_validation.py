@@ -361,14 +361,19 @@ def test_ac7_mode4_run_qc_is_deterministic_across_two_calls():
 def test_ac9_mode1_displace_exceeds_threshold_and_clean_control_stays_below():
     # Item 189 (2026-09-28): the offset threshold is read from the new
     # spline_offset rule's section, which default_config.yaml documents only
-    # in a comment (A5) -- so the read falls back to the rule's own default.
+    # in a comment (A5) -- so no active section is shipped and the read
+    # always falls back to the rule's own default. Assert that fallback
+    # actually happens, rather than the tautological "default is not None".
     from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     config = bundled_default_config()
+    assert config.rule_params("spline_offset") == {}, (
+        "expected no active spline_offset section shipped (A5)"
+    )
     max_offset_mm = config.rule_param(
         "spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
     )
-    assert max_offset_mm is not None, "expected a shipped spline_offset.max_offset_mm"
+    assert max_offset_mm == _DEFAULT_MAX_OFFSET_MM
 
     _cr_mode1, block_mode1 = _run_qc("displace")
     _cr_clean, block_clean = _run_qc("clean_control")
@@ -700,14 +705,20 @@ def test_ac11_scoliotic_cases_mislabel_flagging_is_measured_and_recorded():
     _all_masks, selected = _selected_scoliotic_masks(mod, root)
     assert selected, "expected at least one selected scoliotic case"
 
-    # Item 189 (2026-09-28): the offset detector moved to spline_offset.
+    # Item 189 (2026-09-28): the offset detector moved to spline_offset. No
+    # active spline_offset section is shipped (A5), so the read below always
+    # falls back to the rule's own default -- assert that fallback holds
+    # rather than the tautological "default is not None".
     from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     config = bundled_default_config()
+    assert config.rule_params("spline_offset") == {}, (
+        "expected no active spline_offset section shipped (A5)"
+    )
     max_offset_mm = config.rule_param(
         "spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
     )
-    assert max_offset_mm is not None
+    assert max_offset_mm == _DEFAULT_MAX_OFFSET_MM
 
     flagged = {}
     for mask_path in selected:

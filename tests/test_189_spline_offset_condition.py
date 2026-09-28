@@ -196,7 +196,7 @@ def test_ac13_ordering_detector_fires_on_non_adjacent_swap():
     swapped = data.copy()
     swapped[data == 21] = 23
     swapped[data == 23] = 21
-    swapped_img = nib.Nifti1Image(swapped, seg_img.affine)
+    swapped_img = nib.Nifti1Image(swapped, seg_img.affine, dtype=swapped.dtype)
 
     case_result, _block = run_qc(swapped_img, bundled_default_config())
     detector_ids = {
