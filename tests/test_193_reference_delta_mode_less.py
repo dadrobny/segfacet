@@ -143,8 +143,17 @@ def test_ac8_authored_unexercised_rule_reasons_match_the_matrix():
 def test_adv_empty_classification_reported_once(monkeypatch):
     """The new check (AC5) must not double-report the empty-classification
     state the existing check already covers: with the planted declaration's
-    ``consumed_paths`` also emptied, exactly one message names
-    ``intensity_reference_delta``."""
+    ``consumed_paths`` also emptied, exactly one message declares a failure
+    mode claim, and it is the empty-classification message, not the new
+    check's.
+
+    Emptying ``consumed_paths`` also makes
+    ``catalogue.path_classification_conflicts()`` report every catalogue-
+    attributed leaf path as uncovered (completeness messages, one per path).
+    Those are expected and are not counted here: the property this case
+    guards is that the two checks that decide whether a rule declares a mode
+    do not both fire, not how many completeness messages accompany that.
+    *(item 193, 2026-09-28)*"""
     live_conflicts = catalogue_module.path_classification_conflicts()
 
     rule = rule_mod._RULES["intensity_reference_delta"]
@@ -159,5 +168,7 @@ def test_adv_empty_classification_reported_once(monkeypatch):
     monkeypatch.setattr(rule, "mode_declaration", planted)
 
     new_conflicts = set(catalogue_module.path_classification_conflicts()) - set(live_conflicts)
-    matching = [c for c in new_conflicts if "intensity_reference_delta" in c]
-    assert len(matching) == 1, matching
+    mode_claims = [c for c in new_conflicts if "declares failure mode(s)" in c]
+    assert len(mode_claims) == 1, mode_claims
+    assert "classification is empty" in mode_claims[0]
+    assert not any("is classified 'signal'" in c for c in new_conflicts)

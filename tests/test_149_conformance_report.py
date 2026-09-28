@@ -631,6 +631,9 @@ def test_ac8_committed_markdown_carries_both_headers_verbatim():
 # AC9: a mode whose two columns differ renders both (modes 8 and 9 since the
 # item-150 sign-off's 2026-09-15 revision re-numbered the catalogue -- they
 # were 4 and 7 before item 150, 5 and 6 at the 2026-09-14 pass)
+#
+# Since item 193 (2026-09-28) the roll call holds mode 9 alone, because mode 8
+# has read nothing since reference_delta became mode-less.
 # =========================================================================== #
 
 #: ``(mode, anchor path, a read path that is not the anchor)``. Mode 8
@@ -648,7 +651,7 @@ _AC9_SPLIT_COLUMN_MODES = (
 )
 
 
-def test_ac9_modes_8_and_9_anchor_and_read_paths_differ(matrix):
+def test_ac9_split_column_modes_anchor_and_read_paths_differ(matrix):
     for mode, anchor, read_path in _AC9_SPLIT_COLUMN_MODES:
         record = _mode_record(matrix, mode)
         assert tuple(record["anchor_paths"]) == (anchor,), mode
@@ -678,7 +681,7 @@ def _mode_table(md_text: str):
     return header_cells, rows
 
 
-def test_ac9_committed_markdown_renders_both_cells_for_modes_8_and_9():
+def test_ac9_committed_markdown_renders_both_cells_for_split_column_modes():
     header_cells, rows = _mode_table(_COMMITTED_MD.read_text(encoding="utf-8"))
     anchor_col = header_cells.index("Stage-18 metric anchor paths")
     read_col = header_cells.index("Rule signal read paths")
