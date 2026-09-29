@@ -1893,7 +1893,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   `bool(...)` shapes. *(Item 184)*
 - ✅ **Maintenance** `committed_artifact_guard` resolves the `dirname(abspath(__file__))`
   root idiom. *(Item 185)*
-- 🔍 **Maintenance** Stale prose after items 189, 190 and 195 brought up to date.
+- ✅ **Maintenance** Stale prose after items 189, 190 and 195 brought up to date.
   *(Item 196)*
 - 📋 **Maintenance** `test_155`'s zero-comparison scan covers truthiness and ordering
   shapes. *(Item 197)*
