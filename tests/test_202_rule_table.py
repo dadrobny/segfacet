@@ -93,8 +93,7 @@ def _perturbed_config(bundled, rule_id, key, value):
 
 def test_ac1_one_row_per_registered_detector():
     _, keys = _parse_rows(COMMITTED.read_text(encoding="utf-8"))
-    expected = Counter(_registered())
-    assert set(expected.values()) == {1}
+    expected = Counter(_registered().keys())
     assert Counter(keys) == expected
 
 
@@ -108,7 +107,7 @@ def test_ac3_main_writes_the_render(tmp_path):
     from segfacet.rule_table import main, render_markdown
 
     p = tmp_path / "sub" / "rules.md"
-    main(["--md", str(p)])
+    assert main(["--md", str(p)]) == 0
     assert p.read_bytes() == render_markdown().encode("utf-8")
 
 
