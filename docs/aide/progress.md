@@ -1904,7 +1904,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   sequence. *(Item 198)*
 - ✅ **Maintenance** Positional gate and insight citations in the records rewritten to
   IDs. *(Item 199)*
-- 🔍 **D4** The bar checker's condition 2 made existential and detector-granular.
+- ✅ **D4** The bar checker's condition 2 made existential and detector-granular.
   *(Item 200)*
 - 📋 **D4** The severity-ladder constants re-measured, including the split operators.
   *(Item 201)*
