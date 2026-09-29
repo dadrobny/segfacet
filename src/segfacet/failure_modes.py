@@ -390,7 +390,7 @@ Public API
     here from ``segfacet.traceability`` (item 147).
 ``derive_status(mode) -> str`` / ``derive_mode_rung(mode) -> Optional[str]``
     Live derivations (AC9/AC10, AC14).
-``measured_firing(case) -> Tuple[str, ...]`` / ``case_agrees(case) -> bool``
+``measured_firing(case) -> Tuple[str, ...]`` / ``measured_detector_firing(case)`` (item 200) / ``case_agrees(case) -> bool``
     Drive one ``CorpusCaseExpectation`` through the same public harness
     ``segfacet.synth.regression`` exposes (dispatching on the manifest case's
     ``detection`` field), and compare against its authored
@@ -455,6 +455,7 @@ __all__ = [
     "derive_mode_rung",
     "modes_for_detector",
     "measured_firing",
+    "measured_detector_firing",
     "case_agrees",
     "specification_conflicts",
     "specification_to_dict",
@@ -2681,10 +2682,22 @@ def measured_firing(case: CorpusCaseExpectation) -> Tuple[str, ...]:
       ``detection == "intensity_pipeline"`` (item 146's public harness, the
       one intensity composition in production).
     """
+    return tuple(sorted({f.rule_id for f in _measured_findings(case)}))
+
+
+def measured_detector_firing(case: CorpusCaseExpectation) -> Tuple[Tuple[str, str], ...]:
+    """The distinct ``(rule_id, detector_id)`` pairs among the findings
+    :func:`measured_firing` reads, sorted (item 200)."""
+    return tuple(
+        sorted({(f.rule_id, f.detector_id) for f in _measured_findings(case)})
+    )
+
+
+def _measured_findings(case: CorpusCaseExpectation):
     if case.corpus == "geometric":
-        return _measured_firing_geometric(case)
+        return _measured_findings_geometric(case)
     if case.corpus == "intensity":
-        return _measured_firing_intensity(case)
+        return _measured_findings_intensity(case)
     raise ValueError(
         f"measured_firing: unrecognised corpus {case.corpus!r} for case_id="
         f"{case.case_id!r}; the dispatch vocabulary is exactly "
@@ -2692,7 +2705,7 @@ def measured_firing(case: CorpusCaseExpectation) -> Tuple[str, ...]:
     )
 
 
-def _measured_firing_geometric(case: CorpusCaseExpectation) -> Tuple[str, ...]:
+def _measured_findings_geometric(case: CorpusCaseExpectation):
     """The ``corpus == "geometric"`` branch of :func:`measured_firing` --
     today's body verbatim, over ``tests/corpus/manifest.json``."""
     from segfacet.synth.corpus import load_manifest
@@ -2720,10 +2733,10 @@ def _measured_firing_geometric(case: CorpusCaseExpectation) -> Tuple[str, ...]:
             f"measured_firing: unrecognised detection {detection!r} for "
             f"case_id={case.case_id!r}."
         )
-    return tuple(sorted({finding.rule_id for finding in findings}))
+    return tuple(findings)
 
 
-def _measured_firing_intensity(case: CorpusCaseExpectation) -> Tuple[str, ...]:
+def _measured_findings_intensity(case: CorpusCaseExpectation):
     """The ``corpus == "intensity"`` branch of :func:`measured_firing`, over
     the committed ``tests/corpus/intensity/manifest.json``.
 
@@ -2754,7 +2767,7 @@ def _measured_firing_intensity(case: CorpusCaseExpectation) -> Tuple[str, ...]:
             f"recognised value is 'intensity_pipeline'."
         )
     findings = intensity_pipeline_findings(manifest_case)
-    return tuple(sorted({finding.rule_id for finding in findings}))
+    return tuple(findings)
 
 
 def case_agrees(case: CorpusCaseExpectation) -> bool:

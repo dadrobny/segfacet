@@ -283,7 +283,7 @@ validation) read this checker.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented as specified. `measured_firing` now derives from the same `_measured_findings` source as `measured_detector_firing`, so the two cannot drift; condition 2 short-circuits on `case_agrees` so a disagreeing case is not re-measured.
 
 **Left open:** whether condition 2 should require the expressing firing to
 come from one of condition 4's qualifying (single-mode, non-proxy) detectors
