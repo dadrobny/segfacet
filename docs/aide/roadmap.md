@@ -69,7 +69,7 @@
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | G1 Detect empty / trivially-failed              | Stage 1                                                                                                                  |
 | G2 Detect catalogued failure modes (§6)        | Stages 4, 5, 18, 28 (specification: **Stage 30**; per-mode refinement: **Stage 32**, re-grounded and taken to the bar by **Stage 33**; traceability and specificity: **Stage 20**, interleaved into 32; real failures: **Stage 16**) |
-| G3 Distinguish failure from variation           | Stages 6, 7 (real-VerSe grounding: Stage 12;**recalibration: Stage 14**; normative model: planned, not yet specified)                |
+| G3 Distinguish failure from variation           | Stages 6, 7 (real-VerSe grounding: Stage 12;**recalibration: Stage 14**; normative model: the multivariate-normative-model placeholder, not yet specified)                |
 | G4 Per-case and cohort reports                  | Stage 1 (extended by 2–4); cohort characterisation: Stage 18                                                          |
 | G7 Evaluable & regression-testable              | Stages 5, 7 (real-VerSe evaluation: Stage 12;**real data: Stages 14, 16**; corpus rework: **Stages 19–21, 29, 32, 33**; eval-harness re-key: **Stage 31**) |
 | *(out of scope 2026-07-25)* G5 Deploy on XNAT | Stage 9 shipped the artefacts;**Stage 15 `❌ Excluded`** — see `vision.md` v3 §11                             |

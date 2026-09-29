@@ -352,9 +352,9 @@ from a local checkout):
   Windows fails with no warning anywhere.
 - **A test never reads the insight inbox, archives included** (§6, engine
   2.10.0; `aide check` warns on it). An earlier gotcha here had such tests
-  search the archives too. On 2026-09-29 the seven tests that asserted a
-  captured claim's presence were retired: those in items 117, 135, 137, 150,
-  151, 157 and 160. That a claim was captured is a diff-time fact, and the
+  search the archives too. On 2026-09-29 the tests that asserted a captured
+  claim's presence were retired, in items 117, 137, 150, 151, 157 and 160
+  (160's whole module). That a claim was captured is a diff-time fact, and the
   validator checks it at merge. The defect class is the same as pinning a
   warning count: asserting on what the loop's own verbs are built to move.
 - **An `insights.md` merge conflict is resolved with `aide insights resolve`**
