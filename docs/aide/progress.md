@@ -39,7 +39,7 @@
 | 8     | Image-Based / Radiomics Features                                        | (Phase 2)       | ✅     |
 | 9     | Containerisation & XNAT Command                                         | G5              | ✅     |
 | 10    | Portable Compute: GPU Acceleration Path                                 | G6              | ✅     |
-| 11    | Extensibility & Abnormality Classification Arm                          | G8              | ⏸️   |
+| 11    | Extensibility & Abnormality Classification Arm                          | G8              | 📋   |
 | 12    | Real-VerSe Grounding & Reference Feature Expansion                      | G3, G7          | ✅     |
 | 13    | Dataset Ingestion Adapters & Harmonization Schema                       | (G3/G7 enabler) | ✅     |
 | 14    | Real-Data Grounding & Heuristic Recalibration                           | G3, G7          | ✅     |
@@ -549,7 +549,7 @@ Stage 15.)*
 
 ---
 
-## Stage 11 — Extensibility & Abnormality Classification Arm (G8) — Deferred — ⏸️
+## Stage 11 — Extensibility & Abnormality Classification Arm (G8) — Deferred — 📋
 
 > **Deferred 2026-07-17** (explicit user instruction): prioritise the Phase-3
 > real-data validation arm (Stages 14+) ahead of the deferred G8 extensibility
@@ -561,7 +561,8 @@ abnormalities are accounted for rather than naively flagged.
 
 **Deliverables.**
 
-- 📋 Plugin/registration API for new heuristics + abnormality classes.
+- ⏸️ Plugin/registration API for new heuristics + abnormality classes.
+  - **2026-09-29** → deferred: Stage 11 deferred 2026-07-17 by explicit user instruction: Phase-3 real-data arm (Stages 14+) prioritised; revisit after Stage 14 closes
 - 📋 Ingestion of human abnormality labels (post-op, fracture, implant); a classification arm
   that informs the heuristics.
 - 📋 Developer docs: add a heuristic / abnormality class end-to-end.
