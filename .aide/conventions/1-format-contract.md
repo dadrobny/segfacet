@@ -35,8 +35,9 @@ section fixes:
    scheduled in.
 2. **Cross-reference by resolvable identity.** An issue number, a file path, a
    commit, a stage number, a dated `insights.md` entry — something a reader can
-   look up. Never "the conventions issue", "the companion PR", or "as discussed
-   above" pointing outside the artifact.
+   look up. An inbox entry's identity is its ID, never its position in the
+   file (§1 → `insights.md`). Never "the conventions issue", "the companion
+   PR", or "as discussed above" pointing outside the artifact.
 3. **Record the decision and why it holds, not the route to it.** "My earlier
    lean was wrong", "agreed direction", "settled while drafting" narrate a
    process the reader was not part of. A superseded decision is recorded by
@@ -59,7 +60,7 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 | `§1 → …` | File | What it fixes |
 |---|---|---|
 | `vision.md` | [`vision.md`](1-format-contract/vision.md) | The root document's four mandatory sections, what each is read for, and the optional build posture the authoring roles apply |
-| `roadmap.md` | [`roadmap.md`](1-format-contract/roadmap.md) | The staged plan: its mandatory shape, and why a started stage is not re-edited |
+| `roadmap.md` | [`roadmap.md`](1-format-contract/roadmap.md) | The staged plan: its mandatory shape and its complete coverage table, why a started stage is not re-edited, and which stages a stage may depend on |
 | Status icons | [`status-icons.md`](1-format-contract/status-icons.md) | The only six icons, their ranks, and the three structural positions they are read at |
 | `progress.md` | [`progress.md`](1-format-contract/progress.md) | The single source of truth for status — objectives, stages, deliverable bullets, outcome targets |
 | `queue-NNN.md` | [`queue-NNN.md`](1-format-contract/queue-NNN.md) | A batch of one-line items, and how a superseded queue is tidied |

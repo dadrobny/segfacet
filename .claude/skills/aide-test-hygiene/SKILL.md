@@ -101,7 +101,16 @@ entire loop, indefinitely.
   Depth is the spec author's decision, made where the deliverable and the
   posture (§1 → vision.md) are known; a test with no criterion and no named
   case behind it is a test nobody asked for — `aide scope` warns on one
-  (`aide scope -h` states the grammar).
+  (`aide scope -h` states the grammar). A parametrised test may carry the
+  label in a case id instead of its name.
+- **A test added to answer a review finding traces to that finding, recorded
+  in the spec's `## Review findings`.** The role that writes the test adds
+  one bullet there in the same commit — a label in the Testing Strategy's
+  shape, then the finding, its rank and the fix — and names the test with the
+  label. Traceability reads Acceptance Criteria, Testing Strategy and Review
+  findings alike; a spec with no finding has no such section. A finding is
+  recorded, never exempted: no test name is excused for looking like a
+  review's.
 - **An item's tests live in `test_NNN_<topic>.py` under `tests_dir`, NNN
   its item number, unless the project has a reason to diverge.** The file
   name is what says whose criteria a test covers once a later item edits the
@@ -114,6 +123,13 @@ entire loop, indefinitely.
   item ships, and asserts on what it reads — so when the shape changes, one
   test changes. A literal of another item's output written into this item's
   test is a second copy of that shape, and it is the copy that goes red.
+- **A test never uses a living document as a fixture.** Nothing under
+  `docs/aide/**` — the insight inbox above all — is read by a test to supply
+  its input or its expected value: the loop edits those files as it runs, so
+  an archive, a tick or a merge turns the test red with no code changed. A
+  test that needs an inbox, a progress file or a spec builds the minimal
+  shape it needs in a temporary directory (`tmp_path`). A test that names an
+  insight cites it by ID, never by position (§1 → insights.md).
 
 **Tests that can actually fail.**
 
@@ -149,10 +165,13 @@ entire loop, indefinitely.
   taken from a failed `find()` — each yields a value that flows into the
   assertion and passes while checking nothing.
 
-`aide check` decides the ones a script can, six of them: the repository's own
+`aide check` decides the ones a script can, seven of them: the repository's own
 absolute path written into a test file, a `str()` around a `relative_to(...)`,
 a shell-out to the CLI whose function was importable, a text capture that names
-no codec, a byte-compared fixture no `eol=lf` pattern covers, and a diff-time
-scope claim written as a suite assertion. The rest of this section binds
+no codec, a byte-compared fixture no `eol=lf` pattern covers, a diff-time
+scope claim written as a suite assertion, and a path to the live insight inbox
+rooted at the repository — reached from `__file__`, from the working
+directory, or as a relative literal. A test that builds the same path under
+`tmp_path` is the fix, and is not reported. The rest of this section binds
 identically and is checked by nobody, so read a warning as authoritative and
 silence as partial throughout — not only on the pin.

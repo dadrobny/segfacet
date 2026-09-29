@@ -104,7 +104,10 @@ the setting and follow it; nothing ever hangs waiting for input.
    changes an existing default or behaviour, grep `tests_dir` for tests pinning
    the OLD behaviour and list every hit in the Testing Strategy as "existing
    tests to reconcile" — otherwise the first validation round fails on stale
-   assertions instead of on the new code.
+   assertions instead of on the new code. Grep it yourself: a sweep is a few
+   searches, not a helper's job. If you do delegate one, spawn the helper with
+   an explicit cheap `model` (`haiku` for a pure search) — a helper given none
+   runs on your model.
 8. **Commit** the spec on the branch (plain single-line message):
    `git add docs/aide/items/NNN-*.md` then
    `git commit -m "docs(NNN): work item spec for <short title>"`.

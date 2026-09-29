@@ -1,5 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
+  },
   "permissions": {
     "defaultMode": "default",
     "allow": [
@@ -17,6 +20,13 @@
       "Bash(git ls-files:*)",
       "Bash(git ls-remote:*)",
       "Bash(git reflog:*)",
+      "Bash(git grep:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git cat-file:*)",
+      "Bash(git diff-tree:*)",
+      "Bash(git merge-tree:*)",
+      "Bash(git check-attr:*)",
       "Bash(git pull:*)",
       "Bash(git switch:*)",
       "Bash(git checkout:*)",
@@ -37,6 +47,8 @@
       "Bash(python3:*)",
       "Bash(python .aide/scripts/aide.py:*)",
       "Bash(python3 .aide/scripts/aide.py:*)",
+      "Bash(python .claude/scripts/await_run.py:*)",
+      "Bash(python3 .claude/scripts/await_run.py:*)",
       "Bash(.venv/Scripts/python:*)",
       "Bash(.venv/Scripts/pip:*)",
       "Bash(.venv/Scripts/pytest:*)",
@@ -54,6 +66,18 @@
       "Bash(grep:*)",
       "Bash(rg:*)",
       "Bash(find:*)",
+      "Bash(sed -n:*)",
+      "Bash(diff:*)",
+      "Bash(cmp:*)",
+      "Bash(nl:*)",
+      "Bash(sha256sum:*)",
+      "Bash(md5sum:*)",
+      "Bash(ps:*)",
+      "Bash(pgrep:*)",
+      "Bash(date:*)",
+      "Bash(sleep:*)",
+      "Bash(true:*)",
+      "Bash(printf:*)",
       "Bash(gh pr list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr status:*)",
@@ -75,23 +99,10 @@
       "Write(docs/*.md)",
       "Edit(scripts/*.py)",
       "Edit(docs/*.md)",
-      "Bash(sed -n:*)",
-      "Bash(ps:*)",
-      "Bash(sleep:*)",
       "Bash(awk:*)",
-      "Bash(nl:*)",
-      "Bash(true:*)",
-      "Bash(sha256sum:*)",
-      "Bash(diff:*)",
-      "Bash(cmp:*)",
-      "Bash(printf:*)",
-      "Bash(git merge-base:*)",
-      "Bash(git check-attr:*)",
-      "Bash(git cat-file:*)",
-      "Bash(git diff-tree:*)",
-      "Bash(git merge-tree:*)",
-      "Bash(date:*)",
-      "Bash(md5sum:*)"
+      "Bash(top -bn1:*)",
+      "Bash(mkdir:*)",
+      "Bash(.venv/bin/segfacet:*)"
     ],
     "ask": [
       "Bash(git push --force:*)",
@@ -135,7 +146,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$@\"; done; exit 0' _ .claude/hooks/command_hygiene_guard.py"
+            "command": "sh -c 'f=\"${CLAUDE_PROJECT_DIR:-.}/$1\"; [ -f \"$f\" ] || { printf \"aide: hook script not found: %s\\n\" \"$f\" >&2; exit 1; }; for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$f\"; done; exit 0' _ .claude/hooks/command_hygiene_guard.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'f=\"${CLAUDE_PROJECT_DIR:-.}/$1\"; [ -f \"$f\" ] || { printf \"aide: hook script not found: %s\\n\" \"$f\" >&2; exit 1; }; for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$f\"; done; exit 0' _ .claude/hooks/spawn_model_guard.py"
           }
         ]
       },
@@ -144,7 +164,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$@\"; done; exit 0' _ .claude/hooks/log_permission_event.py"
+            "command": "sh -c 'f=\"${CLAUDE_PROJECT_DIR:-.}/$1\"; [ -f \"$f\" ] || { printf \"aide: hook script not found: %s\\n\" \"$f\" >&2; exit 1; }; for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$f\"; done; exit 0' _ .claude/hooks/log_permission_event.py"
           }
         ]
       },
@@ -153,7 +173,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$@\"; done; exit 0' _ .claude/hooks/sibling_instructions.py"
+            "command": "sh -c 'f=\"${CLAUDE_PROJECT_DIR:-.}/$1\"; [ -f \"$f\" ] || { printf \"aide: hook script not found: %s\\n\" \"$f\" >&2; exit 1; }; for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$f\"; done; exit 0' _ .claude/hooks/sibling_instructions.py"
           }
         ]
       }
@@ -164,7 +184,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$@\"; done; exit 0' _ .claude/hooks/log_permission_event.py"
+            "command": "sh -c 'f=\"${CLAUDE_PROJECT_DIR:-.}/$1\"; [ -f \"$f\" ] || { printf \"aide: hook script not found: %s\\n\" \"$f\" >&2; exit 1; }; for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$f\"; done; exit 0' _ .claude/hooks/log_permission_event.py"
           }
         ]
       }
@@ -174,7 +194,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$@\"; done; exit 0' _ .claude/hooks/log_instructions_loaded.py"
+            "command": "sh -c 'f=\"${CLAUDE_PROJECT_DIR:-.}/$1\"; [ -f \"$f\" ] || { printf \"aide: hook script not found: %s\\n\" \"$f\" >&2; exit 1; }; for py in python3 python; do command -v \"$py\" >/dev/null 2>&1 || continue; \"$py\" -c \"\" >/dev/null 2>&1 || continue; exec \"$py\" \"$f\"; done; exit 0' _ .claude/hooks/log_instructions_loaded.py"
           }
         ]
       }

@@ -351,7 +351,7 @@ without the annotation closes none.
   so is flipping D1's 🚧 bullet: no item carries it, and `aide progress set`
   takes only an item number. Until both happen, the stage's rollup stays 🚧
   whatever this item finds.
-- **A6 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** a few verb behaviours are assumed.
+- **A6 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** a few verb behaviours are assumed.
   - `aide progress accept 31 --criterion N --evidence` ticks one unticked box
     and appends ` *(<text>)*` to the box's **first** physical line. On Stage
     31's wrapped boxes, the annotation therefore lands mid-criterion, as it did
@@ -362,17 +362,17 @@ without the annotation closes none.
     edit (the item-151 A4 precedent).
   - AC14's "anywhere in the box text" rule tolerates the mid-criterion
     annotation.
-  - **Re-check 2026-09-18 (engine 1.59.0, re-checked 2.1.0): the first bullet no longer holds.**
+  - **Re-check 2026-09-18 (engine 1.59.0, re-checked 2.1.0, re-checked 2.20.1): the first bullet no longer holds.**
     Engine 1.54.0 (aide-loop issue #237) resolves a wrapped acceptance box to
     its last line, so `accept --evidence` appends there and no longer lands
     mid-criterion. Annotations written under 1.52.1 stand where they landed.
     The other three bullets hold.
-- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0):** `aide progress set 161 in-progress` rewrites D7's
+- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `aide progress set 161 in-progress` rewrites D7's
   bullet in place. That bullet names only item 161, so it is not a shared bullet
   and no identical-prose split is expected. If the verb nonetheless splits a
   bullet into copies with identical prose (the defect item 158 met), the builder
   rewords each copy to its own item before committing. The D1 bullet must not
-  be touched.
+  be touched. **Re-check 2026-09-29 (engine 2.20.1):** if a split happens, each copy is reworded with `aide progress reword --item NNN --text …` (engine 2.20.0), not by hand.
 - **A8: the framework checkout is per-machine.** AC2 reads `aide-loop` through
   the `$AIDE_LOOP` path from the machine's own configuration (CLAUDE.md,
   "Updating the framework"). That checkout is a declared sibling, so `git -C`

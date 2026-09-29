@@ -45,9 +45,13 @@ that moved everything.
   *"an excluded item is never offered"*, *"whichever builds second inherits the
   first's edits"*, *"an item awaiting review or deferred has not shipped"* and
   *"each attestation was made separately and is corrected or withdrawn
-  separately"* (`progress`), *"the stage is deferred or dropped, so its bullets
-  no longer speak for it"* (`check`) — rationale for a rule pinned beside them,
-  not a second rule.
+  separately"* and *"a deferral is a decision about order, not a finding"*
+  (`progress`), *"the stage is dropped, so its bullets no longer speak for
+  it"* (`check`), *"roadmap.md's deliverables carry no item marker, so there
+  is no bullet of the item to mirror"* (`progress`) — rationale for a rule
+  pinned beside them, not a second rule.
+* *"reopen a ✅ item first"* (`progress`) — a pointer at another action, the
+  refusal it follows being pinned.
 * *"since the row is dropped from every check it would have fed"*, *"the
   goal-level mirror of that over-claim"*, *"a normal state rather than a
   defect"* (twice), *"a satisfied profile under an unverified row is a row
@@ -55,6 +59,10 @@ that moved everything.
   head branch"*, *"Because in `pr` mode nothing inside the loop observes the
   merge"*, *"so none of them lives only in one commit's diff"*, *"since what it
   blocks is unknown"* — same: the reason a pinned behaviour is what it is.
+* *"It reads git and never a pull request: a PR closed without merging looks
+  exactly like one still open, so a caller checks for a closed PR before it
+  restacks"* (`queue`) — what the verb does not read, which a test cannot
+  observe as an absence, and the obligation that leaves its caller.
 * *"left for `aide scope` to judge"*, *"`aide progress -h` states the rollup"*,
   *"(like `aide sync`)"*, *"the same merge-tree comparison `gc` uses"*, *"The
   rollup, applied by set and read by `aide check`"* — pointers at another verb,
@@ -200,11 +208,23 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "section",
          "test_aide_help_pins::"
          "test_check_errors_on_each_missing_table_and_on_missing_stage_sections"),
-        # `if summ == "complete" and derived and derived != "complete"` — the
-        # measure is `rollup_status`, under which a ❌ bullet counts toward ✅.
+        # `derived_cell_findings`' `over` list — the measure is
+        # `rollup_status`, under which a ❌ bullet counts toward ✅.
         ("a stage summary row marked ✅ over a stage whose deliverables do "
          "not roll up to ✅",
          "test_aide_help_pins::test_the_summary_over_claim_is_measured_by_the_rollup"),
+        # The same list for the header, and the Objective loop's
+        # `current == "complete"` error (issue #285).
+        ("and a stage header or Objective row so marked over a rollup that "
+         "is not ✅",
+         ("test_aide_defer::test_a_header_marked_done_with_no_summary_row_is_an_error",
+          "test_aide_defer::test_an_objective_marked_done_over_an_open_stage_is_an_error")),
+        # `objective_rollup`: `rollup_status` over `stage_rollups` of the
+        # numbers `_objective_row_stages` reads — the writer's derivation too.
+        ("an Objective row's rollup being the same rule over the rollups of "
+         "the stages its Delivered by cell names",
+         ("test_aide_defer::test_an_objective_marked_done_over_an_open_stage_is_an_error",
+          "test_aide_defer::test_a_multi_stage_file_the_verbs_wrote_trips_no_derived_cell")),
         # `if t.kind == "not-met"` under an objective whose status is complete.
         ("an objective marked ✅ over an Outcome target that is ❌ Not met",
          "test_aide_core::test_check_flags_objective_complete_over_unmet_target"),
@@ -227,16 +247,38 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `cmd_check`: `return 1` iff `errors`; warnings are only printed.
         ("a warning never moves the exit code — only an error does",
          "test_aide_help_pins::test_a_warning_alone_still_exits_zero"),
-        # `if derived == "complete" and summ and summ != "complete"` — the
-        # mirror of the error above, and the same measure.
+        # `derived_cell_findings`' `rest` list with a ✅ rollup — the mirror
+        # of the error above, and the same measure.
         ("a stage whose deliverables roll up to ✅ under a summary row "
          "that is not",
          "test_aide_help_pins::"
          "test_a_rolled_up_stage_under_a_lesser_summary_row_is_a_warning"),
-        # `if header_status and summ and header_status != summ`.
-        ("a stage header disagreeing with its summary row",
+        # The `off` lists against `rollup_status` / `objective_rollup`, with
+        # no `downgrade_stages` and no `_held_by_hand` (issue #285).
+        ("any other stage header, summary row or Objective row whose status "
+         "is not its rollup",
+         ("test_aide_defer::test_a_stage_cell_the_rollup_does_not_derive_is_one_warning",
+          "test_aide_defer::test_an_objective_row_below_its_done_stage_is_a_warning")),
+        # 🚧 over 📋 is a cell `set` never downgrades; the ⏸️ Objective row is
+        # one `_held_by_hand` leaves standing through a `set` elsewhere.
+        ("a cell `aide progress set` would leave as it reads, one it never "
+         "downgrades or a ⏸️ set by hand, is named all the same",
+         ("test_aide_defer::test_a_stage_cell_the_rollup_does_not_derive_is_one_warning",
+          "test_aide_defer::test_a_hand_set_deferred_objective_over_open_stages_is_a_warning")),
+        # `held` in the Objective loop: a ✅ derivation over a blocked G-code
+        # is compared as 🚧.
+        ("an Objective row whose Outcome target is not ✅ Met is compared "
+         "with 🚧 where its stages roll up to ✅",
+         "test_aide_defer::test_an_objective_held_by_its_target_is_compared_with_in_progress"),
+        # `if not off and header_status and summ and header_status != summ`.
+        ("a stage header disagreeing with its summary row, where neither was "
+         "named against the rollup",
          "test_aide_help_pins::"
          "test_a_stage_header_disagreeing_with_its_summary_row_is_a_warning"),
+        # `if nums and not any(n in section_nums for n in nums)`.
+        ("an Objective row whose Delivered by cell names no stage with a "
+         "section",
+         "test_aide_defer::test_an_objective_naming_no_stage_section_is_a_warning"),
         # `for num in summary_status: if num not in section_nums`.
         ("a summary row with no stage section",
          "test_aide_help_pins::test_a_summary_row_with_no_stage_section_is_a_warning"),
@@ -255,12 +297,36 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("every human gate still blocking",
          ("test_aide_gates::test_awaiting_gate_warns_with_its_reach",
           "test_aide_help_pins::test_a_warning_alone_still_exits_zero")),
-        # `if summ in ("deferred", "excluded"): continue` — before all three
-        # of the comparisons above, not just the warning.
-        ("A summary row marked \u23f8\ufe0f or \u274c is left out of all three "
-         "stage comparisons above, deliverables and header alike",
-         "test_aide_help_pins::"
-         "test_a_rolled_up_stage_under_a_lesser_summary_row_is_a_warning"),
+        # `if summ == "excluded": continue` — before every stage comparison
+        # in `derived_cell_findings`, not just the warning.
+        ("A summary row marked \u274c is left out of every "
+         "stage comparison above, deliverables and header alike",
+         ("test_aide_help_pins::"
+          "test_a_rolled_up_stage_under_a_lesser_summary_row_is_a_warning",
+          "test_aide_defer::test_an_excluded_summary_row_is_still_left_out")),
+        # `st != "excluded"` in the stage `off` list, `current == "excluded"`
+        # in the Objective loop.
+        ("a header or Objective row marked \u274c is not compared with its "
+         "rollup either",
+         "test_aide_defer::test_an_excluded_header_or_objective_is_not_compared"),
+        # The `off` list in `run_checks` (issue #281): a ⏸️ cell the rollup
+        # does not compute, or a computed ⏸️ under a cell that is not.
+        ("A summary row or header marked \u23f8\ufe0f over deliverables that "
+         "do not roll up to \u23f8\ufe0f is a warning, and so is a stage whose "
+         "deliverables roll up to \u23f8\ufe0f under a summary row or header "
+         "that is not",
+         ("test_aide_defer::test_a_hand_set_deferred_summary_over_open_bullets_is_a_warning",
+          "test_aide_defer::test_a_stage_rolling_up_to_deferred_under_a_lesser_summary_is_a_warning")),
+        # `over` / `rest` partition the off cells; `not off` gates the
+        # header-against-summary warning; `named_objectives` is skipped by
+        # the Outcome target loop in `run_checks` (issue #285).
+        ("Each cell is named once: a ✅ cell over a rollup that is not ✅ is "
+         "its error alone, a stage's other off cells share one warning, and "
+         "an Objective row named against its rollup is not compared with its "
+         "Outcome targets",
+         ("test_aide_defer::test_each_cell_gets_one_message",
+          "test_aide_help_pins::"
+          "test_a_rolled_up_stage_under_a_lesser_summary_row_is_a_warning")),
         # `_CAPABILITIES` is `error=False`: `unreadable_row_warnings` reports
         # its rows, and `unreadable_row_errors` leaves them out (issue #207).
         ("warnings only, since no other check gates on it: a row its reader "
@@ -300,7 +366,10 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # The double-listing lint compares the two sub-lists by exact path.
         ("one path listed under both May change and Asserts against",
          "test_aide_doc_shape::test_double_listing_a_path_is_reported"),
-        # …and deliberately does not match a glob against a literal.
+        # `pattern_covers(pin, m)` — a pin glob swallowing a May change entry.
+        ("or an Asserts-against glob covering a May-change path",
+         "test_aide_doc_shape::test_a_pin_glob_covering_a_may_change_path_is_reported"),
+        # …and deliberately not the other direction.
         ("a literal pin under a May-change glob is the legitimate carve-out",
          "test_aide_doc_shape::test_a_literal_pin_under_a_may_change_glob_is_silent"),
         # `_always_authorised_paths(ddir_rel)` matched against Asserts against.
@@ -311,10 +380,80 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("a marked assumption pinning an engine whose feature line predates "
          "the installed one",
          "test_aide_doc_shape::test_an_assumption_pinned_to_an_older_engine_is_reported"),
+        # `forward_dependency_warnings` (issue #282), called from run_checks
+        # on the warnings side; `blocking_dependency_stages` cuts the slot at
+        # `_DEPS_SLOT_END_RE` and reads numbers by `_DEPS_STAGE_LIST_RE` or
+        # `_DEPS_BARE_LIST_RE`; the ⏸️ exemption reads header and summary row.
+        ("a roadmap.md stage whose Dependencies name a later-numbered stage "
+         "in the blocking slot",
+         ("test_aide_forward_deps::"
+          "test_a_forward_dependency_is_a_warning_naming_stage_and_later_stage",
+          "test_aide_forward_deps::test_check_reports_it_as_a_warning_and_never_an_error")),
+        ("the text up to its first semicolon, spaced dash, sentence end, "
+         "'independent of' or 'queue before', where a stage number is one after the word Stage or Stages, or a "
+         "slot of bare numbers",
+         "test_aide_forward_deps::test_the_blocking_slot_is_read_and_nothing_after_it"),
+        ("unless progress.md shows that stage \u23f8\ufe0f on its header or "
+         "summary row",
+         ("test_aide_forward_deps::test_a_deferred_stage_is_exempt",
+          "test_aide_forward_deps::test_any_other_status_is_not_exempt")),
+        # `coverage_completeness_warnings` (issue #289), called from
+        # run_checks on the warnings side. Case 1 takes every row
+        # `_table_rows(_STAGE_SUMMARY)` yields, an unusable one by the number
+        # in its Stage cell; case 2 reads roadmap rows by
+        # `_COVERAGE_CODES_RE`; case 3 reads the cell by
+        # `named_stage_numbers`, which `blocking_dependency_stages` calls too.
+        ("a progress.md stage section with no Stage summary row, ⏸️ "
+         "and ❌ stages included, where a row the reader cannot use still "
+         "counts for the stage its Stage cell names",
+         ("test_aide_coverage_completeness::"
+          "test_a_stage_section_with_no_summary_row_is_named",
+          "test_aide_coverage_completeness::"
+          "test_an_unreadable_summary_row_still_counts_for_its_stage",
+          "test_aide_coverage_completeness::"
+          "test_check_reports_each_case_as_a_warning_and_never_an_error")),
+        ("a vision.md G-code with no row in roadmap.md's coverage table, whose "
+         "rows are read by the G-codes opening their first cell, past one "
+         "leading parenthetical",
+         ("test_aide_coverage_completeness::"
+          "test_a_vision_g_code_with_no_coverage_row_is_named",
+          "test_aide_coverage_completeness::"
+          "test_a_coverage_row_is_read_by_the_codes_opening_its_first_cell",
+          "test_aide_coverage_completeness::"
+          "test_the_codes_run_joins_g_codes_and_nothing_else",
+          "test_aide_coverage_completeness::"
+          "test_a_g_code_later_in_the_first_cell_is_not_a_coverage_row")),
+        ("a stage a roadmap.md coverage row names with no '## Stage N' "
+         "section in roadmap.md, the Delivered by cell read as the "
+         "Dependencies slot is, by number after the word Stage or Stages or "
+         "from a cell of bare numbers",
+         ("test_aide_coverage_completeness::"
+          "test_a_named_stage_with_no_section_is_named",
+          "test_aide_coverage_completeness::"
+          "test_the_delivered_by_cell_is_read_as_the_dependencies_slot_is",
+          "test_aide_coverage_completeness::"
+          "test_a_bare_number_cell_naming_a_missing_stage_is_read")),
         # `for stg, cn, cdate, creason in retracted_criteria(lines)` in
         # run_checks, appending to `warnings`.
         ("every retracted acceptance criterion",
          "test_aide_help_pins::test_a_retracted_criterion_reaches_check_as_a_warning"),
+        # `for reopening in reopened_items(lines)` beside it (issue #271).
+        ("and every reopened item",
+         "test_aide_reopen::test_reopen_raises_no_check_error"),
+        # `_latest_trail_note` takes the last prefixed line of a trail, and
+        # both readers emit one entry per box / per item (issue #273).
+        ("each reported once, by its latest retraction or reopening",
+         ("test_aide_reopen::test_a_box_retracted_again_is_open_and_keyed_on_the_second_retraction",
+          "test_aide_reopen::test_the_latest_reopening_is_the_one_reported")),
+        # `Retraction.reaccepted` reads the box's mark, `Reopening.completed`
+        # the item's status; `*_summary` never says "open" for either.
+        ("never as open once the box is ticked or the item \u2705 again "
+         "\u2014 then as re-accepted or completed again, with the newest "
+         "trail date since when there is one",
+         ("test_aide_reopen::test_a_re_accepted_box_is_reported_as_re_accepted_not_open",
+          "test_aide_reopen::test_a_box_re_accepted_with_no_dated_line_says_since",
+          "test_aide_reopen::test_completed_again_names_the_newest_dated_line_since_when_there_is_one",
+          "test_aide_reopen::test_an_item_completed_again_is_never_reported_as_open")),
         # `insight_warnings` -> `_INSIGHT_FULL_LOOSE_RE` around a strict `_DATE_RE`.
         ("an insights entry whose shape is off — loose either side of the "
          "date, strict about the date",
@@ -322,6 +461,54 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `insight_warnings` reads insights.md only; archive-*.md is skipped.
         ("never applied to an archived entry",
          "test_aide_insights::test_an_archive_is_frozen_and_not_shape_checked"),
+        # `insight_reference_findings` (issue #276): `_citation_files` leaves
+        # the inbox and its archives out; `_INSIGHT_ID_CITATION_RE` requires
+        # the word; an unresolved ID goes to `errors`.
+        ("Over insight citations in docs/aide and tests_dir, the inbox and "
+         "its archives excepted",
+         "test_aide_insights::test_the_inbox_and_its_archives_are_not_swept"),
+        ("an insight ID written after the word insight, or after entry on a "
+         "line that says insight or inbox, that resolves to no entry in "
+         "insights.md or insights/archive-*.md is an ERROR",
+         ("test_aide_insights::test_a_dangling_insight_id_is_an_error_in_docs_and_in_tests",
+          "test_aide_insights::test_a_date_shaped_token_without_the_word_is_not_a_citation",
+          "test_aide_insights::test_a_bare_entry_before_a_date_shaped_token_is_not_a_citation",
+          "test_aide_insights::test_a_citation_that_resolves_is_clean_even_once_archived")),
+        # Same function: more than one claim hash among the hits.
+        ("one that matches two different claims is a warning naming their "
+         "longer IDs",
+         "test_aide_insights::test_a_short_id_two_claims_share_is_a_warning"),
+        # Same function: `_positional_citations` over docs and test files
+        # alike (issue #295).
+        ("a citation by position \u2014 insight 28, insights.md entry 28, or "
+         "entry 28 on a line that says insight or inbox \u2014 is a warning "
+         "naming the ID that position holds today, in a test as in a document",
+         ("test_aide_insights::test_a_positional_citation_is_a_warning_naming_the_id",
+          "test_aide_insights::test_a_positional_citation_in_a_test_is_a_warning_too")),
+        # `gate_reference_findings` (issue #293): `_citation_files`' docs half
+        # only; an unresolved `gate-<hex>` goes to `errors`.
+        ("a gate-<hex> token that names no row of progress.md's Human gates "
+         "table is an ERROR",
+         ("test_aide_gates::test_check_errors_on_a_citation_naming_no_gate",
+          "test_aide_gates::test_check_accepts_a_citation_that_resolves")),
+        # Same function: more than one Gate-cell hash among the hits.
+        ("one that matches two different Gate cells is a warning naming "
+         "their longer IDs",
+         "test_aide_gates::test_check_warns_on_an_ambiguous_gate_id"),
+        # Same function: `_GATE_POSITION_RE`, gated on a gate row existing.
+        ("a citation by position \u2014 gate 3, human gate #3 \u2014 is a "
+         "warning naming the ID that row holds today, read only while "
+         "progress.md's Human gates table has a row",
+         ("test_aide_gates::test_check_warns_on_a_positional_citation_and_names_the_id",
+          "test_aide_gates::test_positional_reading_needs_a_gates_section",
+          "test_aide_gates::test_an_empty_gates_table_reads_no_positions")),
+        # `_GATE_ID_CITATION_RE`'s look-arounds.
+        ("A token inside a path, a file name, a URL or a heading anchor is "
+         "not a citation",
+         "test_aide_gates::test_a_path_a_file_name_or_an_anchor_is_not_a_citation"),
+        # `gate_reference_findings` reads the docs half of `_citation_files`.
+        ("tests_dir is not read",
+         "test_aide_gates::test_tests_dir_is_not_swept_for_gate_ids"),
         # `ledger_warnings` over `ledger_rows`: the cell count, the Item cell
         # and each of `LEDGER_INTEGER_COLUMNS`, appended to `warnings` and
         # never to `errors`.
@@ -378,6 +565,12 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # stage's bullets writes the header and the summary row.
         ("flip an item's deliverable bullet and roll its stage up",
          "test_aide_core::test_set_item_done_completes_stage_without_touching_acceptance"),
+        # `_cmd_progress_defer` -> `defer_item`: the flip, and the
+        # `_DEFERRED_PREFIX` line through `_insert_trail_line` (issue #281).
+        ("`set NNN deferred --reason TEXT` flips it to \u23f8\ufe0f and writes "
+         "a dated `deferred: <reason>` line under it",
+         ("test_aide_defer::test_defer_flips_the_bullet_and_writes_the_reason_under_it",
+          "test_aide_defer::test_set_deferred_writes_no_insight")),
         # `_split_multi_item_bullets` runs first, then only `num` is flipped.
         ("a marker naming several items is desugared into one bullet per item "
          "first, and only the named item moves \u2014 the others keep the "
@@ -421,6 +614,32 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_acceptance_amend::test_reword_refuses_a_ticked_criterion",
           "test_aide_acceptance_amend::test_reword_refuses_an_annotated_criterion_even_once_unticked",
           "test_aide_acceptance_amend::test_reword_refuses_a_criterion_carrying_a_correction_trail")),
+        # The bullet form (issue #320): `reword_deliverable` finds the bullet
+        # by `_bullet_marker_item_numbers`, and has no status check at all.
+        ("rewrites the prose of the one deliverable bullet whose trailing "
+         "marker names the item, whatever its status, keeping its icon and "
+         "marker",
+         ("test_aide_reword_deliverable::test_a_done_bullet_is_reworded_and_keeps_its_icon_and_marker",
+          "test_aide_reword_deliverable::test_a_planned_bullet_is_reworded_and_its_twin_left_alone")),
+        # `candidate = lines[:start] + [rewritten] + lines[last + 1:]`: the
+        # span is the bullet alone, so what hangs under it is outside the cut.
+        ("writes the new prose on the bullet's first line, in place of all of "
+         "its wrapped lines, and leaves every line under the bullet as it was",
+         ("test_aide_reword_deliverable::test_a_wrapped_bullet_is_written_back_on_one_line",
+          "test_aide_reword_deliverable::test_lines_under_the_bullet_are_left_as_they_were")),
+        # `_cmd_progress_reword_deliverable` opens progress.md only.
+        ("It writes progress.md alone",
+         "test_aide_reword_deliverable::test_the_cli_writes_progress_alone_and_leaves_roadmap_alone"),
+        # One `raise ValueError` per clause, each before anything is written.
+        ("It refuses, writing nothing, when no bullet or more than one names "
+         "the item, when the bullet's marker names several items, or when the "
+         "text is empty, starts with a status icon or ends with an item "
+         "reference",
+         ("test_aide_reword_deliverable::test_an_item_no_bullet_names_is_refused",
+          "test_aide_reword_deliverable::test_an_item_two_bullets_name_is_refused",
+          "test_aide_reword_deliverable::test_a_shared_marker_is_refused_and_says_what_to_do",
+          "test_aide_reword_deliverable::test_text_that_would_change_the_bullet_is_refused",
+          "test_aide_reword_deliverable::test_a_refusal_through_the_cli_writes_nothing")),
 
         # The model (issue #192), and the reason this module exists: the
         # sentence is transcribed as a predicate and compared with
@@ -433,6 +652,11 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("\U0001f6a7 when any bullet is \u2705, \U0001f6a7 or \U0001f50d; "
          "otherwise \U0001f4cb",
          "test_aide_core::test_progress_help_states_the_rollup_the_code_applies"),
+        # The ⏸️ arm (issue #281), in the same predicate.
+        ("\u23f8\ufe0f when every bullet is \u2705, \u274c or \u23f8\ufe0f "
+         "and at least one is \u23f8\ufe0f",
+         ("test_aide_core::test_progress_help_states_the_rollup_the_code_applies",
+          "test_aide_core::test_a_deferred_deliverable_keeps_its_stage_open")),
         # Neither is in the `("complete", "excluded")` set of the ✅ rule.
         ("\U0001f50d and \u23f8\ufe0f are both kept out of the \u2705 rule",
          ("test_aide_core::test_a_deferred_deliverable_keeps_its_stage_open",
@@ -442,8 +666,9 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("\U0001f50d also satisfies the \U0001f6a7 rule, so a stage holding "
          "one is always \U0001f6a7",
          "test_aide_git::test_in_review_rolls_a_stage_up_to_in_progress_not_complete"),
-        ("a stage whose bullets are only \u23f8\ufe0f, \U0001f4cb and \u274c "
-         "reads \U0001f4cb",
+        # The ⏸️ arm requires every bullet ✅/❌/⏸️, so any 📋 fails it.
+        ("\u23f8\ufe0f gives way to any open bullet \u2014 a stage holding "
+         "\u23f8\ufe0f and \U0001f4cb reads \U0001f4cb",
          "test_aide_core::test_a_deferred_deliverable_keeps_its_stage_open"),
         # `_set_stage_header`, `_set_summary_row`, `_apply_objective_rollup`.
         ("The stage header, its summary-table row, and any Objective row "
@@ -451,12 +676,31 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_core::test_set_item_done_completes_stage_without_touching_acceptance",
           "test_aide_core::test_met_target_does_not_block_objective")),
         # `_apply_objective_rollup` consults `outcome_targets` first.
+        # `_apply_objective_rollup`'s all-✅-or-⏸️ branch, written from any
+        # status (issue #281).
+        ("as does an Objective row whose stages are all \u2705 or "
+         "\u23f8\ufe0f, which reads \u23f8\ufe0f",
+         "test_aide_defer::test_deferring_every_open_item_moves_header_summary_and_objective_to_deferred"),
+        # `_held_by_hand`, and `set_item_status`'s touched stages.
+        ("A header, summary row or Objective row marked \u23f8\ufe0f by hand "
+         "stays as it reads until a verb moves a bullet of its stage",
+         "test_aide_defer::test_a_hand_set_deferred_stage_is_left_alone_by_a_set_elsewhere"),
         ("an objective linked to an Outcome target that is not \u2705 Met "
          "never rolls up",
          "test_aide_core::test_unmet_target_blocks_objective_rollup_not_stage"),
         # `RANK` guards the write: a lower-ranked status is not applied.
-        ("A status is never downgraded",
-         "test_aide_core::test_set_item_never_downgrades"),
+        ("Apart from deferring, set never downgrades a status",
+         ("test_aide_core::test_set_item_never_downgrades",
+          "test_aide_defer::test_deferring_the_only_in_progress_item_rolls_the_stage_back_to_planned")),
+        # ⏸️ ranks below 🚧, 🔍 and ✅ in `RANK`, so the forward flip applies.
+        ("a \u23f8\ufe0f item resumes under any other status set names",
+         ("test_aide_defer::test_a_deferred_item_resumes_under_any_forward_status",
+          "test_aide_defer::test_resuming_a_deferred_item_moves_the_stage_back_up")),
+        # `reopen_item` refuses any bullet not ✅, and is the one caller that
+        # passes `downgrade_stages` to `_recompute_rollups` (issue #271).
+        ("only reopen moves one back, and only from \u2705",
+         ("test_aide_reopen::test_reopen_refuses_an_item_that_is_not_done_and_names_its_status",
+          "test_aide_reopen::test_reopen_rolls_the_stage_and_its_objective_back_down")),
         # `stage_deliverable_statuses` skips `_CHECKBOX_RE` lines, and nothing
         # on the rollup path writes one — the attestation is a person's.
         ("no rollup ever ticks an acceptance box",
@@ -485,6 +729,63 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "prints it",
          ("test_aide_help_pins::test_a_retracted_criterion_reaches_check_as_a_warning",
           "test_aide_help_pins::test_status_prints_the_four_states_it_promises")),
+
+        # `reopen_item` (issue #271): the flip, the `_REOPENED_PREFIX` trail
+        # line through `_insert_trail_line`, `_recompute_rollups` with the
+        # item's stages allowed down, and `_route_gap_to_insights`.
+        ("send a \u2705 item back to \U0001f4cb \u2014 its deliverable "
+         "bullet flips, a dated `reopened: <reason>` line goes under it, its "
+         "stage rolls back down, and a `gap` insight is captured",
+         ("test_aide_reopen::test_reopen_flips_the_bullet_and_writes_the_reason_under_it",
+          "test_aide_reopen::test_reopen_rolls_the_stage_and_its_objective_back_down",
+          "test_aide_reopen::test_reopen_routes_its_finding_into_the_inbox")),
+        # The all-✅ precondition over every owned bullet, raised before any
+        # write, and `cmd` printing "NOT changed" with the file untouched.
+        ("reopen refuses, writing nothing, unless every deliverable bullet "
+         "whose trailing marker names the item is \u2705",
+         ("test_aide_reopen::test_reopen_refuses_when_one_of_the_items_bullets_is_not_done",
+          "test_aide_reopen::test_reopen_of_an_item_not_done_exits_one_and_writes_nothing")),
+        # `.strip()`ped, exit 2, before anything is read.
+        ("and refuses without a stated reason",
+         "test_aide_reopen::test_reopen_refuses_without_a_stated_reason_and_writes_nothing"),
+        ("The reason goes on the trail line under each flipped bullet and "
+         "into the `gap` entry",
+         "test_aide_reopen::test_reopen_routes_its_finding_into_the_inbox"),
+        # Only the owned bullets' icons and the rollup cells of their stage
+        # move; the wrapped text, the marker and every box are compared.
+        ("the bullet's text and marker, other items and every acceptance box "
+         "are left as they were",
+         ("test_aide_reopen::test_reopen_leaves_everything_but_the_item_as_it_was",
+          "test_aide_reopen::test_reopen_desugars_a_shared_marker_and_moves_only_the_named_item")),
+        # `reopened_items` feeds both `run_checks` and `cmd_status`.
+        ("`aide check` warns on every reopened item and `aide status` prints it",
+         ("test_aide_reopen::test_reopen_raises_no_check_error",
+          "test_aide_reopen::test_status_prints_a_reopened_item_by_its_status_today")),
+        # `Reopening.completed` is the item's status today, read by
+        # `_parse_item_status`, and `reopening_summary` words by it.
+        ("one \u2705 again since reads as reopened and completed again, never "
+         "as open",
+         "test_aide_reopen::test_an_item_completed_again_is_never_reported_as_open"),
+
+        # `_cmd_progress_defer` / `defer_item` (issue #281).
+        ("set NNN deferred refuses, writing nothing, without a stated reason, "
+         "or when a deliverable bullet whose trailing marker names the item "
+         "is \u2705 or \u274c",
+         ("test_aide_defer::test_set_deferred_refuses_without_a_stated_reason_and_writes_nothing",
+          "test_aide_defer::test_set_deferred_on_a_done_item_exits_one_and_writes_nothing",
+          "test_aide_defer::test_defer_refuses_a_finished_item_and_names_its_status",
+          "test_aide_defer::test_defer_refuses_when_one_of_the_items_bullets_is_done")),
+        ("Each \U0001f4cb, \U0001f6a7 or \U0001f50d bullet it flips gets the "
+         "reason on a trail line, and its stage rolls up again, moving down "
+         "where its bullets now say less",
+         ("test_aide_defer::test_defer_takes_planned_and_in_review_items",
+          "test_aide_defer::test_defer_flips_the_bullet_and_writes_the_reason_under_it",
+          "test_aide_defer::test_deferring_the_only_in_progress_item_rolls_the_stage_back_to_planned")),
+        ("an item already \u23f8\ufe0f throughout is no change",
+         "test_aide_defer::test_deferring_a_deferred_item_again_is_no_change"),
+        ("No insight is captured",
+         ("test_aide_defer::test_set_deferred_writes_no_insight",
+          "test_aide_defer::test_set_deferred_on_a_done_item_exits_one_and_writes_nothing")),
     ],
 
     # ------------------------------------------------------------- insights --
@@ -498,8 +799,33 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "test_aide_insights::test_list_open_hides_the_closed_history"),
         # `tick_insight_text` — the only function in the CLI that rewrites an
         # existing entry's line.
-        ("the one in-place edit — tick entry N with --pointer",
-         "test_aide_insights::test_tick_flips_the_box_and_records_where_it_landed"),
+        # ... and `live_ordinal_for_ref` turns an ID into that position.
+        ("the one in-place edit — tick entry N (or ID) with --pointer",
+         ("test_aide_insights::test_tick_flips_the_box_and_records_where_it_landed",
+          "test_aide_insights::test_tick_by_id_ticks_that_entry_and_the_commit_names_the_id")),
+        # `insight_claim_hash` over `InsightEntry.text`, `insight_ids` for the
+        # printed form, `_render_insight` for the listing (issue #276).
+        ("Each entry is printed with its ID \u2014 the capture date and the "
+         "leading hex of a SHA-256 of the claim text, whitespace collapsed",
+         ("test_aide_insights::test_an_id_is_the_capture_date_and_four_hex_of_the_claim",
+          "test_aide_insights::test_the_id_survives_a_rewrap_but_not_a_reword",
+          "test_aide_insights::test_list_prints_each_entry_with_its_id")),
+        # The hash reads the claim alone: the checkbox, pointer and trail are
+        # outside it, and archive/resolve move lines without retyping them.
+        ("which no tick, trail, archive or merge changes",
+         ("test_aide_insights::test_the_id_is_blind_to_everything_triage_writes",
+          "test_aide_insights::test_an_archived_entry_keeps_its_id_and_list_finds_it")),
+        # `insight_ids`: lengthened only against a different hash of one date.
+        ("four hex digits, more only where two different claims of one date "
+         "would share them",
+         ("test_aide_insights::test_two_different_claims_sharing_four_hex_are_printed_longer",
+          "test_aide_insights::test_the_same_claim_captured_twice_shares_one_id")),
+        # `_cmd_insights_list_one`: a position reads the live file, an ID the
+        # whole pool `load_insight_pool` returns.
+        ("list N or list ID prints that one entry with its trail, and an ID "
+         "is found in the archives too",
+         ("test_aide_insights::test_list_one_by_position_prints_that_entry_with_its_trail",
+          "test_aide_insights::test_an_archived_entry_keeps_its_id_and_list_finds_it")),
         # Same function, the `entry.ticked` branch: `_append_trail`-shaped line.
         ("on an entry already ticked, append a dated trail line instead",
          "test_aide_insights::"
@@ -534,6 +860,18 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `parse_insights` numbers by position, so a move renumbers the rest.
         ("what remains is renumbered, so re-run list",
          "test_aide_insights::test_archive_says_the_numbers_have_shifted"),
+        # `_print_invalidated_citations` (issue #295): `insight_position_citations`
+        # filtered to the positions `archive_position_map` says change, printed
+        # before the dry-run return and before any write; exit stays 0.
+        ("Every citation by position in docs/aide or tests_dir whose number "
+         "the move changes is listed before anything moves, dry run or not, "
+         "with the ID that position holds before the move and whether it is "
+         "archived or renumbered; the archive still proceeds",
+         ("test_aide_insights::"
+          "test_a_dry_run_archive_lists_each_positional_citation_with_its_id_before",
+          "test_aide_insights::test_an_archive_that_moves_lists_them_and_still_proceeds",
+          "test_aide_insights::test_an_archive_lists_no_citation_whose_number_it_leaves_alone",
+          "test_aide_insights::test_the_position_map_names_what_moves_and_what_shifts")),
         # `resolve_insights_text`: shared prefix, then each side's tail.
         ("write the union of a conflicted inbox — the shared history, then "
          "each side's new entries in capture order",
@@ -681,6 +1019,14 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "Met, every retracted acceptance criterion and every progress.md "
          "table row no reader can use is printed too",
          "test_aide_help_pins::test_status_prints_the_four_states_it_promises"),
+        # The `reopened_items` loop in `cmd_status` (issue #271), and the
+        # `; re-accepted` / `; completed again` suffix both loops carry (#273).
+        ("So is every item `aide progress reopen` sent back",
+         "test_aide_reopen::test_status_prints_a_reopened_item_by_its_status_today"),
+        ("a retracted criterion or reopened item that has since been "
+         "re-accepted or completed again says so",
+         ("test_aide_reopen::test_check_and_status_word_a_re_accepted_box_by_its_tick",
+          "test_aide_reopen::test_status_prints_a_reopened_item_by_its_status_today")),
         # The `gated_capabilities` loop in `cmd_status`: the profile named
         # always, `evaluate_profile` called only under `args.profiles` and
         # `c.kind == "unverified"`, memoised per profile.
@@ -700,6 +1046,78 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
           "test_a_profile_that_outlives_its_timeout_is_not_satisfied",
           "test_aide_capabilities::"
           "test_a_profile_whose_interpreter_cannot_start_is_not_satisfied")),
+        # `queue_stack_facts` (issue #303): `_unmerged_queue_branches`,
+        # ordered by `depth` along recorded bases.
+        ("The stack of unmerged queue branches — the ones `aide queue "
+         "start` counts against [loop] max_open_queues — is printed "
+         "bottom first",
+         ("test_aide_status_stack::test_a_two_queue_stack_is_printed_bottom_first",
+          "test_aide_status_stack::test_a_landed_lower_reads_landed_and_never_orphans")),
+        ("base= is the branch's recorded base, ? where none is recorded",
+         ("test_aide_status_stack::test_a_two_queue_stack_is_printed_bottom_first",
+          "test_aide_status_stack::test_a_branch_with_no_recorded_base_reads_unknown")),
+        # `_branch_pr`: `isDraft` asked for, an OPEN draft is "draft"; open
+        # or draft wins, else `max(found)`; `prs[b] = "unknown"` once `_gh`
+        # fails; `look = mode != "local"`.
+        ("pr= is its pull request as #N/open, #N/draft (open but not yet "
+         "marked ready), #N/merged or #N/closed (an open or draft one first, "
+         "else the newest), none where gh found none, unknown "
+         "where gh could not be asked, and - in local mode, which asks no forge",
+         ("test_aide_status_stack::test_a_reopened_pr_is_answered_by_its_open_one",
+          "test_aide_status_stack::test_a_merged_pr_alone_reads_merged_and_orphans_nothing",
+          "test_aide_status_stack::test_a_draft_reads_draft_and_awaits_no_review_until_marked_ready",
+          "test_aide_status_stack::test_a_draft_is_preferred_over_a_closed_pr_and_orphans_nothing",
+          "test_aide_status_stack::test_the_forge_is_asked_whether_a_pr_is_a_draft",
+          "test_aide_status_stack::test_a_two_queue_stack_is_printed_bottom_first",
+          "test_aide_status_stack::test_could_not_look_is_unknown_and_never_none",
+          "test_aide_status_stack::test_local_mode_asks_no_forge_about_the_stack")),
+        # `lower_state`: `_is_ancestor(newest(base), newest(b))`, origin's
+        # tip where it is ahead.
+        ("lower= is moved when the queue branch below has commits this one "
+         "lacks, so `aide queue restack` is due, and current when it has none",
+         ("test_aide_status_stack::test_a_lower_with_commits_the_upper_lacks_reads_moved_until_restacked",
+          "test_aide_status_stack::test_a_lower_moved_on_origin_reads_moved")),
+        ("landed or gone when the recorded lower is no longer unmerged and is "
+         "still a branch, or is not",
+         ("test_aide_status_stack::test_a_landed_lower_reads_landed_and_never_orphans",
+          "test_aide_status_stack::test_a_closed_and_deleted_lower_still_orphans_the_branch_above")),
+        # `orphaned`: the walk down recorded bases, `break` on a landed lower.
+        ("orphaned= is yes when a PR below it in the stack was closed without "
+         "merging, and a lower git says landed never orphans",
+         ("test_aide_status_stack::test_a_closed_lower_orphans_every_branch_above_and_stops_the_loop",
+          "test_aide_status_stack::test_a_closed_and_deleted_lower_still_orphans_the_branch_above",
+          "test_aide_status_stack::test_a_landed_lower_reads_landed_and_never_orphans")),
+        ("unknown when one below it could not be looked up or has no "
+         "recorded base; - in local mode",
+         ("test_aide_status_stack::test_could_not_look_is_unknown_and_never_none",
+          "test_aide_status_stack::test_a_branch_with_no_recorded_base_reads_unknown",
+          "test_aide_status_stack::test_local_mode_asks_no_forge_about_the_stack")),
+        # `runnable` in `queue_stack_facts`: closed/orphaned first, then
+        # `live_work` (📋/🚧 only), then `len(branches) < cap`.
+        ("runnable: is no when a queue PR in the stack was closed without "
+         "merging or a branch is orphaned; otherwise yes when the live queue "
+         "has a \U0001f4cb or \U0001f6a7 item or the stack is below [loop] "
+         "max_open_queues, and no when neither",
+         ("test_aide_status_stack::test_a_closed_lower_orphans_every_branch_above_and_stops_the_loop",
+          "test_aide_status_stack::test_live_work_is_runnable_while_prs_await_review",
+          "test_aide_status_stack::test_with_no_live_work_runnable_is_room_below_the_cap",
+          "test_aide_status_stack::test_an_item_awaiting_review_is_not_live_work")),
+        # `awaiting` in `queue_stack_facts`: `/open` only, never `/draft`.
+        ("awaiting review: is yes when a queue branch's PR is open and ready "
+         "for review — a draft is the loop's own PR still being built, and "
+         "counts for nothing — unknown when none was seen ready but gh could "
+         "not be asked, and no otherwise — in local mode always",
+         ("test_aide_status_stack::test_live_work_is_runnable_while_prs_await_review",
+          "test_aide_status_stack::test_a_draft_reads_draft_and_awaits_no_review_until_marked_ready",
+          "test_aide_status_stack::test_could_not_look_is_unknown_and_never_none",
+          "test_aide_status_stack::test_an_empty_stack_awaits_no_review_without_asking",
+          "test_aide_status_stack::test_local_mode_asks_no_forge_about_the_stack")),
+        # `_gh` returns a reason on every failure; the open-PR block prints it.
+        ("The open-PR list says it could not look, and gh's reason, rather "
+         "than going silent",
+         ("test_aide_status_stack::test_could_not_look_is_unknown_and_never_none",
+          "test_aide_status_stack::test_gh_missing_from_path_is_a_reason",
+          "test_aide_status_stack::test_gh_exiting_non_zero_is_a_reason_naming_the_exit")),
     ],
 
     # ---------------------------------------------------------------- scope --
@@ -743,9 +1161,31 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `traceability_warnings` over `added_test_functions` (issue #242).
         ("every test function the branch added under tests_dir must name an AC "
          "number the spec's ## Acceptance Criteria carries (ac3) or a case "
-         "label its ## Testing Strategy names",
+         "label its ## Testing Strategy or its optional ## Review findings "
+         "names",
          ("test_aide_traceability::test_scope_warns_on_a_test_naming_neither",
-          "test_aide_traceability::test_scope_is_silent_when_every_added_test_is_traced")),
+          "test_aide_traceability::test_scope_is_silent_when_every_added_test_is_traced",
+          "test_aide_traceability::"
+          "test_scope_traces_a_parametrised_test_and_a_review_finding",
+          "test_aide_traceability::"
+          "test_review_findings_labels_share_the_bullet_shape_and_are_optional")),
+        # `_CASE_LABEL_RE` / `_STOP_LABEL_RE`: `:`, or `.` on a wrapped word
+        # followed by text (#315).
+        ("the first word of a bullet, closed by a colon, or by a full stop when "
+         "the word is in bold or backticks and text follows",
+         ("test_aide_traceability::test_a_label_closed_by_a_full_stop_is_a_label_too",
+          "test_aide_traceability::"
+          "test_a_full_stop_with_nothing_after_it_or_inside_a_word_is_prose")),
+        # `_parametrize_ids` over the AST, `_traces_to`'s id branch (#314).
+        ("A parametrised test also traces through its literal "
+         "pytest.mark.parametrize ids — a string argvalue, the strings of a "
+         "tuple argvalue, a pytest.param id and each string in ids=[...], read "
+         "without running anything — where the label or acN stands as a whole "
+         "word of the id",
+         ("test_aide_traceability::test_parametrize_ids_are_read_statically",
+          "test_aide_traceability::"
+          "test_an_id_matches_a_label_or_an_ac_as_a_whole_word_only",
+          "test_aide_traceability::test_a_parametrised_test_traces_through_its_ids")),
         # Warns, never fails: exit 0 with warnings printed.
         ("Also warns, never fails, on traceability",
          "test_aide_traceability::test_the_warning_never_turns_a_pass_into_a_fail"),
@@ -786,8 +1226,9 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
     ],
 
     # ---------------------------------------------------------------- merge --
-    # The ledger row (issue #244); everything else `merge` does is stated in
-    # its option help, which this register does not read.
+    # The ledger row (issue #244) and the inherited-failure gate (issue
+    # #275); everything else `merge` does is stated in its option help, which
+    # this register does not read.
     "merge": [
         # `pending_row` -> `append_ledger_row`, one row, `ledger_path(ddir)`.
         ("The row is one per item, in docs/aide/ledger.md",
@@ -842,6 +1283,25 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "changes the exit code",
          "test_aide_ledger::"
          "test_a_ledger_that_cannot_be_written_does_not_fail_the_merge"),
+        # `_promote_item_to_complete` -> `_commit_or_put_back` over the
+        # snapshot `cmd_merge` took before the row; a reason there takes
+        # `_restore_claim_branch` and `return 1` ahead of the push (#312).
+        ("A commit of what was written that git does not make is another "
+         "matter: the run pushes nothing, puts the claim branch back with its "
+         "base, leaves progress.md, the ledger and insights.md as they were "
+         "before the tick, and exits 1",
+         ("test_aide_ledger::"
+          "test_a_tick_whose_commit_fails_refuses_the_push_and_puts_everything_back",
+          "test_aide_ledger::"
+          "test_the_re_run_after_a_failed_tick_lands_the_item_with_one_row")),
+        ("so the re-run writes the row once",
+         "test_aide_ledger::"
+         "test_the_re_run_after_a_failed_tick_lands_the_item_with_one_row"),
+        # `committed` (HEAD moved) keeps the commit, same refusal.
+        ("A commit that is made but whose replay onto origin stops is kept, "
+         "and refuses the push the same way",
+         "test_aide_ledger::"
+         "test_a_tick_whose_replay_stopped_keeps_its_commit_and_pushes_nothing"),
         # `review_is_off(config)` -> `_ledger_count_cells(no_review=...)`,
         # which renders `LEDGER_NO_REVIEW_CELL` for every rank the caller left
         # out. Both guards, because the marker would be unconditional and the
@@ -862,6 +1322,164 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
           "test_merge_with_review_on_and_no_findings_warns_and_still_lands",
           "test_aide_ledger::"
           "test_merge_with_review_off_and_no_findings_does_not_warn")),
+        # `recorded_suite_run` -> `run_test_suite`'s `seconds`, rounded into
+        # `suite_seconds`; `inherited` is `()` for a green comparable run.
+        ("the post-merge suite run's wall time in whole seconds and how many "
+         "inherited failures it admitted",
+         "test_aide_merge_inherited::"
+         "test_a_green_run_records_its_time_and_zero_inherited"),
+
+        # The inherited-failure gate (issue #275). `failure_identity_refusal`
+        # is `None` only for `<python> -m pytest`; `run_test_suite` then adds
+        # `--junitxml` and reads it.
+        ("A red post-merge run is compared with the base where the test "
+         "command runs pytest as a module",
+         ("test_aide_merge_inherited::test_only_pytest_run_as_a_module_is_comparable",
+          "test_aide_merge_inherited::test_a_tests_failed_exit_reads_the_report")),
+        # `_judge_red_run` ->
+        # `base_suite_run`: `git switch --detach <pre_merge>`, the run, then
+        # `git switch --discard-changes <base>` in a `finally`.
+        ("the same command is then run on the base as it stood before this "
+         "merge, in this checkout",
+         ("test_aide_merge_inherited::"
+          "test_failures_the_base_already_had_are_admitted_and_recorded",
+          "test_aide_merge_inherited::"
+          "test_a_retried_fast_forward_finds_its_base_in_the_reflog")),
+        # `base_suite_run` reads `read_suite_result` for the base's tree first.
+        ("or its result reused where this repository already recorded a run "
+         "of that tree",
+         "test_aide_merge_inherited::test_a_retry_reuses_the_base_run_it_stored"),
+        # `_judge_red_run`: no id outside the base's set -> `tuple(old)`;
+        # `cmd_merge` prints the report and writes `len(inherited)`.
+        ("When every failure after the merge also fails at the base, the "
+         "failures are inherited rather than this item's: the merge is "
+         "admitted, both sets are printed, the row's Inherited cell counts "
+         "them",
+         "test_aide_merge_inherited::"
+         "test_failures_the_base_already_had_are_admitted_and_recorded"),
+        # `route_inherited_failures` -> `inherited_failures_entry`, which
+        # drops ids `_names_id` finds in an open entry; the path joins
+        # `extra_rels` for the tick's one commit.
+        ("one defect entry naming those no open insights.md entry names yet "
+         "is committed with the tick",
+         ("test_aide_merge_inherited::"
+          "test_failures_the_base_already_had_are_admitted_and_recorded",
+          "test_aide_merge_inherited::"
+          "test_a_second_item_over_the_same_red_base_adds_no_second_entry",
+          "test_aide_merge_inherited::"
+          "test_the_entry_skips_ids_an_open_entry_names_and_caps_its_list")),
+        # `_judge_red_run`: `new` non-empty -> `None`, with both lists.
+        ("A failure the base does not have refuses the tick and the push, "
+         "listed apart from the inherited ones",
+         "test_aide_merge_inherited::"
+         "test_a_failure_the_base_does_not_have_is_refused_and_listed_apart"),
+        # `failure_identity_refusal`, `run_test_suite`'s exit check and
+        # `landed_pre_merge_base` returning None each set `why`.
+        ("Any other runner, an order-dependent flag (-x, --maxfail, --lf, "
+         "--ff, --sw), a pytest exit other than 1 and a base that cannot be "
+         "identified keep the plain gate, where any red run refuses",
+         ("test_aide_merge_inherited::"
+          "test_a_command_that_cannot_be_compared_keeps_the_plain_gate",
+          "test_aide_merge_inherited::"
+          "test_an_order_dependent_flag_is_found_and_a_value_is_not_one",
+          "test_aide_merge_inherited::"
+          "test_a_pytest_exit_other_than_one_names_no_failures",
+          "test_aide_merge_inherited::"
+          "test_a_fast_forward_the_reflog_does_not_record_is_not_guessed")),
+        # `suite_seconds` stays None under `args.no_test`; `inherited` stays
+        # None wherever `failure_identity_refusal` answered.
+        ("The Suite s cell is blank under --no-test, and Inherited is blank "
+         "wherever no comparison could be made",
+         ("test_aide_merge_inherited::"
+          "test_no_test_leaves_both_suite_cells_blank",
+          "test_aide_merge_inherited::"
+          "test_a_green_run_nothing_could_compare_leaves_inherited_blank")),
+        # `validated_suite_run` before `recorded_suite_run`; its `why` is
+        # printed where it finds nothing to take. `--no-test` skips both.
+        ("Before running the suite it looks for a run `aide test` recorded "
+         "of the same tree on the claim branch, and takes that run in place "
+         "of its own where `aide test -h` says it may",
+         ("test_aide_merge_inherited::"
+          "test_a_fast_forward_merge_takes_the_validated_run",
+          "test_aide_merge_inherited::"
+          "test_no_test_takes_no_recorded_run_either")),
+        ("Any other merge runs the suite, and prints why it could not reuse "
+         "one",
+         ("test_aide_merge_inherited::"
+          "test_a_merge_over_a_moved_base_runs_the_suite",
+          "test_aide_merge_inherited::"
+          "test_a_run_from_before_a_code_change_is_not_taken")),
+    ],
+
+    # ----------------------------------------------------------------- test --
+    "test": [
+        # `cmd_test` returns `run.returncode` from `recorded_suite_run`.
+        ("exits with the command's own exit code",
+         ("test_aide_merge_inherited::"
+          "test_aide_test_records_its_run_with_the_branch_and_commit",
+          "test_aide_merge_inherited::"
+          "test_aide_test_over_a_dirty_tree_records_nothing_and_says_so")),
+        # `recorded_suite_run(by=SUITE_RECORDED_BY_TEST)` writes `by`,
+        # `branch` and `commit` beside PR A's fields, under the same key.
+        ("the branch and commit it ran at, in the same store under the git "
+         "directory that `aide merge` keeps its base runs in",
+         "test_aide_merge_inherited::"
+         "test_aide_test_records_its_run_with_the_branch_and_commit"),
+        # `recorded_suite_run`: `tree_is_clean` before the run, and
+        # `_head_commit` compared before and after it.
+        ("The result is recorded where the tree has no tracked change and "
+         "HEAD does not move during the run",
+         ("test_aide_merge_inherited::"
+          "test_aide_test_over_a_dirty_tree_records_nothing_and_says_so",
+          "test_aide_merge_inherited::"
+          "test_a_run_whose_head_moved_is_not_recorded",
+          "test_aide_merge_inherited::"
+          "test_a_run_whose_tree_changed_is_not_recorded")),
+        # `tree_is_clean` is false -> `tree` None -> nothing written, and
+        # `cmd_test` prints NOT recorded on stderr.
+        ("A run over a tree with tracked changes is not recorded, and says so "
+         "on stderr",
+         "test_aide_merge_inherited::"
+         "test_aide_test_over_a_dirty_tree_records_nothing_and_says_so"),
+        # `validated_suite_run`: HEAD's tree == the tip's tree, else the
+        # base-had-moved reason and `recorded_suite_run`.
+        ("`aide merge` takes a recorded run in place of its own suite run "
+         "when the post-merge tree is the claim branch's tip tree",
+         ("test_aide_merge_inherited::"
+          "test_a_fast_forward_merge_takes_the_validated_run",
+          "test_aide_merge_inherited::"
+          "test_a_merge_over_a_moved_base_runs_the_suite")),
+        # `data["by"] == "aide test"`, `data["branch"] == branch` and
+        # `data["checkout"] == _checkout_id(repo_root)`.
+        ("the run was recorded by this verb on that claim branch in the same "
+         "checkout",
+         ("test_aide_merge_inherited::"
+          "test_a_run_recorded_on_another_branch_is_not_taken",
+          "test_aide_merge_inherited::"
+          "test_a_run_recorded_in_another_checkout_is_not_taken")),
+        # `_contains(commit, tip)`, then `git diff --name-only commit tip`
+        # minus progress.md must be empty.
+        ("at a commit the tip contains, with nothing but the progress "
+         "document changed since",
+         ("test_aide_merge_inherited::"
+          "test_a_fast_forward_merge_takes_the_validated_run",
+          "test_aide_merge_inherited::"
+          "test_a_run_from_before_a_code_change_is_not_taken")),
+        # `cmd_merge`: `post = validated.run`, then the unchanged green /
+        # `_judge_red_run` branches.
+        ("judges the run exactly as one of its own",
+         ("test_aide_merge_inherited::"
+          "test_a_red_validated_run_still_meets_the_base",
+          "test_aide_merge_inherited::"
+          "test_a_red_validated_run_with_a_new_failure_is_refused")),
+        # `suite_cell` + `LEDGER_REUSED_SUFFIX`; `ledger_warnings` accepts it
+        # in Suite s alone.
+        ("writes the row's Suite s cell as the recorded run's seconds "
+         "followed by (reused)",
+         ("test_aide_merge_inherited::"
+          "test_a_fast_forward_merge_takes_the_validated_run",
+          "test_aide_merge_inherited::"
+          "test_a_reused_suite_cell_reads_and_nothing_else_does")),
     ],
 
     # --------------------------------------------------------------- ledger --
@@ -905,6 +1523,246 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_ledger::test_abandon_under_review_off_marks_the_finding_cells",
           "test_aide_ledger::"
           "test_abandon_run_twice_under_review_off_still_records_the_item_once")),
+    ],
+
+    # ---------------------------------------------------------------- queue --
+    # The description block states `start`'s cap and stack shape and `gate`
+    # (issue #302), then `restack` (issue #301); `tidy` is stated in its
+    # option help, which this row does not cover.
+    "queue": [
+        # `_unmerged_queue_branches` -> `_stack_own_landing`, the verdict
+        # `_queue_restack`'s plan loop reads too.
+        ("A queue branch is unmerged until its own work has landed in "
+         "main_branch, judged exactly as restack judges it",
+         ("test_aide_queue_stack::test_a_queue_whose_work_landed_no_longer_counts",
+          "test_aide_queue_stack::test_below_the_cap_a_queue_stacks_on_the_top_and_records_it")),
+        # `remote` in `_unmerged_queue_branches`, judged as `origin/<b>`.
+        ("off local mode, over origin's queue branches as last fetched too",
+         "test_aide_queue_stack::test_a_queue_only_origin_has_counts_as_unmerged"),
+        # `_stack_own_landing` -> None is kept in the dict, and counted.
+        ("one git cannot judge counts as unmerged",
+         "test_aide_queue_stack::test_a_queue_git_cannot_judge_counts_as_unmerged"),
+        # `len(unmerged) >= cap` -> `return 3`, before `--dry-run` returns.
+        ("start refuses, exit 3, when [loop] max_open_queues (default 1) "
+         "queue branches are already unmerged, naming them and the key",
+         ("test_aide_queue_stack::test_the_default_cap_refuses_a_second_queue_while_the_first_is_unmerged",
+          "test_aide_queue_stack::test_below_the_cap_a_queue_stacks_on_the_top_and_records_it")),
+        # `if not args.specs:` around the whole block; `_is_stack_branch`
+        # never matches `specs-queue-`.
+        ("--specs creates <prefix>specs-queue-NNN instead, which is never "
+         "counted or stacked",
+         "test_aide_queue_stack::test_a_specs_queue_branch_is_neither_counted_nor_capped"),
+        # `_stack_top_refusal`: `base not in unmerged`, then the chain walk.
+        ("--base names an unmerged queue branch, and walking recorded bases "
+         "down from it reaches every unmerged queue branch",
+         ("test_aide_queue_stack::test_a_base_beside_the_stack_is_refused",
+          "test_aide_queue_stack::test_a_base_that_would_fork_the_stack_is_refused")),
+        ("A base beside the stack (main_branch included), a base another "
+         "unmerged branch is already stacked on, and an unmerged branch "
+         "outside that walk are refused, exit 1",
+         ("test_aide_queue_stack::test_a_base_beside_the_stack_is_refused",
+          "test_aide_queue_stack::test_a_base_that_would_fork_the_stack_is_refused")),
+        ("--dry-run runs every check and changes nothing",
+         ("test_aide_queue_stack::test_the_cap_is_checked_by_a_dry_run_too",
+          "test_aide_queue_stack::test_a_dry_run_refuses_a_bad_stack_shape_and_creates_nothing")),
+        # The cap refusal's remedies, each followed by a test until the
+        # refusal clears (PR #308 review: `restack` was printed as one, and
+        # has no stack to read when only main is behind).
+        # `remedy` branches on `mode != "local" and _has_origin`.
+        ("A branch whose PR merged counts until this checkout's main_branch "
+         "holds its work, so updating main_branch is what clears it: a pull "
+         "from origin where there is one",
+         "test_aide_queue_stack::test_a_pr_merged_on_origin_clears_once_main_is_updated_from_origin"),
+        ("and in local mode or with no origin, merging the queue branch into "
+         "main_branch",
+         "test_aide_queue_stack::test_the_cap_refusal_in_local_mode_names_a_local_merge_and_it_clears"),
+        ("one git cannot judge is cleared by `aide gc --merged --yes` if it "
+         "landed, or by `aide queue restack NNN --base main_branch`, which "
+         "records its start, if it is open",
+         ("test_aide_queue_stack::test_a_landed_branch_git_cannot_judge_clears_once_gc_deletes_it",
+          "test_aide_queue_stack::test_an_open_branch_git_cannot_judge_is_read_once_its_start_is_recorded")),
+        # `max_open_queues(config)` -> `return 1` before any branch exists.
+        ("an invalid max_open_queues",
+         "test_aide_queue_stack::test_an_unusable_cap_refuses_the_start_and_fails_the_check"),
+        # `_queue_gate`, setting "queue": one row, `item_ranges(items)`.
+        ("\"queue\" writes one row, Gate cell `Queue NNN plan reviewed before "
+         "build` (`Queues NNN–MMM plan reviewed before build` for a range), "
+         "blocking every item those queue files list",
+         ("test_aide_queue_stack::test_queue_raises_one_gate_over_the_queue_s_items_and_commits_it",
+          "test_aide_queue_stack::test_queue_through_raises_one_gate_over_both_queues")),
+        # `queue_opened_stages`.
+        ("the queues open stage N when one of their items is referenced by a "
+         "stage N deliverable in progress.md and no item stage N's "
+         "deliverables reference is listed in a queue file numbered below NNN",
+         "test_aide_queue_stack::test_stage_raises_a_stage_gate_only_for_a_queue_that_opens_one"),
+        ("\"none\" writes nothing and says so",
+         "test_aide_queue_stack::test_none_raises_nothing_and_exits_zero"),
+        # `present` holds every row's gate hash, whatever its Status.
+        ("A row whose Gate cell the table already holds is not written again, "
+         "whatever its status, so a re-run raises nothing new",
+         ("test_aide_queue_stack::test_a_second_run_raises_nothing_new",
+          "test_aide_queue_stack::test_an_approved_gate_is_not_raised_again")),
+        # `add_gate_rows`; `_commit_docs_files` unless `--no-commit`.
+        ("appended to the ## Human gates table (made at the end of "
+         "progress.md when the section is absent) and committed on the "
+         "current branch like every document verb, unless --no-commit",
+         ("test_aide_queue_stack::test_queue_raises_one_gate_over_the_queue_s_items_and_commits_it",
+          "test_aide_queue_stack::test_a_progress_file_with_no_gates_section_gets_one")),
+        ("Every other row is left as it is",
+         "test_aide_queue_stack::test_stage_raises_a_stage_gate_only_for_a_queue_that_opens_one"),
+        ("1: a queue file missing or listing no items, no progress.md, an "
+         "invalid plan_review, or a failed commit",
+         ("test_aide_queue_stack::test_gate_refusals_and_usage",
+          "test_aide_queue_stack::test_a_queue_listing_no_items_is_refused",
+          "test_aide_queue_stack::test_gate_without_a_progress_file_is_refused",
+          "test_aide_queue_stack::test_an_unusable_plan_review_refuses_and_fails_the_check",
+          "test_aide_queue_stack::test_gate_whose_commit_fails_changes_nothing_and_a_retry_commits")),
+        # `ppath.write_bytes(original)` when HEAD did not move.
+        ("where no commit was made, progress.md is put back byte for byte, "
+         "so a re-run raises and commits the gate",
+         "test_aide_queue_stack::test_gate_whose_commit_fails_changes_nothing_and_a_retry_commits"),
+        # `_queue_restack` reads `_recorded_branch_base` for every
+        # `_is_stack_branch`, which matches `queue-NNN` and not `specs-queue-`.
+        ("The stack is read from the base each queue branch recorded at "
+         "`queue start`",
+         ("test_aide_restack::test_a_moved_lower_branch_is_merged_forward_and_never_rebased",
+          "test_aide_restack::test_an_unrecorded_queue_branch_is_listed_and_never_chained")),
+        ("a specs-queue branch is never part of one",
+         "test_aide_restack::test_a_specs_queue_branch_is_never_part_of_a_stack"),
+        # The plan loop: `lower in changed or not _is_ancestor(lower, b)`.
+        ("Bottom up, each lower branch is merged into the one above it "
+         "wherever the upper does not already contain it",
+         ("test_aide_restack::test_a_moved_lower_branch_is_merged_forward_and_never_rebased",
+          "test_aide_restack::test_a_merge_propagates_up_a_stack_of_three")),
+        # `_restack_merge` writes a two-parent commit or fast-forwards; no
+        # `rebase`, and `_push_new_branch` is `push -u`, never `--force`.
+        # `_restack_merge`: `-S` when `commit.gpgSign`, on `commit-tree`;
+        # `git merge` honours it natively and takes `--no-verify`.
+        ("Its merge commits honour commit.gpgSign and run no commit hook, on "
+         "every git version",
+         ("test_aide_restack::test_a_signing_failure_stops_the_run_with_nothing_moved",
+          "test_aide_restack::test_no_commit_hook_runs_on_either_path")),
+        ("It merges and never rebases, so nothing is ever force-pushed",
+         ("test_aide_restack::test_a_moved_lower_branch_is_merged_forward_and_never_rebased",
+          "test_aide_restack::test_review_edits_on_origin_are_fetched_merged_forward_and_pushed")),
+        # The plan loop judges `b` itself first — `_stack_branch_landed` on
+        # its own tip, before `lower in landed` is looked at.
+        ("Each stack branch's own landing is judged at its own step, whatever "
+         "lies below it",
+         ("test_aide_restack::test_a_middle_branch_landed_over_an_open_empty_bottom_hands_on_its_upper",
+          "test_aide_restack::test_two_lowers_squash_landed_before_any_restack")),
+        # `_stack_branch_landed`, then the `squashed` merge base and the
+        # `record` step; the landed branch gets no step at all.
+        ("is left alone, and main_branch is merged into the branch above it "
+         "with the landed branch's tip as the merge base, so a squash merge "
+         "does not conflict with the commits it squashed; that branch's "
+         "recorded base becomes main_branch",
+         ("test_aide_restack::test_a_squash_merged_bottom_hands_its_upper_to_main",
+          "test_aide_restack::test_a_merge_commit_landed_bottom_hands_its_upper_to_main",
+          "test_aide_restack::test_two_lowers_squash_landed_before_any_restack")),
+        # `_on_first_parent_chain`, then the start: past it is a
+        # fast-forward landing.
+        ("or by a fast-forward past the commit it started from",
+         ("test_aide_restack::test_a_bottom_landed_by_fast_forward_past_its_start_hands_on_its_upper",
+          "test_aide_restack::test_a_middle_branch_landed_over_an_open_empty_bottom_hands_on_its_upper")),
+        # `starts.get(b) or _rev(eff(lower))`; `_is_ancestor(b, lower)` ->
+        # False, then the landed-lower arm.
+        ("Where a branch started is the start commit `queue start` recorded "
+         "for it, or, above another branch, that branch's tip; a branch with "
+         "no commits beyond its lower is not judged on its own, and is handed "
+         "main_branch when its lower has landed",
+         ("test_aide_restack::test_queue_start_records_the_commit_it_started_from",
+          "test_aide_restack::test_a_middle_branch_landed_over_an_open_empty_bottom_hands_on_its_upper")),
+        ("A branch whose tip is on main_branch's first-parent history and "
+         "still at its start has no commits of its own, and is open; an open "
+         "branch beneath one that landed keeps its record and is left alone, "
+         "and once the branch above it is handed to main_branch it holds no "
+         "stack",
+         ("test_aide_restack::test_a_lower_with_no_commits_of_its_own_is_not_read_as_landed",
+          "test_aide_restack::test_a_middle_branch_landed_over_an_open_empty_bottom_hands_on_its_upper")),
+        # `_stack_branch_landed` -> None for a bottom only; `blocked`, `held`
+        # for each upper not landed itself, `return 1`.
+        ("Only a bottom branch can go unjudged: with no start recorded (one "
+         "started before 2.14.0, or on another machine) git cannot tell a "
+         "fast-forward landing from a branch with no commits of its own, so "
+         "each branch above it that has not itself landed is left as it is, "
+         "the run exits 1 and never reports the stack consistent, and the "
+         "message names both remedies",
+         ("test_aide_restack::test_a_fast_forwarded_bottom_with_no_start_record_is_a_stop_not_consistent",
+          "test_aide_restack::test_an_empty_bottom_with_no_start_record_is_resolved_by_recording_it",
+          "test_aide_restack::test_a_middle_branch_landed_over_an_open_empty_bottom_hands_on_its_upper")),
+        # `_branch_content_landed` is None below 2.38 -> `_is_ancestor`.
+        ("On git older than 2.38 only an ancestry merge is seen, so a "
+         "squash-merged branch reads as still open",
+         "test_aide_restack::test_on_old_git_a_squash_merged_bottom_reads_as_still_open"),
+        # `_MERGE_BASE_OPTION_MIN_GIT` gates `--merge-base`.
+        ("before 2.40 main_branch is merged over git's own merge base",
+         "test_aide_restack::test_between_git_2_38_and_2_40_main_is_merged_over_git_s_own_base"),
+        # `unread`: no record and not landed -> listed on stderr, no step.
+        ("A queue branch with no recorded base (this checkout did not start "
+         "it) is not read into any stack, and is listed with the remedy",
+         "test_aide_restack::test_an_unrecorded_queue_branch_is_listed_and_never_chained"),
+        # The `args.number` block: `branch --track`, then `forced`, whose
+        # base is merged in and recorded as planned steps, in that order.
+        ("`restack NNN --base REF` records REF as queue NNN's base, creating "
+         "the local branch from origin where only origin has it, and merges "
+         "REF in unless the branch has nothing REF lacks; the base is written "
+         "after that merge, so a run that stops keeps the record it found",
+         ("test_aide_restack::test_base_records_a_branch_s_base_and_restacks_it",
+          "test_aide_restack::test_base_creates_a_branch_only_origin_has",
+          "test_aide_restack::test_a_forced_base_whose_merge_conflicts_keeps_the_old_record",
+          "test_aide_restack::test_an_empty_bottom_with_no_start_record_is_resolved_by_recording_it")),
+        # `_record_branch_start(target, merge-base(target, REF))` when unset.
+        ("Where no start is recorded it records one, the branch's merge base "
+         "with REF",
+         "test_aide_restack::test_an_empty_bottom_with_no_start_record_is_resolved_by_recording_it"),
+        # `broken` -> `return 1` before any fast-forward or merge.
+        ("A recorded base naming a queue branch this checkout does not have, "
+         "or a cycle, refuses the run before anything changes",
+         ("test_aide_restack::test_a_recorded_base_this_checkout_lacks_refuses",
+          "test_aide_restack::test_a_cycle_of_recorded_bases_refuses",
+          "test_aide_restack::test_an_unrecorded_base_below_is_not_called_a_cycle")),
+        # `remote_on`: fetch, `behind` -> `_advance_branch`, `diverged` -> 1.
+        ("Off local mode it fetches first, fast-forwards each stack branch "
+         "origin is ahead on, refuses a branch that has diverged from origin",
+         ("test_aide_restack::test_review_edits_on_origin_are_fetched_merged_forward_and_pushed",
+          "test_aide_restack::test_a_branch_diverged_from_origin_is_refused")),
+        # `to_push`: `changed` or `ahead`, after the execute loop finished.
+        ("once every merge has succeeded pushes, without force, each stack "
+         "branch it merged into or that is ahead of origin",
+         ("test_aide_restack::test_review_edits_on_origin_are_fetched_merged_forward_and_pushed",
+          "test_aide_restack::test_a_stack_branch_ahead_of_origin_is_pushed_by_a_re_run")),
+        ("local mode never fetches or pushes",
+         "test_aide_restack::test_local_mode_never_fetches_or_pushes"),
+        # `_unsafe_tree_state` -> `return 1`.
+        ("It needs a clean tree, and refuses a stack branch checked out in "
+         "another worktree",
+         ("test_aide_restack::test_an_unclean_tree_is_refused",
+          "test_aide_restack::test_a_stack_branch_checked_out_in_another_worktree_refuses")),
+        # `stopped` -> `return 1` before the push loop; the `finally` aborts
+        # a half-merge and switches back to `start`.
+        ("A conflict aborts that merge, leaves the tree clean and HEAD where "
+         "it started, pushes nothing, and names both branches",
+         ("test_aide_restack::test_a_conflict_stops_with_the_tree_clean_and_head_restored",
+          "test_aide_restack::test_a_conflict_pushes_nothing",
+          "test_aide_restack::test_a_detached_head_start_is_restored")),
+        ("Merges made before it stay local, and a re-run pushes them",
+         "test_aide_restack::test_a_stack_branch_ahead_of_origin_is_pushed_by_a_re_run"),
+        # `if dry:` prints every step and push, writes none.
+        ("--dry-run prints the merges, base records and pushes it would make "
+         "and changes nothing",
+         "test_aide_restack::test_dry_run_prints_the_merges_and_changes_nothing"),
+        # `if not steps and not to_push: ... return 0`.
+        ("Exit 0: the stack is consistent, whether or not this run merged "
+         "anything; a re-run with nothing moved merges nothing and says so",
+         "test_aide_restack::test_a_second_run_with_nothing_moved_merges_nothing"),
+        ("1: stopped",
+         ("test_aide_restack::test_a_conflict_stops_with_the_tree_clean_and_head_restored",
+          "test_aide_restack::test_a_branch_diverged_from_origin_is_refused",
+          "test_aide_restack::test_a_failed_push_exits_one_with_the_merge_kept_local")),
+        # `(args.number is None) != (args.base is None)` -> 2.
+        ("2: usage (NNN without --base, or --base without NNN)",
+         "test_aide_restack::test_number_and_base_go_together"),
     ],
 }
 
@@ -1136,11 +1994,13 @@ def test_a_rolled_up_stage_under_a_lesser_summary_row_is_a_warning(tmp_path: Pat
     summary row is the warning, and the pre-1.49.4 wording ("deliverables are
     all ✅") predicted silence.
 
-    The second half is `if summ in ("deferred", "excluded"): continue`, which
-    sits above **all three** stage comparisons rather than above this one: a
-    ⏸️ or ❌ summary row is a stage deferred or dropped, and its bullets no
-    longer speak for it, so neither the warning, the error, nor the
-    header-disagreement warning is raised over it.
+    The second half is `if summ == "excluded": continue`, which sits above
+    **all three** stage comparisons rather than above this one: a ❌ summary
+    row is a stage dropped, and its bullets no longer speak for it, so
+    neither the warning, the error, nor the header-disagreement warning is
+    raised over it. A ⏸️ row was left out the same way until issue #281; the
+    rollup computes ⏸️ now, so a ⏸️ row over bullets that roll up to ✅ gets
+    the one warning that says so, and the other two are not raised.
     """
     text = PROGRESS.replace("- 📋 Bounds. *(Item 027)*", "- ✅ Bounds. *(Item 027)*")
     text = text.replace("- 📋 Coverage. *(Item 028)*", "- ❌ Coverage. *(Item 028)*")
@@ -1158,15 +2018,38 @@ def test_a_rolled_up_stage_under_a_lesser_summary_row_is_a_warning(tmp_path: Pat
                        for w in warnings), (icon, warnings)
         assert not any("disagrees with summary" in w for w in warnings), (icon, warnings)
         assert not any("non-complete deliverables" in e for e in errors), (icon, errors)
+        deferred_rule = [w for w in warnings
+                         if "but its deliverables roll up to" in w]
+        if name == "deferred":
+            # One message for the stage, naming both off cells (#285: the
+            # 🚧 header is compared with the rollup too, not just with ⏸️).
+            assert deferred_rule == [
+                "stage 1: summary ⏸️ deferred and header 🚧 in-progress but "
+                "its deliverables roll up to ✅ complete — nothing is left "
+                "open to defer, so restore ✅"], warnings
+        else:
+            assert deferred_rule == [], warnings
 
 
 def test_a_stage_header_disagreeing_with_its_summary_row_is_a_warning(
         tmp_path: Path):
-    """Two records of one status, and nothing else compares them."""
-    text = PROGRESS.replace("## Stage 1 — Rules — 🚧", "## Stage 1 — Rules — 📋")
-    _, warnings = _checks(_repo(tmp_path, progress=text))
+    """Two records of one status, and on a stage with no deliverable bullet
+    nothing else compares them. Where there are bullets, each cell is
+    compared with their rollup instead (#285), and the cell that is off is
+    named once — the header-against-summary warning is not raised beside it."""
+    bare = PROGRESS.replace("- 📋 Bounds. *(Item 027)*\n- 📋 Coverage. *(Item 028)*\n", "")
+    bare = bare.replace("## Stage 1 — Rules — 🚧", "## Stage 1 — Rules — 📋")
+    _, warnings = _checks(_repo(tmp_path, progress=bare, name="bare"))
     assert any("header planned disagrees with summary in-progress" in w
                for w in warnings), warnings
+
+    text = PROGRESS.replace("## Stage 1 — Rules — 🚧", "## Stage 1 — Rules — 📋")
+    _, warnings = _checks(_repo(tmp_path, progress=text))
+    stage = [w for w in warnings if w.startswith("stage 1:")]
+    assert stage == [
+        "stage 1: summary 🚧 in-progress but its deliverables roll up to 📋 "
+        "planned — a stage's cells follow its bullets, so set the summary "
+        "to 📋, or move the bullets with 'aide progress set'"], warnings
 
 
 def test_a_summary_row_with_no_stage_section_is_a_warning(tmp_path: Path):

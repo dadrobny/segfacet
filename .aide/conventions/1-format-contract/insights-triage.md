@@ -35,7 +35,8 @@ that does not fit what it describes. Three findings, one form — **a dated trai
 line under the entry, never an edit to the claim**:
 
 - **Duplicate** — the same claim as an earlier entry. Route the earlier one and
-  point the later at it; both stay in the file.
+  point the later at it by its ID (`duplicate of insight <ID>`); both stay in
+  the file.
 - **Decayed premise** — what the entry names no longer exists, or has already
   been fixed by work done since. **A decayed premise is ticked, because there is
   nothing left for a queue to carry** — the trail line says what closed it, and
@@ -55,8 +56,8 @@ triage as much as routing is.
 made under** — first line, before the observation:
 
 ```
-**Project:** <consumer repo, or "a private consumer"> (consumer). **Observed
-under engine X.Y.Z** (<item ref>, YYYY-MM-DD).
+**Project:** <`owner/repo` (consumer), or "a private consumer">. **Observed
+under engine X.Y.Z** (insight <ID>).
 ```
 
 Take the version from the entry; if the entry has none, read the consumer's
@@ -89,8 +90,8 @@ other consumer raised it.
 - **Prefer a fixture reproduction** — a minimal `docs/aide/*` shape of a few
   lines — over "run it on our repo", which the framework cannot do.
 - **One observation per issue**; a second finding is a second issue.
-- **Provenance is the insight entry's number and date**, not a URL into the
-  consumer.
+- **Provenance is the insight entry's ID** (§1 → `insights.md`), not its
+  position and not a URL into the consumer.
 - **The title is framework-facing** — the verb or section, then the symptom;
   no consumer name.
 - **A human confirms the hand-over and sees the composed body whole before it
@@ -134,6 +135,14 @@ queue, so a `framework` entry may be triaged **on capture or on demand**.
   codebase, hits the same thing — but it is what lets that test be applied
   from the issue alone: a body that reads the same from any consumer is one
   the framework can judge without knowing which consumer it came from.
+- **Why the ID is the provenance.** An entry number was the provenance until
+  issue #276: the consumer's next archive or merge renumbers it, so the issue
+  pointed at a different claim, or none, by the time anyone followed it back.
+  The ID is the same in the inbox and in the archive the entry later moves to.
+- **Why the `(consumer)` label sits inside the public alternative.** It marks a
+  named repository as a consumer of the framework; after "a private consumer"
+  it only repeated the value, and a filing role fills the header literally
+  (issue #283).
 - **Why `framework` entries need not wait.** Routing them through the boundary
   too means the inbox accumulates for exactly as long as a queue runs, and a
   long queue is normal.

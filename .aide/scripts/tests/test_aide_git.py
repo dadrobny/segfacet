@@ -1923,7 +1923,8 @@ def test_a_merge_killed_mid_suite_puts_the_branch_and_its_base_back(
     test_cmd = aide.resolve_test_command(root, aide.load_config(root))
 
     def _killed_mid_suite(cmd, *a, **kw):
-        if list(cmd) == list(test_cmd):
+        # A prefix: under pytest the merge appends its report options (#275).
+        if list(cmd)[:len(test_cmd)] == list(test_cmd):
             raise KeyboardInterrupt
         return real_run(cmd, *a, **kw)
 
@@ -1960,7 +1961,7 @@ def test_a_failure_in_the_window_restores_but_is_not_called_an_interrupt(
     test_cmd = aide.resolve_test_command(root, aide.load_config(root))
 
     def _no_such_command(cmd, *a, **kw):
-        if list(cmd) == list(test_cmd):
+        if list(cmd)[:len(test_cmd)] == list(test_cmd):
             raise FileNotFoundError(2, "No such file or directory", cmd[0])
         return real_run(cmd, *a, **kw)
 

@@ -30,7 +30,7 @@
 > the item specs resolves unchanged. The reasons for the re-issue and the
 > decisions it encodes are recorded in
 > [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §12
-> and human gate 3 (approved 2026-09-03). The **full** re-vision v2 deferred —
+> and human gate `gate-0fdd` (approved 2026-09-03). The **full** re-vision v2 deferred —
 > specifying Stages 22–25 — stays deferred: those stages depend on measurements
 > of real segmenter failures that do not exist yet, and remain placeholders.
 

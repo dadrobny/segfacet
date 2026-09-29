@@ -87,8 +87,9 @@ _One row per measured outcome the roadmap commits to. Status is
 
 ## Human gates  <!-- OPTIONAL: delete if no work waits on a person's decision -->
 
-_One row per decision only a person can make. **Blocks** is `stage N`, `all`,
-or item numbers (`106`, `110, 111`, `106–108`); **Status** is `⏳ Awaiting`,
+_One row per decision only a person can make. **Blocks** is a stage reach
+(`stage N`, `stage N+`, `stage N–M`), `all`, or item numbers (`106`,
+`110, 111`, `106–108`); **Status** is `⏳ Awaiting`,
 then `✅ Approved (YYYY-MM-DD)` or `❌ Declined (YYYY-MM-DD)`.
 What each reach holds and why a queue is never one, who may raise and resolve
 a gate and how, and why a decline keeps blocking: conventions.md §1 → Human

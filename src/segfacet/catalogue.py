@@ -1144,7 +1144,12 @@ def rule_declaration_conflicts() -> Tuple[str, ...]:
       does not check (it only checks specification -> declaration), and the
       corpus -> declaration direction below does not check either (a corpus
       case's silence about a mode says nothing about whether the
-      specification mirrors a declaration that names it).
+      specification mirrors a declaration that names it). A mode in the
+      ``proposed`` state trips ``specification_conflicts``' proposed-drift
+      check first, so a declaration naming one (item 147's ``(1, 2, 5)``
+      control against ``reference_delta``) is not silent there: it returns
+      messages, none naming the pair. Replay such a control against this
+      function, not ``specification_conflicts`` alone (measured 2026-09-16).
 
     Item 147 retired the reserved ``"corpus"`` evidence tag and the
     declaration -> corpus direction it gated. That direction was an

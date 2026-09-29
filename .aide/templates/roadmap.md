@@ -63,6 +63,8 @@ stage can start. Anything about *ordering without blocking* is a separate senten
 after it, e.g. `**Dependencies.** None. Independent of Stage 17 — may be queued
 in either order.`_
 
+_Which stage numbers the slot may name is `.aide/conventions.md` §1 → roadmap.md._
+
 _Two phrasings a planner can act on, and one it cannot:_
 
 - _**Independence** — "independent of Stage N; may be queued in either order."

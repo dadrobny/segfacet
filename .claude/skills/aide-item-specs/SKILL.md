@@ -114,7 +114,8 @@ Three paths are authorised for every item without being listed —
 `progress.md`, `insights.md`, and the item's own spec — and **never list an
 always-authorised path under Asserts against**. **Asserts against means
 pinned-not-changed**, so never list the same path under both **May change** and
-**Asserts against**.
+**Asserts against**, and never write a pin glob that covers a path **May
+change** names.
 
 **Scope is proved by the diff, not by a hash** (§1 → authorised-paths-proof):
 the validator runs `aide scope` on the claim branch against what you wrote

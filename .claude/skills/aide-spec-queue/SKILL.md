@@ -1,16 +1,18 @@
 ---
 name: aide-spec-queue
-description: Batch-author work-item specs for every unspecced item in a queue, interactively, on one branch — front-loading the human so execution can then run unattended.
+description: Batch-author work-item specs for every unspecced item in a queue, interactively, on the queue's own branch — front-loading the human so execution can then run unattended.
 ---
 
 # Spec a whole queue (batch, interactive)
 
 Author the item specs for **all unspecced items in one queue** in a single
-interactive sitting, committing them on **one branch/PR** — a second human
-checkpoint mirroring the queue PR. Rationale ("front-load the human"): spec
-authoring is where human input pays most, so answer the clarify questions while a
-human is present, then let implementation (`/aide-run-queue`) run unattended, and
-review the merged results afterwards.
+interactive sitting, committing them on **one branch** — the queue's own
+`<prefix>queue-NNN` where it exists, so plan, specs and code land in the one
+PR and the specs are reviewed with the plan, before its gate is approved.
+Rationale ("front-load the human"): spec authoring is where human input pays
+most, so answer the clarify questions while a human is present, then let
+implementation (`/aide-run-queue`) run unattended, and review the merged
+results afterwards.
 
 `/aide-run-item` already skips spec-authoring when a complete spec exists, so
 pre-authored specs make the execution loop composable as-is.
@@ -24,14 +26,24 @@ lowest-numbered one with open items).
 
 1. **Identify the queue** (`docs/aide/queue/queue-NNN.md`, the Live one if no
    argument) and list its items that have **no** spec file in `docs/aide/items/`.
-   If none, report "queue fully specced" and stop.
+   If none, report "queue fully specced" and stop. A queue planned on its own
+   branch has its file there and nowhere else, so read it after step 2's
+   switch.
 2. **One branch for the whole batch** — not per-item claim branches (those are
-   created later, at execution time, by `aide claim`). Let the CLI name it; a
-   hand-typed name that `aide claim` does not recognise as a queue branch
-   retargets the merge silently:
-   ```
-   python .aide/scripts/aide.py queue start NNN --specs
-   ```
+   created later, at execution time, by `aide claim`). Never compose the name
+   by hand: one `aide claim` does not recognise as a queue branch retargets
+   the merge silently.
+   - **The queue has a queue branch** — the usual case, where
+     `/aide-run-roadmap` or `aide queue start NNN` planned it: switch to that
+     branch, with its name exactly as `python .aide/scripts/aide.py status`
+     lists it (or as the head of the queue's draft PR), then `git pull`. The
+     specs join the plan there. Do **not** start a specs-queue branch beside
+     it — that splits the queue's review across two PRs.
+   - **The queue file is already on `main`** — a queue planned before this
+     flow, with no queue branch — let the CLI create a specs-queue branch:
+     ```
+     python .aide/scripts/aide.py queue start NNN --specs
+     ```
 3. **Loop over the unspecced items in queue order.** For each, author the spec
    per the `aide-create-item` skill and `.aide/templates/item.md`, with clarify
    mode forced to **`interactive`** regardless of `loop.clarify`: ask the user
@@ -86,14 +98,22 @@ lowest-numbered one with open items).
    git add docs/aide/items/NNN-*.md
    git commit -m "docs(NNN): work item spec for <short title>"
    ```
-7. **Land the batch.** Push the specs and open a PR for human review of the
-   whole spec set (`gh pr create` is ask-gated — that pause is intended). Step 2
-   already set the upstream, so this types no branch name either:
+7. **Land the batch.** Push the specs — the branch already tracks its
+   upstream, so this types no branch name either:
    ```
    git push
    ```
-   After the PR merges, run `/aide-run-queue NNN` — execution proceeds
-   unattended, claiming per-item branches as usual.
+   - **On the queue branch**, that is all: the specs join the queue's draft PR,
+     and no second PR is opened. Tell the user to read them with the plan and
+     then, where the queue has a plan gate, approve it on that branch
+     (`python .aide/scripts/aide.py gate approve <gate-ID>`, then `git push`) —
+     never approve it yourself. Execution then runs on the queue branch
+     (`/aide-run-roadmap`, or `/aide-run-queue NNN` with the branch checked
+     out), claiming per-item branches as usual.
+   - **On a specs-queue branch**, open a PR for human review of the whole spec
+     set (`gh pr create` is ask-gated — that pause is intended). After it
+     merges, run `/aide-run-queue NNN` from `main` — execution proceeds
+     unattended, claiming per-item branches as usual.
 
 ## Hard limits
 

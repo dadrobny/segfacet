@@ -168,7 +168,9 @@ python .aide/scripts/aide.py queue tidy <NNN-1>
 ```
 
 Then, if any of its item lines still read 📋, reflect their final `progress.md`
-state (✅ done, ⏸️/❌ if carried or dropped). Skip if this is the first queue.
+state (✅ done, ⏸️/❌ if carried or dropped — a carried item is deferred in
+`progress.md` with `aide progress set NNN deferred --reason …` first, so the
+why is on record). Skip if this is the first queue.
 
 ### Output
 
@@ -200,14 +202,33 @@ PR anyway.
 
 - **Run standalone (manual)** — also `git pull --rebase` then `git push`.
 - **Invoked as the `queue-planner` subagent inside `/aide-run-roadmap`** — commit
-  only; the orchestrator pushes the `aide/queue-NNN` branch and opens the
-  human-reviewed queue PR. Say in your summary that you wrote two queues, so it
-  knows there is a second batch behind the one it is about to open a PR for.
+  only; the orchestrator pushes the `aide/queue-NNN` branch and opens its draft
+  PR, which the built items later join. Say in your summary that you wrote two
+  queues, so it knows there is a second batch behind the one it is about to
+  open a PR for.
+
+### Raise the plan gate when asked to
+
+When the caller asks for the plan to be reviewed before it is built —
+`/aide-run-roadmap` always does — raise the gate with the verb once the queue
+commit above has landed, never by typing the row (§1 → human gates):
+
+```
+python .aide/scripts/aide.py queue gate NNN
+```
+
+Over a maintenance queue and its stage queue, one call:
+`queue gate NNN --through <NNN+1>`. It reads `[loop] plan_review`, writes and
+commits whichever gate that setting gives the plan — or none, and says so —
+and prints each gate's ID for your summary. Run standalone and not asked, skip
+it; a person can run it later, and a re-run never adds a second row.
 
 ### Tick every inbox entry you queued
 
 The verb owns that edit and commits the file when git can; `N` is the entry
-number `insights list --open` printed:
+number `insights list --open` printed, or the entry's ID from the same listing.
+The queue file and the specs name an entry by that ID (`insight <ID>`), never
+by `N`, which the next archive renumbers:
 
 ```
 python .aide/scripts/aide.py insights tick N --pointer "item NNN"

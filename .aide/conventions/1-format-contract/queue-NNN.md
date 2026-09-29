@@ -14,8 +14,11 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
 - **Work items as `### Item NNN: Short Title` + a description paragraph.** Item
   numbers are **globally sequential across all queues** — never restart. *(aide
   check, claim, spec-author)*
-- **One queue is live at a time, deliberately.** The model offers no
-  concurrency above the item level, and a roadmap cannot ask for it. Three
+- **One queue is live at a time, deliberately.** The loop builds one queue
+  at a time; the model offers no concurrency above the item level, and a
+  roadmap cannot ask for it. An unmerged queue below the live one — built
+  out, its PR awaiting review, the live queue stacked on its branch (§4) — is
+  a batch awaiting review, not a second live queue. Three
   senses of "parallel" get confused here — the first two are real and useful,
   the third is the one the model does not offer:
   - **Item independence within a queue** — supported: `aide claim` offers any
@@ -34,7 +37,11 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
 
 - **Why one live queue.** The queue boundary is the human checkpoint — one
   review per batch — so the one-queue scope *is* the checkpoint boundary, and a
-  second live queue would be a second, unreviewed batch.
+  second live queue would be a second batch built unreviewed beside the first.
+  An unmerged queue below the live one does not break that: it is built, it
+  waits for its own review, and it reaches `main_branch` only through that
+  review. What stacking changes is when a batch is reviewed, never whether
+  (#258, #302).
 - **Why "independence" and not "alongside".** The softer phrasing changes
   nothing the planner does and only makes the roadmap and the queues appear to
   contradict each other.

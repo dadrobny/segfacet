@@ -166,6 +166,9 @@ def test_progress_help_states_the_rollup_the_code_applies():
         if (all(s in ("complete", "excluded") for s in statuses)
                 and any(s == "complete" for s in statuses)):
             return "complete"
+        if (all(s in ("complete", "excluded", "deferred") for s in statuses)
+                and any(s == "deferred" for s in statuses)):
+            return "deferred"
         if any(s in ("complete", "in-progress", "in-review") for s in statuses):
             return "in-progress"
         return "planned"
@@ -181,8 +184,9 @@ def test_progress_help_states_the_rollup_the_code_applies():
     # And the help still makes the two claims that predicate encodes, so a
     # rewording that silently drops one is caught as well as a behaviour change.
     for claim in ("\u2705 or \u274c and at least one is \u2705",
+                  "\u2705, \u274c or \u23f8\ufe0f and at least one is \u23f8\ufe0f",
                   "a stage holding one is always \U0001f6a7",
-                  "\u23f8\ufe0f, \U0001f4cb and \u274c reads \U0001f4cb"):
+                  "\u23f8\ufe0f and \U0001f4cb reads \U0001f4cb"):
         assert claim in help_text, f"`aide progress -h` no longer states: {claim}"
 
 
@@ -190,19 +194,32 @@ def test_a_deferred_deliverable_keeps_its_stage_open():
     """Issue #173, and the assertion this file used to make the other way round.
 
     A \u23f8 deliverable is work postponed, not work done, so a stage still
-    holding one is \U0001f6a7 — which is what `scope` has always meant by the same
+    holding one is never ✅ — which is what `scope` has always meant by the same
     icon (its spent set is `{complete, excluded}`). ❌ stays terminal: an
     excluded deliverable is a decision *not* to do the work, and a stage waits
     for nothing on its account.
+
+    Since issue #281 the stage reads ⏸️ once nothing but deferred work is left
+    open (it read 🚧 beside a ✅, and 📋 alone, until 2.5.0), and any 📋, 🚧 or
+    🔍 bullet beside the ⏸️ one still wins.
     """
-    assert aide.rollup_status(["complete", "deferred"]) == "in-progress"
-    assert aide.rollup_status(["complete", "deferred", "excluded"]) == "in-progress"
+    assert aide.rollup_status(["complete", "deferred"]) == "deferred"
+    assert aide.rollup_status(["complete", "deferred", "excluded"]) == "deferred"
     assert aide.rollup_status(["complete", "excluded"]) == "complete"
-    # Unchanged, and deliberately so: with no ✅ among them there is no work to
-    # report as shipped, so an all-⏸ stage is still `planned` rather than a
-    # rollup state of its own.
-    assert aide.rollup_status(["deferred"]) == "planned"
-    assert aide.rollup_status(["deferred", "excluded"]) == "planned"
+    assert aide.rollup_status(["deferred"]) == "deferred"
+    assert aide.rollup_status(["deferred", "deferred"]) == "deferred"
+    assert aide.rollup_status(["deferred", "excluded"]) == "deferred"
+    assert aide.rollup_status(["deferred", "planned"]) == "planned"
+    assert aide.rollup_status(["deferred", "in-progress"]) == "in-progress"
+    assert aide.rollup_status(["deferred", "in-review"]) == "in-progress"
+    assert aide.rollup_status(["complete", "deferred", "planned"]) == "in-progress"
+    # #173's invariant: no mix holding a ⏸️ is ever ✅.
+    from itertools import combinations_with_replacement
+    every = ("complete", "excluded", "in-progress", "in-review", "deferred", "planned")
+    for size in (1, 2, 3):
+        for combo in combinations_with_replacement(every, size):
+            if "deferred" in combo:
+                assert aide.rollup_status(["deferred", *combo]) != "complete"
 
 
 def test_stage_sections_bounds():
@@ -708,6 +725,17 @@ def test_is_live_queue():
     assert not aide.is_live_queue(QUEUE_OLD)
 
 
+def test_declares_live_reads_past_a_leading_status_icon():
+    """Issue #287: `aide queue tidy` writes the icon first, so an author
+    writing a live line in the same form must still read as Live."""
+    for status in ("Live", "🚧 Live · **Created:** 2026-07-01", "⏸️ live",
+                   "⏸ Live", "  📋  Live"):
+        assert aide.declares_live(status), status
+    for status in ("✅ Completed — superseded by queue-003 (2026-07-02).",
+                   "🚧", "Delivered", "Not live", ""):
+        assert not aide.declares_live(status), status
+
+
 def test_queue_item_numbers():
     assert aide.queue_item_numbers(QUEUE_LIVE) == [2, 3]
 
@@ -811,6 +839,28 @@ def test_live_queue_text_is_lowest_open_regardless_of_declared_status(tmp_path: 
     assert text is not None and "Work Queue 002" in text
 
 
+def test_check_silent_on_an_icon_first_live_line_over_an_open_queue(tmp_path: Path):
+    """Issue #287: `> **Status:** 🚧 Live` on queue-002 (item 003 is 📋) is
+    true, and used to be reported as 'marked completed'."""
+    root = _docs(tmp_path, live=QUEUE_LIVE.replace(
+        "> **Status:** Live", "> **Status:** 🚧 Live"))
+    cfg = aide.load_config(root)
+    errors, warnings = aide.run_checks(root, cfg, branches=[])
+    assert errors == []
+    assert not any("queue-002.md" in w for w in warnings), warnings
+
+
+def test_live_queue_fallback_finds_an_icon_first_live_line(tmp_path: Path):
+    """Issue #287, second reader: with no progress.md, the newest queue
+    declaring Live is the live one — and `🚧 Live` declares it."""
+    root = _docs(tmp_path, live=QUEUE_LIVE.replace(
+        "> **Status:** Live", "> **Status:** 🚧 Live"))
+    (root / "docs" / "aide" / "progress.md").unlink()
+    cfg = aide.load_config(root)
+    text = aide._live_queue_text(root, cfg, None)
+    assert text is not None and "Work Queue 002" in text
+
+
 def test_check_flags_duplicate_item_across_queues(tmp_path: Path):
     dup = QUEUE_OLD.replace("### Item 001: Package", "### Item 002: Package")
     root = _docs(tmp_path, old=dup)
@@ -887,8 +937,17 @@ def test_check_clean_with_targets_table(tmp_path: Path):
     assert not any("outcome target" in w for w in warnings), warnings
 
 
+def _shipped(text: str) -> str:
+    """Stage 1 rolled up to ✅, so an Objective ✅ over it is judged by its
+    Outcome targets alone — over a 🚧 stage the derived-cell comparison
+    names the row instead (issue #285), and the target rule stays silent."""
+    return (text.replace("- 📋 Bounds. *(Item 003)*", "- ✅ Bounds. *(Item 003)*")
+            .replace("| 1 | Rule Engine | G2 | 🚧 |", "| 1 | Rule Engine | G2 | ✅ |")
+            .replace("## Stage 1 — Rule Engine — 🚧", "## Stage 1 — Rule Engine — ✅"))
+
+
 def test_check_flags_objective_complete_over_unmet_target(tmp_path: Path):
-    lying = (PROGRESS + TARGETS).replace(
+    lying = _shipped(PROGRESS + TARGETS).replace(
         "| G2 Rules | Stage 1 | 🚧 |", "| G2 Rules | Stage 1 | ✅ |")
     root = _docs(tmp_path, progress=lying)
     cfg = aide.load_config(root)
@@ -897,7 +956,7 @@ def test_check_flags_objective_complete_over_unmet_target(tmp_path: Path):
 
 
 def test_check_warns_objective_complete_over_unverified_target(tmp_path: Path):
-    doc = (PROGRESS + TARGETS).replace("❌ Not met", "❓ Unverified").replace(
+    doc = _shipped(PROGRESS + TARGETS).replace("❌ Not met", "❓ Unverified").replace(
         "| G2 Rules | Stage 1 | 🚧 |", "| G2 Rules | Stage 1 | ✅ |")
     root = _docs(tmp_path, progress=doc)
     cfg = aide.load_config(root)

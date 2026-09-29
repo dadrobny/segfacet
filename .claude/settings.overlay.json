@@ -48,7 +48,23 @@
       "(would admit `sed -i`), `git -C` (a §3 hygiene violation by definition —",
       "the hook is what should bounce it, not a prompt), `git cherry-pick`,",
       "`rm`, `rmdir`, `mv` (destructive), and the machine-specific absolute",
-      "paths again."
+      "paths again.",
+      "",
+      "Promoted at the 2026-09-28 feedback-loop review of 50,656 logged calls",
+      "(engine 2.1.0, after queue-025): two read-only git verbs (grep 15,",
+      "rev-list 7), two read-only process probes (pgrep 9, `top -bn1` 42 — the",
+      "batch form only, so an interactive `top` never hangs a run), `mkdir`",
+      "(89, non-destructive, mostly scratch dirs) and the project's own CLI",
+      "`.venv/bin/segfacet` (31, writes only under the --out it is given).",
+      "Kept prompting: `sed -i`, `cp`, `rm`, `git reset`, `git mv`, `git clone`.",
+      "Declined: the `cd`, `git -C`, `git -c`, `env`, `sh`, `timeout`, `for`,",
+      "`until` wrappers (each runs an arbitrary command, or is a §3 shape the",
+      "hook should bounce).",
+      "",
+      "Pruned 2026-09-29 (engine 2.20.1): the framework base allow-list ships",
+      "every read-only rule promoted above since engine 2.18.1, so the add list",
+      "keeps only what the base lacks. The paragraphs above stay as the record",
+      "of why each was first promoted here."
     ],
     "allow": {
       "add": [
@@ -56,23 +72,10 @@
         "Write(docs/*.md)",
         "Edit(scripts/*.py)",
         "Edit(docs/*.md)",
-        "Bash(sed -n:*)",
-        "Bash(ps:*)",
-        "Bash(sleep:*)",
         "Bash(awk:*)",
-        "Bash(nl:*)",
-        "Bash(true:*)",
-        "Bash(sha256sum:*)",
-        "Bash(diff:*)",
-        "Bash(cmp:*)",
-        "Bash(printf:*)",
-        "Bash(git merge-base:*)",
-        "Bash(git check-attr:*)",
-        "Bash(git cat-file:*)",
-        "Bash(git diff-tree:*)",
-        "Bash(git merge-tree:*)",
-        "Bash(date:*)",
-        "Bash(md5sum:*)"
+        "Bash(top -bn1:*)",
+        "Bash(mkdir:*)",
+        "Bash(.venv/bin/segfacet:*)"
       ]
     }
   }

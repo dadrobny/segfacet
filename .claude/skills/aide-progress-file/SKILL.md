@@ -35,8 +35,12 @@ same way by every command:
 Prefer the explicit list when the items are not contiguous; a range is only
 shorthand for one. **A marker naming several items is shorthand, never a shared
 status cell** — write the shared marker freely; the file simply grows a row the
-first time its items diverge. Follow-on deliverables enter through the queue,
-never by retro-editing a closed stage's deliverable list.
+first time its items diverge. **A split copy's prose is reworded with its
+verb, whatever its icon**: each copy carries the shared sentence until someone
+says what each item delivers with `aide progress reword --item NNN`, never by
+hand — over a ✅ bullet as readily as a 📋 one, since a deliverable bullet
+carries no attestation. Follow-on deliverables enter through the queue, never
+by retro-editing a closed stage's deliverable list.
 
 **Prefer the verb to a hand edit**: `aide progress set`, `aide progress
 accept`, `aide queue tidy`. Acceptance boxes are **ticked only by
@@ -44,6 +48,11 @@ accept`, `aide queue tidy`. Acceptance boxes are **ticked only by
 box is ticked only by a human — or by an agent acting on a check it actually
 performed** — via `aide progress accept`, whose flags `aide progress -h`
 states.
+
+**Deferral is recorded on the item, with its reason, and the stage follows.**
+Postpone an item with `aide progress set NNN deferred --reason …`, never by
+typing ⏸️ over a bullet or a stage; deferred work resumes through any forward
+`aide progress set`.
 
 **A stage may be ✅ with an unticked box; say why in an annotation beside it.**
 

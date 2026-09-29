@@ -1,4 +1,5 @@
 # AIDE adapter manifest — files install.py wrote under .claude/ from the 'claude' adapter. Managed by install.py; an --update removes any listed file the adapter no longer ships.
+.claude/agents/builder-escalation.md
 .claude/agents/builder.md
 .claude/agents/queue-planner.md
 .claude/agents/reviewer.md
@@ -15,7 +16,9 @@
 .claude/hooks/log_instructions_loaded.py
 .claude/hooks/log_permission_event.py
 .claude/hooks/sibling_instructions.py
+.claude/hooks/spawn_model_guard.py
 .claude/rules/aide-command-hygiene.md
+.claude/scripts/await_run.py
 .claude/scripts/review_instructions.py
 .claude/scripts/review_permissions.py
 .claude/skills/aide-create-item/SKILL.md

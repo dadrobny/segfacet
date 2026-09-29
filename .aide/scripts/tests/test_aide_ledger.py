@@ -433,7 +433,7 @@ def test_a_row_no_reader_can_use_is_a_warning_and_never_an_error(tmp_path: Path,
         encoding="utf-8")
     warnings = aide.ledger_warnings(ddir)
     assert len(warnings) == 3, warnings
-    assert "3 cell(s), not 14" in warnings[0]
+    assert "3 cell(s), not 16" in warnings[0]
     assert "Item cell 'stage two'" in warnings[1]
     assert "ACs cell 'two'" in warnings[2]
     # …and the whole check still passes: a record nobody can rewrite must not
@@ -532,6 +532,159 @@ def test_pr_mode_writes_neither_the_tick_nor_a_row(tmp_path: Path):
     assert aide.main(["--repo", str(repo), "merge", "27", "--rounds", "1"]) == 0
 
     assert not (repo / "docs" / "aide" / "ledger.md").exists()
+
+
+# --------------------------------------------------------------------------- #
+# the tick's commit failing (issue #312)
+# --------------------------------------------------------------------------- #
+def _rev(repo: Path, ref: str) -> str:
+    return subprocess.run(["git", "rev-parse", "--verify", "--quiet", ref],
+                          cwd=str(repo), stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, encoding="utf-8").stdout.strip()
+
+
+def _status(repo: Path) -> str:
+    return _run(["git", "status", "--porcelain"], repo).stdout.strip()
+
+
+def _hold_the_index_during_the_tick(monkeypatch, repo: Path) -> list:
+    """Take `.git/index.lock` for the one commit `merge` makes of its own —
+    the tick's — so git refuses it as it would under another process; the
+    merge before it has already run. Returns the list of calls made."""
+    real = aide._commit_docs_files
+    calls: list = []
+
+    def held(repo_root, config, message, rels, pull=True):
+        calls.append(list(rels))
+        lock = repo / ".git" / "index.lock"
+        lock.write_bytes(b"")
+        try:
+            return real(repo_root, config, message, rels, pull=pull)
+        finally:
+            lock.unlink()
+
+    monkeypatch.setattr(aide, "_commit_docs_files", held)
+    return calls
+
+
+def test_a_tick_whose_commit_fails_refuses_the_push_and_puts_everything_back(
+        tmp_path: Path, monkeypatch):
+    """#312: exit 1, not 0 — origin keeps the main it had, the claim branch
+    is back with its base (locally and on origin), the tree is clean, and the
+    ledger the tick created is gone rather than left untracked."""
+    remote = _mkbare(tmp_path / "remote.git")
+    repo = _init_repo(tmp_path / "repo", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], repo)
+    _run(["git", "push", "-u", "origin", "main"], repo)
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    branch = aide._find_claim_branch(repo, "aide/", 27)
+    progress = repo / "docs" / "aide" / "progress.md"
+    ticked_before = progress.read_bytes()
+    origin_main = _rev(remote, "main")
+    calls = _hold_the_index_during_the_tick(monkeypatch, repo)
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test",
+                      "--rounds", "1"]) == 1
+
+    assert calls, "the tick never reached its commit"
+    assert _rev(remote, "main") == origin_main
+    assert _rev(remote, branch)
+    assert _rev(repo, branch)
+    assert aide._recorded_branch_base(repo, branch) == "main"
+    assert _status(repo) == ""
+    assert progress.read_bytes() == ticked_before
+    assert not (repo / "docs" / "aide" / "ledger.md").exists()
+
+
+def test_a_tick_whose_replay_stopped_keeps_its_commit_and_pushes_nothing(
+        tmp_path: Path, monkeypatch):
+    """The commit was made and its rebase onto origin stopped: the ✅ stays in
+    that commit, and the run still refuses the push and puts the branch back."""
+    remote = _mkbare(tmp_path / "remote.git")
+    repo = _init_repo(tmp_path / "repo", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], repo)
+    _run(["git", "push", "-u", "origin", "main"], repo)
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    branch = aide._find_claim_branch(repo, "aide/", 27)
+    origin_main = _rev(remote, "main")
+    real = aide._commit_docs_files
+
+    def stalled(repo_root, config, message, rels, pull=True):
+        assert real(repo_root, config, message, rels, pull=False) is None
+        return "git pull --rebase could not complete"
+
+    monkeypatch.setattr(aide, "_commit_docs_files", stalled)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 1
+
+    assert _rev(remote, "main") == origin_main
+    assert _rev(repo, branch)
+    shown = _run(["git", "show", "HEAD:docs/aide/progress.md"], repo).stdout
+    assert aide._parse_item_status(shown.splitlines())[2][27] == "complete"
+    assert len(_rows(repo)) == 1
+
+
+def test_the_re_run_after_a_failed_tick_lands_the_item_with_one_row(
+        tmp_path: Path, monkeypatch):
+    """`local` mode refuses the same way — nothing to push, but the claim
+    branch is put back — and the re-run the message invites finds the merge
+    already an ancestor, ticks, commits and writes the row exactly once."""
+    repo = _init_repo(tmp_path / "repo")
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    branch = aide._find_claim_branch(repo, "aide/", 27)
+    with monkeypatch.context() as patch:
+        _hold_the_index_during_the_tick(patch, repo)
+        assert aide.main(["--repo", str(repo), "merge", "27", "--no-test",
+                          "--rounds", "1"]) == 1
+    assert _rev(repo, branch) and _status(repo) == ""
+    merged = _rev(repo, "main")
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--base", "main",
+                      "--no-test", "--rounds", "1"]) == 0
+
+    assert _rev(repo, "main~1") == merged       # no second merge: the tick alone
+    assert not _rev(repo, branch)
+    assert _status(repo) == ""
+    (row,) = _rows(repo)
+    assert row["Item"] == "027"
+    assert aide._parse_item_status(
+        (repo / "docs" / "aide" / "progress.md").read_text(
+            encoding="utf-8").splitlines())[2][27] == "complete"
+
+
+def test_a_tick_with_nothing_to_commit_is_not_a_failure(
+        tmp_path: Path, monkeypatch):
+    """An item already ✅ and no row to write (the template is gone) leaves
+    the tick nothing to commit, and nothing is refused for it."""
+    repo = _init_repo(tmp_path / "repo")
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    assert aide.main(["--repo", str(repo), "progress", "set", "27",
+                      "done"]) == 0
+    monkeypatch.setattr(aide, "_TEMPLATES_DIR", tmp_path / "no-templates")
+    calls = _hold_the_index_during_the_tick(monkeypatch, repo)
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 0
+
+    assert calls == []
+    assert not aide._find_claim_branch(repo, "aide/", 27)
+
+
+def test_no_commit_writes_the_tick_and_refuses_nothing(
+        tmp_path: Path, monkeypatch):
+    """`--no-commit` commits nothing, so nothing can fail to commit."""
+    repo = _init_repo(tmp_path / "repo")
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    calls = _hold_the_index_during_the_tick(monkeypatch, repo)
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test",
+                      "--no-commit"]) == 0
+
+    assert calls == []
+    assert len(_rows(repo)) == 1
 
 
 # --------------------------------------------------------------------------- #

@@ -14,7 +14,7 @@ Read the section you were pointed at; nothing here expects a top-to-bottom read.
 | 1 | [Format contract](conventions/1-format-contract.md) | The exact shapes `aide.py` parses in `docs/aide/**`, and the rule that every durable artifact must read cold. Its own index — one file per document shape, and per reader where several roles act on one |
 | 2 | [Claim protocol](conventions/2-claim-protocol.md) | How "this item is taken" is signalled between concurrent runs — the pushed claim branch, not a `🚧` on a feature branch |
 | 3 | [Command hygiene](conventions/3-command-hygiene.md) | The canonical shell-command rules. Runtime-general; an adapter enforces them, it does not restate them |
-| 4 | [Git modes](conventions/4-git-modes.md) | What `git.mode` changes inside `aide claim` / `aide merge`. Agent instructions are identical across modes |
+| 4 | [Git modes](conventions/4-git-modes.md) | What `git.mode` changes: how an item lands, inside `aide claim` / `aide merge`; `local` also turns off every fetch, pull and push. Agent instructions are identical across modes |
 | 5 | [Clarify mode](conventions/5-clarify-mode.md) | How `spec-author` resolves an ambiguous queued item under `loop.clarify` — and why the root documents sit outside it: authored via their entry point, interactively |
 | 6 | [Test hygiene](conventions/6-test-hygiene.md) | Portability, and tests that can actually fail. Runtime-general, like §3 |
 | 7 | [Off-platform verification](conventions/7-off-platform-verification.md) | No role in this loop sees a non-Linux checkout or real CI status; this is how to look at the gate that does |

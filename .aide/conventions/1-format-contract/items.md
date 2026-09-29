@@ -32,7 +32,7 @@ header and its `## Dependencies`.
   ("**Downstream:** item 099 depends on this item's CI job") does not register
   as a backward blocker — put such asides after the marker, never before it.
   The rest of any line from a backticked or bold `Blocks:` label on is
-  excluded too, so quoting a human-gate row's reach ("waits on Gate 3 —
+  excluded too, so quoting a human-gate row's reach ("waits on gate-<hex> —
   `Blocks: items 119, 120, 121`") does not turn the gate's whole reach into
   dependency edges. The markup is what makes it a marker: plain-prose
   "blocks:" excludes nothing, so an English sentence naming real blockers is

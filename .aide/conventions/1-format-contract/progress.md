@@ -25,6 +25,11 @@ Mandatory, in order (consumer in brackets):
    - an **Acceptance** block of `- [ ]` / `- [x]` checkboxes, ticked only by
      `aide progress accept` — never derived. *(validator)*
 
+**The Stage summary table is complete.** Every stage section has its row, a
+⏸️ or ❌ stage too: a ❌ summary row is what excludes a stage, and a ⏸️ one
+records its deferral where the table is read. `aide check` warns on a section
+with no row, as it does on a row with no section.
+
 **A table row its reader cannot use is an `aide check` error** in each of the
 four tables the engine reads: the two above, Outcome targets (below) and §1 →
 human gates. Unusable means the wrong number of cells — a `|` inside a cell,
@@ -64,12 +69,32 @@ bullet per item with the same text and one `*(Item NNN)*` each, and move only
 the item named. Nothing is asked of the author — write the shared marker
 freely; the file simply grows a row the first time its items diverge.
 
+**A split copy's prose is reworded with its verb, whatever its icon.** Each
+copy the desugar writes carries the sentence the shared bullet had, and `aide
+check` warns while two single-item bullets of one stage read the same. Say what
+each item delivers with `aide progress reword --item NNN`, never by hand: it
+rewrites that one bullet's prose and keeps its icon and marker, over a ✅ bullet
+as readily as a 📋 one. A deliverable bullet carries no attestation, so the
+immutability rule below binds an acceptance box, never a bullet's sentence.
+
 **Stage status is rolled up from the bullets, never hand-written.** A stage's
 icon, its summary-table row, its section header and the Objective rows it
 delivers are all derived from the Deliverables bullets under it, by one
 deterministic rule `aide progress` and `aide check` both apply — `aide progress
 -h` states the rule. Write the bullets and let the stage follow; an icon typed
 over a derived cell is drift `aide check` reports.
+
+**Deferral is recorded on the item, with its reason, and the stage follows.**
+Postpone an item with `aide progress set NNN deferred --reason …`, never by
+typing ⏸️ over a bullet or a stage: the verb keeps the why on the bullet's
+trail, and a stage whose only open work is deferred rolls up to ⏸️ by itself —
+never to ✅. Deferred work resumes through any forward `aide progress set`. A
+⏸️ stage header, summary row or Objective row the rollup does not compute is a
+hand edit that stands until a verb moves a bullet of that stage, and `aide
+check` warns on it for as long as it disagrees, as it does on a stage that
+rolls up to ⏸️ under a cell that says otherwise. A ❌ cell is outside the
+comparison, and a ❌ summary row takes its stage's header with it: its bullets
+no longer speak for the stage.
 
 **Acceptance boxes are attestations, and no rollup ever ticks one.** They are
 outside the derivation entirely: the rollup skips checkbox lines, `aide check`
@@ -158,9 +183,53 @@ Semantics
   went with it: a ✅ summary row over unfinished work, or a ✅ objective over a
   ❌ target, passed clean. Failing on the row, and naming its line, is the only
   reading that cannot pass an over-claim, and its cost is one edit.
+- **Why deferral has a verb, and ⏸️ a rollup.** Issue #281: a project owner
+  deferred a whole roadmap stage, and nothing could record it. `progress set`
+  took no ⏸️, so the icon was a hand edit with no reason on the record; the
+  rollup never produced ⏸️, so a deferred stage read 📋 like one nobody had
+  started — in the file, in `aide status` and in the queue-planner's input;
+  and `aide check` skipped a hand-set ⏸️ summary row without a word, a
+  deliberate but unstated exemption. The verb now keeps the reason the way
+  `reopen` does, the rollup yields ⏸️ once nothing else is open (still never
+  ✅ over a ⏸️ bullet, which is #173's rule), and the silent skip became a
+  warning. A hand-set ⏸️ is left standing rather than overwritten by the next
+  unrelated `set`, because it is an owner's intent: `check` names it and a
+  person resolves it, where a rewrite would have erased it unseen. No insight
+  is captured on a deferral, unlike a reopening — postponing work is a
+  decision about order, not a finding about the work.
+- **Why every derived cell is compared, with none of the writer's restraint.**
+  Issue #285: the sentence that a typed-over derived cell is drift `aide check`
+  reports held for ✅ and ⏸️ only. A 🚧 over bullets all 📋, a 🔍 the rollup
+  never yields, a ✅ header on a stage with no summary row and every Objective
+  row — a ✅ one over an open stage included — passed clean. Diffing against
+  the writer would not have closed it: the writer never downgrades a cell
+  outside a reopen or a deferral and leaves a hand-set ⏸️ standing, both rules
+  about when a verb may *write*, not about what a cell should say. So `check`
+  takes the same derivation with neither, which is also why no sequence of
+  verbs can write a file it then reports.
+- **Why a stage section needs its summary row.** Since issue #285 a stage's
+  header and bullets are compared whatever the summary says, so a stage the
+  summary left out was still checked — but the summary row is the one cell
+  `aide check` reads a ❌ exclusion from, and the one it reads a stage's ✅
+  from before holding a capability row to it, so a table that left a stage
+  out silently under-reported a stage the file tracks.
+  Found in the #285 audit and filed as issue #289; a warning, because a
+  missing row under-reports rather than over-claims.
 - **Why a shared marker is desugared.** One bullet carries one icon, so while
   items share a marker they share a status — and the first flip would
   otherwise carry the siblings with it.
+- **Why a split copy has a verb, and why it rewords a ✅.** Issue #320: since
+  #169 `aide check` reported the copies a split leaves and asked for each to be
+  reworded, but no verb changed a bullet's words — `reword` took a criterion
+  only — so the one repair was a hand edit of `progress.md`, the edit every
+  role is steered away from. The criterion form refuses over a ticked box
+  because its wording is what an attestation was made against. A bullet's icon
+  is the item's status, written by `set` and `merge` from the item's state and
+  not from the sentence beside it, so rewording the prose re-points nothing —
+  and the ✅ copy is the one whose words describe a sibling's open work as
+  done, so a verb that refused it would leave standing the one line that lies.
+  `roadmap.md` is not mirrored: its deliverables carry no item marker, since
+  items are born after it, in the queue.
 - **Why no rollup ticks a box.** A derived tick is not an attestation. While
   `progress set` auto-ticked, a box deliberately left `[ ]` in a ✅ stage — the
   honest record of a criterion that shipped unmet — was silently flipped back
