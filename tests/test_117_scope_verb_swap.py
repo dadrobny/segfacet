@@ -1,7 +1,10 @@
 """Tests for item 117 -- retire the project-local scope-check script in favour
 of the framework verb ``aide scope``.
 
-Covers AC1-AC9, AC12, AC16-AC18. AC10/AC11 (the shape of
+Covers AC1-AC3, AC5-AC9, AC12, AC16-AC18. AC4's two inbox-tick tests were
+retired on 2026-09-29: they read the live docs/aide/insights.md, which
+conventions §6 forbids (engine 2.10.0+); the tick is a diff-time claim the
+validator checked at merge. AC10/AC11 (the shape of
 ``tests/test_107_item_scope_check.py`` after the split) and AC13-AC15 (the
 ``tests/test_115_stage26_validation.py`` retarget) are asserted by the edits
 to those two modules directly, not here.
@@ -37,27 +40,6 @@ _THIS_FILE = Path(__file__).resolve()
 _SCRIPT = _REPO_ROOT / "scripts" / "check_item_scope.py"
 _CI_YML = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
 _CLAUDE_MD = _REPO_ROOT / "CLAUDE.md"
-_INSIGHTS_MD = _REPO_ROOT / "docs" / "aide" / "insights.md"
-_INSIGHTS_ARCHIVE_DIR = _REPO_ROOT / "docs" / "aide" / "insights"
-
-
-def _captured_insight_lines() -> list:
-    """Every captured insight line, live inbox and archives alike.
-
-    A closed entry does not stay in `insights.md`: `aide insights archive`
-    moves it, verbatim and immutable, into `insights/archive-YYYY-QN.md`.
-    Reading only the live file would therefore make these assertions fail on
-    the day the entries below are archived -- a housekeeping action, not a
-    regression -- which is the defect class `test_114`'s AC8 notes already
-    describe: pinning what the loop's own verbs are designed to move. The
-    claim is what must survive unrewritten; which of the two files holds it
-    is not part of the contract.
-    """
-    lines = _INSIGHTS_MD.read_text(encoding="utf-8").splitlines()
-    if _INSIGHTS_ARCHIVE_DIR.is_dir():
-        for archive in sorted(_INSIGHTS_ARCHIVE_DIR.glob("archive-*.md")):
-            lines.extend(archive.read_text(encoding="utf-8").splitlines())
-    return lines
 _ITEM_117_SPEC = _REPO_ROOT / "docs" / "aide" / "items" / "117-retire-check-item-scope-script.md"
 
 # Excluded from AC2's sweep -- see module docstring.
@@ -136,40 +118,6 @@ def test_ac2_no_executable_reference_to_the_retired_script_survives():
 def test_ac3_claude_md_does_not_name_the_retired_script():
     text = _CLAUDE_MD.read_text(encoding="utf-8")
     assert _RETIRED_SCRIPT_TOKEN not in text
-
-
-# --------------------------------------------------------------------------- #
-# AC4: both insight entries are ticked in place, append-only.
-# --------------------------------------------------------------------------- #
-
-
-def test_ac4_path_matches_insight_is_ticked_and_pointed_at_117():
-    lines = _captured_insight_lines()
-    # Locate by a distinctive substring of the *captured* claim text, not by
-    # a hardcoded whole-line literal -- the line must survive unrewritten.
-    needle = "does not support a mid/end single-star glob"
-    matches = [ln for ln in lines if needle in ln]
-    assert matches, f"expected a captured insight line containing {needle!r}"
-    assert len(matches) == 1, f"expected exactly one match, found {len(matches)}"
-    line = matches[0]
-    assert line.startswith("- [x]"), f"entry not ticked: {line[:80]!r}..."
-    assert "→" in line, f"entry has no pointer arrow: {line[:80]!r}..."
-    assert "117" in line, f"entry does not name item 117: {line[:80]!r}..."
-    # Append-only: the original captured claim text must still be present.
-    assert needle in line
-
-
-def test_ac4_stale_base_main_insight_is_ticked_and_pointed_at_117():
-    lines = _captured_insight_lines()
-    needle = "is stale on this checkout"
-    matches = [ln for ln in lines if needle in ln]
-    assert matches, f"expected a captured insight line containing {needle!r}"
-    assert len(matches) == 1, f"expected exactly one match, found {len(matches)}"
-    line = matches[0]
-    assert line.startswith("- [x]"), f"entry not ticked: {line[:80]!r}..."
-    assert "→" in line, f"entry has no pointer arrow: {line[:80]!r}..."
-    assert "117" in line, f"entry does not name item 117: {line[:80]!r}..."
-    assert needle in line
 
 
 # --------------------------------------------------------------------------- #

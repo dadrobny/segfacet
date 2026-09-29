@@ -1,7 +1,10 @@
 """Tests for item 157 -- dropping the ``modeN_`` corpus case-id prefixes.
 
-Covers Acceptance Criteria AC1-AC19 (AC20, the full-suite run, is the
-validator's job, not a test in this module). See
+Covers Acceptance Criteria AC1-AC13 and AC15-AC19 (AC20, the full-suite run,
+is the validator's job, not a test in this module). AC14's inbox test was
+retired on 2026-09-29: it read the live docs/aide/insights.md, which
+conventions §6 forbids (engine 2.10.0+); the capture is a diff-time claim the
+validator checked at merge. See
 ``docs/aide/items/157-drop-the-moden-corpus-case-id-prefixes.md`` for the
 full rationale: eight geometric corpus case ids lose their stale ``modeN_``
 prefix (the manifest's ``failure_mode`` field is the authority, not the
@@ -21,8 +24,6 @@ Adversarial / edge cases (Testing Strategy):
   injective.
 - AC12 skips cleanly (rather than failing) when ``git`` is unavailable, per
   the AC's own text.
-- AC14 searches the live inbox *and* every archive file (CLAUDE.md's
-  documented gotcha: an archive sweep must not red this suite).
 """
 
 from __future__ import annotations
@@ -48,8 +49,6 @@ _INTENSITY_MANIFEST = _REPO_ROOT / "tests" / "corpus" / "intensity" / "manifest.
 _CORPUS_DIR = _REPO_ROOT / "tests" / "corpus"
 _FIXTURES_DIR = _CORPUS_DIR / "fixtures"
 _DECISION_TABLE = _REPO_ROOT / "docs" / "aide" / "golden-decision-table.md"
-_INSIGHTS_MD = _REPO_ROOT / "docs" / "aide" / "insights.md"
-_INSIGHTS_ARCHIVE_DIR = _REPO_ROOT / "docs" / "aide" / "insights"
 
 _EXPECTED_MAPPING: Dict[str, str] = {
     "mode1_displace": "displace",
@@ -490,34 +489,6 @@ def test_ac13_pair_pattern_rejects_old_id_named_alone():
     pattern = _pair_pattern(old, new)
     assert not pattern.search(f"* ``{old}`` was renamed.")
     assert pattern.search(f"* ``{old}`` -> ``{new}``")
-
-
-# =========================================================================== #
-# AC14: the mapping is captured as one knowledge insight
-# =========================================================================== #
-
-
-def _captured_insight_lines():
-    lines = _INSIGHTS_MD.read_text(encoding="utf-8").splitlines()
-    if _INSIGHTS_ARCHIVE_DIR.is_dir():
-        for archive in sorted(_INSIGHTS_ARCHIVE_DIR.glob("archive-*.md")):
-            lines.extend(archive.read_text(encoding="utf-8").splitlines())
-    return lines
-
-
-def test_ac14_mapping_captured_as_exactly_one_knowledge_insight():
-    lines = _captured_insight_lines()
-    matches = [
-        line
-        for line in lines
-        if (line.startswith("- [ ] knowledge —") or line.startswith("- [x] knowledge —"))
-        and "item 157" in line
-        and all(old in line for old in RENAMED_CASE_IDS)
-        and all(new in line for new in RENAMED_CASE_IDS.values())
-    ]
-    assert len(matches) == 1, (
-        f"expected exactly one knowledge insight for item 157's mapping, found {len(matches)}: {matches}"
-    )
 
 
 # =========================================================================== #

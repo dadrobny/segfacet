@@ -11,8 +11,12 @@ covers exactly the subset the spec's Testing Strategy designates **in-suite**:
 
     AC3, AC4, AC5, AC6, AC8, AC9, AC10, AC11, AC12, AC13, AC14, AC15, AC16,
     AC17, AC18, AC22, AC23, AC24, AC25, AC26, AC27 (the conflicts half),
-    AC28, AC29, AC30, AC34, AC35, AC36, AC37, AC39, AC40 (the signature
+    AC28, AC29, AC30, AC34, AC35, AC36, AC37, AC40 (the signature
     half).
+
+AC39's inbox tests were retired on 2026-09-29: they read the live
+docs/aide/insights.md, which conventions §6 forbids (engine 2.10.0+); the
+tick is a diff-time claim the validator checked at merge.
 
 AC1, AC2, AC7, AC19, AC20, AC21, AC31, AC32, AC33, AC38, AC40 (the profile
 half) and AC41 are replay-only and are intentionally not covered here -- they
@@ -37,8 +41,6 @@ Discipline followed (Testing Strategy):
   by its checkbox lines.
 - Git-reading AC34 skips, never fails and never passes, on a shallow clone
   or a missing ``git``.
-- Archive-aware: AC39 searches ``docs/aide/insights.md`` and every
-  ``docs/aide/insights/archive-*.md``.
 
 Adversarial and edge cases covered (Testing Strategy's own list, plus a few):
 
@@ -70,7 +72,6 @@ import inspect
 import json
 import re
 import subprocess
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -101,8 +102,6 @@ _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
 _DOCS_AIDE_DIR = _REPO_ROOT / "docs" / "aide"
 _PROGRESS_PATH = _DOCS_AIDE_DIR / "progress.md"
-_INSIGHTS_PATH = _DOCS_AIDE_DIR / "insights.md"
-_INSIGHTS_ARCHIVE_DIR = _DOCS_AIDE_DIR / "insights"
 _AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _FM_JSON_PATH = _DOCS_AIDE_DIR / "failure_modes.generated.json"
 _FM_MD_PATH = _DOCS_AIDE_DIR / "failure_modes.generated.md"
@@ -1362,60 +1361,6 @@ def test_adv_ac37_missing_trail_line_naming_item151_is_flagged():
     )
     trail_matches = _TRAIL_LINE_RE.findall(box)
     assert not any(d >= "2026-09-15" and "151" in t for d, t in trail_matches)
-
-
-# =========================================================================== #
-# AC39: the criterion-7 re-verification insight is ticked with a pointer,
-# searching the live inbox and every archive file.
-# =========================================================================== #
-
-_AC39_ENTRY_SUBSTRING = "Stage 30 acceptance criterion 7 was ticked by item 143's validator"
-
-
-def _find_ac39_entry():
-    candidates = [_INSIGHTS_PATH]
-    if _INSIGHTS_ARCHIVE_DIR.is_dir():
-        candidates += sorted(_INSIGHTS_ARCHIVE_DIR.glob("archive-*.md"))
-    for path in candidates:
-        if not path.is_file():
-            continue
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if _AC39_ENTRY_SUBSTRING in line:
-                return path, line
-    return None, None
-
-
-def test_ac39_entry_present_and_ticked_with_a_pointer_to_item151():
-    path, line = _find_ac39_entry()
-    assert path is not None, (
-        f"no line containing {_AC39_ENTRY_SUBSTRING!r} found in insights.md or any "
-        f"insights/archive-*.md"
-    )
-    assert line.strip().startswith("- [x]"), line
-    assert "item 143, 2026-09-03" in line, line
-
-
-def test_adv_ac39_entry_lookup_searches_archives_too(tmp_path, monkeypatch):
-    """Adversarial: an entry present only in an archive file (not the live
-    inbox) must still be found -- the CLAUDE.md archive gotcha this AC
-    exists to guard against."""
-    fake_docs_dir = tmp_path / "docs_aide"
-    fake_archive_dir = fake_docs_dir / "insights"
-    fake_archive_dir.mkdir(parents=True)
-    (fake_docs_dir / "insights.md").write_text("- [ ] nothing relevant here\n", encoding="utf-8")
-    (fake_archive_dir / "archive-2026-Q3.md").write_text(
-        f"- [x] gap — {_AC39_ENTRY_SUBSTRING} ... *(item 143, 2026-09-03, engine 1.37.0)*\n",
-        encoding="utf-8",
-    )
-
-    # Drive the real helper against the fake tree, so the test fails if
-    # _find_ac39_entry ever stops searching the archive directory.
-    monkeypatch.setattr(sys.modules[__name__], "_INSIGHTS_PATH", fake_docs_dir / "insights.md")
-    monkeypatch.setattr(sys.modules[__name__], "_INSIGHTS_ARCHIVE_DIR", fake_archive_dir)
-
-    path, line = _find_ac39_entry()
-    assert path == fake_archive_dir / "archive-2026-Q3.md"
-    assert line.strip().startswith("- [x]")
 
 
 # =========================================================================== #

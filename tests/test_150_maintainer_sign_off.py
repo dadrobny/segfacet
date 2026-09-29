@@ -9,6 +9,11 @@ blocks the ACs form:
 4. the artifacts      (AC11-AC12)
 5. housekeeping       (AC13-AC15)
 
+AC14's inbox tests, and AC15's verbatim-in-inbox half, were retired on
+2026-09-29: they read the live docs/aide/insights.md, which conventions §6
+forbids (engine 2.10.0+); the capture is a diff-time claim the validator
+checked at merge.
+
 **The gate block is expected to be red until the maintainer runs**
 ``python .aide/scripts/aide.py gate approve <n> --evidence "…"``. That redness
 is the checkpoint working, not a defect to route around (item 150 spec, the
@@ -59,9 +64,6 @@ from segfacet.synth.golden import assert_matches_committed_artifact
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _PROGRESS_MD = _REPO_ROOT / "docs" / "aide" / "progress.md"
-_INSIGHTS_MD = _REPO_ROOT / "docs" / "aide" / "insights.md"
-_INSIGHTS_ARCHIVE_DIR = _REPO_ROOT / "docs" / "aide" / "insights"
-_ENGINE_VERSION_FILE = _REPO_ROOT / ".aide" / "VERSION"
 _SPEC_REL_PATH = "docs/aide/items/150-maintainer-sign-off-of-the-specification.md"
 _SPEC_MD = _REPO_ROOT / "docs" / "aide" / "items" / (
     "150-maintainer-sign-off-of-the-specification.md"
@@ -1054,137 +1056,6 @@ def test_ac13_each_stage_20_held_item_bullet_carries_its_recorded_icon(item, ico
     )
 
 
-# --- AC14 ------------------------------------------------------------------- #
-
-_INSIGHT_LINE_RE = re.compile(r"^- \[[ xX]\] ")
-
-#: The §1 grammar, anchored, for a line whose provenance names item 150.
-# 2026-09-16: `aide insights tick` appends a ` → <pointer>` routing suffix
-# after the provenance parenthetical when an entry is ticked closed (§1 →
-# insights.md) -- a ticked line legitimately ends that way, so the grammar
-# must tolerate it rather than pinning the un-ticked shape (a test must not
-# pin text the loop's own verbs are built to move; REVIEW.md, CLAUDE.md
-# gotchas).
-_ITEM_150_GRAMMAR_RE = re.compile(
-    r"^- \[[ xX]\] (?:knowledge|defect|gap|automation|framework) — .+ "
-    r"\*\(item 150, (\d{4}-\d{2}-\d{2}), engine (\d+\.\d+\.\d+)\)\*"
-    r"(?: → .+)?$"
-)
-
-#: Any line claiming item-150 provenance, well-formed or not -- so a malformed
-#: one is caught rather than skipped by the strict grammar above.
-_ITEM_150_CLAIM_RE = re.compile(r"\(item 150[,)]")
-
-#: Non-``item 150`` insight lines across the inbox and every archive, measured
-#: 2026-09-14 on ``aide/queue-020`` at this item's base. Asserted with ``>=``:
-#: appending is allowed, rewording/reordering/deleting is not, and `aide
-#: insights archive` only moves lines between the files this count spans, so
-#: routine housekeeping cannot falsify it (CLAUDE.md's archive gotcha).
-_NON_ITEM_150_INSIGHT_BASELINE = 209
-
-
-def _insight_files():
-    files = [_INSIGHTS_MD]
-    files.extend(sorted(_INSIGHTS_ARCHIVE_DIR.glob("archive-*.md")))
-    assert _INSIGHTS_MD.is_file(), "docs/aide/insights.md is missing"
-    return files
-
-
-def _insight_lines():
-    out = []
-    for path in _insight_files():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if _INSIGHT_LINE_RE.match(line):
-                out.append((path.name, line))
-    assert out, "no insight lines parsed at all -- plumbing failure"
-    return out
-
-
-def test_ac14_every_item_150_insight_is_well_formed_and_honestly_dated():
-    engine = _ENGINE_VERSION_FILE.read_text(encoding="utf-8").strip()
-    assert engine, ".aide/VERSION is empty"
-    today = datetime.date.today()
-
-    claims = [
-        (name, line)
-        for name, line in _insight_lines()
-        if _ITEM_150_CLAIM_RE.search(line)
-    ]
-    assert claims, (
-        "no insights.md line carries item-150 provenance -- AC15's "
-        "out-of-scope observations must be recorded there"
-    )
-    for name, line in claims:
-        match = _ITEM_150_GRAMMAR_RE.match(line)
-        assert match is not None, (
-            f"{name}: an item-150 insight does not match the §1 grammar:\n{line}"
-        )
-        day = datetime.date.fromisoformat(match.group(1))
-        assert day <= today, f"{name}: item-150 insight dated in the future ({day})"
-        # An entry records the engine it was observed under and is immutable
-        # (§1 → insights.md), so after an engine update it legitimately names
-        # an older version. Re-pinned 2026-09-16 (1.37.0 → 1.52.1): the
-        # recorded engine must not be newer than the installed one; equality
-        # was the original pin and held only until the first update.
-        recorded = tuple(int(part) for part in match.group(2).split("."))
-        installed = tuple(int(part) for part in engine.split("."))
-        assert recorded <= installed, (
-            f"{name}: insight records engine {match.group(2)}, newer than "
-            f".aide/VERSION's {engine}"
-        )
-
-
-def test_ac14_no_pre_existing_insight_line_was_removed():
-    others = [
-        line
-        for _name, line in _insight_lines()
-        if not _ITEM_150_CLAIM_RE.search(line)
-    ]
-    assert len(others) >= _NON_ITEM_150_INSIGHT_BASELINE, (
-        f"only {len(others)} non-item-150 insight lines remain across the inbox "
-        f"and archives; the baseline at this item's base is "
-        f"{_NON_ITEM_150_INSIGHT_BASELINE}. A captured claim is immutable -- "
-        "nothing may be reworded, reordered or deleted (§1)."
-    )
-
-
-def test_adv_ac14_a_malformed_item_150_line_is_caught():
-    """The strict grammar must reject the shapes a careless append produces,
-    while the claim matcher still spots them -- otherwise a malformed line is
-    silently skipped instead of failing."""
-    bad = (
-        "- [ ] gap — missing the engine token *(item 150, 2026-09-14)*",
-        "- [ ] musing — not a recognised class *(item 150, 2026-09-14, engine 1.37.0)*",
-        "- [ ] gap — no date at all *(item 150, engine 1.37.0)*",
-        "- [ ] gap — dash not em-dash *(item 150, 2026-09-14, engine 1.37.0)*".replace(
-            "—", "-"
-        ),
-    )
-    for line in bad:
-        assert _ITEM_150_CLAIM_RE.search(line), line
-        assert _ITEM_150_GRAMMAR_RE.match(line) is None, (
-            f"the grammar must reject this malformed line: {line!r}"
-        )
-
-    good = (
-        "- [ ] gap — a well-formed observation "
-        "*(item 150, 2026-09-14, engine 1.37.0)*"
-    )
-    assert _ITEM_150_GRAMMAR_RE.match(good) is not None, (
-        "the grammar must accept a well-formed line, or the rejections above "
-        "prove nothing"
-    )
-
-    good_ticked_with_pointer = (
-        "- [x] gap — a well-formed, ticked observation "
-        "*(item 150, 2026-09-14, engine 1.37.0)* → item 153"
-    )
-    assert _ITEM_150_GRAMMAR_RE.match(good_ticked_with_pointer) is not None, (
-        "the grammar must accept a ticked line carrying the routing pointer "
-        "`aide insights tick` appends"
-    )
-
-
 # --- AC15 ------------------------------------------------------------------- #
 
 _ZERO_CASE_SENTENCE = "no out-of-scope observation recorded"
@@ -1199,27 +1070,13 @@ def test_ac15_the_zero_case_is_stated_not_left_silent():
     legitimately raises nothing passes, and a review that skipped the step does
     not."""
     preamble = _transcript_preamble(_transcript_section(_spec_text()))
-    insights_text = "\n".join(
-        path.read_text(encoding="utf-8") for path in _insight_files()
-    )
-
     observations = [m.group(1) for m in _OBSERVATION_BULLET_RE.finditer(preamble)]
-    verbatim = [obs for obs in observations if obs in insights_text]
     zero_case = _ZERO_CASE_SENTENCE in preamble
 
-    assert verbatim or zero_case, (
+    assert observations or zero_case, (
         "the transcript preamble must either carry at least one out-of-scope "
-        "observation whose text appears verbatim in insights.md (or an "
-        f"archive), or state {_ZERO_CASE_SENTENCE!r}. It carries "
-        f"{len(observations)} observation bullet(s), none of which appear "
-        "verbatim in the insight files, and no zero-case sentence."
+        f"observation bullet or state {_ZERO_CASE_SENTENCE!r}; it does neither."
     )
-    if observations and not zero_case:
-        assert len(verbatim) == len(observations), (
-            "every out-of-scope observation in the transcript must appear "
-            "verbatim in insights.md (or an archive); these do not: "
-            f"{[obs[:70] for obs in observations if obs not in insights_text]}"
-        )
 
 
 def test_adv_ac15_both_halves_absent_fails():

@@ -122,7 +122,6 @@ _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
 _DOCS_AIDE_DIR = _REPO_ROOT / "docs" / "aide"
 _PROGRESS_PATH = _DOCS_AIDE_DIR / "progress.md"
-_INSIGHTS_PATH = _DOCS_AIDE_DIR / "insights.md"
 _GOLDEN_DIR = _TESTS_DIR / "golden"
 
 #: queue-018's first commit -- the item spec's AC4 range start.

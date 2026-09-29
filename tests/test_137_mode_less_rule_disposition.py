@@ -59,8 +59,9 @@ Covers Acceptance Criteria AC1-AC18:
 - AC15: both committed catalogue artifacts regenerate byte-identically,
         ``schema_version`` still ``"1.1"`` (``"1.2"`` since item 148,
         2026-09-04).
-- AC16: the catalogue-gap finding is captured durably in the insight inbox
-        (or one of its archives).
+- AC16: retired on 2026-09-29 -- its test read the live docs/aide/insights.md,
+        which conventions §6 forbids (engine 2.10.0+); the capture is a
+        diff-time claim the validator checked at merge.
 - AC17: vision.md §6 stays at exactly eight numbered titles (provenance
         since the item-150 sign-off, not ids), and ``MODE_ANCHOR_PATHS``
         invents no mode id of its own -- its keys are signed-off mode ids
@@ -86,7 +87,7 @@ with no ``consuming_rules`` gains neither ``"rule_declaration"`` nor
 mode-less declarer carries both tags in canonical order and keeps the
 declarer's own declared modes in ``failure_modes``; the ``per_label``
 container is honestly mode-less and carries its three rule-sourced tags in
-canonical order; the insights search globs the archive files too; ``reference_delta``'s
+canonical order; ``reference_delta``'s
 declared modes are tied to its own tracked-feature vocabulary, not just
 pinned by value, so a re-narrowing to ``(2,)`` is caught structurally.
 """
@@ -95,7 +96,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import re
 from collections import Counter
 from pathlib import Path
 
@@ -993,37 +993,6 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
     assert sum(distribution.values()) == 145
-
-
-# =========================================================================== #
-# AC16: the catalogue-gap finding is captured durably
-# =========================================================================== #
-
-
-_GAP_LINE_RE = re.compile(r"^- \[[ x]\] gap ")
-
-
-def test_ac16_catalogue_gap_finding_captured_in_inbox_or_archive():
-    docs_dir = _REPO_ROOT / "docs" / "aide"
-    candidate_files = [docs_dir / "insights.md"]
-    archive_dir = docs_dir / "insights"
-    if archive_dir.is_dir():
-        candidate_files.extend(sorted(archive_dir.glob("archive-*.md")))
-    assert candidate_files, "expected at least the live insight inbox to exist"
-
-    matches = []
-    for path in candidate_files:
-        if not path.is_file():
-            continue
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not _GAP_LINE_RE.match(line):
-                continue
-            if "intensity" in line and "§6" in line and "item 137" in line:
-                matches.append(line)
-
-    assert matches, "expected a captured gap line naming intensity, §6 and item 137"
-    for line in matches:
-        assert re.search(r"\d{4}-\d{2}-\d{2}", line), line
 
 
 # =========================================================================== #
