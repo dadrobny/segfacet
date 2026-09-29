@@ -46,12 +46,12 @@ Plus one **supplementary** ladder, outside the primary ladders and outside
 the cross-mode matrix: the ``fragment`` ladder's *fused* counterpart via
 cumulative ``fuse`` steps (see below).
 
-Why four ladders have no continuous knob
+Why five ladders have no continuous knob
 ------------------------------------------
-``relabel_swap``, ``sequence_break``, ``remove_level`` and
-``split_own_label`` take only target-label selectors (no continuous physical
-parameter that moves their metric monotonically). Three of the four get a
-genuine ladder from the *count of affected labels*; the fourth cannot:
+``relabel_swap``, ``sequence_break``, ``remove_level``, ``split_own_label``
+and ``crop_at_border`` have no continuous severity parameter that drives
+their designated metric. Four of the five get a genuine ladder from the
+*count of affected labels*; ``sequence_break`` cannot and is degenerate:
 
 * **``split_own_label``** -- 4 rungs; ``target_label`` 21, 22, 23 shifts 2, 3,
   4 labels down by one, so ``mislabelled_volume_fraction`` rises 0 -> 0.16 ->
@@ -137,8 +137,11 @@ metric's home moves. One mode can own two metrics' homes (mode 1:
 ``unanchored_foreground_fraction``, ``min_dominant_component_fraction``),
 but the margin still isolates the designated metric against the full
 foreign set: excluding same-home metrics from that set changes no measured
-margin on this base (only ``displace`` and ``fragment`` share a home, and
-both already have margin ``inf``). If a future base makes this choice
+margin on this base. Since item 189 ``displace`` is condition-homed, so
+mode 1's metrics are designated only by ``fragment`` (margin ``inf``); ``split``
+(finite margin) was checked too: its foreign ``min_dominant_component_fraction``
+is a mode-1 metric, but its designated ``mislabelled_volume_fraction`` is not,
+so no same-home exclusion applies. If a future base makes this choice
 matter, the decision is re-opened in a spec, not silently re-defined.
 
 Mode 1's ladders (item 154, A4; absorbs item 141)
@@ -146,7 +149,8 @@ Mode 1's ladders (item 154, A4; absorbs item 141)
 Mode 1 (*Segmentation accuracy*) is measured by one ladder, ``fragment`` (a
 body cut into same-label pieces), on the corpus's default base; ``displace``
 (rigid translation) moved to the ``displaced_vertebra`` condition in item 189
-and is no longer listed. :data:`MODE_LADDER_DISPOSITIONS` records this. Deferred item 141 asked whether that base should widen so a metric's
+and is no longer listed. :data:`MODE_LADDER_DISPOSITIONS` records this.
+Deferred item 141 asked whether that base should widen so a metric's
 swing is set by the perturbation rather than the fixture's FOV walls. It is
 not widened: the shortfall item 141 aimed at (``crop_at_border`` ->
 ``unanchored_foreground_fraction``, see :data:`KNOWN_CROSS_MODE_COUPLINGS`)
