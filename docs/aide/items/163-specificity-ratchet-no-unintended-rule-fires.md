@@ -156,11 +156,11 @@ item does not change it (see Left open).
 - **A7 (no human gate):** every input is committed state on this tree and
   every judgement is derived from the signed-off specification or a committed
   manifest. No row is added to `progress.md`'s `## Human gates` table.
-- **A8 (engine 1.59.2, re-checked 2.1.0):** `aide scope`'s §6 check reports a test that names
+- **A8 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1):** `aide scope`'s §6 check reports a test that names
   neither an acceptance criterion nor a Testing-Strategy case (the finding that
   retired one of item 162's tests on 2026-09-20), so the Testing Strategy below
   names the one extra case with its label and failure mode, and nothing else is
-  written.
+  written. **Re-check 2026-09-29 (engine 2.20.1):** §6 tracing also accepts a `## Review findings` label (engine 2.18.0), so the finding now reads "no Testing Strategy or Review findings case"; the Testing-Strategy route this item uses still holds.
 
 ## Implementation Steps
 
