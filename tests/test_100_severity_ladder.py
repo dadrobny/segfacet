@@ -140,6 +140,13 @@ _METRIC_NAME_TO_LEGACY = {v: k for k, v in _LEGACY_TO_METRIC_NAME.items()}
 _LADDER_OPERATORS = tuple(_LEGACY_TO_OPERATOR.values())
 
 
+def _legacy_couplings(sl):
+    """The recorded couplings whose ladder is one of the seven legacy-int
+    ladders this file's matrix indexes; the split ladders (item 201) live
+    outside that space and their coupling is item 201's to assert."""
+    return [c for c in sl.KNOWN_CROSS_MODE_COUPLINGS if c.ladder_operator in _OPERATOR_TO_LEGACY]
+
+
 def _identity_assignment(sl) -> dict:
     """``{operator: its own ladder's designated_metric}`` -- the re-keyed
     identity assignment (each ladder scored against its own metric)."""
@@ -648,7 +655,7 @@ def test_ac14_uncoupled_ladders_are_strictly_specific(harness):
     verdict = sl.score_harness(harness)
     spans = _spans_table(harness)
     coupled_ladder_modes = {
-        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in _legacy_couplings(sl)
     }
     for m in _LADDER_MODES:
         if m in coupled_ladder_modes:
@@ -679,7 +686,7 @@ def test_ac15_coupling_table_matches_measurement_both_directions(harness):
                 measured.add((m, f))
     recorded = {
         (_OPERATOR_TO_LEGACY[c.ladder_operator], _METRIC_NAME_TO_LEGACY[c.foreign_metric])
-        for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+        for c in _legacy_couplings(sl)
     }
     # Two-way equality: catches both a hidden leak (measured - recorded) and
     # a stale entry (recorded - measured).
@@ -704,7 +711,7 @@ def test_ac15_every_coupling_entry_has_a_non_empty_cause_and_no_self_coupling():
 def test_ac16_coupling_response_ratchet_holds(harness):
     sl = _sl()
     spans = _spans_table(harness)
-    for c in sl.KNOWN_CROSS_MODE_COUPLINGS:
+    for c in _legacy_couplings(sl):
         measured = _response(
             spans,
             _OPERATOR_TO_LEGACY[c.ladder_operator],
@@ -736,7 +743,7 @@ def test_ac17_coupled_ladders_report_status_coupled_with_nonempty_coupled_modes(
     sl = _sl()
     verdict = sl.score_harness(harness)
     coupled_modes = {
-        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in _legacy_couplings(sl)
     }
     assert coupled_modes, "expected at least one recorded coupling (mode 6 -> metric 1)"
     for m in coupled_modes:
@@ -755,7 +762,7 @@ def test_ac17_summary_names_every_coupled_and_degenerate_ladder(harness):
     sl = _sl()
     verdict = sl.score_harness(harness)
     coupled_modes = {
-        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in sl.KNOWN_CROSS_MODE_COUPLINGS
+        _OPERATOR_TO_LEGACY[c.ladder_operator] for c in _legacy_couplings(sl)
     }
     summary = verdict.summary()
     assert isinstance(summary, str) and summary

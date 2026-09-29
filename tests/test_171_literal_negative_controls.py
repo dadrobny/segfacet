@@ -158,15 +158,14 @@ def test_ac5_h5_survives_derived_home_of_99(monkeypatch):
 
 
 # =========================================================================== #
-# AC6: H6 (test_154) survives rogue_island_count already living in mode 1.
+# AC6: H6 (test_154) survives the inject_islands ladder already living in mode 1.
 # =========================================================================== #
 
 
 def _patch_inject_islands_home_to_1(monkeypatch):
-    """Shared by AC6 and the H6 branch of the adversarial case below: patch
-    both PER_MODE_METRIC_SPECS and MODE_LADDER_DISPOSITIONS the way A4
-    requires, and return the module handles used to build the patch."""
-    import segfacet.eval.per_mode as per_mode
+    """Shared by AC6 and the H6 branch of the adversarial case below: re-home
+    the inject_islands ladder to mode 1 and recompute
+    MODE_LADDER_DISPOSITIONS the way A4 requires; return severity_ladder."""
     import segfacet.eval.severity_ladder as severity_ladder
 
     # Item 201: the disposition follows the ladders' own homes, so the
@@ -189,14 +188,19 @@ def _patch_inject_islands_home_to_1(monkeypatch):
     )
     monkeypatch.setattr(severity_ladder, "MODE_LADDER_DISPOSITIONS", patched_dispositions)
 
-    return per_mode, severity_ladder
+    return severity_ladder
 
 
-def test_ac6_h6_survives_rogue_island_count_already_in_mode_1(monkeypatch):
+def test_ac6_h6_survives_inject_islands_ladder_already_in_mode_1(monkeypatch):
     module = _load_module_from_path(
         _TESTS_DIR / "test_154_ladder_remeasurement.py", "_test_171_test_154"
     )
-    per_mode, severity_ladder = _patch_inject_islands_home_to_1(monkeypatch)
+    import segfacet.eval.severity_ladder as live
+
+    # Precondition: the live home is not 1, so the membership assert below
+    # can only pass because of the patch.
+    assert live.SEVERITY_LADDERS["inject_islands"].failure_mode != 1
+    severity_ladder = _patch_inject_islands_home_to_1(monkeypatch)
 
     # The defect is really present before we trust the pass below (§6):
     # the inject_islands ladder is now recorded under mode 1's disposition.
@@ -321,7 +325,7 @@ def _h5_pre_item_body(monkeypatch):
 
 
 def _h6_pre_item_body(monkeypatch):
-    per_mode, severity_ladder = _patch_inject_islands_home_to_1(monkeypatch)
+    severity_ladder = _patch_inject_islands_home_to_1(monkeypatch)
 
     rehomed_ladders = tuple(
         operator
