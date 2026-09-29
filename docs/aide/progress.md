@@ -1908,7 +1908,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   *(Item 200)*
 - ✅ **D4** The severity-ladder constants re-measured, including the split operators.
   *(Item 201)*
-- 🔍 **D4** A generated `docs/aide/rules.generated.md`. *(Item 202)*
+- ✅ **D4** A generated `docs/aide/rules.generated.md`. *(Item 202)*
 - 📋 **D5** Modes 3 and 4 re-signed by the maintainer at the bar (human gate), with the
   outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
 - 📋 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
