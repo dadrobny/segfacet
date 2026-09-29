@@ -1897,7 +1897,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   *(Item 196)*
 - ✅ **Maintenance** `test_155`'s zero-comparison scan covers truthiness and ordering
   shapes. *(Item 197)*
-- 🚧 **Maintenance** `mislabel`'s `ordering` detector judges order along the expected
+- 🔍 **Maintenance** `mislabel`'s `ordering` detector judges order along the expected
   sequence. *(Item 198)*
 - 📋 **Maintenance** Positional gate and insight citations in the records rewritten to
   IDs. *(Item 199)*
