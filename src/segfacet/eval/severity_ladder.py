@@ -21,8 +21,8 @@ diagonal), then scored for:
   response to *this* ladder's severity relative to every *foreign* metric's
   response to the *same* ladder.
 
-The seven ladders
-------------------
+The nine ladders
+-----------------
 ========  ================================  ======================  ==================
 operator  designated_metric                 severity knob           kind
 ========  ================================  ======================  ==================
@@ -33,6 +33,8 @@ relabel_swap     mislabelled_volume_fraction (up)      n_affected_labels       a
 remove_level     missing_level_count (up)              n_affected_labels       affected-label-count
 crop_at_border   fov_clipped_label_count (up)          n_affected_labels       affected-label-count
 sequence_break   out_of_order_label_count (up)         --                      degenerate (2-rung)
+split            mislabelled_volume_fraction (up)      donated_fraction        continuous
+split_own_label  mislabelled_volume_fraction (up)      n_shifted_labels        affected-label-count
 ========  ================================  ======================  ==================
 
 ``overlapping_voxel_count`` has had no ladder since item 195 (2026-09-28):
@@ -44,11 +46,17 @@ Plus one **supplementary** ladder, outside the primary ladders and outside
 the cross-mode matrix: the ``fragment`` ladder's *fused* counterpart via
 cumulative ``fuse`` steps (see below).
 
-Why three ladders have no continuous knob
--------------------------------------------
-``relabel_swap``, ``sequence_break`` and ``remove_level`` take only
-target-label selectors (no continuous physical parameter). Two of the three
-get a genuine ladder from the *count of affected labels*; the third cannot:
+Why four ladders have no continuous knob
+------------------------------------------
+``relabel_swap``, ``sequence_break``, ``remove_level`` and
+``split_own_label`` take only target-label selectors (no continuous physical
+parameter that moves their metric monotonically). Three of the four get a
+genuine ladder from the *count of affected labels*; the fourth cannot:
+
+* **``split_own_label``** -- 4 rungs; ``target_label`` 21, 22, 23 shifts 2, 3,
+  4 labels down by one, so ``mislabelled_volume_fraction`` rises 0 -> 0.16 ->
+  0.36 -> 0.56. ``donated_fraction`` is not usable as the axis (the metric
+  falls as the cap grows).
 
 * **``relabel_swap``** -- 3 rungs. Each disjoint adjacent swap mislabels two
   whole bodies (``n_affected_labels`` steps 0 -> 2 -> 4 on the five-level
@@ -109,9 +117,17 @@ response* speaks to is instead its designated metric's home,
 ``PER_MODE_METRIC_SPECS[designated_metric].failure_mode`` -- every number
 :func:`score_harness` scores is a metric response, so a claim about live
 state is always read off the metric, never off the ladder. The two differ
-for two ladders (``relabel_swap``: ladder mode 9, metric mode 8; ``fuse``:
-ladder mode 2, metric mode 1); both fields stay as recorded, they simply
-answer different questions.
+for several ladders (``relabel_swap``: ladder mode 9, metric mode 8; ``fuse``:
+ladder mode 2, metric mode 1; ``displace``: ladder home the
+``displaced_vertebra`` condition, metric mode 1; ``split`` and
+``split_own_label``: ladder mode 3, metric mode 8); both fields stay as
+recorded, they simply answer different questions.
+
+Shared designated metrics (item 201): ``split``, ``split_own_label`` and
+``relabel_swap`` all designate ``mislabelled_volume_fraction``. A ladder's
+response to its own spec-designated metric is normalised by its own span
+(exactly 1.0); a foreign metric's response is normalised by the span of the
+metric's reference ladder, the first ladder in registry order designating it.
 
 Foreign metrics (item 154, A2)
 --------------------------------
@@ -127,10 +143,10 @@ matter, the decision is re-opened in a spec, not silently re-defined.
 
 Mode 1's ladders (item 154, A4; absorbs item 141)
 ----------------------------------------------------
-Mode 1 (*Segmentation accuracy*) is measured by two ladders -- ``displace``
-(rigid translation) and ``fragment`` (a body cut into same-label pieces) --
-sharing the corpus's default base; :data:`MODE_LADDER_DISPOSITIONS` records
-this. Deferred item 141 asked whether that base should widen so a metric's
+Mode 1 (*Segmentation accuracy*) is measured by one ladder, ``fragment`` (a
+body cut into same-label pieces), on the corpus's default base; ``displace``
+(rigid translation) moved to the ``displaced_vertebra`` condition in item 189
+and is no longer listed. :data:`MODE_LADDER_DISPOSITIONS` records this. Deferred item 141 asked whether that base should widen so a metric's
 swing is set by the perturbation rather than the fixture's FOV walls. It is
 not widened: the shortfall item 141 aimed at (``crop_at_border`` ->
 ``unanchored_foreground_fraction``, see :data:`KNOWN_CROSS_MODE_COUPLINGS`)
@@ -385,7 +401,7 @@ class LadderResult:
 
 @dataclass(frozen=True)
 class HarnessResult:
-    """The full ladder x metric response surface: all seven primary ladders
+    """The full ladder x metric response surface: all nine primary ladders
     plus the supplementary ``fuse`` ladder."""
 
     ladders: Tuple[LadderResult, ...]
@@ -480,8 +496,9 @@ class ModeLadderDisposition:
         The specification mode id (:data:`segfacet.failure_modes.SPECIFICATION`
         key).
     ladders:
-        The operators (in :data:`SEVERITY_LADDERS` order) whose designated
-        metric is homed on ``mode``.
+        The operators (in :data:`SEVERITY_LADDERS` order) whose ladder home
+        (:attr:`LadderSpec.failure_mode`) is ``mode`` -- not their
+        designated metric's home.
     disposition:
         One of :data:`MODE_LADDER_DISPOSITION_VALUES`.
     reason:
@@ -650,6 +667,9 @@ _LADDER_HOMES: Mapping[str, Tuple[Optional[int], Optional[str]]] = MappingProxyT
         "remove_level": (6, None),
         "crop_at_border": (None, "fov_truncation"),
         "sequence_break": (9, None),
+        # Item 201: rule (b) -- SPECIFICATION[3].corpus_cases holds both cases.
+        "split": (3, None),
+        "split_own_label": (3, None),
         "fuse": (2, None),
     }
 )
@@ -879,6 +899,74 @@ def _sequence_break_ladder() -> LadderSpec:
     )
 
 
+def _split_ladder() -> LadderSpec:
+    rungs = [_rung0()]
+    for i, f in enumerate((0.1, 0.2, 0.3, 0.4), start=1):
+        rungs.append(
+            _rung(
+                i,
+                f,
+                f"donated_fraction={f}",
+                [
+                    (
+                        "split",
+                        {"target_label": 23, "neighbour_label": 24, "donated_fraction": f},
+                    )
+                ],
+            )
+        )
+    failure_mode, condition = _ladder_home("split")
+    return LadderSpec(
+        failure_mode=failure_mode,
+        failure_mode_name=_mode_name(failure_mode),
+        operator="split",
+        designated_metric="mislabelled_volume_fraction",
+        condition=condition,
+        severity_parameter="donated_fraction",
+        severity_kind="continuous",
+        rungs=tuple(rungs),
+        rationale=(
+            "The corpus's own pair, target 23 (L4) donating to neighbour 24 "
+            "(L5), swept over donated_fraction 0.1-0.4 (the corpus case sits "
+            "at 0.2)."
+        ),
+    )
+
+
+def _split_own_label_ladder() -> LadderSpec:
+    rungs = [_rung0()]
+    for i, t in enumerate((21, 22, 23), start=1):
+        rungs.append(
+            _rung(
+                i,
+                float(i + 1),
+                f"n_shifted_labels={i + 1}",
+                [("split_own_label", {"target_label": t})],
+            )
+        )
+    failure_mode, condition = _ladder_home("split_own_label")
+    return LadderSpec(
+        failure_mode=failure_mode,
+        failure_mode_name=_mode_name(failure_mode),
+        operator="split_own_label",
+        designated_metric="mislabelled_volume_fraction",
+        condition=condition,
+        severity_parameter="n_shifted_labels",
+        severity_kind="affected-label-count",
+        rungs=tuple(rungs),
+        rationale=(
+            "Severity is the number of shifted labels (target_label 21, 22, "
+            "23 shifts 2, 3, 4 labels down by one) at the default "
+            "donated_fraction 0.2. A donated_fraction axis was rejected: "
+            "measured on target 23 at 0.1/0.2/0.3/0.4, "
+            "mislabelled_volume_fraction decreases (0.574672, 0.558363, "
+            "0.533099, 0.516150), so it is non-monotone in the declared "
+            "direction. A target_label=20 rung was rejected: it reads 0.0 "
+            "(shifted label 19 is not a GT label), a plateau with rung 0."
+        ),
+    )
+
+
 def _fuse_ladder() -> LadderSpec:
     # Cumulative fuse absorptions: 21 into 20, then +22, then +23 -- the
     # fused counterpart of the fragment ladder's designated metric
@@ -911,7 +999,10 @@ def _fuse_ladder() -> LadderSpec:
     )
 
 
-#: The seven severity ladders, keyed by operator.
+#: The nine severity ladders, keyed by operator. The seven original ladders
+#: stay first: the first ladder designating a metric is its reference ladder
+#: (see :func:`score_harness`), so ``split`` and ``split_own_label`` (item 201)
+#: are appended after them.
 SEVERITY_LADDERS: Mapping[str, LadderSpec] = MappingProxyType(
     {
         "displace": _displace_ladder(),
@@ -921,6 +1012,8 @@ SEVERITY_LADDERS: Mapping[str, LadderSpec] = MappingProxyType(
         "remove_level": _remove_level_ladder(),
         "crop_at_border": _crop_at_border_ladder(),
         "sequence_break": _sequence_break_ladder(),
+        "split": _split_ladder(),
+        "split_own_label": _split_own_label_ladder(),
     }
 )
 
@@ -1143,13 +1236,17 @@ def score_harness(
     laddered = {spec.designated_metric for spec in SEVERITY_LADDERS.values()}
     metric_names = [f for f in PER_MODE_METRIC_SPECS if f in laddered]
 
-    # Each metric's own ladder -- the operator whose designated_metric is
-    # that metric (AC18 guarantees this is total and one-to-one over the
-    # ladders present). Needed because operators and metric names are
-    # different key spaces here (unlike the legacy scheme, where a ladder's
-    # own mode number doubled as its metric's identity). Coverage is total
-    # over the scored (laddered) metrics.
-    owning_operator = {lr.spec.designated_metric: lr.spec.operator for lr in ladders}
+    # Each metric's reference ladder -- the FIRST ladder (in ``ladders``
+    # order) designating it. A metric may be designated by several ladders
+    # (item 201: ``split`` and ``split_own_label`` share
+    # ``mislabelled_volume_fraction`` with ``relabel_swap``); a foreign
+    # ladder's response is normalised by the reference ladder's span, while a
+    # ladder's response to its own spec-designated metric uses its own span
+    # (exactly 1.0). Needed because operators and metric names are different
+    # key spaces here. Coverage is total over the scored (laddered) metrics.
+    owning_operator: Dict[str, str] = {}
+    for lr in ladders:
+        owning_operator.setdefault(lr.spec.designated_metric, lr.spec.operator)
 
     # Spans over every (ladder_operator, metric_name) pair -- assignment-independent.
     spans: Dict[str, Dict[str, float]] = {}
@@ -1172,7 +1269,7 @@ def score_harness(
 
         responses: Dict[str, float] = {}
         for f in metric_names:
-            denom_operator = owning_operator.get(f)
+            denom_operator = op if f == lr.spec.designated_metric else owning_operator.get(f)
             if denom_operator is None or denom_operator not in spans:
                 responses[f] = math.inf
                 continue
@@ -1283,7 +1380,9 @@ def score_harness(
 # 173 replaced the corpus base with a lordotic L1-L5 (tilted bodies, 8 mm
 # disc gap, no lateral curve) and re-transcribed every value below from one
 # fresh run on 2026-09-23 (the item 173 spec's Decisions log holds the
-# printed run).
+# printed run). Item 201 re-transcribed every value from one fresh run on
+# 2026-09-29, adding the split and split_own_label ladders (the item 201
+# spec's Decisions log holds the printed run).
 # --------------------------------------------------------------------------- #
 
 #: The provenance shared by every item-154 re-measurement below: one harness
@@ -1295,7 +1394,7 @@ def score_harness(
 _MEASUREMENT_PROVENANCE = MeasurementProvenance(
     corpus="geometric",
     base_params=dict(_BASE_PARAMS),
-    measured_on="2026-09-23",
+    measured_on="2026-09-29",
 )
 
 #: One measured cross-mode coupling. ``crop_at_border`` ->
@@ -1303,8 +1402,8 @@ _MEASUREMENT_PROVENANCE = MeasurementProvenance(
 #: module docstring and the item's Assumptions): ``crop_at_border`` and
 #: ``displace`` both translate a body rigidly, so both put candidate
 #: foreground over GT background -- and the ``displace`` ladder is
-#: FOV-capped (~20.5 mm max ``displacement_mm`` for label 22 on the lordotic
-#: base, measured 2026-09-23) while ``crop_at_border``'s scales linearly with
+#: FOV-capped (its designated metric reaches only 0.132 at the top 16 mm rung,
+#: measured 2026-09-29) while ``crop_at_border``'s scales linearly with
 #: the number of cropped labels, so it *exceeds* the strict bar (response >
 #: 1.0), exactly as predicted. The ``force_overlap`` ->
 #: ``unanchored_foreground_fraction`` coupling this table once also recorded
@@ -1319,8 +1418,20 @@ KNOWN_CROSS_MODE_COUPLINGS: Tuple[CrossModeCoupling, ...] = (
             "FOV face (like displace), placing candidate foreground over "
             "GT background; crop_at_border's n_affected_labels axis scales "
             "this linearly across 3 rungs while the displace ladder is "
-            "capped by the FOV (~20.5mm max displacement_mm for label 22 "
-            "on the lordotic base)."
+            "capped by the FOV (its designated metric reaches only 0.132 "
+            "at the top 16mm rung, measured 2026-09-29)."
+        ),
+        provenance=_MEASUREMENT_PROVENANCE,
+    ),
+    CrossModeCoupling(
+        ladder_operator="split",
+        foreign_metric="min_dominant_component_fraction",
+        recorded_response=0.3896,
+        cause=(
+            "split donates a cap of the target body to the neighbour label, "
+            "which leaves the neighbour label as two disconnected bodies "
+            "(its own body plus the donated cap), so the dominant-component "
+            "fraction falls alongside mislabelled_volume_fraction."
         ),
         provenance=_MEASUREMENT_PROVENANCE,
     ),
@@ -1341,6 +1452,8 @@ RECORDED_MARGINS: Mapping[str, float] = MappingProxyType(
         "remove_level": math.inf,
         "crop_at_border": 0.3253,
         "sequence_break": math.inf,
+        "split": 2.566,
+        "split_own_label": math.inf,
     }
 )
 
@@ -1364,13 +1477,13 @@ MODE_LADDER_DISPOSITIONS: Mapping[int, ModeLadderDisposition] = MappingProxyType
             ladders=tuple(
                 operator
                 for operator in SEVERITY_LADDERS
-                if PER_MODE_METRIC_SPECS[SEVERITY_LADDERS[operator].designated_metric].failure_mode
-                == 1
+                if SEVERITY_LADDERS[operator].failure_mode == 1
             ),
             disposition="re-derived",
             reason=(
-                "Mode 1 keeps both displace and fragment on the shared "
-                "_BASE_PARAMS corpus base; the base is not widened. The "
+                "Mode 1 is measured by fragment alone (item 201); displace "
+                "moved to the displaced_vertebra condition in item 189. The "
+                "shared _BASE_PARAMS corpus base is not widened. The "
                 "shortfall deferred item 141 aimed at (crop_at_border -> "
                 "unanchored_foreground_fraction) is now a condition "
                 "ladder's coupling, an operator artefact of crop_at_border "

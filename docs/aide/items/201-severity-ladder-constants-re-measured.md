@@ -336,7 +336,22 @@ read the re-measured constants. Neither pins a value from this item.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Re-measurement run (2026-09-29, `score_harness(run_severity_harness())`,
+  `passed=True`, nine ladders).** Margins: displace inf, fragment inf,
+  inject_islands 118.49074, relabel_swap inf, remove_level inf,
+  crop_at_border 0.3253006, sequence_break inf, split 2.5667396,
+  split_own_label inf. Couplings >= 0.25: crop_at_border ->
+  unanchored_foreground_fraction 3.0740799, split ->
+  min_dominant_component_fraction 0.3895993. Transcribed: margins rounded down
+  to 4 s.f. (118.4, 0.3253, split 2.566), couplings rounded up (3.075,
+  0.3896). The seven existing values are unchanged from item 173's.
+- **"~20.5 mm" displace figure dropped.** It was not re-measured against the
+  item 177 `displace` operator; the `crop_at_border` coupling's cause now
+  cites the measured top-rung value instead (`unanchored_foreground_fraction`
+  0.132 at `displacement_mm=16`).
+- **`score_harness`** uses the ladder's own span for its spec-designated
+  metric and the first-registered designating ladder's span for foreign
+  metrics (A5), as implemented via `owning_operator.setdefault`.
 
 - **Left open:** whether mode 3 (and the `displaced_vertebra` /
   `fov_truncation` conditions) get their own `MODE_LADDER_DISPOSITIONS`
