@@ -22,7 +22,10 @@ report three more shapes expressing the same test: membership against a
 zero-sentinel-containing ``Tuple``/``Set``/``List`` literal (``in``/``not
 in``), a zero comparison inside a chained comparison
 (``lo <= x["failure_mode"] == 0``), and ``bool(...)`` truthiness of a
-tracked access.
+tracked access. Item 197 added two more: a tracked access as a bare
+truthiness test (``if``/``while``/ternary test, ``and``/``or`` operand,
+comprehension ``if``) and an ordering against the 0 boundary (``> 0``,
+``>= 1`` and their mirrors).
 
 AC14/AC15 build their probes from the *committed* clean-control geometric
 case, selected by ``kind == "clean_control"`` (never by ``case_id``, which
@@ -241,6 +244,18 @@ def _zero_comparisons(source: str, filename: str) -> list:
             for node in ast.walk(stmt):
                 if id(node) in exempt_test_ids:
                     continue
+                # Item 197: a tracked access as a bare truthiness test (A1).
+                if isinstance(node, (ast.If, ast.While, ast.IfExp)):
+                    test_exprs = [node.test]
+                elif isinstance(node, ast.BoolOp):
+                    test_exprs = node.values
+                elif isinstance(node, ast.comprehension):
+                    test_exprs = node.ifs
+                else:
+                    test_exprs = []
+                for expr in test_exprs:
+                    if is_tracked(expr) and id(expr) not in exempt_test_ids:
+                        violations.append((filename, expr.lineno))
                 if isinstance(node, ast.Compare):
                     operands = [node.left] + list(node.comparators)
                     matched = False
@@ -249,6 +264,25 @@ def _zero_comparisons(source: str, filename: str) -> list:
                         if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
                             if (is_tracked(left) and _is_zero_sentinel(right)) or (
                                 is_tracked(right) and _is_zero_sentinel(left)
+                            ):
+                                matched = True
+                        elif isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                            # Item 197: ordering that splits 0 from the positive
+                            # mode ids (A2). Normalise to "tracked <op> bound".
+                            flip = {ast.Lt: ast.Gt, ast.LtE: ast.GtE, ast.Gt: ast.Lt, ast.GtE: ast.LtE}
+                            if is_tracked(left):
+                                kind, bound = type(op), right
+                            elif is_tracked(right):
+                                kind, bound = flip[type(op)], left
+                            else:
+                                continue
+                            is_one = (
+                                isinstance(bound, ast.Constant)
+                                and type(bound.value) is int
+                                and bound.value == 1
+                            )
+                            if (kind in (ast.Gt, ast.LtE) and _is_zero_sentinel(bound)) or (
+                                kind in (ast.GtE, ast.Lt) and is_one
                             ):
                                 matched = True
                         elif isinstance(op, (ast.In, ast.NotIn)):

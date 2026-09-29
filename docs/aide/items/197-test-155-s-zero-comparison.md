@@ -241,7 +241,9 @@ are both merged.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Ordering normalised to "tracked op bound".** The scanner flips the operator
+  when the tracked access is on the right, then matches `>`/`<=` against a zero
+  sentinel and `>=`/`<` against the int literal 1 (A2), in one branch.
 
 - **No new test for "`test_138`'s selection is unchanged".** The queue names
   that claim as testable. The selection is inline in a test body, so a test
