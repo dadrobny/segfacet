@@ -229,3 +229,5 @@ merged (✅).
   that a deleted sentence also satisfies, and the passages now quote dated
   measurements, which a later corpus change leaves as accurate history
   rather than a false present-tense claim.
+
+- **Review fixes (2026-09-29):** Three prose-only corrections from the in-loop review. The `golden.py` comment now says the lordotic base tilts every lumbar level but L2 (exactly one label per case sits on-grid), not "every vertebra". The `neighbour_contact.py` closing sentence no longer claims only the stray reading fires on `split`, since the quoted 0.186 and 0.102 readings also exceed the threshold; the stray-only scope is what keeps `split_own_label` out. The stale "9 of 10" header comment in `tests/test_120_leave_one_out_offset.py` now reads 9 of 9 (comment only).

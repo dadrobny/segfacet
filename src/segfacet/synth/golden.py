@@ -164,8 +164,8 @@ def canonical_json(report: dict, *, volatile_pointers=VOLATILE_POINTERS) -> str:
 # *within a single process on a single platform* (see canonical_json's
 # same-platform determinism tests) -- but it is NOT achievable *across*
 # platforms for the corpus cases: since item 173's lordotic base tilts every
-# vertebra, every case has off-grid centroids (measured 2026-09-29). They
-# produce irrational-decimal
+# lumbar level but L2, every case has off-grid centroids (measured 2026-09-29:
+# exactly one label per case sits on-grid). These produce irrational-decimal
 # floats (off-grid centroids, spline/curvature/EDT values) whose last ~1 ULP
 # differs between the platform the committed goldens were generated on and
 # another platform, even at identical numpy/scipy versions, because of

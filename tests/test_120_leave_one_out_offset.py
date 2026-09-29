@@ -736,7 +736,7 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
 
 
 # =========================================================================== #
-# AC24: The corpus's pipeline-detection count is 9 of 10
+# AC24: The corpus's pipeline-detection count is 9 of 9
 # =========================================================================== #
 
 

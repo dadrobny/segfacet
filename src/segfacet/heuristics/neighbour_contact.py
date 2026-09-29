@@ -26,7 +26,8 @@ Design decisions (recorded per item 187 spec, A5-A7):
   reading the largest component or the label scope would fire on
   ``split_own_label``, outside mode 3's split-vertebra-segment sub-type (a);
   ``split`` label 24's label-scope reading sits barely above the threshold.
-  Only the stray reading fires on ``split`` alone.
+  The stray-only scope is what keeps ``split_own_label`` out; on ``split``
+  the wider readings would fire too, so they are not what separates it.
 - **One finding per stray component above threshold**, not one per label:
   a label with more than one over-threshold stray component names each.
 - **Fired strictly above** the threshold (item 027's convention, also
