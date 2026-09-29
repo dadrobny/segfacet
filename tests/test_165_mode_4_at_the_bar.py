@@ -100,15 +100,19 @@ def test_ac3_condition_2_fixture_expresses_mode_recomputed(bar):
     import segfacet.failure_modes as failure_modes
 
     mode = failure_modes.SPECIFICATION[4]
-    own_rules = {edge.rule_id for edge in mode.intended_rules}
+    own_pairs = {
+        (edge.rule_id, detector_id)
+        for edge in mode.intended_rules
+        for detector_id in edge.detector_ids
+    }
 
-    all_agree = all(failure_modes.case_agrees(case) for case in mode.corpus_cases)
     intersecting_case_ids = tuple(
         case.case_id
         for case in mode.corpus_cases
-        if case.expected_firing and own_rules.intersection(case.expected_firing)
+        if failure_modes.case_agrees(case)
+        and own_pairs.intersection(failure_modes.measured_detector_firing(case))
     )
-    recomputed_met = all_agree and bool(intersecting_case_ids)
+    recomputed_met = bool(intersecting_case_ids)
 
     record = _record(bar, 2)
     assert record.met is recomputed_met
