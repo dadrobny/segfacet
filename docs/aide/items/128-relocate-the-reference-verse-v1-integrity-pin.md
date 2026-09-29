@@ -175,7 +175,7 @@ box in `progress.md`.
 
 - [ ] **AC23: `aide check` reports no new warning.**
   `python .aide/scripts/aide.py check` emits the same three warnings it emitted
-  on the base commit (32 specs missing Assumptions; human gates 1 and 2 awaiting
+  on the base commit (32 specs missing Assumptions; human gates gate-ae46 and gate-2f91 awaiting
   a decision) and no `.gitattributes` lint warning for the new module. *Verified
   by executing the Validation section, not by a unit test.*
 
@@ -242,7 +242,7 @@ box in `progress.md`.
   one fence. The wording mismatch is captured in
   [`../insights.md`](../insights.md) for the queue-boundary triage.
 - **`aide check`'s baseline is three warnings**, measured on the base commit
-  2026-08-31 (32 specs without an Assumptions block; human gates 1 and 2). AC23
+  2026-08-31 (32 specs without an Assumptions block; human gates gate-ae46 and gate-2f91). AC23
   means "the same three", not "zero".
 
 ## Implementation Steps
@@ -413,7 +413,7 @@ profile is required — all three run on any machine with the repo and its venv.
 1. **The lint's silence is no longer the answer.** Run
    `python .aide/scripts/aide.py check` and confirm the output is the same three
    warnings as on the base commit (32 specs without an Assumptions block; human
-   gates 1 and 2) — in particular, **no** `.gitattributes` warning naming
+   gates gate-ae46 and gate-2f91) — in particular, **no** `.gitattributes` warning naming
    `tests/test_128_reference_verse_v1_integrity.py`. Record the exact warning
    count in the Decisions log (AC23).
 2. **`.gitattributes` coverage, read from git rather than from the file.** Run

@@ -3,7 +3,7 @@
 Governs a capability only some environments can exercise — a GPU library,
 Docker, a large optional extra — and how its verification is recorded. The
 item and `progress.md` templates point here: `spec-author` fills the item
-section, a stage-closing item's builder keeps the table, `aide env`
+section, the queue-end item's builder keeps the table, `aide env`
 evaluates a profile, and `aide status` and `aide check` read the table.
 
 **The verification table is read, and gates nothing.** `aide status` lists
@@ -24,7 +24,7 @@ path was ever run for real:
   package/tool, its `pyproject`/equivalent declaration, and the required
   fallback behaviour.
 - **`progress.md`'s optional Environment-Gated Capability Verification
-  table** — one row per capability, starting `❓ Unverified`. A stage-closing
+  table** — one row per capability, starting `❓ Unverified`. The queue-end
   item's Implementation Steps must add/update the row(s) for any capability
   its stage introduced. The row flips to `✅ Verified (date, host/CI)` only
   when a human or a CI runner that actually has the dependency present has
@@ -45,10 +45,13 @@ Two additions make the verification *planned* rather than hoped-for:
   `aide env --profile <name>` (exit 0 iff satisfied) in the project venv, or
   for every `❓ Unverified` row at once by `aide status --profiles`. Either
   evaluates the expression only, never the gated path.
-- **Stage-validation items** — a queue that closes a roadmap stage ends with a
-  `Validate stage N` item that replays the stage's use cases end-to-end and
-  updates the capability table (✅ Verified where the profile is satisfied,
-  else an explicit ❓ Unverified with the reason). Item specs may also carry an
+- **Queue-end items** — a stage with a `❓ Unverified` row, or with an item
+  declaring an environment-gated capability that has no row, is one
+  `aide check --queue` reports as needing a queue-end item (§1 →
+  `queue-NNN.md`), so the queue that closes it ends with a `Validate stage N`
+  item that replays the stage's use cases end-to-end and updates the
+  capability table (✅ Verified where the profile is satisfied, else an
+  explicit ❓ Unverified with the reason). Item specs may also carry an
   optional **Validation** section (see the item template) that the validator
   must execute.
 
@@ -71,7 +74,14 @@ Two additions make the verification *planned* rather than hoped-for:
   design; an error here would make verification block the loop (#207).
 - **Why a closed stage's ❓ row needs a reason, not a ✅.** Graceful fallback
   lets a stage close without the dependency; what is owed is the honest
-  record of why the path did not run, which the stage-validation item writes.
-- **Why a stage-validation item replays use cases.** Tests prove the code
+  record of why the path did not run, which the queue-end item writes.
+- **Why a gated capability makes a queue-end item needed.** Since 2.22.0 the
+  item is planned only where the engine reports work for it (#333). A row to
+  flip, or a Notes reason to record, is work no per-item check does, so an
+  open row is one of the reasons the check reads — and so is an item that
+  declared a capability and has no row, whether it is still to be built or
+  merged without writing one, since the missing row is the queue-end item's
+  to write.
+- **Why a queue-end item replays use cases.** Tests prove the code
   runs; validation observes that it does something meaningful — so it replays
   the stage's use cases rather than re-running the suite.

@@ -623,3 +623,284 @@ def test_set_rejects_an_unknown_status_naming_deferred(tmp_path: Path, capsys):
     assert aide.main(["--repo", str(repo), "progress", "set", "31", "paused",
                       "--no-commit"]) == 2
     assert "'deferred'" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- #
+# set --stage N --deliverable K deferred — a bullet no marker names (#336)
+# --------------------------------------------------------------------------- #
+#: The issue's file: stage 3 deferred by hand before 2.5.0, header, summary
+#: and objective ⏸️, its bullets never itemised and still 📋.
+UNMARKED = PROGRESS.replace("| 2 | Reports | G2 | 🚧 |\n",
+                            "| 2 | Reports | G2 | 🚧 |\n| 3 | Plugins | G3 | ⏸️ |\n"
+                            ).replace(
+    "| G2 Reports | Stage 2 | 🚧 |\n",
+    "| G2 Reports | Stage 2 | 🚧 |\n| G3 Plugins | Stage 3 | ⏸️ |\n") + """
+## Stage 3 — Plugins — Deferred — ⏸️
+
+**Deliverables.**
+- 📋 Plugin/registration API for new heuristics.
+- 📋 Ingestion of human abnormality labels; a classification arm
+  that informs the heuristics.
+
+**Acceptance.**
+- [ ] Plugins load.
+"""
+
+
+def _defer_at(text: str, stage: int, k: int, reason: str = "v2",
+              date: str = "2026-09-29") -> str:
+    return aide.defer_deliverable(text, stage, k, reason, date)[0]
+
+
+def test_the_hand_deferred_stage_over_unmarked_bullets_names_the_positional_form(
+        tmp_path: Path):
+    _, warnings = _checks(_repo(tmp_path, UNMARKED))
+    hits = _about(warnings, "stage 3:")
+    assert len(hits) == 1, warnings
+    assert "roll up to 📋 planned" in hits[0]
+    assert ("its open deliverables carry no item marker, so defer them with "
+            "'aide progress set --stage 3 --deliverable K deferred --reason …' "
+            "(K = 1, 2), or restore 📋") in hits[0]
+    assert "set NNN" not in hits[0]
+
+
+def test_a_stage_with_marked_and_unmarked_open_bullets_names_both_forms(
+        tmp_path: Path):
+    mixed = UNMARKED.replace("- 📋 Plugin/registration API for new heuristics.",
+                             "- 📋 Plugin/registration API for new heuristics. "
+                             "*(Item 040)*")
+    _, warnings = _checks(_repo(tmp_path, mixed))
+    hits = _about(warnings, "stage 3:")
+    assert len(hits) == 1, warnings
+    assert "'aide progress set NNN deferred --reason …'" in hits[0]
+    assert "'aide progress set --stage 3 --deliverable K deferred --reason …' (K = 2)" in hits[0]
+
+
+def test_defer_deliverable_flips_the_bullet_and_writes_the_trail_under_its_last_line():
+    out = _defer_at(UNMARKED, 3, 2).splitlines()
+    i = out.index("- ⏸️ Ingestion of human abnormality labels; a classification arm")
+    assert out[i + 1] == "  that informs the heuristics."
+    assert out[i + 2] == "  - **2026-09-29** → deferred: v2"
+    assert "- 📋 Plugin/registration API for new heuristics." in out
+
+
+def test_deferring_every_unmarked_bullet_ends_the_drift_warning(tmp_path: Path):
+    out = _defer_at(_defer_at(UNMARKED, 3, 1), 3, 2)
+    assert "## Stage 3 — Plugins — Deferred — ⏸️" in out
+    assert "| 3 | Plugins | G3 | ⏸️ |" in out
+    assert "| G3 Plugins | Stage 3 | ⏸️ |" in out
+    assert out.count("  - **2026-09-29** → deferred: v2") == 2
+    assert aide.derived_cell_findings(out.splitlines()) == ([], [], set())
+    errors, warnings = _checks(_repo(tmp_path, out))
+    assert errors == []
+    assert not _about(warnings, "stage 3:") and not _about(warnings, "objective G3"), warnings
+
+
+def test_deferring_one_of_two_open_bullets_rolls_the_stage_to_what_is_left():
+    """As `set NNN deferred` does: a ⏸️ beside a 📋 is 📋, and the verb moved a
+    bullet of the stage, so the hand-set ⏸️ follows it down."""
+    out = _defer_at(UNMARKED, 3, 1)
+    assert "## Stage 3 — Plugins — Deferred — 📋" in out
+    assert "| 3 | Plugins | G3 | 📋 |" in out
+    assert aide.derived_cell_findings(out.splitlines()) == ([], [], set())
+
+
+def test_defer_deliverable_again_is_no_change():
+    once = _defer_at(UNMARKED, 3, 1)
+    again, message = aide.defer_deliverable(once, 3, 1, "again", "2026-09-30")
+    assert again == once
+    assert message == "stage 3 deliverable 1: no change (already deferred)"
+
+
+@pytest.mark.parametrize("stage, k, match", [
+    (9, 1, r"no '## Stage 9' section"),
+    (3, 3, "stage 3 has 2 deliverable bullets, numbered from 1"),
+    (3, 0, "stage 3 has 2 deliverable bullets, numbered from 1"),
+    (2, 2, r"itemised — its trailing marker names item 031, so defer it by "
+           r"item with `aide progress set 031 deferred --reason …`"),
+], ids=["unknown-stage", "past-the-end", "zero", "itemised"])
+def test_defer_deliverable_refuses(stage, k, match):
+    with pytest.raises(ValueError, match=match):
+        aide.defer_deliverable(UNMARKED, stage, k, "x", "2026-09-29")
+
+
+@pytest.mark.parametrize("icon, status", [("✅", "complete"), ("❌", "excluded")])
+def test_defer_deliverable_refuses_a_finished_bullet(icon, status):
+    text = UNMARKED.replace("- 📋 Plugin/registration", f"- {icon} Plugin/registration")
+    with pytest.raises(ValueError, match=f"stage 3 deliverable 1 is {icon} {status}; "
+                                         f"only a 📋, 🚧 or 🔍 deliverable can be deferred"):
+        aide.defer_deliverable(text, 3, 1, "x", "2026-09-29")
+
+
+def test_an_unmarked_deferred_bullet_resumes_once_itemised():
+    """No positional forward status: the bullet gets its marker, and `set NNN`
+    moves a ⏸️ item as it always has."""
+    out = _defer_at(_defer_at(UNMARKED, 3, 1), 3, 2)
+    itemised = out.replace("- ⏸️ Plugin/registration API for new heuristics.",
+                           "- ⏸️ Plugin/registration API for new heuristics. "
+                           "*(Item 040)*")
+    moved = aide.set_item_status(itemised, 40, "in-progress")
+    assert "- 🚧 Plugin/registration API for new heuristics. *(Item 040)*" in moved
+    assert "## Stage 3 — Plugins — Deferred — 🚧" in moved
+    assert "| 3 | Plugins | G3 | 🚧 |" in moved
+    assert aide.derived_cell_findings(moved.splitlines()) == ([], [], set())
+
+
+def test_set_by_position_writes_through_the_cli_and_no_insight(tmp_path: Path, capsys):
+    repo = _repo(tmp_path, UNMARKED)
+    path = repo / "docs" / "aide" / "progress.md"
+    for k in ("2", "1"):
+        assert aide.main(["--repo", str(repo), "progress", "set", "--stage", "3",
+                          "--deliverable", k, "deferred", "--reason", "v2",
+                          "--date", "2026-09-29", "--no-commit"]) == 0
+    assert path.read_text(encoding="utf-8") == _defer_at(_defer_at(UNMARKED, 3, 2), 3, 1)
+    # The status word may come first as well.
+    assert aide.main(["--repo", str(repo), "progress", "set", "deferred",
+                      "--stage", "3", "--deliverable", "1", "--reason", "v2",
+                      "--no-commit"]) == 0
+    assert "no change" in capsys.readouterr().out
+    assert (repo / "docs" / "aide" / "insights.md").read_text(
+        encoding="utf-8") == "# Insight Inbox\n"
+
+
+@pytest.mark.parametrize("argv, message", [
+    (["--stage", "3", "--deliverable", "1", "deferred", "--reason", "  "],
+     "--reason is required"),
+    (["--stage", "3", "--deliverable", "1", "deferred"], "--reason is required"),
+    (["--stage", "3", "--deliverable", "1", "deferred", "--reason", "a\nb"],
+     "line break"),
+    (["--stage", "3", "--deliverable", "1", "done"], "only `deferred` is set by position"),
+    (["--stage", "3", "--deliverable", "1"], "only `deferred` is set by position"),
+    (["--stage", "3", "deferred", "--reason", "x"], "go together"),
+    (["--deliverable", "1", "deferred", "--reason", "x"], "go together"),
+    (["31", "deferred", "--stage", "3", "--deliverable", "1", "--reason", "x"],
+     "takes no item number"),
+    (["--stage", "3", "--deliverable", "1", "deferred", "--criterion", "1",
+      "--reason", "x"], "deferred whole"),
+], ids=["blank-reason", "no-reason", "two-lines", "other-status", "no-status",
+        "stage-alone", "deliverable-alone", "with-number", "with-criterion"])
+def test_set_by_position_refuses_its_usage_errors_with_exit_2(
+        tmp_path: Path, capsys, argv, message):
+    repo = _repo(tmp_path, UNMARKED)
+    before = (repo / "docs" / "aide" / "progress.md").read_bytes()
+    assert aide.main(["--repo", str(repo), "progress", "set", *argv,
+                      "--no-commit"]) == 2
+    assert message in capsys.readouterr().err
+    assert (repo / "docs" / "aide" / "progress.md").read_bytes() == before
+
+
+@pytest.mark.parametrize("stage, k, message", [
+    ("9", "1", "no '## Stage 9' section"),
+    ("3", "5", "stage 3 has 2 deliverable bullets"),
+    ("2", "2", "`aide progress set 031 deferred --reason …`"),
+])
+def test_set_by_position_refuses_what_it_cannot_defer_with_exit_1(
+        tmp_path: Path, capsys, stage, k, message):
+    repo = _repo(tmp_path, UNMARKED)
+    before = (repo / "docs" / "aide" / "progress.md").read_bytes()
+    assert aide.main(["--repo", str(repo), "progress", "set", "--stage", stage,
+                      "--deliverable", k, "deferred", "--reason", "x",
+                      "--no-commit"]) == 1
+    err = capsys.readouterr().err
+    assert message in err and "NOT changed" in err
+    assert (repo / "docs" / "aide" / "progress.md").read_bytes() == before
+
+
+def test_stage_and_deliverable_belong_to_set_alone(tmp_path: Path, capsys):
+    repo = _repo(tmp_path, UNMARKED)
+    assert aide.main(["--repo", str(repo), "progress", "accept", "3",
+                      "--stage", "3", "--deliverable", "1", "--no-commit"]) == 2
+    assert "belong to `set … deferred` alone" in capsys.readouterr().err
+
+
+def _progress_parser():
+    """The `aide progress` subparser, as `build_parser` hands it to the verb."""
+    return aide.build_parser().parse_args(["progress", "set", "1"]).progress_parser
+
+
+def test_a_word_for_the_number_is_still_refused_without_the_positional_form(
+        tmp_path: Path, capsys):
+    """Byte for byte what `type=int` printed: the subparser's usage, then
+    `aide progress: error: …`, exit 2."""
+    repo = _repo(tmp_path, UNMARKED)
+    with pytest.raises(SystemExit) as exc:
+        aide.main(["--repo", str(repo), "progress", "set", "paused",
+                   "--no-commit"])
+    assert exc.value.code == 2
+    assert capsys.readouterr().err == (
+        _progress_parser().format_usage()
+        + "aide progress: error: argument number: invalid int value: 'paused'\n")
+    with pytest.raises(SystemExit) as exc:
+        aide.main(["--repo", str(repo), "progress", "set", "31", "done",
+                   "extra", "--no-commit"])
+    assert exc.value.code == 2
+    assert "unrecognized arguments: extra" in capsys.readouterr().err
+
+
+def test_the_objective_warning_over_unmarked_bullets_names_the_positional_form(
+        tmp_path: Path):
+    _, warnings = _checks(_repo(tmp_path, UNMARKED))
+    hits = _about(warnings, "objective G3")
+    assert len(hits) == 1, warnings
+    assert hits[0].endswith(
+        "its open deliverables carry no item marker, so defer them with "
+        "'aide progress set --stage 3 --deliverable K deferred --reason …' "
+        "(K = 1, 2), or restore 📋"), hits[0]
+    mixed = UNMARKED.replace("- 📋 Plugin/registration API for new heuristics.",
+                             "- 📋 Plugin/registration API for new heuristics. "
+                             "*(Item 040)*")
+    _, warnings = _checks(_repo(tmp_path, mixed, name="mixed"))
+    hits = _about(warnings, "objective G3")
+    assert len(hits) == 1, warnings
+    assert hits[0].endswith(
+        "defer the open items with 'aide progress set NNN deferred --reason …' "
+        "and the deliverables with no item marker with 'aide progress set "
+        "--stage 3 --deliverable K deferred --reason …' (K = 2), or restore 📋")
+
+
+def test_the_objective_warning_over_two_stages_names_each_stages_positions():
+    two = UNMARKED.replace("| G3 Plugins | Stage 3 | ⏸️ |",
+                           "| G3 Plugins | Stages 3, 4 | ⏸️ |") + """
+## Stage 4 — Loaders — 📋
+
+**Deliverables.**
+- ✅ Loader. *(Item 050)*
+- 📋 Loader cache.
+"""
+    two = two.replace("| 3 | Plugins | G3 | ⏸️ |",
+                      "| 3 | Plugins | G3 | ⏸️ |\n| 4 | Loaders | G3 | 🚧 |"
+                      ).replace("## Stage 4 — Loaders — 📋", "## Stage 4 — Loaders — 🚧")
+    _, warnings, _ = aide.derived_cell_findings(two.splitlines())
+    hits = _about(warnings, "objective G3")
+    assert len(hits) == 1, warnings
+    assert ("'aide progress set --stage N --deliverable K deferred --reason …' "
+            "(stage 3: K = 1, 2; stage 4: K = 2)") in hits[0], hits[0]
+
+
+NESTED = PROGRESS.replace(
+    "- 📋 Charts. *(Item 032)*",
+    "- 📋 Charts. *(Item 032)*\n  - 📋 Axis labels, a nested deliverable.\n"
+    "  - 📋 Legends. *(Item 033)*")
+
+
+@pytest.mark.parametrize("defer", [
+    lambda t: aide.defer_deliverable(t, 2, 4, "later", "2026-09-29")[0],
+    lambda t: aide.defer_item(t, 33, "later", "2026-09-29")[0],
+], ids=["by-position", "by-item"])
+def test_a_trail_under_a_nested_bullet_is_indented_under_it(defer):
+    out = defer(NESTED).splitlines()
+    i = next(n for n, l in enumerate(out) if l.startswith("  - ⏸️ "))
+    assert out[i + 1] == "    - **2026-09-29** → deferred: later"
+    # A top-level bullet's trail is where it always was.
+    top = aide.defer_item(NESTED, 32, "later", "2026-09-29")[0].splitlines()
+    j = top.index("- ⏸️ Charts. *(Item 032)*")
+    assert top[j + 1] == "  - **2026-09-29** → deferred: later"
+
+
+def test_a_second_trail_line_follows_the_first_under_a_nested_bullet():
+    once = aide.defer_item(NESTED, 33, "later", "2026-09-29")[0]
+    back = aide.set_item_status(once, 33, "complete")
+    again = aide.reopen_item(back, 33, "regressed", "2026-09-30")[0].splitlines()
+    i = again.index("  - 📋 Legends. *(Item 033)*")
+    assert again[i + 1:i + 3] == ["    - **2026-09-29** → deferred: later",
+                                  "    - **2026-09-30** → reopened: regressed"]

@@ -264,7 +264,7 @@ around._
 
 ## Assumptions
 
-- **A1 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `aide gate approve|decline <n> --evidence "…"` writes
+- **A1 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `aide gate approve|decline <n> --evidence "…"` writes
   the Status cell as exactly `f"{icon} ({YYYY-MM-DD})"` with icon
   `✅ Approved` / `❌ Declined`, and writes the note into the row's fourth cell,
   rejecting a note containing `|` or a newline (`set_gate_status`,
@@ -272,11 +272,11 @@ around._
   changes the rendering, AC2's test re-derives the expected cell by calling
   `set_gate_status` rather than pinning the literal, so it tracks the engine
   instead of breaking on it.
-- **A2 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** a `## Human gates` row is four cells
+- **A2 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** a `## Human gates` row is four cells
   (`Gate | Blocks | Status | Decision`), the Blocks cell accepts bare item
   numbers, and `blocking_gates()` treats every kind other than `approved` —
   including `declined` — as still blocking. AC1/AC3 rest on this.
-- **A3 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `run_checks` emits the human-gate warning
+- **A3 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `run_checks` emits the human-gate warning
   `progress.md:<n>: human gate <k> (…) is awaiting a decision — blocks …` for an
   unresolved gate and nothing for a resolved one; the unfilled-slot lint
   (`template_residue_errors`) scans every `*.md` under `docs/aide/` for a bare
@@ -576,7 +576,7 @@ is not a downgrade to `❓ Unverified` — it is the gate, and the item waits.
 - **Item 148** — the per-path mode attribution the review reads. Merged.
 - **Item 149** — the traceability matrix as conformance report; the second half
   of the review pack, and the reason the review surface is current. Merged.
-- Human gate 3 (`§6 failure-mode taxonomy`, ✅ Approved 2026-09-03) — its
+- Human gate-0fdd (`§6 failure-mode taxonomy`, ✅ Approved 2026-09-03) — its
   decision text is what holds items 139–142 pending this sign-off. Quoted here
   with its reach intact: `Blocks: items 139, 140, 141, 142`.
 
@@ -629,7 +629,7 @@ fails loudly at a known, documented moment beats one that passes forever without
 meaning anything.
 
 **D4 — the three deferred insights are review *inputs*, not this item's work.**
-Insights 35, 53 and 54 in `docs/aide/insights.md` each name item 150 as the point
+Insight 2026-09-03-a7df, insight 2026-09-04-8108 and insight 2026-09-04-352e in `docs/aide/insights.md` each name item 150 as the point
 of decision. Acting on them is not authorised here (they are code changes to
 `derive_status`, to item 148's path classification, and to the corpus scan in
 `catalogue.py`); *showing them to the maintainer* is, because a sign-off taken
@@ -677,11 +677,11 @@ discriminator → `discriminator`; expected firing → `expected_firing`; severi
 3. `validated` requires a declaring rule, every corpus case agreeing, and at
    least one case with a non-empty expected set that fires one of the mode's
    **own** intended rules. An empty expected set never validates (the vacuous-
-   agreement half of insight 35 — decided here); a co-detection never validates.
+   agreement half of insight 2026-09-03-a7df — decided here); a co-detection never validates.
 4. The spline offset from the fitted curve is a spondylolisthesis / scoliosis
    classification signal with no clear failure mode, so `mislabel`'s Detector
    A serves no mode and its read paths are `bookkeeping` (this also settles
-   insight 53's `dx_mm`/`dy_mm`/`dz_mm` question).
+   insight 2026-09-04-8108's `dx_mm`/`dy_mm`/`dz_mm` question).
 5. `bounds` and `reference_delta` are declared for every mode their
    volume/extent signal can proxy — modes 1, 2, 3 (and, per level, 5 for
    `reference_delta`) — each edge `needs-real-data`.
@@ -730,7 +730,7 @@ with provenance `item 150`, dated the day it was raised (the entries raised on
 - gap — three detectors the sign-off asked for that no shipped rule provides: a spacing-gap detector over `stage3.spacing_consistency.spacings_mm[]` for mode 4 (its fixture `remove_level_relabel` fires nothing today), an unprompted-transitional-label detector over `relationships.present_levels[]` plus a configuration flag for mode 6 (T13/L6 in a scan not configured for them), and a centroid-based collapsed/duplicated detector for mode 8 that needs per-component centroids the feature layer does not extract. Each is a rule item, not a specification edit
 - gap — mode 2's lumbosacral transitional-anatomy sub-type (sacralised L5, lumbarised S1) wants an intervertebral-disc label channel -- disc labels lying inside the sacrum label are the hypothesised signal -- which `segfacet.labels.DEFAULT_LABEL_MAP` does not carry; needs a decision on a second label channel before any rule can read it
 - knowledge — `synth.component_shape.FusePerturbation` fuses unbridged (the absorbed neighbour's voxels keep their gap), so `fuse_adjacent` is detected only by co-detections (fragmentation on two bodies under one label, coverage on the absorbed level); a bridged fuse operator that fills the inter-body gap is the honest fixture for mode 2's own bounds / reference_delta volume proxy, and would let mode 2 validate
-- gap — per-detector attribution is now a live need, not a nicety: `mislabel` has one detector serving mode 6 and one serving no mode, and the only way item 148's per-path schema can say so is to classify Detector A's `offset_mm`/`dx_mm`/`dy_mm`/`dz_mm` as `bookkeeping`, so the catalogue renders a detector's firing signal under `rule_bookkeeping`. The rule-side detector ids insight 50 asks for would replace that workaround
+- gap — per-detector attribution is now a live need, not a nicety: `mislabel` has one detector serving mode 6 and one serving no mode, and the only way item 148's per-path schema can say so is to classify Detector A's `offset_mm`/`dx_mm`/`dy_mm`/`dz_mm` as `bookkeeping`, so the catalogue renders a detector's firing signal under `rule_bookkeeping`. The rule-side detector ids [insight 2026-09-04-4caf] asks for would replace that workaround
 - knowledge — the item-150 insight lines dated 2026-09-14 name mode ids of that day's catalogue, which the 2026-09-15 revision of the same review re-assigned: old 1 → 1, old 2 (fused or split) → 2 fused and 3 split, old 3 (islands) → 4, old 4 (not segmented) → 6, old 5 (mislabelling) → 8, old 6 (implausible sequence) → 9 out-of-order, 10 missing interior level and 11 unprompted variant, old 7 (shifted) → 12, old 8 (collapsed or duplicated) → 13 collapsed and 14 duplicated, old 9 (overlap) → 15, old 10 (tissue) → 16; new are 5 (holes) and 7 (hallucinated vertebra). `mode2_fragment` moved from old 3 to mode 1. Read those lines through this map
 - gap — detectors and fixtures the 2026-09-15 split asked for that nothing provides: an enclosed-cavity count/volume or Euler-characteristic feature for mode 5 (holes), an above-expected-count check for mode 7 (hallucinated vertebra; `coverage`'s count check tests only a shortfall), and a split operator that reassigns part of one label to its neighbour so mode 3 (split vertebra segment) has a corpus case. Each is a feature, rule or corpus item, not a specification edit
 - knowledge — mode 10 (missing interior level) sits under semantic mislabelling (mode 8) but, unlike its siblings, need not contain a mislabelling: a missed vertebra with correct labels leaves the same gap. The one-tier hierarchy has no label-sequence parent to hold it, so its discriminator records the exception; a top-level label-sequence mode is the alternative if more sequence modes without a mislabelling appear

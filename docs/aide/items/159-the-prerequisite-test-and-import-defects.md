@@ -170,17 +170,17 @@ of its own in `progress.md`.
   pins state derived live, which a later legitimate change turns red. It
   also went red twice in this queue. Leaving it open means item 160 or 161
   meets it again on its first `aide progress set`.
-- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `aide progress set` splitting a shared `*(Items A,
+- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `aide progress set` splitting a shared `*(Items A,
   B)*` bullet into copies with identical prose, and the warning that
   follows, is engine behaviour. This item does not change it. Item 159's own
   D5 bullet in `progress.md` is attributed to item 159 alone (measured
   2026-09-17), so its status changes cannot trigger that split. If a split
   happens anyway, the builder rewords each copy for its own item rather than
   re-pinning a class. **Re-check 2026-09-29 (engine 2.20.1):** the split and its warning still hold; rewording each copy is now a verb, `aide progress reword --item NNN --text …` (engine 2.20.0), not a hand edit.
-- **A8 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `aide insights tick N --pointer P` on an entry
+- **A8 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `aide insights tick N --pointer P` on an entry
   that is already ticked appends a dated trail line and does not re-tick
   (`aide insights -h`). The trail lines in step 5 rely on this.
-- **A9 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `run_checks(repo_root, config)` returns
+- **A9 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `run_checks(repo_root, config)` returns
   `(errors, warnings)` as lists of strings. AC7–AC9 inject a warning by
   wrapping the `_aide_module()` loader in the target module, or an
   equivalent seam, so that its `run_checks` appends to the live result.
@@ -353,9 +353,9 @@ AC plus these adversarial cases:
 - **A7 outcome.** `aide progress set 159 in-progress` did not split any
   shared deliverable bullet — item 159 has no shared `*(Items A, B)*`
   attribution in `progress.md` — so no reword was needed.
-- **A8 outcome.** `aide insights tick` on entries 38, 39, 45, 47 and 52 (all
+- **A8 outcome.** `aide insights tick` on insight 2026-09-04-73df, insight 2026-09-04-3ba2, insight 2026-09-04-d94d, insight 2026-09-04-6ade and insight 2026-09-04-2b57 (all
   already ticked `→ item 159`) appended a dated trail line each, pointing at
-  the commit that fixed them (per A8, no re-tick). Entry 86 (item 158,
+  the commit that fixed them (per A8, no re-tick). Insight 2026-09-17-f990 (item 158,
   2026-09-17, the `_classify_warning` warning-class pin) was ticked with
   pointer `item 159`.
 - **Post-fix `aide check`**: 7 warnings, all in the four pre-existing

@@ -561,10 +561,13 @@ abnormalities are accounted for rather than naively flagged.
 
 **Deliverables.**
 
-- 📋 Plugin/registration API for new heuristics + abnormality classes.
-- 📋 Ingestion of human abnormality labels (post-op, fracture, implant); a classification arm
+- ⏸️ Plugin/registration API for new heuristics + abnormality classes.
+  - **2026-09-29** → deferred: Stage 11 deferred 2026-07-17 by explicit user instruction: Phase-3 real-data arm (Stages 14+) prioritised; revisit after Stage 14 closes
+- ⏸️ Ingestion of human abnormality labels (post-op, fracture, implant); a classification arm
   that informs the heuristics.
-- 📋 Developer docs: add a heuristic / abnormality class end-to-end.
+  - **2026-09-29** → deferred: Stage 11 deferred 2026-07-17 by explicit user instruction: Phase-3 real-data arm (Stages 14+) prioritised; revisit after Stage 14 closes
+- ⏸️ Developer docs: add a heuristic / abnormality class end-to-end.
+  - **2026-09-29** → deferred: Stage 11 deferred 2026-07-17 by explicit user instruction: Phase-3 real-data arm (Stages 14+) prioritised; revisit after Stage 14 closes
 
 **Acceptance.**
 
@@ -1787,7 +1790,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
-  refined and those left as documented drafts.
+  refined and those left as documented drafts. *(Item 204)*
 
 **Acceptance.**
 
@@ -1893,13 +1896,23 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   `bool(...)` shapes. *(Item 184)*
 - ✅ **Maintenance** `committed_artifact_guard` resolves the `dirname(abspath(__file__))`
   root idiom. *(Item 185)*
-- 📋 **D4** The bar checker's condition 2 made existential and detector-granular, the
-  severity-ladder constants re-measured including the split operators, and a generated
-  `docs/aide/rules.generated.md`.
+- ✅ **Maintenance** Stale prose after items 189, 190 and 195 brought up to date.
+  *(Item 196)*
+- ✅ **Maintenance** `test_155`'s zero-comparison scan covers truthiness and ordering
+  shapes. *(Item 197)*
+- ✅ **Maintenance** `mislabel`'s `ordering` detector judges order along the expected
+  sequence. *(Item 198)*
+- ✅ **Maintenance** Positional gate and insight citations in the records rewritten to
+  IDs. *(Item 199)*
+- 📋 **D4** The bar checker's condition 2 made existential and detector-granular.
+  *(Item 200)*
+- 📋 **D4** The severity-ladder constants re-measured, including the split operators.
+  *(Item 201)*
+- 📋 **D4** A generated `docs/aide/rules.generated.md`. *(Item 202)*
 - 📋 **D5** Modes 3 and 4 re-signed by the maintainer at the bar (human gate), with the
-  outcome written to `MODE_SIGN_OFFS`.
+  outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
 - 📋 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
-  Stage 32's criterion 1.
+  Stage 32's criterion 1. *(Item 204)*
 
 **Acceptance.**
 

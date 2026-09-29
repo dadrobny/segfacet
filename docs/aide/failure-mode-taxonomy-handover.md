@@ -1,7 +1,7 @@
 # Handover: the §6 failure-mode catalogue needs a specification
 
 > **Status:** 🔍 Consumed by `/aide-feedback-loop` on 2026-09-03 — §12 records the
-> disposition; the §10 decisions await gate 3 · **Created:** 2026-09-03
+> disposition; the §10 decisions await gate-0fdd · **Created:** 2026-09-03
 > Records why queue-019 was cut short after item 138, what the eight §6 failure
 > modes actually are today (five partial sources, no specification), the measured
 > ground truth as of 2026-09-03, and a proposed shape for a per-mode
@@ -273,7 +273,7 @@ Open entries in [`insights.md`](insights.md) bearing directly on this re-plan:
 `/aide-feedback-loop` consumed §1–§11 after PR #70 merged queue-019 into
 `main`. This section records the scheduling answer, the re-reading of Stage
 20's acceptance, a recommended answer for each §10 decision, and the order of
-the root-document work. The §10 decisions stay the human's — gate 3 in
+the root-document work. The §10 decisions stay the human's — gate-0fdd in
 [`progress.md`](progress.md) is resolved only by `aide gate approve 3`; what
 follows is the proposal a single approval can adopt or amend.
 
@@ -308,7 +308,7 @@ source).** Proposed scope, for the create-roadmap entry point to refine:
   so it becomes the conformance report §6 describes: a mode whose expected
   firing set differs from the measured one fails, which is the check that no
   shape test in §1 could express.
-- The tissue-plausibility mode that `insights.md` entry 51 records as missing
+- The tissue-plausibility mode that `insights.md` insight 2026-09-02-4ddb records as missing
   (the `intensity` / `intensity_reference_delta` rules and the four-case
   intensity corpus already exist for it) added as the first mode to enter
   through the lifecycle — it arrives at `implemented`, or `validated` once
@@ -340,7 +340,7 @@ None of the five criteria is rewritten. Criteria 1 and 2 are attested and
 immutable; criteria 3–5 carry retraction trails, and the engine's guard
 refuses `progress reword` on a trail-bearing box. What changes is the
 *reading*, recorded in the roadmap's Stage 20 section as a backward
-supersession marker (the edit `insights.md` entry 46 already asks for) and in
+supersession marker (the edit `insights.md` insight 2026-09-02-6364 already asks for) and in
 Stage 30's own acceptance:
 
 | # | Criterion | Reading after Stage 30 |
@@ -391,7 +391,7 @@ Stage 30's own acceptance:
 
 [`vision.md`](vision.md) §0 defers the full re-vision until real segmenter
 failures have been measured. That condition is Stage 16, which sits behind
-gates 1 and 2 with no date, so the deferral has no horizon. Meanwhile the
+gates gate-ae46 and gate-2f91 with no date, so the deferral has no horizon. Meanwhile the
 document's body still describes an XNAT QC gate, its §6 must change now for
 decision 6, and every queue since 2026-07-25 has been derived from a
 superseded body read through an override header. Re-issuing the vision now is
@@ -413,7 +413,7 @@ What the re-issue does and does not do:
 
 Order of work, each in a fresh session per the entry points' own hand-offs:
 
-1. Approve or amend gate 3 (`aide gate approve 3 --evidence "…"`), citing
+1. Approve or amend gate-0fdd (`aide gate approve gate-0fdd --evidence "…"`), citing
    this section or the decisions that differ from it.
 2. `/aide-create-vision` — interactive; produces vision v3 as a draft.
 3. `/aide-create-roadmap` — incremental update: Stage 30 added; Stage 20's

@@ -32,6 +32,21 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
     queue.
 
   *(aide claim, queue-planner)*
+- **A queue-end item is planned only when the engine reports a need for
+  one.** It is the one place for queue-level judgement that produces
+  committed artefacts — a spec reviewable at the plan gate, tests that stay
+  in the suite, an independent validator — and it is the queue's final item.
+  Stage validation is its only trigger today, so it is planned only on a
+  queue that closes a roadmap stage, and only when `aide check --queue NNN`
+  warns that the stage still has work for one. The planner reads that warning
+  and never works the need out itself; with no such warning, the queue ends
+  with its last deliverable. The same check warns on a planned queue-end item
+  with nothing to do. What closes a stage, and what counts as a need, is
+  `aide check -h`. The stage variant is titled `Validate stage N: <stage
+  title>`: it attests the stage criteria no item's AC annotates, replays the
+  stage's use cases end-to-end, and updates the capability table (§1 →
+  environment-gated capabilities). *(aide check, queue-planner, spec-author,
+  aide merge)*
 
 #### Rationale
 
@@ -45,3 +60,32 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
 - **Why "independence" and not "alongside".** The softer phrasing changes
   nothing the planner does and only makes the roadmap and the queues appear to
   contradict each other.
+- **Why the queue-end item is conditional.** Until 2.22.0 every queue closing
+  a stage ended with a `Validate stage N` item, and it ran the full item
+  pipeline every time — one consumer's cost 19 criteria, 11 tests and two
+  rounds. Where every criterion is annotated by an item's AC, no capability
+  row is open and nothing gated was introduced, it re-attests what the
+  validators already attested; the progress rollup and the coverage and
+  capability-table warnings are already mechanical (#333).
+- **Why the engine decides and not the planner.** The need is read from
+  `progress.md`, the queue files and the specs, so the same tree always gives
+  the same answer. At plan time no spec exists, so every unticked criterion is
+  unannotated and a closing queue is told it needs the item; once the specs
+  annotate the criteria, the mirror warning names the item as idle. The error
+  runs toward planning validation that turns out unneeded, never toward
+  skipping validation that was.
+- **Why use cases are not read.** The issue named a roadmap stage declaring
+  use cases or a validation block to replay as a third trigger, and nothing in
+  the roadmap declares one: every stage's Validation / acceptance block is
+  mandatory, and its bullets are the criteria already counted. Reading use
+  cases would take a new roadmap block, which is a change to the document's
+  shape, not to this check.
+- **Why no queue-end item on a queue that closes no stage.** A maintenance
+  queue, or a queue carrying part of a stage, has no trigger today, and a rule
+  implying a general item nobody plans would be one nobody follows. CI
+  findings that trace to no item go to a queue-end item where the queue has
+  one and to a person where it has none (#332); they remain the candidate
+  second trigger.
+- **Why the title stays `Validate stage N`.** It is the one place the engine
+  learns what an item is: the ledger's `validate-stage` kind and this check
+  both read it, and consumers' existing specs and ledger rows keep parsing.

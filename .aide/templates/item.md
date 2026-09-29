@@ -148,7 +148,7 @@ appears after a literal `**Downstream` marker. If you want to note that a
 *later* item depends on this one (a forward reference, not a blocker), put
 it after that marker, e.g.:_
 
-    **Downstream:** item 099 (stage validation) depends on this item's CI job.
+    **Downstream:** item 099 (queue-end item) depends on this item's CI job.
 
 _Item numbers before the marker are blockers; item numbers after it are not
 — never write a forward reference before the marker, or it will incorrectly

@@ -900,3 +900,99 @@ def test_abandon_run_twice_under_review_off_still_records_the_item_once(
         assert aide.main(["--repo", str(repo), "ledger", "abandon", "27",
                           "--rounds", "3"]) == 0
     assert len(_rows(repo)) == 1
+
+
+# --------------------------------------------------------------------------- #
+# issue #332 — a CI reopening's gap is ticked as the item merges back
+# --------------------------------------------------------------------------- #
+CI_TRAIL = ("- 📋 Bounds. *(Item 027)*\n"
+            "  - **2026-09-20** → reopened: CI build: test_bounds [CI round 1]\n"
+            "  - **2026-09-29** → reopened: CI lint: step ruff [CI round 2]\n")
+ROUND_1_GAP = ("- [ ] gap — item reopened: CI build: test_bounds [CI round 1] "
+               "*(item 027, 2026-09-20)*")
+ROUND_2_GAP = ("- [ ] gap — item reopened: CI lint: step ruff [CI round 2] "
+               "*(item 027, 2026-09-29)*")
+OTHER_GAP = ("- [ ] gap — item reopened: operator run never happened "
+             "*(item 027, 2026-09-10)*")
+CI_INSIGHTS = INSIGHTS + "\n".join([OTHER_GAP, ROUND_1_GAP, ROUND_2_GAP]) + "\n"
+
+
+def _ci_reopened(repo: Path) -> Path:
+    progress = repo / "docs" / "aide" / "progress.md"
+    progress.write_text(progress.read_text(encoding="utf-8").replace(
+        "- 📋 Bounds. *(Item 027)*\n", CI_TRAIL), encoding="utf-8")
+    _run(["git", "commit", "-am", "item 027 reopened by CI round 2"], repo)
+    return repo
+
+
+def test_a_merge_back_ticks_only_its_ci_reopenings_gap_in_the_ticks_commit(
+        tmp_path: Path):
+    repo = _ci_reopened(_init_repo(tmp_path / "repo", insights=CI_INSIGHTS))
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 0
+    lines = (repo / "docs" / "aide" / "insights.md").read_text(
+        encoding="utf-8").splitlines()
+    assert lines[-1] == (ROUND_2_GAP.replace("- [ ]", "- [x]")
+                         + " → re-merged into main in CI round 2")
+    # Round 1's gap was its own merge's to tick; a non-CI reopening is not
+    # CI's to close.
+    assert lines[-3:-1] == [OTHER_GAP, ROUND_1_GAP]
+    shown = _run(["git", "show", "--name-only", "--format=%s", "HEAD"], repo).stdout
+    assert shown.splitlines()[0] == "progress(aide): item 027 -> done"
+    assert "docs/aide/insights.md" in shown.split()
+    assert _status(repo) == ""
+
+
+def test_a_merge_back_of_an_item_whose_latest_reopening_is_not_ci_ticks_nothing(
+        tmp_path: Path):
+    repo = _docs(tmp_path / "docs", insights=CI_INSIGHTS)
+    progress = repo / "docs" / "aide" / "progress.md"
+    progress.write_text(progress.read_text(encoding="utf-8").replace(
+        "- 📋 Bounds. *(Item 027)*\n",
+        CI_TRAIL + "  - **2026-09-30** → reopened: operator run never happened\n"),
+        encoding="utf-8")
+    before = (repo / "docs" / "aide" / "insights.md").read_bytes()
+    assert aide.tick_ci_reopening_gap(repo, aide.load_config(repo), 27, "main",
+                                      "2026-09-30") == (None, None)
+    assert (repo / "docs" / "aide" / "insights.md").read_bytes() == before
+
+
+def test_a_failed_tick_commit_leaves_the_ci_gap_open_and_the_re_run_ticks_it_once(
+        tmp_path: Path, monkeypatch):
+    """#309/#312: the tick is rolled back with the rest of what merge wrote."""
+    repo = _ci_reopened(_init_repo(tmp_path / "repo", insights=CI_INSIGHTS))
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    inbox = repo / "docs" / "aide" / "insights.md"
+    before = inbox.read_bytes()
+    with monkeypatch.context() as patch:
+        calls = _hold_the_index_during_the_tick(patch, repo)
+        assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 1
+    assert "docs/aide/insights.md" in calls[0]
+    assert inbox.read_bytes() == before and _status(repo) == ""
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--base", "main",
+                      "--no-test"]) == 0
+    text = inbox.read_text(encoding="utf-8")
+    assert text.count("→ re-merged into main in CI round 2") == 1
+    assert _status(repo) == ""
+
+
+def test_pr_mode_leaves_a_ci_reopenings_gap_open(tmp_path: Path):
+    """Under `pr` the merge is the human's: no tick, no row, and the gap of
+    the reopening stays open with them."""
+    remote = _mkbare(tmp_path / "remote.git")
+    repo = _ci_reopened(_init_repo(tmp_path / "repo", mode="pr",
+                                   insights=CI_INSIGHTS))
+    _run(["git", "remote", "add", "origin", str(remote)], repo)
+    _run(["git", "push", "-u", "origin", "main"], repo)
+    inbox = repo / "docs" / "aide" / "insights.md"
+    before = inbox.read_bytes()
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 0
+    _run(["git", "switch", "main"], repo)
+    assert inbox.read_bytes() == before
+    assert aide.main(["--repo", str(repo), "progress", "set", "27", "done"]) == 0
+    assert inbox.read_bytes() == before

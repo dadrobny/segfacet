@@ -274,7 +274,7 @@ queue boundary.
   normalisation, which is unchanged; only its input direction flips. Editing it
   would break item 131's AC8–AC11 for no gain.
 
-- **A7 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1): the `.gitattributes` lint has nothing new to report.**
+- **A7 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0): the `.gitattributes` lint has nothing new to report.**
   `aide check` warns when a test's resolved fixture path is uncovered by
   `.gitattributes`. Every committed path this item writes is already pinned
   (`tests/corpus/manifest.json`, `tests/corpus/fixtures/*.nii.gz`,
@@ -284,7 +284,7 @@ queue boundary.
   `read_text()`, not a byte-reproducible generated fixture, so it needs no pin.
 
 - **A8: no human gate.** The correction is mechanical and its one judgement call
-  (a moved firing set) is resolved by handing back, not by deciding. Gate 3 is
+  (a moved firing set) is resolved by handing back, not by deciding. gate-0fdd is
   already ✅ Approved and is an input to items 145/146, not to this one. This
   item raises no gate.
 

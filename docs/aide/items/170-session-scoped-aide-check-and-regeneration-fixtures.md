@@ -258,7 +258,7 @@ of its own.
   `test_146::test_adv_aide_check_exits_zero` asserts the CLI's *exit code*,
   and an in-process result cannot observe that. It is neither migrated nor
   removed, and it is the one remaining whole-`aide check` run.
-- **A7 (engine 2.1.0, re-checked 2.20.1):** `.aide/scripts/aide.py` exposes
+- **A7 (engine 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `.aide/scripts/aide.py` exposes
   `run_checks(repo_root, config, branches=None) -> (List[str], List[str])`,
   `find_repo_root(path)` and `load_config(repo_root)`. The existing tests in
   list M already call exactly these.

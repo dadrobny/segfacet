@@ -996,9 +996,45 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     },
     # 2026-09-28 (item 192): sequence names its sub-type; this case's finding
     # is now the shift detector. Verdict is unchanged.
+    # 2026-09-29 (item 198): mislabel's ordering detector judges the pairs in
+    # CANONICAL_ORDER order, so the misplaced T13 now adds three ordering
+    # findings before the sequence one. Verdict is unchanged.
     "sequence_break": {
         "verdict": "flagged-for-review",
         "findings": [
+            {
+                "rule_id": "mislabel",
+                "detector_id": "ordering",
+                "severity": "flagged-for-review",
+                "labels": [20, 21],
+                "reason": (
+                    "Vertebra ordering inconsistent with label: labels 20 (L1) "
+                    "and 21 (L2) are out of expected order along the spine "
+                    "(spline parameter does not advance)."
+                ),
+            },
+            {
+                "rule_id": "mislabel",
+                "detector_id": "ordering",
+                "severity": "flagged-for-review",
+                "labels": [21, 22],
+                "reason": (
+                    "Vertebra ordering inconsistent with label: labels 21 (L2) "
+                    "and 22 (L3) are out of expected order along the spine "
+                    "(spline parameter does not advance)."
+                ),
+            },
+            {
+                "rule_id": "mislabel",
+                "detector_id": "ordering",
+                "severity": "flagged-for-review",
+                "labels": [22, 23],
+                "reason": (
+                    "Vertebra ordering inconsistent with label: labels 22 (L3) "
+                    "and 23 (L4) are out of expected order along the spine "
+                    "(spline parameter does not advance)."
+                ),
+            },
             {
                 "rule_id": "sequence",
                 "detector_id": "shift",

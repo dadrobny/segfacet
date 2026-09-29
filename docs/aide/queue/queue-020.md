@@ -60,9 +60,9 @@ Item 138's generated matrix cross-checks these five without being able to
 **adjudicate** them. Mode 6 is the proof: all three operational sources agree on
 `border`, and the measurement shows `border` **and** `mislabel`.
 
-### What human gate 3 already decided — encoded as data, not re-litigated
+### What human gate-0fdd already decided — encoded as data, not re-litigated
 
-Gate 3 was approved 2026-09-03 (`../progress.md`, Human gates) and adopted
+gate-0fdd was approved 2026-09-03 (`../progress.md`, Human gates) and adopted
 [`../failure-mode-taxonomy-handover.md`](../failure-mode-taxonomy-handover.md)
 §12 in full. No item below re-opens any of it; each encodes its half:
 
@@ -116,9 +116,9 @@ not the case list.
 **A rule whose firing moves under item 143 is a finding, recorded and handed
 back** — never a rule change made to keep a green suite green.
 
-**Nothing here is gated by the two ⏳ human gates.** Gates 1 and 2 (real
+**Nothing here is gated by the two ⏳ human gates.** Gates gate-ae46 and gate-2f91 (real
 segmenter output handed over; access to the curated challenging-case data)
-block **Stage 16 only**. No Stage 16 work is in this queue. Gate 3 is
+block **Stage 16 only**. No Stage 16 work is in this queue. gate-0fdd is
 ✅ Approved and is an input above, not a blocker. Item 150 **raises a new gate**
 — that is its deliverable — and only a person resolves it.
 
@@ -213,7 +213,7 @@ Enter every one of vision §6's eight modes into item 144's specification with
 every field populated. Each `discriminator` names its **nearest neighbours** and
 what separates them: mode 6 has a border-touching face and mode 1 has none;
 modes 2 and 3 differ in whether the dominant body is intact; modes 1 and 4
-differ in whether the label's *identity* or its *position* is wrong. Gate 3's
+differ in whether the label's *identity* or its *position* is wrong. gate-0fdd's
 decisions are encoded as **data, not prose**: `mode6_crop_at_border` carries
 `expected_firing = {border, mislabel}` with its recorded reason (the crop
 displaces the centroid off the curve — re-measure the displacement on item 143's
@@ -354,7 +354,7 @@ per corpus case, across **both** committed corpora — the **expected** firing s
 beside the **measured** set with **agreement scored**. A disagreement is a
 failure, which is the check none of queue-019's shape tests could express. The
 Stage-18 metric anchor path and the rule's read paths render as **two separately
-labelled columns**, never conflated (gate 3, decision 1). The per-rule and
+labelled columns**, never conflated (gate-0fdd, decision 1). The per-rule and
 per-operator **exercise columns** item 139 specified are **not** built here —
 they stay Stage 20's, re-specified against this output. Two test-hygiene entries
 are settled while the builder is open rather than after a third extension:

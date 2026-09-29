@@ -294,7 +294,7 @@ Candidate features:
 - `hypothesised` candidate path: `relationships.out_of_order_labels[]`
 - `hypothesised` candidate path: `stage3.monotonic_consistency.non_monotonic_pairs[]`
 
-Mechanism: Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.
+Mechanism: Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) those pairs are judged in CANONICAL_ORDER order, so a correctly placed T13 or Cocc no longer fires, and sequence_break fires ordering beside shift. A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.
 
 Intended rules:
 
@@ -304,7 +304,7 @@ Intended rules:
 Corpus cases:
 
 - `relabel_swap` (geometric): expected firing = [mislabel, sequence]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-28, item 192): mislabel's ordering detector fires (labels 21/L2 and 22/L3 are out of expected order along the spline), and sequence's swap detector now fires beside it on the same pair (labels 21, 22), reading per_label centroids instead of relationships.out_of_order_labels[]. A swap is the order-breaking form of mislabelling.
-- `sequence_break` (geometric): expected firing = [sequence]; agrees with live measurement: True. pipeline-detected; sequence is the sole rule that fires, measured live via segfacet.synth.regression.pipeline_findings (2026-09-28, item 192). The tail vertebra is relabelled to T13, a single rank descent read from per_label centroids and named as a shift; why the edge's rung sits below this measured detection is in the mechanism sentence.
+- `sequence_break` (geometric): expected firing = [mislabel, sequence]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-29, item 198). The tail vertebra is relabelled to T13, a single rank descent read from per_label centroids and named as a sequence shift; with the pairs judged in CANONICAL_ORDER order, mislabel's ordering detector also fires on the lumbar pairs (20, 21), (21, 22) and (22, 23). Why the edge's rung sits below this measured detection is in the mechanism sentence.
 
 ## Mode 10 (8.2, sub-mode of 8): Skipped level label
 

@@ -640,7 +640,7 @@ def test_pinning_a_bookkeeping_file_is_still_reported(tmp_path: Path):
 
 
 def test_a_spec_that_only_pins_is_still_compared(tmp_path: Path):
-    """An empty May change is not 'nothing declared'. A stage-validation item
+    """An empty May change is not 'nothing declared'. A queue-end item
     changes only the bookkeeping every item may write, while pinning the tree
     it validates — treating that as undeclared would drop exactly the specs
     whose whole purpose is to assert, and miss siblings breaking their pins."""
@@ -715,3 +715,388 @@ def test_report_writes_the_json_seam(tmp_path: Path):
     kinds = [f["kind"] for f in payload["findings"]]
     assert "changes-pinned-state" in kinds
     assert payload["findings"][0]["items"] == [27, 28]
+
+
+# --------------------------------------------------------------------------- #
+# the queue-end item — whether the queue needs one, reported both ways (#333)
+# --------------------------------------------------------------------------- #
+#: Stage 1 has two acceptance boxes, the first ticked; items 027 and 028 are
+#: its deliverables, and a later stage 2 is untouched by queue 003.
+PROGRESS_QE = """\
+# Demo — Progress
+
+## Stage summary
+
+| Stage | Title | Objectives | Status |
+|-------|-------|-----------|--------|
+| 1 | Rules | G1 | 🚧 |
+| 2 | Later | G1 | 📋 |
+
+## Objective coverage
+
+| Objective | Delivered by | Status |
+|-----------|--------------|--------|
+| G1 Rules | Stage 1, 2 | 🚧 |
+
+## Stage 1 — Rules — 🚧
+
+**Deliverables.**
+- ✅ A. *(Item 026)*
+- 📋 B. *(Item 027)*
+- 📋 C. *(Item 028)*
+
+**Acceptance.**
+- [x] Rules load. *(accepted 2026-09-01 — test_026)*
+- [ ] Rules fire.
+
+## Stage 2 — Later — 📋
+
+**Deliverables.**
+- 📋 D. *(Item 040)*
+
+**Acceptance.**
+- [ ] Later works.
+"""
+
+_ANNOTATED_AC = ("## Acceptance Criteria\n\n"
+                 "- [ ] **AC1: fires.** It fires. *(closes Stage 1 criterion 2)*\n\n")
+
+
+def _qe_repo(tmp_path: Path, specs=None, queue_items=(27, 28), titles=None,
+             progress: str = PROGRESS_QE, earlier=(26,)) -> Path:
+    repo = _make_repo(tmp_path, specs or {}, queue_items=queue_items,
+                      progress=progress)
+    titles = titles or {}
+    body = "\n\n".join(f"### Item {n:03d}: {titles.get(n, f'Thing {n}')}\n"
+                       f"Does a thing." for n in queue_items)
+    q = repo / "docs" / "aide" / "queue"
+    (q / "queue-003.md").write_text(f"# Demo — Work Queue 003\n\n{body}\n",
+                                    encoding="utf-8")
+    early = "\n\n".join(f"### Item {n:03d}: Thing {n}\nDone." for n in earlier)
+    (q / "queue-002.md").write_text(f"# Demo — Work Queue 002\n\n{early}\n",
+                                    encoding="utf-8")
+    return repo
+
+
+def _qe(repo: Path, kind: str):
+    cfg = aide.load_config(repo)
+    return [f for f in aide.queue_end_findings(repo, cfg, 3) if f.kind == kind]
+
+
+def test_a_stage_closing_queue_with_an_unannotated_criterion_needs_a_queue_end_item(
+        tmp_path: Path):
+    """No spec yet — the plan-time state — so the unticked criterion is
+    annotated by nothing, and the queue's last item is a deliverable. The
+    ticked criterion is not a reason: it is attested already."""
+    repo = _qe_repo(tmp_path)
+    hits = _qe(repo, "queue-end-needed")
+    assert len(hits) == 1 and hits[0].severity == "warning"
+    msg = hits[0].message
+    assert "closes stage 1" in msg and "criterion 2 of stage 1" in msg
+    assert "2 item(s) on the queue not yet specced" in msg
+    assert "Validate stage 1" in msg
+    assert "stage 2" not in msg
+
+
+def test_a_queue_end_item_among_the_final_items_meets_the_need(tmp_path: Path):
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29),
+                    titles={29: "Validate stage 1: Rules"},
+                    progress=PROGRESS_QE.replace(
+                        "- 📋 C. *(Item 028)*",
+                        "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*"))
+    assert _qe(repo, "queue-end-needed") == []
+    assert _qe(repo, "queue-end-idle") == []
+
+
+def test_a_queue_end_item_that_is_not_final_does_not_meet_the_need(tmp_path: Path):
+    repo = _qe_repo(tmp_path, queue_items=(27, 29, 28),
+                    titles={29: "Validate stage 1: Rules"},
+                    progress=PROGRESS_QE.replace(
+                        "- 📋 C. *(Item 028)*",
+                        "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*"))
+    assert len(_qe(repo, "queue-end-needed")) == 1
+
+
+def test_every_criterion_annotated_or_ticked_is_no_need(tmp_path: Path):
+    repo = _qe_repo(tmp_path, specs={
+        27: "# Item 027 — B\n\n" + _ANNOTATED_AC,
+        28: "# Item 028 — C\n\n## Acceptance Criteria\n\n- [ ] **AC1: c.** C.\n",
+    })
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_an_annotation_outside_acceptance_criteria_closes_nothing(tmp_path: Path):
+    repo = _qe_repo(tmp_path, specs={
+        27: "# Item 027 — B\n\n## Description\n\n(closes Stage 1 criterion 2)\n",
+    })
+    assert len(_qe(repo, "queue-end-needed")) == 1
+
+
+def test_a_queue_end_items_own_annotation_does_not_retire_its_need(tmp_path: Path):
+    """Otherwise the item's spec would be the reason the item is not needed."""
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29),
+                    titles={29: "Validate stage 1: Rules"},
+                    progress=PROGRESS_QE.replace(
+                        "- 📋 C. *(Item 028)*",
+                        "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*"),
+                    specs={29: "# Item 029 — Validate stage 1: Rules\n\n" + _ANNOTATED_AC})
+    assert _qe(repo, "queue-end-idle") == []
+
+
+def test_a_queue_that_leaves_stage_work_to_a_later_queue_closes_nothing(
+        tmp_path: Path):
+    """Item 028 is listed on no queue yet, so queue 003 does not close stage 1."""
+    repo = _qe_repo(tmp_path, queue_items=(27,))
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_an_unreferenced_open_bullet_keeps_the_stage_open(tmp_path: Path):
+    """A 📋 bullet with no item reference is work no queue has taken on."""
+    unref = PROGRESS_QE.replace("- 📋 C. *(Item 028)*",
+                                "- 📋 C. *(Item 028)*\n- 📋 Unqueued work.")
+    assert _qe(_qe_repo(tmp_path, progress=unref), "queue-end-needed") == []
+
+
+def test_a_deferred_bullet_never_holds_closure(tmp_path: Path):
+    """⏸️ on an earlier queue, ⏸️ with no reference, and ⏸️ on this queue:
+    none holds the stage open — deferred work is not what closes it, and a
+    bullet that held closure would hold it for as long as nobody resumes it."""
+    earlier = PROGRESS_QE.replace("- ✅ A. *(Item 026)*", "- ⏸️ A. *(Item 026)*")
+    assert len(_qe(_qe_repo(tmp_path / "a", progress=earlier), "queue-end-needed")) == 1
+    unref = PROGRESS_QE.replace("- 📋 C. *(Item 028)*",
+                                "- 📋 C. *(Item 028)*\n- ⏸️ Later, maybe.")
+    assert len(_qe(_qe_repo(tmp_path / "b", progress=unref), "queue-end-needed")) == 1
+    here = PROGRESS_QE.replace("- 📋 C. *(Item 028)*", "- ⏸️ C. *(Item 028)*")
+    assert len(_qe(_qe_repo(tmp_path / "c", progress=here), "queue-end-needed")) == 1
+
+
+def test_an_excluded_bullet_is_skipped(tmp_path: Path):
+    """An ❌ bullet whose item is on no queue at all does not hold closure."""
+    dropped = PROGRESS_QE.replace("- 📋 C. *(Item 028)*",
+                                  "- 📋 C. *(Item 028)*\n- ❌ Dropped. *(Item 099)*")
+    assert len(_qe(_qe_repo(tmp_path, progress=dropped), "queue-end-needed")) == 1
+
+
+def test_an_unverified_capability_row_is_a_need(tmp_path: Path):
+    table = ("## Environment-Gated Capability Verification\n\n"
+             "| Capability | Package / Tool | Introduced by | Status | Notes |\n"
+             "|---|---|---|---|---|\n"
+             "| GPU path | torch | Stage 1 *(Item 027)* | ❓ Unverified | — |\n\n")
+    progress = PROGRESS_QE.replace("## Stage 1 — Rules", table + "## Stage 1 — Rules")
+    progress = progress.replace("- [ ] Rules fire.", "- [x] Rules fire. *(accepted)*")
+    msg = _qe(_qe_repo(tmp_path, progress=progress), "queue-end-needed")[0].message
+    assert "'GPU path'" in msg and "criterion" not in msg
+
+
+def test_an_item_declaring_an_environment_gated_capability_is_a_need(tmp_path: Path):
+    progress = PROGRESS_QE.replace("- [ ] Rules fire.", "- [x] Rules fire. *(accepted)*")
+    repo = _qe_repo(tmp_path, progress=progress, specs={
+        27: "# Item 027 — B\n\n## Environment / Hardware Dependencies\n\n- torch\n"})
+    msg = _qe(repo, "queue-end-needed")[0].message
+    assert "item(s) 027 declaring an environment-gated capability" in msg
+
+
+_ENV_SPEC = "# Item 026 — A\n\n## Environment / Hardware Dependencies\n\n- torch\n"
+#: Every criterion ticked, so only the capability reasons can speak.
+_PROGRESS_TICKED = PROGRESS_QE.replace("- [ ] Rules fire.", "- [x] Rules fire. *(accepted)*")
+
+
+def _with_row(progress: str, introduced: str, status: str) -> str:
+    table = ("## Environment-Gated Capability Verification\n\n"
+             "| Capability | Package / Tool | Introduced by | Status | Notes |\n"
+             "|---|---|---|---|---|\n"
+             f"| GPU path | torch | {introduced} | {status} | — |\n\n")
+    return progress.replace("## Stage 1 — Rules", table + "## Stage 1 — Rules")
+
+
+def test_a_merged_env_item_with_no_row_is_still_a_need(tmp_path: Path):
+    """Item 026 merged on an earlier queue and never wrote its row: that gap
+    is exactly the queue-end item's work, so ✅ does not retire the need."""
+    repo = _qe_repo(tmp_path, progress=_PROGRESS_TICKED, specs={26: _ENV_SPEC})
+    msg = _qe(repo, "queue-end-needed")[0].message
+    assert "item(s) 026 declaring an environment-gated capability" in msg
+
+
+def test_a_merged_env_item_with_a_verified_row_is_no_need(tmp_path: Path):
+    progress = _with_row(_PROGRESS_TICKED, "Stage 1 *(Item 026)*",
+                         "✅ Verified (2026-09-01, CI)")
+    repo = _qe_repo(tmp_path, progress=progress, specs={26: _ENV_SPEC})
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_a_row_naming_another_item_does_not_cover_it(tmp_path: Path):
+    progress = _with_row(_PROGRESS_TICKED, "Stage 1 *(Item 027)*",
+                         "✅ Verified (2026-09-01, CI)")
+    repo = _qe_repo(tmp_path, progress=progress, specs={26: _ENV_SPEC})
+    assert len(_qe(repo, "queue-end-needed")) == 1
+
+
+def test_a_stage_only_row_covers_the_stages_env_items(tmp_path: Path):
+    progress = _with_row(_PROGRESS_TICKED, "Stage 1", "✅ Verified (2026-09-01, CI)")
+    repo = _qe_repo(tmp_path, progress=progress, specs={26: _ENV_SPEC})
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_an_excluded_env_item_is_no_need(tmp_path: Path):
+    progress = _PROGRESS_TICKED.replace("- ✅ A. *(Item 026)*", "- ❌ A. *(Item 026)*")
+    repo = _qe_repo(tmp_path, progress=progress, specs={26: _ENV_SPEC})
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_a_deferred_env_item_is_no_need(tmp_path: Path):
+    """⏸️ is skipped like ❌: a deferred capability is not this stage's to verify."""
+    progress = _PROGRESS_TICKED.replace("- ✅ A. *(Item 026)*", "- ⏸️ A. *(Item 026)*")
+    repo = _qe_repo(tmp_path, progress=progress, specs={26: _ENV_SPEC})
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_an_item_only_row_covers_its_item(tmp_path: Path):
+    """The item reference is matched on its own: a cell naming only the item
+    covers it, with no `Stage N` beside it."""
+    progress = _with_row(_PROGRESS_TICKED, "*(Item 026)*", "✅ Verified (2026-09-01, CI)")
+    repo = _qe_repo(tmp_path, progress=progress, specs={26: _ENV_SPEC})
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_one_stage_only_row_covers_one_env_item(tmp_path: Path):
+    """One row is one capability: two env items and one stage-only row leave
+    the higher-numbered item uncovered."""
+    progress = _with_row(_PROGRESS_TICKED, "Stage 1", "✅ Verified (2026-09-01, CI)")
+    repo = _qe_repo(tmp_path, progress=progress, specs={
+        26: _ENV_SPEC, 27: _ENV_SPEC.replace("026", "027")})
+    msg = _qe(repo, "queue-end-needed")[0].message
+    assert "item(s) 027 declaring" in msg and "026" not in msg
+
+
+def test_an_env_item_outside_the_stage_is_not_its_need(tmp_path: Path):
+    """Item 040 is stage 2's; its spec says nothing about stage 1."""
+    repo = _qe_repo(tmp_path, progress=_PROGRESS_TICKED, specs={
+        40: _ENV_SPEC.replace("026", "040")})
+    assert _qe(repo, "queue-end-needed") == []
+
+
+def test_a_planned_queue_end_item_stays_needed_once_the_env_item_merges(
+        tmp_path: Path):
+    """The mirror symptom: the env item ✅ with no row must not make the
+    planned `Validate stage 1` read as idle."""
+    progress = _PROGRESS_TICKED.replace(
+        "- 📋 C. *(Item 028)*", "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*")
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29), progress=progress,
+                    titles={29: "Validate stage 1: Rules"}, specs={26: _ENV_SPEC})
+    assert _qe(repo, "queue-end-idle") == [] and _qe(repo, "queue-end-needed") == []
+
+
+def test_a_queue_end_item_with_nothing_to_do_is_reported(tmp_path: Path):
+    progress = PROGRESS_QE.replace("- [ ] Rules fire.", "- [x] Rules fire. *(accepted)*")
+    progress = progress.replace(
+        "- 📋 C. *(Item 028)*", "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*")
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29), progress=progress,
+                    titles={29: "Validate stage 1: Rules"})
+    hits = _qe(repo, "queue-end-idle")
+    assert len(hits) == 1 and hits[0].items == (29,) and hits[0].severity == "warning"
+    assert "stage 1 has nothing left for it" in hits[0].message
+
+
+def test_a_spent_queue_end_item_is_never_reported_idle(tmp_path: Path):
+    """Item 029 merged; 027 is still open so the queue is not spent. With
+    every criterion ticked the stage has no need, and the merged item is a
+    record, not a plan anyone can drop."""
+    progress = _PROGRESS_TICKED.replace(
+        "- 📋 C. *(Item 028)*", "- 📋 C. *(Item 028)*\n- ✅ Stage validation. *(Item 029)*")
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29), progress=progress,
+                    titles={29: "Validate stage 1: Rules"})
+    assert _qe(repo, "queue-end-idle") == []
+    live = progress.replace("- ✅ Stage validation.", "- 📋 Stage validation.")
+    assert len(_qe(_qe_repo(tmp_path / "live", queue_items=(27, 28, 29), progress=live,
+                            titles={29: "Validate stage 1: Rules"}),
+                   "queue-end-idle")) == 1
+
+
+def test_a_queue_end_item_a_fix_round_reopened_is_never_reported_idle(tmp_path: Path):
+    """Issue #332: a CI finding that traces to no item goes to the queue-end
+    item, reopened. Its first run ticked the stage's boxes, so it has no need
+    left — and it is back for a fix, not a plan to drop before it is claimed."""
+    progress = _PROGRESS_TICKED.replace(
+        "- 📋 C. *(Item 028)*",
+        "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*\n"
+        "  - **2026-09-29** → reopened: CI build: the runner image [CI round 1]")
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29), progress=progress,
+                    titles={29: "Validate stage 1: Rules"})
+    assert _qe(repo, "queue-end-idle") == []
+
+
+def test_a_deferred_queue_end_item_is_never_reported_idle(tmp_path: Path):
+    progress = _PROGRESS_TICKED.replace(
+        "- 📋 C. *(Item 028)*", "- 📋 C. *(Item 028)*\n- ⏸️ Stage validation. *(Item 029)*")
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29), progress=progress,
+                    titles={29: "Validate stage 1: Rules"})
+    assert _qe(repo, "queue-end-idle") == []
+
+
+def test_a_queue_whose_only_open_work_in_the_stage_is_deferred_closes_nothing(
+        tmp_path: Path):
+    """Agrees with `queue_is_open`: 027 merged, 028 deferred, so the queue is
+    not open and the stage's remaining work is deferred — no need, no idle,
+    and a ⏸️ bullet alone does not make the queue close the stage."""
+    progress = PROGRESS_QE.replace("- 📋 B. *(Item 027)*", "- ✅ B. *(Item 027)*")
+    progress = progress.replace("- 📋 C. *(Item 028)*", "- ⏸️ C. *(Item 028)*")
+    repo = _qe_repo(tmp_path, progress=progress)
+    assert _qe(repo, "queue-end-needed") == [] and _qe(repo, "queue-end-idle") == []
+    cfg = aide.load_config(repo)
+    qtext = (repo / "docs/aide/queue/queue-003.md").read_text(encoding="utf-8")
+    assert not aide.queue_is_open(qtext, aide._progress_item_status(repo, cfg))
+    # The `touches` half on its own: queue 003 is still open through stage
+    # 2's item, and its only stage 1 reference is the deferred bullet.
+    alone = _qe_repo(tmp_path / "alone", progress=progress, queue_items=(28, 40),
+                     earlier=(26, 27))
+    needs = [f.message for f in _qe(alone, "queue-end-needed")]
+    assert any("closes stage 2" in m for m in needs)
+    assert not any("closes stage 1" in m for m in needs)
+
+
+def test_a_queue_end_item_for_a_stage_the_queue_does_not_close_is_reported(
+        tmp_path: Path):
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29),
+                    titles={29: "Validate stage 2: Later"})
+    hits = _qe(repo, "queue-end-idle")
+    assert any("does not close stage 2" in f.message for f in hits)
+    assert len(_qe(repo, "queue-end-needed")) == 1
+
+
+def test_a_queue_end_title_naming_no_stage_is_reported(tmp_path: Path):
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29),
+                    titles={29: "Validate stage: all of it"})
+    assert any("names no stage" in f.message for f in _qe(repo, "queue-end-idle"))
+
+
+def test_a_spent_queue_is_reported_neither_way(tmp_path: Path):
+    progress = PROGRESS_QE.replace("- 📋 B. *(Item 027)*", "- ✅ B. *(Item 027)*")
+    progress = progress.replace("- 📋 C. *(Item 028)*", "- ✅ C. *(Item 028)*")
+    repo = _qe_repo(tmp_path, progress=progress)
+    assert _qe(repo, "queue-end-needed") == [] and _qe(repo, "queue-end-idle") == []
+
+
+def test_the_need_reaches_check_as_a_warning_and_the_report(tmp_path: Path, capsys):
+    """What the planner runs: `check --queue NNN`, before any spec exists —
+    and the `--report` worklist the spec-reviewer reads once they do."""
+    repo = _qe_repo(tmp_path)
+    report = tmp_path / "report.json"
+    aide.main(["--repo", str(repo), "check", "--queue", "3", "--report", str(report)])
+    out = capsys.readouterr().out
+    assert "warning: queue 003 closes stage 1 and needs a queue-end item" in out
+    kinds = [f["kind"] for f in json.loads(report.read_text(encoding="utf-8"))["findings"]]
+    assert kinds == ["queue-end-needed"]
+
+
+def test_spec_closed_criteria_reads_the_annotation_and_a_list():
+    text = ("## Acceptance Criteria\n\n- AC1 *(closes Stage 20 criterion 3)*\n"
+            "- AC2 *(closes Stage 20 criteria 4, 5)*\n\n## Testing Strategy\n\n"
+            "- x: *(closes Stage 20 criterion 9)*\n")
+    assert aide.spec_closed_criteria(text) == {(20, 3), (20, 4), (20, 5)}
+
+
+def test_queue_end_stages_reads_the_title():
+    assert aide.queue_end_stages("Validate stage 32: Things") == [32]
+    assert aide.queue_end_stages("Validate stage 31 and 32: Things") == [31, 32]
+    assert aide.queue_end_stages("Validate stage: things") == []
+    assert aide.queue_end_stages("Add a stage validator") is None

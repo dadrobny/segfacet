@@ -17,12 +17,17 @@ most-contacted neighbour, divided by its own surface area.
 Design decisions (recorded per item 187 spec, A5-A7):
 - **Stray components only.** The rule reads
   ``components.component_contacts[1:]`` -- never index 0 (the label's
-  largest component) and never ``label_contact_fraction``. Measured on both
-  committed corpora (spec A5): every largest component or whole label that
-  touches a neighbour (``force_overlap``'s labels 20/21, the split donor
-  label 23, ``split_own_label``'s cap) reads well above the stray threshold,
-  so reading either would fire outside mode 3's split-vertebra-segment
-  sub-type (a). Only the stray reading fires on ``split`` alone.
+  largest component) and never ``label_contact_fraction``. Measured
+  2026-09-29 on both committed corpora, the only labels whose largest
+  component or whole label touches a neighbour are ``split`` label 23 (the
+  donor: 0.186 at both scopes), ``split`` label 24 (largest component 0.0,
+  but 0.102 at label scope, because the stray piece touches), and
+  ``split_own_label`` labels 22 (0.186) and 23 (0.332) at both scopes. So
+  reading the largest component or the label scope would fire on
+  ``split_own_label``, outside mode 3's split-vertebra-segment sub-type (a);
+  ``split`` label 24's label-scope reading sits barely above the threshold.
+  The stray-only scope is what keeps ``split_own_label`` out; on ``split``
+  the wider readings would fire too, so they are not what separates it.
 - **One finding per stray component above threshold**, not one per label:
   a label with more than one over-threshold stray component names each.
 - **Fired strictly above** the threshold (item 027's convention, also

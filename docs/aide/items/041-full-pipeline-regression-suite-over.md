@@ -2,7 +2,7 @@
 
 > **Created:** 2026-07-10 · status tracked in [`progress.md`](../progress.md)
 > **Stage:** 5 — Synthetic Failure Corpus & Regression Suite (G7)
-> **Queue:** [`../queue/queue-004.md`](../queue/queue-004.md) · Item 041 *(the manifest-driven regression net; depends on 040, gates 042)*
+> **Queue:** [`../queue/queue-004.md`](../queue/queue-004.md) · Item 041 *(the manifest-driven regression net; depends on 040, gates items 042)*
 > **Objectives:** G7 (evaluable & regression-testable — the full pipeline is
 > asserted against every §6 failure mode) and the regression-coverage half of G2
 > (every mode is provably caught by its designated heuristic)

@@ -492,14 +492,16 @@ def test_ac16_sequence_break_fires_continuity_finding_via_run_qc():
 
 
 def test_ac17_sequence_break_only_fired_rule_is_sequence_no_coverage():
-    """AC17: every finding has rule_id == "sequence" -- in particular no
-    "coverage" finding (the surviving span stays canonically contiguous)."""
+    """AC17: the fired rules are exactly "sequence" and "mislabel" -- in
+    particular no "coverage" finding (the surviving span stays canonically
+    contiguous). Item 198 (2026-09-29): mislabel's ordering detector now also
+    fires, because the misplaced T13 sits below L4 in the anatomical order
+    judged."""
     clean = _clean()
     result = SequenceBreakPerturbation().apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
     assert findings
-    for f in findings:
-        assert f.rule_id == "sequence"
+    assert {f.rule_id for f in findings} == {"mislabel", "sequence"}
     assert not any(f.rule_id == "coverage" for f in findings)
 
 

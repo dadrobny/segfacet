@@ -163,8 +163,9 @@ def canonical_json(report: dict, *, volatile_pointers=VOLATILE_POINTERS) -> str:
 # Byte-exact comparison of two report canonicalisations is the right guarantee
 # *within a single process on a single platform* (see canonical_json's
 # same-platform determinism tests) -- but it is NOT achievable *across*
-# platforms for the asymmetric-geometry cases (inject_islands,
-# crop_at_border, force_overlap). Those produce irrational-decimal
+# platforms for the corpus cases: since item 173's lordotic base tilts every
+# lumbar level but L2, every case has off-grid centroids (measured 2026-09-29:
+# exactly one label per case sits on-grid). These produce irrational-decimal
 # floats (off-grid centroids, spline/curvature/EDT values) whose last ~1 ULP
 # differs between the platform the committed goldens were generated on and
 # another platform, even at identical numpy/scipy versions, because of

@@ -1,5 +1,5 @@
 ---
-description: Drive the AIDE roadmap across MULTIPLE queues — plan a queue on its own branch behind a draft PR, stop for a human to review the plan where [loop] plan_review asks, build it there (via /aide-run-queue), mark its PR ready, then either stop for the merge or, below [loop] max_open_queues, plan and build the next queue on top of it.
+description: Drive the AIDE roadmap across MULTIPLE queues — plan a queue on its own branch behind a draft PR, stop for a human to review the plan where [loop] plan_review asks, build it there (via /aide-run-queue), mark its PR ready and read its CI, then either stop for the merge or, below [loop] max_open_queues, plan and build the next queue on top of it.
 ---
 
 # Run the AIDE roadmap (loop over queues)
@@ -124,7 +124,7 @@ parallel* below if you need isolation).
 | **The open queue branch being built has 📋 items held by its plan gate**, still ⏳ Awaiting (or ❌ Declined) | **Stop.** Tell the human to review the draft PR, and to approve the gate on that branch (see **Generate the next queue**); a declined one is re-planned, not approved. If the branch has no PR yet, open it as that section says first. |
 | **The open queue branch being built has 📋 items and no gate holds them** — its plan gate approved, or none raised under `plan_review` | Run the queue on its branch → go to **Run a queue**. |
 | **A queue already on `main` still has 📋 items** — planned under the old flow, no queue branch | Run it from `main` as before → go to **Run a queue**, staying on `main`. |
-| **`runnable: no`, and no row above holds** — the stack is at the cap with nothing left to build | **Stop.** Report the batches in `awaiting review:`, bottom first, and any stack line still reading `pr=#N/draft` — its PR was never marked ready, so report the `gh pr ready` it needs (**Queue end**); the next queue waits for a merge. |
+| **`runnable: no`, and no row above holds** — the stack is at the cap with nothing left to build | For each stack line whose `pr=` reads `#N/draft`, its PR was never marked ready: switch to that branch and run **Queue end** on it — unless it reads `#N/draft(fixing)` (match `/draft` as a prefix, then look for `(fixing)`): that PR was turned back for a CI fix round whose reopened items are still open, so switch to that branch and resume the round with **Run a queue**, which claims them and runs its Queue end again. With every such line handled, **stop**: report the batches in `awaiting review:`, bottom first; the next queue waits for a merge. |
 | **Nothing open, and the roadmap has more stages** — or no queue exists yet | Generate the next queue off `main` → go to **Generate the next queue**. |
 
 A queue branch that carries a maintenance queue and the stage queue after it is
@@ -175,22 +175,24 @@ end**, below the cap. Call the base `<base>` below — `main`, or
   then raise the plan-review gate with `aide queue gate`; do not push or PR."
   Wait for its summary, which names each gate ID the verb printed, or that it
   raised none.
-- `git push` the planner's commits — `queue start` pushed the branch when it
-  was empty and set its upstream, so a bare `git push` is enough and no
-  branch name is typed. Do this **before** `gh pr create`: with commits
-  unpushed it prompts for where to push, and a prompt stalls an unattended
-  run rather than failing loudly. Then open the queue's **draft PR** against
-  its base: `gh pr create --draft --base <base>` titled `aide: work queue NNN`,
-  body summarising the batch — the plan-gate IDs, the inbox entries it
-  absorbed and the ones it passed over, which the planner's summary names, and
-  for a stacked queue that its diff is against `<base>`, whose PR is reviewed
-  first. If it wrote two queues, the title names the pair (`work queues
-  NNN-NNN+1`) and the body says which is the maintenance queue and which the
-  stage queue. `gh pr create` is on the `ask` list: an interactive session
-  prompts, and an unattended one is refused without prompting — then report
-  the exact command for the human to run. Nothing is lost either way: a gate
-  row is already pushed, so nothing it holds can be built until a person has
-  looked at it.
+- Open the queue's **draft PR** with the engine, which pushes the planner's
+  commits first and opens the PR against the base `queue start` recorded,
+  titled `aide: work queue NNN` (or `work queues NNN-MMM` for a pair). Write
+  the body to `docs/aide/status/queue-NNN-pr.md` — derived output under
+  `<docs_dir>/status/`, which the installer's `.gitignore` block covers, so it
+  never reaches a commit; if this project moved `docs_dir`, confirm the
+  directory is ignored before writing there. Summarise the batch in it: the
+  plan-gate IDs, the inbox entries it absorbed and the ones it passed over,
+  which the planner's summary names, and for a stacked queue that its diff is
+  against `<base>`, whose PR is reviewed first. If it wrote two queues, say
+  which is the maintenance queue and which the stage queue. Then:
+  ```
+  python .aide/scripts/aide.py queue pr --body-file docs/aide/status/queue-NNN-pr.md
+  ```
+  On exit 1 relay its sentence and **stop** — a PR on the branch that was
+  closed or merged is a person's decision, and the verb opens no second PR
+  over it. A gate row the planner raised is committed on the branch either
+  way, so nothing it holds can be built until a person has looked at it.
 - **If `queue gate` raised a gate, STOP and tell the user**: review the draft
   PR — reshape the plan there if it needs it, and front-load the specs with
   `/aide-spec-queue NNN` if the batch warrants it, which commits them onto the
@@ -212,17 +214,24 @@ it to empty. Claiming while the queue branch is checked out records it as each
 item's base, so every item merges back into it (§4) and the batch still lands
 as one PR. A legacy queue already on `main` runs from `main` instead. When it
 reports the queue exhausted, go to **Queue end**; when it stopped for anything
-else, surface that and stop (*When to stop and ask the user*, below).
+else — an early ready included, where a gate still holds items — surface that
+and stop (*When to stop and ask the user*, below).
 
 ## Queue end
 
-The queue branch's PR carries the whole batch once the branch is pushed —
-`aide merge` pushes it with each item it lands, so run a bare `git push` only
-if `status` shows the branch ahead of its upstream. Mark the PR ready for
-review: `gh pr ready <prefix>queue-NNN` — `ask`-gated like `gh pr create`,
-and refused without prompting in an unattended run; report the command if so.
-A lower queue re-opened in review (the state table) was already ready: push,
-restack, and re-read the state instead of going on below.
+Run the queue-end step as `/aide-run-queue` → **Queue end** runs it
+(`.aide/README.md` → *The queue-end step* defines it): clean-up, `aide queue
+ready`, the wait on CI and the reading of its answer. When `/aide-run-queue`
+reported the queue exhausted it has already run it on the way out — take its
+answer rather than running it twice; when you arrived here from the state
+table, run it now. A lower queue re-opened in review (the state table) was
+already ready: push, restack, and re-read the state instead of going on below.
+
+A red answer is not a stop by itself: `/aide-run-queue` → **Queue end**
+runs the CI fix round, goes back to its loop, and ends on the round's own
+answer — take that one. Go on below only on CI `success`. Anything else,
+and an early ready above all (a gate still holds items of this queue), is a
+**stop**: report the answer and the batches awaiting review.
 
 Then ask the engine whether another queue may start on top of this one:
 `python .aide/scripts/aide.py queue start <NNN+1> --base <prefix>queue-NNN
@@ -293,6 +302,10 @@ in the next queue rather than rewriting history.
 - **After opening a queue's draft PR, when `queue gate` raised a gate** — it
   holds the build until a person approves it, and that pause is the whole
   point.
+- **At queue end, when CI did not answer `success`** and no fix round
+  follows — a fix round at its cap or with a finding no item owns, no CI,
+  an answer the forge could not give, or a PR `aide queue ready` refused to
+  mark.
 - **At queue end, when the cap is reached** — `queue start --dry-run` exits 3;
   the batches carry their PRs, and the next queue waits for a merge.
 - **A queue branch's PR was closed without merging** — the stack above it is

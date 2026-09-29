@@ -63,7 +63,7 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 | `roadmap.md` | [`roadmap.md`](1-format-contract/roadmap.md) | The staged plan: its mandatory shape and its complete coverage table, why a started stage is not re-edited, and which stages a stage may depend on |
 | Status icons | [`status-icons.md`](1-format-contract/status-icons.md) | The only six icons, their ranks, and the three structural positions they are read at |
 | `progress.md` | [`progress.md`](1-format-contract/progress.md) | The single source of truth for status — objectives, stages, deliverable bullets, outcome targets |
-| `queue-NNN.md` | [`queue-NNN.md`](1-format-contract/queue-NNN.md) | A batch of one-line items, and how a superseded queue is tidied |
+| `queue-NNN.md` | [`queue-NNN.md`](1-format-contract/queue-NNN.md) | A batch of one-line items, how a superseded queue is tidied, and when a queue ends with a queue-end item |
 | items | [`items.md`](1-format-contract/items.md) | An item spec's mandatory sections and the reference forms that link it |
 | Authorised paths | [`authorised-paths.md`](1-format-contract/authorised-paths.md) | An item's declared scope — the two lists `spec-author` writes |
 | Scope proof | [`authorised-paths-proof.md`](1-format-contract/authorised-paths-proof.md) | How that declaration is proved: `aide scope`, `check --queue`, and what a test may never claim |

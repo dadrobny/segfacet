@@ -296,7 +296,7 @@ without the annotation closes none.
   if and only if AC10 retracted. The baseline measured 2026-09-17 on `6d90126`
   was `OK (7 warning(s))`:
   - 1 assumptions-block warning;
-  - 2 awaiting-a-decision warnings (gates 1 and 2);
+  - 2 awaiting-a-decision warnings (gates gate-ae46 and gate-2f91);
   - 4 retracted-criterion warnings (Stage 20 criteria 1, 3, 4, 5).
 
   That baseline is recorded for comparison and **pinned nowhere in the suite**,
@@ -351,7 +351,7 @@ without the annotation closes none.
   so is flipping D1's 🚧 bullet: no item carries it, and `aide progress set`
   takes only an item number. Until both happen, the stage's rollup stays 🚧
   whatever this item finds.
-- **A6 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** a few verb behaviours are assumed.
+- **A6 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** a few verb behaviours are assumed.
   - `aide progress accept 31 --criterion N --evidence` ticks one unticked box
     and appends ` *(<text>)*` to the box's **first** physical line. On Stage
     31's wrapped boxes, the annotation therefore lands mid-criterion, as it did
@@ -362,12 +362,12 @@ without the annotation closes none.
     edit (the item-151 A4 precedent).
   - AC14's "anywhere in the box text" rule tolerates the mid-criterion
     annotation.
-  - **Re-check 2026-09-18 (engine 1.59.0, re-checked 2.1.0, re-checked 2.20.1): the first bullet no longer holds.**
+  - **Re-check 2026-09-18 (engine 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0): the first bullet no longer holds.**
     Engine 1.54.0 (aide-loop issue #237) resolves a wrapped acceptance box to
     its last line, so `accept --evidence` appends there and no longer lands
     mid-criterion. Annotations written under 1.52.1 stand where they landed.
     The other three bullets hold.
-- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `aide progress set 161 in-progress` rewrites D7's
+- **A7 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `aide progress set 161 in-progress` rewrites D7's
   bullet in place. That bullet names only item 161, so it is not a shared bullet
   and no identical-prose split is expected. If the verb nonetheless splits a
   bullet into copies with identical prose (the defect item 158 met), the builder
@@ -668,7 +668,7 @@ with `aide progress amend 31`, never by editing the note.
 
 - **2026-09-17 — `aide check` (AC18).** Baseline before this item's
   bookkeeping (on `6d90126`, tree clean): `OK (7 warning(s))` — 1
-  assumptions-block warning, 2 awaiting-a-decision warnings (gates 1, 2), 4
+  assumptions-block warning, 2 awaiting-a-decision warnings (gates gate-ae46, gate-2f91), 4
   retracted-criterion warnings (Stage 20 criteria 1, 3, 4, 5). After every
   bookkeeping commit above: `OK (7 warning(s))`, byte-identical set (same 7
   lines). No warning text contains `stage 31`, `queue-021`, or a spec filename

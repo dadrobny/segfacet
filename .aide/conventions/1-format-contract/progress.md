@@ -89,10 +89,15 @@ Postpone an item with `aide progress set NNN deferred --reason …`, never by
 typing ⏸️ over a bullet or a stage: the verb keeps the why on the bullet's
 trail, and a stage whose only open work is deferred rolls up to ⏸️ by itself —
 never to ✅. Deferred work resumes through any forward `aide progress set`. A
+bullet no item marker names is deferred by its place instead, with `aide
+progress set --stage N --deliverable K deferred --reason …`, K counting the
+stage's deliverable bullets from 1; it resumes once it is itemised. A
 ⏸️ stage header, summary row or Objective row the rollup does not compute is a
 hand edit that stands until a verb moves a bullet of that stage, and `aide
 check` warns on it for as long as it disagrees, as it does on a stage that
-rolls up to ⏸️ under a cell that says otherwise. A ❌ cell is outside the
+rolls up to ⏸️ under a cell that says otherwise. Defer the stage's open
+bullets, each by the form that addresses it, or restore the icon the rollup
+computes, and the warning ends. A ❌ cell is outside the
 comparison, and a ❌ summary row takes its stage's header with it: its bullets
 no longer speak for the stage.
 
@@ -197,6 +202,14 @@ Semantics
   person resolves it, where a rewrite would have erased it unseen. No insight
   is captured on a deferral, unlike a reopening — postponing work is a
   decision about order, not a finding about the work.
+- **Why a bullet with no marker is deferred by position.** Issue #336: a
+  stage deferred by hand before 2.5.0, its bullets never itemised, warned for
+  good. `set NNN deferred` addresses a bullet by its marker, typing ⏸️ over the
+  bullet is the hand edit this section forbids, and restoring 📋 would have
+  undone a real, dated deferral — so no remedy the warning named applied.
+  Addressing the bullet by its place in the stage gives it the same write and
+  trail. Only ⏸️ is written that way: an unmarked bullet has no item for work
+  to resume under, and itemising it is the queue-planner's step, not a status.
 - **Why every derived cell is compared, with none of the writer's restraint.**
   Issue #285: the sentence that a typed-over derived cell is drift `aide check`
   reports held for ✅ and ⏸️ only. A 🚧 over bullets all 📋, a 🔍 the rollup

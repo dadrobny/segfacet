@@ -216,7 +216,7 @@ every label, and measured the `neighbour_contact` firing set as exactly
 `{("geometric", "split", 23)}` — it fires on that case and on no other, clean
 control and `fuse_adjacent` included. What is *not* covered is the generic
 checker: condition 2 would read "met" from the rule id alone even if the new
-detector fired on nothing. That is open insight 2 below.
+detector fired on nothing. That is the second open insight below (insight 2026-09-20-8462).
 
 #### Open judgement 3 — item 167's four `Left open` notes
 
@@ -388,7 +388,7 @@ audit entries, and nothing here is re-checked at a later claim.
 - **A4 (measured 2026-09-20):** the new gate row's Gate cell must **not**
   contain the substring `Stage 30 failure-mode specification sign-off`.
   `tests/test_150_maintainer_sign_off.py::_sign_off_gate` and
-  `tests/test_151_stage30_validation.py::test_ac28_…` both select gate 5 by
+  `tests/test_151_stage30_validation.py::test_ac28_…` both select gate-fb64 by
   that substring and assert **exactly one** match. The proposed cell opens
   `Stage 32 selected-mode sign-off`, which collides with neither. The cell
   also carries no `|`, which would split the row and make it unreadable as a
@@ -411,7 +411,7 @@ audit entries, and nothing here is re-checked at a later claim.
   this one). The value is compared to the artifacts only by the
   regenerate-and-compare tests, which reconcile in the same commit.
 
-- **A7 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1):** `aide scope` proves this item's diff against the
+- **A7 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `aide scope` proves this item's diff against the
   **Authorised paths** list below; a path listed there and left unchanged is
   not a scope violation.
 
@@ -603,7 +603,7 @@ leaf-path digest, no `config_hash` change, no corpus regeneration.
   entries for both paths — the new leaf is a string or `null`, so both hold.
 - **`tests/test_150_maintainer_sign_off.py::_sign_off_gate` and
   `tests/test_151_stage30_validation.py::test_ac28_signed_off_date_matches_the_approved_gate`**
-  — both select gate 5 by the substring
+  — both select gate-fb64 by the substring
   `"Stage 30 failure-mode specification sign-off"` and assert exactly one
   match. Reconciled **by naming** (A4): the new gate's cell opens
   `Stage 32 selected-mode sign-off`.

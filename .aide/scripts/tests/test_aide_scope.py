@@ -262,7 +262,7 @@ def test_scope_authorises_the_bookkeeping_files_and_the_spec_itself(tmp_path: Pa
 
 
 def test_scope_checks_a_spec_that_only_pins(tmp_path: Path, capsys):
-    """A stage-validation item changes only the bookkeeping every item may
+    """A queue-end item changes only the bookkeeping every item may
     write, while pinning the tree it validates. That is checkable — and stricter
     than bailing out, since an accidental source edit is then caught."""
     repo = _init_repo(tmp_path / "repo")

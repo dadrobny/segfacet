@@ -237,6 +237,33 @@ def test_a_patch_release_does_not_falsify_an_assumption(tmp_path: Path):
     assert aide.item_spec_warnings(repo / "docs" / "aide", engine="1.28.9") == []
 
 
+def _progress_with(icon: str) -> str:
+    return (f"# D — Progress\n\n## Stage 1 — Rules — 🚧\n\n**Deliverables.**\n"
+            f"- {icon} A. *(Item 027)*\n")
+
+
+@pytest.mark.parametrize("icon", ["✅", "❌", "⏸️"])
+def test_a_record_spec_is_not_warned_about_a_stale_engine_marker(
+        tmp_path: Path, icon: str):
+    """§1 never rewrites a merged spec, and the appended re-check that clears
+    the warning goes stale at the next release — on a record the warning
+    would return forever (issue #338)."""
+    repo = _repo(tmp_path)
+    (repo / "docs/aide/progress.md").write_text(_progress_with(icon), encoding="utf-8")
+    _spec_file(repo, "027-bounds.md", _marked("A8", "engine 1.28.1"))
+    assert aide.item_spec_warnings(repo / "docs" / "aide", engine="1.35.0") == []
+
+
+@pytest.mark.parametrize("icon", ["📋", "🚧", "🔍"])
+def test_a_live_spec_is_still_warned_about_a_stale_engine_marker(
+        tmp_path: Path, icon: str):
+    repo = _repo(tmp_path)
+    (repo / "docs/aide/progress.md").write_text(_progress_with(icon), encoding="utf-8")
+    _spec_file(repo, "027-bounds.md", _marked("A8", "engine 1.28.1"))
+    w = aide.item_spec_warnings(repo / "docs" / "aide", engine="1.35.0")
+    assert len(w) == 1 and "027 A8 (engine 1.28.1)" in w[0]
+
+
 def test_a_re_check_appended_to_the_marker_clears_it(tmp_path: Path):
     """The clearing path is append, not rewrite: the original pin stays and the
     newest version named is the one the claim stands on."""

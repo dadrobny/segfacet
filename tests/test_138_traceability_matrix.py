@@ -2218,10 +2218,13 @@ def test_ac31_measured_findings_claim_matches_the_live_pipeline_firing_set(matri
     # the check itself is exercised here against a claim built from a live
     # measurement, in both directions: a true claim passes, and the same
     # claim with one rule added fails.
+    import segfacet.synth.perturbation as perturbation_module
+
     pipeline_case = next(
         case
         for case_id, case in sorted(cases_by_id.items())
-        if case.get("detection") == "pipeline" and case.get("failure_mode")
+        if case.get("detection") == "pipeline"
+        and perturbation_module.corpus_case_kind(case) == perturbation_module.CASE_KIND_FAILURE
     )
     measured = {f.rule_id for f in pipeline_findings(pipeline_case)}
     assert measured, (pipeline_case["case_id"], "expected a firing set to build a claim from")

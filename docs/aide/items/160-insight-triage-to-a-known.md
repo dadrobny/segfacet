@@ -77,7 +77,7 @@ date). "Claim contains" is a substring of the claim text with no backticks.
 | S12 | 39 | defect | item 146 | 2026-09-04 | test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported | ticked (already) | `item 159` |
 | S13 | 41 | defect | item 146 | 2026-09-04 | now carries mode 9 as a mode row whose | ticked (already) | `item 156` |
 | S14 | 42 | defect | item 146 | 2026-09-04 | the two documents the contract was authored in still assert it verbatim | ticked (already) | `item 156` |
-| S15 | 44 | defect | item 147 | 2026-09-04 | evidence-rungs paragraph calls mode 7's | **ticked** | `vision.md v4 §6 removes the example (PR #77, commit 7d800a2; human gate 6 approved 2026-09-16) — Stage 31 D1` |
+| S15 | 44 | defect | item 147 | 2026-09-04 | evidence-rungs paragraph calls mode 7's | **ticked** | `vision.md v4 §6 removes the example (PR #77, commit 7d800a2; human gate [gate-d024] approved 2026-09-16) — Stage 31 D1` |
 | S16 | 45 | defect | item 147 | 2026-09-04 | relying on exactly the declared→corpus direction item 147 step 8 deletes | ticked (already) | `item 159` |
 | S17 | 46 | defect | item 147 | 2026-09-04 | carries the same false mode-7 claim item 147 corrected | ticked (already) | `item 154` |
 | S18 | 47 | defect | item 147 | 2026-09-04 | checks cannot pass as written against item 147's own spec | ticked (already) | `item 159` |
@@ -225,7 +225,7 @@ the inbox and archives" means the entries that `parse_insights` returns for
   `defect`/`gap` captured after this measurement and before the builder runs
   is disposed of by the same rules, logged in Decisions, and left out of the
   frozen table (no spec amendment is needed for it).
-- **A3 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `aide insights tick N --pointer P` on an
+- **A3 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** `aide insights tick N --pointer P` on an
   **unticked** entry flips the checkbox and writes ` → P` on the entry line.
   It adds no date and no trail line. On an **already-ticked** entry it
   appends `  - **<today>** → P` as a trail line
@@ -277,7 +277,7 @@ the inbox and archives" means the entries that `parse_insights` returns for
   half duplicates S27, which is re-homed to Stage 32's mode 9 input. Its
   per-path perturbation harness half has no stage or mode home. Ticking the
   whole entry would drop that half from the open inbox.
-- **A8 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** The test loads `.aide/scripts/aide.py` through
+- **A8 (engine 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0):** The test loads `.aide/scripts/aide.py` through
   `importlib`, as `tests/test_aide_check_no_errors.py` already does, and uses
   `parse_insights(text)`. Each returned `InsightEntry` has `.type`, `.source`
   (provenance text, or `None` for a bare date), `.date`, `.text` (the claim

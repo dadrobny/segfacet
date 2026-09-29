@@ -122,7 +122,9 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
     centroids = {label: compute_centroid(seg_img, label) for label in labels}
 
     # Ascending-label order is the single consistent "ordered centroid
-    # sequence" fed to relationships and every Stage 3 extractor below.
+    # sequence" fed to relationships and every Stage 3 extractor below,
+    # except monotonic consistency, which uses the anatomical (CANONICAL_ORDER)
+    # sequence instead (item 198).
     ordered_centroids = [centroids[label] for label in labels]
 
     if labels:
@@ -197,6 +199,27 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
         # magnitude instead of being absorbed by the in-sample fit.
         fit = fit_centroid_spline(ordered_centroids)
 
+        # item 198 (2026-09-29): monotonic consistency is the one Stage 3
+        # feature judged in anatomical (CANONICAL_ORDER) order rather than
+        # ascending-integer order, because TPTBox integers are not anatomical
+        # (T13 = 28 follows L1-L6; Cocc = 27 precedes S2-S6). Names outside
+        # CANONICAL_ORDER sort last, then by label. The in-sample fit is
+        # reused only when both orders agree (A4); otherwise the curve is
+        # refitted through the anatomical order, inheriting degree/smoothing.
+        from segfacet.labels import CANONICAL_ORDER
+
+        _rank = {name: i for i, name in enumerate(CANONICAL_ORDER)}
+        anatomical_centroids = sorted(
+            ordered_centroids,
+            key=lambda c: (_rank.get(c.level_name, len(_rank)), c.label),
+        )
+        if [c.label for c in anatomical_centroids] == labels:
+            anatomical_spline = fit
+        else:
+            anatomical_spline = fit_centroid_spline(
+                anatomical_centroids, degree=fit.degree, smoothing=fit.smoothing
+            )
+
         spline_offsets = compute_leave_one_out_spline_offsets(
             ordered_centroids, spacing_mm=spacing_mm, fit=fit
         )
@@ -208,7 +231,7 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
             "curvature": compute_spine_curvature(fit, ordered_centroids),
             "spacing_consistency": compute_spacing_consistency(ordered_centroids),
             "monotonic_consistency": compute_monotonic_consistency(
-                ordered_centroids, fit
+                anatomical_centroids, anatomical_spline
             ),
         }
 

@@ -41,6 +41,10 @@ Design decisions (recorded per item 033 spec):
   curve fitted in S-sorted label order, and a swapped label keeps its place
   in that order unless it moves past a neighbour -- which is exactly what
   this rule reports.
+- Item 198 (2026-09-29): the pairs are judged in ``CANONICAL_ORDER`` order
+  (the pipeline hands ``compute_monotonic_consistency`` the centroids in
+  anatomical order), so a correctly placed T13 or ``Cocc`` no longer reads
+  as out of order.
 """
 
 from __future__ import annotations
@@ -168,6 +172,22 @@ class MislabelRule(Rule):
                     "non-monotonic pair's level names back to integer label "
                     "ids for the finding's labels set; "
                     "non_monotonic_pairs[] carries the evidence"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.label",
+                role="bookkeeping",
+                reason=(
+                    "the integer id a resolved non-monotonic pair reports "
+                    "in the finding's labels"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "matched against a pair's level names by "
+                    "_label_for_level"
                 ),
             ),
             ConsumedPath(

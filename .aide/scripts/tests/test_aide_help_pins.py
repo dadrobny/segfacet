@@ -50,8 +50,9 @@ that moved everything.
   it"* (`check`), *"roadmap.md's deliverables carry no item marker, so there
   is no bullet of the item to mirror"* (`progress`) — rationale for a rule
   pinned beside them, not a second rule.
-* *"reopen a ✅ item first"* (`progress`) — a pointer at another action, the
-  refusal it follows being pinned.
+* *"reopen a ✅ item first"*, *"defer that one by its item"* and *"Otherwise
+  it writes what set NNN deferred writes"* (`progress`) — pointers at another
+  form, the refusal or the write they point at being pinned.
 * *"since the row is dropped from every check it would have fed"*, *"the
   goal-level mirror of that over-claim"*, *"a normal state rather than a
   defect"* (twice), *"a satisfied profile under an unverified row is a row
@@ -201,6 +202,88 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # ⏸️ is absent from `spent`, so a deferred item is still in `ordered`.
         ("deferred items stay in the path comparisons",
          "test_aide_queue_specs::test_a_deferred_item_stays_in_the_path_comparison"),
+        # `queue_end_findings`, called by `cmd_check` beside the cross-spec
+        # findings and written into the same `--report` (issue #333).
+        ("--queue NNN also warns on whether the queue needs a queue-end item",
+         "test_aide_queue_specs::test_the_need_reaches_check_as_a_warning_and_the_report"),
+        # `queue_closed_stages`: `touches` over the bullets not ⏸️, and
+        # `closes` over the 📋/🚧/🔍 bullets — no reference, or an item on a
+        # later queue or none.
+        ("The queue closes stage N when an item it lists is referenced by a "
+         "stage N deliverable not ⏸️ and every stage N deliverable that is "
+         "📋, 🚧 or 🔍 names only items listed on this queue or an earlier one",
+         ("test_aide_queue_specs::"
+          "test_a_queue_that_leaves_stage_work_to_a_later_queue_closes_nothing",
+          "test_aide_queue_specs::"
+          "test_a_queue_whose_only_open_work_in_the_stage_is_deferred_closes_nothing")),
+        # `closes = closes and bool(refs)`; the `continue` over ✅ ❌ ⏸️.
+        ("Such a bullet with no item reference keeps the stage open; ✅, ❌ "
+         "and ⏸️ bullets never do",
+         ("test_aide_queue_specs::test_an_unreferenced_open_bullet_keeps_the_stage_open",
+          "test_aide_queue_specs::test_a_deferred_bullet_never_holds_closure",
+          "test_aide_queue_specs::test_an_excluded_bullet_is_skipped")),
+        # The three reasons: `unannotated` over the `[ ]` boxes and
+        # `spec_closed_criteria`; `rows`; `envs` — `env_items` of any status
+        # but ❌, intersected with `stage_item_numbers`, less those a row
+        # in `stage_rows` covers.
+        ("A stage it closes needs one when it has an unticked acceptance box "
+         "no item spec's Acceptance Criteria annotate as `closes Stage N "
+         "criterion M`, a ❓ Unverified capability row whose Introduced by "
+         "cell names it, or an item the stage's own deliverables reference, "
+         "whatever its status but ❌ or ⏸️, whose spec has an Environment / "
+         "Hardware Dependencies section and which no capability row covers",
+         ("test_aide_queue_specs::"
+          "test_a_stage_closing_queue_with_an_unannotated_criterion_needs_a_queue_end_item",
+          "test_aide_queue_specs::test_every_criterion_annotated_or_ticked_is_no_need",
+          "test_aide_queue_specs::test_an_annotation_outside_acceptance_criteria_closes_nothing",
+          "test_aide_queue_specs::test_an_unverified_capability_row_is_a_need",
+          "test_aide_queue_specs::"
+          "test_an_item_declaring_an_environment_gated_capability_is_a_need",
+          "test_aide_queue_specs::test_a_merged_env_item_with_no_row_is_still_a_need",
+          "test_aide_queue_specs::test_an_env_item_outside_the_stage_is_not_its_need",
+          "test_aide_queue_specs::test_an_excluded_env_item_is_no_need",
+          "test_aide_queue_specs::test_a_deferred_env_item_is_no_need")),
+        # `referenced` is every row's `items`, whatever its stages; the
+        # `stage_only` count slices that many off the uncovered, sorted list.
+        ("a row whose Introduced by cell references the item covers it, "
+         "whatever stage the cell names, and each row naming the stage and no "
+         "item covers one more, lowest item number first",
+         ("test_aide_queue_specs::test_a_merged_env_item_with_a_verified_row_is_no_need",
+          "test_aide_queue_specs::test_an_item_only_row_covers_its_item",
+          "test_aide_queue_specs::test_a_row_naming_another_item_does_not_cover_it",
+          "test_aide_queue_specs::test_a_stage_only_row_covers_the_stages_env_items",
+          "test_aide_queue_specs::test_one_stage_only_row_covers_one_env_item")),
+        # `queue_end_stages` on the title; the spec loop skips excluded items
+        # and queue-end items before reading an annotation.
+        ("A queue-end item is one titled `Validate stage N`, and neither its "
+         "own spec nor an excluded item's annotates anything here",
+         ("test_aide_queue_specs::test_queue_end_stages_reads_the_title",
+          "test_aide_queue_specs::"
+          "test_a_queue_end_items_own_annotation_does_not_retire_its_need")),
+        # `trailing` — the suffix of the queue's items that are queue-end items.
+        ("The check warns when a stage with a need has no queue-end item for "
+         "it among the queue's final items, naming each reason",
+         ("test_aide_queue_specs::test_a_queue_end_item_among_the_final_items_meets_the_need",
+          "test_aide_queue_specs::"
+          "test_a_queue_end_item_that_is_not_final_does_not_meet_the_need")),
+        # The `queue-end-idle` loop: no stage, not closed, empty reasons.
+        ("and when a queue-end item not ✅, ❌ or ⏸️ names no stage, a stage "
+         "the queue does not close, or one with no need",
+         ("test_aide_queue_specs::test_a_queue_end_title_naming_no_stage_is_reported",
+          "test_aide_queue_specs::"
+          "test_a_queue_end_item_for_a_stage_the_queue_does_not_close_is_reported",
+          "test_aide_queue_specs::test_a_queue_end_item_with_nothing_to_do_is_reported",
+          "test_aide_queue_specs::test_a_spent_queue_end_item_is_never_reported_idle",
+          "test_aide_queue_specs::test_a_deferred_queue_end_item_is_never_reported_idle")),
+        # `back`: reopened items still open, skipped by the idle loop (#332).
+        ("unless `aide progress reopen` sent it back and it is still open",
+         "test_aide_queue_specs::"
+         "test_a_queue_end_item_a_fix_round_reopened_is_never_reported_idle"),
+        # The early `return []` when every listed item is spent.
+        ("A queue whose items are all ✅, ❌ or ⏸️ gets neither warning",
+         ("test_aide_queue_specs::test_a_spent_queue_is_reported_neither_way",
+          "test_aide_queue_specs::"
+          "test_a_queue_whose_only_open_work_in_the_stage_is_deferred_closes_nothing")),
 
         # `run_checks`: `has_stage_table` / `has_obj_table` / `sections`, each
         # appending to `errors`.
@@ -380,6 +463,11 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("a marked assumption pinning an engine whose feature line predates "
          "the installed one",
          "test_aide_doc_shape::test_an_assumption_pinned_to_an_older_engine_is_reported"),
+        # `item_spec_warnings` skips `record_documents` for this lint only
+        # (issue #338).
+        ("in a spec that is not a record",
+         ("test_aide_doc_shape::test_a_record_spec_is_not_warned_about_a_stale_engine_marker",
+          "test_aide_doc_shape::test_a_live_spec_is_still_warned_about_a_stale_engine_marker")),
         # `forward_dependency_warnings` (issue #282), called from run_checks
         # on the warnings side; `blocking_dependency_stages` cuts the slot at
         # `_DEPS_SLOT_END_RE` and reads numbers by `_DEPS_STAGE_LIST_RE` or
@@ -485,6 +573,12 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "naming the ID that position holds today, in a test as in a document",
          ("test_aide_insights::test_a_positional_citation_is_a_warning_naming_the_id",
           "test_aide_insights::test_a_positional_citation_in_a_test_is_a_warning_too")),
+        # `insight_reference_findings` skips `record_documents` before the
+        # positional loop, after the ID loop (issue #338).
+        ("in a test as in a document other than a record",
+         ("test_aide_insights::test_a_record_spec_and_a_done_queue_are_not_warned_about_positions",
+          "test_aide_insights::test_a_live_spec_and_an_open_queue_still_warn_about_positions",
+          "test_aide_insights::test_progress_and_tests_are_swept_whatever_the_items_status")),
         # `gate_reference_findings` (issue #293): `_citation_files`' docs half
         # only; an unresolved `gate-<hex>` goes to `errors`.
         ("a gate-<hex> token that names no row of progress.md's Human gates "
@@ -509,6 +603,25 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `gate_reference_findings` reads the docs half of `_citation_files`.
         ("tests_dir is not read",
          "test_aide_gates::test_tests_dir_is_not_swept_for_gate_ids"),
+        # `gate_reference_findings`: `path in records` skips the positional
+        # loop only (issue #338).
+        ("read only while progress.md's Human gates table has a row and "
+         "never in a record",
+         ("test_aide_gates::test_a_record_spec_and_a_done_queue_are_not_warned_about_positions",
+          "test_aide_gates::test_a_live_spec_and_an_open_queue_still_warn_about_positions")),
+        # `_GATE_POSITION_RE` and `_INSIGHT_POSITION_RE` / `_ENTRY_POSITION_RE`
+        # open the number on [1-9] (issue #335).
+        ("A position, insight or gate, is never zero-padded: 037 is an item "
+         "number",
+         ("test_aide_gates::test_a_zero_padded_number_is_not_a_gate_position",
+          "test_aide_insights::test_a_zero_padded_number_is_not_an_insight_position")),
+        # `record_documents`: `_RECORD_ITEM_STATUSES`, and a queue with items
+        # none of which `queue_is_open` counts; the ID loops never consult it.
+        ("A record is the spec of an item progress.md shows \u2705, \u274c or "
+         "\u23f8\ufe0f, or a queue naming items none of which is still open; "
+         "an ID naming nothing is an ERROR there too",
+         ("test_aide_insights::test_a_record_is_still_held_to_ids_that_resolve",
+          "test_aide_gates::test_a_record_is_still_held_to_gate_ids_that_resolve")),
         # `ledger_warnings` over `ledger_rows`: the cell count, the Item cell
         # and each of `LEDGER_INTEGER_COLUMNS`, appended to `warnings` and
         # never to `errors`.
@@ -741,6 +854,39 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
           "test_aide_reopen::test_reopen_routes_its_finding_into_the_inbox")),
         # The all-✅ precondition over every owned bullet, raised before any
         # write, and `cmd` printing "NOT changed" with the file untouched.
+        # `_cmd_progress_reopen`: `reason.startswith(_CI_REASON_PREFIX)` then
+        # `next_ci_round` over `_ci_round_scope` (issue #332).
+        ("A reason starting `CI ` is a CI reopening, the queue-end step's fix "
+         "round, and reopen appends its round to it as `[CI round N]`",
+         ("test_aide_reopen::"
+          "test_a_ci_reopening_begins_a_round_the_next_one_joins_and_a_later_one_begins_another",
+          "test_aide_reopen::test_a_reopening_that_is_not_ci_is_neither_stamped_nor_counted")),
+        # `_ci_round_scope`: `_branch_queue_items` at HEAD with a recorded base,
+        # else the queue files listing the item.
+        ("The count is kept over one set of items: those of every queue the "
+         "checked-out queue branch carries, where it has a recorded base, and "
+         "else those of the queue file listing the item",
+         ("test_aide_queue_pr::"
+          "test_a_ci_reopening_on_a_queue_branch_counts_every_queue_it_carries",
+          "test_aide_reopen::test_the_round_is_counted_over_the_queue_listing_the_item_only")),
+        # `next_ci_round`: `top if (live and top) else top + 1`, `live` read
+        # from each item's latest reopening and its status today.
+        ("N is the highest round stamped on a CI reopening of one of them "
+         "while an item of them whose latest reopening is a CI one is still "
+         "\U0001f4cb, \U0001f6a7 or \U0001f50d, and one more than that when "
+         "none is",
+         ("test_aide_reopen::"
+          "test_a_ci_reopening_begins_a_round_the_next_one_joins_and_a_later_one_begins_another",
+          "test_aide_reopen::test_a_reopening_that_is_not_ci_is_neither_stamped_nor_counted")),
+        # `re.match(r"CI[:\-]", reason)` -> 2, before anything is read.
+        ("and so is one starting `CI:` or `CI-`, which would silently not be "
+         "a CI reopening; any other reason, `CI/CD \u2026` or a bare `CI` "
+         "included, is an ordinary one",
+         ("test_aide_reopen::test_a_reason_naming_ci_without_the_space_is_refused",
+          "test_aide_reopen::test_a_reason_merely_mentioning_ci_is_an_ordinary_reopening")),
+        # `_CI_ROUND_RE.search(reason)` -> 2, before anything is read.
+        ("A reason that already ends in such a stamp is refused, exit 2",
+         "test_aide_reopen::test_a_reason_carrying_its_own_round_stamp_is_refused"),
         ("reopen refuses, writing nothing, unless every deliverable bullet "
          "whose trailing marker names the item is \u2705",
          ("test_aide_reopen::test_reopen_refuses_when_one_of_the_items_bullets_is_not_done",
@@ -786,6 +932,31 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("No insight is captured",
          ("test_aide_defer::test_set_deferred_writes_no_insight",
           "test_aide_defer::test_set_deferred_on_a_done_item_exits_one_and_writes_nothing")),
+
+        # `_cmd_progress_defer_deliverable` / `defer_deliverable` (issue #336).
+        ("`set --stage N --deliverable K deferred --reason TEXT` does the same "
+         "to the Kth deliverable bullet of stage N, for a bullet no item "
+         "marker names",
+         ("test_aide_defer::test_defer_deliverable_flips_the_bullet_and_writes_the_trail_under_its_last_line",
+          "test_aide_defer::test_set_by_position_writes_through_the_cli_and_no_insight")),
+        # `stage_deliverable_spans` over `_deliverable_bullet_spans`; the
+        # usage refusals in `_cmd_progress_defer_deliverable`.
+        ("set --stage N --deliverable K counts the stage's deliverable bullets "
+         "from 1 in file order, a wrapped line belonging to its bullet, and "
+         "takes no NNN and no status but deferred",
+         ("test_aide_defer::test_defer_deliverable_flips_the_bullet_and_writes_the_trail_under_its_last_line",
+          "test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2")),
+        ("It refuses, writing nothing, without a stated reason, when stage N "
+         "has no Kth bullet, when that bullet is \u2705 or \u274c, or when it "
+         "carries an item marker",
+         ("test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2",
+          "test_aide_defer::test_set_by_position_refuses_what_it_cannot_defer_with_exit_1",
+          "test_aide_defer::test_defer_deliverable_refuses",
+          "test_aide_defer::test_defer_deliverable_refuses_a_finished_bullet")),
+        ("a bullet already \u23f8\ufe0f is no change",
+         "test_aide_defer::test_defer_deliverable_again_is_no_change"),
+        ("Such a bullet resumes once it is itemised, under set NNN",
+         "test_aide_defer::test_an_unmarked_deferred_bullet_resumes_once_itemised"),
     ],
 
     # ------------------------------------------------------------- insights --
@@ -924,6 +1095,43 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # The "none left" report is built from the gates that actually apply.
         ("It will not offer a blocked item",
          "test_aide_gates::test_none_left_names_only_the_gates_that_apply"),
+        # `_early_ready`, printed last on both exit-0 paths of
+        # `_report_nothing_claimable` — the queue-end step's early trigger,
+        # decided here so the runner never reads it from reason prose (#331).
+        ("Every \"none left \u2014 \u2026\" report that exits 0 ends with an "
+         "`early ready:` line, yes or no before an em dash",
+         ("test_aide_gates::test_early_ready_is_yes_when_every_open_item_waits_on_a_gate",
+          "test_aide_gates::test_early_ready_is_no_when_no_gate_explains_the_hold")),
+        # The clauses of the `yes`, each broken by one test: the fixed point
+        # over dependencies (in any listing order), the claimed item, the ✅
+        # clause.
+        ("yes when every gate holding the queue is still \u23f3 awaiting its "
+         "decision, every open item waits on one \u2014 one reaches it, or it "
+         "waits only on items that do \u2014 no open item is claimed, and at "
+         "least one item of the queues checked is \u2705",
+         ("test_aide_gates::test_early_ready_is_yes_when_every_open_item_waits_on_a_gate",
+          "test_aide_gates::test_an_item_waiting_only_on_a_gated_item_is_held_by_the_gate",
+          "test_aide_gates::test_a_chain_listed_before_the_gated_item_it_hangs_off_is_held",
+          "test_aide_gates::test_a_landed_dependency_does_not_loosen_a_held_item",
+          "test_aide_gates::test_early_ready_is_no_while_an_open_item_is_claimed",
+          "test_aide_gates::test_a_claimed_gated_item_is_work_in_flight",
+          "test_aide_gates::test_early_ready_is_no_before_any_item_has_landed")),
+        # `settled` in `_early_ready`: any relevant gate not "awaiting".
+        ("A \u274c declined gate makes it no",
+         "test_aide_gates::test_a_declined_gate_is_no_early_ready"),
+        # `elif not open_ordered:` — its own wording.
+        ("An `all` gate over a queue with nothing left open is read the same "
+         "way, a yes in words of its own",
+         "test_aide_gates::test_an_all_gate_over_a_queue_with_nothing_open_says_so"),
+        # `if stranded:` inside `if relevant:` returns 1 before `early`.
+        ("An unpublished claim \u2014 a claim branch origin has never seen "
+         "\u2014 exits 1 with how to publish or release it, whether or not a "
+         "gate holds the rest",
+         "test_aide_gates::test_an_unpublished_claim_behind_a_gate_exits_1_with_no_early_line"),
+        # `if not relevant and not open_items: print("none left")` returns
+        # before `_early_ready` is printed.
+        ("A bare \"none left\" (nothing open, no gate) carries no such line",
+         "test_aide_git::test_an_empty_queue_still_says_only_none_left"),
         # `if block_everything or unreadable_gate_rows(plines): return None`,
         # and `cmd_claim` exits 1 naming the row.
         ("A human-gates row it cannot read holds every item",
@@ -1056,7 +1264,7 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("base= is the branch's recorded base, ? where none is recorded",
          ("test_aide_status_stack::test_a_two_queue_stack_is_printed_bottom_first",
           "test_aide_status_stack::test_a_branch_with_no_recorded_base_reads_unknown")),
-        # `_branch_pr`: `isDraft` asked for, an OPEN draft is "draft"; open
+        # `_branch_pr_facts`: `isDraft` asked for, an OPEN draft is "draft"; open
         # or draft wins, else `max(found)`; `prs[b] = "unknown"` once `_gh`
         # fails; `look = mode != "local"`.
         ("pr= is its pull request as #N/open, #N/draft (open but not yet "
@@ -1071,6 +1279,59 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
           "test_aide_status_stack::test_a_two_queue_stack_is_printed_bottom_first",
           "test_aide_status_stack::test_could_not_look_is_unknown_and_never_none",
           "test_aide_status_stack::test_local_mode_asks_no_forge_about_the_stack")),
+        # `_queue_branch_ci` over `_branch_queue_items` and the branch's
+        # own progress.md, asked only for a PR that reads `draft` (#330).
+        ("A draft reads #N/draft(fixing) when an item of the queues the "
+         "branch carries (its own queue file and every queue file it adds "
+         "over its base) was sent back by `aide progress reopen` and is still "
+         "open, read from the branch's own progress.md",
+         ("test_aide_queue_pr::test_a_draft_with_a_reopened_item_still_open_reads_fixing",
+          "test_aide_queue_pr::test_fixing_is_read_from_each_branch_and_only_for_its_own_queues",
+          "test_aide_queue_pr::test_an_open_pr_with_a_reopened_item_is_not_marked_fixing")),
+        # `queue_stack_facts` asks `_queue_branch_ci` for a draft or a failing
+        # PR only; `cmd_status` prints the count when above 0 (issue #332).
+        ("For a draft or a PR whose checks= is failure, a `ci fix rounds: N` "
+         "line below those counts the CI fix rounds the queues the branch "
+         "carries have begun: the highest `[CI round N]` `aide progress "
+         "reopen` stamped on a CI reopening of one of their items, read from "
+         "the branch's own progress.md; no line where none has begun",
+         "test_aide_queue_pr::test_a_draft_or_failing_pr_names_the_ci_fix_rounds_begun"),
+        # `running_checks`, asked only under failure; one `pending check:`
+        # line each in `cmd_status` (#332).
+        ("Under failure, each check still running is named on a `pending "
+         "check:` line below the failing ones",
+         "test_aide_queue_pr::test_a_failure_with_legs_still_running_names_each_as_pending"),
+        # `checks_state`: failing first, then pending, then any SUCCESS;
+        # `_CHECK_IGNORED` neither; the `failing check:` lines in cmd_status.
+        ("checks= is the CI state of that PR's head commit: failure when any "
+         "check failed, each failing check then named on a `failing check:` "
+         "line below it; else pending while any has not finished; else "
+         "success when any passed; else none",
+         ("test_aide_queue_pr::test_the_rollup_reads_as_one_ci_state",
+          "test_aide_queue_pr::test_status_reports_each_prs_checks_and_names_the_failing_ones",
+          "test_aide_queue_pr::test_status_reads_pending_and_success")),
+        ("no check at all, or only skipped and neutral ones, which is what a "
+         "CI that skips drafts reports",
+         ("test_aide_queue_pr::test_the_rollup_reads_as_one_ci_state",
+          "test_aide_queue_pr::test_status_reports_each_prs_checks_and_names_the_failing_ones")),
+        # `_CHECK_FAILED`.
+        ("A cancelled, timed-out or stale check is a failed one",
+         "test_aide_queue_pr::test_the_rollup_reads_as_one_ci_state"),
+        # `checks()` in `queue_stack_facts`: `why_not` where the forge
+        # failed, `checks_why` where the rollup did not read; `-` otherwise.
+        # `_branch_pr_facts`: `rollup_why`, then `ask` without the rollup.
+        ("could be asked only without checks (pr= is then read without them)",
+         "test_aide_queue_pr::test_a_forge_that_will_not_report_checks_still_answers_pr"),
+        # `checks_state([])` is "none": nothing tells not-yet from never.
+        ("Just after a push or `aide queue ready`, none can also mean CI has "
+         "not registered a run yet",
+         "test_aide_queue_pr::test_checks_read_none_right_after_ready_before_ci_registers"),
+        ("the reason on a `checks unknown:` line below it, and - where there "
+         "is no PR and in local mode",
+         ("test_aide_queue_pr::test_checks_are_unknown_with_the_reason_where_the_forge_cannot_be_asked",
+          "test_aide_queue_pr::test_checks_are_unknown_where_the_rollup_cannot_be_read",
+          "test_aide_queue_pr::test_a_rollup_status_cannot_read_is_unknown_with_a_reason",
+          "test_aide_queue_pr::test_checks_are_a_dash_with_no_pr_and_in_local_mode")),
         # `lower_state`: `_is_ancestor(newest(base), newest(b))`, origin's
         # tip where it is ahead.
         ("lower= is moved when the queue branch below has commits this one "
@@ -1297,6 +1558,28 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("so the re-run writes the row once",
          "test_aide_ledger::"
          "test_the_re_run_after_a_failed_tick_lands_the_item_with_one_row"),
+        # `tick_ci_reopening_gap`, its rel added to the tick's `extra_rels`
+        # under the snapshot `cmd_merge` took before any write (#332).
+        ("Where the item's latest reopening is a CI one (a reason `aide "
+         "progress reopen` stamped `[CI round N]`), the open `gap` entry that "
+         "reopening captured is ticked with the pointer `re-merged into <base> "
+         "in CI round N` and committed with the tick",
+         "test_aide_ledger::"
+         "test_a_merge_back_ticks_only_its_ci_reopenings_gap_in_the_ticks_commit"),
+        # `cmd_merge` returns in pr mode before the tick; `set done` never
+        # calls `tick_ci_reopening_gap`.
+        ("not in pr mode, where this verb writes no tick: the gap stays open, "
+         "as the row stays unwritten, and `aide progress set NNN done` ticks "
+         "neither",
+         "test_aide_ledger::test_pr_mode_leaves_a_ci_reopenings_gap_open"),
+        ("no other entry is touched, an earlier round's included",
+         ("test_aide_ledger::"
+          "test_a_merge_back_ticks_only_its_ci_reopenings_gap_in_the_ticks_commit",
+          "test_aide_ledger::"
+          "test_a_merge_back_of_an_item_whose_latest_reopening_is_not_ci_ticks_nothing")),
+        ("A commit that is not made puts insights.md back with the rest",
+         "test_aide_ledger::"
+         "test_a_failed_tick_commit_leaves_the_ci_gap_open_and_the_re_run_ticks_it_once"),
         # `committed` (HEAD moved) keeps the commit, same refusal.
         ("A commit that is made but whose replay onto origin stops is kept, "
          "and refuses the push the same way",
@@ -1621,6 +1904,66 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("where no commit was made, progress.md is put back byte for byte, "
          "so a re-run raises and commits the gate",
          "test_aide_queue_stack::test_gate_whose_commit_fails_changes_nothing_and_a_retry_commits"),
+        # `_queue_pr` (issue #330): `_recorded_branch_base`, `gh pr create
+        # --draft --base <base> --head <branch>`, nothing else asked to change.
+        ("pr [NNN] opens the draft pull request of queue branch "
+         "<prefix>queue-NNN (default: the current branch, which must be one) "
+         "against the base `queue start` recorded, and does nothing else",
+         ("test_aide_queue_pr::test_pr_pushes_first_and_opens_a_draft_against_the_recorded_base",
+          "test_aide_queue_pr::test_pr_on_a_stacked_queue_targets_the_queue_below")),
+        # `_queue_pr_title` over `_branch_queue_files`.
+        ("Its title is `aide: work queue NNN`, or `aide: work queues NNN-MMM` "
+         "when the branch also adds queue file MMM",
+         ("test_aide_queue_pr::test_pr_pushes_first_and_opens_a_draft_against_the_recorded_base",
+          "test_aide_queue_pr::test_pr_titles_a_maintenance_and_stage_pair_by_both_numbers")),
+        # `(args.body is None) == (args.body_file is None)` -> 2.
+        ("its body is exactly one of --body or --body-file",
+         ("test_aide_queue_pr::test_pr_takes_exactly_one_body",
+          "test_aide_queue_pr::test_pr_on_a_stacked_queue_targets_the_queue_below")),
+        # `_push_if_ahead` before `pr create` and before `pr ready`.
+        ("It pushes the branch first where origin lacks commits the branch has",
+         ("test_aide_queue_pr::test_pr_pushes_first_and_opens_a_draft_against_the_recorded_base",
+          "test_aide_queue_pr::test_ready_pushes_first_then_marks_the_draft_ready")),
+        ("A branch that already has an open or draft PR is left alone, exit 0",
+         "test_aide_queue_pr::test_pr_names_the_open_pr_and_opens_nothing"),
+        # `_queue_pr_branch`, then the base, ahead and PR-state refusals.
+        ("It refuses, exit 1: a branch that is not a queue branch, local mode "
+         "or no origin, no recorded base, no commits ahead of that base, a PR "
+         "on the branch that was closed or merged (no second one is opened "
+         "over it), a forge that could not be asked, and a failed push or "
+         "create",
+         ("test_aide_queue_pr::test_off_a_queue_branch_both_refuse_and_ask_nothing",
+          "test_aide_queue_pr::test_local_mode_and_no_origin_both_refuse_and_ask_nothing",
+          "test_aide_queue_pr::test_pr_refuses_a_branch_with_nothing_ahead_of_its_base",
+          "test_aide_queue_pr::test_pr_opens_no_second_pr_over_a_closed_or_merged_one",
+          "test_aide_queue_pr::test_pr_refuses_where_the_forge_cannot_be_asked",
+          "test_aide_queue_pr::test_pr_that_the_forge_refuses_exits_1")),
+        # `_queue_ready`: `gh pr ready N` on a draft, nothing on an open PR.
+        ("ready [NNN] marks that branch's pull request ready for review, and "
+         "does nothing else",
+         ("test_aide_queue_pr::test_ready_pushes_first_then_marks_the_draft_ready",
+          "test_aide_queue_pr::test_ready_names_its_queue_from_another_branch")),
+        ("A PR already ready is left alone, exit 0, and says so",
+         "test_aide_queue_pr::test_ready_leaves_a_ready_pr_alone_and_exits_0"),
+        # `args.undo`: `gh pr ready N --undo`, returned before `_push_if_ahead`.
+        ("--undo turns the PR back into a draft for a fix round, and pushes "
+         "nothing; one already a draft is left alone, exit 0",
+         ("test_aide_queue_pr::test_undo_turns_a_ready_pr_back_to_draft_and_pushes_nothing",
+          "test_aide_queue_pr::test_undo_leaves_a_draft_alone_and_exits_0")),
+        # `_queue_stray_options`, first thing in `cmd_queue`.
+        ("An option the action does not read is refused, exit 2, before "
+         "anything is done",
+         ("test_aide_queue_pr::test_an_option_the_action_does_not_read_is_refused",
+          "test_aide_queue_pr::test_the_older_actions_refuse_the_pr_options")),
+        ("Both refuse, exit 1: a branch that is not a queue branch, local mode "
+         "or no origin, a branch with no PR (`queue pr` opens it), a PR closed "
+         "or merged, a forge that could not be asked, and a failed push or "
+         "change",
+         ("test_aide_queue_pr::test_off_a_queue_branch_both_refuse_and_ask_nothing",
+          "test_aide_queue_pr::test_local_mode_and_no_origin_both_refuse_and_ask_nothing",
+          "test_aide_queue_pr::test_ready_refuses_a_branch_with_no_pr_to_mark",
+          "test_aide_queue_pr::test_ready_refuses_where_the_forge_cannot_be_asked",
+          "test_aide_queue_pr::test_ready_that_the_forge_refuses_exits_1")),
         # `_queue_restack` reads `_recorded_branch_base` for every
         # `_is_stack_branch`, which matches `queue-NNN` and not `specs-queue-`.
         ("The stack is read from the base each queue branch recorded at "

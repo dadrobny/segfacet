@@ -858,8 +858,8 @@ Authorised paths above.
 `tests/test_126_golden_retirement.py` bullet from Authorised paths' Asserts-against
 list (it duplicated the May-change entry the AC17 fix above added, and read-only
 no longer described the file once commit `a496cae` started editing it); `aide
-scope 135` now reports OK. `insights.md` entries 37 (the AC17 allowlist gap) and
-38 (the bullet-status literal bug) were both already resolved by commit `a496cae`
+scope 135` now reports OK. `insights.md` insight 2026-08-31-6b0a (the AC17 allowlist gap) and
+insight 2026-08-31-9072 (the bullet-status literal bug) were both already resolved by commit `a496cae`
 within this item, so both were ticked via `aide insights tick` rather than left
 open — the entry text is unchanged, only the checkbox and a pointer note were
 added, per the immutability rule.

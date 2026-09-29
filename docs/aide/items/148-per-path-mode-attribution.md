@@ -52,8 +52,8 @@ path the rule does not consume, are both test failures naming the path and the
 rule. `build_catalogue` then contributes a rule's corpus-derived (mechanism C)
 and declared (item 136) modes to a path **only** where that `(rule, path)` pair
 is `signal`. The path-keyed Stage-18 anchor term (`per_mode_metric`,
-`feature_docs.MODE_ANCHOR_PATHS`) is untouched: it is already per-path, and gate
-3 decision 1 keeps it a separate, separately-labelled column.
+`feature_docs.MODE_ANCHOR_PATHS`) is untouched: it is already per-path, and
+gate-0fdd decision 1 keeps it a separate, separately-labelled column.
 
 The catalogue **renders the classification explicitly** rather than silently
 dropping the modes: `CatalogueEntry` gains a `mode_roles` column (per consuming
@@ -298,7 +298,7 @@ non-`.py` fixture under `tests/` (**A7**).
   that is a separate deliverable and is captured as one `insights.md` line
   (**Implementation Steps** step 9), not smuggled in here.
 
-- **A9 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1) — `aide check` reports exactly 7 warnings on this
+- **A9 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0) — `aide check` reports exactly 7 warnings on this
   branch**: one "32 item spec(s) have no mandatory '## Assumptions' block", two
   awaiting human gates (1 and 2), and four retracted Stage-20 acceptance
   criteria. This spec carries an `## Assumptions` block, so the 32 does not

@@ -456,10 +456,13 @@ queue of code is too much to review as first contact, so the review runs
 **incrementally, per item**, while the queue is still executing:
 
 - **Open the queue PR as a draft early**, not when the queue completes: head
-  `aide/queue-NNN`, base `main`. `/aide-run-roadmap` opens it right after
-  planning, before any item is built (engine 2.13.1). A queue driven by
-  `/aide-run-queue` alone opens it once the first item lands on the pushed
-  queue branch. Opening the PR is a human-gated action, once per queue.
+  `aide/queue-NNN`, base `main`. Both runners open it with `aide queue pr`:
+  `/aide-run-roadmap` right after planning, and `/aide-run-queue` before its
+  first claim on a branch that has no PR. At queue end they mark it ready
+  with `aide queue ready`, then wait for CI and read the result (engine
+  2.21.0–2.24.0). §3 forbids the raw `gh pr create` / `gh pr ready`. A check
+  that is red at queue end is fixed through the item that introduced it: the
+  CI fix round, `.aide/README.md`.
   **CI does not run on a draft** (2026-09-18, to stay inside the Actions
   budget): the workflow starts when the PR is marked ready and on each push
   after that, and there is no `push: main` run. So on a draft queue PR every

@@ -736,7 +736,7 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
 
 
 # =========================================================================== #
-# AC24: The corpus's pipeline-detection count is 9 of 10
+# AC24: The corpus's pipeline-detection count is 9 of 9
 # =========================================================================== #
 
 
@@ -770,45 +770,16 @@ def _corpus_cohort_metrics():
 
 
 def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
-    """Item 132 judges monotonicity against a traversal-ordered reference
-    fit, which newly detects the relabel-swap case -- corpus sensitivity
-    rose from 6/8 to 7/8. Re-measured 2026-09-14 under the item-150
-    catalogue: nine expected-failure records (the crop case now files under
-    failure_mode 0 with the fov_truncation condition and still expects a
-    verdict; remove_level_relabel expects "pass" and is not an
-    expected-failure record), eight detected, the overlap case the only
-    miss. Re-keyed 2026-09-15 to item 150's revised catalogue: the nine
-    records file under modes 0 (crop), 1 (displace, fragment), 2 (fuse;
-    until item 176), 4 (islands), 6 (remove_level), 9 (relabel swap, sequence break) and
-    15 (overlap, the miss). Mode 6's other case, remove_level_relabel, is
-    not an expected-failure record, so mode 6 scores exactly one case; mode
-    10 ("skipped level label") has no corpus case and scores none.
-    Re-measured 2026-09-20 (item 166) -- mode 3's `split` case is the tenth
-    expected-failure record and is caught, so overall sensitivity is 9/10
-    and the per-mode breakdown gains mode 3 at 1.0.
-    Re-measured 2026-09-23 (item 174) -- mode 3's `split_own_label` case is
-    the eleventh expected-failure record and is caught, so overall
-    sensitivity is 10/11; mode 3 stays at 1.0 over two cases.
-    Re-measured 2026-09-24 (item 175) -- the `crop_fov_si` condition case is
-    the twelfth expected-failure record and is caught, so overall
-    sensitivity is 11/12; mode 0 stays at 1.0 over two cases.
-    Re-measured 2026-09-24 (item 176) -- the bridged, renumbered
-    `fuse_adjacent` expects "pass" and is no longer an expected-failure
-    record, so overall sensitivity is 10/11 over eleven records and mode 2
-    scores no case. The test name keeps the old value.
-    Re-measured 2026-09-28 (item 190) -- every condition case (`displace`
-    under `displaced_vertebra`, `crop_at_border`/`crop_fov_si` under
-    `fov_truncation`) now buckets under its own condition-keyed entry
-    instead of mode 0/1, so the `(0, None)` entry has `n_cases == 0` and is
-    dropped from the per-mode map.
-    Re-measured 2026-09-28 (item 191) -- the gate drops `bounds`'s two
-    findings on `crop_fov_si`'s label 24, so that case no longer fires and
-    its expected verdict becomes "pass": it is no longer an expected-failure
-    record, so overall sensitivity is 9/10 over ten records.
-    Re-measured 2026-09-28 (item 195) -- force_overlap (mode 15) removed, a
-    single-channel label map cannot express an overlap, so every remaining
-    expected-failure record is pipeline-detected: overall sensitivity is
-    9/9 over nine records."""
+    """Overall corpus sensitivity is 9/9 over nine expected-failure records,
+    all pipeline-detected (state as of item 195; the dated ``# Item NNN``
+    comments in the body record how the numbers moved). Each record and the
+    bucket it scores under: mode 1 `fragment`; mode 3 `split`,
+    `split_own_label`; mode 4 `inject_islands`; mode 6 `remove_level`; mode 9
+    `relabel_swap`, `sequence_break`; condition `fov_truncation`
+    `crop_at_border`; condition `displaced_vertebra` `displace`.
+    `fuse_adjacent`, `remove_level_relabel` and `crop_fov_si` expect "pass"
+    and are not expected-failure records, so mode 6 scores exactly one case
+    and modes 0, 2 and 10 score none."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.

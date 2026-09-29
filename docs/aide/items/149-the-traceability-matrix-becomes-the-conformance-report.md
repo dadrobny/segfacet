@@ -33,7 +33,7 @@ each measured on `aide/queue-020` at this item's base (2026-09-04):
 
 1. **The two path columns are conflated.** `ModeRecord.feature_paths` is the
    union of the Stage-18 metric anchor paths with *every* leaf path every
-   declaring rule consumes, so gate 3 decision 1 ("the metric anchor path and
+   declaring rule consumes, so gate-0fdd decision 1 ("the metric anchor path and
    the rule's read path are two separate, separately-labelled columns") holds
    only for the anchor half. Item 148 shipped the missing per-path claim —
    `RuleModeDeclaration.consumed_paths`, each pair classified `signal` /
@@ -314,7 +314,7 @@ for the maintainer reading the rendering at item 150 (**A9**).
   assertion in the reason string.** The allowlist reason *names* the discharging
   test; the guard itself performs no float walk (it is a static AST classifier).
   This mirrors how `emission-clamped` names the clamp rather than checking it.
-- **A7 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1) — `aide check`'s `.gitattributes` lint is silent for
+- **A7 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0) — `aide check`'s `.gitattributes` lint is silent for
   both artifacts today and must stay silent.** All four generated paths are
   already pinned `text eol=lf`; the lint reports nothing for a fixture read with
   `read_text()` + `json.loads` (§6's immune shape), so a clean `aide check` is a
@@ -331,7 +331,7 @@ for the maintainer reading the rendering at item 150 (**A9**).
   maintainer reading; this item's AC10 example paths are chosen so none of them
   turns on that decision.
 - **A10 — no human gate is raised by this item.** Stage 30's gate is item 150's
-  deliverable. Gate 3 is ✅ Approved and is an input here, not a blocker.
+  deliverable. gate-0fdd is ✅ Approved and is an input here, not a blocker.
 
 ## Implementation Steps
 
@@ -535,7 +535,7 @@ so it must be observed, not only asserted:
    cases present in the mode table with `Pipeline-detected: True`.
 3. Confirm the mode-4 and mode-7 rows show **different** values in the
    `Stage-18 metric anchor paths` and `Rule signal read paths` cells — the
-   visible form of gate 3, decision 1.
+   visible form of gate-0fdd, decision 1.
 4. `python .aide/scripts/aide.py check` — no `.gitattributes` warning for any
    path this item touches.
 

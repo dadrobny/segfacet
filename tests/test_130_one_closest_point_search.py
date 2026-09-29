@@ -642,8 +642,14 @@ def _matching_call_text(source: str, call_name: str) -> str:
     raise AssertionError(f"unbalanced parens while scanning call {call_name!r}")
 
 
-def test_ac19_pipeline_binds_one_fit_and_reuses_it():
+def test_ac19_pipeline_binds_one_fit_and_reuses_it(monkeypatch):
+    # Item 198 (2026-09-29, A4 correction): monotonic consistency judges the
+    # anatomical (CANONICAL_ORDER) sequence and may refit, so its token check
+    # is replaced by a behavioural identity check on a map whose anatomical
+    # order equals its integer order.
     from segfacet import pipeline as pipeline_mod
+    from segfacet.features import consistency as consistency_mod
+    from segfacet.features import orientation as orientation_mod
 
     source = Path(pipeline_mod.__file__).read_text(encoding="utf-8")
 
@@ -654,7 +660,6 @@ def test_ac19_pipeline_binds_one_fit_and_reuses_it():
     for call_name in (
         "compute_spine_curvature(",
         "compute_vertebra_tangent_orientations(",
-        "compute_monotonic_consistency(",
         "compute_leave_one_out_spline_offsets(",
     ):
         call_text = _matching_call_text(source, call_name)
@@ -663,6 +668,28 @@ def test_ac19_pipeline_binds_one_fit_and_reuses_it():
         args = call_text[len(call_name) : -1]
         tokens = {tok.strip().split("=")[-1].strip() for tok in args.split(",")}
         assert "fit" in tokens, f"{call_name} call does not pass the bound 'fit' object: {call_text!r}"
+
+    received = {}
+    real_monotonic = consistency_mod.compute_monotonic_consistency
+    real_curvature = orientation_mod.compute_spine_curvature
+
+    def spy_monotonic(centroids, fit):
+        received["monotonic"] = fit
+        return real_monotonic(centroids, fit)
+
+    def spy_curvature(fit, centroids):
+        received["curvature"] = fit
+        return real_curvature(fit, centroids)
+
+    monkeypatch.setattr(consistency_mod, "compute_monotonic_consistency", spy_monotonic)
+    monkeypatch.setattr(orientation_mod, "compute_spine_curvature", spy_curvature)
+
+    extract_feature_record(
+        _clean_spine_seg_img(("L1", "L2", "L3", "L4", "L5")), bundled_default_config()
+    )
+
+    assert "monotonic" in received and "curvature" in received
+    assert received["monotonic"] is received["curvature"]
 
 
 # =========================================================================== #
