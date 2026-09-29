@@ -219,6 +219,15 @@ class SequenceRule(Rule):
             RuleDetector(
                 detector_id="shift",
                 description=_ORDER_TAG,
+                question=(
+                    "Are one or more labels moved several places along the "
+                    "head-to-tail order of their levels?"
+                ),
+                fires_when=(
+                    "the rank permutation of the centroid-ordered levels has "
+                    "a cycle longer than two; names its most-displaced "
+                    "member(s)"
+                ),
                 signal_paths=(
                     "per_label.{label}.centroid.centroid_mm[]",
                     "per_label.{label}.level_name",
@@ -227,11 +236,27 @@ class SequenceRule(Rule):
             RuleDetector(
                 detector_id="skip",
                 description=_SKIP_TAG,
+                question=(
+                    "Is a level absent between two present levels of the "
+                    "expected sequence?"
+                ),
+                fires_when=(
+                    "an expected level lies between the first and last "
+                    "present sequence elements and no present label carries it"
+                ),
                 signal_paths=("per_label.{label}.level_name",),
             ),
             RuleDetector(
                 detector_id="swap",
                 description=_ORDER_TAG,
+                question=(
+                    "Are two labels exchanged in the head-to-tail order of "
+                    "their levels?"
+                ),
+                fires_when=(
+                    "the rank permutation of the centroid-ordered levels has "
+                    "a 2-cycle; names both members"
+                ),
                 signal_paths=(
                     "per_label.{label}.centroid.centroid_mm[]",
                     "per_label.{label}.level_name",
@@ -240,6 +265,16 @@ class SequenceRule(Rule):
             RuleDetector(
                 detector_id="transitional",
                 description=_TRANSITIONAL_TAG,
+                question=(
+                    "Does the level numbering use a non-default section "
+                    "count the field of view does not corroborate?"
+                ),
+                fires_when=(
+                    "a section count is unaccepted by the resolved reading, "
+                    "or a present level lies outside that reading's expected "
+                    "sequence (Cocc excepted), excluding levels already named "
+                    "by swap or shift"
+                ),
                 signal_paths=("per_label.{label}.level_name",),
             ),
         ),

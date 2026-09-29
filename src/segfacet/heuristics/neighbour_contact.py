@@ -200,6 +200,16 @@ class NeighbourContactRule(Rule):
             RuleDetector(
                 detector_id="stray_contact",
                 description=_CONTACT_TAG,
+                question=(
+                    "Does a stray component of this label press against a "
+                    "neighbouring label over a large share of its own surface?"
+                ),
+                fires_when=(
+                    "`contact_fraction` > `contact_fraction_threshold`, "
+                    "strictly, per stray component (never index 0, the "
+                    "largest component)"
+                ),
+                params=(("contact_fraction_threshold", DEFAULT_CONTACT_FRACTION),),
                 signal_paths=(
                     "per_label.{label}.components.component_contacts[].contact_fraction",
                 ),

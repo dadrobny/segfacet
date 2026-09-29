@@ -351,7 +351,17 @@ from a clean clone and requires it byte-identical.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Decided (implementation):** `render_markdown` escapes every prose cell
+  with `failure_modes._md_escape`, so the `|robust_z|` in the two
+  `robust_z` rows renders as `\|robust_z\|` and the AC parser's
+  unescaped-pipe split keeps seven cells. `coverage.incomplete_span` declares
+  `expected_levels` as `()` (the `evaluate` default `[]`). `border`'s
+  `unexpected_clip` declares no `params`: only `expected_end` reads
+  `report_expected_ends`, so AC6's union still holds. `sequence` declares no
+  `params` (it reads none). Fires-when prose was written from each branch's
+  code: `overlap`, `spline_offset` and the three `reference_delta` /
+  `intensity_reference_delta` detectors fire on `>=`, `intensity.degenerate`
+  on `<=`, and the rest strictly.
 
 - **Left open:** `bounds`' per-group hand-set fallback bounds (`cervical`,
   `thoracic`, `lumbar`) are not rendered. They are read through a variable

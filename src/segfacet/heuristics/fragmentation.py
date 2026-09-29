@@ -343,6 +343,24 @@ class FragmentationRule(Rule):
             RuleDetector(
                 detector_id="components",
                 description=_FRAGMENTATION_TAG,
+                question=(
+                    "Is one label's largest connected component too small a "
+                    "share of the label to be a single body?"
+                ),
+                fires_when=(
+                    "`fragmentation_index` (else `largest_component_fraction`) "
+                    "< the threshold, strictly: the level's reference "
+                    "`largest_component_fraction` lower percentile when "
+                    "`source` is `reference` and the level is covered, else "
+                    "`fragmentation_index_threshold`"
+                ),
+                params=(
+                    ("fragmentation_index_threshold", DEFAULT_FRAGMENTATION_INDEX_THRESHOLD),
+                    ("source", DEFAULT_SOURCE),
+                    ("reference_lower_pct", DEFAULT_REFERENCE_LOWER_PCT),
+                    ("reference_upper_pct", DEFAULT_REFERENCE_UPPER_PCT),
+                    ("reference_stratum", DEFAULT_REFERENCE_STRATUM),
+                ),
                 signal_paths=(
                     "per_label.{label}.components.component_count",
                     "per_label.{label}.components.component_sizes[]",
@@ -353,6 +371,23 @@ class FragmentationRule(Rule):
             RuleDetector(
                 detector_id="islands",
                 description=_ISLAND_TAG,
+                question=(
+                    "Does a label carry small disconnected pieces beside its "
+                    "dominant body, or more components than its level normally has?"
+                ),
+                fires_when=(
+                    "reference mode on a covered level: `component_count` > "
+                    "the level's reference `component_count` upper percentile "
+                    "(replaces the voxel floor). Otherwise: any stray "
+                    "component size < `island_min_voxels`, strictly"
+                ),
+                params=(
+                    ("island_min_voxels", DEFAULT_ISLAND_MIN_VOXELS),
+                    ("source", DEFAULT_SOURCE),
+                    ("reference_lower_pct", DEFAULT_REFERENCE_LOWER_PCT),
+                    ("reference_upper_pct", DEFAULT_REFERENCE_UPPER_PCT),
+                    ("reference_stratum", DEFAULT_REFERENCE_STRATUM),
+                ),
                 signal_paths=(
                     "per_label.{label}.components.component_count",
                     "per_label.{label}.components.component_sizes[]",

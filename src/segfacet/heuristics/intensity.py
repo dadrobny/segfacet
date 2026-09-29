@@ -199,6 +199,18 @@ class IntensityRule(Rule):
             RuleDetector(
                 detector_id="degenerate",
                 description=_DEGENERATE_TAG,
+                question=(
+                    "Is the label's intensity so uniform that it cannot be "
+                    "real bone?"
+                ),
+                fires_when=(
+                    "`flag_degenerate` and the label's `first_order.std` <= "
+                    "`max_degenerate_std` (inclusive)"
+                ),
+                params=(
+                    ("flag_degenerate", True),
+                    ("max_degenerate_std", DEFAULT_MAX_DEGENERATE_STD),
+                ),
                 signal_paths=(
                     "image_features.per_label.{label}.first_order.std",
                 ),
@@ -206,6 +218,18 @@ class IntensityRule(Rule):
             RuleDetector(
                 detector_id="too_high",
                 description=_HIGH_TAG,
+                question=(
+                    "Is the label's median HU above the plausible bone band "
+                    "(metal or implant)?"
+                ),
+                fires_when=(
+                    "`flag_high` and the label's `first_order.median` > "
+                    "`max_plausible_hu`, strictly"
+                ),
+                params=(
+                    ("flag_high", True),
+                    ("max_plausible_hu", DEFAULT_MAX_PLAUSIBLE_HU),
+                ),
                 signal_paths=(
                     "image_features.per_label.{label}.first_order.median",
                 ),
@@ -213,6 +237,18 @@ class IntensityRule(Rule):
             RuleDetector(
                 detector_id="too_low",
                 description=_LOW_TAG,
+                question=(
+                    "Is the label's median HU below the plausible bone band "
+                    "(soft tissue or air)?"
+                ),
+                fires_when=(
+                    "`flag_low` and the label's `first_order.median` < "
+                    "`min_plausible_hu`, strictly"
+                ),
+                params=(
+                    ("flag_low", True),
+                    ("min_plausible_hu", DEFAULT_MIN_PLAUSIBLE_HU),
+                ),
                 signal_paths=(
                     "image_features.per_label.{label}.first_order.median",
                 ),

@@ -162,6 +162,14 @@ class OverlapRule(Rule):
             RuleDetector(
                 detector_id="overlapping_segments",
                 description=_OVERLAP_TAG,
+                question=(
+                    "Do two labels claim the same voxels?"
+                ),
+                fires_when=(
+                    "a pair's `overlap_voxels` >= `min_overlap_voxels` "
+                    "(inclusive); one finding per pair"
+                ),
+                params=(("min_overlap_voxels", _DEFAULT_MIN_OVERLAP_VOXELS),),
                 signal_paths=("overlaps[].overlap_voxels",),
             ),
         ),
