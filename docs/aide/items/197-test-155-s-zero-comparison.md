@@ -250,3 +250,5 @@ are both merged.
   could only restate both predicates, and `test_155`'s AC7 already pins the
   fact that makes them agree (A4). The Validation command measures it once
   instead.
+
+- **2026-09-29 review fix.** The `_zero_comparisons` function docstring in `tests/test_155_corpus_case_kind.py` now names the two shapes item 197 added (truthiness test positions; zero-vs-positive ordering), as Implementation Step 3 requires. Docstring only, no logic change.

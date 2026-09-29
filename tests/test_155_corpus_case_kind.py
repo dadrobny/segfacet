@@ -211,7 +211,10 @@ def _zero_comparisons(source: str, filename: str) -> list:
     widened the match to also report membership (``in``/``not in`` a
     zero-sentinel-containing ``Tuple``/``Set``/``List``), a zero comparison
     inside a chained comparison, and ``bool(...)`` truthiness of a tracked
-    access."""
+    access. Item 197 added two more: a tracked access in a truthiness test
+    position (``if``/``while``/ternary test, ``and``/``or`` operand,
+    comprehension ``if``) and the zero-vs-positive ordering comparisons
+    (``> 0``, ``>= 1`` and their mirrors)."""
     tree = ast.parse(source, filename=filename)
 
     exempt_test_ids = set()
