@@ -411,10 +411,21 @@ _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 #: instead of relationships.out_of_order_labels[], adding a new finding to
 #: relabel_swap (swap, labels 21/22) and remove_level (skip, case-level).
 #: sequence_break's pair, ("sequence", (28,)), is unchanged against the
-#: aeb2f55 golden and needs no stripping.
+#: aeb2f55 golden.
 _ITEM_192_ADDED_SEQUENCE_PAIRS = {
     "relabel_swap": ("sequence", (21, 22)),
     "remove_level": ("sequence", ()),
+}
+
+#: Item 198 (2026-09-29): mislabel's ordering detector judges the pairs in
+#: CANONICAL_ORDER order, so sequence_break's misplaced T13 adds three
+#: mislabel findings that the aeb2f55 golden does not carry.
+_ITEM_198_ADDED_MISLABEL_PAIRS = {
+    "sequence_break": (
+        ("mislabel", (20, 21)),
+        ("mislabel", (21, 22)),
+        ("mislabel", (22, 23)),
+    ),
 }
 
 
@@ -463,6 +474,12 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
         assert added_pair in fresh_pairs, (
             f"case {case['case_id']!r}: expected item 192's deliberate "
             f"sequence finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    for added_pair in _ITEM_198_ADDED_MISLABEL_PAIRS.get(case["case_id"], ()):
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 198's deliberate "
+            f"mislabel finding {added_pair!r}, but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (

@@ -730,7 +730,14 @@ _PRE_129_FINDINGS = {
     # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
     # touching label -- it does not opt in to fov_truncation.
     "crop_at_border": {("border", (22,))},
-    "sequence_break": {("sequence", (28,))},
+    # 2026-09-29 (item 198): mislabel's ordering detector now judges in
+    # CANONICAL_ORDER order and fires on the lumbar pairs beside T13's shift.
+    "sequence_break": {
+        ("mislabel", (20, 21)),
+        ("mislabel", (21, 22)),
+        ("mislabel", (22, 23)),
+        ("sequence", (28,)),
+    },
     # "force_overlap" key dropped by item 195, 2026-09-28: the case was
     # removed.
 }
