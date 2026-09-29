@@ -431,7 +431,14 @@ firing this item changes. A5 measured the ladders unchanged.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implemented as specified (2026-09-29).** `pipeline.py` sorts the
+  centroids by `(CANONICAL_ORDER index, label)` and refits (inheriting degree
+  and smoothing) only when that differs from ascending-integer order;
+  `compute_monotonic_consistency` is untouched. Re-measured on the real
+  change: `sequence_break`'s `monotonic_consistency` equals A5's values, and
+  `golden_evidence.generated.json` regenerates byte-identical. The test
+  reconciliations of step 6 were already present on the branch from the
+  test-writer, so this step made no test edit.
 
 - **Left open:** the traversal direction names the wrong pairs when an
   endpoint of the judged order is misplaced (A8). `sequence_break`'s

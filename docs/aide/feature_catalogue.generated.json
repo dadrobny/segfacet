@@ -2477,6 +2477,7 @@
             "render_feature_table"
           ],
           "consuming_rules": [
+            "mislabel",
             "sequence"
           ],
           "documented": true,
@@ -2486,6 +2487,10 @@
             "rule_bookkeeping"
           ],
           "mode_roles": [
+            [
+              "mislabel",
+              "bookkeeping"
+            ],
             [
               "sequence",
               "bookkeeping"
@@ -2528,6 +2533,10 @@
           "path": "per_label.{label}.label",
           "rule_evidence": [
             [
+              "mislabel",
+              "observed"
+            ],
+            [
               "sequence",
               "observed"
             ]
@@ -2546,6 +2555,7 @@
             "border",
             "bounds",
             "fragmentation",
+            "mislabel",
             "neighbour_contact",
             "sequence"
           ],
@@ -2573,6 +2583,10 @@
             ],
             [
               "fragmentation",
+              "bookkeeping"
+            ],
+            [
+              "mislabel",
               "bookkeeping"
             ],
             [
@@ -2630,6 +2644,10 @@
             ],
             [
               "fragmentation",
+              "observed"
+            ],
+            [
+              "mislabel",
               "observed"
             ],
             [
@@ -4835,7 +4853,7 @@
           "units": ""
         },
         {
-          "computation": "Consecutive (level_a, level_b) pairs where u[i] >= u[i+1] on the traversal-ordered reference curve (item 132); equal u values count as a violation too.",
+          "computation": "Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the traversal-ordered reference curve (item 132); equal u values count as a violation too.",
           "consumers": [],
           "consuming_rules": [
             "mislabel"
@@ -4909,7 +4927,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Each vertebra's closest-spline-parameter u, in input order.",
+          "measures": "Each vertebra's closest-spline-parameter u, in CANONICAL_ORDER order.",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {

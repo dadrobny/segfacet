@@ -1585,12 +1585,12 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
         ),
         'stage3.monotonic_consistency.non_monotonic_pairs[]': FeatureDoc(
             measures='Level-name pairs whose spline parameter does not advance.',
-            computation='Consecutive (level_a, level_b) pairs where u[i] >= u[i+1] on the traversal-ordered reference curve (item 132); equal u values count as a violation too.',
+            computation='Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the traversal-ordered reference curve (item 132); equal u values count as a violation too.',
             units='',
             scale_sensitivity='dimensionless',
         ),
         'stage3.monotonic_consistency.u_values[]': FeatureDoc(
-            measures="Each vertebra's closest-spline-parameter u, in input order.",
+            measures="Each vertebra's closest-spline-parameter u, in CANONICAL_ORDER order.",
             computation='The closest_u value computed for every vertebra against a curve fitted through the centroids in traversal order (item 132), not the order under test.',
             units='',
             scale_sensitivity='dimensionless',

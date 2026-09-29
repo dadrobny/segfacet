@@ -126,10 +126,12 @@
         "case_id": "sequence_break",
         "corpus": "geometric",
         "expected_firing": [
+          "mislabel",
           "sequence"
         ],
         "expected_source": "specification",
         "measured_firing": [
+          "mislabel",
           "sequence"
         ],
         "mode": 9
@@ -441,6 +443,10 @@
           [
             "geometric",
             "relabel_swap"
+          ],
+          [
+            "geometric",
+            "sequence_break"
           ]
         ],
         "reason": "",
@@ -518,7 +524,7 @@
       "fragmentation": 7,
       "intensity": 5,
       "intensity_reference_delta": 8,
-      "mislabel": 2,
+      "mislabel": 4,
       "neighbour_contact": 5,
       "overlap": 6,
       "reference_delta": 11,
@@ -1046,7 +1052,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
+      "mechanism": "Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) those pairs are judged in CANONICAL_ORDER order, so a correctly placed T13 or Cocc no longer fires, and sequence_break fires ordering beside shift. A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
       "mode": 9,
       "pipeline_detected": true,
       "read_paths": [
@@ -1199,9 +1205,11 @@
         "corpus-manifest",
         "tests/corpus/manifest.json's relabel_swap designates this rule for mode 9 (out-of-order label sequence) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15) via Detector B (ordering). Item 189 (2026-09-28) moved the former Detector A (spline offset), which served no failure mode, to heuristics.spline_offset -- see that module's declaration for its evidence."
       ],
-      "feature_path_count": 2,
+      "feature_path_count": 4,
       "feature_paths": [
         "per_label",
+        "per_label.{label}.label",
+        "per_label.{label}.level_name",
         "stage3.monotonic_consistency.non_monotonic_pairs[]"
       ],
       "mode_less_reason": "",

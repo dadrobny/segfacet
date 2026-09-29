@@ -1743,7 +1743,10 @@ _MODE_9 = ModeSpec(
         "sequence_break's tail T13 is one rank descent and fires shift. "
         "mislabel's ordering detector fires on "
         "stage3.monotonic_consistency.non_monotonic_pairs[] "
-        "(relabel_swap exchanges L2 and L3). A multi-relabel scramble "
+        "(relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) "
+        "those pairs are judged in CANONICAL_ORDER order, so a correctly "
+        "placed T13 or Cocc no longer fires, and sequence_break fires "
+        "ordering beside shift. A multi-relabel scramble "
         "is not expressible by the fixture generator, which is why the "
         "sequence edge stays needs-real-data although its case is "
         "pipeline-detected."
@@ -1794,13 +1797,15 @@ _MODE_9 = ModeSpec(
         CorpusCaseExpectation(
             case_id="sequence_break",
             corpus="geometric",
-            expected_firing=("sequence",),
+            expected_firing=("mislabel", "sequence"),
             reason=(
-                "pipeline-detected; sequence is the sole rule that fires, "
-                "measured live via segfacet.synth.regression."
-                "pipeline_findings (2026-09-28, item 192). The tail vertebra "
-                "is relabelled to T13, a single rank descent read from "
-                "per_label centroids and named as a shift; why the edge's "
+                "pipeline-detected; measured live via segfacet.synth."
+                "regression.pipeline_findings (2026-09-29, item 198). The "
+                "tail vertebra is relabelled to T13, a single rank descent "
+                "read from per_label centroids and named as a sequence "
+                "shift; with the pairs judged in CANONICAL_ORDER order, "
+                "mislabel's ordering detector also fires on the lumbar "
+                "pairs (20, 21), (21, 22) and (22, 23). Why the edge's "
                 "rung sits below this measured detection is in the "
                 "mechanism sentence."
             ),
