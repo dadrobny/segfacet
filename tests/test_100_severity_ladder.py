@@ -346,9 +346,10 @@ def test_ac1_frozen_instances_raise_on_mutation(harness):
 # =========================================================================== #
 
 
-def test_ac2_key_set_is_exactly_the_seven_operators():
+def test_ac2_key_set_is_exactly_the_nine_operators():
     sl = _sl()
-    assert set(sl.SEVERITY_LADDERS.keys()) == set(_LADDER_OPERATORS)
+    # Item 201: the two mode-3 split ladders joined the seven legacy ones.
+    assert set(sl.SEVERITY_LADDERS.keys()) == set(_LADDER_OPERATORS) | {"split", "split_own_label"}
 
 
 def test_ac2_clean_control_mode_zero_is_not_a_key():
@@ -712,9 +713,9 @@ def test_ac16_coupling_response_ratchet_holds(harness):
         assert measured <= c.recorded_response * 1.05, c
 
 
-def test_ac16_recorded_margins_has_all_seven_ladders():
+def test_ac16_recorded_margins_has_all_nine_ladders():
     sl = _sl()
-    assert set(sl.RECORDED_MARGINS.keys()) == set(_LADDER_OPERATORS)
+    assert set(sl.RECORDED_MARGINS.keys()) == set(_LADDER_OPERATORS) | {"split", "split_own_label"}
 
 
 def test_ac16_margin_ratchet_holds(harness):

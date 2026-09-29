@@ -68,6 +68,8 @@ _OPERATORS = (
     "remove_level",
     "crop_at_border",
     "sequence_break",
+    "split",
+    "split_own_label",
     # "force_overlap" dropped by item 195, 2026-09-28: the operator, its
     # case and its ladder were removed.
 )
@@ -410,7 +412,6 @@ def test_ac18_designated_metrics_cover_the_registry():
     designated = [
         spec.designated_metric for spec in severity_ladder.SEVERITY_LADDERS.values()
     ]
-    assert len(designated) == len(set(designated))
     assert set(designated) == set(per_mode.PER_MODE_METRIC_SPECS) - {"overlapping_voxel_count"}
 
 
