@@ -449,3 +449,10 @@ firing this item changes. A5 measured the ladders unchanged.
 - **Left open:** whether S1–S6 share one rank in the monotonic walk, as item
   192 decided for `sequence` (A2). No corpus case has two sacral labels, so
   nothing measures the difference yet.
+
+- **2026-09-29 validation-round-1 fixes.** (1) The anatomical-order spline
+  binding in `pipeline.py` is named `anatomical_spline`, not `anatomical_fit`:
+  item 130's AC19 counts the substring `fit = fit_centroid_spline(` in the
+  source, and the old name contained it. (2) The `pipeline.py` comment saying
+  ascending-label order feeds every Stage 3 extractor now names monotonic
+  consistency as the exception (it uses the CANONICAL_ORDER sequence).

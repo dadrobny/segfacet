@@ -122,7 +122,9 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
     centroids = {label: compute_centroid(seg_img, label) for label in labels}
 
     # Ascending-label order is the single consistent "ordered centroid
-    # sequence" fed to relationships and every Stage 3 extractor below.
+    # sequence" fed to relationships and every Stage 3 extractor below,
+    # except monotonic consistency, which uses the anatomical (CANONICAL_ORDER)
+    # sequence instead (item 198).
     ordered_centroids = [centroids[label] for label in labels]
 
     if labels:
@@ -212,9 +214,9 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
             key=lambda c: (_rank.get(c.level_name, len(_rank)), c.label),
         )
         if [c.label for c in anatomical_centroids] == labels:
-            anatomical_fit = fit
+            anatomical_spline = fit
         else:
-            anatomical_fit = fit_centroid_spline(
+            anatomical_spline = fit_centroid_spline(
                 anatomical_centroids, degree=fit.degree, smoothing=fit.smoothing
             )
 
@@ -229,7 +231,7 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
             "curvature": compute_spine_curvature(fit, ordered_centroids),
             "spacing_consistency": compute_spacing_consistency(ordered_centroids),
             "monotonic_consistency": compute_monotonic_consistency(
-                anatomical_centroids, anatomical_fit
+                anatomical_centroids, anatomical_spline
             ),
         }
 
