@@ -358,7 +358,6 @@ class FragmentationRule(Rule):
                     ("fragmentation_index_threshold", DEFAULT_FRAGMENTATION_INDEX_THRESHOLD),
                     ("source", DEFAULT_SOURCE),
                     ("reference_lower_pct", DEFAULT_REFERENCE_LOWER_PCT),
-                    ("reference_upper_pct", DEFAULT_REFERENCE_UPPER_PCT),
                     ("reference_stratum", DEFAULT_REFERENCE_STRATUM),
                 ),
                 signal_paths=(
@@ -376,15 +375,16 @@ class FragmentationRule(Rule):
                     "dominant body, or more components than its level normally has?"
                 ),
                 fires_when=(
-                    "reference mode on a covered level: `component_count` > "
-                    "the level's reference `component_count` upper percentile "
-                    "(replaces the voxel floor). Otherwise: any stray "
-                    "component size < `island_min_voxels`, strictly"
+                    "when the level's reference covers `component_count`: "
+                    "`component_count` > that stat's upper percentile "
+                    "(replaces the voxel floor). Otherwise (no reference, or "
+                    "the level is covered only for "
+                    "`largest_component_fraction`): any stray component size "
+                    "< `island_min_voxels`, strictly"
                 ),
                 params=(
                     ("island_min_voxels", DEFAULT_ISLAND_MIN_VOXELS),
                     ("source", DEFAULT_SOURCE),
-                    ("reference_lower_pct", DEFAULT_REFERENCE_LOWER_PCT),
                     ("reference_upper_pct", DEFAULT_REFERENCE_UPPER_PCT),
                     ("reference_stratum", DEFAULT_REFERENCE_STRATUM),
                 ),

@@ -23,7 +23,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional
+
+if TYPE_CHECKING:  # pragma: no cover - type-only import
+    from segfacet.config import HeuristicConfig
 
 __all__ = ["MD_PATH", "render_markdown", "main"]
 
@@ -31,7 +34,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 MD_PATH = _REPO_ROOT / "docs" / "aide" / "rules.generated.md"
 
 
-def render_markdown(config=None) -> str:
+def render_markdown(config: Optional["HeuristicConfig"] = None) -> str:
     """Render the rule table; ``config=None`` means the bundled config."""
     import segfacet.heuristics  # noqa: F401  (registers the rules)
     from segfacet.config import bundled_default_config
