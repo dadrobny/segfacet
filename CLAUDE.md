@@ -258,9 +258,11 @@ one from its template. A `CHANGELOG.md` entry that bumps
 moved to template 2 at engine 1.59.0 by gaining the `> **Posture:**` header
 line (engine 1.55.0, issue #241): it is set to `prototype`, which is also what
 an absent line means, and what that asks of the roadmap, queue and spec authors
-is §1 → vision.md. `docs/aide/ledger.md` (engine 1.58.0, §1 → ledger.md) needs
-no such step: `aide merge` creates it from its template with the first row it
-writes, and nobody authors it by hand.
+is §1 → vision.md. `docs/aide/ledger.md` (engine 1.58.0, §1 → ledger.md) is
+created by `aide merge` from its template with the first row it writes, and
+nobody authors a row by hand. Its header still follows template bumps: it moved
+to ledger template 3 at engine 2.20.1, which added the `Suite s` and `Inherited`
+columns. The older fourteen-cell rows are read as they stand.
 
 **Read `$AIDE_LOOP/CLAUDE.md` before changing anything there — it is not in
 context.** An agent's instruction files are loaded for the *working directory's*
@@ -348,15 +350,13 @@ from a local checkout):
   immune and therefore unreported whether or not it is pinned. Their pins are
   held by this gotcha and by `tests/test_111_golden_guard.py`; drop one and
   Windows fails with no warning anywhere.
-- **A test that reads the insight inbox must also search its archives.** `aide
-  insights archive` moves closed entries from `docs/aide/insights.md` to
-  `docs/aide/insights/archive-YYYY-QN.md` as routine housekeeping, so a test
-  asserting a captured claim's presence must search the inbox *and* every
-  `insights/archive-*.md` (the contract is that the claim survives verbatim and
-  ticked — not which of the two files holds it). `tests/test_117_scope_verb_swap.py`'s
-  AC4 tests are the worked example; pinning the live inbox alone turns an
-  archive sweep into a red suite. Same defect class as pinning a warning's line
-  number: asserting what the loop's own verbs are built to move.
+- **A test never reads the insight inbox, archives included** (§6, engine
+  2.10.0; `aide check` warns on it). An earlier gotcha here had such tests
+  search the archives too. On 2026-09-29 the seven tests that asserted a
+  captured claim's presence were retired: those in items 117, 135, 137, 150,
+  151, 157 and 160. That a claim was captured is a diff-time fact, and the
+  validator checks it at merge. The defect class is the same as pinning a
+  warning count: asserting on what the loop's own verbs are built to move.
 - **An `insights.md` merge conflict is resolved with `aide insights resolve`**
   (engine 1.43.0), never by hand — the hand resolution is where a captured
   claim gets retyped, and a committed conflict marker in the inbox is an `aide
@@ -455,9 +455,11 @@ A queue reaches `main` as one reviewed PR (see "Branching" above), but a whole
 queue of code is too much to review as first contact, so the review runs
 **incrementally, per item**, while the queue is still executing:
 
-- **Open the queue PR as a draft as soon as the first item lands** on the
-  pushed queue branch — head `aide/queue-NNN`, base `main` — not when the
-  queue completes. Opening the PR is a human-gated action, once per queue.
+- **Open the queue PR as a draft early**, not when the queue completes: head
+  `aide/queue-NNN`, base `main`. `/aide-run-roadmap` opens it right after
+  planning, before any item is built (engine 2.13.1). A queue driven by
+  `/aide-run-queue` alone opens it once the first item lands on the pushed
+  queue branch. Opening the PR is a human-gated action, once per queue.
   **CI does not run on a draft** (2026-09-18, to stay inside the Actions
   budget): the workflow starts when the PR is marked ready and on each push
   after that, and there is no `push: main` run. So on a draft queue PR every
