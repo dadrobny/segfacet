@@ -1899,7 +1899,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   shapes. *(Item 197)*
 - ✅ **Maintenance** `mislabel`'s `ordering` detector judges order along the expected
   sequence. *(Item 198)*
-- 🚧 **Maintenance** Positional gate and insight citations in the records rewritten to
+- 🔍 **Maintenance** Positional gate and insight citations in the records rewritten to
   IDs. *(Item 199)*
 - 📋 **D4** The bar checker's condition 2 made existential and detector-granular.
   *(Item 200)*
