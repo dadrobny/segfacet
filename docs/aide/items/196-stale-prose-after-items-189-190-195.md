@@ -217,7 +217,11 @@ merged (✅).
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Re-measured at build (2026-09-29):** snapshot float count 323 and the
+  four neighbour-contact readings of A2 were reproduced exactly, so the
+  rewrites use them. A3 and A5 were taken from the spec's same-day
+  measurement. `split` label 24's 0.102 is described as "barely above the
+  threshold" rather than with a margin.
 
 - **Left open:** Whether the three prose passages should carry a live-state
   test, for example "every case the neighbour_contact comment names is a
