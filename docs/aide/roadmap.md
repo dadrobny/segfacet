@@ -69,7 +69,7 @@
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | G1 Detect empty / trivially-failed              | Stage 1                                                                                                                  |
 | G2 Detect catalogued failure modes (§6)        | Stages 4, 5, 18, 28 (specification: **Stage 30**; per-mode refinement: **Stage 32**, re-grounded and taken to the bar by **Stage 33**; traceability and specificity: **Stage 20**, interleaved into 32; real failures: **Stage 16**) |
-| G3 Distinguish failure from variation           | Stages 6, 7 (real-VerSe grounding: Stage 12;**recalibration: Stage 14**; normative model: Stage 23)                |
+| G3 Distinguish failure from variation           | Stages 6, 7 (real-VerSe grounding: Stage 12;**recalibration: Stage 14**; normative model: planned, not yet specified)                |
 | G4 Per-case and cohort reports                  | Stage 1 (extended by 2–4); cohort characterisation: Stage 18                                                          |
 | G7 Evaluable & regression-testable              | Stages 5, 7 (real-VerSe evaluation: Stage 12;**real data: Stages 14, 16**; corpus rework: **Stages 19–21, 29, 32, 33**; eval-harness re-key: **Stage 31**) |
 | *(out of scope 2026-07-25)* G5 Deploy on XNAT | Stage 9 shipped the artefacts;**Stage 15 `❌ Excluded`** — see `vision.md` v3 §11                             |
@@ -882,7 +882,7 @@ so execution can then proceed unattended.
 >   honest detection count is stated per lifecycle status and per rung, never as one
 >   number over a list that mixes hypothesised and demonstrated modes.
 
-> **⚠️ Annotated 2026-09-15 — after Stage 30's sign-off (item 150, gate 5 approved).**
+> **⚠️ Annotated 2026-09-15 — after Stage 30's sign-off (item 150, gate `gate-fb64` approved).**
 > The remainder of this stage is not re-queued as a stage of its own; it is **interleaved
 > into Stage 32** (per-mode refinement), and its criteria are read against the signed-off
 > sixteen-mode catalogue in `src/segfacet/failure_modes.py`:
@@ -1499,7 +1499,7 @@ golden retire dispositions" are both superseded by D1.
 > Same construction as Stages 26–29: numbered after the placeholders so numbering stays
 > stable, **runs earlier than its number suggests** — before the remainder of Stage 20.
 > Scoped from [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md)
-> and the six decisions human gate 3 recorded on 2026-09-03; the schema, lifecycle and
+> and the six decisions human gate `gate-0fdd` recorded on 2026-09-03; the schema, lifecycle and
 > growth contract it implements are [`vision.md`](vision.md) v3 §6.
 
 ## Stage 30 — Failure-Mode Specification: the §6 catalogue as an authored source (G2, G7, G8)
@@ -1605,7 +1605,7 @@ them):
   entered with every field, each `discriminator` naming its nearest neighbours: mode 6 has
   a border-touching face and mode 1 has none; modes 2 and 3 differ in whether the dominant
   body is intact; modes 1 and 4 differ in whether the label's *identity* or its *position*
-  is wrong. Gate 3's decisions encoded as data, not prose: `mode6_crop_at_border` expects
+  is wrong. Gate `gate-0fdd`'s decisions encoded as data, not prose: `mode6_crop_at_border` expects
   `{border, mislabel}` with its reason (the crop displaces the centroid by a measured
   17.5 mm off the curve); the evidence rung is authored **per mode ↔ rule edge**
   (synthetic-demonstrable · needs-real-data · structurally-unobservable) and the mode's
@@ -1842,7 +1842,7 @@ gate blocks D2 only. Runs before Stage 32 and therefore before Stages 27, 21 and
 ## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8)
 
 > **Annotation 2026-09-22.** Queue-022 shipped D0–D2. Modes 3 and 4 were signed off at a
-> recorded intermediate state, not at the bar (gate 7), so criterion 1 does not hold. The
+> recorded intermediate state, not at the bar (gate `gate-bb24`), so criterion 1 does not hold. The
 > review behind that outcome is carried by **Stage 33**, which re-grounds the corpus and the
 > rules, re-signs both modes, and re-runs D3's validation at its own close; that close
 > attests criterion 1 here. Nothing below is re-edited.
@@ -1987,7 +1987,7 @@ is not blocked by it and belongs to no stage.
 
 **Goal.** Queue-022 took modes 3 (split vertebra segment) and 4 (islands) through bar
 conditions 1–5, but the maintainer signed both off only at a recorded intermediate state
-(gate 7, 2026-09-22). The review behind that decision (`insights.md`, entries dated
+(gate `gate-bb24`, 2026-09-22). The review behind that decision (`insights.md`, entries dated
 2026-09-22) found that the evidence rests on a corpus that cannot express what the rules
 are meant to decide. The geometric base is five non-touching, axis-aligned boxes, so
 `neighbour_contact`'s one firing value is simply the fixture's largest cross-section. Several

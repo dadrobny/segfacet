@@ -91,7 +91,7 @@
 > Stage 28's one unticked non-adjudication acceptance half. Run order from here:
 > **29 → 20 → 27 → 21 → 16**.
 
-> **Stage 30 scoped 2026-09-03** (queue-019 boundary feedback loop; human gate 3), the
+> **Stage 30 scoped 2026-09-03** (queue-019 boundary feedback loop; human gate `gate-0fdd`), the
 > same construction as Stages 26–29: numbered for stability, **runs next, ahead of the
 > remainder of Stage 20**. Queue-019 was cut after item 138 because its remaining items
 > each rested on a definition of the §6 failure modes that existed in five partial sources
@@ -101,7 +101,7 @@
 > Full statement in [`roadmap.md`](roadmap.md), which also states the run order once at
 > its top: **30 → 20 (remainder) → 27 → 21 → 16**.
 
-> **Stages 31 and 32 scoped 2026-09-15** (item 150's close; human gate 5 approved), the
+> **Stages 31 and 32 scoped 2026-09-15** (item 150's close; human gate `gate-fb64` approved), the
 > same construction: numbered for stability, **both run before Stages 27, 21 and 16**.
 > Item 150's review re-organised the catalogue to sixteen modes plus the FOV-truncation
 > condition. **Stage 31** clears what that left behind — the eval-harness re-key (absorbing
@@ -114,7 +114,7 @@
 > [`roadmap.md`](roadmap.md): **30 (item 151) → 31 → 32 (with Stage 20's remainder) → 27
 > → 21 → 16**.
 
-> **Stage 33 scoped 2026-09-22** (queue-022 boundary feedback loop, after gate 7 signed
+> **Stage 33 scoped 2026-09-22** (queue-022 boundary feedback loop, after gate `gate-bb24` signed
 > modes 3 and 4 off at an intermediate state). Queue-022's review found the geometric
 > corpus cannot express what the rules decide: five non-touching axis-aligned boxes,
 > fixtures that do not express their mode, and rules serving a mode by another's signal.
@@ -1595,7 +1595,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   fields; `implemented`/`validated` derived, `proposed`/`specified` authored) and its
   byte-reproducible, LF-pinned rendering `docs/aide/failure_modes.generated.{md,json}`.
   *(Item 144)*
-- ✅ **D2** The eight hypothesised modes specified with discriminators; gate 3's decisions
+- ✅ **D2** The eight hypothesised modes specified with discriminators; gate `gate-0fdd`'s decisions
   encoded as data — `mode6_crop_at_border` expects `{border, mislabel}` with reason,
   evidence rungs authored per mode ↔ rule edge with the mode's rung derived, mode 8
   structurally-unobservable, mode 7's single-descent cap recorded. *(Item 145)*
@@ -1689,7 +1689,7 @@ changes here.**
 - ✅ **D1** `vision.md` §6 re-issued through `/aide-create-vision` (human-gated, not an
   item): principles plus a pointer to the specification, no numbered mode list, the new
   observability classes and the FOV-truncation condition named, the "two-descent" wording
-  corrected. Human gate 6 approved 2026-09-16 at `7d800a2`; PR #77 merged 2026-09-17.
+  corrected. Human gate `gate-d024` approved 2026-09-16 at `7d800a2`; PR #77 merged 2026-09-17.
 - ✅ **D2** The seed-conformance check (`vision_seed_titles` / `VISION_SEED_DISPOSITION` /
   `vision_seed_conflicts`) re-pointed or retired to follow the re-issue. *(Item 152)*
 - ✅ **D3** The Stage-18/29 eval harness (`eval.per_mode`, `severity_ladder`,
@@ -1808,7 +1808,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
   rung, as measured numbers with what they were measured on, naming the modes refined and
   the modes left as documented drafts (**G7**, Stage 20 criterion 5). *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
 
-> **Criterion 1 moves with Stage 33** *(2026-09-22)*. Gate 7 signed modes 3 and 4 off at a
+> **Criterion 1 moves with Stage 33** *(2026-09-22)*. Gate `gate-bb24` signed modes 3 and 4 off at a
 > recorded intermediate state, and the review behind that outcome is Stage 33's scope.
 > Stage 33's closing validation re-runs D3 on the re-grounded corpus and attests criterion
 > 1 here. So D3 stays 📋 until then, even though item 169 ran it once on queue-022's
