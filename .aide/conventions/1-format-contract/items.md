@@ -14,8 +14,9 @@ header and its `## Dependencies`.
 - **An assumption that pins engine behaviour names the engine it was true
   for** — `- **A3 (engine 1.28.1):** …`, the marker `insights.md` provenance
   already carries, in the bold label beside the assumption's own code. `aide
-  check` warns when the engine has since moved past a marked assumption.
-  Clear it the way
+  check` warns when the engine has since moved past a marked assumption, on a
+  live spec only: the spec of an item `progress.md` shows ✅, ❌ or ⏸️ is a
+  record, and is not read for it. Clear it the way
   every other durable record in this loop is corrected — **append**: a
   re-check goes into the marker, `(engine 1.28.1, re-checked 1.36.0)`, and the
   newest version named is the one the claim stands on. A merged spec is never
@@ -119,6 +120,12 @@ forgotten. The queue is bounded the same way, by the posture table's
   assumption is worse than leaving it unclaimed, which is why the unmarked
   case is not warned about. A patch release cannot falsify a claim about
   behaviour, which is why the lint is silent across one.
+- **Why a record is not read for engine markers.** The warning's only clearance
+  is an appended re-check, which goes stale again at the next release, so on a
+  spec §1 never rewrites it returned on every run for the life of the project
+  (issue #338). ⏸️ is in the set because a deferred item is neither built nor
+  edited while it waits, and the status is read on every run: the warning
+  returns the moment the item is 📋 again.
 - **Why 🚧 and 🔍 block.** Work in progress is not in the base a dependent
   would branch from, and neither is work whose PR is still open.
 - **Why a bounded diff fails on arrival.** Once the item merges into the

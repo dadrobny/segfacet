@@ -50,8 +50,9 @@ that moved everything.
   it"* (`check`), *"roadmap.md's deliverables carry no item marker, so there
   is no bullet of the item to mirror"* (`progress`) — rationale for a rule
   pinned beside them, not a second rule.
-* *"reopen a ✅ item first"* (`progress`) — a pointer at another action, the
-  refusal it follows being pinned.
+* *"reopen a ✅ item first"*, *"defer that one by its item"* and *"Otherwise
+  it writes what set NNN deferred writes"* (`progress`) — pointers at another
+  form, the refusal or the write they point at being pinned.
 * *"since the row is dropped from every check it would have fed"*, *"the
   goal-level mirror of that over-claim"*, *"a normal state rather than a
   defect"* (twice), *"a satisfied profile under an unverified row is a row
@@ -462,6 +463,11 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("a marked assumption pinning an engine whose feature line predates "
          "the installed one",
          "test_aide_doc_shape::test_an_assumption_pinned_to_an_older_engine_is_reported"),
+        # `item_spec_warnings` skips `record_documents` for this lint only
+        # (issue #338).
+        ("in a spec that is not a record",
+         ("test_aide_doc_shape::test_a_record_spec_is_not_warned_about_a_stale_engine_marker",
+          "test_aide_doc_shape::test_a_live_spec_is_still_warned_about_a_stale_engine_marker")),
         # `forward_dependency_warnings` (issue #282), called from run_checks
         # on the warnings side; `blocking_dependency_stages` cuts the slot at
         # `_DEPS_SLOT_END_RE` and reads numbers by `_DEPS_STAGE_LIST_RE` or
@@ -567,6 +573,12 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "naming the ID that position holds today, in a test as in a document",
          ("test_aide_insights::test_a_positional_citation_is_a_warning_naming_the_id",
           "test_aide_insights::test_a_positional_citation_in_a_test_is_a_warning_too")),
+        # `insight_reference_findings` skips `record_documents` before the
+        # positional loop, after the ID loop (issue #338).
+        ("in a test as in a document other than a record",
+         ("test_aide_insights::test_a_record_spec_and_a_done_queue_are_not_warned_about_positions",
+          "test_aide_insights::test_a_live_spec_and_an_open_queue_still_warn_about_positions",
+          "test_aide_insights::test_progress_and_tests_are_swept_whatever_the_items_status")),
         # `gate_reference_findings` (issue #293): `_citation_files`' docs half
         # only; an unresolved `gate-<hex>` goes to `errors`.
         ("a gate-<hex> token that names no row of progress.md's Human gates "
@@ -591,6 +603,25 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `gate_reference_findings` reads the docs half of `_citation_files`.
         ("tests_dir is not read",
          "test_aide_gates::test_tests_dir_is_not_swept_for_gate_ids"),
+        # `gate_reference_findings`: `path in records` skips the positional
+        # loop only (issue #338).
+        ("read only while progress.md's Human gates table has a row and "
+         "never in a record",
+         ("test_aide_gates::test_a_record_spec_and_a_done_queue_are_not_warned_about_positions",
+          "test_aide_gates::test_a_live_spec_and_an_open_queue_still_warn_about_positions")),
+        # `_GATE_POSITION_RE` and `_INSIGHT_POSITION_RE` / `_ENTRY_POSITION_RE`
+        # open the number on [1-9] (issue #335).
+        ("A position, insight or gate, is never zero-padded: 037 is an item "
+         "number",
+         ("test_aide_gates::test_a_zero_padded_number_is_not_a_gate_position",
+          "test_aide_insights::test_a_zero_padded_number_is_not_an_insight_position")),
+        # `record_documents`: `_RECORD_ITEM_STATUSES`, and a queue with items
+        # none of which `queue_is_open` counts; the ID loops never consult it.
+        ("A record is the spec of an item progress.md shows \u2705, \u274c or "
+         "\u23f8\ufe0f, or a queue naming items none of which is still open; "
+         "an ID naming nothing is an ERROR there too",
+         ("test_aide_insights::test_a_record_is_still_held_to_ids_that_resolve",
+          "test_aide_gates::test_a_record_is_still_held_to_gate_ids_that_resolve")),
         # `ledger_warnings` over `ledger_rows`: the cell count, the Item cell
         # and each of `LEDGER_INTEGER_COLUMNS`, appended to `warnings` and
         # never to `errors`.
@@ -901,6 +932,31 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("No insight is captured",
          ("test_aide_defer::test_set_deferred_writes_no_insight",
           "test_aide_defer::test_set_deferred_on_a_done_item_exits_one_and_writes_nothing")),
+
+        # `_cmd_progress_defer_deliverable` / `defer_deliverable` (issue #336).
+        ("`set --stage N --deliverable K deferred --reason TEXT` does the same "
+         "to the Kth deliverable bullet of stage N, for a bullet no item "
+         "marker names",
+         ("test_aide_defer::test_defer_deliverable_flips_the_bullet_and_writes_the_trail_under_its_last_line",
+          "test_aide_defer::test_set_by_position_writes_through_the_cli_and_no_insight")),
+        # `stage_deliverable_spans` over `_deliverable_bullet_spans`; the
+        # usage refusals in `_cmd_progress_defer_deliverable`.
+        ("set --stage N --deliverable K counts the stage's deliverable bullets "
+         "from 1 in file order, a wrapped line belonging to its bullet, and "
+         "takes no NNN and no status but deferred",
+         ("test_aide_defer::test_defer_deliverable_flips_the_bullet_and_writes_the_trail_under_its_last_line",
+          "test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2")),
+        ("It refuses, writing nothing, without a stated reason, when stage N "
+         "has no Kth bullet, when that bullet is \u2705 or \u274c, or when it "
+         "carries an item marker",
+         ("test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2",
+          "test_aide_defer::test_set_by_position_refuses_what_it_cannot_defer_with_exit_1",
+          "test_aide_defer::test_defer_deliverable_refuses",
+          "test_aide_defer::test_defer_deliverable_refuses_a_finished_bullet")),
+        ("a bullet already \u23f8\ufe0f is no change",
+         "test_aide_defer::test_defer_deliverable_again_is_no_change"),
+        ("Such a bullet resumes once it is itemised, under set NNN",
+         "test_aide_defer::test_an_unmarked_deferred_bullet_resumes_once_itemised"),
     ],
 
     # ------------------------------------------------------------- insights --

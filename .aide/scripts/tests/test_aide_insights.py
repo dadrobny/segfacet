@@ -1663,6 +1663,101 @@ def test_a_positional_citation_in_a_test_is_a_warning_too(tmp_path: Path):
 
 
 # --------------------------------------------------------------------------- #
+# records are not swept for positions (issue #338)
+# --------------------------------------------------------------------------- #
+_RECORD_QUEUE = "# Demo — Work Queue 001\n\n### Item 007: X\nFixes insight 2.\n"
+
+
+def _progress_007(repo: Path, icon: str) -> None:
+    _cite(repo, "docs/aide/progress.md",
+          f"# Demo — Progress\n\n## Stage 1 — Rules — 🚧\n\n**Deliverables.**\n"
+          f"- {icon} X. *(Item 007)*\n")
+
+
+@pytest.mark.parametrize("icon", ["✅", "❌", "⏸️"])
+def test_a_record_spec_and_a_done_queue_are_not_warned_about_positions(
+        tmp_path: Path, icon: str):
+    """§1 never rewrites a merged spec, so a warning asking it to cite by ID
+    could never clear — and its "today" hint names whatever an archive since
+    moved there, which on a record written before it is a wrong answer."""
+    repo = _repo(tmp_path)
+    _progress_007(repo, icon)
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    _cite(repo, "docs/aide/queue/queue-001.md", _RECORD_QUEUE)
+    assert _findings(repo) == ([], [])
+
+
+def test_a_queue_with_one_open_item_or_none_named_is_not_a_record(tmp_path: Path):
+    """A queue is a record only once every item it names is settled: one 📋
+    item beside a ✅ one keeps it live, and so does naming none yet."""
+    ddir = tmp_path / "docs" / "aide"
+    (ddir / "queue").mkdir(parents=True)
+    (ddir / "items").mkdir()
+    mixed = ddir / "queue" / "queue-001.md"
+    mixed.write_text("# Queue 001\n\n### Item 007: A\n\n### Item 008: B\n",
+                     encoding="utf-8")
+    empty = ddir / "queue" / "queue-002.md"
+    empty.write_text("# Queue 002\n\nBeing wired.\n", encoding="utf-8")
+    done = ddir / "queue" / "queue-003.md"
+    done.write_text("# Queue 003\n\n### Item 007: A\n", encoding="utf-8")
+    spec = ddir / "items" / "007-a.md"
+    spec.write_text("# Item 007 — A\n", encoding="utf-8")
+    live = ddir / "items" / "008-b.md"
+    live.write_text("# Item 008 — B\n", encoding="utf-8")
+    records = aide.record_documents(ddir, {7: "complete", 8: "planned"})
+    assert records == {done, spec}
+
+
+@pytest.mark.parametrize("icon", ["📋", "🚧", "🔍"])
+def test_a_live_spec_and_an_open_queue_still_warn_about_positions(
+        tmp_path: Path, icon: str):
+    repo = _repo(tmp_path)
+    _progress_007(repo, icon)
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    _cite(repo, "docs/aide/queue/queue-001.md", _RECORD_QUEUE)
+    _, warnings = _findings(repo)
+    assert sorted(w.split(":")[0] for w in warnings) == [
+        "docs/aide/items/007-x.md", "docs/aide/queue/queue-001.md"]
+
+
+def test_a_record_is_still_held_to_ids_that_resolve(tmp_path: Path):
+    """Only the position warning is scoped: an ID naming nothing is a citation
+    no reader can follow, in a record as anywhere."""
+    repo = _repo(tmp_path)
+    _progress_007(repo, "✅")
+    _cite(repo, "docs/aide/items/007-x.md", "Chartered by insight 2026-05-11-ffff.\n")
+    _cite(repo, "docs/aide/queue/queue-001.md",
+          _RECORD_QUEUE + "See insight 2026-05-11-ffff.\n")
+    errors, warnings = _findings(repo)
+    assert warnings == []
+    assert sorted(e.split(":")[0] for e in errors) == [
+        "docs/aide/items/007-x.md", "docs/aide/queue/queue-001.md"]
+
+
+def test_progress_and_tests_are_swept_whatever_the_items_status(tmp_path: Path):
+    repo = _repo(tmp_path)
+    _progress_007(repo, "✅")
+    _cite(repo, "docs/aide/progress.md",
+          (repo / "docs/aide/progress.md").read_text(encoding="utf-8")
+          + "\nNote: insight 2 is the reason.\n")
+    _cite(repo, "tests/test_x.py", "# corrects insight 2\n")
+    _, warnings = _findings(repo)
+    assert sorted(w.split(":")[0] for w in warnings) == [
+        "docs/aide/progress.md", "tests/test_x.py"]
+
+
+def test_a_zero_padded_number_is_not_an_insight_position(tmp_path: Path):
+    """A position is never padded; `037` is the item-number shape (issue
+    #335)."""
+    repo = _repo(tmp_path)
+    _cite(repo, "docs/aide/items/007-x.md",
+          "The inbox work: insight 037 and inbox entry 041.\n"
+          "Fixes insight 2.\n")
+    _, warnings = _findings(repo)
+    assert [w.split(":")[1] for w in warnings] == ["2"]
+
+
+# --------------------------------------------------------------------------- #
 # insights archive — the citations it renumbers, listed before it moves
 # (issue #295)
 # --------------------------------------------------------------------------- #
@@ -1711,6 +1806,21 @@ def test_an_archive_that_moves_lists_them_and_still_proceeds(tmp_path: Path, cap
     assert code == 0
     assert ids[1] in out and ids[3] in out and ids[2] in out
     assert len(aide.parse_insights(_inbox(repo))) == 2   # the move happened
+
+
+def test_an_archive_still_lists_a_records_positional_citation(tmp_path: Path, capsys):
+    """`aide check` leaves a record's positions alone (issue #338), but the
+    archive run is the one point that knows what the number meant — the
+    listing is what preserves it."""
+    repo = _repo(tmp_path)
+    _progress_007(repo, "✅")
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    ids = aide.insight_ids(aide.parse_insights(INBOX))
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", "2026-08-01"]) == 0
+    out = capsys.readouterr().out
+    assert "docs/aide/items/007-x.md:1:" in out and ids[1] in out
 
 
 def test_an_archive_lists_no_citation_whose_number_it_leaves_alone(

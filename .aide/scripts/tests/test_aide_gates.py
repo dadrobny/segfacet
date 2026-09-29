@@ -1070,6 +1070,60 @@ def test_a_hyphenated_word_or_a_version_is_not_a_citation():
     assert not list(aide._GATE_POSITION_RE.finditer(line))
 
 
+def _settle(repo: Path, icon: str) -> None:
+    """Both of queue-003's items at *icon* in progress.md."""
+    p = repo / "docs/aide/progress.md"
+    p.write_text(p.read_text(encoding="utf-8").replace("- 📋 ", f"- {icon} "),
+                 encoding="utf-8")
+
+
+def _cite_in_queue(repo: Path, text: str) -> None:
+    (repo / "docs/aide/queue/queue-003.md").write_text(QUEUE + text, encoding="utf-8")
+
+
+@pytest.mark.parametrize("icon", ["✅", "❌", "⏸️"])
+def test_a_record_spec_and_a_done_queue_are_not_warned_about_positions(
+        tmp_path: Path, icon: str):
+    """§1 never rewrites a merged spec or a finished queue, so the warning
+    could never clear (issue #338)."""
+    repo = _repo(tmp_path, f"{AWAITING}\n{ALL}")
+    _settle(repo, icon)
+    _cite(repo, "Waits on human gate 2.\n")
+    _cite_in_queue(repo, "Waits on gate 1.\n")
+    _, warnings = aide.run_checks(repo, aide.load_config(repo))
+    assert not [w for w in warnings if "by position" in w]
+
+
+def test_a_live_spec_and_an_open_queue_still_warn_about_positions(tmp_path: Path):
+    repo = _repo(tmp_path, f"{AWAITING}\n{ALL}")
+    _cite(repo, "Waits on human gate 2.\n")
+    _cite_in_queue(repo, "Waits on gate 1.\n")
+    _, warnings = aide.run_checks(repo, aide.load_config(repo))
+    assert sorted(w.split(":")[0] for w in warnings if "by position" in w) == [
+        "docs/aide/items/027-alpha.md", "docs/aide/queue/queue-003.md"]
+
+
+def test_a_record_is_still_held_to_gate_ids_that_resolve(tmp_path: Path):
+    repo = _repo(tmp_path, AWAITING)
+    _settle(repo, "✅")
+    _cite(repo, "Blocked on gate-0000 until sign-off.\n")
+    _cite_in_queue(repo, "Blocked on gate-0000.\n")
+    errors, _ = aide.run_checks(repo, aide.load_config(repo))
+    assert sorted(e.split(":")[0] for e in errors if "names no human gate" in e) == [
+        "docs/aide/items/027-alpha.md", "docs/aide/queue/queue-003.md"]
+
+
+def test_a_zero_padded_number_is_not_a_gate_position(tmp_path: Path):
+    """`gates 041/042` in dependency prose is two item numbers: a gate
+    position is never padded (issue #335)."""
+    repo = _repo(tmp_path, f"{AWAITING}\n{ALL}")
+    _cite(repo, "Depends on 037–039, gates 041/042.\n"
+                "Waits on human gate 2.\n")
+    _, warnings = aide.run_checks(repo, aide.load_config(repo))
+    [w] = [w for w in warnings if "by position" in w]
+    assert w.startswith("docs/aide/items/027-alpha.md:2:")
+
+
 def test_an_empty_gates_table_reads_no_positions(tmp_path: Path):
     """The progress template ships the section with no rows, so a consumer
     that never raised a gate keeps it — and its "quality gate 2" is not one."""

@@ -126,7 +126,8 @@ file, a roadmap stage, another `progress.md` row — write its ID. A position
   **error** — it blocks a merge, like every check error. A cited ID matching
   two different Gate cells, and a citation by position (`gate 3`, `human gate
   #3`) while the `## Human gates` table has a row, are warnings naming the
-  ID to write.
+  ID to write. A record is not read for positions, and a zero-padded number
+  is an item number, never a position, as for insights (§1 → insights.md).
 
 #### Rationale
 

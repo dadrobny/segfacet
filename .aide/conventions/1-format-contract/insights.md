@@ -76,7 +76,11 @@ that just ran `list`, and nowhere else.
   entry in `insights.md` or its archives is an **error** — it blocks a merge,
   like every check error. A cited ID matching two different claims, and a
   citation by position in `docs/aide/**` or `tests_dir`, are warnings naming
-  the ID to write. The inbox and its archives are not swept. `insights
+  the ID to write. The inbox and its archives are not swept, and a **record**
+  is not read for positions: the spec of an item `progress.md` shows ✅, ❌ or
+  ⏸️, and a queue naming items none of which is still open. An ID in a record
+  that resolves to nothing is still an error. A position is never
+  zero-padded — `037` is an item number, not a citation. `insights
   archive` lists the positional citations it is about to renumber, each with
   the ID its position holds before the move — rewrite them from that list.
 - **Human gates have IDs of their own.** A gate is cited by the `gate-<hex>`
@@ -198,6 +202,14 @@ whichever of them the entry is heading for.
   the move rather than refusing — the listing preserves it, and the move
   already waits on `--yes` (issue #295). After it, the warning's "today" names
   whatever now sits at that number.
+- **Why a record is not read for positions.** A record is never rewritten, so
+  the warning could not be cleared — one consumer carried 394 warnings, about
+  330 of them on merged specs and finished queues (issue #338) — and on a
+  record written before an archive, its "today" names whatever moved into
+  that number since, which is a wrong answer offered as a fix. The archive
+  listing still names a record's positions: it is printed by the one run that
+  knows what the number meant. A dangling ID stays an error there, because
+  no reader can follow it whoever wrote it.
 - **Why tests are read for positions too.** A test comment or assertion
   message naming "insight 28" goes stale on the next archive or merge exactly
   as a spec does, and it is the test, not the spec, that the next author

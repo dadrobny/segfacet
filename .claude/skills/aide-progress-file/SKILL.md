@@ -52,7 +52,10 @@ states.
 **Deferral is recorded on the item, with its reason, and the stage follows.**
 Postpone an item with `aide progress set NNN deferred --reason …`, never by
 typing ⏸️ over a bullet or a stage; deferred work resumes through any forward
-`aide progress set`.
+`aide progress set`. A bullet no item marker names is deferred by its place
+instead, with `aide progress set --stage N --deliverable K deferred --reason …`,
+K counting the stage's deliverable bullets from 1; it resumes once it is
+itemised.
 
 **A stage may be ✅ with an unticked box; say why in an annotation beside it.**
 
