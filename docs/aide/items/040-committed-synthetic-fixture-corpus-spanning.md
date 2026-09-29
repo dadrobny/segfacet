@@ -2,7 +2,7 @@
 
 > **Created:** 2026-07-10 · status tracked in [`progress.md`](../progress.md)
 > **Stage:** 5 — Synthetic Failure Corpus & Regression Suite (G7)
-> **Queue:** [`../queue/queue-004.md`](../queue/queue-004.md) · Item 040 *(materialises the committed corpus; depends on 037–039, gates 041/042)*
+> **Queue:** [`../queue/queue-004.md`](../queue/queue-004.md) · Item 040 *(materialises the committed corpus; depends on 037–039, gates items 041/042)*
 > **Objectives:** G7 (evaluable & regression-testable — a reproducible, committed
 > corpus spanning every §6 failure mode) and the synthetic-corpus half of G2
 > **Suggested branch:** `aide/040-committed-synthetic-fixture-corpus-spanning`

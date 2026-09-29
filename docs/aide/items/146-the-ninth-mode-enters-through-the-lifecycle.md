@@ -405,7 +405,7 @@ temporary state.
 
 - **A10 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1):** `python .aide/scripts/aide.py check` on this branch
   reports **OK with 7 warnings**: 32 legacy specs without an `## Assumptions`
-  block; human gates 1 and 2 awaiting a decision; and the four Stage-20
+  block; human gates gate-ae46 and gate-2f91 awaiting a decision; and the four Stage-20
   criterion retraction notices (criteria 1, 3, 4, 5). AC36's baseline is that
   set. A new warning class is a finding, not a baseline update.
 

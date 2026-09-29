@@ -77,7 +77,7 @@ date). "Claim contains" is a substring of the claim text with no backticks.
 | S12 | 39 | defect | item 146 | 2026-09-04 | test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported | ticked (already) | `item 159` |
 | S13 | 41 | defect | item 146 | 2026-09-04 | now carries mode 9 as a mode row whose | ticked (already) | `item 156` |
 | S14 | 42 | defect | item 146 | 2026-09-04 | the two documents the contract was authored in still assert it verbatim | ticked (already) | `item 156` |
-| S15 | 44 | defect | item 147 | 2026-09-04 | evidence-rungs paragraph calls mode 7's | **ticked** | `vision.md v4 §6 removes the example (PR #77, commit 7d800a2; human gate 6 approved 2026-09-16) — Stage 31 D1` |
+| S15 | 44 | defect | item 147 | 2026-09-04 | evidence-rungs paragraph calls mode 7's | **ticked** | `vision.md v4 §6 removes the example (PR #77, commit 7d800a2; human gate [gate-d024] approved 2026-09-16) — Stage 31 D1` |
 | S16 | 45 | defect | item 147 | 2026-09-04 | relying on exactly the declared→corpus direction item 147 step 8 deletes | ticked (already) | `item 159` |
 | S17 | 46 | defect | item 147 | 2026-09-04 | carries the same false mode-7 claim item 147 corrected | ticked (already) | `item 154` |
 | S18 | 47 | defect | item 147 | 2026-09-04 | checks cannot pass as written against item 147's own spec | ticked (already) | `item 159` |

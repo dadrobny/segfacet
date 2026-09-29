@@ -284,7 +284,7 @@ queue boundary.
   `read_text()`, not a byte-reproducible generated fixture, so it needs no pin.
 
 - **A8: no human gate.** The correction is mechanical and its one judgement call
-  (a moved firing set) is resolved by handing back, not by deciding. Gate 3 is
+  (a moved firing set) is resolved by handing back, not by deciding. gate-0fdd is
   already ✅ Approved and is an input to items 145/146, not to this one. This
   item raises no gate.
 

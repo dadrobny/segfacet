@@ -32,7 +32,7 @@ The schema carries vision §6's fields: `id`, `name`, `definition`,
 `discriminator`, `observability`, `candidate_features` (each labelled with its
 **role**, so the Stage-18 per-mode *metric*'s anchor path is labelled as exactly
 that and never as what a rule reads), `intended_rules` (each naming the detector
-where a rule has several, and carrying the **per-edge evidence rung** gate 3
+where a rule has several, and carrying the **per-edge evidence rung** gate-0fdd
 decision 3 fixed), `corpus_cases` (each with an **expected** firing set),
 `severity`, `status` and `provenance`.
 
@@ -222,7 +222,7 @@ them by replacement; this module simply does not reproduce them (AC7).
 - **A2 — what an expected firing set *is*.** `expected_firing` is the **full**
   set of `rule_id`s among the findings the corpus case's detection path
   produces, not the manifest's `expected_rule_ids` (which is the *designated*
-  subset `segfacet.synth.regression.designated_findings` filters to). Gate 3
+  subset `segfacet.synth.regression.designated_findings` filters to). gate-0fdd
   decision 2 requires `mode6_crop_at_border` to carry `{border, mislabel}` while
   the manifest lists only `border`, so the two are different objects and the
   specification owns the wider one. Items 145/146/149 depend on this reading.
@@ -261,7 +261,7 @@ them by replacement; this module simply does not reproduce them (AC7).
   state derives `implemented` is **not** a conflict: the derivation wins, which
   is what "derived" means.
 
-- **A6 — the per-edge rung lives in this item's schema.** Gate 3 decision 3
+- **A6 — the per-edge rung lives in this item's schema.** gate-0fdd decision 3
   attaches the evidence rung to the mode ↔ rule **edge**, and item 145's
   acceptance requires the mode's rung to be *derived by construction* rather
   than transcribed. The mechanism (the closed vocabulary, the edge field, the
@@ -287,7 +287,7 @@ them by replacement; this module simply does not reproduce them (AC7).
 
 - **A8 (engine 1.37.0, re-checked 1.52.1, re-checked 1.59.0, re-checked 2.1.0, re-checked 2.20.1) — the `aide check` baseline.** On this branch
   `python .aide/scripts/aide.py check` reports **7 warnings** (32 legacy specs
-  with no `## Assumptions` block; human gates 1 and 2 awaiting a decision; four
+  with no `## Assumptions` block; human gates gate-ae46 and gate-2f91 awaiting a decision; four
   Stage-20 retraction notices) and says nothing about `.gitattributes`. "No new
   warning" in the Validation section is measured against that baseline; the
   `.gitattributes` lint (engine 1.19.0) resolves a fixture path through the

@@ -464,7 +464,7 @@ All measurements below were made on this checkout at HEAD (branch
 `SEGFACET_VERSE_COHORT=dataset-verse19training` reachable.
 
 **AC1 — gate ordering.** `progress.md`'s spinal-curve-model gate row reads
-`✅ Approved (2026-08-27)`, committed at `82d4b7f` ("docs: human gate 3
+`✅ Approved (2026-08-27)`, committed at `82d4b7f` ("docs: human gate [gate-2765]
 approved") dated `2026-08-27 17:36:23 +0100`. Item 119's first production-code
 commit is `4947d59` ("feat(119): implement the smoothing-spline curve
 formulation"), dated `2026-08-27 19:53:31 +0100` — the same day, ~2h17m after

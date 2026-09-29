@@ -41,7 +41,7 @@ roadmap's prose:
   (`test_135`'s AC26/AC28, `test_128`'s diff test) were retired in that pass —
   item 159 confirms rather than re-does it.
 - **D1 — `vision.md` §6 re-issued as v4** (PR #77, branch
-  `docs/vision-v4-section-6`), accepted at human gate 6 on 2026-09-16 as a
+  `docs/vision-v4-section-6`), accepted at human gate-d024 on 2026-09-16 as a
   gate-approved draft. §6 now carries principles plus a pointer to
   `segfacet.failure_modes.SPECIFICATION` and **no numbered mode list**, the five
   observability classes, the FOV-truncation condition as a first-class concept,
@@ -103,8 +103,8 @@ manifests). Any new committed text fixture must be written with `\n`
 [`../../../.gitattributes`](../../../.gitattributes) — CLAUDE.md's Gotchas; the
 pin is not optional and `aide check`'s `.gitattributes` lint must stay clean.
 
-**Human gates.** Gate 6 (the v4 §6 re-issue) is approved and its Blocks cell is
-narrowed to item **152**, the only item that reads the new text. Gates 1 and 2
+**Human gates.** gate-d024 (the v4 §6 re-issue) is approved and its Blocks cell is
+narrowed to item **152**, the only item that reads the new text. Gates gate-ae46 and gate-2f91
 (real segmenter output; access to the curated challenging-case data) block Stage
 16 only, and no Stage 16 work is in this queue. **Item 157's decision — the
 roadmap's "maintainer decides at the queue's planning" — was taken at this
@@ -161,7 +161,7 @@ changes**: not one `ModeSpec` field moves, and the regenerated
 `failure_modes.generated.*` diff is exactly the seed-disposition and note
 change. **Measured against vision v4, not against `main`:** this item's tests
 are written against `docs/aide/vision.md` as it stands on branch
-`docs/vision-v4-section-6` (PR #77, gate 6 approved). The builder gets that text
+`docs/vision-v4-section-6` (PR #77, gate-d024 approved). The builder gets that text
 by **merging `origin/docs/vision-v4-section-6` into the item branch** at the
 start of the item — a merge, not a cherry-pick, so the vision commit is not
 duplicated when PR #77 lands on `main` — and the item's spec records the head

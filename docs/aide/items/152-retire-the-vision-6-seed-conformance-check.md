@@ -12,7 +12,7 @@
 ## Description
 
 Roadmap Stage 31 D2. Vision v4 (PR #77, branch `docs/vision-v4-section-6`, human
-gate 6 approved 2026-09-16 at commit `7d800a2`) re-issues `vision.md` §6 as
+gate-d024 approved 2026-09-16 at commit `7d800a2`) re-issues `vision.md` §6 as
 principles plus a pointer to `segfacet.failure_modes.SPECIFICATION`, with **no
 numbered mode list**. Three symbols in `src/segfacet/failure_modes.py` exist only
 to conform against that list, and against v4 they fail: `vision_seed_titles()`
@@ -206,7 +206,7 @@ literals in `failure_modes.py` would trip. See A8.
   Measured 2026-09-16: `git log origin/main` has head `c5a73c8`, and
   `git branch -r --contains origin/docs/vision-v4-section-6` lists only
   `origin/docs/vision-v4-section-6`, whose head is
-  `7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e`. That is the sha gate 6 approved,
+  `7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e`. That is the sha gate-d024 approved,
   and neither `main` nor `origin/aide/queue-021` contains it. The builder's
   **first act** is `git merge --no-ff 7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e`
   on the item branch. It merges that exact sha, not the branch tip, and uses a
@@ -247,7 +247,7 @@ literals in `failure_modes.py` would trip. See A8.
 ## Implementation Steps
 
 1. **Merge v4** (A4): `git merge --no-ff 7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e
-   -m "Merge vision v4 section 6 (PR #77, gate 6) into item 152"`. Record the
+   -m "Merge vision v4 section 6 (PR #77, gate [gate-d024]) into item 152"`. Record the
    resulting sha in Decisions.
 2. **`src/segfacet/failure_modes.py`:**
    - Delete `vision_seed_titles()` (~`:2145-2185`, with its section banner) and
@@ -417,7 +417,7 @@ or a diff:
 
 ## Dependencies
 
-None. Human gate 6, the vision v4 re-issue, is ✅ Approved (2026-09-16) and
+None. Human gate-d024, the vision v4 re-issue, is ✅ Approved (2026-09-16) and
 reaches this item as its `Blocks` cell. PR #77 is a process deliverable (Stage 31
 D1), not an item.
 
@@ -438,7 +438,7 @@ criterion 2 from AC1–AC3.
   merge into independent commits with new hashes, dropping the merge edge
   from the graph. Per A4's default path, the builder ran
   `git merge --no-ff 7d800a20c8cf779f2ef1b93d5ba65d48652e2b2e -m "Merge
-  vision v4 section 6 (PR #77, gate 6) into item 152"`. Because the trees
+  vision v4 section 6 (PR #77, gate [gate-d024]) into item 152"`. Because the trees
   already agreed, the merge produced no file changes — only the merge edge
   itself — as commit `cfff59ef29477cc9d1ce6f0fe5ac3f4f88cc42f2`. This
   satisfies Validation step 1 (`7d800a2` is now a genuine ancestor of `HEAD`)

@@ -296,7 +296,7 @@ without the annotation closes none.
   if and only if AC10 retracted. The baseline measured 2026-09-17 on `6d90126`
   was `OK (7 warning(s))`:
   - 1 assumptions-block warning;
-  - 2 awaiting-a-decision warnings (gates 1 and 2);
+  - 2 awaiting-a-decision warnings (gates gate-ae46 and gate-2f91);
   - 4 retracted-criterion warnings (Stage 20 criteria 1, 3, 4, 5).
 
   That baseline is recorded for comparison and **pinned nowhere in the suite**,
@@ -668,7 +668,7 @@ with `aide progress amend 31`, never by editing the note.
 
 - **2026-09-17 — `aide check` (AC18).** Baseline before this item's
   bookkeeping (on `6d90126`, tree clean): `OK (7 warning(s))` — 1
-  assumptions-block warning, 2 awaiting-a-decision warnings (gates 1, 2), 4
+  assumptions-block warning, 2 awaiting-a-decision warnings (gates gate-ae46, gate-2f91), 4
   retracted-criterion warnings (Stage 20 criteria 1, 3, 4, 5). After every
   bookkeeping commit above: `OK (7 warning(s))`, byte-identical set (same 7
   lines). No warning text contains `stage 31`, `queue-021`, or a spec filename

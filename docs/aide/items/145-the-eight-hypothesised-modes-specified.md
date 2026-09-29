@@ -27,7 +27,7 @@ What it authors, and what makes each authored claim checkable:
   *position* is wrong. Each of those three claims is a **fact about the committed
   corpus**, so each is pinned by a live measurement (AC16–AC18) rather than by a
   token in a sentence — the check queue-019's three defects could not express.
-- **Per-edge evidence rungs** (gate 3, decision 3). Every mode ↔ rule edge
+- **Per-edge evidence rungs** (gate-0fdd, decision 3). Every mode ↔ rule edge
   carries a rung; the mode's rung is **derived** as its strongest edge by item
   144's `derive_mode_rung`. The analytic-only edges — `reference_delta` on modes
   1 and 2, `bounds` on mode 2 — sit at `needs-real-data` and are pinned as
@@ -36,7 +36,7 @@ What it authors, and what makes each authored claim checkable:
 - **`expected_firing` measured on the item-143-corrected corpus**, per corpus
   case, through `measured_firing()` — never transcribed from a queue-019
   document, and never from a pre-correction number.
-- **Gate 3's decisions as data.** `mode6_crop_at_border` carries
+- **gate-0fdd's decisions as data.** `mode6_crop_at_border` carries
   `expected_firing = ("border", "mislabel")` with its recorded reason and a
   **freshly measured** centroid displacement (AC14, AC15). `mislabel` is
   deliberately **not** one of mode 6's `intended_rules`: the co-detection is
@@ -313,7 +313,7 @@ the most defensible default and recorded here for audit at the queue boundary.
   sign-off is the place to call a different severity for a mode; if the
   maintainer does, AC21's test is the named reconciliation point, and any change
   to what a rule *emits* is a rule change outside both this item and this stage.
-- **A8: modes 4 and 7 keep an anchor path no rule reads, deliberately.** Gate 3,
+- **A8: modes 4 and 7 keep an anchor path no rule reads, deliberately.** gate-0fdd,
   decision 1 (`../failure-mode-taxonomy-handover.md` §12.3) settled that
   `MODE_ANCHOR_PATHS` stays as the **Stage-18 per-mode metric's** read path, with
   the rule's read path a separate, separately-labelled column that items 148/149

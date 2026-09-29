@@ -2,7 +2,7 @@
 
 > **Created:** 2026-07-12 · status tracked in [`progress.md`](../progress.md)
 > **Stage:** 8 — Image-Based / Radiomics Features (Phase 2)
-> **Queue:** [`../queue/queue-007.md`](../queue/queue-007.md) · Item 058 *(the Stage-8 fixture foundation; gates 059–065)*
+> **Queue:** [`../queue/queue-007.md`](../queue/queue-007.md) · Item 058 *(the Stage-8 fixture foundation; gates items 059–065)*
 > **Objectives:** G7 (evaluable & regression-testable — reproducible, committed
 > intensity-bearing fixtures that make Stage-8 image features locally testable
 > under `pytest` with no external CT), enabling the Stage-8 image-based extension

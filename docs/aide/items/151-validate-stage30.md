@@ -22,7 +22,7 @@ Five obligations are specific to this stage.
 
 **The replay validates the signed-off catalogue, not the one the queue line
 describes.** Queue-020's item-151 paragraph was written on 2026-09-03, before
-item 150's maintainer review re-organised the catalogue (human gate 5, approved
+item 150's maintainer review re-organised the catalogue (human gate-fb64, approved
 2026-09-15; commits `3cb522f` and `ce0c6ec`). The specification now carries
 **sixteen modes in a one-tier hierarchy plus one condition**
 (`segfacet.failure_modes.SPECIFICATION`, `CONDITIONS["fov_truncation"]`), not
@@ -474,12 +474,12 @@ criterion without the annotation closes none._
   multiset equals the baseline, except that a `stage 30 criterion 7 was
   retracted` warning is expected if and only if AC37 recorded a retraction.
   Baseline measured 2026-09-15 on this branch, engine 1.37.0: `OK (7 warning(s))`,
-  which is 1 assumptions-block, 2 awaiting-a-decision (gates 1 and 2) and 4
+  which is 1 assumptions-block, 2 awaiting-a-decision (gates gate-ae46 and gate-2f91) and 4
   retracted-criterion (Stage 20 criteria 1, 3, 4, 5).
 
 ## Assumptions
 
-- **A1: items 143–150 are all complete and human gate 5 is approved before this
+- **A1: items 143–150 are all complete and human gate-fb64 is approved before this
   item starts** (both measured 2026-09-15). If either is not, the item halts and
   reports rather than validating a partial stage, the posture items 106, 115, 125
   and 135 took.
@@ -537,7 +537,7 @@ criterion without the annotation closes none._
 ## Implementation Steps
 
 1. **Preconditions.** Confirm items 143–150 are complete in `progress.md` and
-   gate 5 is approved (`aide gate list`). Record `aide check`'s baseline (AC41).
+   gate-fb64 is approved (`aide gate list`). Record `aide check`'s baseline (AC41).
 2. **Build the rig (AC1).** Clone into the scratchpad, bootstrap its venv, and
    print the module resolution proof. Record the clone path and `HEAD`.
 3. **Clean-tree regeneration (AC2, AC7, AC31, AC32, AC33).** Run the six
@@ -783,7 +783,7 @@ stage's status. A skip-clean suite is never evidence that a replay ran.
 - **Item 149** — the matrix as conformance report (AC2, AC3, AC5, AC9, AC14).
   Merged.
 - **Item 150** — the maintainer sign-off and the catalogue re-organisation this
-  replay validates against (AC28, AC29). Merged. Human gate 5 approved
+  replay validates against (AC28, AC29). Merged. Human gate-fb64 approved
   2026-09-15, quoted with its reach intact: `Blocks: items 139, 140, 141, 142`.
 
 **Downstream:** several in-suite pins are **dated claims** about the signed-off
@@ -833,7 +833,7 @@ expected set ("not detected today") is compared exactly like any other.
 - Criterion 2: `mode6_crop_at_border` is the FOV-truncation condition's fixture
   (`failure_mode` 0, `condition` `fov_truncation`), still expecting
   `{border, mislabel}`. Its `mislabel` firing is the mode-less spline-offset
-  detector, a recorded co-detection. It is no longer gate 3's "true co-detection
+  detector, a recorded co-detection. It is no longer gate-0fdd's "true co-detection
   of mode 6", because seed mode 6 is retired into the condition.
 - Criterion 3: "mode 8's rung" is mode 15's (Overlapping segments).
 - Criterion 5: "the ninth mode" is mode 16. "The eight seed names equal
@@ -1092,7 +1092,7 @@ before this replay wrote that bookkeeping.
   `101 passed` (was `95 passed, 6 failed` before).
 - **AC41, `aide check`.** Baseline (before this item's edits, at commit
   `6464b2e`): `OK (7 warning(s))` — 1 assumptions-block, 2 awaiting-a-decision
-  (gates 1, 2), 4 retracted-criterion (Stage 20 criteria 1, 3, 4, 5). After
+  (gates gate-ae46, gate-2f91), 4 retracted-criterion (Stage 20 criteria 1, 3, 4, 5). After
   this item's `progress.md`/`insights.md` edits (criterion 7 amended, not
   retracted): `OK (7 warning(s))`, same multiset — no `stage 30 criterion 7
   was retracted` warning, as expected since AC30–AC34 held.

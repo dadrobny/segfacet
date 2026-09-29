@@ -2,7 +2,7 @@
 
 > **Created:** 2026-07-11 · status tracked in [`progress.md`](../progress.md)
 > **Stage:** 6 — VerSe Reference Distributions & Delta-to-Reference Rules (G3)
-> **Queue:** [`../queue/queue-005.md`](../queue/queue-005.md) · Item 043 *(the first item in queue-005; gates 044–049; opens Stage 6)*
+> **Queue:** [`../queue/queue-005.md`](../queue/queue-005.md) · Item 043 *(the first item in queue-005; gates items 044–049; opens Stage 6)*
 > **Objectives:** G3 (distinguish failure from legitimate variation — this item
 > builds the *reference-grounded* substrate the delta rules judge against) and G7
 > (evaluable / regression-testable — the aggregation is pure and its serialised

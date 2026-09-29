@@ -52,8 +52,8 @@ path the rule does not consume, are both test failures naming the path and the
 rule. `build_catalogue` then contributes a rule's corpus-derived (mechanism C)
 and declared (item 136) modes to a path **only** where that `(rule, path)` pair
 is `signal`. The path-keyed Stage-18 anchor term (`per_mode_metric`,
-`feature_docs.MODE_ANCHOR_PATHS`) is untouched: it is already per-path, and gate
-3 decision 1 keeps it a separate, separately-labelled column.
+`feature_docs.MODE_ANCHOR_PATHS`) is untouched: it is already per-path, and
+gate-0fdd decision 1 keeps it a separate, separately-labelled column.
 
 The catalogue **renders the classification explicitly** rather than silently
 dropping the modes: `CatalogueEntry` gains a `mode_roles` column (per consuming

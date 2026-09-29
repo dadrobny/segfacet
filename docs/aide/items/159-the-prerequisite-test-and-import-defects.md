@@ -353,9 +353,9 @@ AC plus these adversarial cases:
 - **A7 outcome.** `aide progress set 159 in-progress` did not split any
   shared deliverable bullet — item 159 has no shared `*(Items A, B)*`
   attribution in `progress.md` — so no reword was needed.
-- **A8 outcome.** `aide insights tick` on entries 38, 39, 45, 47 and 52 (all
+- **A8 outcome.** `aide insights tick` on insight 2026-09-04-73df, insight 2026-09-04-3ba2, insight 2026-09-04-d94d, insight 2026-09-04-6ade and insight 2026-09-04-2b57 (all
   already ticked `→ item 159`) appended a dated trail line each, pointing at
-  the commit that fixed them (per A8, no re-tick). Entry 86 (item 158,
+  the commit that fixed them (per A8, no re-tick). Insight 2026-09-17-f990 (item 158,
   2026-09-17, the `_classify_warning` warning-class pin) was ticked with
   pointer `item 159`.
 - **Post-fix `aide check`**: 7 warnings, all in the four pre-existing

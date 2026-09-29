@@ -330,7 +330,23 @@ closed queue.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implementation (2026-09-29).** Every gate citation was read in context and
+  mapped to its gate by subject. On the base commit `aide check` reported 59
+  positional gate warnings plus 9 positional insight warnings; after the
+  rewrite it reports none. A single gate reference absorbs the word it
+  followed (a citation of row 3 became `gate-0fdd`, `human` plus row 6 became
+  `human gate-d024`); pairs keep the plural (`gates gate-ae46 and gate-2f91`);
+  quotations keep the word and bracket the ID (`gate [gate-d024]`).
+  Item 148's citation wrapped over two lines and was rewritten too. The
+  command shown in the handover's approval step (`aide gate approve`, row 3)
+  now names `gate-0fdd`. Insight IDs were taken from the inbox as it stood at
+  the commit that wrote each line (position N of that file), matched by claim
+  to the current inbox or archive. Item 150's quoted line (position 50) is
+  the per-path perturbation and rule-side detector-id entry
+  (2026-09-04-4caf), not what today's position 50 holds. Item 159's
+  position 86 is the entry whose text concerns the `_classify_warning` pin
+  (2026-09-17-f990). A trail line correcting the append-only premise was
+  appended under insight 2026-09-29-a6d6.
 
 - **Rewriting merged records.** §1 keeps merged specs as records, and
   `items.md` forbids rewriting an assumption to agree with a later engine.

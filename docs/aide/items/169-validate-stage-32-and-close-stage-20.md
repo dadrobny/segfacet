@@ -22,7 +22,7 @@ records the measured answer in `progress.md`, one criterion at a time, **includi
 where the answer is no.** It fixes nothing it finds.
 
 **Stage 32's criterion 1 is expected to stay open, and that is the planned
-outcome, not a failure of this item.** Human gate 7 was resolved on 2026-09-22
+outcome, not a failure of this item.** Human gate-bb24 was resolved on 2026-09-22
 with **both** modes 3 and 4 signed off at `outcome = "intermediate-state"`.
 Conditions 1–5 of the roadmap's six-condition bar hold live for both modes
 (measured below), but condition 6 asks for a maintainer sign-off *at the bar*,
@@ -97,7 +97,7 @@ difference.
   `force_overlap → unanchored_foreground_fraction 0.9629`. `RECORDED_MARGINS`
   carries no ladder for item 166's `split` operator.
 - **`aide check`:** `OK (8 warning(s))` — 1 assumptions-block warning, 2
-  awaiting-a-decision warnings (gates 1 and 2), 5 retracted-criterion warnings
+  awaiting-a-decision warnings (gates gate-ae46 and gate-2f91), 5 retracted-criterion warnings
   (Stage 20 criteria 1, 3, 4 twice, 5).
 
 **In scope:**
@@ -320,7 +320,7 @@ AC35 precedent).
   bar that its own sign-off says is not, which is the shape §1 rules out.
 - **A2: Stage 32's criterion 1 stays open, and the stage stays 🚧.** Follows from
   A1 and from queue-022's item-169 entry ("If mode 4 does not reach the bar, item
-  169 records that and the stage stays open — it is not forced"), which gate 7's
+  169 records that and the stage stays open — it is not forced"), which gate-bb24's
   own resolution text repeats ("Item 169 attests Stage 32 with criterion 1 open
   and closes Stage 20"). No new human gate is raised: the decision this item would
   need has already been made and recorded.
@@ -557,7 +557,7 @@ skip-clean run is never evidence.
 - **Item 166** — mode 3's split operator and corpus case (AC2, AC3, AC5).
 - **Item 167** — mode 3's feature and detector (AC9, AC12).
 - **Item 168** — the `ModeSignOff` records for modes 3 and 4, written after human
-  gate 7 was resolved (AC9, AC10, AC11). Gate 7 — `Blocks: 168, 169` — was
+  gate-bb24 was resolved (AC9, AC10, AC11). gate-bb24 — `Blocks: 168, 169` — was
   approved 2026-09-22.
 
 **Downstream:** queue 023 carries the 2026-09-22 maintainer review's work — the
@@ -710,7 +710,7 @@ profile.
 
 **AC16 (`aide check`).** After the bookkeeping: `aide check: OK (8
 warning(s))` — 1 assumptions-block warning, 2 awaiting-a-decision warnings
-(gates 1 and 2), 5 retracted-criterion warnings (Stage 20 criteria 1, 3, 4
+(gates gate-ae46 and gate-2f91), 5 retracted-criterion warnings (Stage 20 criteria 1, 3, 4
 twice, 5). Identical to the 2026-09-22 baseline recorded in the Description,
 both before and after this item's bookkeeping — no new warning, no error.
 Re-verified in the clone at the final commit with the same result.
@@ -739,7 +739,7 @@ deleted after this run.
 so `aide progress set 169 in-progress` moved only the Stage 20 bullet. Stage
 32's rollup is driven by its acceptance boxes, and criterion 1 stays open —
 consistent with the stage staying 🚧, per queue-022's own item-169 entry and
-gate 7's resolution text.
+gate-bb24's resolution text.
 
 - **Left open:** whether Stage 32's D0 and D3 deliverable bullets should carry
   `*(Item NNN)*` markers so the stage's rollup tracks its own items. Both are
