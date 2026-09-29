@@ -126,7 +126,7 @@ def test_a_retraction_is_readable_back_out_of_the_trail():
     out, _ = aide.retract_criterion(PROGRESS, "1", 1, "the host was misread",
                                     "2026-09-02")
     assert aide.retracted_criteria(out.splitlines()) == [
-        ("1", 1, "2026-09-02", "the host was misread")]
+        aide.Retraction("1", 1, "2026-09-02", "the host was misread")]
 
 
 def test_a_plain_amendment_is_not_read_as_a_retraction():
@@ -282,7 +282,7 @@ def test_retract_reads_back_from_under_a_wrapped_box():
         "  - **2026-09-18** → retracted: AC12 was a dry run",
     ]
     assert aide.retracted_criteria(out.splitlines()) == [
-        ("1", 1, "2026-09-18", "AC12 was a dry run")]
+        aide.Retraction("1", 1, "2026-09-18", "AC12 was a dry run")]
 
 
 def test_reword_replaces_every_line_of_a_wrapped_box():

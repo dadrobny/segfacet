@@ -16,7 +16,8 @@ check against (consumer in brackets):
    spec-author)*
 2. **Goals & objectives** — a table whose rows open with a `G<n>` code. The
    codes are the identities `roadmap.md`'s coverage table and `progress.md`'s
-   objective rows trace to. *(aide check, create-roadmap, create-progress)*
+   objective rows trace to, and every code has its row in that coverage table
+   (§1 → `roadmap.md`). *(aide check, create-roadmap, create-progress)*
 3. **Out of scope** — one bullet per exclusion, with its reason. The validator
    fails an item whose work contradicts it. *(aide check, validator)*
 4. **Success criteria** — observable statements of when the project is done.

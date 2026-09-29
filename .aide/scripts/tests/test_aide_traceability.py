@@ -208,6 +208,94 @@ def test_a_bom_at_the_base_does_not_hide_the_existing_tests():
     assert aide._test_function_names("\ufeffdef test_legacy():\n    pass\n") == ["test_legacy"]
 
 
+def test_a_label_closed_by_a_full_stop_is_a_label_too():
+    """Issue #315: `- **label.** …` is the shape a consumer's specs used, and
+    every test named for such a case warned. The stop may sit inside or
+    outside the emphasis, or after backticks; the colon still works, with or
+    without emphasis."""
+    text = ("## Testing Strategy\n\n"
+            "- **absent-condition-key.** A record with no condition key is kept.\n"
+            "- **conservation**. Nothing is lost.\n"
+            "- `bool-call`. A bare call is one hit.\n"
+            "- plain-colon: still a label\n"
+            "- _chained._ A chained comparison.\n")
+    assert aide.testing_strategy_labels(text) == [
+        "absent-condition-key", "conservation", "bool-call", "plain-colon", "chained"]
+
+
+def test_a_full_stop_with_nothing_after_it_or_inside_a_word_is_prose():
+    """`test_x.py` and `e.g.` carry a stop inside a token, a bare `- None.`
+    names no failure mode, and an unwrapped `- Note. …` is a prose sentence
+    (PR #322 review): none is a label, so none silences a `test_none_*`,
+    `test_x_*` or `test_denote_*`. Mismatched wrapping is prose too."""
+    text = ("## Testing Strategy\n\n- None.\n- test_x.py holds the module\n"
+            "- e.g. a trailing comma\n- **done.**\n"
+            "- Note. The walker yields nothing for an absent key.\n"
+            "- chained. A chained comparison.\n"
+            "- **mixed.` wrapping that does not close\n")
+    assert aide.testing_strategy_labels(text) == []
+
+
+def test_review_findings_labels_share_the_bullet_shape_and_are_optional():
+    """Issue #319: the section's bullets are read exactly like a Testing
+    Strategy case; a spec without the section names none."""
+    text = SPEC + ("\n## Review findings\n\n"
+                   "- r1-escaped-pipe: an escaped pipe split the cell; minor; fixed in abc123\n"
+                   "- **r1-empty-row.** blank row accepted; blocking\n"
+                   "- empty-input: already a case, listed once\n")
+    assert aide.review_finding_labels(text) == ["r1-escaped-pipe", "r1-empty-row", "empty-input"]
+    assert aide.spec_case_labels(text) == [
+        "empty-input", "trailing-comma", "r1-escaped-pipe", "r1-empty-row"]
+    assert aide.review_finding_labels(SPEC) == []
+    assert aide.spec_case_labels(SPEC) == aide.testing_strategy_labels(SPEC)
+
+
+PARAMETRISED = '''\
+import pytest
+from pytest import mark
+
+CASES = [("computed", 1)]
+
+@pytest.mark.parametrize("label,snippet,expected_count", [
+    ("membership", "x in y", 1),
+    ("chained", "a < b < c", 1),
+    ("bool-call", "bool(f())", 1),
+])
+def test_adv_widened_shapes(label, snippet, expected_count):
+    pass
+
+@pytest.mark.parametrize("value", ["trailing-comma", 3])
+@mark.parametrize("n", [1, 2], ids=["ac2-first", "ac2-second"])
+def test_stacked(value, n):
+    pass
+
+@pytest.mark.parametrize("case", [pytest.param("x", id="named-by-param"), CASES[0]])
+def test_params(case):
+    pass
+
+@pytest.mark.parametrize("case", CASES, ids=make_ids)
+def test_computed(case):
+    pass
+
+def test_plain():
+    pass
+'''
+
+
+def test_parametrize_ids_are_read_statically():
+    """Issue #314: argvalue strings (bare, or first-level in a tuple), an
+    explicit ids list, `pytest.param`'s id; a name, a subscript or a callable
+    `ids=` is not a literal and is ignored, never evaluated."""
+    got = dict(aide._test_functions(PARAMETRISED))
+    assert got["test_adv_widened_shapes"] == (
+        "membership", "x in y", "chained", "a < b < c", "bool-call", "bool(f())")
+    assert set(got["test_stacked"]) == {"trailing-comma", "ac2-first", "ac2-second"}
+    assert set(got["test_params"]) == {"x", "named-by-param"}
+    assert got["test_computed"] == ()
+    assert got["test_plain"] == ()
+    assert aide._test_function_names(PARAMETRISED) == list(got)
+
+
 # --------------------------------------------------------------------------- #
 # the matcher
 # --------------------------------------------------------------------------- #
@@ -233,6 +321,31 @@ def test_the_ac_token_is_bounded_on_both_sides():
     assert len(got) == 2
 
 
+def test_a_parametrised_test_traces_through_its_ids():
+    """The consumer's reproduction: one parametrised test whose cases are
+    the Testing Strategy's labels, the name carrying none of them."""
+    labels = ["membership", "chained", "bool-call"]
+    ids = ("membership", "x in y", "chained", "a < b < c", "bool-call", "bool(f())")
+    added = [("tests/t.py", "test_adv_widened_shapes", ids)]
+    assert aide.traceability_warnings(added, [], labels, "s.md") == []
+    assert len(aide.traceability_warnings(added, [], ["other"], "s.md")) == 1
+
+
+def test_an_id_matches_a_label_or_an_ac_as_a_whole_word_only():
+    """`call` stands in `bool-call`; it does not stand in `recall`, and `ac2`
+    in an id is AC2 while `ac20` is not."""
+    assert aide._traces_to("test_x", [], ["call"], ("bool-call",))
+    assert not aide._traces_to("test_x", [], ["call"], ("recall",))
+    assert aide._traces_to("test_x", [2], [], ("ac2-first",))
+    assert not aide._traces_to("test_x", [2], [], ("ac20",))
+    assert aide._traces_to("test_x", [], ["Bool-Call"], ("BOOL_CALL",))
+
+
+def test_a_review_finding_label_traces_like_a_case():
+    added = [("tests/t.py", "test_review_rejects_escaped_pipe", ())]
+    assert aide.traceability_warnings(added, [1], ["escaped-pipe"], "s.md") == []
+
+
 # --------------------------------------------------------------------------- #
 # scope, end to end
 # --------------------------------------------------------------------------- #
@@ -255,6 +368,43 @@ def test_scope_is_silent_when_every_added_test_is_traced(tmp_path: Path, capsys)
     out = capsys.readouterr().out
     assert rc == 0
     assert "warning" not in out
+
+
+def test_scope_traces_a_parametrised_test_and_a_review_finding(
+        tmp_path: Path, capsys):
+    """#314 and #319 end to end: a parametrised test traced by its ids, a
+    review-round test traced by the spec's ## Review findings, and a test
+    naming neither still warns."""
+    spec = SPEC.replace("- existing tests to reconcile: none\n",
+                        "- `membership`: `x in y` is one hit\n"
+                        "- existing tests to reconcile: none\n") + (
+        "\n## Review findings\n\n"
+        "- r1-escaped-pipe: an escaped pipe split the cell; minor; fixed in abc123\n")
+    repo = _init_repo(tmp_path / "repo", spec=spec)
+    _work(repo, "import pytest\n\ndef test_legacy():\n    assert True\n\n"
+                "@pytest.mark.parametrize('label', ['membership'])\n"
+                "def test_widened_shapes(label):\n    assert True\n\n"
+                "def test_r1_escaped_pipe():\n    assert True\n\n"
+                "def test_other():\n    assert True\n")
+    assert aide.main(["--repo", str(repo), "scope"]) == 0
+    out = capsys.readouterr().out
+    assert "test_widened_shapes" not in out, out
+    assert "test_r1_escaped_pipe" not in out, out
+    assert "tests/test_rules.py::test_other names no AC number" in out
+    assert out.count("warning:") == 1
+
+
+def test_scope_ignores_an_edited_parametrised_test(tmp_path: Path, capsys):
+    """A name present at the base is an edit whatever its ids became."""
+    repo = _init_repo(tmp_path / "repo")
+    (repo / "tests" / "test_rules.py").write_text(
+        "import pytest\n\n@pytest.mark.parametrize('v', ['a'])\n"
+        "def test_legacy(v):\n    assert True\n", encoding="utf-8")
+    _run(["git", "commit", "-am", "param"], repo)
+    _work(repo, "import pytest\n\n@pytest.mark.parametrize('v', ['a', 'b'])\n"
+                "def test_legacy(v):\n    assert True\n")
+    assert aide.main(["--repo", str(repo), "scope"]) == 0
+    assert "warning" not in capsys.readouterr().out
 
 
 def test_scope_ignores_an_edited_existing_test(tmp_path: Path, capsys):
@@ -380,7 +530,7 @@ def test_a_coincident_ac_number_is_not_credited_to_the_scoped_item(
     out = capsys.readouterr().out
     assert rc == 0, out
     assert ("warning: tests/test_007_walker.py::test_ac1_parses names no AC "
-            "number and no Testing Strategy case of "
+            "number and no Testing Strategy or Review findings case of "
             "docs/aide/items/007-the-walker.md") in out
     assert "item 007's test file" in out
     assert "reconciled" not in out
@@ -411,7 +561,7 @@ def test_an_owner_with_no_spec_leaves_the_file_to_the_scoped_spec(
     out = capsys.readouterr().out
     assert "reconciled" not in out
     assert ("warning: tests/test_007_walker.py::test_ac20_x names no AC number "
-            "and no Testing Strategy case of docs/aide/items/042-demo-item.md "
+            "and no Testing Strategy or Review findings case of docs/aide/items/042-demo-item.md "
             "— a test") in out
     assert out.count("warning:") == 1
 
@@ -424,7 +574,7 @@ def test_an_owner_spec_without_criteria_leaves_the_file_to_the_scoped_spec(
     assert aide.main(["--repo", str(repo), "scope"]) == 0
     out = capsys.readouterr().out
     assert "reconciled" not in out
-    assert "test_ac20_x names no AC number and no Testing Strategy case of docs/aide/items/042-demo-item.md" in out
+    assert "test_ac20_x names no AC number and no Testing Strategy or Review findings case of docs/aide/items/042-demo-item.md" in out
 
 
 def test_a_file_named_for_the_scoped_item_is_its_own(tmp_path: Path, capsys):
@@ -441,7 +591,7 @@ def test_a_file_named_for_the_scoped_item_is_its_own(tmp_path: Path, capsys):
     out = capsys.readouterr().out
     assert "reconciled" not in out
     assert ("warning: tests/test_042_walker.py::test_other names no AC number "
-            "and no Testing Strategy case of docs/aide/items/042-demo-item.md "
+            "and no Testing Strategy or Review findings case of docs/aide/items/042-demo-item.md "
             "— a test") in out
     assert out.count("warning:") == 1
 

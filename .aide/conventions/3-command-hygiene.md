@@ -11,7 +11,8 @@ The rules:
 - **If an `aide` verb covers it, the raw git form is wrong.** Session preflight
   (fetch, clean-tree check, landing on the right branch) is `aide sync
   [--item NNN]`; claiming is `aide claim`; starting a queue or specs-queue
-  branch is `aide queue start NNN [--specs]`; landing is `aide merge`; branch
+  branch is `aide queue start NNN [--specs]`; merging a stack of queue
+  branches forward is `aide queue restack`; landing is `aide merge`; branch
   clean-up is `aide gc`; checking a branch's changed files against its item's
   authorised paths is `aide scope`. Do not improvise the equivalent `git
   fetch`/`git status`/`git switch -c`/`git diff --name-only` sequences.

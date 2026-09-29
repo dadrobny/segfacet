@@ -504,6 +504,25 @@ def test_emphasis_opening_a_continuation_line_is_not_a_bullet(tmp_path: Path):
     assert aide.item_spec_warnings(repo / "docs" / "aide") == []
 
 
+def test_bold_opening_a_continuation_line_grants_no_path():
+    """Issue #270, its fixture verbatim: the continuation line opens on
+    `**Relationship to `vision.md`**`, and the parser — testing only the first
+    character — read it as a bullet and authorised a repo-root `vision.md` the
+    spec never named. A marker is a marker only with whitespace after it, the
+    test the lint already used, so parser and lint now agree."""
+    text = GOOD_SPEC + (
+        "\n## Authorised paths\n\n"
+        "May change:\n"
+        "- `docs/project/<doc>.md` — its header gains the\n"
+        "  **Relationship to `vision.md`** header field, and the `Last reviewed` date\n")
+    parsed = aide.parse_authorised_paths(text)
+    assert parsed is not None and parsed.may_change == ["docs/project/<doc>.md"]
+    assert aide.dropped_bullet_spans(text) == []
+    assert aide._bullet_path("**Relationship to `vision.md`** header") is None
+    assert aide._bullet_path("-`src/a.py` — no space after the marker") is None
+    assert aide._bullet_path("* `src/a.py` — a star bullet") == "src/a.py"
+
+
 def test_bullet_path_drops_a_line_final_dash():
     """One definition of where a reason starts, shared with the lint — so a
     non-backticked bullet whose dash ends the line no longer declares the dash.
@@ -527,6 +546,50 @@ def test_a_literal_pin_under_a_may_change_glob_is_silent(tmp_path: Path):
     repo = _repo(tmp_path)
     _spec_file(repo, "027-bounds.md", _with_paths("docs/api.md", may="docs/**"))
     assert aide.item_spec_warnings(repo / "docs" / "aide") == []
+
+
+def test_a_pin_glob_covering_a_may_change_path_is_reported(tmp_path: Path):
+    """The mirror of the carve-out (issue #269): a read-only sweep pinned as
+    `src/pkg/*.py` swallows the one file May change names, so the first edit
+    the item is authorised to make is a contradiction `aide scope` fails it
+    on — a whole build round later, in the section the builder may not edit."""
+    repo = _repo(tmp_path)
+    _spec_file(repo, "027-bounds.md",
+               _with_paths("src/pkg/*.py", may="src/pkg/mod.py"))
+    w = aide.item_spec_warnings(repo / "docs" / "aide")
+    assert len(w) == 1 and "covers 'src/pkg/mod.py'" in w[0], w
+    assert "'src/pkg/*.py' under Asserts against" in w[0]
+
+
+def test_a_subtree_pin_covering_a_may_change_glob_is_reported(tmp_path: Path):
+    """Coverage, not only a literal under a glob: `src/**` pinned over a May
+    change `src/pkg/*.py` leaves no file the authorisation can touch."""
+    repo = _repo(tmp_path)
+    _spec_file(repo, "027-bounds.md", _with_paths("src/**", may="src/pkg/*.py"))
+    w = aide.item_spec_warnings(repo / "docs" / "aide")
+    assert len(w) == 1 and "covers 'src/pkg/*.py'" in w[0], w
+
+
+def test_a_pin_glob_beside_the_may_change_path_is_silent(tmp_path: Path):
+    """A pin that covers nothing May change names is an ordinary pin."""
+    repo = _repo(tmp_path)
+    _spec_file(repo, "027-bounds.md",
+               _with_paths("tests/golden/*.json", may="src/pkg/mod.py"))
+    assert aide.item_spec_warnings(repo / "docs" / "aide") == []
+
+
+def test_pattern_covers_is_one_direction_of_patterns_overlap():
+    """`patterns_overlap` is exactly coverage either way round; the collision
+    lint needs the one direction, so the carve-out stays writable."""
+    pairs = [("src/**", "src/a.py"), ("src/*.py", "src/a.py"),
+             ("src/**", "src/pkg/*.py"), ("./src/a.py", "src/a.py"),
+             ("src/*.py", "tests/a.py"), ("src/*.py", "src/*.md")]
+    for a, b in pairs:
+        assert aide.patterns_overlap(a, b) == (
+            aide.pattern_covers(a, b) or aide.pattern_covers(b, a)), (a, b)
+    assert aide.pattern_covers("src/*.py", "src/a.py")
+    assert not aide.pattern_covers("src/a.py", "src/*.py")
+    assert not aide.pattern_covers("src/pkg/*.py", "src/**")
 
 
 # --------------------------------------------------------------------------- #

@@ -61,7 +61,8 @@ Routing an entry as written is not the whole of triage. Three findings, one form
 — **a dated trail line under the entry, never an edit to the claim**:
 
 - **Duplicate** — the same claim as an earlier entry. Route the earlier one and
-  point the later at it; both stay in the file, because two roles noticing the
+  point the later at it by its ID (`duplicate of insight <ID>`, the ID
+  `insights list` prints); both stay in the file, because two roles noticing the
   same thing independently is itself a fact about the project.
 - **Decayed premise** — what the entry names no longer exists, or has already
   been fixed by work done since. **A decayed premise is ticked, because there is
@@ -100,8 +101,8 @@ made under** — the body's first line, before the observation
 (`.aide/conventions.md` §1 → `insights-triage.md`):
 
 ```
-**Project:** <consumer repo, or "a private consumer"> (consumer). **Observed
-under engine X.Y.Z** (<item ref>, YYYY-MM-DD).
+**Project:** <`owner/repo` (consumer), or "a private consumer">. **Observed
+under engine X.Y.Z** (insight <ID>).
 ```
 
 **Writing that header is the filing role's job; a form on the destination cannot
@@ -134,8 +135,8 @@ before you compose:
   becomes `"<action> <module> to <store>"`). **Prefer a fixture reproduction** — a minimal `docs/aide/*`
   shape of a few lines — over "run it on our repo".
 - **One observation per issue.** The title is framework-facing — the verb or
-  section, then the symptom — and provenance is the insight entry's number and
-  date, not a URL into the consumer.
+  section, then the symptom — and provenance is the insight entry's ID, not
+  its position and not a URL into the consumer.
 - **A human confirms the hand-over and sees the composed body whole before it
   is filed.** Print the body in full at the `ask` gate rather than
   summarising it: that confirmation is the last point a leak can be caught,
@@ -150,6 +151,9 @@ which is how a claim gets silently reworded:
 ```
 python .aide/scripts/aide.py insights tick 7 --pointer "docs/architecture.md"
 ```
+
+`7` is the position `list` just printed; the entry's ID works in its place,
+and is the only handle to write anywhere that outlives this pass.
 
 That appends `→ docs/architecture.md` to the entry and flips its checkbox.
 **Ticking the checkbox is the one in-place edit**, and the verb owns it.

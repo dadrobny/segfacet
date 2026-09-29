@@ -11,16 +11,18 @@
   created from.
 
   Row — one cell per column of the table, in the table's order:
-    | 001 | 001 | 2 | normal | merged | 3 | 4 | 6 | 2 | 1 | 2 | 0 | 1.58.0 | 2026-09-17 |
+    | 001 | 001 | 2 | normal | merged | 3 | 4 | 6 | 2 | 1 | 2 | 0 | 2.7.0 | 2026-09-25 | 41 | 0 |
   A cell left empty is one nothing supplied or nothing could measure. It is
   blank rather than 0, which would read as a measurement. One of the three
   finding cells may instead hold `-`; which verb writes that mark, and when,
-  is at `python .aide/scripts/aide.py merge -h`.
+  is at `python .aide/scripts/aide.py merge -h`. So is when the Suite s cell
+  reads like `41 (reused)`. A row written before the last two columns
+  existed has fourteen cells and is read as it stands.
 -->
-<!-- aide-template: ledger 2 -->
+<!-- aide-template: ledger 3 -->
 # Run Ledger
 
 _One row per item, newest last._
 
-| Item | Queue | Stage | Kind | Outcome | ACs | Tests | Files | Rounds | Blocking | Minor | Nit | Engine | Date |
-|------|-------|-------|------|---------|-----|-------|-------|--------|----------|-------|-----|--------|------|
+| Item | Queue | Stage | Kind | Outcome | ACs | Tests | Files | Rounds | Blocking | Minor | Nit | Engine | Date | Suite s | Inherited |
+|------|-------|-------|------|---------|-----|-------|-------|--------|----------|-------|-----|--------|------|---------|-----------|

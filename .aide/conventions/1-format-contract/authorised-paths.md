@@ -56,12 +56,13 @@ belongs in an acceptance criterion's test, not in the path lists. `aide check`
 warns when a spec writes one.
 
 **Asserts against means pinned-not-changed**, so never list the same path under
-both **May change** and **Asserts against**. An item whose tests assert against
+both **May change** and **Asserts against**, and never write a pin glob that
+covers a path **May change** names. An item whose tests assert against
 the *final* state of a file the item itself writes lists the path only under
 **May change** and states the assertion behaviour in prose. `aide check` warns
-on the exact double-listing at spec time; a literal pin under a May-change glob
-is different — that is the deliberate carve-out "I may edit this tree but not
-this file" — and stays for `aide scope` to judge.
+on both shapes at spec time; a literal pin under a May-change glob is the
+other direction — the deliberate carve-out "I may edit this tree but not this
+file" — and stays for `aide scope` to judge.
 
 **Where two specs in one batch collide, the ordering is declared, not left
 implicit.** `aide check --queue` reads a queue's declarations against each other

@@ -7,8 +7,9 @@ description: >-
   against the repo's own review contract when it has one. Produces findings —
   writes no code, modifies no tests, does not merge, does not touch
   progress.md.
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 effort: high
+disallowedTools: Agent
 skills:
   - aide-review-and-validation
 ---

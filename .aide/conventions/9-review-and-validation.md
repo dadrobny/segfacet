@@ -5,12 +5,32 @@ roles that perform either read rather than pointing at it.
 
 **Validation and review answer different questions.** Validation asks *does
 this branch meet the Acceptance Criteria of the spec it was built from* — the
-suite is green, every AC has a test that measures it, the diff is inside the
-authorised paths, the Assumptions still hold. Every term is measured against
-the item spec, the verdict is PASS/FAIL, and it **gates the merge**. Review
+suite has no failure the item caused, every AC has a test that measures it,
+the diff is inside the authorised paths, the Assumptions still hold. Every term is measured against
+the item spec, the verdict is PASS/FAIL — or none, when a run outlasts its
+limit (below) — and it **gates the merge**. Review
 asks *is this code correct, and does it fit the codebase* — it reads the diff
 adversarially for what the spec never anticipated, and it **produces findings**,
 not a verdict.
+
+**Where the merge compares a red run with its base, the merge decides a red
+suite.** Under a `git.mode` whose merge runs the test gate (§4: `auto-merge`,
+`local`), a failing test is not by itself a FAIL: validation records the
+failing tests, completes every other check, and when those pass it runs the
+merge as usual. The merge's gate is the arbiter. A refusal that names failures
+the item caused is a FAIL, returned to the builder with those failures, and so
+is a refusal that could not compare the failures with the base at all; an
+admission of inherited failures is a PASS that names them. Under `pr`, where
+the merge runs no gate, a red suite is a FAIL. A validation whose merge is
+held for a concurrent review reports its PASS with the failing tests listed,
+and says that the later merge's gate decides them.
+
+**Validation runs the whole suite through `aide test`, never as the bare test
+command.** The verb runs the configured command as the merge runs it, exits
+with its exit code, and records the result, so a merge that lands exactly the
+tree validation ran takes that result instead of a second run (§4). A narrower
+run — one file, one case, while diagnosing — is run directly: it is not the
+suite, and nothing takes it in the suite's place.
 
 **A green validator is not a review, and a clean review does not discharge
 validation.** The two fail in opposite directions and neither covers for the
@@ -21,7 +41,8 @@ the item did what it was specified to do.
 **Findings triage the way insights do (§1 → insights-triage.md), and scope is
 a question about the change, not about the path.** A finding about this item's
 diff is in scope whatever file it lands in, and an in-scope finding is a fix on
-the branch, dispatched back to the role that owns the file. A diff that touched
+the branch, dispatched back to the role that owns the file; a test that fix
+adds is traced to the finding the way §6 says. A diff that touched
 a path the spec's `## Authorised paths` never authorised is itself such a
 finding — in scope, *blocking*, and fixed by reverting that part of the branch.
 A finding about code this diff did not touch is out of scope: a single line in
@@ -63,7 +84,33 @@ and does not touch `progress.md` — its output is findings for another role to
 act on. A reviewer that fixes what it finds has destroyed the evidence for the
 call.
 
+**A command that can outlast the runtime's bound on one tool call, or on how
+long an agent may sit idle, is run detached and waited on in bounded waits.**
+Its output goes to a file, and the agent waits on it inside its own turn, each
+wait shorter than that bound — never in a tight polling loop, and never by
+ending the turn to await a notification. The suite is the usual such command,
+and a merge that re-runs it is the second. At the overall limit the adapter
+states, stop waiting and hand back the command, the elapsed time and its last
+output in place of a verdict.
+
 ### Rationale
+
+- **Why a red suite waits for the merge.** Validation ran the same whole suite
+  the merge's gate runs, so a failure already on the base failed every item
+  at validation, before the merge could tell an inherited failure from the
+  item's own. A consumer's item met all sixteen of
+  its criteria and was held on nine failures identical at the merge-base
+  (issue #275). The validator cannot make that comparison without running the
+  base itself, and the merge already does, so the verdict on a red suite
+  moves to the one step that can separate the two. Under `pr` nothing in the
+  loop compares, so the old rule stands there.
+
+- **Why the suite goes through a verb.** A bare run leaves nothing the engine
+  can read, so the merge re-ran the whole suite over a tree validation had
+  tested minutes earlier — under `auto-merge`, every fast-forward merge paid
+  for the suite twice, and the second wait is the one that outlasts a
+  waiting agent's cache (issues #274, #275). Recording the run where the
+  engine keeps its base runs is what lets the merge see it.
 
 - **Why delivered.** A role that has not been told the difference will collapse
   the two, and the collapse is silent — both reads end in a report that says
@@ -115,3 +162,13 @@ call.
   queue boundary wants it in.
 - **Why the reviewer writes nothing.** A reviewer that fixes what it finds has
   reviewed its own work by the time it is done.
+- **Why a long command is waited on in bounded waits.** A validator in a
+  consumer outlived its tool call on a hung suite and fell back to polling the
+  process every two seconds for 24 minutes — about 450 calls, each re-reading
+  its whole context — while the role above it sat waiting on a verdict that
+  never came (issue #274). Ending the turn to await a notification is no
+  better: the caller receives the placeholder as the agent's final report, the
+  agent is not woken again, and the command dies with the session. One wait
+  longer than the idle bound costs the agent its cached context on the next
+  request, where a wait inside it keeps the context warm. A limit with a hand
+  back turns a hung run into a report someone can act on.

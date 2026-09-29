@@ -46,8 +46,8 @@ without one stays as captured.
 **Capture is a plain append; everything after it has a verb.**
 
 ```
-python .aide/scripts/aide.py insights list [--open] [--type T] [--trail]
-python .aide/scripts/aide.py insights tick N --pointer "<where it landed>" [--trail]
+python .aide/scripts/aide.py insights list [N|ID] [--open] [--type T] [--trail]
+python .aide/scripts/aide.py insights tick N|ID --pointer "<where it landed>" [--trail]
 python .aide/scripts/aide.py insights archive --before YYYY-MM-DD [--yes]
 python .aide/scripts/aide.py insights resolve [--dry-run]
 ```
@@ -55,6 +55,33 @@ python .aide/scripts/aide.py insights resolve [--dry-run]
 `aide insights -h` states what each verb does. Two consequences an author
 acts on: `tick` performs the one in-place edit below, and an archive renumbers
 what remains, so re-run `list` after one.
+
+**Cite an entry by its ID, never by its position.** Every entry has an ID —
+its capture date and the leading hex of a hash of its claim, as in
+`2026-09-24-3fa1` — which `insights list` prints and no one writes: capture
+stays one line. The ID is computed from the claim alone, which is immutable,
+so no tick, trail line, archive or merge changes it, and it names an archived
+entry as well as a live one. Wherever a durable artifact names an entry — an
+item spec, a queue file, `progress.md`, a trail line, a test, a commit message,
+another entry's claim — write `insight <ID>`; the word before it is what
+`aide check` reads a citation by. A position (`list`'s `N`) is for the session
+that just ran `list`, and nowhere else.
+
+- **A longer ID is the same ID.** `list` prints four hex digits, and more only
+  where two different claims of one date would share them; any longer prefix
+  of the same hash names the same entry, so an ID once written keeps
+  resolving. Two captures of the *same* claim on one date share an ID, and
+  `tick` takes a position for them.
+- **`aide check` holds citations to the inbox.** A cited ID that names no
+  entry in `insights.md` or its archives is an **error** — it blocks a merge,
+  like every check error. A cited ID matching two different claims, and a
+  citation by position in `docs/aide/**` or `tests_dir`, are warnings naming
+  the ID to write. The inbox and its archives are not swept. `insights
+  archive` lists the positional citations it is about to renumber, each with
+  the ID its position holds before the move — rewrite them from that list.
+- **Human gates have IDs of their own.** A gate is cited by the `gate-<hex>`
+  ID `aide gate list` prints, under the same resolvability check (§1 → human
+  gates).
 
 **`resolve` writes the union of a conflicted inbox**, so this file's conflict
 is never resolved by hand. **It refuses anything that is not a pure append** —
@@ -136,6 +163,48 @@ whichever of them the entry is heading for.
   since been fixed, so the next reader re-derives all of it. Two independent
   captures of one claim both stay because two roles noticing the same thing is
   itself a fact about the project.
+- **Why entries have an ID, computed rather than written.** A position is
+  stable only until an archive (which renumbers what remains) or a merge of
+  two branches that each appended (one side's entries land after the
+  other's) — and the inbox is *meant* to be archived, and branches that
+  capture are *meant* to merge. One consumer paid for it three ways (issue
+  #276): a spec and a test cited an entry number the inbox had never held,
+  found only by accident; one merge renumbered forty entries, whose citations
+  in a queue file, a gate row and two specs were rewritten by hand — and one
+  immutable claim now points at the wrong entry forever; and tests that
+  located entries in the live file turned red the moment an archive was
+  measured. Two alternatives were weighed. Citing by date plus the claim's
+  opening phrase needs no machinery, but is verbose, still ambiguous between
+  two same-day entries that open alike, and uncheckable. A **counter** assigned
+  at capture collides whenever two branches capture concurrently, the normal
+  case with queue branches, so capture would need a verb or a merge-time
+  renumbering — the problem again. A hash of the immutable claim collides only
+  on the same claim captured the same day, which *is* the same claim; it needs
+  no writer, so capture stays an append.
+- **Why only the claim is hashed.** It is exactly the part no one may edit.
+  The checkbox, the pointer and the trail are written by triage, so hashing
+  them would change the ID on the first tick; whitespace is collapsed so an
+  editor's rewrap is not a new claim. The type and provenance are immutable
+  too but add nothing a date and a claim do not already separate.
+- **Why a citation needs the word before it.** A dangling ID is an error, and
+  since `merge` runs the checks (issue #232) an error blocks a merge; a bare
+  `YYYY-MM-DD-<hex>` token is also a timestamp (`2026-09-24-1530`), a slug or
+  a file name, and a false error there would block a merge on prose. The
+  word costs the author nothing and makes a match a citation by construction.
+  A positional citation is only a warning, because what a number meant when
+  written cannot be recovered from the file — the warning names what that
+  number holds *today*, which the author confirms. Except once: the archive
+  run still knows what every number meant, so it prints the mapping before
+  the move rather than refusing — the listing preserves it, and the move
+  already waits on `--yes` (issue #295). After it, the warning's "today" names
+  whatever now sits at that number.
+- **Why tests are read for positions too.** A test comment or assertion
+  message naming "insight 28" goes stale on the next archive or merge exactly
+  as a spec does, and it is the test, not the spec, that the next author
+  trusts (issue #295).
+- **Why the inbox and its archives are not swept.** Their claims are immutable,
+  so a finding on one could never be cleared — the same reason archived
+  entries are not shape-checked.
 - **Why capture is its own section.** Every role in the loop appends here and
   almost none of them triages: capture is on the always-on floor, while
   routing reaches the one pass that routes and the queue rules reach the one

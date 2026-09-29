@@ -1,12 +1,13 @@
 ---
-name: builder
+name: builder-escalation
 description: >-
-  Implementation-only agent. Implements the production code for a specific AIDE
-  work item. Does NOT write tests and does NOT run tests — a separate
-  test-writer and validator handle those. Commits the implementation on the
-  item's branch. Stops and hands back for PRs, force-pushes, or
-  framework/process changes.
-model: claude-sonnet-5-5
+  The builder role on the strongest tier — the same implementation-only agent
+  as `builder`, dispatched in its place once the orchestrator escalates an
+  item's build fix (a failure that survived a round, or a serious defect from
+  the first FAIL). Does NOT write tests and does NOT run tests. Commits the
+  implementation on the item's branch. Stops and hands back for PRs,
+  force-pushes, or framework/process changes.
+model: claude-opus-5-5
 effort: medium
 disallowedTools: Agent
 ---

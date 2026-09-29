@@ -8,7 +8,7 @@ rule, and ranks what is left so the safe, recurring prompts can be promoted into
 the allow-list.
 
 Everything below the ``main`` boundary is a pure function so it can be unit
-tested (see ``tests/test_permission_review.py``). Normalised rules and coverage
+tested (see ``tests/test_review_permissions_*.py``). Normalised rules and coverage
 checks are deliberately *advisory* — the full command is always shown so a human
 makes the final allow/ask/leave call. The real allow-list edit is made by the
 ``/aide-review-permissions`` command, gated by the existing permission policy and
@@ -190,34 +190,42 @@ def is_covered(tool, detail, rules):
 def aggregate(calls, allow_rules, ask_rules):
     """Group correlated calls by normalised rule with counts and a status.
 
-    status: ``auto-allowed`` (every call already covered by allow — not a
-    bottleneck), ``ask-gated`` (intentionally gated), or ``new`` (a real
-    bottleneck candidate for the allow-list).
+    Coverage is decided per call, before grouping: a call an ``allow`` rule
+    covers and no ``ask`` rule catches never prompts, so it is tallied apart
+    and never lands in a ranked row. A multi-word allow rule such as
+    ``Bash(sed -n:*)`` normalises to the same ``Bash(sed:*)`` as the ``sed -i``
+    calls it leaves prompting, and grouping first would rank the allowed traffic
+    and show it as the sample. An ``ask`` rule wins over ``allow``, as it does in
+    the runtime, and an ask-gated call is bucketed apart from the uncovered
+    calls sharing its rule too: ``git push --force`` under ``ask`` must not turn
+    every plain ``git push`` into an ``ask-gated`` row.
+
+    status: ``new`` (a real bottleneck candidate for the allow-list),
+    ``ask-gated`` (intentionally gated), or ``auto-allowed`` (the calls already
+    covered — context only, never a bottleneck). One rule can carry an
+    ``auto-allowed`` or ``ask-gated`` row beside a ``new`` one; each row's
+    count, grant/deny split and sample come from its own calls only.
     """
     groups = defaultdict(
         lambda: {"total": 0, "granted": 0, "denied": 0, "samples": Counter(),
-                 "covered_all": True, "ask_any": False, "tool": ""}
+                 "tool": ""}
     )
     for call in calls:
+        if is_covered(call["tool"], call["detail"], ask_rules):
+            status = "ask-gated"
+        elif is_covered(call["tool"], call["detail"], allow_rules):
+            status = "auto-allowed"
+        else:
+            status = "new"
         rule = normalize_command(call["tool"], call["detail"])
-        g = groups[rule]
+        g = groups[(rule, status)]
         g["tool"] = call["tool"]
         g["total"] += 1
         g[call["outcome"]] += 1
         g["samples"][call["detail"]] += 1
-        if not is_covered(call["tool"], call["detail"], allow_rules):
-            g["covered_all"] = False
-        if is_covered(call["tool"], call["detail"], ask_rules):
-            g["ask_any"] = True
 
     out = []
-    for rule, g in groups.items():
-        if g["covered_all"]:
-            status = "auto-allowed"
-        elif g["ask_any"]:
-            status = "ask-gated"
-        else:
-            status = "new"
+    for (rule, status), g in groups.items():
         out.append({
             "rule": rule,
             "tool": g["tool"],

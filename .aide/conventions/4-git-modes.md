@@ -5,7 +5,9 @@ and what kind of CI gate can see it. The human who sets it reads this; the
 validator's merge step is pointed here, and `aide claim` and `aide merge`
 carry it out.
 
-Enforced **only** inside `aide claim` / `aide merge`; agent instructions are
+`auto-merge` and `pr` differ **only** in how an item lands, inside
+`aide claim` / `aide merge`. `local` also turns off every fetch, pull and push
+any verb makes, not only those of `claim` and `merge`. Agent instructions are
 identical across modes.
 
 - **`auto-merge`** (default) — claim branch pushed; on validator PASS `aide merge`
@@ -16,8 +18,40 @@ identical across modes.
   reported and never blocks.
 - **`pr`** — claim identical; on PASS `aide merge` pushes the branch and **stops**
   ("open a PR"). The human opens the PR (`gh pr create` stays `ask`-gated).
-- **`local`** — no pushes at all (offline). Claim is a local branch only (no
-  multi-machine signal); merge is local into `main`, behind the same gate.
+- **`local`** — no fetch, pull or push at all (offline). Claim is a local
+  branch only (no multi-machine signal); merge is local into `main`, behind
+  the same gate.
+
+**A red test run is compared with the base before it refuses.** Where the
+test command's report names each failing test — pytest, run as a module —
+`aide merge` runs the same command on the base as it stood before the merge,
+in the same checkout, or reuses a run this repository already recorded for
+that tree. When every failure after the merge also fails there, the failures
+are **inherited**, and the gate admits the merge: it prints both sets, counts
+them in the ledger row (§1 → `ledger.md`), and appends one `defect` entry to
+`insights.md` naming each inherited test no open entry already names,
+committed with the ✅. A failure the base does not have is the item's, and
+refuses the ✅ and the push as before, listed apart from the inherited ones.
+A run that cannot be compared — another runner, a command whose failures
+depend on the run rather than the tree, an incomplete run, a base the
+history does not identify — refuses on any failure. No flag and no
+`aide.toml` key admits a failure the comparison did not, and `--no-test`
+still skips the whole run. The role that started the merge does not capture
+the inherited failures itself: the entry is the engine's. `aide merge -h`
+states which options and exits keep the plain gate.
+
+**A merge that lands exactly the tree validation ran does not run the suite
+again.** Validation runs the suite through `aide test`, which records the
+result against the tree, the command, the claim branch and the commit. Where
+the post-merge tree is the claim branch's own and that branch changed nothing
+but the progress document after the recorded run, `aide merge` takes the
+recorded result in place of a second run — through the same gate, so a red one
+still meets the base — says so, and marks the ledger row's `Suite s` cell as
+reused. Every other merge runs the suite as above: a base that moved, a
+commit after the run, a tree with tracked changes, a run recorded on another
+branch, in another checkout or by anything but `aide test`. Taking a recorded run is not an
+override, and `--no-test` takes none. `aide test -h` states the conditions
+exactly.
 
 **The mode also decides what kind of CI gate can see a claim branch — pick it for
 that too.** Per-item scope is checked as each claim branch merges (§1). Whether a
@@ -76,8 +110,66 @@ branch's starting point and its recorded base are the same commit by
 construction, so an item can never merge back somewhere it did not come from. A
 tag, a raw commit or a remote-tracking ref (`origin/main`) is refused.
 
+**At most `[loop] max_open_queues` queue branches are unmerged at once, and
+they form one stack.** At the default of 1 a queue starts only once the one
+before it has landed. Above it, the next queue starts on the top of the
+stack — `aide queue start M --base <prefix>queue-N` — and its PR is opened
+against that branch, so each PR's diff is one batch. `aide queue start`
+enforces both: it counts a queue branch until the branch's own work has
+landed in `main_branch`, judged the way `aide queue restack` judges it, and
+refuses a start that would pass the cap or begin a second stack. A
+specs-queue branch is neither counted nor stacked. `aide queue -h` states the
+mechanism.
+
+**A stack of queue branches is kept consistent by merging forward, never by
+rebasing.** A queue started on the queue branch below it — `aide queue start M
+--base <prefix>queue-N` — makes a stack, `main` ← queue N ← queue M, each
+queue one PR against the branch below. `aide queue restack` merges a moved
+lower branch into every branch above it, bottom up; once any branch of the
+stack has landed in `main_branch` it merges `main_branch` into the next
+branch up and records `main_branch` as that branch's base, so `merge`,
+`scope` and `status` resolve against the right ref — whatever lies below the
+landed branch, and an open branch left beneath it is not touched. A branch
+may land by a merge commit, a squash or a rebase merge, or by a
+fast-forward, which is told from a branch with no commits of its own by
+where the branch started: the commit `aide queue start` records, or the tip
+of the branch below it. A bottom with no such record (started before
+2.14.0, or on another machine) whose tip is on `main_branch`'s first-parent
+history stops the run until a person says which it was. Whether a branch
+landed is judged from git; the verb reads no pull request, so a PR closed
+without merging looks open to it and its caller checks for one first. A conflict stops the
+run with nothing resolved, for a person. `aide queue restack -h` states the
+mechanism.
+
+**A stack is built bottom up: the lowest queue branch with work left is the
+one built.** That is the top, except when a person adds an item to a lower
+queue's PR in review. `restack` then carries the item into every branch
+above, where the live queue — the lowest-numbered open one — is that lower
+queue again, so a claim on an upper branch would take the item and land it
+in the upper's PR. It is built on the lower queue's own branch instead, and
+restacked forward from there.
+
+**`aide status` reports the stack, and keeps two facts apart.** It prints
+each unmerged queue branch bottom first — its base, its PR's state where the
+forge can be asked, whether the branch below has moved since the last
+restack, and whether a PR below it was closed without merging, which orphans
+it — then **runnable** (the loop has work it could start) and **awaiting
+review** (a queue PR is open and marked ready — a draft is the loop's own
+PR still being built) on lines of their own. A repo can be both. A
+caller deciding whether the loop is blocked reads those two lines rather than
+its own reading of the branches, and takes "could not look" as an answer of
+its own, never as "no PR". `aide status -h` states each field and value.
+
 ### Rationale
 
+- **Why `local` is stated apart from the landing modes.** The opener used to
+  say the mode was enforced only inside `aide claim` / `aide merge`, while
+  `local` had long been skipping the network in `sync`, `status`, `gc`,
+  `queue start`, `queue restack` and the commit behind `gate`, `progress` and
+  `insights` — a reader choosing a mode was told less than it changes (issue
+  #307). The rule names what `local` turns off, not a list of verbs: a list
+  goes stale the next time a verb learns to fetch, and "every fetch, pull and
+  push" stays true of it.
 - **Why the claim branch goes before the gate run.** So the run sees what a
   fresh clone sees.
 - **Why `aide check` is part of the gate.** Nothing else in the loop ran it
@@ -90,6 +182,80 @@ tag, a raw commit or a remote-tracking ref (`origin/main`) is refused.
   checking the base as well, and an unattended run that lands items over a
   broken document set is the failure being fixed. Warnings never block,
   because some are permanent by design (a retracted criterion, issue #152).
+- **Why a red run is compared with the base.** The gate refused on any red
+  test anywhere, so one failure the item never touched blocked every item
+  behind it. A consumer on engine 1.38.0 had an item pass all sixteen of its
+  acceptance criteria with every changed file authorised, and the merge still
+  exited 1 on nine failures proven identical at the merge-base — stale
+  environment-gated capability rows and an unrelated adapter gap. A second
+  time, a test pinning an inbox entry's checkbox went red when a triage commit
+  on `main` ticked it, and every item merging into the queue branch was
+  blocked until a fix landed. The only override was `--no-test`, which drops
+  the gate rather than scoping it (issue #275).
+- **Why in place, not in a separate worktree.** The post-merge run saw this
+  checkout's untracked and ignored inputs — data, a built extension, the
+  venv. A fresh worktree lacks them, so the base fails *more* there, and every
+  extra base failure is a regression the subset rule would admit as
+  inherited. The base is only run when the merge is red, so a green merge
+  costs nothing extra.
+- **Why a subset, and why automatic.** A
+  `--accept-inherited <nodeid>…` flag was proposed and not taken: the subset
+  is a fact the two runs establish, and a flag would stop an unattended run
+  for a person to type what the engine already knows. A key to switch the
+  comparison off was not taken either — it would switch off the one check that
+  separates an item's regression from its base's. An item that renames an
+  inherited failing test, or fails one differently, is still refused, since
+  identity is by test id: the rule errs towards refusing.
+- **Why the engine writes the inbox entry.** An admitted failure that leaves
+  no trace makes a red base look normal to the next item over it. The verb
+  holding the ids writes one line, and skips ids an open entry already names,
+  so a queue landing ten items over the same red base carries one entry and
+  not ten; the role that ran the merge writing its own would be the same
+  finding twice.
+- **Why only pytest.** Comparison needs a report naming each failure, and a
+  test command is otherwise free-form; guessing failure identity from another
+  runner's output would admit on a misreading. An order-dependent option
+  (`-x`, `--maxfail`, `--lf`, `--ff`, `--sw`) makes the set a property of the
+  run, and an exit other than "tests failed" means the report is not the whole
+  suite — both would compare two partial pictures. Order set in the project's
+  own configuration — a random-order plugin enabled by default, say — is not
+  visible in the command, and is not detected: such a suite's failure set is
+  as much the run's as the tree's, and a comparison over it can admit an
+  order-sensitive regression by coincidence.
+- **Why the base run is stored.** A retried merge — after a fix commit, or a
+  failed push — would otherwise re-run the base it has already run. Results
+  are kept under git's own directory, keyed by tree and exact command, never
+  committed, and pruned after seven days; a run over a tree with tracked
+  changes, or one that leaves a tracked change behind, is never stored, since
+  it belongs to no tree — a base run's included, so a suite that rewrites a
+  tracked file re-runs its base on every retry.
+- **Why a validated tree is not run twice.** Under `auto-merge` validation ran
+  the whole suite on the claim branch and the merge ran it again, and when the
+  base had not moved the merge is a fast-forward: the second run was over a
+  byte-identical tree and could prove nothing the first had not. It was the
+  loop's second long wait, which on a runtime with a short idle cache also
+  costs the waiting agent its context (issues #274, #275). One store serves
+  both reads, the base run and the validated run, so there is one record of
+  what ran where.
+- **Why the progress document may differ.** Validation writes its verdict
+  after its suite run — `progress set in-review` and each attested criterion
+  are commits on the claim branch — so a rule demanding the identical tree
+  would never be met by the loop it was built for. The progress document is
+  the one file allowed to differ because the merge's own `aide check` reads it
+  in full beside the gate, and what validation writes there is the engine's
+  bookkeeping. Anything else, `insights.md` included, forces a run: a
+  consumer's test has already gone red on an inbox checkbox (above).
+- **Why the claim branch and its commit, not only the tree.** A tree key alone
+  would let a run recorded for an earlier item, or on the base before this
+  claim existed, stand for this one whenever the trees happened to agree. The
+  recorded branch and a commit the tip contains tie the run to this claim, so
+  a reused result is always one this item's own validation produced.
+- **Why tracked changes refuse and untracked files do not.** A run over a tree
+  with a tracked change is a run of no commit, so it is neither recorded nor
+  taken. Untracked and ignored inputs — data, a built extension, the venv — are
+  not in the tree at all, so a run is taken only in the checkout that
+  recorded it: there the validated run and the merge saw the same ones, and
+  the base run's rationale (above) is why the merge does not try to see fewer.
 - **Why a CI gate can decay silently.** With no PR a PR-context scope job
   either never triggers, or triggers on a branch whose name yields no item
   number and correctly skips — so a gate can decay from a mode change alone,
@@ -101,3 +267,77 @@ tag, a raw commit or a remote-tracking ref (`origin/main`) is refused.
 - **Why a base must be a local branch.** `git switch` to a tag, a commit or a
   remote-tracking ref would detach HEAD, and a merge into a detached HEAD
   updates no branch while still reporting success.
+- **Why a cap, and why one stack.** Stacked queues de-serialise *review*:
+  the loop goes on building while earlier batches wait for a person. Parallel
+  stacks off `main_branch` would bring back every contention point of
+  parallel *execution* — item numbers, `progress.md` and `insights.md`
+  conflicts, `claim_scope` — while one stack keeps numbering and document
+  edits linear. The cap bounds what a rejected lower costs: at worst
+  `max_open_queues − 1` queues built on it (#258). It is enforced by the verb
+  that creates the branch, so an unattended run cannot pass it by misreading
+  prose (#302).
+- **Why "unmerged" is restack's judgement.** Two readings of "landed" would
+  let `start` count a branch `restack` has already handed on, or the
+  reverse. A branch git cannot judge is counted: guessing it landed would let
+  the stack grow past the cap.
+- **Why a stack merges and never rebases.** Rebasing an upper branch onto its
+  moved lower rewrites commits its open PR already shows, and publishing that
+  takes a force-push — a §3 stop in an unattended run. A merge only adds
+  commits, so a plain push publishes it (issue #301).
+- **Why landed is judged from git.** Pull-request state needs the host's CLI,
+  which is best effort and absent in `local` mode. That a branch's work is in
+  `main_branch` is a fact git establishes from content — the oracle `gc`
+  already trusts before a force-delete. That a PR was closed unmerged is not:
+  the branch simply stays, so the caller that can read PRs checks, and the
+  verb does not guess.
+- **Why runnable and awaiting review are two facts.** At a cap of 1 an open
+  queue PR meant the loop was blocked; above it the loop builds while PRs
+  wait, so one "blocked" state misreports both halves (#258). The roadmap
+  command's stop table and a scheduler polling for readiness (#257) would
+  each define "blocked" in their own prose and drift, so the engine derives
+  it once and both read it (#303). "Could not look" stays apart from "no PR"
+  because a caller that reads a missing `gh` as an empty review queue
+  relaunches into a blocked repo.
+- **Why orphaning is reported by `status`, not `restack`.** `restack` reads
+  git only, and a PR closed without merging leaves nothing git can see. The
+  forge is asked in the one place that reads it best effort already, and a
+  lower git says landed is never called orphaned, whatever its PR says —
+  content stays git's to judge.
+- **Why these merge styles may land a branch.** Measured in the fixture:
+  after a squash merge `main_branch` holds the bottom's changes as one commit
+  while the branch above holds the originals, so git's own merge base is the
+  stack's fork point and the bottom's changes meet themselves. That merge is
+  clean when the upper touched nothing near them and conflicts when it did —
+  and queues tick adjacent lines of `progress.md`. The landed tip is an
+  ancestor of the upper and its content is in `main_branch`, so as the merge
+  base it yields `main_branch` plus the upper's own changes, cleanly; a
+  merge-commit rule for the human was the alternative, and is not needed.
+- **Why the start commit is recorded.** A branch with no commits of its own
+  has nothing `main_branch` lacks, which the content check reads as landed;
+  handing the branch above it to `main_branch` would then drop the lower's
+  later commits from the stack. A branch `main_branch` was fast-forwarded to —
+  how `local` mode lands a linear queue — has the same shape in git, so the
+  first review round of #301 found such a landing reported as "consistent"
+  and never handed on. Only where the branch started tells the two apart; above
+  another branch that branch's tip says it, so only a bottom with no record is
+  undecidable, and the run stops rather than guess either way.
+- **Why each branch's own landing is judged.** Asking only whether the branch
+  below had landed missed a middle queue fast-forwarded onto `main_branch`
+  above an empty, open bottom — "consistent", with the top queue never handed
+  `main_branch` (the second review round of #301). A branch that landed holds
+  everything beneath it that it contains, so the branch above is owed
+  `main_branch` whatever the bottom is; the open bottom gets nothing, since
+  `main_branch` already holds all of it, and with nothing stacked on it any
+  more it no longer holds a stack.
+- **Why no commit hook runs and signing is honoured.** The merge-tree path
+  writes its commit with `commit-tree`, which runs no hook and ignores
+  `commit.gpgSign`; the fallback's `git merge` did both. One behaviour on
+  every git version: no hook on either (a restack adds no content of its own
+  to check), and a signature wherever the repository asks for one, whose
+  failure stops the run.
+- **Why no record means no stack.** The records are local git config, and
+  queue branches from before stacking sit beside a stack; chaining them by
+  number would merge unrelated queues. `--base` records one, bottom up.
+- **Why a reopened lower queue is built on its own branch.** Built on the
+  upper one, the fix lands in the PR that did not ask for it, and the lower
+  queue's PR could be merged with the item still 📋 in it.

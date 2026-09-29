@@ -43,7 +43,10 @@ Run `python .aide/scripts/aide.py check` after writing — it must pass.
 1. **Preserve all existing statuses** — never reset a non-planned status to 📋.
 2. **Add new rows** for stages/deliverables that appear in the roadmap but are
    not yet tracked.
-3. **Do not remove rows** — mark ⏸️ Deferred (with a note) instead.
+3. **Do not remove rows** — postpone a tracked item instead, with
+   `python .aide/scripts/aide.py progress set NNN deferred --reason "…"`; the
+   reason is the note, and its stage turns ⏸️ on its own once nothing else in
+   it is open.
 4. **Never uncheck** an already-checked acceptance box.
 
 ### Output

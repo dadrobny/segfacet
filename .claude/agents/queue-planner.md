@@ -8,7 +8,7 @@ description: >-
   superseded previous queue and commits both on the current branch. Does NOT push,
   open PRs, write item specs, code, or tests.
 model: claude-opus-5-5
-effort: xhigh
+effort: high
 skills:
   - aide-document-format
   - aide-human-gates
@@ -107,8 +107,10 @@ Follow the `aide-create-queue` skill in full. In brief:
    ```
    python .aide/scripts/aide.py insights tick N --pointer "item NNN"
    ```
-   `N` is the entry number `insights list --open` printed. **After the commit of
-   step 6, not before** — the verb rebases onto the upstream before committing,
+   `N` is the entry number `insights list --open` printed, or the entry's ID
+   from the same listing; the queue file and the specs name the entry by that
+   ID (`insight <ID>`), never by `N`, which the next archive renumbers. **After
+   the commit of step 6, not before** — the verb rebases onto the upstream before committing,
    and a working tree still holding the queue and the back-fill is exactly the
    state that makes the rebase fail; `aide-create-queue` orders it the same way.
    An entry you passed over stays open and unticked — it is still a candidate
@@ -116,7 +118,9 @@ Follow the `aide-create-queue` skill in full. In brief:
 8. **Return** a tight summary: the queue number — or **both**, saying which is
    the maintenance queue and which the stage queue — the item-number range and
    one-line titles, and confirmation the previous queue was tidied and every
-   item wired into `progress.md`. Name the inbox entries you queued (with the item numbers
+   item wired into `progress.md`, and the plan gate's IDs as `queue gate`
+   printed them — or that it raised none — when your brief asked for one.
+   Name the inbox entries you queued (with the item numbers
    they became) **and the ones you passed over, with why** — a pass-over is
    stated where the queue is reviewed, not left for the next reader to
    re-derive. Name the two ways to proceed (`/aide-spec-queue NNN` up
@@ -150,6 +154,24 @@ an out-of-band prerequisite a person must supply — make sure `progress.md` has
 the matching row in its `## Human gates` table before the queue lands. A gate
 written only in the roadmap blocks nothing; the table is what `aide claim`
 reads. Reach is usually `stage N` for a roadmap-declared gate.
+
+**The plan-review gate.** When your brief asks for one — `/aide-run-roadmap`'s
+always does — raise it with the verb, never by typing the row, once step 6's
+commit has landed and before step 7's ticks (the verb commits too, and pulls
+after its commit the way `tick` does):
+
+```
+python .aide/scripts/aide.py queue gate NNN
+```
+
+For a maintenance queue and the stage queue after it, one call over the pair:
+`queue gate NNN --through <NNN+1>`. The verb reads `[loop] plan_review` and
+decides which gate the plan gets — one over every item the queue lists, a
+`stage N` gate for each stage the queue opens, or none — commits the row on
+the current branch, and prints each gate's ID (§1 → human gates, preloaded
+above). Name those IDs in step 8's summary, or say that it raised none, in
+the verb's own words. A gate the roadmap stage declares is still yours to add
+by hand (above), whatever the setting.
 
 **Raise, never resolve.** Adding a gate is safe — the worst case is work pausing
 for a human. Never run `aide gate approve`/`decline`: the decision is not yours,

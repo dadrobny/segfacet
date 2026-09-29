@@ -9,6 +9,7 @@
     - Implementation Steps            [builder]
     - Authorised paths                [builder, validator, aide scope]
     - Testing Strategy                [test-writer]
+    - Review findings (only once a review round adds a test)  [test-writer, aide scope]
     - Dependencies                    [aide claim]
     - Decisions & Trade-offs          [spec-author: Left open; builder, as it goes]
   Optional: Validation (how to observe the work beyond the tests; the
@@ -22,7 +23,7 @@
   read then replace. Delete this comment in the generated file,
   and keep the aide-template line below it.
 -->
-<!-- aide-template: item 2 -->
+<!-- aide-template: item 3 -->
 # Item {{nnn}} — {{title}}
 
 > **Created:** {{yyyy-mm-dd}} · status tracked in [`progress.md`](../progress.md)
@@ -96,10 +97,11 @@ list, not by hashing another file's bytes._
 
 _Paths this item's tests pin — read, never changed — including a derived
 artifact recomputed live. Write "None." if the item pins nothing outside what
-it changes. Two things never go here, an always-authorised path and the same
-path listed again under May change; conventions.md §1 → Authorised paths says
-why, where each belongs instead, and why pinning one file inside a May-change
-glob is the carve-out rather than a double-listing._
+it changes. Three things never go here: an always-authorised path, the same
+path listed again under May change, and a glob sweeping over one May change
+names. conventions.md §1 → Authorised paths says why, where each belongs
+instead, and why pinning one file inside a May-change glob is the carve-out
+rather than a double-listing._
 
 - `{{path}}` — {{which AC pins it, and how}}
 
@@ -113,6 +115,14 @@ test-writer writes the AC tests and the cases listed here, and no others
 (conventions.md §6), so a case with no failure mode behind it is left out.
 A test of a producer's output reads that output through the producer's code
 or fixture, never a hand-built copy._
+
+## Review findings  <!-- OPTIONAL: absent until a review round adds a test -->
+
+_One bullet per finding a review-round test answers, in the Testing
+Strategy's label shape — conventions.md §6 says who writes it and when.
+Leave the section out while there is none._
+
+- {{label}}: {{the finding}} — {{rank}}; {{fix commit}}
 
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 
@@ -145,7 +155,7 @@ _Item numbers before the marker are blockers; item numbers after it are not
 block this item on something that hasn't happened yet. A quoted human-gate
 reach is also safe when the `Blocks:` label keeps its markup: item numbers
 after a backticked or bold `Blocks:` on the same line are not read as
-blockers, so "waits on Gate 3 — `Blocks: items 119, 120, 121`" names the
+blockers, so "waits on gate-<hex> — `Blocks: items 119, 120, 121`" names the
 gate's reach without creating three dependency edges. Keep the quote on one
 line, and never let plain prose carry the word — unmarked "blocks:" excludes
 nothing._
