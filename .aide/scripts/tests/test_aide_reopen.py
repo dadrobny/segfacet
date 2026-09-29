@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -428,3 +429,154 @@ def test_check_and_status_word_a_re_accepted_box_by_its_tick(tmp_path: Path, cap
     assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
     assert ("retracted: stage 1 criterion 1 (2026-07-02) — the host was "
             "misread; re-accepted on 2026-07-03") in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- #
+# issue #332 — a CI reopening is stamped with its fix round
+# --------------------------------------------------------------------------- #
+QUEUE_1 = "# Demo — Work Queue 001\n\n### Item 027: Bounds\n### Item 028: Coverage\n"
+QUEUE_2 = "# Demo — Work Queue 002\n\n### Item 030: Summary\n### Item 031: Export\n"
+
+
+def _queued(tmp_path: Path, progress: str = PROGRESS) -> Path:
+    """A repo with no git — the scope is then the queue file listing the item."""
+    repo = _repo(tmp_path, progress)
+    qdir = repo / "docs" / "aide" / "queue"
+    qdir.mkdir()
+    (qdir / "queue-001.md").write_text(QUEUE_1, encoding="utf-8")
+    (qdir / "queue-002.md").write_text(QUEUE_2, encoding="utf-8")
+    return repo
+
+
+def _reopen_cli(repo: Path, num: int, reason: str) -> int:
+    return aide.main(["--repo", str(repo), "progress", "reopen", str(num),
+                      "--reason", reason, "--date", "2026-09-29", "--no-commit"])
+
+
+def _trail(repo: Path, num: int) -> List[str]:
+    lines = (repo / "docs" / "aide" / "progress.md").read_text(
+        encoding="utf-8").splitlines()
+    for _, last in aide._deliverable_bullet_spans(lines):
+        if num in aide._bullet_marker_item_numbers(lines[last]):
+            return [lines[i].strip() for i in aide.deliverable_bullet_trail(lines, last)]
+    raise AssertionError(f"no bullet for item {num}")
+
+
+def _merge_back(repo: Path, *nums: int) -> None:
+    path = repo / "docs" / "aide" / "progress.md"
+    text = path.read_text(encoding="utf-8")
+    for n in nums:
+        text = aide.set_item_status(text, n, "complete")
+    path.write_text(text, encoding="utf-8")
+
+
+def test_a_ci_reopening_begins_a_round_the_next_one_joins_and_a_later_one_begins_another(
+        tmp_path: Path, capsys):
+    repo = _queued(tmp_path)
+    assert _reopen_cli(repo, 27, "CI build (ubuntu): test_027_bounds") == 0
+    assert "[CI round 1]" in capsys.readouterr().out
+    assert _trail(repo, 27) == [
+        "- **2026-09-29** → reopened: CI build (ubuntu): test_027_bounds [CI round 1]"]
+    inbox = (repo / "docs" / "aide" / "insights.md").read_text(encoding="utf-8")
+    assert ("- [ ] gap — item reopened: CI build (ubuntu): test_027_bounds "
+            "[CI round 1] *(item 027, 2026-09-29") in inbox
+    # 027 is still open: a second item traced in the same round joins it.
+    assert _reopen_cli(repo, 28, "CI lint: step ruff") == 0
+    assert _trail(repo, 28)[-1].endswith("[CI round 1]")
+    # Both merged back: the queue was exhausted and marked ready since, so
+    # the next red check's reopening begins round 2 — even for an item the
+    # first round never touched.
+    _merge_back(repo, 27, 28)
+    assert _reopen_cli(repo, 28, "CI build (windows): test_028_paths") == 0
+    assert _trail(repo, 28)[-1].endswith("[CI round 2]")
+    assert aide.ci_fix_rounds(
+        (repo / "docs/aide/progress.md").read_text(encoding="utf-8").splitlines(),
+        {27, 28}) == (2, True)
+
+
+def test_a_reopening_that_is_not_ci_is_neither_stamped_nor_counted(tmp_path: Path):
+    repo = _queued(tmp_path)
+    assert _reopen_cli(repo, 27, "operator run never happened") == 0
+    assert _trail(repo, 27) == ["- **2026-09-29** → reopened: operator run never happened"]
+    # An open non-CI reopening does not hold a round open either.
+    assert _reopen_cli(repo, 28, "CI build: test_028") == 0
+    assert _trail(repo, 28)[-1].endswith("[CI round 1]")
+    lines = (repo / "docs/aide/progress.md").read_text(encoding="utf-8").splitlines()
+    assert aide.next_ci_round(lines, {27}) == 1
+
+
+def test_the_round_is_counted_over_the_queue_listing_the_item_only(tmp_path: Path):
+    """Queue 002's items carry round 3; queue 001's first CI reopening is
+    still its round 1."""
+    other = PROGRESS.replace(
+        "- ✅ Summary. *(Item 030)*",
+        "- ✅ Summary. *(Item 030)*\n"
+        "  - **2026-09-20** → reopened: CI build: t [CI round 3]")
+    repo = _queued(tmp_path, other)
+    assert _reopen_cli(repo, 27, "CI build: test_027") == 0
+    assert _trail(repo, 27)[-1].endswith("[CI round 1]")
+    lines = (repo / "docs/aide/progress.md").read_text(encoding="utf-8").splitlines()
+    assert aide.ci_fix_rounds(lines, {30, 31}) == (3, False)
+
+
+def test_a_reason_carrying_its_own_round_stamp_is_refused(tmp_path: Path, capsys):
+    repo = _queued(tmp_path)
+    before = (repo / "docs" / "aide" / "progress.md").read_bytes()
+    assert _reopen_cli(repo, 27, "CI build: t [CI round 4]") == 2
+    assert "the engine writes the round" in capsys.readouterr().err
+    assert (repo / "docs" / "aide" / "progress.md").read_bytes() == before
+
+
+@pytest.mark.parametrize("reason", ["CI: build failed", "CI-build: t"])
+def test_a_reason_naming_ci_without_the_space_is_refused(tmp_path: Path, capsys,
+                                                         reason: str):
+    """`CI:` would silently not be a CI reopening: no stamp, no count."""
+    repo = _queued(tmp_path)
+    before = (repo / "docs" / "aide" / "progress.md").read_bytes()
+    assert _reopen_cli(repo, 27, reason) == 2
+    assert "`CI <check>: <failing test or step>`" in capsys.readouterr().err
+    assert (repo / "docs" / "aide" / "progress.md").read_bytes() == before
+
+
+def test_a_reason_merely_mentioning_ci_is_an_ordinary_reopening(tmp_path: Path):
+    """Only `CI:` / `CI-` is refused: these are reasons about CI, not CI
+    reopenings, and are neither refused nor stamped."""
+    repo = _queued(tmp_path)
+    for num, reason in ((27, "CI/CD workflow never ran"),
+                        (28, "CI's config was never reviewed"), (30, "CI")):
+        assert _reopen_cli(repo, num, reason) == 0, reason
+        assert _trail(repo, num)[-1] == f"- **2026-09-29** → reopened: {reason}"
+
+
+ATTESTED = PROGRESS.replace(
+    "- ✅ Coverage. *(Item 028)*",
+    "- ✅ Coverage. *(Item 028)*\n- ✅ Validate stage 1. *(Item 029)*")
+
+
+def test_a_fix_round_through_an_attested_stage_reads_as_no_regression(tmp_path: Path):
+    """Issue #332's stage-rollup question. Reopening 027 turns stage 1 — every
+    box ticked — from ✅ to 🚧 until it merges back; nothing reads the brief
+    🚧 as a regression. `check` reports the reopening and nothing else the
+    reopen wrote, and the merge back restores the stage and its objective."""
+    repo = _queued(tmp_path, ATTESTED)
+    cfg = aide.load_config(repo)
+    _, clean = aide.run_checks(repo, cfg, branches=[])
+    assert _reopen_cli(repo, 27, "CI build: test_027") == 0
+    text = (repo / "docs/aide/progress.md").read_text(encoding="utf-8")
+    assert "## Stage 1 — Rules — 🚧" in text and "- [x] Rules fire." in text
+    errors, during = aide.run_checks(repo, cfg, branches=[])
+    assert errors == []
+    assert [w for w in during if w not in clean] == [
+        "progress.md: item 027 was reopened on 2026-09-29 (CI build: test_027 "
+        "[CI round 1]) — it is 📋 again, and the trail under its bullet keeps "
+        "the earlier ✅ on record"]
+    _merge_back(repo, 27)
+    text = (repo / "docs/aide/progress.md").read_text(encoding="utf-8")
+    assert "## Stage 1 — Rules — ✅" in text
+    assert "| 1 | Rules | G1 | ✅ |" in text and "| G1 Rules | Stage 1 | ✅ |" in text
+    errors, after = aide.run_checks(repo, cfg, branches=[])
+    assert errors == []
+    assert [w for w in after if w not in clean] == [
+        "progress.md: item 027 was reopened on 2026-09-29 (CI build: test_027 "
+        "[CI round 1]) and completed again since — the reopening is kept in "
+        "the trail under its bullet"]

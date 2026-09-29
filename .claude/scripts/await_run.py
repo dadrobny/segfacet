@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Run the suite or a merge detached, and wait on it in bounded slices.
+"""Run the suite or a merge detached, or wait on CI, in bounded slices.
 
 A command that outlives the Bash tool's timeout is moved to the background,
 and a sub-agent that then ends its turn "to wait for the notification" hands
@@ -12,6 +12,7 @@ follows it:
     python .claude/scripts/await_run.py start suite
     python .claude/scripts/await_run.py start merge NNN [--rounds R] [--base B]
                                                   [--findings blocking=A,minor=B,nit=C]
+    python .claude/scripts/await_run.py start ci
     python .claude/scripts/await_run.py wait <label> [--for SECONDS]
     python .claude/scripts/await_run.py stop <label>
 
@@ -20,7 +21,9 @@ and prints a label once the run is under way. It refuses while another run in
 this worktree is still live, naming it: wait on that label instead. ``wait``
 blocks for at most ``--for`` seconds (default 240, under a 5-minute cache;
 capped at 540, under the Bash tool's 600000 ms ceiling) and returns the moment
-the command exits, or the moment its supervisor is found dead. ``stop`` ends
+the command exits, or the moment its supervisor is found dead. Either bound
+fits only a Bash call given ``timeout: 600000``: the tool's default is 120000
+ms, which ends a longer wait as a timeout. ``stop`` ends
 the run and records it as stopped; a run that already ended is reported, not
 an error. A suite run's whole process tree is killed: SIGTERM, then SIGKILL
 after a short grace on POSIX, ``taskkill /T /F`` on Windows. A merge run is
@@ -39,11 +42,26 @@ own ending. Every ``start``, and every verdict that a run is dead, is taken
 under ``start.lock`` in the state directory: a run still being launched holds
 it, so it is never mistaken for a dead one.
 
-It runs **only** those two commands, so allow-listing it lets nothing else
+It runs **only** those three commands, so allow-listing it lets nothing else
 through: ``suite`` is ``.aide/scripts/aide.py test``, which runs the project's
 ``[python] test_command`` exactly as ``aide merge`` runs it (a leading
 ``python`` bound to the venv) and records the result for the merge to reuse,
 and ``merge`` is ``.aide/scripts/aide.py merge``, both under this interpreter.
+``ci`` is this script's own ``poll-ci`` over the branch checked out when it
+started: it runs ``.aide/scripts/aide.py status --no-fetch`` every
+{interval} s, reads that branch's ``stack N:`` line, and ends on the first
+answer (issue #331, the queue-end step). ``checks=pending`` is no answer,
+nor is ``checks=failure`` while a ``pending check:`` line says a leg is still
+running (issue #332), and
+neither is ``checks=none`` until it has held for {grace} s, since just after a
+push or ``aide queue ready`` CI may not have registered a run; ``unknown`` is
+the answer once {unknown} readings in a row say it, since one failed ``gh``
+call is not. It gives up after {ceiling} s. Its log is the stack line and the
+``failing check:`` / ``pending check:`` / ``checks unknown:`` / ``ci fix
+rounds:`` lines under it, each time they
+change, then its verdict. ``poll-ci`` blocks until then, so it is only ever
+run this way; a crash of the poll itself exits 1, with its traceback in the
+log.
 
 Exit codes:
 
@@ -60,8 +78,23 @@ Exit codes:
     127                 recorded when the command could not be started at all
     0                   start: launched; stop: stopped, or already ended
 
-None of 64, 75 or 90–93 is a code pytest (0–5) or ``aide merge`` returns, and
-none is 128+N, a signal death. State lives under the git directory
+``ci``'s own codes, which ``wait`` returns as the command's:
+
+    0                   checks=success
+    {failure}                  checks=failure — the failing checks are named,
+                        and the CI fix rounds begun where any has
+    {none}                  checks=none held for the grace — no CI ran
+    {unknown_code}                  checks=unknown — the reason is named
+    {no_pr}                  no PR (checks=-, local mode included), a closed or
+                        merged one, or the branch has no stack line: not an
+                        unmerged queue branch
+    {pending}                  still pending at the ceiling — a red answer
+                        with a leg still running included
+    {draft}                  the PR is a draft (pr=#N/draft…, (fixing) included),
+                        so CI that skips drafts has nothing to run
+
+None of 64, 75 or 90–93 is a code pytest (0–5), ``aide merge`` or ``ci``
+returns, and none is 128+N, a signal death. State lives under the git directory
 (``git rev-parse --git-dir``, which is per worktree), in
 ``aide-runs/<label>.{start,lock,log,exit}``, so it never dirties the working
 tree or reaches ``aide scope``. It is this run's state only, never a history:
@@ -109,6 +142,24 @@ _WINDOWS = os.name == "nt"
 # the Windows branch of `stop` without the Windows lock calls.
 _NO_GRACEFUL_STOP = _WINDOWS
 _KEEP_SECONDS = 7 * 24 * 3600
+
+# `start ci` — the wait on the queue PR's CI (issue #331).
+CI_INTERVAL = 30
+CI_NONE_GRACE = 300
+CI_UNKNOWN_READS = 3
+CI_CEILING = 3600
+CI_SUCCESS = 0
+CI_FAILURE = 10
+CI_NONE = 11
+CI_UNKNOWN = 12
+CI_NO_PR = 13
+CI_PENDING = 14
+CI_DRAFT = 15
+#: One `aide status` stack line; `status -h` states every field.
+_STACK_LINE_RE = re.compile(
+    r"^\s*stack \d+: (?P<branch>\S+) .*?\bpr=(?P<pr>\S+) checks=(?P<checks>\S+)")
+_CI_DETAIL = ("failing check:", "pending check:", "checks unknown:",
+              "ci fix rounds:")
 _LABEL_RE = re.compile(r"^[a-z]+(?:-\d+)?-\d{8}-\d{6}(?:-\d+)?$")
 # The shape `aide merge --findings` takes; anything else never reaches it.
 _FINDINGS_RE = re.compile(r"^(?:blocking|minor|nit)=\d+(?:,(?:blocking|minor|nit)=\d+)*$")
@@ -241,6 +292,139 @@ def merge_command(engine: Path, number: int, rounds: Optional[int],
         # One argv element, so a value can never be read as another flag.
         cmd.append(f"--base={base}")
     return cmd
+
+
+def current_branch(root: Path) -> str:
+    """The branch checked out at *root*; a detached HEAD is refused."""
+    out = subprocess.run(["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+                         cwd=str(root), capture_output=True, text=True,
+                         check=False)
+    branch = out.stdout.strip()
+    if out.returncode != 0 or not branch:
+        raise UsageError("HEAD is detached, so there is no queue branch to "
+                         "wait on — switch to it")
+    return branch
+
+
+def ci_command(root: Path, engine: Path) -> List[str]:
+    """This script's own ``poll-ci`` over the branch checked out now.
+
+    The engine is only checked for, not loaded: the poll runs it as a
+    command, once per reading.
+    """
+    if not engine.is_file():
+        raise UsageError(f"the engine is not at {engine}")
+    return [sys.executable, str(Path(__file__).resolve()), "poll-ci",
+            f"--branch={current_branch(root)}"]
+
+
+def read_ci(status_out: str, branch: str):
+    """``(pr, checks, detail lines)`` from *branch*'s stack line, or None."""
+    lines = status_out.splitlines()
+    for i, line in enumerate(lines):
+        m = _STACK_LINE_RE.match(line)
+        if m is None or m.group("branch") != branch:
+            continue
+        detail = []
+        for below in lines[i + 1:]:
+            text = below.strip()
+            if not text.startswith(_CI_DETAIL):
+                break
+            detail.append(text)
+        return m.group("pr"), m.group("checks"), detail
+    return None
+
+
+def _status_reader(root: Path, engine: Path):
+    """A callable returning ``(returncode, stdout)`` of one ``aide status``."""
+    def read():
+        try:
+            out = subprocess.run(
+                [sys.executable, str(engine), "status", "--no-fetch"],
+                cwd=str(root), capture_output=True, text=True,
+                encoding="utf-8", errors="replace", check=False)
+        except OSError as exc:
+            return 127, f"could not run aide status: {exc}"
+        return out.returncode, out.stdout
+    return read
+
+
+def poll_ci(branch: str, read_status, *, interval: float = CI_INTERVAL,
+            grace: float = CI_NONE_GRACE, ceiling: float = CI_CEILING,
+            clock=time.monotonic, sleep=time.sleep) -> int:
+    """Read *branch*'s ``checks=`` until it answers; return a ``CI_*`` code.
+
+    Prints the stack line (and the lines under it) each time it changes, and
+    the verdict last, so the tail ``wait`` shows is the answer.
+    """
+    started = clock()
+    unknown_run = 0
+    shown = None
+    while True:
+        code, out = read_status()
+        elapsed = clock() - started
+        found = read_ci(out or "", branch)
+        if found is None:
+            if code != 0:
+                pr, checks, detail = "?", "unknown", [
+                    f"checks unknown: aide status exited {code}"]
+            else:
+                print(f"ci: {branch} has no stack line in aide status — not an "
+                      f"unmerged queue branch (merged already, or never one)",
+                      flush=True)
+                return CI_NO_PR
+        else:
+            pr, checks, detail = found
+        now = (pr, checks, tuple(detail))
+        if now != shown:
+            print(f"ci: after {int(elapsed)}s {branch} pr={pr} checks={checks}",
+                  flush=True)
+            for line in detail:
+                print(f"  {line}", flush=True)
+            shown = now
+        unknown_run = unknown_run + 1 if checks == "unknown" else 0
+        # The PR's own state first: CI on a closed or merged PR answers
+        # nothing the step asks, and a CI that skips drafts reports `none` on
+        # a draft for ever — waiting out the grace would misreport it as
+        # "no CI ran". `draft(fixing)` is a draft too, so a prefix match.
+        state = pr.split("/", 1)[1] if pr.startswith("#") and "/" in pr else ""
+        if state in ("closed", "merged"):
+            print(f"ci: PR {pr} is {state}, so there is no CI to wait on",
+                  flush=True)
+            return CI_NO_PR
+        if state.startswith("draft"):
+            print(f"ci: PR {pr} is a draft, not marked ready, so CI that skips "
+                  f"drafts will not run on it", flush=True)
+            return CI_DRAFT
+        if checks == "success":
+            print("ci: success", flush=True)
+            return CI_SUCCESS
+        # A red answer is final only once every leg has finished (#332):
+        # a leg still running may fail too, and its log is not readable yet,
+        # so triaging now could cost a second fix round.
+        settled = not any(line.startswith("pending check:") for line in detail)
+        if checks == "failure" and settled:
+            print("ci: failure", flush=True)
+            return CI_FAILURE
+        if checks == "-":
+            print(f"ci: {branch} has no pull request here (or git.mode is "
+                  f"local), so there is no CI to wait on", flush=True)
+            return CI_NO_PR
+        if checks == "unknown" and unknown_run >= CI_UNKNOWN_READS:
+            print("ci: unknown — the forge could not be read", flush=True)
+            return CI_UNKNOWN
+        if checks == "none" and elapsed >= grace:
+            print(f"ci: none — no check registered in {int(elapsed)}s", flush=True)
+            return CI_NONE
+        if checks not in ("pending", "none", "unknown", "failure"):
+            print(f"ci: unknown — checks={checks} is not a value this script "
+                  f"reads", flush=True)
+            return CI_UNKNOWN
+        if elapsed >= ceiling:
+            print(f"ci: still {checks} after {int(elapsed)}s — giving up",
+                  flush=True)
+            return CI_PENDING
+        sleep(interval)
 
 
 def _prune(directory: Path, now: float) -> None:
@@ -608,12 +792,25 @@ def stop_run(label: str, directory: Path) -> int:
     return 0
 
 
+def _doc() -> str:
+    """The module docstring with the ``ci`` numbers filled in from the code,
+    so the help cannot state a bound or a code the poll does not use."""
+    text = __doc__
+    for name, value in (("interval", CI_INTERVAL), ("grace", CI_NONE_GRACE),
+                        ("unknown", CI_UNKNOWN_READS), ("ceiling", CI_CEILING),
+                        ("failure", CI_FAILURE), ("none", CI_NONE),
+                        ("unknown_code", CI_UNKNOWN), ("no_pr", CI_NO_PR),
+                        ("pending", CI_PENDING), ("draft", CI_DRAFT)):
+        text = text.replace("{" + name + "}", str(value))
+    return text
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = _Parser(prog="await_run.py", description=__doc__,
+    p = _Parser(prog="await_run.py", description=_doc(),
                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="verb", required=True, parser_class=_Parser)
-    p_start = sub.add_parser("start", help="launch the suite or a merge detached; "
-                                           "prints its label")
+    p_start = sub.add_parser("start", help="launch the suite, a merge or the "
+                                           "CI wait detached; prints its label")
     what = p_start.add_subparsers(dest="what", required=True, parser_class=_Parser)
     what.add_parser("suite", help="the project's [python] test_command, "
                                    "through .aide/scripts/aide.py test")
@@ -623,6 +820,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_merge.add_argument("--base", default=None)
     p_merge.add_argument("--findings", default=None,
                          help="blocking=A,minor=B,nit=C, passed to aide merge")
+    what.add_parser("ci", help="poll aide status for the current queue "
+                               "branch's checks= until CI answers")
+    p_poll = sub.add_parser("poll-ci", help="what `start ci` runs detached; "
+                                            "blocks until CI answers")
+    p_poll.add_argument("--branch", required=True)
     p_wait = sub.add_parser("wait", help="block up to --for seconds for a run")
     p_wait.add_argument("label")
     p_wait.add_argument("--for", dest="seconds", type=float, default=DEFAULT_WAIT,
@@ -647,6 +849,8 @@ def main(argv: Optional[List[str]] = None, *, root: Optional[Path] = None,
         return exc.code if isinstance(exc.code, int) else EXIT_USAGE
     root = root or _PROJECT_ROOT
     engine = engine or root / ".aide" / "scripts" / "aide.py"
+    if args.verb == "poll-ci":
+        return poll_ci(args.branch, _status_reader(root, engine))
     try:
         directory = state_dir(root)
         if args.verb == "wait":
@@ -656,6 +860,8 @@ def main(argv: Optional[List[str]] = None, *, root: Optional[Path] = None,
             return stop_run(args.label, directory)
         if args.what == "suite":
             label = start_run("suite", suite_command(root, engine), root, directory)
+        elif args.what == "ci":
+            label = start_run("ci", ci_command(root, engine), root, directory)
         else:
             if args.number < 0 or (args.rounds is not None and args.rounds < 0):
                 raise UsageError("item number and --rounds must be non-negative")

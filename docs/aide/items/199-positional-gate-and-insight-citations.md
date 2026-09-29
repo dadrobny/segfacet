@@ -106,7 +106,7 @@ none anywhere else under `docs/aide`.
 
 ## Assumptions
 
-- **A1 (engine 2.20.1):** The lint is `aide.py`'s `_GATE_POSITION_RE`
+- **A1 (engine 2.20.1, re-checked 2.24.0):** The lint is `aide.py`'s `_GATE_POSITION_RE`
   (`gate`/`gates`/`human gate`, then an optional `#`, then 1–3 digits) and
   `_positional_citations` (`insight`/`insights`/`inbox`, optionally followed
   by `entry`, then a number, or a bare `entry N` on a line that also says
@@ -211,7 +211,7 @@ none anywhere else under `docs/aide`.
   bracketed ID: `human gate [gate-2765]`, `[gate-d024]`, `[insight <ID>]`.
   The bracket marks the alteration. The original stays recoverable from the
   commit or the inbox line, which this item leaves unchanged.
-- **A6 (engine 2.20.1):** The "gates 0NN" lint false positive is filed
+- **A6 (engine 2.20.1, re-checked 2.24.0):** The "gates 0NN" lint false positive is filed
   upstream as aide-loop#335 (insight 2026-09-29-ea51). The queue asks for the
   reword now, rather than waiting for the upstream fix. The inserted word
   "items" breaks the match (`gates items 041/042`) and makes the phrase

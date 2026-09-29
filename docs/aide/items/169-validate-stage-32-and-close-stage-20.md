@@ -329,13 +329,17 @@ AC35 precedent).
   2026-09-20). Criterion 1 is ticked with a 2026-09-03 correction and criterion 2
   is ticked from item 137; both are left exactly as they stand. Re-attesting a
   ticked box needs `amend`, and nothing measured here corrects either.
-- **A4 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1): no verb writes ❌ or annotates an unticked box.** `aide
+- **A4 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0): no verb writes ❌ or annotates an unticked box.** `aide
   progress set` takes only `in-progress | in-review | done`, and `accept` /
   `amend` / `retract` act on acceptance boxes, not deliverable bullets. So AC13's
   ⏸️ → ❌ flip and AC14's criterion-1 reason annotation are hand edits to
   `progress.md` — the item 151 A4 / item 161 A6 precedent. Both are inside the
-  always-authorised `progress.md`.
-- **A5 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1): Stage 32's D0 and D3 deliverable bullets carry no
+  always-authorised `progress.md`. **Re-check 2026-09-29 (engine 2.24.0):**
+  `aide progress set` has also taken `deferred --reason …` since engine 2.5.0,
+  which writes ⏸️, so the "only" in the second sentence was already stale at
+  the 2.20.1 re-check. The conclusion holds: no verb writes ❌, and none
+  annotates an unticked box.
+- **A5 (engine 1.59.2, re-checked 2.1.0, re-checked 2.20.1, re-checked 2.24.0): Stage 32's D0 and D3 deliverable bullets carry no
   `*(Item NNN)*` marker.** This item's own deliverable bullet lives in Stage 20
   (`📋 Stage 20 end-to-end validation … *(Item 169)*`), so `aide progress set 169
   …` and `aide merge` move that bullet and no Stage 32 bullet. Stage 32 therefore

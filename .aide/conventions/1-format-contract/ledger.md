@@ -68,8 +68,9 @@ project's own ratios and their trend.
   rounds and landed and one that cost three rounds and was dropped are
   opposite facts about the same counts. It is the writing verb's own answer,
   never a judgement. *(aide merge, ledger abandon, check)*
-- **`kind` is `normal`, `maintenance` or `validate-stage`.** An item whose
-  title opens `Validate stage N` is test-heavy by design, and an
+- **`kind` is `normal`, `maintenance` or `validate-stage`.** A queue-end
+  item, whose title opens `Validate stage N` (§1 → `queue-NNN.md`), is
+  test-heavy by design, and an
   insight-derived fix (§1 → the maintenance queue) is small by design, so a
   reading of tests per criterion treats each by kind rather than pooling the
   three. The engine derives it, so the vocabulary is closed. *(aide merge,

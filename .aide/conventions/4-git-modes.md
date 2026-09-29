@@ -160,6 +160,17 @@ caller deciding whether the loop is blocked reads those two lines rather than
 its own reading of the branches, and takes "could not look" as an answer of
 its own, never as "no PR". `aide status -h` states each field and value.
 
+**A queue's own PR is opened and marked ready by the engine.** `aide queue
+pr` opens the queue branch's draft PR against the base `aide queue start`
+recorded; `aide queue ready` marks it ready for review, and `--undo` turns it
+back into a draft. Each acts on the PR whose head is the queue branch and on
+nothing else, and refuses in `local` mode or with no remote. `aide status`
+reports that PR's CI state on its stack line, and tells a draft sent back for
+a fix round from one never marked ready. A caller waiting on CI reads it
+there, never by asking the forge itself, and does not take a first "no
+checks" just after a push as the answer: CI may not have started yet.
+`aide queue -h` and `aide status -h` state the mechanism.
+
 ### Rationale
 
 - **Why `local` is stated apart from the landing modes.** The opener used to
@@ -341,3 +352,10 @@ its own, never as "no PR". `aide status -h` states each field and value.
 - **Why a reopened lower queue is built on its own branch.** Built on the
   upper one, the fix lands in the PR that did not ask for it, and the lower
   queue's PR could be merged with the item still 📋 in it.
+- **Why the engine owns the queue PR.** `gh pr create` and `gh pr ready` can
+  touch any pull request, so they stay behind a person's approval, and an
+  unattended run could neither open its queue's draft PR nor start CI by
+  marking it ready (issue #330). A verb that can touch only the queue's own
+  PR is narrow enough to pre-approve, the way `aide claim` makes its own
+  push. CI state comes from `status` for the same reason `pr=` does: the
+  command and the engine must not disagree about the forge.

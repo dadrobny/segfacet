@@ -1,6 +1,6 @@
 ---
 name: aide-off-platform-verification
-description: Load before reading a pushed branch's CI result — no role in this loop sees a non-Linux checkout or real CI status, so look at the gate that does, and read a red leg as portability (conventions §7).
+description: Load before reading or acting on a pushed branch's CI result — no role in this loop sees a non-Linux checkout or real CI status, so look at the gate that does, and read a red leg as portability (conventions §7).
 user-invocable: false
 paths:
   - "**/.github/workflows/*.yml"
@@ -22,8 +22,9 @@ the section below that heading; `.aide/conventions.md` resolves any `§N`.
 ## 7. Verify on a platform this loop never runs on
 
 Governs what a role does with a pushed branch's CI result, and how a red leg
-is read. The validator acts on it once its push exists; §6 covers the leg it
-can see, this section the one it cannot.
+is read. Its readers are the queue-end step, which reads CI once the queue's
+PR is marked ready, and the builder dispatched with the CI findings it
+reports; §6 covers the leg a role can see, this section the one it cannot.
 
 **No role in this loop
 sees a non-Linux checkout, a different working directory, or real CI status**,
@@ -35,3 +36,8 @@ so the honest response is to look at the one gate that does:
   for a platform the loop cannot reach.
 - When CI is red on a leg that passed locally, treat it as a **portability
   finding first** (§6), not a flake, until the log says otherwise.
+- A red check on the queue's PR is fixed through **the item whose change it
+  traces to**: that item is reopened, rebuilt within its own spec and
+  authorised paths, validated and merged back, and CI runs again once the
+  queue is exhausted. The round, its cap and what traces to no item are the
+  queue-end step's (`.aide/README.md`).

@@ -143,15 +143,17 @@ section, naming the package or tool, its declaration and the required fallback;
 and `progress.md`'s optional verification table, one row per capability,
 starting `❓ Unverified` and flipped to `✅ Verified (date, host/CI)` only when
 something that actually has the dependency has run the gated path, **never
-inferred from the stage's own ✅ status**. **A stage-closing item's
+inferred from the stage's own ✅ status**. **The queue-end item's
 Implementation Steps must add/update the row(s) for any capability its stage
 introduced.** Both mechanisms are opt-in. A named `[validation]` profile in
 `aide.toml` makes the check deterministic (`aide env --profile <name>`), and
 **item specs may also carry an optional Validation section (see the item
 template) that the validator must execute**. The stage's own replay is an item
-like any other: **a queue that closes a roadmap stage ends with a `Validate
-stage N` item that replays the stage's use cases end-to-end and updates the
-capability table** — ✅ Verified where the profile is satisfied, else an
+like any other: a stage with an open row, or with an item declaring a gated
+capability that has no row — yours included — is one `aide check --queue`
+reports as needing a queue-end item, so **the queue that closes it ends with
+a `Validate stage N` item that replays the stage's use cases end-to-end and
+updates the capability table** — ✅ Verified where the profile is satisfied, else an
 explicit ❓ Unverified with the reason: **a row still `❓ Unverified` once its
 stage is ✅ records why in its Notes cell**, and **a row names the
 `[validation]` profile that would verify it in its Package / Tool cell, as

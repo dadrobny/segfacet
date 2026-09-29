@@ -74,6 +74,13 @@ lowest-numbered one with open items).
    what the loop asked), and dependency cycles or dependencies on items that
    exist nowhere. Fix each by amending a spec, naming which side changed.
 
+   It also reports `queue-end-needed` and `queue-end-idle` warnings, which no
+   spec amendment of yours settles: relay them to the user for the plan gate —
+   a stage whose need no planned queue-end item meets, or a planned one with
+   nothing left to do, which is theirs to drop. What each means is
+   `aide check -h`, and the rule behind them is `/aide-create-queue`
+   requirement 5.
+
    Then spawn the **`spec-reviewer`** agent once, for what the check cannot
    decide, because it turns on what a criterion *means* rather than what a spec
    declares — an AC that cannot be satisfied without touching a path its own
@@ -110,10 +117,11 @@ lowest-numbered one with open items).
      never approve it yourself. Execution then runs on the queue branch
      (`/aide-run-roadmap`, or `/aide-run-queue NNN` with the branch checked
      out), claiming per-item branches as usual.
-   - **On a specs-queue branch**, open a PR for human review of the whole spec
-     set (`gh pr create` is ask-gated — that pause is intended). After it
-     merges, run `/aide-run-queue NNN` from `main` — execution proceeds
-     unattended, claiming per-item branches as usual.
+   - **On a specs-queue branch**, stop and tell the user to open a PR for
+     human review of the whole spec set. `aide queue pr` opens only a queue
+     branch's PR, so this one is theirs to open (§3). After it merges, run
+     `/aide-run-queue NNN` from `main` — execution proceeds unattended,
+     claiming per-item branches as usual.
 
 ## Hard limits
 

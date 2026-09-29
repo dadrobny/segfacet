@@ -1,5 +1,5 @@
 ---
-description: Iterate one AIDE queue to completion — `aide claim` claims each item, then /aide-run-item drives it (spec → tests → build → validate → merge) — looping until that queue is empty, then stops. Does NOT create the next queue. Pauses only for PRs and major structural changes.
+description: Iterate one AIDE queue to completion — `aide claim` claims each item, then /aide-run-item drives it (spec → tests → build → validate → merge) — looping until that queue is empty, then runs the queue-end step (mark the queue PR ready, wait for CI, read it; on red, a CI fix round through the items that caused it) and stops. Does NOT create the next queue. Pauses only for PRs and major structural changes.
 argument-hint: "[queue number, e.g. 001 — optional; defaults to the lowest-numbered queue with open items]"
 ---
 
@@ -73,6 +73,25 @@ stranded otherwise.
 5. Process each resumed item to PASS+merge (or a user-stop) before claiming new
    work below.
 
+**A queue branch with no PR gets its draft now.** When the checked-out branch
+is a queue branch (`<prefix>queue-NNN`), find its `stack N:` line in
+`python .aide/scripts/aide.py status` and read `pr=`:
+
+- **`pr=none`** — open the draft before claiming the first item, so the queue
+  end has a PR to mark ready:
+  ```
+  python .aide/scripts/aide.py queue pr --body "Work queue NNN. The plan is docs/aide/queue/queue-NNN.md on this branch; items merge into it as they pass validation."
+  ```
+  It pushes the branch first and titles the PR itself. On exit 1 relay its
+  sentence and stop — above all a PR on the branch that was **closed or
+  merged**, which a person decided and no second PR goes over.
+- **`pr=#N/…` open or draft** (a draft may read `#N/draft(fixing)`, so match
+  `/draft` as a prefix) — carry on.
+- **`pr=-`** (`local` mode) or **`pr=unknown`** — carry on, saying so for
+  `unknown`; the queue-end step reports it again when it needs the PR.
+- **`pr=#N/merged` or `#N/closed`** — stop and report it: this queue's batch
+  was already decided.
+
 ## Loop
 
 Repeat until `aide claim` reports no remaining unclaimed 📋 item **in this queue**:
@@ -89,10 +108,15 @@ Repeat until `aide claim` reports no remaining unclaimed 📋 item **in this que
 2. **Decide (orchestrator).**
    - **Item claimed** → go to step 3.
    - **`none left` alone on the line** → the queue is exhausted; go to
-     **On queue exhaustion**.
+     **Queue end**.
+   - **`none left — …` whose last line is `early ready: yes`**, exit 0 → every
+     open item waits on a human gate and built work has landed. Relay the
+     gate lines verbatim, run **Queue end** as an *early ready*, and stop:
+     the gate is a person's, and its result is informational.
    - **`none left — …` followed by per-item reasons** → the queue is still open
      and nothing in it is offerable. This is **not** exhaustion. On exit 0 (a
-     gate, a claim already in flight, a dependency not landed) relay the reasons
+     gate, a claim already in flight, a dependency not landed — the last line
+     reads `early ready: no — …`) relay the reasons
      verbatim and stop. On a **non-zero** exit something is broken — an
      *unpublished claim* (an `aide claim` whose push failed), or a human-gates
      row `aide` cannot read, which holds every item — so surface it verbatim
@@ -108,26 +132,127 @@ Repeat until `aide claim` reports no remaining unclaimed 📋 item **in this que
    merged/failed, key facts). If the item reported a **PR / force-push /
    structural** stop, **pause and ask the user**. Otherwise continue to step 1.
 
-## On queue exhaustion
+## Queue end
 
-When `aide claim` reports no 📋 items remain in this queue, first sweep up any
-leftover claim branches (merged work leaves none in `auto-merge` mode; abandoned
-claims do): `python .aide/scripts/aide.py gc` to preview, then re-run with
-`--yes` if the list is right. The preview is exactly the set `--yes` deletes,
-and `gc` deletes on the ✅ ground only after asking git whether the work
-actually landed — so a branch it lists is one whose content is already in the
-base. **A `pr`-mode item awaiting its merge is 🔍, not ✅, so it is never in
-that list**; report those as awaiting review instead. Then **stop** and report:
-items completed, items awaiting review, branches merged/cleaned, and final test
-status. Point the user at
-the next move (do **not** generate the next queue yourself):
+This is the queue-end step `.aide/README.md` → *The queue-end step* defines
+(what triggers it, what each answer means); here is how this runtime runs it.
+`/aide-run-roadmap` → **Queue end** runs this section too.
 
-- **Run on a queue branch?** Its items have all merged into it, so the queue's
-  PR — opened as a draft when the queue was planned — now carries the whole
-  batch and is the thing to mark ready and merge: `gh pr ready
-  <prefix>queue-NNN` (`ask`-gated; under `/aide-run-roadmap` that is its
-  **Queue end** step). The next queue is planned only after that PR merges,
-  unless `[loop] max_open_queues` lets it start on top of this branch.
+1. **Clean up.** `python .aide/scripts/aide.py gc` to preview, then re-run
+   with `--yes` if the list is right. The preview is exactly the set `--yes`
+   deletes, and `gc` deletes on the ✅ ground only after asking git whether
+   the work actually landed. **A `pr`-mode item awaiting its merge is 🔍, not
+   ✅, so it is never in that list**; report those as awaiting review instead.
+2. **No queue branch, no PR.** A legacy queue run from `main` has no queue
+   PR: skip to the report.
+3. **Mark it ready.** `python .aide/scripts/aide.py queue ready`. On exit 1
+   relay its sentence and go to the report: `local` mode or no origin (no
+   forge exists — the merge gate already ran the suite), no PR, or a closed
+   or merged one.
+4. **Wait for CI, in this session.** Start the poll, then wait on its label
+   until it answers:
+   ```
+   python .claude/scripts/await_run.py start ci
+   python .claude/scripts/await_run.py wait <label> --for 540
+   ```
+   Give each `wait` Bash call `timeout: 600000`: the tool's default of
+   120000 ms ends a 540-second wait as a timeout. Exit 75 is "still waiting":
+   call `wait` again with the same label. Each call then stays under the Bash
+   tool's ceiling, and the wait belongs to this
+   orchestrator, never to a sub-agent or a backgrounded command: its cache
+   outlives a 540-second wait, and a sub-agent that ends its turn to wait is
+   never woken. The poll reads `aide status`, so it never asks the forge
+   itself, and it does not take a first `checks=none` as the answer.
+5. **Read the exit code** `wait` returns once the poll has answered:
+
+   | Code | `checks=` | Do |
+   |---|---|---|
+   | 0 | `success` | Report CI green, and stop for the merge — under `/aide-run-roadmap`, go back to its **Queue end** for the stack decision. |
+   | 10 | `failure` | Every leg has finished (the poll waits out each `pending check:`). Report each `failing check:` line from the tail, then run the **CI fix round** below — unless this was an early ready (step 6). |
+   | 11 | `none` | Report that no CI ran on the PR: no workflow, or a trigger that ignores it (`.aide/README.md` names the trigger to use). |
+   | 12 | `unknown` | Report the `checks unknown:` reason and stop. |
+   | 13 | — | No PR, a closed or merged one, or the branch is no longer an unmerged queue branch: report it. |
+   | 15 | — | The PR is a draft. Plain `#N/draft`: `queue ready` did not take — run step 3 again, then restart the wait once; a second 15 is a stop. `#N/draft(fixing)`: a CI fix round is under way and its reopened items are still open — go back to **Loop** and claim them; a claim that offers none is reported, and the run stops. |
+   | 14 | `pending` | CI was still running after an hour: report it; a re-run of this section waits again. When the tail already names a `failing check:` beside the `pending check:` legs, report those failing lines too: they are known, so the user can start the **CI fix round** on them now or re-run the wait for the rest. |
+   | other | — | The poll itself broke (90 died, 91 stopped, 1 a crash): report the tail and stop. |
+
+6. **After an early ready**, stop whatever the answer — a red one runs no
+   fix round: the gated items land later, each merge pushes, and this
+   section runs again when `aide claim` next prints a bare `none left`.
+   That run's answer is the one that counts.
+
+### CI fix round
+
+`.aide/README.md` → *The CI fix round* defines it; this is how this runtime
+runs it. You triage and dispatch; the fixing is `/aide-run-item`'s, through
+the item's own spec.
+
+1. **Count.** Read the `ci fix rounds: N` line from the wait's tail (none
+   there: 0). Read `loop.validation_rounds` from `aide.toml` (5 when
+   unset). At or past it, **stop**: report the failing checks and the
+   last round's reopen reasons, and hand the findings to the user.
+2. **Triage** every failing check before reopening anything. List them with
+   `gh pr checks <prefix>queue-NNN`, whose links carry each run's ID, and
+   read each failed log with `gh run view <run-id> --log-failed`; a check
+   that is not a GitHub Actions run has no run ID, so pass its link to the
+   user instead of reading it. Split a
+   check into findings, one per failing test or step; rank each on the §9
+   scale and triage it in scope (the queue's change caused it) or out of
+   scope (one `insights.md` line, opening with its rank word, and nothing
+   dispatched). A leg that failed here and passed locally is a portability
+   finding first (§7). Red from the platform itself (a broken image, a
+   network drop, a cancelled job) is no finding: name that check for the
+   user to re-run. **With no in-scope finding left, stop here**
+   and report, before the undo: the PR stays ready and no round is
+   counted.
+3. **Trace** every in-scope finding to its item:
+   - `test_NNN_*` failing → item NNN;
+   - otherwise the branch's history, `<base>` being the stack line's
+     `base=`. This lists what landed, each item's work closed by its
+     `progress(aide): item NNN -> done` commit:
+     ```
+     git log --first-parent --format="%h %s" <base>..HEAD
+     ```
+     and this the commits that touched a failing path:
+     ```
+     git log --format="%h %s" <base>..HEAD -- <path>
+     ```
+   - several items' changes in one finding → each of them; a failure only
+     their combination produces → the later-merged of the two, its reason
+     naming the other item;
+   - no item at all (CI configuration, a runner image) → the queue's
+     `Validate stage N` item if the queue file lists one; if not, **stop**
+     with the findings, nothing reopened and the PR left ready.
+4. **Back to draft**, before the first reopening:
+   `python .aide/scripts/aide.py queue ready --undo`. On exit 1 relay its
+   sentence and stop. A session that dies after this and before the first
+   reopening leaves a plain draft; a resume finds the queue exhausted and
+   marks it ready again at **Queue end** step 3, without counting a round
+   — accepted, since it costs CI minutes only.
+5. **Reopen** every traced item, one call each, all before the first claim:
+   ```
+   python .aide/scripts/aide.py progress reopen K --reason "CI <check>: <failing test or step>"
+   ```
+   Keep the `CI ` prefix: the engine stamps the round from it. Several
+   findings on one item go in one reason, separated by `; `.
+6. **Fix.** Go back to **Loop**. `aide claim --queue NNN` offers each
+   reopened item as it offers any 📋 one, and `/aide-run-item K` runs it
+   with the findings in its builder's brief (that command, *An item a CI fix
+   round reopened*). Pass them on from your triage; in a fresh session they
+   are the item's `reopened:` reason in `aide status`. Its merge ticks the
+   `gap` the reopening captured; nothing is left to close on green.
+7. When `aide claim` prints a bare `none left` again, **Queue end** runs
+   again from its step 1; the `aide queue ready` there is what sets off
+   this round's CI run.
+
+Then **report**: items completed, items awaiting review, branches
+merged/cleaned, the CI answer, and final test status. Point the user at the
+next move (do **not** generate the next queue yourself):
+
+- **On a queue branch**, the PR now carries the whole batch and is marked
+  ready: review and merge it. The next queue is planned only after that PR
+  merges, unless `[loop] max_open_queues` lets it start on top of this
+  branch.
 - **Driving the whole roadmap?** Run **`/aide-run-roadmap`** — it plans the
   next queue on its own branch behind a draft PR and a plan gate, and re-enters
   this command on that branch once the gate is approved.
@@ -150,7 +275,13 @@ reached the batch's sessions, and rotates that log.
   may keep going; an `all` gate stops everything. A queue's own plan gate, raised by
   `aide queue gate` when `/aide-run-roadmap` planned it, holds every item in the
   queue — or every item of the stage it opens — so the whole queue waits on it:
-  the human reviews the queue's draft PR and approves it.
+  the human reviews the queue's draft PR and approves it. When the report's
+  last line is `early ready: yes`, run **Queue end** before stopping.
+- **Queue end** answers anything but CI `success` or `failure` (the table in
+  its step 5), or `aide queue pr` / `aide queue ready` refuses.
+- A **CI fix round** reaches `loop.validation_rounds`, finds no in-scope
+  finding (every red check infrastructure, flaky or out of scope), or traces
+  a finding to no item on a queue with no `Validate stage N` item.
 - `/aide-run-item` hands back needing a **PR**, **force-push**, or history rewrite.
 - An item needs a **major structural change** or an edit to a framework/process
   file (`CLAUDE.md`, `aide.toml`, `.aide/**`, `vision.md`, `roadmap.md`,

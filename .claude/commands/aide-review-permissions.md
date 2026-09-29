@@ -56,8 +56,8 @@ Target log: **$ARGUMENTS** (if empty, the default
 
 4. **Land via PR.** The settings file you edited — overlay or `settings.json` — is a
    framework/process file: per `CLAUDE.md` the change must go on a branch and merge
-   **only after PR review** — do **not** direct-merge. State this to the user; stop
-   at the PR (gh pr create is `ask`-gated).
+   **only after PR review** — do **not** direct-merge. State this to the user:
+   the PR is theirs to open, never yours (`.aide/conventions.md` §3).
 
 5. **Rotate the log** so the same prompts aren't re-reviewed next time and the
    raw log doesn't grow without bound. Run:

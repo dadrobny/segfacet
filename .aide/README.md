@@ -100,6 +100,134 @@ If your runtime can't nest prompt-expansions the way Claude Code does, satisfy
 the contract with a manual runbook calling the same `aide.py` steps in the same
 order.
 
+### The queue-end step
+
+Both queue runners end a queue branch the same way: `/aide-run-queue` runs
+this step on its way out, and `/aide-run-roadmap` runs it and then makes its
+own decision about the stack. A queue run from `main` has no queue PR, and
+nor does `local` mode or a checkout with no remote; there the step reports
+that no forge exists and ends, since the merge gate has already run the suite
+locally.
+
+1. **Trigger.** `aide claim` prints a bare `none left`, so the queue is
+   exhausted; or it prints a `none left — …` report ending `early ready:
+   yes`, so every open item waits on a human gate and some of the queue has
+   landed. That second case is an **early ready**: CI runs while a person
+   decides. Any other report stops the run as before, and a non-zero exit (an
+   unpublished claim, a gate row `aide` cannot read) is a broken state that
+   stops it too. `aide claim -h` states when the fact reads `yes`. A bare
+   `none left` means no 📋 item is left, not that every item is ✅: an item
+   still 🚧 or 🔍 that no planned item waits on can remain, and the PR is
+   marked ready without it. The runner resumes a 🚧 claim before claiming,
+   and a 🔍 item under `pr` mode lands when its own PR merges.
+2. **Clean up.** `aide gc` previews the claim branches it would delete;
+   `aide gc --yes` deletes them once the list is right.
+3. **Mark the PR ready.** `aide queue ready` pushes the branch where origin
+   lacks its commits and marks the queue's PR ready for review. A refusal
+   ends the step with its sentence reported: no PR (`aide queue pr` opens
+   the draft), a closed or merged one, `local` mode, or no remote.
+4. **Wait for CI.** Read the branch's `checks=` from `aide status`, in
+   bounded waits that each fit inside one tool call of the runtime; the
+   orchestrator waits in its own session rather than handing the wait to a
+   sub-agent. `pending` is not an answer, and neither is a first `none` just
+   after the ready: CI may not have registered a run yet. Nor is `failure`
+   while a `pending check:` line remains under it: a red answer is final
+   only once every leg has finished, since a leg still running may fail too
+   and its log cannot be read yet.
+5. **Read the answer.**
+   - `success`: stop for the merge. Under `/aide-run-roadmap`, go on to its
+     stack decision.
+   - `failure`: run the **CI fix round** (below). After an early ready
+     the answer is informational instead: report each `failing check:`
+     line and stop, since the gated items are still to land.
+   - `none`: report that no CI ran on the PR, naming the likely cause: no
+     workflow, or a trigger that ignores this PR (below).
+   - `unknown`: report the `checks unknown:` reason and stop.
+   - A PR closed or merged during the wait, or one still a draft after
+     `aide queue ready` has been run once more, is reported, and the step
+     stops.
+6. **After an early ready**, the gated items still land later, and each
+   merge pushes the branch. The CI that counts is the run on the **last**
+   push, so the step runs again when `claim` next prints a bare `none left`,
+   and the first run's result is informational.
+
+A queue-end item, where a queue has one, is an ordinary item: it is built
+before the step's trigger, and a gate holding it makes an early ready like
+any other gate.
+
+### The CI fix round
+
+A red check at the queue end is a finding on work already merged into the
+queue branch, so it is fixed through the item whose change it traces to:
+that item is reopened, run again against its own spec and authorised paths,
+validated and merged back, with the same verbs as its first run. One
+round runs from a red answer to the next answer.
+
+1. **Count.** `aide status` prints `ci fix rounds: N` under a red or draft
+   PR's stack line once a round has begun. Once `N` reaches `[loop]
+   validation_rounds` (5 when unset) the cap is reached: report the
+   failing checks and stop, and a person takes the findings.
+2. **Triage** every failing check before anything is reopened: read its log
+   into findings, one per failing test or step, each ranked and scoped as
+   §9 ranks a review finding. A red leg that passed locally is a
+   portability finding first (§7). A check whose failing step is plainly
+   infrastructure — the runner image, the network, a cancelled run — is not
+   a finding: a person re-runs it. With no in-scope finding left, the round
+   stops here and reports, the PR still ready and nothing counted.
+3. **Trace** each in-scope finding to an item:
+   - a failing test in a `test_NNN_*` file belongs to item NNN (§6);
+   - otherwise the queue branch's history names it: each item lands as its
+     claim branch `<prefix>NNN-…` merged in and closed by a
+     `progress(aide): item NNN -> done` commit;
+   - a finding in several items' changes reopens each of them; a failure
+     that only their combination produces goes to the later-merged one,
+     whose reopen reason names the other;
+   - a finding that traces to no item (CI configuration, a runner image)
+     goes to the queue's queue-end item where it has one, and otherwise
+     stops the round with nothing reopened: a person takes it.
+4. **Back to draft.** `aide queue ready --undo`, before the first reopening,
+   so the fix merges push without starting CI. A run that dies between this
+   and the first reopening leaves a plain draft with nothing open, which a
+   resume marks ready again without counting a round; that is accepted, as
+   it costs CI minutes only.
+5. **Reopen** each traced item with `aide progress reopen NNN --reason "CI
+   <check>: <failing test or step>"`, every one before the first claim. The
+   `CI ` prefix is what makes it a CI reopening: `aide progress -h` says how
+   the engine stamps the round.
+6. **Fix.** The queue is open again, so the runner's own loop claims each
+   reopened item and runs it like any other; the builder's brief carries
+   the item's findings, which `aide status` prints as its `reopened:`
+   reason when the session that triaged them is gone. `aide merge` ticks
+   the reopening's `gap` as the item lands (not in `pr` mode, where the
+   merge is a person's and the gap stays open until triage ticks it; `aide
+   merge -h`).
+7. When the queue is exhausted again the queue-end step runs again from its
+   trigger, and its `aide queue ready` starts the round's CI run.
+
+A `(fixing)` draft in `aide status` is a round under way: its reopened items
+are open, and a runner resumes by claiming them.
+
+**The CI trigger to give the queue PR.** Run CI on a pull request once it
+is marked ready, skip drafts, and leave out a `push` trigger: `synchronize`
+already runs on every push to the PR's branch, which `aide queue ready` and
+every later merge make. In GitHub Actions:
+
+```yaml
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+jobs:
+  test:
+    if: github.event.pull_request.draft == false
+```
+
+Put the `if:` on every job. A CI that also runs on drafts still works, but it
+pays for a run on every push while the queue is built, and the step reads
+only the last one. The advice is only to skip push-triggered runs on queue
+branches: a `push: branches: [main]` trigger may stay, for CI on `main`
+after each merge.
+
 ## Model routing by role (capability tiers)
 
 Five sub-agents split work by role, plus one optional sixth. The engine's
@@ -127,8 +255,8 @@ validation. The reviewer is off unless `aide.toml` sets
 
 **Deterministic work is scripted, not delegated** — recon/claim, progress
 reconciliation, queue tidy, the recorded suite run, merge+cleanup, venv check, the consistency check,
-session preflight, branch clean-up, and the state report are all `aide.py`
-subcommands. Agents keep only the reasoning: prioritisation, AC design, test
+session preflight, branch clean-up, opening and marking ready a queue's own
+PR, and the state report are all `aide.py` subcommands. Agents keep only the reasoning: prioritisation, AC design, test
 design, implementation, quality judgment.
 
 ## Merge policy

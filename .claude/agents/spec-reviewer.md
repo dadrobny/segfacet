@@ -134,9 +134,12 @@ written `<docs_dir>/…` below are relative to whatever it is actually set to.
 
 8. **Report.** Return findings grouped by spec, each naming the item, the
    criterion or section, what breaks, and **the choice the human must make** —
-   typically "correct the AC" versus "widen the authorised paths". Say plainly
-   when you found nothing; a clean queue is a real result and must not be
-   dressed up.
+   typically "correct the AC" versus "widen the authorised paths". Carry any
+   `queue-end-needed` or `queue-end-idle` finding in the report through
+   unchanged, as a plan-gate choice for the human (plan the queue-end item it
+   asks for, or drop the idle one) rather than a spec finding — `aide check
+   -h` says what each means. Say plainly when you found nothing; a clean
+   queue is a real result and must not be dressed up.
 
 ## Hard limits
 

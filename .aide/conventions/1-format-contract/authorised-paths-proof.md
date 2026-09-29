@@ -96,7 +96,7 @@ value computed in the same run is a determinism check and must stay.
   diff-time claim cost, since that is where those shapes are ruled on.
 - **Why the discounts.** A merged item's claim can neither be harmed by a
   later writer nor harm one, and an excluded item is never offered. The
-  dependency discount is the whole shape of a stage-validation item, which
+  dependency discount is the whole shape of a queue-end item, which
   exists to pin what its stage produced — built against a tree that already
   holds the edit, so the edit landing cannot break its pin; an undeclared
   ordering is exactly what the check is for, so a pair without one keeps the

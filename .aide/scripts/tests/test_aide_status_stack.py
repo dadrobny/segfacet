@@ -1,5 +1,5 @@
 """Tests for `aide status`'s stack report and its two facts (issue #303) —
-see aide.py `queue_stack_facts`, `_branch_pr` and `_gh`.
+see aide.py `queue_stack_facts`, `_branch_pr_facts` and `_gh`.
 
 Throwaway repositories under ``tmp_path``, stacks built with `aide queue
 start` so every base and start record is one a real run leaves. The forge is
@@ -169,7 +169,7 @@ def test_a_one_queue_stack_reports_its_base_and_pr(tmp_path: Path, monkeypatch, 
     f = _status(repo, capsys)
     assert f["size"] == "1/3"
     assert f["stack"] == [{"name": Q1, "base": "main", "pr": "#7/open",
-                           "lower": "-", "orphaned": "no"}]
+                           "checks": "none", "lower": "-", "orphaned": "no"}]
     assert f["awaiting"] == "yes"
 
 
@@ -266,7 +266,7 @@ def test_a_closed_and_deleted_lower_still_orphans_the_branch_above(
     calls = _forge(monkeypatch, {Q1: [{"number": 7, "state": "CLOSED"}]})
     f = _status(repo, capsys)
     assert f["stack"] == [{"name": Q2, "base": Q1, "pr": "none",
-                           "lower": "gone", "orphaned": "yes"}]
+                           "checks": "-", "lower": "gone", "orphaned": "yes"}]
     assert any(Q1 in c for c in calls)
     assert f["runnable"] == "no"
 
@@ -426,5 +426,5 @@ def test_gh_exiting_non_zero_is_a_reason_naming_the_exit(tmp_path: Path, monkeyp
 
 def test_a_forge_answer_status_cannot_read_is_could_not_look(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(aide, "_gh", lambda repo_root, args: ("not json", None))
-    got, why = aide._branch_pr(tmp_path, Q1)
+    got, why = aide._branch_pr_facts(tmp_path, Q1)
     assert got is None and why

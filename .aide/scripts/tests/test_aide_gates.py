@@ -406,6 +406,190 @@ def test_none_left_names_only_the_gates_that_apply(tmp_path: Path, capsys):
     assert "items 027, 028" in out
 
 
+# --------------------------------------------------------------------------- #
+# early ready — the fact the queue-end step keys on (issue #331)
+# --------------------------------------------------------------------------- #
+def _early_repo(tmp_path: Path, rows: str, *, done=(), deps=None) -> Path:
+    """`_repo`, with the named deliverables ✅ and item specs naming *deps*."""
+    repo = _repo(tmp_path, rows)
+    ppath = repo / "docs" / "aide" / "progress.md"
+    text = ppath.read_text(encoding="utf-8")
+    for letter, num in (("A", 27), ("B", 28)):
+        if num in done:
+            text = text.replace(f"- 📋 {letter}. *(Item {num:03d})*",
+                                f"- ✅ {letter}. *(Item {num:03d})*")
+    ppath.write_text(text, encoding="utf-8")
+    items = repo / "docs" / "aide" / "items"
+    items.mkdir(exist_ok=True)
+    for num, dep in (deps or {}).items():
+        (items / f"{num:03d}-x.md").write_text(
+            f"# Item {num:03d} — X\n\n## Dependencies\n- Item {dep:03d}.\n\n"
+            f"## End\n", encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "state", "--allow-empty"], repo)
+    return repo
+
+
+def _early_line(out: str) -> str:
+    return [l for l in out.splitlines() if l.startswith("early ready:")][-1]
+
+
+def test_early_ready_is_yes_when_every_open_item_waits_on_a_gate(
+        tmp_path: Path, capsys):
+    """027 landed, 028 held by a gate: only a person stands between the queue
+    and its end, and there is built work for CI to check meanwhile."""
+    repo = _early_repo(tmp_path, AWAITING, done=(27,))
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert out.splitlines()[-1] == _early_line(out)
+    assert _early_line(out).startswith("early ready: yes — ")
+
+
+def test_an_item_waiting_only_on_a_gated_item_is_held_by_the_gate(
+        tmp_path: Path, capsys):
+    """028 is not named by the gate, but it waits on 027, which is — so the
+    gate is what holds it too."""
+    repo = _early_repo(tmp_path, "| G | 027 | ⏳ Awaiting | — |",
+                       deps={28: 27})
+    ppath = repo / "docs" / "aide" / "progress.md"
+    # A third, landed item, so the ✅ clause is not what decides this case.
+    ppath.write_text(ppath.read_text(encoding="utf-8").replace(
+        "- 📋 B. *(Item 028)*", "- 📋 B. *(Item 028)*\n- ✅ C. *(Item 026)*"),
+        encoding="utf-8")
+    qpath = repo / "docs" / "aide" / "queue" / "queue-003.md"
+    qpath.write_text(QUEUE + "\n### Item 026: Gamma\nC.\n", encoding="utf-8")
+    _run(["git", "commit", "-am", "third item"], repo)
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    assert _early_line(capsys.readouterr().out).startswith("early ready: yes")
+
+
+def test_early_ready_is_no_before_any_item_has_landed(tmp_path: Path, capsys):
+    """A queue held whole by its plan gate has nothing built: marking its PR
+    ready would ask for a review of a plan as if it were a batch."""
+    repo = _early_repo(tmp_path, ALL)
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    line = _early_line(capsys.readouterr().out)
+    assert line.startswith("early ready: no — ") and "✅" in line
+
+
+def test_early_ready_is_no_while_an_open_item_is_claimed(tmp_path: Path, capsys):
+    """027 in flight beside a gated 028: the queue is still being built."""
+    repo = _early_repo(tmp_path, AWAITING)
+    _run(["git", "switch", "-c", "aide/027-alpha"], repo)
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "held by an unresolved human gate" in out
+    assert _early_line(out) == ("early ready: no — 027 is claimed, so work is "
+                                "still in flight")
+
+
+def test_early_ready_is_no_when_no_gate_explains_the_hold(tmp_path: Path, capsys):
+    """Both items claimed, no gate: the per-item report carries the fact too."""
+    repo = _early_repo(tmp_path, "| Unrelated | 999 | ⏳ Awaiting | — |")
+    _run(["git", "switch", "-c", "aide/027-alpha"], repo)
+    _run(["git", "switch", "-c", "aide/028-beta"], repo)
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    assert _early_line(capsys.readouterr().out) == (
+        "early ready: no — no gate holds an open item")
+
+
+def _queue_repo(tmp_path: Path, rows: str, items, deps=None) -> Path:
+    """A queue listing *items* — ``(number, icon)`` in queue order — under
+    *rows*, with item specs whose Dependencies name *deps* (number -> list)."""
+    repo = _repo(tmp_path, rows)
+    d = repo / "docs" / "aide"
+    bullets = "\n".join(f"- {icon} X{n}. *(Item {n:03d})*" for n, icon in items)
+    text = (d / "progress.md").read_text(encoding="utf-8").replace(
+        "- 📋 A. *(Item 027)*\n- 📋 B. *(Item 028)*", bullets)
+    (d / "progress.md").write_text(text, encoding="utf-8")
+    (d / "queue" / "queue-003.md").write_text(
+        "# Demo — Work Queue 003\n\n" + "".join(
+            f"### Item {n:03d}: X{n}\nX.\n\n" for n, _ in items), encoding="utf-8")
+    (d / "items").mkdir(exist_ok=True)
+    for n, ds in (deps or {}).items():
+        named = "\n".join(f"- Item {x:03d}." for x in ds)
+        (d / "items" / f"{n:03d}-x.md").write_text(
+            f"# Item {n:03d} — X\n\n## Dependencies\n{named}\n\n## End\n",
+            encoding="utf-8")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "queue"], repo)
+    return repo
+
+
+def _claim_out(repo: Path, capsys) -> str:
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    return capsys.readouterr().out
+
+
+def test_a_chain_listed_before_the_gated_item_it_hangs_off_is_held(
+        tmp_path: Path, capsys):
+    """027 waits on 028, which waits on 029, which the gate holds — each
+    dependent listed before its dependency, so one pass in queue order is not
+    enough and the fixed point has to be reached."""
+    repo = _queue_repo(tmp_path, "| G | 029 | ⏳ Awaiting | — |",
+                       [(26, "✅"), (27, "📋"), (28, "📋"), (29, "📋")],
+                       deps={27: [28], 28: [29]})
+    assert _early_line(_claim_out(repo, capsys)).startswith("early ready: yes")
+
+
+def test_a_landed_dependency_does_not_loosen_a_held_item(tmp_path: Path, capsys):
+    """028 names 026 (✅) and 027 (gated): only 027 still blocks it."""
+    repo = _queue_repo(tmp_path, "| G | 027 | ⏳ Awaiting | — |",
+                       [(26, "✅"), (27, "📋"), (28, "📋")], deps={28: [26, 27]})
+    assert _early_line(_claim_out(repo, capsys)).startswith("early ready: yes")
+
+
+def test_a_claimed_gated_item_is_work_in_flight(tmp_path: Path, capsys):
+    """A branch on 028 means someone is building it, gate or no gate."""
+    repo = _early_repo(tmp_path, AWAITING, done=(27,))
+    _run(["git", "switch", "-c", "aide/028-beta"], repo)
+    assert _early_line(_claim_out(repo, capsys)) == (
+        "early ready: no — 028 is claimed, so work is still in flight")
+
+
+def test_a_declined_gate_is_no_early_ready(tmp_path: Path, capsys):
+    """Declined is a decision already made against the plan, not one pending:
+    the held item is re-planned, so the queue is not about to end."""
+    repo = _early_repo(tmp_path, "| G | 028 | ❌ Declined (2026-08-18) | keep v0 |",
+                       done=(27,))
+    out = _claim_out(repo, capsys)
+    assert "held by an unresolved human gate" in out
+    assert _early_line(out) == ("early ready: no — gate 1 is declined, so the "
+                                "plan is re-planned, not shipped")
+
+
+def test_an_all_gate_over_a_queue_with_nothing_open_says_so(tmp_path: Path, capsys):
+    """027 landed, 028 in review, an `all` gate awaiting: nothing is open to
+    wait on the gate, so the yes is worded for that rather than claiming
+    every open item waits on it."""
+    repo = _queue_repo(tmp_path, ALL, [(27, "✅"), (28, "🔍")])
+    assert _early_line(_claim_out(repo, capsys)) == (
+        "early ready: yes — nothing is left open, a human gate holds the "
+        "queue's end, and 1 item(s) are ✅")
+
+
+def test_an_unpublished_claim_behind_a_gate_exits_1_with_no_early_line(
+        tmp_path: Path, capsys):
+    """A broken state is not hidden behind a gate: 027's claim never reached
+    origin, and the gate report must not read as a normal hold."""
+    repo = _repo(tmp_path, AWAITING)
+    toml = repo / "aide.toml"
+    toml.write_text(toml.read_text(encoding="utf-8").replace(
+        'mode = "local"', 'mode = "auto-merge"'), encoding="utf-8")
+    _run(["git", "commit", "-am", "auto-merge"], repo)
+    remote = tmp_path / "origin.git"
+    _run(["git", "init", "--bare", "-b", "main", str(remote)], tmp_path)
+    _run(["git", "remote", "add", "origin", str(remote)], repo)
+    _run(["git", "push", "-u", "origin", "main"], repo)
+    _run(["git", "branch", "aide/027-alpha"], repo)       # never pushed
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 1
+    out = capsys.readouterr().out
+    assert "held by an unresolved human gate" in out
+    assert "WHICH ORIGIN HAS NEVER SEEN" in out
+    assert "git push -u origin <branch>" in out
+    assert "early ready:" not in out
+
+
 def test_a_note_containing_a_pipe_is_refused():
     """`|` would add a column; a wrong-arity row is skipped by the parser, so a
     still-blocking gate would silently disappear."""
@@ -446,6 +630,7 @@ def test_claim_holds_every_item_behind_an_unreadable_gate_row(tmp_path: Path, ca
     assert "item 027" not in out
     assert "human-gate row aide cannot read" in out
     assert "has 5 cells, not 4" in out
+    assert "early ready:" not in out
 
 
 def test_an_unreadable_gate_row_holds_everything_beside_a_readable_gate(
