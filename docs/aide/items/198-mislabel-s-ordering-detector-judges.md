@@ -165,6 +165,29 @@ re-measures each value on the real change.
     the same inheritance `consistency.py` already uses for its own refit.
   - Without this, `T13_MAP` would reuse a curve fitted through L1–L4 then T13,
     which doubles back.
+  - **Correction (2026-09-29, validation hand-back).** A4 stands. It
+    contradicts `tests/test_130_one_closest_point_search.py::test_ac19_pipeline_binds_one_fit_and_reuses_it`,
+    which this spec's sweep missed because it reads `pipeline.py`'s source
+    text, not a behaviour. That test requires the bare token `fit` among
+    `compute_monotonic_consistency(`'s arguments.
+    - The test is the side that must move. Passing `fit` unconditionally
+      cannot meet A4. `compute_monotonic_consistency` refits only when
+      `_traversal_order` of the supplied centroids is not the identity. On
+      `T13_MAP` and `COCC_MAP` the anatomical order already is the
+      traversal order, so it would reuse the integer-order curve that
+      doubles back, and AC1, AC2 and AC4 fail. `consistency.py` is under
+      Asserts against, so the refit cannot move there.
+    - Any source shape that keeps the token while handing over a different
+      object satisfies the text and defeats what it checks, so none is used.
+    - What item 130's AC19 protects is "one in-sample fit, and every Stage 3
+      consumer sees that same object", which keeps AC20's two in-sample
+      searches in agreement. Item 132 already made one exception, a refit
+      only when the order under test disagrees. This item adds the second,
+      for the same reason: a clean map whose anatomical order equals its
+      integer order still hands the one `fit` to monotonic consistency and
+      makes no extra fit.
+    - `tests/test_130_one_closest_point_search.py` is added to Authorised
+      paths, and its reconciliation is fixed under Testing Strategy.
 - **A5 (measured: what moves on the corpus).**
   - Geometric corpus, plain pipeline: only `sequence_break` changes. It gains,
     in report order before its unchanged `sequence` `shift` finding on [28]:
@@ -317,12 +340,19 @@ No dependency is added.
 - `tests/test_116_ras_native_corpus.py` — item 198's added pairs stripped in AC7.
 - `tests/test_129_coincident_centroids_and_held_out_floor.py` — `_PRE_129_FINDINGS["sequence_break"]`.
 - `tests/test_132_monotonicity_against_traversal_order.py` — `_PRE_ITEM_U_VALUES["sequence_break"]`.
+- `tests/test_130_one_closest_point_search.py` — AC19's monotonic-consistency check (A4 correction, 2026-09-29).
 
 **The reconciliation fence.** Every edit to an existing test is a moved
 literal: a firing set, a finding list, a u-value row, or a stripped-pair
 table. Each carries a dated item-198 comment. No test is retired, skipped,
 `xfail`-marked or loosened. **A red test in a file not listed here is a
 hand-back to spec-author.**
+
+*Correction (2026-09-29, A4):* `test_130`'s AC19 edit is the one
+reconciliation that is not a moved literal. It replaces a source-text token
+check with a behavioural identity check that is at least as strict for every
+map whose anatomical order equals its integer order (Testing Strategy). The
+rest of the fence holds for it.
 
 **Asserts against:**
 
@@ -388,6 +418,33 @@ Named adversarial cases, and no others:
   `_PRE_ITEM_U_VALUES["sequence_break"]` (line 198) becomes
   `[0.000000561, 0.999999440, 0.754943198, 0.516911104, 0.269013280]`
   (A5, in T13, L1–L4 order; the table's `abs=1e-9` tolerance holds).
+- **`tests/test_130_one_closest_point_search.py`**
+  `test_ac19_pipeline_binds_one_fit_and_reuses_it` (line 645). Added
+  2026-09-29 by A4's correction. This is test-writer work, with a dated
+  item-198 comment. The builder changes nothing: `pipeline.py` as it stands
+  already meets the reconciled test.
+  - Unchanged: `source.count("fit = fit_centroid_spline(") == 1`, and the
+    bare-`fit` token check for `compute_spine_curvature(`,
+    `compute_vertebra_tangent_orientations(` and
+    `compute_leave_one_out_spline_offsets(`.
+  - `compute_monotonic_consistency(` leaves the token loop. In its place,
+    in the same test: run `extract_feature_record` on
+    `_clean_spine_seg_img(("L1", "L2", "L3", "L4", "L5"))` with
+    `bundled_default_config()`. Monkeypatch spies that record the `fit`
+    argument and then call through onto
+    `segfacet.features.consistency.compute_monotonic_consistency` and
+    `segfacet.features.orientation.compute_spine_curvature`. The pipeline's
+    deferred imports pick these up. Assert that the object monotonic
+    consistency received **`is`** the object curvature received.
+  - What it still guarantees: on a map whose anatomical order is its integer
+    order, monotonic consistency sees the one bound in-sample fit and no
+    other. With `test_ac18_five_level_spine_fits_exactly_six_times`, which is
+    unedited and still 6, that map also makes no extra fit.
+  - The refit branch is not pinned here. AC1, AC2 and AC4 fail if `T13_MAP`
+    or `COCC_MAP` is judged against the integer-order fit, so that branch
+    already has tests.
+  - Not allowed: relaxing the count check, accepting any other name in the
+    token loop, or a text check on the anatomical binding's name.
 
 **Checked and unaffected** (read on 2026-09-29):
 
@@ -456,3 +513,11 @@ firing this item changes. A5 measured the ladders unchanged.
   source, and the old name contained it. (2) The `pipeline.py` comment saying
   ascending-label order feeds every Stage 3 extractor now names monotonic
   consistency as the exception (it uses the CANONICAL_ORDER sequence).
+
+- **2026-09-29 validation-round-2 hand-back: A4 against item 130's AC19.**
+  A4 is kept, and the test moves. Passing the one in-sample `fit` to
+  monotonic consistency on `T13_MAP` would judge a correctly placed T13
+  against a curve that doubles back. The source-text token check is
+  therefore replaced by a behavioural identity check. The record is under A4
+  (Correction), in Authorised paths, and in Testing Strategy's `test_130`
+  entry.
