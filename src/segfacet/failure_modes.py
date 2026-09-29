@@ -430,7 +430,7 @@ import json
 import re
 from pathlib import Path
 from types import MappingProxyType
-from typing import Dict, FrozenSet, Iterable, Iterator, Mapping, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, Iterator, Mapping, Optional, Tuple
 
 __all__ = [
     "ModeSpec",
@@ -2693,7 +2693,7 @@ def measured_detector_firing(case: CorpusCaseExpectation) -> Tuple[Tuple[str, st
     )
 
 
-def _measured_findings(case: CorpusCaseExpectation):
+def _measured_findings(case: CorpusCaseExpectation) -> Tuple[Any, ...]:
     if case.corpus == "geometric":
         return _measured_findings_geometric(case)
     if case.corpus == "intensity":
@@ -2705,7 +2705,7 @@ def _measured_findings(case: CorpusCaseExpectation):
     )
 
 
-def _measured_findings_geometric(case: CorpusCaseExpectation):
+def _measured_findings_geometric(case: CorpusCaseExpectation) -> Tuple[Any, ...]:
     """The ``corpus == "geometric"`` branch of :func:`measured_firing` --
     today's body verbatim, over ``tests/corpus/manifest.json``."""
     from segfacet.synth.corpus import load_manifest
@@ -2736,7 +2736,7 @@ def _measured_findings_geometric(case: CorpusCaseExpectation):
     return tuple(findings)
 
 
-def _measured_findings_intensity(case: CorpusCaseExpectation):
+def _measured_findings_intensity(case: CorpusCaseExpectation) -> Tuple[Any, ...]:
     """The ``corpus == "intensity"`` branch of :func:`measured_firing`, over
     the committed ``tests/corpus/intensity/manifest.json``.
 
