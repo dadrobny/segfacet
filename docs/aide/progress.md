@@ -563,8 +563,9 @@ abnormalities are accounted for rather than naively flagged.
 
 - ⏸️ Plugin/registration API for new heuristics + abnormality classes.
   - **2026-09-29** → deferred: Stage 11 deferred 2026-07-17 by explicit user instruction: Phase-3 real-data arm (Stages 14+) prioritised; revisit after Stage 14 closes
-- 📋 Ingestion of human abnormality labels (post-op, fracture, implant); a classification arm
+- ⏸️ Ingestion of human abnormality labels (post-op, fracture, implant); a classification arm
   that informs the heuristics.
+  - **2026-09-29** → deferred: Stage 11 deferred 2026-07-17 by explicit user instruction: Phase-3 real-data arm (Stages 14+) prioritised; revisit after Stage 14 closes
 - 📋 Developer docs: add a heuristic / abnormality class end-to-end.
 
 **Acceptance.**
