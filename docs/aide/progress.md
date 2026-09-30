@@ -1919,7 +1919,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   mode 2. *(Item 205)*
 - ✅ **D5 re-plan** A geometric corpus case for one label over two full, separate
   vertebrae. *(Item 206)*
-- 📋 **D5 re-plan** Mode 2's fused-label detector, from size and centroid spacing.
+- 🚧 **D5 re-plan** Mode 2's fused-label detector, from size and centroid spacing.
   *(Item 207)*
 - 📋 **D5 re-plan** Mode 3's own detector, from whole-label contact fraction and small
   size. *(Item 208)*
