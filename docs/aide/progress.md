@@ -1911,7 +1911,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - ✅ **D4** The severity-ladder constants re-measured, including the split operators.
   *(Item 201)*
 - ✅ **D4** A generated `docs/aide/rules.generated.md`. *(Item 202)*
-- 📋 **D5 re-plan** The mode 2/3 boundary re-drawn: mode 2 keeps the paired case,
+- 🚧 **D5 re-plan** The mode 2/3 boundary re-drawn: mode 2 keeps the paired case,
   mode 3 becomes the own-label fragment, and `stray_contact` and `split` move to
   mode 2. *(Item 205)*
 - 📋 **D5 re-plan** A geometric corpus case for one label over two full, separate
