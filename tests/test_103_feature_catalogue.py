@@ -605,7 +605,9 @@ _RULE_MODE_MAP = {
     # Item 187 (2026-09-28): the split case's rule_id moved from
     # fragmentation to its own neighbour_contact, so fragmentation
     # (1, 3, 4) -> (1, 4) and a new neighbour_contact (3,) entry appears.
-    "fragmentation": (1, 4),  # fragment (1), islands (4)
+    # Item 206 (2026-09-30): fuse_separate (mode 2) fires fragmentation as a
+    # co-detection, so (1, 4) -> (1, 2, 4).
+    "fragmentation": (1, 2, 4),  # fragment (1), fuse_separate (2), islands (4)
     "coverage": (6,),  # remove_level (6)
     "sequence": (9,),  # sequence_break
     # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the

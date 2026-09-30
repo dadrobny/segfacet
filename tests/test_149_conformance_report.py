@@ -831,12 +831,13 @@ def test_ac13_conformance_carries_one_row_per_manifest_case_across_both_corpora(
     # item 174 (2026-09-23) added split_own_label (mode 3); 18 since
     # item 175 (2026-09-24) added crop_fov_si (the fov_truncation
     # condition); 17 since item 195 (2026-09-28) removed force_overlap
-    # (mode 15): 13 geometric + 4 intensity.
+    # (mode 15): 13 geometric + 4 intensity; 18 since item 206 (2026-09-30)
+    # added fuse_separate (mode 2): 14 geometric + 4 intensity.
     # Both halves are derived from the manifests, never hardcoded.
-    assert len(cases) == 17, len(cases)
+    assert len(cases) == 18, len(cases)
     geometric = [c for c in cases if c["corpus"] == "geometric"]
     intensity = [c for c in cases if c["corpus"] == "intensity"]
-    assert len(geometric) == len(_geometric_manifest_cases()) == 13, len(geometric)
+    assert len(geometric) == len(_geometric_manifest_cases()) == 14, len(geometric)
     assert len(intensity) == len(_intensity_manifest_cases()) == 4, len(intensity)
     for case in cases:
         for key in ("corpus", "case_id", "mode", "expected_firing", "measured_firing", "agrees", "expected_source"):

@@ -336,11 +336,16 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # Revised 2026-09-28 (item 188): ("coverage", 6) enters the set --
     # coverage now declares mode 10, so its firing on `remove_level` (mode 6)
     # is a recorded co-detection rather than the rule's own declaration.
+    # Item 206 (2026-09-30): ("fragmentation", 2) re-enters the set through
+    # fuse_separate, whose two whole bodies under one label fire
+    # fragmentation, mode 1's detector. The item-176 sentence above stays as
+    # the record of its earlier exit.
     expected_co_detections = {
         # Item 189 (2026-09-28): ("mislabel", 1) left the set -- the
         # spline_offset detector that co-detected displace moved to its own
         # mode-less spline_offset rule.
         ("coverage", 6),  # coverage now declares mode 10, not mode 6
+        ("fragmentation", 2),  # item 206: fuse_separate co-detects it
     }
 
     measured_co_detections = set()

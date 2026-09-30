@@ -1,7 +1,7 @@
 """Committed synthetic fixture corpus for the failure-mode specification plus the
 clean-GT positive control, and its versioned manifest (item 040).
 
-Materialises the **thirteen canonical cases** -- item 040's original nine (the
+Materialises the **fourteen canonical cases** -- item 040's original nine (the
 clean control plus one per mode of the vision.md v3 seed list, history ids
 1-8, whose case ids name
 the case's perturbation operator -- item 157 (2026-09-17) dropped the stale
@@ -10,7 +10,9 @@ field is the authority and the prefix was a second, drifting copy of it) and
 the ``fuse_adjacent`` and ``remove_level_relabel`` cases item 150 added, and
 the ``split`` case item 166 added (2026-09-20), and the ``split_own_label``
 case item 174 added (2026-09-23), and the ``crop_fov_si`` case item 175
-added (2026-09-24), a volume crop on a smaller grid carrying its own scan;
+added (2026-09-24), a volume crop on a smaller grid carrying its own scan,
+and the ``fuse_separate`` case item 206 added (2026-09-30), one label over two
+full, separate vertebrae;
 each manifest entry's
 ``failure_mode`` field carries the current mode number, and (item 155) a
 ``kind`` field records which of the three closed values
@@ -164,8 +166,8 @@ class _RecipeEntry:
     reconstruction: Optional[str] = None
 
 
-#: The thirteen canonical cases (item 040 spec's case table, then item 150's
-#: two, then item 166's split, then item 174's split_own_label, then item 175's crop_fov_si), in table
+#: The fourteen canonical cases (item 040 spec's case table, then item 150's
+#: two, then item 166's split, then item 174's split_own_label, then item 175's crop_fov_si, then item 206's fuse_separate), in table
 #: order.
 CASE_RECIPE: List[_RecipeEntry] = [
     _RecipeEntry(
@@ -275,6 +277,21 @@ CASE_RECIPE: List[_RecipeEntry] = [
             "target_label": 24,
             "face": "inferior",
             "removed_fraction": 0.65,
+        },
+        detection="pipeline",
+    ),
+    # Item 206 (2026-09-30): mode 2's second fuse case -- L3 and L4 under
+    # label 22 with the disc gap unlabelled (two full, separate bodies) and
+    # L5 renumbered 23. Every parameter is explicit so a later default change
+    # cannot move the fixture. Item 207 reads this case by id.
+    _RecipeEntry(
+        case_id="fuse_separate",
+        perturbation="fuse",
+        perturbation_params={
+            "target_label": 22,
+            "neighbour_label": 23,
+            "bridged": False,
+            "renumber": True,
         },
         detection="pipeline",
     ),

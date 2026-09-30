@@ -294,6 +294,7 @@ _ADDED_AFTER_ITEM = {
     "split",
     "split_own_label",
     "crop_fov_si",
+    "fuse_separate",  # item 206 (2026-09-30)
 }
 
 

@@ -1158,7 +1158,13 @@ _MODE_2 = ModeSpec(
         "to measure, and its signature is the doubled inter-centroid spacing "
         "around the fused label "
         "(stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), "
-        "which no shipped rule reads. A secondary, needs-real-data proxy: a "
+        "which no shipped rule reads. The separate-bodies case (fuse_separate, "
+        "item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: "
+        "two whole bodies, so the second is a stray component with no contact "
+        "and neighbour_contact is silent; fragmentation fires on "
+        "per_label.{label}.components.fragmentation_index as a co-detection, "
+        "and the mode's own signal is the label's doubled size and the "
+        "widened spacings around it. A secondary, needs-real-data proxy: a "
         "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3)."
     ),
@@ -1253,6 +1259,28 @@ _MODE_2 = ModeSpec(
                 "and extents 31 / 31 / 23 mm, inside the lumbar bounds. "
                 "Label 23, left covering only the remainder of L4, has no "
                 "mode yet (gate-51da)."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="fuse_separate",
+            corpus="geometric",
+            expected_firing=("fragmentation",),
+            reason=(
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "item 206): mode 2's separate-bodies case -- L3 and L4 under "
+                "label 22, the 8 mm disc gap left unlabelled, L5 renumbered "
+                "23. Label 22 has two components (sizes 19437 and 19344) and "
+                "carries one Fragmentation: finding (detector id components), "
+                "fragmentation_index=0.5012 below the 0.75 threshold. That is "
+                "a co-detection: mode 1's detector, not mode 2's own, and the "
+                "two parts are two whole vertebrae, so the case is not a "
+                "mode-1 case. neighbour_contact is silent because the second "
+                "body touches nothing (stray_contact_area_mm2 0.0). Mode 2's "
+                "own signal, label 22's volume (38781 mm^3, twice a single "
+                "level) and the spacings around it "
+                "(stage3.spacing_consistency.spacings_mm [33.49, 49.46, "
+                "53.50]), is read by no rule yet."
             ),
         ),
     ),

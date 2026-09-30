@@ -185,6 +185,7 @@ signed text.
 | tests/corpus/fixtures/split_own_label_seg.nii.gz | The split_own_label corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/crop_fov_si_seg.nii.gz | The crop_fov_si corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/fixtures/crop_fov_si_scan.nii.gz | The crop_fov_si corpus scan (the base scan cut to the case's smaller grid) is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
+| tests/corpus/fixtures/fuse_separate_seg.nii.gz | The fuse_separate corpus segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_040_synthetic_corpus.py | n/a | keep | — |
 | tests/corpus/intensity/manifest.json | The Stage-8 intensity corpus index (case ids, scan/seg fixture paths, expected finding metadata) is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
 | tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz | The clean-HU intensity fixture scan is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
 | tests/corpus/intensity/fixtures/clean_spine_seg.nii.gz | The intensity corpus's shared clean spine segmentation is byte-identical to a fresh regeneration (regenerated-vs-committed and regenerated-twice). | tests/test_058_intensity_fixtures.py | n/a | keep | — |
@@ -307,6 +308,8 @@ with the reason it earns its keep rather than following Group A:
   report snapshot (added by item 175, 2026-09-24).
 - `tests/corpus/fixtures/crop_fov_si_scan.nii.gz` — input fixture, not a
   report snapshot (added by item 175, 2026-09-24).
+- `tests/corpus/fixtures/fuse_separate_seg.nii.gz` — input fixture, not a
+  report snapshot (added by item 206, 2026-09-30).
 - `tests/corpus/intensity/manifest.json` — an input index, not a report
   snapshot; generator reproducibility only.
 - `tests/corpus/intensity/fixtures/clean_hu_scan.nii.gz` — input fixture, not

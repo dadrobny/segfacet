@@ -24,6 +24,10 @@
       "total_leaf_paths": 101,
       "unwired_leaf_paths": 31
     },
+    "fuse_separate": {
+      "total_leaf_paths": 101,
+      "unwired_leaf_paths": 31
+    },
     "inject_islands": {
       "total_leaf_paths": 101,
       "unwired_leaf_paths": 31

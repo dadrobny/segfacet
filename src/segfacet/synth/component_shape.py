@@ -18,7 +18,10 @@ failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
   supplementary severity ladder. ``bridged=True`` (item 176) also fills the
   gap between the pair and renumbers every caudal label one position up:
   one connected label over two bodies with a continuous sequence, mode 2's
-  corpus fixture ``fuse_adjacent``.
+  corpus fixture ``fuse_adjacent``. ``bridged=False, renumber=True`` (item
+  206) relabels without filling and renumbers: two full, separate bodies
+  under one label with a continuous sequence, the corpus fixture
+  ``fuse_separate``.
 * :class:`InjectIslandsPerturbation` (``"inject_islands"``) -- adds one or
   more tiny (default 27-voxel, 3x3x3) disconnected components to a target
   label in verified-empty space, inset from every FOV face and separated
@@ -267,6 +270,27 @@ class FragmentPerturbation(Perturbation):
 # --------------------------------------------------------------------------- #
 
 
+def _require_next_higher(labels, target, neighbour):
+    if labels.index(neighbour) != labels.index(target) + 1:
+        raise FacetInputError(
+            f"FusePerturbation(renumbered): neighbour_label={neighbour!r} "
+            f"must be the next-higher present label after "
+            f"target_label={target!r} in {labels!r}, or the caudal "
+            "renumbering would relabel the target itself."
+        )
+
+
+def _renumber_caudal(data, orig, labels, target, neighbour):
+    """Renumber every present label above ``neighbour`` down one present step
+    (shared by the bridged and unbridged-renumbered fuse forms)."""
+    _require_next_higher(labels, target, neighbour)
+    caudal = [lbl for lbl in labels if lbl > neighbour]
+    renumbered = list(zip(caudal, [neighbour] + caudal[:-1]))
+    for old, new in renumbered:
+        data[orig == old] = new
+    return renumbered
+
+
 @register_perturbation
 class FusePerturbation(Perturbation):
     """Merge an adjacent label pair into a single label.
@@ -287,6 +311,12 @@ class FusePerturbation(Perturbation):
     label greater than the neighbour is renumbered to the present label
     before it, so the sequence stays continuous. The neighbour must be the
     next-higher present label.
+
+    ``bridged=False, renumber=True`` (item 206, 2026-09-30) is mode 2's second
+    corpus fixture, ``fuse_separate``: the neighbour is relabelled onto the
+    target, nothing is filled, and the caudal labels are renumbered as in the
+    bridged form -- one label over two full, separate bodies. ``renumber``
+    defaults to ``bridged``; ``bridged=True, renumber=False`` raises.
     """
 
     name = "fuse"
@@ -297,10 +327,19 @@ class FusePerturbation(Perturbation):
         target_label: Optional[int] = None,
         neighbour_label: Optional[int] = None,
         bridged: bool = False,
+        renumber: Optional[bool] = None,
     ):
         self._target_label = target_label
         self._neighbour_label = neighbour_label
         self._bridged = bool(bridged)
+        # Item 206 (2026-09-30): ``None`` resolves to ``bridged``, so the
+        # default unbridged form and the bridged form are unchanged.
+        self._renumber = self._bridged if renumber is None else bool(renumber)
+        if self._bridged and not self._renumber:
+            raise FacetInputError(
+                "FusePerturbation: bridged=True always renumbers the caudal "
+                "labels; renumber=False is not supported with it."
+            )
 
     def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
         labels = _present_labels(labelmap)
@@ -330,7 +369,7 @@ class FusePerturbation(Perturbation):
         else:
             target, neighbour = _choose_adjacent_pair(labels, seed)
 
-        if not self._bridged:
+        if not self._bridged and not self._renumber:
             data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
             data[data == neighbour] = target
             rule_ids = frozenset({"coverage", "fragmentation"})
@@ -346,16 +385,29 @@ class FusePerturbation(Perturbation):
                 "missing from the span -- not mode 2's own bounds proxy, "
                 "which needs a reference."
             )
-        else:
-            if labels.index(neighbour) != labels.index(target) + 1:
-                raise FacetInputError(
-                    f"FusePerturbation(bridged=True): neighbour_label={neighbour!r} "
-                    f"must be the next-higher present label after "
-                    f"target_label={target!r} in {labels!r}, or the caudal "
-                    "renumbering would relabel the target itself."
-                )
+        elif not self._bridged:
+            # Item 206: unbridged but renumbered -- label ``target`` covers two
+            # full, separate bodies; nothing is filled.
             orig = np.asanyarray(labelmap.dataobj)
             data = np.array(orig, copy=True)
+            data[orig == neighbour] = target
+            renumbered = _renumber_caudal(data, orig, labels, target, neighbour)
+            rule_ids = frozenset({"fragmentation"})
+            offending = frozenset({target})
+            verdict = "flagged-for-review"
+            detail = (
+                f"fuse (unbridged, renumbered): relabelled neighbour label "
+                f"{neighbour} onto target label {target} without filling the "
+                f"gap, so {target} covers two full, separate bodies; "
+                f"renumbered (old, new) {renumbered}. Mode 2's own signal "
+                "(label size and the spacings around it) is read by no rule "
+                "yet; fragmentation on the two components is a co-detection "
+                "(mode 1's detector), not a mode-1 case."
+            )
+        else:
+            orig = np.asanyarray(labelmap.dataobj)
+            data = np.array(orig, copy=True)
+            _require_next_higher(labels, target, neighbour)
             axis = si_axis(labelmap.affine)
 
             # Column walk on a view of the private copy, stacking axis last.
@@ -390,10 +442,7 @@ class FusePerturbation(Perturbation):
             n_columns = int(np.count_nonzero(bridge.any(-1)))
 
             data[orig == neighbour] = target
-            caudal = [lbl for lbl in labels if lbl > neighbour]
-            renumbered = list(zip(caudal, [neighbour] + caudal[:-1]))
-            for old, new in renumbered:
-                data[orig == old] = new
+            renumbered = _renumber_caudal(data, orig, labels, target, neighbour)
 
             rule_ids = frozenset()
             offending = frozenset()

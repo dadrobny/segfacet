@@ -922,7 +922,15 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     ``per_label.{label}.components.component_contacts[].contact_fraction``
     moves its ``failure_modes`` from ``(3,)`` to ``(2,)`` when
     ``stray_contact`` moves to mode 2, joining the four ``geometry.*`` paths
-    (2, 3, 4). mode2_count moves 4 -> 5; ``len(entries)`` stays 145."""
+    (2, 3, 4). mode2_count moves 4 -> 5; ``len(entries)`` stays 145.
+
+    Re-measured (item 206, 2026-09-30): ``fuse_separate`` fires
+    ``fragmentation`` on a mode-2 case, so the corpus-derived map carries mode
+    2 on ``fragmentation`` and the five ``components`` leaves it reads
+    (``component_count``, ``component_sizes[]``, ``fragmentation_index``,
+    ``largest_component_fraction``, ``stray_component_sizes[]``) gain mode 2.
+    mode2_count moves 5 -> 10; ``len(entries)`` stays 145 and ``mode1_count``
+    stays 5."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -939,7 +947,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     # Item 193 (2026-09-28): 7 -> 4.
     # Item 205 (2026-09-30): 4 -> 5 -- the contact_fraction leaf joins mode 2.
-    assert mode2_count == 5
+    # Item 206 (2026-09-30): 5 -> 10 -- fuse_separate co-detects fragmentation.
+    assert mode2_count == 10
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.

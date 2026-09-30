@@ -1577,6 +1577,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Number of distinct connected pieces the label is split into.",
@@ -1653,6 +1654,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Voxel count of each connected component, largest first.",
@@ -1789,6 +1791,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Alias of largest_component_fraction, exposed under its item-025 public name.",
@@ -1912,6 +1915,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Fraction of the label's voxels belonging to its single largest piece.",
@@ -2081,6 +2085,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Voxel sizes of every non-dominant component.",

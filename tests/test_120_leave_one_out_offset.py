@@ -812,7 +812,8 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     # dropping it out of the mode/condition n_cases sum: 11 -> 10.
     # Item 195 (2026-09-28): force_overlap removed, dropping mode 15's
     # zero-case entry out of the per-mode map: 10 -> 9.
-    assert sum(m.n_cases for m in metrics.per_mode) == 9
+    # Item 206 (2026-09-30): fuse_separate adds a mode-2 case: 9 -> 10.
+    assert sum(m.n_cases for m in metrics.per_mode) == 10
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

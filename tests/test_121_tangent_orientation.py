@@ -389,7 +389,15 @@ def test_ac9_sagittal_c_curve_signed_angles():
 # the L-R axis for the same reason (measured [0.0, 0.607, 0.795]). Excluded
 # by name, not by loosening the threshold. Item 174: ("split", 23) ->
 # ("split", 24).
-_FUSED_BODY_SPAN_EXCLUSIONS = {("fuse_adjacent", 22), ("split", 24)}
+#
+# ``fuse_separate`` (added by item 206, 2026-09-30) puts L3 and L4 under label
+# 22 with the gap unlabelled: label 22 spans two bodies, and its principal
+# axis measures [0.0, 0.2267, 0.9740]. Excluded by name, like the two above.
+_FUSED_BODY_SPAN_EXCLUSIONS = {
+    ("fuse_adjacent", 22),
+    ("split", 24),
+    ("fuse_separate", 22),
+}
 
 
 def test_ac10_principal_axis_within_0996_of_left_right_on_every_golden():
@@ -444,7 +452,8 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
     2 000 times that residue and far below the ~0.09 off-axis the sibling
     0.996-dot test admits."""
     # "force_overlap" dropped by item 195, 2026-09-28: the case was removed.
-    exceptions = {"inject_islands", "fuse_adjacent", "split"}
+    # Item 206 (2026-09-30): "fuse_separate" joins -- label 22 spans two bodies.
+    exceptions = {"inject_islands", "fuse_adjacent", "split", "fuse_separate"}
     cases = load_manifest()["cases"]
     assert exceptions <= {c["case_id"] for c in cases}, (
         "named principal-axis exception(s) are not in the corpus manifest"
