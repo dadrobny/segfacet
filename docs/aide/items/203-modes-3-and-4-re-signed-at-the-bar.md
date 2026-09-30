@@ -447,3 +447,42 @@ To be updated during implementation.
   a sign-off's work.
 - **Left open:** whether `MODE_SIGN_OFFS` should keep a sign-off history per
   mode rather than the latest record (A1). Nothing reads a history today.
+
+---
+
+**Amendment (2026-09-30, gate `gate-51da` declined; everything above stands
+as the record of the item as first specified).** The maintainer declined
+the sign-off of modes 3 and 4 with "neither yet" and re-drew the mode 2/3
+boundary. Mode 2 keeps the paired case: one label covering its own vertebra
+plus part or all of a neighbour. Mode 3 becomes the own-label fragment case
+only. The label left covering only the remainder of an encroached vertebra
+gets no mode yet. The selected modes become **2 and 3**, and mode 4 keeps its
+`gate-bb24` intermediate-state record. Roadmap Stage 33's criterion 1 was
+reworded to match with `aide progress reword` (2026-09-30).
+
+What changes for this item:
+
+- **Scope.** It is now the at-the-bar sign-off of modes 2 and 3, recorded as
+  one `ModeSignOff` each. Mode 4's `MODE_SIGN_OFFS` record is left as it
+  stands.
+- **Gate.** `gate-51da` no longer blocks anything. It is the record of the
+  decline. The sign-off is now held by `gate-0133` (Blocks `203, 204`),
+  raised on 2026-09-30.
+- **Order.** The item runs after queue-027's items 205–208: the boundary
+  re-draw, a fixture for one label over two full, separate vertebrae, mode 2's
+  fused-label detector from size and centroid spacing, and mode 3's own
+  detector from contact fraction and small size.
+- **Decision brief, criteria and tests.** Items 205–208 change every value
+  the brief quotes, so the brief is superseded. When the item is next claimed,
+  the spec-author re-measures `bar_conditions(2)` and `bar_conditions(3)` and
+  writes a new brief. They re-derive the Acceptance Criteria for modes 2 and 3
+  and correct Assumptions A1–A2 where they name modes 3 and 4, as appended
+  corrections. The test module written for the first scope is not carried
+  forward: it pins modes 3 and 4.
+- **A brief a reader can act on without asking.** Condition 1's row read
+  "all eight fields non-empty" without naming the fields, and the maintainer
+  had to ask which fields they were. The new brief names them: `definition`,
+  `discriminator`, `scope`, `observability`, `severity`, `candidate_features`,
+  `intended_rules`, `corpus_cases` (`traceability.bar_conditions`,
+  `completeness_fields`). It also states for each of conditions 2–5 what the
+  check actually computes.
