@@ -166,6 +166,12 @@ def test_ac1_no_detector_serves_mode_1_beside_another_mode():
 # =========================================================================== #
 
 
+# Item 207 (2026-09-30): by-design co-detections. A case listed here is
+# attributed to another mode (AC3) and fires mode 1's detector because its
+# label really is in several parts. Each entry is checked by equality.
+_MODE_1_CO_DETECTIONS = {"fuse_separate": frozenset({1, 2})}
+
+
 def test_ac2_no_committed_case_served_by_mode_1_beside_another_mode(
     served_modes_by_case,
 ):
@@ -179,8 +185,11 @@ def test_ac2_no_committed_case_served_by_mode_1_beside_another_mode(
     assert processed == expected_total, (processed, expected_total)
     assert served, "expected >=1 case in the committed corpora"
 
+    assert set(_MODE_1_CO_DETECTIONS) <= set(served)
     for case_id, modes in served.items():
-        if 1 in modes:
+        if case_id in _MODE_1_CO_DETECTIONS:
+            assert modes == _MODE_1_CO_DETECTIONS[case_id], (case_id, modes)
+        elif 1 in modes:
             assert modes == {1}, (case_id, modes)
 
 

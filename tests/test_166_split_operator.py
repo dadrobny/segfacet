@@ -393,4 +393,4 @@ def test_mode_3_proxy_edges_unchanged():
     and ``neighbour_contact``."""
     rule_ids = {edge.rule_id for edge in failure_modes.SPECIFICATION[2].intended_rules}  # item 205 (2026-09-30): moved from mode 3
     assert {"bounds"} <= rule_ids
-    assert rule_ids == {"bounds", "neighbour_contact"}
+    assert rule_ids == {"bounds", "neighbour_contact", "fused_label"}  # item 207 (2026-09-30): mode 2 gains its own fused_label edge
