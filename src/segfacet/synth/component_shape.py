@@ -317,6 +317,12 @@ class FusePerturbation(Perturbation):
     target, nothing is filled, and the caudal labels are renumbered as in the
     bridged form -- one label over two full, separate bodies. ``renumber``
     defaults to ``bridged``; ``bridged=True, renumber=False`` raises.
+
+    Item 207 (2026-09-30): the bridged form designates ``fused_label`` alone
+    (flagged-for-review on the target label); the unbridged-renumbered form
+    designates ``fragmentation`` and ``fused_label``. The default unbridged
+    form keeps its ``{coverage, fragmentation}`` designation (it now also
+    fires ``fused_label``, like ``sequence``, which it already omits).
     """
 
     name = "fuse"
@@ -393,7 +399,7 @@ class FusePerturbation(Perturbation):
             _require_next_higher(labels, target, neighbour)
             data[orig == neighbour] = target
             renumbered = _renumber_caudal(data, orig, labels, neighbour)
-            rule_ids = frozenset({"fragmentation"})
+            rule_ids = frozenset({"fragmentation", "fused_label"})
             offending = frozenset({target})
             verdict = "flagged-for-review"
             detail = (
@@ -401,9 +407,9 @@ class FusePerturbation(Perturbation):
                 f"{neighbour} onto target label {target} without filling the "
                 f"gap, so {target} covers two full, separate bodies; "
                 f"renumbered (old, new) {renumbered}. Mode 2's own signal "
-                "(label size and the spacings around it) is read by no rule "
-                "yet; fragmentation on the two components is a co-detection "
-                "(mode 1's detector), not a mode-1 case."
+                "(label size and the spacings around it) is read by "
+                "fused_label (item 207); fragmentation on the two components "
+                "is a co-detection (mode 1's detector), not a mode-1 case."
             )
         else:
             orig = np.asanyarray(labelmap.dataobj)
@@ -445,16 +451,16 @@ class FusePerturbation(Perturbation):
             data[orig == neighbour] = target
             renumbered = _renumber_caudal(data, orig, labels, neighbour)
 
-            rule_ids = frozenset()
-            offending = frozenset()
-            verdict = "pass"
+            rule_ids = frozenset({"fused_label"})
+            offending = frozenset({target})
+            verdict = "flagged-for-review"
             detail = (
                 f"fuse (bridged): fused neighbour label {neighbour} into target "
                 f"label {target}, filling {n_bridged} background voxels over "
                 f"{n_columns} columns along the stacking axis (array axis "
                 f"{axis}); renumbered (old, new) {renumbered}. Mode 2's own "
-                "signal, the inter-centroid spacing around the fused label, is "
-                "read by no shipped rule, so no rule is designated."
+                "signal, the label's size and the inter-centroid spacing around "
+                "it, is read by fused_label (item 207), which is designated."
             )
 
         out_img = _new_image(data, labelmap)

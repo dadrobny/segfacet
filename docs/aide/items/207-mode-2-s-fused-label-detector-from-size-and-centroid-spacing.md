@@ -735,7 +735,25 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Recorded at implementation (2026-09-30):
+
+- **Re-measured live on the real change**, matching A7/A8: `fused_label`
+  fires on `fuse_adjacent` label 22 (size 2.325, spacing 1.478) and
+  `fuse_separate` label 22 (2.002, 1.477) only; `modes_for_detector` is
+  `(2,)`; `specification_conflicts`, `rule_declaration_conflicts`,
+  `path_classification_conflicts` and `operator_reason_conflicts` are all
+  `()`; per-edge rungs are 14 edges (6, 7, 1).
+- **Regeneration.** Each generator ran twice into scratch paths with
+  byte-identical output before the committed copies were written. The corpus
+  regeneration changed `manifest.json` only (no fixture bytes); a fresh
+  `golden_evidence` render is byte-identical to the committed copy.
+- **Reason wording.** The finding reason prints ratios with `:.4g`
+  (`2.325x`), not the four-decimal figures A7 quotes; the authored mode 2
+  reasons in `failure_modes.py` carry the A7 figures.
+- **Edge-case handling** in `evaluate`: a zero larger-neighbour volume or a
+  non-positive baseline median skips the label rather than dividing by zero.
+- **Reconciled tests** are the moved literals of the Testing Strategy list
+  plus `test_145` AC13's probe, which also drops the `fused_label` edge.
 
 - **Left open:** a spacing rule for modes 6 and 10. A missed vertebra with
   the labels renumbered (mode 6's `remove_level_relabel`) and a skipped

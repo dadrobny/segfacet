@@ -813,7 +813,8 @@
             "vocabulary"
           ],
           "consuming_rules": [
-            "bounds"
+            "bounds",
+            "fused_label"
           ],
           "documented": true,
           "failure_modes": [
@@ -829,6 +830,10 @@
           "mode_roles": [
             [
               "bounds",
+              "signal"
+            ],
+            [
+              "fused_label",
               "signal"
             ]
           ],
@@ -873,6 +878,14 @@
             [
               "bounds",
               "observed"
+            ],
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
             ]
           ],
           "scale_sensitivity": "scales with spacing",
@@ -2560,6 +2573,7 @@
             "border",
             "bounds",
             "fragmentation",
+            "fused_label",
             "mislabel",
             "neighbour_contact",
             "sequence"
@@ -2588,6 +2602,10 @@
             ],
             [
               "fragmentation",
+              "bookkeeping"
+            ],
+            [
+              "fused_label",
               "bookkeeping"
             ],
             [
@@ -2649,6 +2667,10 @@
             ],
             [
               "fragmentation",
+              "observed"
+            ],
+            [
+              "fused_label",
               "observed"
             ],
             [
@@ -5169,12 +5191,24 @@
         {
           "computation": "Euclidean centroid-to-centroid distance for each adjacent pair, in input order.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "fused_label"
+          ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            2
+          ],
           "measures": "Per-pair inter-vertebra centroid spacing.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fused_label",
+              "signal"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 19,
@@ -5209,7 +5243,16 @@
           },
           "origin": "record",
           "path": "stage3.spacing_consistency.spacings_mm[]",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "scales with spacing",
           "status": "retune",
           "units": "mm"
@@ -8092,6 +8135,7 @@
             "bounds",
             "coverage",
             "fragmentation",
+            "fused_label",
             "intensity",
             "intensity_reference_delta",
             "mislabel",
@@ -8122,6 +8166,10 @@
             ],
             [
               "fragmentation",
+              "bookkeeping"
+            ],
+            [
+              "fused_label",
               "bookkeeping"
             ],
             [
@@ -8194,6 +8242,10 @@
             ],
             [
               "fragmentation",
+              "static"
+            ],
+            [
+              "fused_label",
               "static"
             ],
             [

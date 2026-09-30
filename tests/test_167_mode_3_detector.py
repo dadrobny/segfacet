@@ -434,7 +434,12 @@ def test_ac11_mode_2_meets_all_five_bar_conditions():
     condition_4 = [c for c in bar if c.number == 4]
     assert len(condition_4) == 1, condition_4
     # Item 187 (2026-09-27): moved rule/detector id pair.
-    assert condition_4[0].subjects == ("neighbour_contact/stray_contact",)
+    # Item 207 (2026-09-30): fused_label/fused_label joins mode 2's deciding
+    # detectors.
+    assert condition_4[0].subjects == (
+        "fused_label/fused_label",
+        "neighbour_contact/stray_contact",
+    )
 
 
 # Item 187 (2026-09-27): retired -- DEFAULT_NEIGHBOUR_CONTACT_AREA_MM2 no

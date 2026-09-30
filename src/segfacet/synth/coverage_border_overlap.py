@@ -230,8 +230,9 @@ class RemoveLevelRelabelPerturbation(Perturbation):
     segmenter produces when it misses a vertebra and miscounts the rest:
     ``relationships.missing_levels[]`` stays empty and the only signature
     is a doubled inter-centroid spacing at the gap
-    (``stage3.spacing_consistency.spacings_mm[]``), which no shipped rule
-    reads -- so the expectation designates no rule and a ``"pass"``
+    (``stage3.spacing_consistency.spacings_mm[]``), which no rule
+    reads for this mode (``fused_label`` reads it only beside a doubled
+    size, so it is silent here) -- so the expectation designates no rule and a ``"pass"``
     verdict, honestly recording "not detected today". Rejects a span with
     fewer than 3 present labels or a terminal target, as ``remove_level``
     does.

@@ -436,6 +436,14 @@ this module, the rule declarations, both committed corpora and
 A per-mode sign-off (roadmap Stage 32 bar condition 6, item 168) is a
 separate record from the one above: it lives in :data:`MODE_SIGN_OFFS`, not
 in this docstring.
+
+Item 207 (2026-09-30) gave mode 2 a detector for a label over two whole
+vertebrae: the ``fused_label`` rule (``heuristics/fused_label.py``) fires on
+a label both large against its adjacent labels and flanked by wide centroid
+spacing. ``fuse_adjacent`` and ``fuse_separate`` now expect it, and the
+mechanism clauses of modes 6 and 10 that said no rule reads the spacing
+path describe the spacing in words instead, since ``fused_label`` reads it
+(only beside a doubled size) and neither mode's own rules do.
 """
 
 from __future__ import annotations
@@ -1153,18 +1161,24 @@ _MODE_2 = ModeSpec(
         "re-measured 2026-09-30, item 205), 3.3x the threshold. The "
         "absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 "
         "(L3) bridged -- one connected label over two bodies, with L5 "
-        "renumbered 23 so the sequence stays continuous -- and fires "
-        "nothing: its label is a single component with no stray component "
-        "to measure, and its signature is the doubled inter-centroid spacing "
-        "around the fused label "
-        "(stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), "
-        "which no shipped rule reads. The separate-bodies case (fuse_separate, "
-        "item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: "
-        "two whole bodies, so the second is a stray component with no contact "
-        "and neighbour_contact is silent; fragmentation fires on "
+        "renumbered 23 so the sequence stays continuous. Its label is a "
+        "single component with no stray component to measure, so "
+        "neighbour_contact is silent; fused_label (item 207) decides it from "
+        "two signals together: per_label.{label}.geometry.physical_volume_mm3 "
+        "(the label's volume over its larger adjacent label's, about 2x) and "
+        "stage3.spacing_consistency.spacings_mm[] (the smaller spacing "
+        "adjacent to the label over the median of the other spacings, about "
+        "1.5x, because the fused centroid falls between its two bodies), "
+        "firing only when both strictly exceed their thresholds "
+        "(DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither "
+        "signal decides alone: split reads size 1.53 at spacing 1.05. The "
+        "separate-bodies case (fuse_separate, item 206) puts L3 and L4 under "
+        "label 22 with the disc gap unlabelled: two whole bodies, so the "
+        "second is a stray component with no contact and neighbour_contact "
+        "is silent; fragmentation fires on "
         "per_label.{label}.components.fragmentation_index as a co-detection, "
-        "and the mode's own signal is the label's doubled size and the "
-        "widened spacings around it. A secondary, needs-real-data proxy: a "
+        "and fused_label fires on the label's doubled size and the widened "
+        "spacings around it. A secondary, needs-real-data proxy: a "
         "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3)."
     ),
@@ -1218,23 +1232,27 @@ _MODE_2 = ModeSpec(
             detector_ids=("stray_contact",),
             evidence_rung="synthetic-demonstrable",
         ),
+        IntendedRule(
+            rule_id="fused_label",
+            detector_ids=("fused_label",),
+            evidence_rung="synthetic-demonstrable",
+        ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="fuse_adjacent",
             corpus="geometric",
-            expected_firing=(),
+            expected_firing=("fused_label",),
             reason=(
-                "fires nothing, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-24, "
-                "item 176): the bridged, renumbered map is one connected "
-                "label 22 over two bodies with a continuous label sequence, "
-                "so no shipped rule fires. Mode 2's own signal is the "
-                "inter-centroid spacing around the fused label "
-                "(stage3.spacing_consistency.spacings_mm[], about 1.5x the "
-                "pitch); no shipped rule reads that spacing, and the rule "
-                "that would is left to a later per-mode queue (roadmap "
-                "Stage 33). An empty expected set never validates a mode."
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "item 207): the bridged, renumbered map (item 176) is one "
+                "connected label 22 over two bodies with a continuous label "
+                "sequence, and carries this mode's own fused_label finding "
+                "alone: volume 45043 mm^3 against 19375 (label 21) and 19344 "
+                "(label 23), size 2.3248; spacings [33.49, 49.51, 53.52], "
+                "spacing 49.51 / 33.49 = 1.4782; against thresholds 1.5 and "
+                "1.25, strictly above both. No other rule fires."
             ),
         ),
         CorpusCaseExpectation(
@@ -1264,11 +1282,11 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_separate",
             corpus="geometric",
-            expected_firing=("fragmentation",),
+            expected_firing=("fragmentation", "fused_label"),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
-                "item 206): mode 2's separate-bodies case -- L3 and L4 under "
+                "items 206 and 207): mode 2's separate-bodies case -- L3 and L4 under "
                 "label 22, the 8 mm disc gap left unlabelled, L5 renumbered "
                 "23. Label 22 has two components (sizes 19437 and 19344) and "
                 "carries one Fragmentation: finding (detector id components), "
@@ -1277,10 +1295,11 @@ _MODE_2 = ModeSpec(
                 "two parts are two whole vertebrae, so the case is not a "
                 "mode-1 case. neighbour_contact is silent because the second "
                 "body touches nothing (stray_contact_area_mm2 0.0). Mode 2's "
-                "own signal, label 22's volume (38781 mm^3, twice a single "
-                "level) and the spacings around it "
-                "(stage3.spacing_consistency.spacings_mm [33.49, 49.46, "
-                "53.50]), is read by no rule yet."
+                "own signal is fused_label's (item 207): label 22's volume "
+                "(38781 mm^3) reads 2.0016x its larger neighbour, and the "
+                "spacings around it (stage3.spacing_consistency.spacings_mm "
+                "[33.49, 49.46, 53.50]) read 1.4768x, strictly above 1.5 and "
+                "1.25 respectively; fragmentation stays a co-detection."
             ),
         ),
     ),
@@ -1552,8 +1571,10 @@ _MODE_6 = ModeSpec(
         "detectors) is a recorded co-detection, not this mode's own evidence. "
         "remove_level_relabel fires nothing: it deletes L3 and renumbers "
         "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
-        "inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) "
-        "that no rule reads. That doubled spacing is this mode's own "
+        "inter-centroid spacing (the spacings_mm list of the stage 3 "
+        "spacing_consistency block) that no mode-6 rule reads; fused_label "
+        "reads spacing only beside a doubled size, so it is silent there. "
+        "That doubled spacing is this mode's own "
         "label-map signal -- it would also catch remove_level -- and its "
         "rule is decided in a later per-mode queue (roadmap Stage 33 scope "
         "decisions). Two further hypothesised signals cover a missing "
@@ -1615,8 +1636,9 @@ _MODE_6 = ModeSpec(
                 "not detected today: label 22 (L3) is deleted and labels "
                 "23/24 (L4/L5) are renumbered to 22/23, so the label "
                 "sequence stays continuous while the centroid spacing "
-                "between L2 and the renumbered L3 doubles; no shipped rule "
-                "reads stage3.spacing_consistency.spacings_mm[], measured "
+                "between L2 and the renumbered L3 doubles; no mode-6 rule "
+                "reads that spacing (fused_label reads it only beside a "
+                "doubled size, so it is silent here), measured "
                 "live via segfacet.synth.regression.pipeline_findings "
                 "(2026-09-14). Recorded so the hypothesised spacing-gap "
                 "signal has its fixture; an empty expected set never "
@@ -1892,9 +1914,9 @@ _MODE_10 = ModeSpec(
         "needs-real-data: a skip-relabel fixture (renumber the labels "
         "caudal to a level down by one without deleting a vertebra) is not "
         "authored. The separating signal is an ordinary inter-centroid "
-        "spacing across the label gap "
-        "(stage3.spacing_consistency.spacings_mm[]); the same path rule as "
-        "mode 6 applies -- no rule reads it yet."
+        "spacing across the label gap (the spacings_mm list of the stage 3 "
+        "spacing_consistency block); as for mode 6, no mode-10 rule reads it "
+        "-- fused_label reads spacing only beside a doubled size."
     ),
     observability="single-channel-observable",
     candidate_features=(

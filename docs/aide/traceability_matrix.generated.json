@@ -64,9 +64,13 @@
         "agrees": true,
         "case_id": "fuse_adjacent",
         "corpus": "geometric",
-        "expected_firing": [],
+        "expected_firing": [
+          "fused_label"
+        ],
         "expected_source": "specification",
-        "measured_firing": [],
+        "measured_firing": [
+          "fused_label"
+        ],
         "mode": 2
       },
       {
@@ -74,11 +78,13 @@
         "case_id": "fuse_separate",
         "corpus": "geometric",
         "expected_firing": [
-          "fragmentation"
+          "fragmentation",
+          "fused_label"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "fragmentation"
+          "fragmentation",
+          "fused_label"
         ],
         "mode": 2
       },
@@ -429,6 +435,22 @@
         "rule_id": "fragmentation",
         "state": "exercised"
       },
+      "fused_label": {
+        "exercised_by": [
+          [
+            "geometric",
+            "fuse_adjacent"
+          ],
+          [
+            "geometric",
+            "fuse_separate"
+          ]
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "fused_label",
+        "state": "exercised"
+      },
       "intensity": {
         "exercised_by": [
           [
@@ -540,6 +562,7 @@
       "bounds": 6,
       "coverage": 4,
       "fragmentation": 7,
+      "fused_label": 4,
       "intensity": 5,
       "intensity_reference_delta": 8,
       "mislabel": 4,
@@ -550,11 +573,11 @@
       "spline_offset": 7
     },
     "read_by_no_rule": {
-      "count": 93,
+      "count": 92,
       "qualifier": "a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.",
       "required": false
     },
-    "read_by_rule": 52,
+    "read_by_rule": 53,
     "total_paths": 145,
     "unwired": 35
   },
@@ -624,7 +647,7 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.",
+      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (the spacings_mm list of the stage 3 spacing_consistency block); as for mode 6, no mode-10 rule reads it -- fused_label reads spacing only beside a doubled size.",
       "mode": 10,
       "pipeline_detected": false,
       "read_paths": [
@@ -840,10 +863,17 @@
             "stray_contact"
           ],
           "synthetic-demonstrable"
+        ],
+        [
+          "fused_label",
+          [
+            "fused_label"
+          ],
+          "synthetic-demonstrable"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its label is a single component with no stray component to measure, and its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and the mode's own signal is the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).",
+      "mechanism": "Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous. Its label is a single component with no stray component to measure, so neighbour_contact is silent; fused_label (item 207) decides it from two signals together: per_label.{label}.geometry.physical_volume_mm3 (the label's volume over its larger adjacent label's, about 2x) and stage3.spacing_consistency.spacings_mm[] (the smaller spacing adjacent to the label over the median of the other spacings, about 1.5x, because the fused centroid falls between its two bodies), firing only when both strictly exceed their thresholds (DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither signal decides alone: split reads size 1.53 at spacing 1.05. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and fused_label fires on the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).",
       "mode": 2,
       "pipeline_detected": true,
       "read_paths": [
@@ -851,15 +881,18 @@
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",
         "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3"
+        "per_label.{label}.geometry.physical_volume_mm3",
+        "stage3.spacing_consistency.spacings_mm[]"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
         "bounds": "analytic",
+        "fused_label": "corpus",
         "neighbour_contact": "corpus"
       },
       "rules": [
         "bounds",
+        "fused_label",
         "neighbour_contact"
       ],
       "rung": "synthetic-demonstrable",
@@ -994,7 +1027,7 @@
       ],
       "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
+      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (the spacings_mm list of the stage 3 spacing_consistency block) that no mode-6 rule reads; fused_label reads spacing only beside a doubled size, so it is silent there. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
       "mode": 6,
       "pipeline_detected": true,
       "read_paths": [],
@@ -1182,6 +1215,25 @@
         4
       ],
       "rule_id": "fragmentation"
+    },
+    "fused_label": {
+      "declaration_state": "declared",
+      "evidence": [
+        "corpus-manifest",
+        "tests/corpus/manifest.json's fuse_adjacent and fuse_separate designate this rule for mode 2 (fused vertebra segments); item 207 (2026-09-30). Measured: label 22 reads size 2.3248 / spacing 1.4782 on fuse_adjacent and 2.0016 / 1.4768 on fuse_separate, against thresholds 1.5 / 1.25; every other case in both corpora is silent."
+      ],
+      "feature_path_count": 4,
+      "feature_paths": [
+        "per_label",
+        "per_label.{label}.geometry.physical_volume_mm3",
+        "per_label.{label}.level_name",
+        "stage3.spacing_consistency.spacings_mm[]"
+      ],
+      "mode_less_reason": "",
+      "modes": [
+        2
+      ],
+      "rule_id": "fused_label"
     },
     "intensity": {
       "declaration_state": "declared",

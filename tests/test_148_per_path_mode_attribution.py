@@ -362,8 +362,8 @@ def test_ac4_every_declaring_rule_classifies_exactly_what_it_consumes(shipped_ca
         checked += 1
     # Item 187 (2026-09-27): neighbour_contact registered an eleventh
     # declaring rule. Item 189 (2026-09-28): spline_offset registers a
-    # twelfth.
-    assert checked == 12
+    # twelfth. Item 207 (2026-09-30): fused_label registers a thirteenth.
+    assert checked == 13
 
 
 # =========================================================================== #
@@ -871,6 +871,8 @@ _AC16_CASES = (
     ("implausible_metal", "intensity", ("intensity",)),
     # Item 187 (2026-09-28): neighbour_contact fires on the split case alone.
     ("split", "geo", ("neighbour_contact",)),
+    # Item 207 (2026-09-30): fused_label fires on fuse_adjacent alone.
+    ("fuse_adjacent", "geo", ("fused_label",)),
 )
 
 
@@ -1098,8 +1100,9 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
         assert rr.feature_paths == expected_paths, rr.rule_id
         checked += 1
     # Item 187 (2026-09-27): neighbour_contact was an eleventh matrix row.
-    # Item 189 (2026-09-28): spline_offset is a twelfth.
-    assert checked == 12
+    # Item 189 (2026-09-28): spline_offset is a twelfth. Item 207
+    # (2026-09-30): fused_label is a thirteenth.
+    assert checked == 13
 
 
 # =========================================================================== #

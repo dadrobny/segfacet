@@ -237,9 +237,10 @@ def _firing_record():
 def test_ac1_all_ten_rules_declared_and_not_pending():
     # Item 187 (2026-09-27): the new neighbour_contact rule brought the
     # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
-    # brings it to twelve.
+    # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
+    # thirteen.
     rules = list(iter_rules())
-    assert len(rules) == 12
+    assert len(rules) == 13
     for rule in rules:
         decl = rule.mode_declaration
         assert decl is not None, rule.rule_id
@@ -930,7 +931,17 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     (``component_count``, ``component_sizes[]``, ``fragmentation_index``,
     ``largest_component_fraction``, ``stray_component_sizes[]``) gain mode 2.
     mode2_count moves 5 -> 10; ``len(entries)`` stays 145 and ``mode1_count``
-    stays 5."""
+    stays 5.
+
+    Re-measured (item 207, 2026-09-30): the new ``fused_label`` rule declares
+    mode 2 and consumes ``stage3.spacing_consistency.spacings_mm[]``, which
+    gains mode 2 and ``("rule_mode_map", "rule_declaration")`` evidence and
+    leaves the ``()`` bucket (91 -> 90). ``per_label``,
+    ``per_label.{label}.geometry.physical_volume_mm3`` and
+    ``per_label.{label}.level_name`` gain ``fused_label`` as a consuming rule
+    with their modes unchanged. mode2_count moves 10 -> 11; the
+    ``("rule_mode_map", "rule_declaration")`` bucket 10 -> 11;
+    ``len(entries)`` stays 145, ``mode1_count`` 5, ``mode16_count`` 2."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -948,7 +959,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     # Item 193 (2026-09-28): 7 -> 4.
     # Item 205 (2026-09-30): 4 -> 5 -- the contact_fraction leaf joins mode 2.
     # Item 206 (2026-09-30): 5 -> 10 -- fuse_separate co-detects fragmentation.
-    assert mode2_count == 10
+    # Item 207 (2026-09-30): 10 -> 11 -- spacings_mm[] joins mode 2.
+    assert mode2_count == 11
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
@@ -958,7 +970,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     distribution = Counter(e.mode_evidence for e in entries)
     expected = {
         # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
-        (): 91,
+        # Item 207 (2026-09-30): 91 -> 90 (spacings_mm[] is now consumed).
+        (): 90,
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
@@ -966,7 +979,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # Item 193 (2026-09-28): entries consumed only by reference_delta
         # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
-        ("rule_mode_map", "rule_declaration"): 10,
+        # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
+        ("rule_mode_map", "rule_declaration"): 11,
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
         ("rule_declaration",): 2,
         # Item 195 (2026-09-28): 3 -> 2 -- overlaps[].overlap_voxels lost

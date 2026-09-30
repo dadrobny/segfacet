@@ -248,8 +248,8 @@ def test_ac4_unfragmented_label_carries_label_level_fraction(split_case_image):
 
 def test_ac5_rule_count_is_eleven():
     # Item 189 (2026-09-28): the new spline_offset rule brings the registry
-    # from eleven to twelve.
-    assert len(list(iter_rules())) == 12
+    # from eleven to twelve. Item 207 (2026-09-30): fused_label makes thirteen.
+    assert len(list(iter_rules())) == 13
 
 
 # =========================================================================== #
@@ -353,7 +353,12 @@ def test_ac14_deciding_detector_is_the_new_rule():
     bar = traceability.bar_conditions(2)  # item 205 (2026-09-30): moved from mode 3
     condition_4 = [c for c in bar if c.number == 4]
     assert len(condition_4) == 1, condition_4
-    assert condition_4[0].subjects == ("neighbour_contact/stray_contact",)
+    # Item 207 (2026-09-30): fused_label/fused_label joins mode 2's deciding
+    # detectors.
+    assert condition_4[0].subjects == (
+        "fused_label/fused_label",
+        "neighbour_contact/stray_contact",
+    )
 
 
 # =========================================================================== #

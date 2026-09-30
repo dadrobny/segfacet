@@ -477,12 +477,13 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
     # 14 -> 13: item 194 (2026-09-28) removes mode 1's bounds edge -- mode 1
     # is attributed only where no other mode applies, and bounds serves
     # modes 2, 3 and 4.
+    # 13 -> 14: item 207 (2026-09-30) adds mode 2's fused_label edge.
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 13, total_edges
+    assert total_edges == 14, total_edges
 
 
 # =========================================================================== #

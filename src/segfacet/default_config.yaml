@@ -239,6 +239,28 @@ rules:
   #     severity: flagged-for-review
 
   # ------------------------------------------------------------------ #
+  # fused_label (item 207) -- size-and-spacing detector, mode 2 (fused
+  # vertebra segments). Reads per_label.{label}.geometry.physical_volume_mm3
+  # and stage3.spacing_consistency.spacings_mm[]. Registered
+  # enabled-by-default with NO active section here, same section-less-by-
+  # design rationale as `neighbour_contact` above: an active
+  # `rules.fused_label` section would change this file's parsed `rules`
+  # dict and hence `config_hash`. Values below are DOCUMENTATION ONLY,
+  # copied verbatim from heuristics/fused_label.py's code defaults.
+  #
+  # fused_label:
+  #   enabled: true
+  #   params:
+  #     # Fires only when BOTH ratios are strictly exceeded. A label's volume
+  #     # over its larger adjacent label's volume (synthetic corpora: fused
+  #     # labels read 2.0-2.3).
+  #     size_ratio_threshold: 1.5
+  #     # The smaller spacing adjacent to the label over the median of the
+  #     # case's other spacings (fused labels read 1.48).
+  #     spacing_ratio_threshold: 1.25
+  #     severity: flagged-for-review
+
+  # ------------------------------------------------------------------ #
   # intensity (item 062) -- implausible-intensity (absolute-band) rule.
   # Registered enabled-by-default with NO active section here (mirroring
   # reference_delta's own precedent, item 065's pivotal design decision):

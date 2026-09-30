@@ -895,13 +895,18 @@ def test_ac13_co_detection_alone_does_not_validate():
     Item 205 (2026-09-30): ``split`` joined mode 2 and fires its own rule, so
     live mode 2 is ``validated`` and no live mode carries this branch. The
     test therefore asserts over a probe: mode 2 restricted to its
-    ``fuse_adjacent`` case."""
+    ``fuse_adjacent`` case.
+
+    Item 207 (2026-09-30): ``fuse_adjacent`` now fires ``fused_label``, a
+    mode-2 rule, so the probe also drops that edge; the one firing is then by
+    a rule the probe mode does not own, which is the branch under test."""
     import segfacet.failure_modes as fm
 
     live = _mode(fm, 2)
     mode = dataclasses.replace(
         live,
         corpus_cases=tuple(c for c in live.corpus_cases if c.case_id == "fuse_adjacent"),
+        intended_rules=tuple(e for e in live.intended_rules if e.rule_id != "fused_label"),
     )
     assert len(mode.corpus_cases) == 1
     assert mode.corpus_cases
