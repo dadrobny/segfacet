@@ -26,11 +26,12 @@ failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
   island-kind ``"Rogue island(s):"`` finding while the target's dominant
   body stays above the fragmentation-index threshold.
 * :class:`SplitPerturbation` (``"split"``, item 166, re-authored by item
-  174) -- mode 3 sub-type (a): the target's neighbour-facing cap, the
-  smallest whole-slice run holding at least ``donated_fraction`` of its
-  voxels, is relabelled onto the adjacent neighbour.
+  174) -- mode 2's paired case (item 205): the target's neighbour-facing
+  cap, the smallest whole-slice run holding at least ``donated_fraction`` of
+  its voxels, is relabelled onto the adjacent neighbour, which then covers
+  its own vertebra plus part of the target.
 * :class:`SplitOwnLabelPerturbation` (``"split_own_label"``, item 174) --
-  mode 3 sub-type (b): the same caudal cap gets a label of its own (the
+  mode 3 (the fragment case): the same caudal cap gets a label of its own (the
   target's), and every label cranial to it shifts up one level (l -> l - 1).
 
 Implemented strictly against the unchanged item-036 contract (``Perturbation``,
@@ -432,8 +433,9 @@ class FusePerturbation(Perturbation):
 class SplitPerturbation(Perturbation):
     """Relabel one label's neighbour-facing cap onto its adjacent neighbour.
 
-    Registered under ``"split"``: mode 3 sub-type (a), part of a vertebra
-    carries a neighbouring vertebra's label (item 166; re-authored by item
+    Registered under ``"split"``: mode 2's paired case (item 205,
+    2026-09-30; mode 3 before), one label covers its own vertebra plus part
+    of a neighbour (item 166; re-authored by item
     174, 2026-09-23). The cap is the part of the target beyond one S-I cut on
     the side facing the neighbour along the affine-resolved stacking axis
     (item 116, via :func:`segfacet.synth.axes.si_axis`): the smallest number
@@ -501,8 +503,8 @@ class SplitPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=3,
-            failure_mode_name=FAILURE_MODE_NAMES[3],
+            failure_mode=2,
+            failure_mode_name=FAILURE_MODE_NAMES[2],
             expected_rule_ids=frozenset({"neighbour_contact"}),
             expected_labels=frozenset({neighbour}),
             expected_verdict="flagged-for-review",
@@ -527,7 +529,7 @@ class SplitPerturbation(Perturbation):
 class SplitOwnLabelPerturbation(Perturbation):
     """Give one label's caudal cap a label of its own, shifting cranial labels.
 
-    Registered under ``"split_own_label"``: mode 3 sub-type (b), part of a
+    Registered under ``"split_own_label"``: mode 3, part of a
     vertebra carries a label of its own (item 174, 2026-09-23). The cap faces
     the next-higher present label (caudal, since ascending labels advance
     caudally) and is cut by the same rule as :class:`SplitPerturbation`.

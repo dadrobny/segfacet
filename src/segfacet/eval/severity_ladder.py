@@ -119,8 +119,8 @@ response* speaks to is instead its designated metric's home,
 state is always read off the metric, never off the ladder. The two differ
 for several ladders (``relabel_swap``: ladder mode 9, metric mode 8; ``fuse``:
 ladder mode 2, metric mode 1; ``displace``: ladder home the
-``displaced_vertebra`` condition, metric mode 1; ``split`` and
-``split_own_label``: ladder mode 3, metric mode 8); both fields stay as
+``displaced_vertebra`` condition, metric mode 1; ``split``: ladder mode 2
+since item 205, ``split_own_label``: ladder mode 3, both metric mode 8); both fields stay as
 recorded, they simply answer different questions.
 
 Shared designated metrics (item 201): ``split``, ``split_own_label`` and
@@ -671,8 +671,9 @@ _LADDER_HOMES: Mapping[str, Tuple[Optional[int], Optional[str]]] = MappingProxyT
         "remove_level": (6, None),
         "crop_at_border": (None, "fov_truncation"),
         "sequence_break": (9, None),
-        # Item 201: rule (b) -- SPECIFICATION[3].corpus_cases holds both cases.
-        "split": (3, None),
+        # Item 201: rule (b) -- the mode whose corpus_cases holds the case.
+        # Item 205 (2026-09-30): split moved to mode 2 with the boundary re-draw.
+        "split": (2, None),
         "split_own_label": (3, None),
         "fuse": (2, None),
     }

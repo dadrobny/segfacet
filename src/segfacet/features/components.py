@@ -28,7 +28,7 @@ diagonal or edge neighbours) and computes:
   (item 098).
 * **stray_contact_area_mm2** — the maximum, over every stray component, of
   that component's 6-neighbour face-contact area (mm²) with any single
-  other non-zero label; mode 3's (*split vertebra segment*) discriminating
+  other non-zero label; mode 2's (*fused vertebra segments*) discriminating
   signal (item 167).
 * **stray_contact_label** — the other label id carrying that maximal
   interface, or the ``0`` background sentinel when
@@ -192,7 +192,7 @@ class ComponentsInfo:
         that component's 6-neighbour face-contact area (mm²) with any
         single other non-zero label. ``0.0`` for a single-component label,
         or when no stray component touches another label at all. This is
-        mode 3's (*split vertebra segment*) discriminating signal: a
+        mode 2's (*fused vertebra segments*) discriminating signal: a
         substantial stray piece pressed against the label that claimed it,
         as opposed to a detached-but-untouching stray (mode 2) or a small
         own-label island (mode 4). Tie-break policy (item 167): components

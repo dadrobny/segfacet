@@ -147,7 +147,7 @@
         "measured_firing": [
           "neighbour_contact"
         ],
-        "mode": 3
+        "mode": 2
       },
       {
         "agrees": true,
@@ -798,48 +798,9 @@
         {
           "case_id": "fuse_adjacent",
           "detection": "pipeline"
-        }
-      ],
-      "edge_rungs": [
-        [
-          "bounds",
-          [
-            "metric_out_of_range"
-          ],
-          "needs-real-data"
-        ]
-      ],
-      "granularity": "signal",
-      "mechanism": "Observable from the label map via a proxy, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3), needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.",
-      "mode": 2,
-      "pipeline_detected": true,
-      "read_paths": [
-        "per_label.{label}.geometry.extent_x_mm",
-        "per_label.{label}.geometry.extent_y_mm",
-        "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3"
-      ],
-      "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {
-        "bounds": "analytic"
-      },
-      "rules": [
-        "bounds"
-      ],
-      "rung": "needs-real-data",
-      "status": "implemented",
-      "title": "Fused vertebra segments"
-    },
-    "3": {
-      "anchor_paths": [],
-      "authored_status": "specified",
-      "cases": [
-        {
-          "case_id": "split",
-          "detection": "pipeline"
         },
         {
-          "case_id": "split_own_label",
+          "case_id": "split",
           "detection": "pipeline"
         }
       ],
@@ -860,8 +821,8 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.",
-      "mode": 3,
+      "mechanism": "Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its label is a single component with no stray component to measure, and its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).",
+      "mode": 2,
       "pipeline_detected": true,
       "read_paths": [
         "per_label.{label}.components.component_contacts[].contact_fraction",
@@ -872,7 +833,7 @@
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "bounds": "corpus",
+        "bounds": "analytic",
         "neighbour_contact": "corpus"
       },
       "rules": [
@@ -880,6 +841,45 @@
         "neighbour_contact"
       ],
       "rung": "synthetic-demonstrable",
+      "status": "validated",
+      "title": "Fused vertebra segments"
+    },
+    "3": {
+      "anchor_paths": [],
+      "authored_status": "specified",
+      "cases": [
+        {
+          "case_id": "split_own_label",
+          "detection": "pipeline"
+        }
+      ],
+      "edge_rungs": [
+        [
+          "bounds",
+          [
+            "metric_out_of_range"
+          ],
+          "needs-real-data"
+        ]
+      ],
+      "granularity": "signal",
+      "mechanism": "Seen today only by the bounds proxy on split_own_label (item 186): the cap, 20% of L4 kept as a label of its own, reads volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (per_label.{label}.geometry.physical_volume_mm3; re-measured 2026-09-30, item 205). Its own signal is the whole-label contact fraction plus small size: per_label.{label}.components.label_contact_fraction reads 0.3317 on that cap against its neighbour, and no rule reads it yet (Left open, items 187 and 208). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.",
+      "mode": 3,
+      "pipeline_detected": true,
+      "read_paths": [
+        "per_label.{label}.geometry.extent_x_mm",
+        "per_label.{label}.geometry.extent_y_mm",
+        "per_label.{label}.geometry.extent_z_mm",
+        "per_label.{label}.geometry.physical_volume_mm3"
+      ],
+      "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
+      "rule_attribution": {
+        "bounds": "corpus"
+      },
+      "rules": [
+        "bounds"
+      ],
+      "rung": "needs-real-data",
       "status": "validated",
       "title": "Split vertebra segment"
     },
@@ -1222,7 +1222,7 @@
       "declaration_state": "declared",
       "evidence": [
         "corpus-manifest",
-        "tests/corpus/manifest.json's split designates this rule for mode 3 (split vertebra segment) of the catalogue signed off at item 150 (2026-09-14, revised 2026-09-15). Item 187 moved the detector here from fragmentation.py and re-expressed the threshold on the relative measure: measured 2026-09-27, the split case's label-24 stray component reads a contact_fraction of 0.3317, +0.2317 above the 0.1 threshold (3.3x), and every other stray component in either corpus measures 0.0 -- the stray_contact detector. The mode 3 <-> neighbour_contact evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[3]."
+        "tests/corpus/manifest.json's split designates this rule for mode 2 (fused vertebra segments) of the catalogue; item 205 (2026-09-30) moved it from mode 3 when the mode 2/3 boundary was re-drawn at gate-51da. Item 187 moved the detector here from fragmentation.py and re-expressed the threshold on the relative measure: measured 2026-09-27, the split case's label-24 stray component reads a contact_fraction of 0.3317, +0.2317 above the 0.1 threshold (3.3x), and every other stray component in either corpus measures 0.0 -- the stray_contact detector. The mode 2 <-> neighbour_contact evidence claim is the per-edge rung in segfacet.failure_modes.SPECIFICATION[2]."
       ],
       "feature_path_count": 5,
       "feature_paths": [
@@ -1234,7 +1234,7 @@
       ],
       "mode_less_reason": "",
       "modes": [
-        3
+        2
       ],
       "rule_id": "neighbour_contact"
     },

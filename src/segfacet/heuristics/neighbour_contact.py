@@ -1,11 +1,18 @@
-"""Neighbour-contact rule (item 187), serving mode 3 (split vertebra segment).
+"""Neighbour-contact rule (item 187), serving mode 2 (fused vertebra segments).
 
-Item 167 added a mode-3 detector to ``fragmentation.py`` reading the absolute
-``stray_contact_area_mm2`` field. This item gives mode 3 a rule of its own,
+Item 205 (2026-09-30) moved this rule from mode 3 to mode 2 when the mode 2/3
+boundary was re-drawn at human gate ``gate-51da``: a label covering its own
+vertebra plus part of a neighbour (the ``split`` case) is mode 2's paired
+case, and mode 3 is the fragment case (see
+``segfacet.failure_modes.SPECIFICATION``). The detectors, threshold and
+``evaluate`` did not change.
+
+Item 167 added a detector to ``fragmentation.py`` reading the absolute
+``stray_contact_area_mm2`` field. Item 187 gave it a rule of its own,
 because ``fragmentation``'s other two detectors (``components``, ``islands``)
-read one label split into several parts, which is not mode 3 (one vertebra
-under several labels): after this item ``fragmentation`` declares modes
-``(1, 4)`` and this rule alone declares ``(3,)``.
+read one label split into several parts, which is not this mode: after
+item 187 ``fragmentation`` declares modes ``(1, 4)`` and this rule alone
+declares the contact detector.
 
 **Why the measure changes.** ``stray_contact_area_mm2`` is an absolute area,
 so a small stray component shows little absolute contact even when most of
@@ -24,7 +31,7 @@ Design decisions (recorded per item 187 spec, A5-A7):
   but 0.102 at label scope, because the stray piece touches), and
   ``split_own_label`` labels 22 (0.186) and 23 (0.332) at both scopes. So
   reading the largest component or the label scope would fire on
-  ``split_own_label``, outside mode 3's split-vertebra-segment sub-type (a);
+  ``split_own_label``, outside mode 2's paired case;
   ``split`` label 24's label-scope reading sits barely above the threshold.
   The stray-only scope is what keeps ``split_own_label`` out; on ``split``
   the wider readings would fire too, so they are not what separates it.
@@ -46,7 +53,7 @@ Design decisions (recorded per item 187 spec, A5-A7):
 
 Scope fence: no new corpus case or fixture change (this item); no change to
 ``fragmentation``'s ``components``/``islands`` detectors, their thresholds,
-or modes 1 and 4; mode 3 sub-type (b) (``split_own_label``, the cap is its
+or modes 1 and 4; mode 3 (``split_own_label``, the cap is its
 own label's only component, so it has no stray component) is not detected by
 this rule (Left open, item 187 spec).
 """
@@ -74,7 +81,7 @@ __all__ = ["NeighbourContactRule", "DEFAULT_CONTACT_FRACTION"]
 
 DEFAULT_CONTACT_FRACTION: float = 0.1
 """Fire when a stray component's contact_fraction strictly exceeds this value
-(item 187, mode 3 -- split vertebra segment). Calibrated on the synthetic
+(item 187, mode 2 after item 205 -- fused vertebra segments). Calibrated on the synthetic
 corpus only (Stage 21 re-calibrates on real ground truth): measured
 2026-09-27 on both committed corpora, the only firing value is the split
 case's label-24 stray component, 0.3317 (806.0 mm^2 against label 23, over
@@ -124,8 +131,8 @@ def _severity_from_param(label: str) -> Severity:
 
 @register_rule
 class NeighbourContactRule(Rule):
-    """Neighbour-contact rule (item 187), serving mode 3 (split vertebra
-    segment).
+    """Neighbour-contact rule (item 187), serving mode 2 (fused vertebra
+    segments).
 
     For each vertebra label present in the feature record, reads its stray
     components' (``component_contacts[1:]``) relative contact measure. Any
@@ -137,24 +144,25 @@ class NeighbourContactRule(Rule):
 
     rule_id = "neighbour_contact"
 
-    # Specification mode 3 (split vertebra segment): SplitPerturbation
+    # Specification mode 2 (fused vertebra segments): SplitPerturbation
     # (src/segfacet/synth/component_shape.py) designates this rule via
     # Expectation(expected_rule_ids={"neighbour_contact"}).
     mode_declaration = RuleModeDeclaration(
-        modes=(3,),
+        modes=(2,),
         evidence=(
             "corpus-manifest",
             "tests/corpus/manifest.json's split designates this rule "
-            "for mode 3 (split vertebra segment) of the catalogue signed "
-            "off at item 150 (2026-09-14, revised 2026-09-15). Item 187 "
+            "for mode 2 (fused vertebra segments) of the catalogue; item 205 "
+            "(2026-09-30) moved it from mode 3 when the mode 2/3 boundary "
+            "was re-drawn at gate-51da. Item 187 "
             "moved the detector here from fragmentation.py and re-expressed "
             "the threshold on the relative measure: measured 2026-09-27, "
             "the split case's label-24 stray component reads a "
             "contact_fraction of 0.3317, +0.2317 above the 0.1 threshold "
             "(3.3x), and every other stray component in either corpus "
-            "measures 0.0 -- the stray_contact detector. The mode 3 <-> "
+            "measures 0.0 -- the stray_contact detector. The mode 2 <-> "
             "neighbour_contact evidence claim is the per-edge rung in "
-            "segfacet.failure_modes.SPECIFICATION[3].",
+            "segfacet.failure_modes.SPECIFICATION[2].",
         ),
         consumed_paths=(
             ConsumedPath(

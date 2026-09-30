@@ -1391,7 +1391,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            3
+            2
           ],
           "measures": "A component's contact area with its most-contacted neighbour, as a fraction of the component's own surface -- item 187's relative measure, so a small component whose surface is mostly pressed against a neighbour scores as high as a large one whose absolute contact area happens to be the same.",
           "mode_evidence": [
@@ -2150,7 +2150,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Neighbour-label contact area: how much of a label's non-dominant material is pressed against another label -- mode 3's (split vertebra segment) discriminating signal (item 167).",
+          "measures": "Neighbour-label contact area: how much of a label's non-dominant material is pressed against another label -- mode 2's (fused vertebra segments) discriminating signal (items 167, 205).",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {

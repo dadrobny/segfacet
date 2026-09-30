@@ -272,7 +272,7 @@ def test_ac6_one_detector_on_the_relative_measure():
 
 
 def test_ac7_detector_serves_mode_3_and_no_other():
-    assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (3,)
+    assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (2,)  # item 205 (2026-09-30): moved from mode 3
 
 
 # =========================================================================== #
@@ -318,7 +318,7 @@ def test_ac10_rule_fires_on_no_other_case(all_corpus_findings):
 
 
 def test_ac11_split_measured_firing_is_the_new_rule_alone():
-    cases = [c for c in failure_modes.SPECIFICATION[3].corpus_cases if c.case_id == "split"]
+    cases = [c for c in failure_modes.SPECIFICATION[2].corpus_cases if c.case_id == "split"]  # item 205 (2026-09-30): moved from mode 3
     assert len(cases) == 1, cases
     case = cases[0]
     assert set(failure_modes.measured_firing(case)) == {"neighbour_contact"}

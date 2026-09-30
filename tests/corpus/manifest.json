@@ -406,8 +406,8 @@
         "neighbour_contact"
       ],
       "expected_verdict": "flagged-for-review",
-      "failure_mode": 3,
-      "failure_mode_name": "split vertebra segment",
+      "failure_mode": 2,
+      "failure_mode_name": "fused vertebra segments",
       "kind": "failure",
       "perturbation": "split",
       "perturbation_params": {

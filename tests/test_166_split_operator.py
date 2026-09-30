@@ -68,7 +68,7 @@ def _split_corpus_case_expectation():
     """The one ``CorpusCaseExpectation`` mode 3 carries for the split case."""
     matches = [
         c
-        for c in failure_modes.SPECIFICATION[3].corpus_cases
+        for c in failure_modes.SPECIFICATION[2].corpus_cases  # item 205 (2026-09-30): moved from mode 3
         if c.case_id == "split"
     ]
     assert len(matches) == 1, matches
@@ -391,6 +391,6 @@ def test_mode_3_proxy_edges_unchanged():
     Reconciled (item 193, 2026-09-28): ``reference_delta`` becomes mode-less
     (no mode's own detector) and loses its mode-3 edge, leaving ``bounds``
     and ``neighbour_contact``."""
-    rule_ids = {edge.rule_id for edge in failure_modes.SPECIFICATION[3].intended_rules}
+    rule_ids = {edge.rule_id for edge in failure_modes.SPECIFICATION[2].intended_rules}  # item 205 (2026-09-30): moved from mode 3
     assert {"bounds"} <= rule_ids
     assert rule_ids == {"bounds", "neighbour_contact"}

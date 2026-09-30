@@ -221,15 +221,17 @@ def test_ac4_rendering_states_mode_1s_catch_all_rule():
 
 
 def test_ac5_mode_2_definition_uses_the_vertebra_wording():
+    # Item 205 (2026-09-30): the opening words follow the re-drawn boundary.
     expected = (
-        "One label covers substantial parts of two or more adjacent "
-        "ground-truth vertebrae:"
+        "One label covers its own ground-truth vertebra plus part or all of "
+        "an adjacent one:"
     )
     assert fm.SPECIFICATION[2].definition.startswith(expected)
 
 
 def test_ac6_mode_3_definition_uses_the_vertebra_wording():
-    expected = "One ground-truth vertebra is covered by more than one label:"
+    # Item 205 (2026-09-30): the opening words follow the re-drawn boundary.
+    expected = "Part of a ground-truth vertebra carries a label of its own,"
     assert fm.SPECIFICATION[3].definition.startswith(expected)
 
 
@@ -270,7 +272,7 @@ def test_adv_planted_double_carried_case_is_reported():
     conditions only."""
     split_case = next(
         case
-        for case in fm.SPECIFICATION[3].corpus_cases
+        for case in fm.SPECIFICATION[2].corpus_cases  # item 205 (2026-09-30)
         if case.case_id == "split"
     )
     modes = tuple(

@@ -612,7 +612,7 @@ _RULE_MODE_MAP = {
     # only case that scanned to "overlap") was removed.
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
     "bounds": (3,),  # split_own_label (3)
-    "neighbour_contact": (3,),  # split (3)
+    "neighbour_contact": (2,),  # split (2); item 205 (2026-09-30) moved from mode 3
 }
 
 

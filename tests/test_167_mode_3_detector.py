@@ -331,7 +331,8 @@ def test_ac4_detector_declared_with_first_class_id():
 
 def test_ac5_detector_serves_mode_3_and_no_other():
     # Item 187 (2026-09-27): moved rule/detector id pair.
-    assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (3,)
+    # Item 205 (2026-09-30): the detector serves mode 2 (mode 3 before).
+    assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (2,)
 
 
 # =========================================================================== #
@@ -375,8 +376,8 @@ def test_ac8_split_case_expected_firing_unmoved():
     # Item 174 (2026-09-23), re-derived premise: mode 3 now carries two
     # cases (split and split_own_label), so the split case is selected by
     # case_id instead of asserting it is mode 3's only case.
-    cases = [
-        c for c in failure_modes.SPECIFICATION[3].corpus_cases if c.case_id == "split"
+    cases = [  # item 205 (2026-09-30): moved from mode 3
+        c for c in failure_modes.SPECIFICATION[2].corpus_cases if c.case_id == "split"
     ]
     assert len(cases) == 1, cases
     case = cases[0]
@@ -407,12 +408,13 @@ def test_ac9_signal_path_extracted_and_catalogued():
 
 def test_ac10_mode_3_owns_the_edge():
     # Item 187 (2026-09-27): mode 3's edge moved onto neighbour_contact.
+    # Item 205 (2026-09-30): the edge moved on to mode 2.
     edges = [
         edge
-        for edge in failure_modes.SPECIFICATION[3].intended_rules
+        for edge in failure_modes.SPECIFICATION[2].intended_rules
         if edge.rule_id == "neighbour_contact"
     ]
-    assert len(edges) == 1, failure_modes.SPECIFICATION[3].intended_rules
+    assert len(edges) == 1, failure_modes.SPECIFICATION[2].intended_rules
     assert edges[0].detector_ids == ("stray_contact",)
     assert edges[0].evidence_rung == "synthetic-demonstrable"
 
@@ -424,7 +426,9 @@ def test_ac10_mode_3_owns_the_edge():
 
 def test_ac11_mode_3_meets_all_five_bar_conditions():
     catalogue = build_catalogue(strict=True)
-    bar = traceability.bar_conditions(3, catalogue=catalogue)
+    # Item 205 (2026-09-30): the edge and its case moved to mode 2, so the
+    # bar is read on mode 2 (mode 3 meets 1, 2 and 5 only until item 208).
+    bar = traceability.bar_conditions(2, catalogue=catalogue)
     assert tuple(c.met for c in bar) == (True, True, True, True, True)
 
     condition_4 = [c for c in bar if c.number == 4]

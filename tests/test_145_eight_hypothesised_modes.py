@@ -124,7 +124,7 @@ _FOV_CONDITION_ID = "fov_truncation"
 #: least one case demonstrating one of the mode's *own* intended rules).
 _EXPECTED_DERIVED_STATUS = {
     1: "validated",
-    2: "implemented",
+    2: "validated",  # item 205 (2026-09-30): split moved here
     3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
