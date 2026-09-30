@@ -458,6 +458,8 @@ No dependency is added. `statistics` is the standard library.
 - `tests/test_167_mode_3_detector.py` — mode 2's condition 4 subjects.
 - `tests/test_176_fuse_bridged.py` — AC10's measured firing.
 - `tests/test_187_neighbour_contact_rule.py` — the rule count and mode 2's condition 4 subjects.
+- `tests/test_166_split_operator.py` — **added 2026-09-30.** Mode 2's edge set gains `fused_label` (Correction 2026-09-30, C1).
+- `tests/test_194_mode_1_catch_all.py` — **added 2026-09-30.** AC2 names `fuse_separate`'s by-design co-detection (Correction 2026-09-30, C2).
 
 **The reconciliation fence.** Every edit to an existing test is a moved
 literal (a count, a rule id added to a map or a case table, a subjects
@@ -771,3 +773,97 @@ Recorded at implementation (2026-09-30):
   The catalogue's dispositions are Stage 19's record and are re-taxonomised
   by Stage 27; changing one here would move `golden_evidence` and every
   status count for a wording fix.
+
+## Correction — 2026-09-30 (validation round 1)
+
+Validation round 1 failed on two red tests in files the Authorised paths
+did not list. The Testing Strategy's sweep missed both. Every section above
+stands as written, and these corrections apply on top of it. No acceptance
+criterion changes, and no production code changes: both are test
+reconciliations, and the builder makes them (step 10). Both files are added
+to **May change** above, marked **added 2026-09-30**.
+
+Measured 2026-09-30 with `.venv/bin/python` on this branch at `212634b`, by
+driving every committed case through the harness its manifest `detection`
+field names and taking the union of `modes_for_detector` over its findings
+(item 194's "served modes"). `fuse_separate` is served by `{1, 2}`:
+`("fragmentation", "components")` serves mode 1 and
+`("fused_label", "fused_label")` serves mode 2. `SPECIFICATION[2]` alone
+carries it, with `expected_firing == ("fragmentation", "fused_label")`. No
+other case is served by mode 1 beside another mode: `fragment` is served by
+`{1}` and no other case's served modes contain 1.
+
+### C1 — `tests/test_166_split_operator.py::test_mode_3_proxy_edges_unchanged` (moved literal)
+
+**Defect.** Line 396 asserts
+`{e.rule_id for e in SPECIFICATION[2].intended_rules} == {"bounds", "neighbour_contact"}`.
+Step 4 appends the `fused_label` edge to mode 2, so the set is now
+`{"bounds", "fused_label", "neighbour_contact"}`.
+
+**Fix.** A moved literal inside the reconciliation fence:
+`assert rule_ids == {"bounds", "neighbour_contact", "fused_label"}`, with a
+trailing `# item 207 (2026-09-30): mode 2 gains its own fused_label edge`
+comment. The subset check `{"bounds"} <= rule_ids` and the docstring stay.
+
+### C2 — `tests/test_194_mode_1_catch_all.py::test_ac2_no_committed_case_served_by_mode_1_beside_another_mode` (structural edit)
+
+**Defect.** The loop asserts `modes == {1}` for every case whose served
+modes contain 1. `fuse_separate` is now served by `{1, 2}`.
+
+**Why the co-detection is by design, and item 194's rule still holds.**
+Item 194's catch-all rule is about *attribution*: a case is attributed to
+mode 1 only when no other mode applies (its sentence S, rendered under
+mode 1 and pinned by its AC4). Attribution is the specification's
+`corpus_cases`, which item 194's AC3 checks, and `fuse_separate` is
+attributed to mode 2 alone. Its served modes are a measurement of what
+fires. The unlabelled gap leaves label 22 in two connected parts, which is
+"fragmentation" in item 194's own vocabulary, so mode 1's `components`
+detector fires on it correctly. Item 206 recorded that firing as a
+co-detection in the case's expected set, and it was served by `{1}` until
+this item gave mode 2 a detector of its own.
+
+**Decision.** Name the exemption by case and by exact served set, in the
+test:
+
+```python
+# Item 207 (2026-09-30): by-design co-detections. A case listed here is
+# attributed to another mode (AC3) and fires mode 1's detector because its
+# label really is in several parts. Each entry is checked by equality.
+_MODE_1_CO_DETECTIONS = {"fuse_separate": frozenset({1, 2})}
+```
+
+and in the test body, before the loop,
+`assert set(_MODE_1_CO_DETECTIONS) <= set(served)`, then per case: when
+`case_id` is in `_MODE_1_CO_DETECTIONS`, assert
+`modes == _MODE_1_CO_DETECTIONS[case_id]`; otherwise keep the existing
+`if 1 in modes: assert modes == {1}`. The test's name stays, and its
+docstring (or the comment above the constant) gains one dated item-207
+sentence saying why `fuse_separate` is listed.
+
+Why this shape and not another:
+
+- **Not an exemption derived from `expected_firing`** (the validator's
+  "exempt the declared co-detection", read generally). A mode-1 firing
+  declared in the owning mode's expected set is what
+  `tests/test_163_specificity_ratchet.py` forces for every measured firing,
+  so a derived exemption would pass any future mode-1 co-detection
+  automatically and AC2 would assert nothing. The literal keeps every new
+  mode-1 co-detection a deliberate, reviewed edit.
+- **Equality, not membership.** The exempted case must be served by exactly
+  `{1, 2}`: a third mode appearing on `fuse_separate`, or either detector
+  going silent, fails the test. The subset assertion fails if the case
+  leaves the manifest, so the exemption cannot outlive its case.
+- **No other case is exempted.** Every other case keeps item 194's
+  assertion unchanged.
+
+This is not a moved literal, so the reconciliation fence is widened for
+this one named edit, as it is for `test_145`'s co-detection probe. No test
+is retired, skipped, `xfail`-marked or loosened beyond the one named case.
+
+### C3 — the review's minor finding goes to the insight inbox
+
+The review's finding that `evaluate` orders `per_label` keys with
+`key=int` and so raises `ValueError` on a non-integer key once the `stage3`
+and spacing-count guards pass is unreachable today, because the pipeline
+emits only integer keys. It is recorded in `docs/aide/insights.md`
+(item 207, 2026-09-30) and is not fixed on this item.
