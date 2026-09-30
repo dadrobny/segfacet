@@ -280,10 +280,10 @@ def _require_next_higher(labels, target, neighbour):
         )
 
 
-def _renumber_caudal(data, orig, labels, target, neighbour):
+def _renumber_caudal(data, orig, labels, neighbour):
     """Renumber every present label above ``neighbour`` down one present step
-    (shared by the bridged and unbridged-renumbered fuse forms)."""
-    _require_next_higher(labels, target, neighbour)
+    (shared by the bridged and unbridged-renumbered fuse forms; callers run
+    ``_require_next_higher`` first)."""
     caudal = [lbl for lbl in labels if lbl > neighbour]
     renumbered = list(zip(caudal, [neighbour] + caudal[:-1]))
     for old, new in renumbered:
@@ -390,8 +390,9 @@ class FusePerturbation(Perturbation):
             # full, separate bodies; nothing is filled.
             orig = np.asanyarray(labelmap.dataobj)
             data = np.array(orig, copy=True)
+            _require_next_higher(labels, target, neighbour)
             data[orig == neighbour] = target
-            renumbered = _renumber_caudal(data, orig, labels, target, neighbour)
+            renumbered = _renumber_caudal(data, orig, labels, neighbour)
             rule_ids = frozenset({"fragmentation"})
             offending = frozenset({target})
             verdict = "flagged-for-review"
@@ -442,7 +443,7 @@ class FusePerturbation(Perturbation):
             n_columns = int(np.count_nonzero(bridge.any(-1)))
 
             data[orig == neighbour] = target
-            renumbered = _renumber_caudal(data, orig, labels, target, neighbour)
+            renumbered = _renumber_caudal(data, orig, labels, neighbour)
 
             rule_ids = frozenset()
             offending = frozenset()
