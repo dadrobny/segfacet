@@ -260,7 +260,7 @@ def test_ac15_out_of_range_supplied_count_refused(section_counts):
 def test_ac16_split_own_label_no_longer_fires_coverage():
     matches = [
         c
-        for c in failure_modes.SPECIFICATION[2].corpus_cases  # item 205 (2026-09-30): moved from mode 3
+        for c in failure_modes.SPECIFICATION[3].corpus_cases
         if c.case_id == "split_own_label"
     ]
     assert len(matches) == 1, matches

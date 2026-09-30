@@ -91,7 +91,9 @@ from segfacet.synth.regression import loaded_seg_image
 #: caught by plain run_qc. Item 176 (2026-09-24): mode 2 dropped out -- its
 #: only case, fuse_adjacent, is now bridged and renumbered, designates no rule
 #: and expects "pass" (1, 2, 3, 4, 6, 9) -> (1, 3, 4, 6, 9).
-_PIPELINE_DETECTABLE_MODES = (1, 3, 4, 6, 9)
+#: Item 205 (2026-09-30): mode 2 rejoined through ``split``, re-homed from mode
+#: 3, which designates neighbour_contact -> (1, 2, 3, 4, 6, 9).
+_PIPELINE_DETECTABLE_MODES = (1, 2, 3, 4, 6, 9)
 #: _RECONSTRUCTED_RECORD_MODES dropped by item 195, 2026-09-28: the overlap
 #: case (mode 15) was removed, so no committed case is reconstructed_record
 #: any more and every expected-failure record is pipeline-detected.

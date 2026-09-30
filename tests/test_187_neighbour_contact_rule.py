@@ -271,7 +271,7 @@ def test_ac6_one_detector_on_the_relative_measure():
 # =========================================================================== #
 
 
-def test_ac7_detector_serves_mode_3_and_no_other():
+def test_ac7_detector_serves_mode_2_and_no_other():
     assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (2,)  # item 205 (2026-09-30): moved from mode 3
 
 
@@ -339,8 +339,8 @@ def test_ac12_manifest_designates_the_new_rule():
 # =========================================================================== #
 
 
-def test_ac13_mode_3_meets_all_five_bar_conditions():
-    bar = traceability.bar_conditions(3)
+def test_ac13_mode_2_meets_all_five_bar_conditions():
+    bar = traceability.bar_conditions(2)  # item 205 (2026-09-30): moved from mode 3
     assert tuple(c.met for c in bar) == (True, True, True, True, True)
 
 
@@ -350,7 +350,7 @@ def test_ac13_mode_3_meets_all_five_bar_conditions():
 
 
 def test_ac14_deciding_detector_is_the_new_rule():
-    bar = traceability.bar_conditions(3)
+    bar = traceability.bar_conditions(2)  # item 205 (2026-09-30): moved from mode 3
     condition_4 = [c for c in bar if c.number == 4]
     assert len(condition_4) == 1, condition_4
     assert condition_4[0].subjects == ("neighbour_contact/stray_contact",)

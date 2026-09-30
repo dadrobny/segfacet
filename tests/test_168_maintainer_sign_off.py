@@ -122,9 +122,14 @@ def _first_non_qualifying_mode(fm, catalogue):
     """The first mode id, in ascending order, whose ``bar_conditions`` are
     NOT all met -- recomputed live rather than a pinned literal, so the
     adversarial fixture below tracks the specification instead of going
-    stale against it."""
+    stale against it.
+
+    Item 205 (2026-09-30): modes carrying a shipped ``MODE_SIGN_OFFS`` record
+    are skipped -- a constructed claim must never shadow a shipped record."""
     count = 0
     for mode_id in sorted(fm.SPECIFICATION):
+        if mode_id in fm.MODE_SIGN_OFFS:
+            continue
         count += 1
         if not _all_conditions_met(catalogue, mode_id):
             return mode_id

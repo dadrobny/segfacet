@@ -10,7 +10,7 @@ Schema version: 2.2.
 - Parent: (none, top-level)
 - Scope: vertebra
 - Definition: Relative to ground truth, the predicted segment for a correctly identified and labelled vertebra misses part of that vertebra (under-segmentation) or extends beyond it into background or adjacent tissue (over-segmentation). This includes fragmentation -- one label in several parts -- where the parts are large pieces of the vertebra's own body cut apart by a missing slab: they carry no neighbour's label and are not small islands. The catch-all for accuracy defects: a corpus case, or a detector's edge, is attributed to this mode only when no other mode applies, and never beside another mode.
-- Discriminator: Mode 2 when the overreach covers a substantial part of an adjacent vertebra; mode 2 when a substantial part of the vertebra carries a neighbour's label, or mode 3 when it carries a label of its own; mode 4 when the surplus is a disconnected island rather than contiguous with the body; mode 5 when the missing part is background enclosed inside the segment; mode 6 when the whole vertebra is absent; mode 7 when the segment covers no vertebra at all; the FOV-truncation condition when the missing part lies beyond an image face.
+- Discriminator: Mode 2 when the overreach covers a substantial part of an adjacent vertebra, or a substantial part of the vertebra carries a neighbour's label; mode 3 when that part carries a label of its own; mode 4 when the surplus is a disconnected island rather than contiguous with the body; mode 5 when the missing part is background enclosed inside the segment; mode 6 when the whole vertebra is absent; mode 7 when the segment covers no vertebra at all; the FOV-truncation condition when the missing part lies beyond an image face.
 - Observability: needs-ground-truth
 - Severity: flagged-for-review
 - Provenance: hypothesised
@@ -118,7 +118,7 @@ Corpus cases:
 - Parent: 1
 - Scope: vertebra
 - Definition: A label's foreground includes components disconnected from its main body. Typically small islands close to the vertebra (image noise); rarely larger blobs further away (background structures, devices). An island may cover non-vertebra voxels.
-- Discriminator: Mode 5 is the topological converse (background enclosed inside the label rather than label outside its body); mode 1 when the surplus is contiguous with the body, or when the vertebra itself is cut into large same-label pieces; modes 2 and 3 when the extra region is a substantial part of a neighbouring vertebra; mode 14 when the components are two whole vertebrae. The island's size and distance from the main body grade the finding rather than bound the mode: the further an island lies from the label's centroid, the larger it may be and still count as an island.
+- Discriminator: Mode 5 is the topological converse (background enclosed inside the label rather than label outside its body); mode 1 when the surplus is contiguous with the body, or when the vertebra itself is cut into large same-label pieces; mode 2 when the extra region is a substantial part of a neighbouring vertebra; mode 14 when the components are two whole vertebrae. The island's size and distance from the main body grade the finding rather than bound the mode: the further an island lies from the label's centroid, the larger it may be and still count as an island.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
 - Provenance: hypothesised

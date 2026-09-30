@@ -175,17 +175,17 @@ def test_ac5_no_adjacent_neighbour_refused():
 
 
 # =========================================================================== #
-# AC6: the Expectation attributes the case to mode 3
+# AC6: the Expectation attributes the case to mode 2 (item 205, 2026-09-30; was mode 3)
 # =========================================================================== #
 
 
-def test_ac6_expectation_attributes_case_to_mode_3():
+def test_ac6_expectation_attributes_case_to_mode_2():
     clean_img = _clean_seg_img()
     result = SplitPerturbation(target_label=22, neighbour_label=23).apply(
         clean_img, seed=0
     )
-    assert result.expectation.failure_mode == 3
-    assert result.expectation.failure_mode_name == FAILURE_MODE_NAMES[3]
+    assert result.expectation.failure_mode == 2  # item 205 (2026-09-30): moved from mode 3
+    assert result.expectation.failure_mode_name == FAILURE_MODE_NAMES[2]
 
 
 # =========================================================================== #
@@ -195,7 +195,7 @@ def test_ac6_expectation_attributes_case_to_mode_3():
 
 def test_ac7_committed_geometric_corpus_carries_the_case():
     case = _split_case_dict()
-    assert case["failure_mode"] == 3
+    assert case["failure_mode"] == 2  # item 205 (2026-09-30): moved from mode 3
     assert case["detection"] == "pipeline"
     fixture_path = CORPUS_DIR / case["seg_fixture"]
     assert fixture_path.is_file(), f"missing committed fixture: {fixture_path}"

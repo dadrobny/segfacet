@@ -266,7 +266,7 @@ def test_adv_planted_shared_mode_1_edge_is_reported():
 
 def test_adv_planted_double_carried_case_is_reported():
     """``planted-double-carried-case``: mode 1 planted with ``split``'s
-    ``CorpusCaseExpectation`` (taken from ``SPECIFICATION[3].corpus_cases``)
+    ``CorpusCaseExpectation`` (taken from ``SPECIFICATION[2].corpus_cases`` since item 205, 2026-09-30; mode 3 before)
     makes AC3's helper report exactly ``{"split"}`` -- it guards a
     disjointness check that compares mode 1 against itself, or against
     conditions only."""

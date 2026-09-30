@@ -916,7 +916,13 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     whole ``mode_evidence`` bucket table do not move: those four paths keep
     their ``("rule_mode_map", "rule_declaration")`` evidence and their modes
     2, 3 and 4 (the corpus still designates ``bounds`` for mode 3 via
-    ``split_own_label``)."""
+    ``split_own_label``).
+
+    Re-measured (item 205, 2026-09-30): the leaf
+    ``per_label.{label}.components.component_contacts[].contact_fraction``
+    moves its ``failure_modes`` from ``(3,)`` to ``(2,)`` when
+    ``stray_contact`` moves to mode 2, joining the four ``geometry.*`` paths
+    (2, 3, 4). mode2_count moves 4 -> 5; ``len(entries)`` stays 145."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -932,7 +938,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
 
     mode2_count = sum(1 for e in entries if 2 in e.failure_modes)
     # Item 193 (2026-09-28): 7 -> 4.
-    assert mode2_count == 4
+    # Item 205 (2026-09-30): 4 -> 5 -- the contact_fraction leaf joins mode 2.
+    assert mode2_count == 5
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.

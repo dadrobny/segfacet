@@ -1019,8 +1019,9 @@ _MODE_1 = ModeSpec(
     ),
     discriminator=(
         "Mode 2 when the overreach covers a substantial part of an adjacent "
-        "vertebra; mode 2 when a substantial part of the vertebra carries "
-        "a neighbour's label, or mode 3 when it carries a label of its own; "
+        "vertebra, or a substantial part of the vertebra carries a "
+        "neighbour's label; mode 3 when that part carries a label of its "
+        "own; "
         "mode 4 when the surplus is a disconnected island "
         "rather than contiguous with the body; mode 5 when the missing part "
         "is background enclosed inside the segment; mode 6 when the whole "
@@ -1377,7 +1378,7 @@ _MODE_4 = ModeSpec(
         "Mode 5 is the topological converse (background enclosed inside the "
         "label rather than label outside its body); mode 1 when the surplus "
         "is contiguous with the body, or when the vertebra itself is cut "
-        "into large same-label pieces; modes 2 and 3 when the extra region "
+        "into large same-label pieces; mode 2 when the extra region "
         "is a substantial part of a neighbouring vertebra; mode 14 when the "
         "components are two whole vertebrae. The island's size and distance "
         "from the main body grade the finding rather than bound the mode: "

@@ -182,7 +182,7 @@ class NeighbourContactRule(Rule):
                 role="bookkeeping",
                 reason=(
                     "identity: names the merge-candidate neighbour label in "
-                    "the finding's reason; contact_fraction is the mode-3 "
+                    "the finding's reason; contact_fraction is the mode-2 "
                     "evidence"
                 ),
             ),
@@ -199,7 +199,7 @@ class NeighbourContactRule(Rule):
                 role="bookkeeping",
                 reason=(
                     "identity and message interpolation: names the level "
-                    "in the finding; component_contacts carries the mode-3 "
+                    "in the finding; component_contacts carries the mode-2 "
                     "evidence"
                 ),
             ),

@@ -194,7 +194,7 @@ class ComponentsInfo:
         or when no stray component touches another label at all. This is
         mode 2's (*fused vertebra segments*) discriminating signal: a
         substantial stray piece pressed against the label that claimed it,
-        as opposed to a detached-but-untouching stray (mode 2) or a small
+        as opposed to a detached-but-untouching stray (mode 1) or a small
         own-label island (mode 4). Tie-break policy (item 167): components
         are ordered by descending voxel count, ties broken by ascending
         component id, and the first of that order is the label's largest and

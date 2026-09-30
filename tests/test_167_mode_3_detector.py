@@ -329,7 +329,7 @@ def test_ac4_detector_declared_with_first_class_id():
 # =========================================================================== #
 
 
-def test_ac5_detector_serves_mode_3_and_no_other():
+def test_ac5_detector_serves_mode_2_and_no_other():
     # Item 187 (2026-09-27): moved rule/detector id pair.
     # Item 205 (2026-09-30): the detector serves mode 2 (mode 3 before).
     assert failure_modes.modes_for_detector("neighbour_contact", "stray_contact") == (2,)
@@ -406,7 +406,7 @@ def test_ac9_signal_path_extracted_and_catalogued():
 # =========================================================================== #
 
 
-def test_ac10_mode_3_owns_the_edge():
+def test_ac10_mode_2_owns_the_edge():
     # Item 187 (2026-09-27): mode 3's edge moved onto neighbour_contact.
     # Item 205 (2026-09-30): the edge moved on to mode 2.
     edges = [
@@ -424,7 +424,7 @@ def test_ac10_mode_3_owns_the_edge():
 # =========================================================================== #
 
 
-def test_ac11_mode_3_meets_all_five_bar_conditions():
+def test_ac11_mode_2_meets_all_five_bar_conditions():
     catalogue = build_catalogue(strict=True)
     # Item 205 (2026-09-30): the edge and its case moved to mode 2, so the
     # bar is read on mode 2 (mode 3 meets 1, 2 and 5 only until item 208).
