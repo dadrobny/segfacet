@@ -397,6 +397,64 @@ hand-back to spec-author.
 - `tests/test_151_stage30_validation.py` — its AC35 reads step 10's Stage 30 amendment, and AC13/AC18 recompute both modes' status and rung.
 - `tests/test_169_stage32_validation.py` — its AC6/AC7 read step 10's Stage 20 amendment.
 
+**Correction (2026-09-30, validation round 1: spec-author, on the fence's
+hand-back).** Three red tests fell outside the lists above. Each is a
+consequence of the re-draw, not of a defect in the change, and each is
+authorised below with the one edit it takes. The fence stands for every other
+file. It is widened for two named edits that are not moved literals:
+`tests/test_168_maintainer_sign_off.py`'s helper, and
+`tests/test_145_eight_hypothesised_modes.py`'s co-detection test (Decisions,
+2026-09-30). Values were measured on this branch on 2026-09-30 with the
+builder's change in place.
+
+- `tests/test_125_stage28_validation.py::test_ac15_agrees_with_test_057_pipeline_detectable_modes`
+  and `tests/test_135_stage29_validation.py::test_ac25_agrees_with_test_057_pipeline_detectable_modes`
+  compare `test_057`'s constant with the manifest's pipeline-detected modes
+  that designate a rule, now `{1, 2, 3, 4, 6, 9}` (`split` designates
+  `neighbour_contact` under mode 2). **Decision:** the constant is wrong, and
+  the two comparisons are right. `tests/test_057_acceptance_stage7.py:94`'s
+  `_PIPELINE_DETECTABLE_MODES` becomes `(1, 2, 3, 4, 6, 9)`, and one dated
+  item-205 sentence is appended to its comment (L78–93) saying mode 2 rejoined
+  through `split`. The earlier sentences stay. `test_125` and `test_135` are
+  not edited. Measured consequences: `test_057`'s `test_ac9` for mode 2 reads
+  `n_cases` 1 and sensitivity 1.0. `calibrate_thresholds` over
+  `(1, 2, 3, 4, 6, 9)` with the AC13 axis returns a best candidate that is
+  feasible.
+- `tests/test_137_mode_less_rule_disposition.py::test_adv_measured_artifact_movement_counts_from_spec`:
+  `mode2_count` is 5, not 4. The catalogue leaf
+  `per_label.{label}.components.component_contacts[].contact_fraction` moves
+  its `failure_modes` from `(3,)` to `(2,)`, joining the four `geometry.*`
+  paths `(2, 3, 4)`. `len(entries)` stays 145. **Decision:** L935 becomes
+  `assert mode2_count == 5`, with a dated item-205 comment beside item 193's.
+  A `Re-measured (item 205, 2026-09-30)` paragraph is appended to the
+  docstring, in the shape of the item 193 and item 194 paragraphs, recording
+  mode2_count 4 → 5 and the reason. The L897 and L915 sentences are not
+  rewritten: they record what items 193 and 194 measured.
+- `tests/test_168_maintainer_sign_off.py::test_at_the_bar_claim_over_a_failing_mode`:
+  `_first_non_qualifying_mode` returned 2 before this item. It now returns 3,
+  the first mode failing `bar_conditions`, because modes 1 and 2 now clear
+  the bar and 3 does not (A6). Mode 3 carries a shipped `MODE_SIGN_OFFS`
+  record (`intermediate-state`, 2026-09-22), so the test's guard
+  `claim.mode_id not in fm.MODE_SIGN_OFFS` fails. **Decision:**
+  `_first_non_qualifying_mode` skips every mode id present in
+  `fm.MODE_SIGN_OFFS`. The docstring and a dated item-205 comment say why: a
+  constructed claim must never shadow a shipped record. The guard assertion
+  stays unedited, and so does the `assert False` fallback. The first mode
+  measured to fail the bar with no shipped record is 5. `MODE_SIGN_OFFS` is
+  not touched (`gate-0133` owns it). AC9 is unaffected, because both shipped
+  records are `intermediate-state`, not `at-the-bar`.
+
+**May change:**
+
+- `tests/test_057_acceptance_stage7.py` — `_PIPELINE_DETECTABLE_MODES` gains 2, plus one appended comment sentence.
+- `tests/test_137_mode_less_rule_disposition.py` — `mode2_count` 4 → 5, a dated comment, and an appended docstring paragraph.
+- `tests/test_168_maintainer_sign_off.py` — `_first_non_qualifying_mode` skips modes carrying a shipped sign-off.
+
+**Asserts against:**
+
+- `tests/test_125_stage28_validation.py` — its AC15 must go green unedited once `test_057`'s constant carries mode 2.
+- `tests/test_135_stage29_validation.py` — its AC25 must go green unedited, for the same reason.
+
 ## Testing Strategy
 
 The test module is `tests/test_205_mode_2_3_boundary.py`, with one test per
@@ -433,6 +491,22 @@ found the files listed under May change. Known hits:
 The sweep was a grep, not a run. The builder treats any other red test that
 pins `split`, `stray_contact` or `neighbour_contact` to mode 3, or mode 2's
 old status or rung, as a hand-back to spec-author (the fence above).
+
+**Correction (2026-09-30, validation round 1).** The hit list above is wrong
+on one line. `tests/test_186_expected_level_sequence.py:263`
+(`test_ac16_split_own_label_no_longer_fires_coverage`) looks up
+`split_own_label`, not `split`, so it stays on `SPECIFICATION[3]`, as
+`tests/test_174_split_sub_types.py:230` does. The list's own parenthesis
+already said a `split_own_label` lookup stays on mode 3. The round-1 edit that
+moved it to `SPECIFICATION[2]` is reverted, together with its item-205
+comment. After the revert the file carries no item-205 change. The three
+tests added under Authorised paths (same date) extend the list:
+`tests/test_057_acceptance_stage7.py:94`,
+`tests/test_137_mode_less_rule_disposition.py:935` and
+`tests/test_168_maintainer_sign_off.py`'s `_first_non_qualifying_mode`.
+`tests/test_145_eight_hypothesised_modes.py`'s
+`test_ac13_co_detection_alone_does_not_validate` is reconciled as Decisions
+records (2026-09-30), because it is not a moved literal.
 
 ## Validation
 
@@ -514,3 +588,22 @@ Implemented 2026-09-30.
   it at `gate-51da` as outside the prototype goal (`insights.md`, queue-027,
   2026-09-30). Until then the only trace of that label is `stray_contact`'s
   message, which names it as the merge candidate.
+- **`test_145`'s co-detection test is re-pointed onto a probe (spec-author,
+  2026-09-30, validation round 1).**
+  `tests/test_145_eight_hypothesised_modes.py::test_ac13_co_detection_alone_does_not_validate`
+  pins the `derive_status` branch where every case agrees but none fires the
+  mode's own rules, so the mode reads `implemented`, not `validated`. Live
+  mode 2 carried that branch through `fuse_adjacent`. `split` now lifts it to
+  `validated`. No live mode carries the branch, as measured on this branch on
+  2026-09-30: modes 10, 11 and 15 are `implemented` with no corpus case, and
+  mode 6 is `specified`, with no intended rule. So the test asserts over a probe,
+  `dataclasses.replace(SPECIFICATION[2], corpus_cases=<mode 2's cases whose case_id is "fuse_adjacent">)`,
+  with its existing loop and disjointness assertions unchanged. It then asserts
+  `fm.derive_status(probe) == "implemented"`, and a guard that the probe holds
+  exactly one case. Measured: `"implemented"`, one case. The docstring gains a
+  dated item-205 sentence saying why the probe replaced the live mode. The
+  suggested extra assertion that live mode 2 is `validated` is not added:
+  `_EXPECTED_DERIVED_STATUS[2]`, reconciled to `"validated"` in the same file,
+  already pins it. This is the one edit to `test_145` that is not a moved
+  literal. The fence is widened for it here, and for `test_168`'s helper under
+  Authorised paths (same date). Nothing else in the fence changes.
