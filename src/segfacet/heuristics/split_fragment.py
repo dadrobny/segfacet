@@ -42,8 +42,10 @@ Design decisions (item 208 spec, A1-A6):
   work. The record is never mutated.
 
 Scope fence: no new feature and no other rule changes. The label left
-covering only the remainder of an encroached vertebra, and the lumbarised-S1
-sub-type of mode 3, are not this rule.
+covering only the remainder of an encroached vertebra is not a target: the
+rule fires on that label from about a 50 % donation upward (0.4944; label 23
+at f=0.5 and 0.6, silent at 0.3 and 0.4), which is deferred and left open
+(gate-51da). The lumbarised-S1 sub-type of mode 3 is not this rule.
 """
 
 from __future__ import annotations
