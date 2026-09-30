@@ -173,11 +173,13 @@
         "case_id": "split_own_label",
         "corpus": "geometric",
         "expected_firing": [
-          "bounds"
+          "bounds",
+          "split_fragment"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "bounds"
+          "bounds",
+          "split_fragment"
         ],
         "mode": 3
       },
@@ -553,6 +555,18 @@
         "reason_modes": [],
         "rule_id": "spline_offset",
         "state": "exercised"
+      },
+      "split_fragment": {
+        "exercised_by": [
+          [
+            "geometric",
+            "split_own_label"
+          ]
+        ],
+        "reason": "",
+        "reason_modes": [],
+        "rule_id": "split_fragment",
+        "state": "exercised"
       }
     }
   },
@@ -570,16 +584,17 @@
       "overlap": 6,
       "reference_delta": 11,
       "sequence": 4,
-      "spline_offset": 7
+      "spline_offset": 7,
+      "split_fragment": 4
     },
     "read_by_no_rule": {
-      "count": 92,
+      "count": 91,
       "qualifier": "a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.",
       "required": false
     },
-    "read_by_rule": 53,
+    "read_by_rule": 54,
     "total_paths": 145,
-    "unwired": 35
+    "unwired": 34
   },
   "modes": {
     "1": {
@@ -915,13 +930,21 @@
             "metric_out_of_range"
           ],
           "needs-real-data"
+        ],
+        [
+          "split_fragment",
+          [
+            "split_fragment"
+          ],
+          "synthetic-demonstrable"
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Seen today only by the bounds proxy on split_own_label (item 186): the cap, 20% of L4 kept as a label of its own, reads volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (per_label.{label}.geometry.physical_volume_mm3; re-measured 2026-09-30, item 205). Its own signal is the whole-label contact fraction plus small size: per_label.{label}.components.label_contact_fraction reads 0.3317 on that cap against its neighbour, and no rule reads it yet (Left open, items 187 and 208). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.",
+      "mechanism": "The split_fragment rule (item 208) decides it on split_own_label: the cap, 20% of L4 kept as a label of its own, both touches its neighbour over more than a tenth of its surface (per_label.{label}.components.label_contact_fraction reads 0.3317) and is less than half the median volume of its neighbouring labels (per_label.{label}.geometry.physical_volume_mm3 reads 4030 mm^3 against a window median of 19344, ratio 0.2083), both strictly. Neither signal decides alone: the remainder of an encroached vertebra touches its neighbour too, and a label cropped by the field of view is small but touches nothing. The bounds proxy also sees the cap: volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (item 186; re-measured 2026-09-30, item 205). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.",
       "mode": 3,
       "pipeline_detected": true,
       "read_paths": [
+        "per_label.{label}.components.label_contact_fraction",
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",
         "per_label.{label}.geometry.extent_z_mm",
@@ -929,12 +952,14 @@
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
-        "bounds": "corpus"
+        "bounds": "corpus",
+        "split_fragment": "corpus"
       },
       "rules": [
-        "bounds"
+        "bounds",
+        "split_fragment"
       ],
-      "rung": "needs-real-data",
+      "rung": "synthetic-demonstrable",
       "status": "validated",
       "title": "Split vertebra segment"
     },
@@ -1391,6 +1416,25 @@
       "mode_less_reason": "records the displaced_vertebra CONDITION (failure_modes.CONDITIONS['displaced_vertebra']), not a failure mode: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement), not a defect of the segmentation -- item-150 sign-off, moved here from mislabel.py's Detector A at item 189 (2026-09-28). tests/corpus/manifest.json's displace is that condition's fixture.",
       "modes": [],
       "rule_id": "spline_offset"
+    },
+    "split_fragment": {
+      "declaration_state": "declared",
+      "evidence": [
+        "corpus-manifest",
+        "tests/corpus/manifest.json's split_own_label designates this rule for mode 3 (split vertebra segment); item 208 (2026-09-30). Measured: label 23 reads contact 0.3317 and size 0.2083 on split_own_label, against thresholds 0.1 / 0.5; every other case in both corpora is silent."
+      ],
+      "feature_path_count": 4,
+      "feature_paths": [
+        "per_label",
+        "per_label.{label}.components.label_contact_fraction",
+        "per_label.{label}.geometry.physical_volume_mm3",
+        "per_label.{label}.level_name"
+      ],
+      "mode_less_reason": "",
+      "modes": [
+        3
+      ],
+      "rule_id": "split_fragment"
     }
   },
   "schema_version": "1.2"

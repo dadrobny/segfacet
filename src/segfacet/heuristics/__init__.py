@@ -111,6 +111,7 @@ from segfacet.heuristics import intensity_reference_delta  # noqa: F401 — regi
 from segfacet.heuristics import neighbour_contact  # noqa: F401 — registers NeighbourContactRule (item 187)
 from segfacet.heuristics import spline_offset  # noqa: F401 — registers SplineOffsetRule (item 189)
 from segfacet.heuristics import fused_label  # noqa: F401 — registers FusedLabelRule (item 207)
+from segfacet.heuristics import split_fragment  # noqa: F401 — registers SplitFragmentRule (item 208)
 
 __all__ = [
     "Finding",

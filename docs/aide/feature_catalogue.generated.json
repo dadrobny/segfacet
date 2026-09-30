@@ -814,7 +814,8 @@
           ],
           "consuming_rules": [
             "bounds",
-            "fused_label"
+            "fused_label",
+            "split_fragment"
           ],
           "documented": true,
           "failure_modes": [
@@ -834,6 +835,10 @@
             ],
             [
               "fused_label",
+              "signal"
+            ],
+            [
+              "split_fragment",
               "signal"
             ]
           ],
@@ -885,6 +890,14 @@
             ],
             [
               "fused_label",
+              "static"
+            ],
+            [
+              "split_fragment",
+              "observed"
+            ],
+            [
+              "split_fragment",
               "static"
             ]
           ],
@@ -1871,12 +1884,24 @@
         {
           "computation": "The label's contact area with its single most-contacted neighbour label (summed across all of its components' contact with that neighbour), divided by the label's total surface area (summed across all of its components' surfaces); 0.0 when the label touches no other non-zero label. Not a second pass: derived from the same per-component tallies as component_contacts.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "split_fragment"
+          ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            3
+          ],
           "measures": "The same relative contact measure as component_contacts[].contact_fraction, computed once more over the label as a whole rather than any single component (item 187).",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "split_fragment",
+              "signal"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 25,
@@ -1912,9 +1937,18 @@
           },
           "origin": "record",
           "path": "per_label.{label}.components.label_contact_fraction",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "split_fragment",
+              "observed"
+            ],
+            [
+              "split_fragment",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
-          "status": "unwired",
+          "status": "keep",
           "units": ""
         },
         {
@@ -2576,7 +2610,8 @@
             "fused_label",
             "mislabel",
             "neighbour_contact",
-            "sequence"
+            "sequence",
+            "split_fragment"
           ],
           "documented": true,
           "failure_modes": [
@@ -2619,6 +2654,10 @@
             [
               "sequence",
               "signal"
+            ],
+            [
+              "split_fragment",
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -2683,6 +2722,10 @@
             ],
             [
               "sequence",
+              "observed"
+            ],
+            [
+              "split_fragment",
               "observed"
             ]
           ],
@@ -8141,7 +8184,8 @@
             "mislabel",
             "neighbour_contact",
             "reference_delta",
-            "sequence"
+            "sequence",
+            "split_fragment"
           ],
           "documented": true,
           "failure_modes": [],
@@ -8194,6 +8238,10 @@
             ],
             [
               "sequence",
+              "bookkeeping"
+            ],
+            [
+              "split_fragment",
               "bookkeeping"
             ]
           ],
@@ -8270,6 +8318,10 @@
             ],
             [
               "sequence",
+              "static"
+            ],
+            [
+              "split_fragment",
               "static"
             ]
           ],

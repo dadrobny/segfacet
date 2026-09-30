@@ -770,7 +770,40 @@ No environment profile is needed.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Recorded at implementation, 2026-09-30.
+
+- **Bar conditions, mode 3 (`traceability.bar_conditions(3)`, live):**
+  - condition 1 met (specification completeness, all eight fields);
+  - condition 2 met, subjects `("split_own_label",)`;
+  - condition 3 met, subjects
+    `("per_label.{label}.components.label_contact_fraction",
+    "per_label.{label}.geometry.physical_volume_mm3")`;
+  - condition 4 met, subjects `("split_fragment/split_fragment",)`;
+  - condition 5 met, subjects `("validated",)`.
+- **Malformed records return `[]`.** `evaluate` returns `[]` for a
+  `per_label` that is not a dict, for any key `int()` rejects (caught as
+  `TypeError`/`ValueError` around the sort), for a non-dict entry, and for a
+  judged label without a numeric volume. A label without a numeric contact
+  fraction is skipped. The severity check still raises first.
+- **Regeneration.** Each generator ran twice into scratch paths with
+  byte-identical output before the committed copies were written. The
+  corpus regeneration changed only `tests/corpus/manifest.json`
+  (`split_own_label`'s `expected_rule_ids`); no fixture changed.
+  `golden_evidence.generated.json` moved only the 14 `unwired_leaf_paths`
+  values, 31 to 30.
+- **Re-measured counts** match A9: status validated 6, implemented 3,
+  specified 2, proposed 5; mode rungs synthetic-demonstrable 6,
+  needs-real-data 2, structurally-unobservable 1, none 7; 15 edges
+  (synthetic-demonstrable 7, needs-real-data 7, structurally-unobservable
+  1). Both `progress amend` calls (Stage 30 criterion 3, Stage 20 criterion
+  5) carry them.
+- **Reconciled tests** (moved literals only, each with a dated item-208
+  comment): test_103 `_RULE_MODE_MAP`; test_126 AC22 `(30, 101)`; test_136
+  L198, L261 (13 to 14) and L862 (90 to 89); test_137 L243 (13 to 14),
+  `(): 89` and `("rule_mode_map", "rule_declaration"): 12`; test_148 L366
+  and L1105 (13 to 14) and the `split_own_label` `_AC16_CASES` row; test_151
+  edge count 15; test_174 AC8 and test_186 AC16 expected set
+  `{"bounds", "split_fragment"}`; test_187 rule count 14.
 
 - **Left open:** the label left covering only the remainder of an
   encroached vertebra. Gate-51da gave it no mode, and this rule is silent

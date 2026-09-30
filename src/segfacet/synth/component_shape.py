@@ -643,7 +643,8 @@ class SplitOwnLabelPerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=3,
             failure_mode_name=FAILURE_MODE_NAMES[3],
-            expected_rule_ids=frozenset({"bounds"}),
+            # item 208 (2026-09-30): split_fragment fires on the cap beside bounds.
+            expected_rule_ids=frozenset({"bounds", "split_fragment"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
             detail=(

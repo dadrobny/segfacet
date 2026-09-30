@@ -240,7 +240,7 @@ def test_ac1_all_ten_rules_declared_and_not_pending():
     # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
     # thirteen.
     rules = list(iter_rules())
-    assert len(rules) == 13
+    assert len(rules) == 14  # item 208 (2026-09-30): 13 -> 14
     for rule in rules:
         decl = rule.mode_declaration
         assert decl is not None, rule.rule_id
@@ -941,7 +941,18 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     ``per_label.{label}.level_name`` gain ``fused_label`` as a consuming rule
     with their modes unchanged. mode2_count moves 10 -> 11; the
     ``("rule_mode_map", "rule_declaration")`` bucket 10 -> 11;
-    ``len(entries)`` stays 145, ``mode1_count`` 5, ``mode16_count`` 2."""
+    ``len(entries)`` stays 145, ``mode1_count`` 5, ``mode16_count`` 2.
+
+    Re-measured (item 208, 2026-09-30): the new ``split_fragment`` rule
+    declares mode 3 and consumes ``per_label.{label}.components.
+    label_contact_fraction``, which gains mode 3 and
+    ``("rule_mode_map", "rule_declaration")`` evidence and leaves the ``()``
+    bucket (90 -> 89). ``per_label``,
+    ``per_label.{label}.geometry.physical_volume_mm3`` and
+    ``per_label.{label}.level_name`` gain ``split_fragment`` as a consuming
+    rule with their modes unchanged. The ``("rule_mode_map",
+    "rule_declaration")`` bucket moves 11 -> 12; ``len(entries)`` stays 145,
+    ``mode1_count`` 5, ``mode2_count`` 11 and ``mode16_count`` 2."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -971,7 +982,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     expected = {
         # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
         # Item 207 (2026-09-30): 91 -> 90 (spacings_mm[] is now consumed).
-        (): 90,
+        (): 89,  # item 208 (2026-09-30): 90 -> 89
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
@@ -980,7 +991,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
-        ("rule_mode_map", "rule_declaration"): 11,
+        ("rule_mode_map", "rule_declaration"): 12,  # item 208 (2026-09-30): 11 -> 12
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
         ("rule_declaration",): 2,
         # Item 195 (2026-09-28): 3 -> 2 -- overlaps[].overlap_voxels lost

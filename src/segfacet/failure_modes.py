@@ -444,6 +444,13 @@ spacing. ``fuse_adjacent`` and ``fuse_separate`` now expect it, and the
 mechanism clauses of modes 6 and 10 that said no rule reads the spacing
 path describe the spacing in words instead, since ``fused_label`` reads it
 (only beside a doubled size) and neither mode's own rules do.
+
+Item 208 (2026-09-30) gave mode 3 a detector of its own: the
+``split_fragment`` rule (``heuristics/split_fragment.py``) fires on a label
+that both touches a neighbouring label over more than a tenth of its surface
+and is less than half the median volume of its neighbouring labels.
+``split_own_label`` now expects it beside ``bounds``, and mode 3's derived
+rung moves from needs-real-data to synthetic-demonstrable.
 """
 
 from __future__ import annotations
@@ -1334,18 +1341,22 @@ _MODE_3 = ModeSpec(
         "part of it."
     ),
     mechanism=(
-        "Seen today only by the bounds proxy on split_own_label (item 186): "
-        "the cap, 20% of L4 kept as a label of its own, reads volume 4030 "
-        "mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 "
-        "(per_label.{label}.geometry.physical_volume_mm3; re-measured "
-        "2026-09-30, item 205). Its own signal is the whole-label contact "
-        "fraction plus small size: "
-        "per_label.{label}.components.label_contact_fraction reads 0.3317 on "
-        "that cap against its neighbour, and no rule reads it yet (Left "
-        "open, items 187 and 208). neighbour_contact does not fire on it: "
-        "the cap is its label's only component, so it has no stray "
-        "component to measure. The paired case, a label that also covers "
-        "its own vertebra, is mode 2's."
+        "The split_fragment rule (item 208) decides it on split_own_label: "
+        "the cap, 20% of L4 kept as a label of its own, both touches its "
+        "neighbour over more than a tenth of its surface "
+        "(per_label.{label}.components.label_contact_fraction reads 0.3317) "
+        "and is less than half the median volume of its neighbouring labels "
+        "(per_label.{label}.geometry.physical_volume_mm3 reads 4030 mm^3 "
+        "against a window median of 19344, ratio 0.2083), both strictly. "
+        "Neither signal decides alone: the remainder of an encroached "
+        "vertebra touches its neighbour too, and a label cropped by the "
+        "field of view is small but touches nothing. The bounds proxy also "
+        "sees the cap: volume 4030 mm^3 below the lumbar minimum of 8000 and "
+        "extent_z 9 mm below 15 (item 186; re-measured 2026-09-30, item "
+        "205). neighbour_contact does not fire on it: the cap is its "
+        "label's only component, so it has no stray component to measure. "
+        "The paired case, a label that also covers its own vertebra, is "
+        "mode 2's."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1376,31 +1387,37 @@ _MODE_3 = ModeSpec(
             detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
+        IntendedRule(
+            rule_id="split_fragment",
+            detector_ids=("split_fragment",),
+            evidence_rung="synthetic-demonstrable",
+        ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="split_own_label",
             corpus="geometric",
-            expected_firing=("bounds",),
+            expected_firing=("bounds", "split_fragment"),
             reason=(
                 "pipeline-detected, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-27, "
-                "item 186): mode 3 -- the same 20% caudal cap "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "item 208): mode 3 -- the same 20% caudal cap "
                 "of L4 keeps label 23 as a label of its own, and every "
                 "cranial label shifts up one level (the rest of L4 reads "
-                "22, L1 reads 19). bounds fires twice on the cap (label "
-                "23): volume 4030 mm^3 below the lumbar minimum of 8000, and "
+                "22, L1 reads 19). split_fragment fires once on the cap "
+                "(label 23): contact fraction 0.3317 above 0.1, volume 4030 "
+                "mm^3 against a window median of 19344 mm^3, size ratio "
+                "0.2083 below 0.5. bounds still fires twice on the cap: "
+                "volume 4030 mm^3 below the lumbar minimum of 8000, and "
                 "extent_z 9 mm below the lumbar minimum of 15 -- mode 3's "
-                "own needs-real-data proxy. coverage no longer fires: the "
+                "needs-real-data proxy. coverage does not fire: the "
                 "present levels are T12 (19) through L5 (24), and under the "
                 "default thoracic count of 12 that span is continuous "
                 "(item 186's expected sequence has no T13 between T12 and "
                 "L1, unlike the CANONICAL_ORDER slice it replaced). "
                 "neighbour_contact does not fire (item 187): the cap is its "
                 "own label's only component, so it has no stray component "
-                "to measure; its label_contact_fraction (the same relative "
-                "measure over the whole label) reads about 0.33, which no "
-                "rule reads."
+                "to measure."
             ),
         ),
     ),

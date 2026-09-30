@@ -93,7 +93,7 @@ Corpus cases:
 - Provenance: hypothesised
 - Status, authored: specified
 - Status, derived (live): validated
-- Derived rung (strongest edge, live): needs-real-data
+- Derived rung (strongest edge, live): synthetic-demonstrable
 - Maintainer sign-off: 2026-09-22 -- intermediate-state -- Signed at a recorded intermediate state, not at the bar. The neighbour_contact detector's 100 mm^2 threshold has no evidence: the geometric corpus base is five non-touching axis-aligned boxes, so its one firing value (750 mm^2) is the fixture's maximum cross-section and every other reading is structurally 0.0. Before signing at the bar: neighbour_contact moves out of fragmentation into its own rule; the split case is re-authored at ~20 percent of the body on a lordotic base, with a second sub-type where the split part carries its own label. Maintainer review of 2026-09-22; lands as queue 023.
 
 Candidate features:
@@ -104,15 +104,16 @@ Candidate features:
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
 - `hypothesised` candidate path: `metric_change_under_merge_candidate`
 
-Mechanism: Seen today only by the bounds proxy on split_own_label (item 186): the cap, 20% of L4 kept as a label of its own, reads volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (per_label.{label}.geometry.physical_volume_mm3; re-measured 2026-09-30, item 205). Its own signal is the whole-label contact fraction plus small size: per_label.{label}.components.label_contact_fraction reads 0.3317 on that cap against its neighbour, and no rule reads it yet (Left open, items 187 and 208). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.
+Mechanism: The split_fragment rule (item 208) decides it on split_own_label: the cap, 20% of L4 kept as a label of its own, both touches its neighbour over more than a tenth of its surface (per_label.{label}.components.label_contact_fraction reads 0.3317) and is less than half the median volume of its neighbouring labels (per_label.{label}.geometry.physical_volume_mm3 reads 4030 mm^3 against a window median of 19344, ratio 0.2083), both strictly. Neither signal decides alone: the remainder of an encroached vertebra touches its neighbour too, and a label cropped by the field of view is small but touches nothing. The bounds proxy also sees the cap: volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (item 186; re-measured 2026-09-30, item 205). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.
 
 Intended rules:
 
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
+- `split_fragment` (detector: split_fragment) -- evidence rung: synthetic-demonstrable
 
 Corpus cases:
 
-- `split_own_label` (geometric): expected firing = [bounds]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 186): mode 3 -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). bounds fires twice on the cap (label 23): volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's own needs-real-data proxy. coverage no longer fires: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure; its label_contact_fraction (the same relative measure over the whole label) reads about 0.33, which no rule reads.
+- `split_own_label` (geometric): expected firing = [bounds, split_fragment]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 208): mode 3 -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). split_fragment fires once on the cap (label 23): contact fraction 0.3317 above 0.1, volume 4030 mm^3 against a window median of 19344 mm^3, size ratio 0.2083 below 0.5. bounds still fires twice on the cap: volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's needs-real-data proxy. coverage does not fire: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure.
 
 ## Mode 4 (1.3, sub-mode of 1): Islands (disconnected components)
 

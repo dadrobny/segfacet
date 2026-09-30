@@ -232,7 +232,7 @@ def test_ac8_split_own_label_fires_bounds_and_coverage():
     ]
     assert len(matches) == 1, matches
     case = matches[0]
-    assert set(failure_modes.measured_firing(case)) == {"bounds"}
+    assert set(failure_modes.measured_firing(case)) == {"bounds", "split_fragment"}  # item 208 (2026-09-30)
 
 
 # =========================================================================== #

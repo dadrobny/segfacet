@@ -448,7 +448,8 @@
         23
       ],
       "expected_rule_ids": [
-        "bounds"
+        "bounds",
+        "split_fragment"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 3,

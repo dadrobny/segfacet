@@ -195,7 +195,7 @@ def test_ac1_iter_rule_declarations_ascending_by_rule_id():
     # (mislabel's moved Detector A) brings it to twelve. Item 207
     # (2026-09-30): the new fused_label rule brings it to thirteen.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 13
+    assert len(pairs) == 14  # item 208 (2026-09-30): 13 -> 14
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -258,7 +258,7 @@ def test_ac3_ten_rules_registered():
     # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
     # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
     # thirteen.
-    assert len(list(iter_rules())) == 13
+    assert len(list(iter_rules())) == 14  # item 208 (2026-09-30): 13 -> 14
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
@@ -849,7 +849,12 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     Reconciled again (item 207, 2026-09-30): ``stage3.spacing_consistency.
     spacings_mm[]`` leaves the ``()`` bucket because the new ``fused_label``
     rule consumes it: ``stayed_empty`` moves 91 -> 90. ``stayed_rule_unmapped``
-    stays 0."""
+    stays 0.
+
+    Reconciled again (item 208, 2026-09-30): ``per_label.{label}.components.
+    label_contact_fraction`` leaves the ``()`` bucket because the new
+    ``split_fragment`` rule consumes it: ``stayed_empty`` moves 90 -> 89.
+    ``stayed_rule_unmapped`` stays 0."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -859,7 +864,7 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
 
     assert stayed_rule_unmapped == 0
-    assert stayed_empty == 90  # item 207 (2026-09-30): 91 -> 90
+    assert stayed_empty == 89  # item 207 (2026-09-30): 91 -> 90; item 208 (2026-09-30): 90 -> 89
 
 
 # =========================================================================== #

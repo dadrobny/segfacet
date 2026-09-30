@@ -288,13 +288,14 @@
           "case_id": "split_own_label",
           "corpus": "geometric",
           "expected_firing": [
-            "bounds"
+            "bounds",
+            "split_fragment"
           ],
-          "reason": "pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 186): mode 3 -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). bounds fires twice on the cap (label 23): volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's own needs-real-data proxy. coverage no longer fires: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure; its label_contact_fraction (the same relative measure over the whole label) reads about 0.33, which no rule reads."
+          "reason": "pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 208): mode 3 -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). split_fragment fires once on the cap (label 23): contact fraction 0.3317 above 0.1, volume 4030 mm^3 against a window median of 19344 mm^3, size ratio 0.2083 below 0.5. bounds still fires twice on the cap: volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's needs-real-data proxy. coverage does not fire: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure."
         }
       ],
       "definition": "Part of a ground-truth vertebra carries a label of its own, and that label covers no other vertebra: the vertebra is split across two labels, such that giving the part the vertebra's own label gives a better prediction. A further sub-type: transitional lumbosacral anatomy (lumbarised S1) split from the sacrum at the junction.",
-      "derived_rung": "needs-real-data",
+      "derived_rung": "synthetic-demonstrable",
       "discriminator": "Mode 2 when the label on the part also covers its own vertebra. The label left covering only the remainder of the encroached vertebra has no mode yet (deferred at gate-51da, 2026-09-30). Mode 1 when the missing part is left as background rather than claimed by another label; mode 4 when the pieces are small islands of the vertebra's own label; mode 13 when neither label keeps a vertebra of its own and both sit on one; mode 8 when a whole vertebra carries a wrong label rather than a part of it.",
       "id": 3,
       "intended_rules": [
@@ -304,9 +305,16 @@
           ],
           "evidence_rung": "needs-real-data",
           "rule_id": "bounds"
+        },
+        {
+          "detector_ids": [
+            "split_fragment"
+          ],
+          "evidence_rung": "synthetic-demonstrable",
+          "rule_id": "split_fragment"
         }
       ],
-      "mechanism": "Seen today only by the bounds proxy on split_own_label (item 186): the cap, 20% of L4 kept as a label of its own, reads volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (per_label.{label}.geometry.physical_volume_mm3; re-measured 2026-09-30, item 205). Its own signal is the whole-label contact fraction plus small size: per_label.{label}.components.label_contact_fraction reads 0.3317 on that cap against its neighbour, and no rule reads it yet (Left open, items 187 and 208). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.",
+      "mechanism": "The split_fragment rule (item 208) decides it on split_own_label: the cap, 20% of L4 kept as a label of its own, both touches its neighbour over more than a tenth of its surface (per_label.{label}.components.label_contact_fraction reads 0.3317) and is less than half the median volume of its neighbouring labels (per_label.{label}.geometry.physical_volume_mm3 reads 4030 mm^3 against a window median of 19344, ratio 0.2083), both strictly. Neither signal decides alone: the remainder of an encroached vertebra touches its neighbour too, and a label cropped by the field of view is small but touches nothing. The bounds proxy also sees the cap: volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (item 186; re-measured 2026-09-30, item 205). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.",
       "name": "Split vertebra segment",
       "observability": "single-channel-observable",
       "parent": 1,

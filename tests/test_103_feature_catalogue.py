@@ -617,6 +617,8 @@ _RULE_MODE_MAP = {
     "neighbour_contact": (2,),  # split (2); item 205 (2026-09-30) moved from mode 3
     # Item 207 (2026-09-30): fuse_adjacent and fuse_separate (mode 2) designate it.
     "fused_label": (2,),
+    # Item 208 (2026-09-30): split_own_label (mode 3) designates it.
+    "split_fragment": (3,),
 }
 
 
