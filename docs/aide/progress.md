@@ -1817,6 +1817,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - [x] The end-to-end detection count is recorded here per lifecycle status and per evidence
   rung, as measured numbers with what they were measured on, naming the modes refined and
   the modes left as documented drafts (**G7**, Stage 20 criterion 5). *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
+  - **2026-10-02** → Item 204 AC10 re-runs Stage 32 D3 on the re-grounded corpus, read live from segfacet.failure_modes in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8 (the 2026-09-22 clause above stands as the record of that date): derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stages 32 and 33: 2, 3, 4; at the fully-specified bar: 2, 3; left as documented drafts: 13.
 
 > **Criterion 1 moves with Stage 33** *(2026-09-22)*. Gate `gate-bb24` signed modes 3 and 4 off at a
 > recorded intermediate state, and the review behind that outcome is Stage 33's scope.
