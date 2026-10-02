@@ -8,18 +8,11 @@ the item's replay runs those by node id from a clean clone. This module
 holds only what no merged test covers -- the live-state invariants behind
 the numbers written into ``progress.md``, and the Stage 20 bullet sweep.
 
-Per the item spec's Testing Strategy, this module carries exactly six AC
-tests (AC6, AC7, AC8, AC9, AC10, AC13) plus the five named adversarial
-cases below -- no others. AC1-AC5, AC11, AC12 and AC14-AC17 are Replay
-criteria: executed by the builder and re-executed by the validator, their
-evidence recorded in the item's Decisions log, not tested here.
-
-Until the builder's bookkeeping step lands (``aide progress accept`` /
-``amend`` on Stage 20's and Stage 32's criteria, and the hand-edit of Stage
-20's item-141 bullet from `⏸` to `❌`), AC6, AC7, AC8, AC10 and AC13
-are expected to fail: the clauses/annotations they check for do not exist
-in ``progress.md`` yet. That is the honest state of a section not yet
-bookkept, not a defect in this module -- the ``test_161`` AC14 precedent.
+Per the item spec's Testing Strategy, this module carries the AC tests that
+remain (AC6, AC7, AC13) plus the named adversarial cases that remain -- no
+others. AC1-AC5, AC11, AC12 and AC14-AC17 are Replay criteria: executed by the
+builder and re-executed by the validator, their evidence recorded in the item's
+Decisions log, not tested here. AC8, AC9 and AC10 are retired, as dated below.
 
 2026-10-02 (item 203): ``test_ac8_...``, ``test_adv_refined_clause_...``,
 ``test_ac9_...`` and ``test_adv_bar_predicate_...`` are retired, with their
@@ -43,8 +36,8 @@ Discipline followed (Testing Strategy):
   of those functions returns box or bullet *text*, only line indices.
 - No integer, mode id or rung name is written into this module as a literal
   expectation -- every comparison is derived from ``SPECIFICATION``,
-  ``MODE_SIGN_OFFS``, ``derive_status``, ``derive_mode_rung`` and
-  ``bar_conditions``, recomputed live.
+  ``MODE_SIGN_OFFS``, ``derive_status`` and ``derive_mode_rung``, recomputed
+  live.
 - No ``aide check`` warning count, suite total, engine version or
   severity-ladder constant is pinned here -- those are dated measurements
   that legitimately move and live in ``progress.md``'s evidence and in the
