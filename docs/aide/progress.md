@@ -1932,7 +1932,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 
 **Acceptance.**
 
-- [ ] Modes 2 and 3 each meet all six conditions of Stage 32's "fully specified end to end", checked against live state on the lordotic corpus. Each carries a maintainer sign-off at `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**). Re-targeted from modes 3 and 4 when gate-51da was declined (2026-09-30); mode 4 keeps its gate-bb24 intermediate-state sign-off.
+- [x] Modes 2 and 3 each meet all six conditions of Stage 32's "fully specified end to end", checked against live state on the lordotic corpus. Each carries a maintainer sign-off at `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**). Re-targeted from modes 3 and 4 when gate-51da was declined (2026-09-30); mode 4 keeps its gate-bb24 intermediate-state sign-off. *(Item 204 AC3, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8: modes 2 and 3 each return met True for all five records of traceability.bar_conditions (conditions 1-5), and each carries mode_sign_off outcome at-the-bar dated 2026-10-02 (gate-0133, item 203), which is condition 6. Mode 4 keeps its 2026-09-22 intermediate-state sign-off and is not asked for here. tests/test_203_modes_2_and_3_signed_at_the_bar.py and tests/test_168_maintainer_sign_off.py::test_ac9_at_the_bar_claims_are_cross_checked_against_live_state pass in the clone.)*
 - [ ] No committed corpus case is attributed to a mode or condition that its label map does
   not express, and every case's measured firing equals its expected set, across both
   corpora (**G2**, **G7**).
