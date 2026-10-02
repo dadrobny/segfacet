@@ -779,7 +779,27 @@ pointing at items 162 and 163. No other Stage 32 bullet was hand-edited.
 pyradiomics` exit 1 (no module `radiomics`); `--profile docker` exit 1;
 `--profile gpu` exit 1 (no module `cupy`). The table is unedited.
 
-**AC14 and `aide check`:** see the closing record below.
+**`aide check`** after the bookkeeping: `OK (8 warning(s))`, the same eight as
+the Description's baseline (an `item(s) 162` wording in the first draft of the
+D0 note raised a ninth, an untracked-bullet warning, so the note says `#162
+and #163` instead).
+
+**AC14, suite.** The clone was brought up with `aide --repo <clone> sync --item
+204` to commit `6386144c1f0cd8b02349bbb15799c3248d892b6e` (the commit that
+carries this record's replay section; only this closing paragraph is added
+after it). `segfacet.__file__` again resolved under the clone. Run from the
+clone's venv, foreground, `-n auto` (32 workers), `-P`, `-c <clone>/pyproject.toml`
+and `--rootdir <clone>`, with the two `testpaths` (`<clone>/tests` and
+`<clone>/.aide/scripts/tests`) passed explicitly, because pytest honours
+`testpaths` only when run from the rootdir and the tool's working directory is
+the working checkout: **10619 passed, 73 skipped, 0 failed** in 429.79 s.
+Skips, none counted as verification: CuPy absent (test_072, 073, 074, 075;
+33), docker CLI/daemon absent (test_066, 069, 070), PyRadiomics absent
+(test_features_radiomics; 5), real VerSe19 cohort not mounted (test_084, 088,
+091, 118, 125), no real SPINEPS fixture (test_097), and six
+`test_108_affine_faces.py` cases with no pinned pre-098 shape (`fuse_adjacent`,
+`remove_level_relabel`, `split`, `split_own_label`, `crop_fov_si`,
+`fuse_separate`). The clone was deleted afterwards.
 
 - **Left open:** a computed predicate for "a case's label map expresses the
   mode or condition it is attributed to" (A1). AC5 attests on decision
