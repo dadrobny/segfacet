@@ -1794,7 +1794,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
 - ✅ **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
   with date and outcome in the specification module. *(Item 168)*
-- 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
+- 🚧 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
   refined and those left as documented drafts. *(Item 204)*
@@ -1926,7 +1926,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - ✅ **D5 re-plan** Mode 3's own detector, from whole-label contact fraction and small
   size. *(Item 208)*
 - ✅ **D5** Modes 2 and 3 signed by the maintainer at the bar (human gate gate-0133, re-scoped from modes 3 and 4 when gate-51da was declined on 2026-09-30), with the outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
-- 📋 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
+- 🚧 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
   Stage 32's criterion 1. *(Item 204)*
 
 **Acceptance.**
