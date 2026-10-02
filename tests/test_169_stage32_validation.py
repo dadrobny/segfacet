@@ -21,6 +21,13 @@ are expected to fail: the clauses/annotations they check for do not exist
 in ``progress.md`` yet. That is the honest state of a section not yet
 bookkept, not a defect in this module -- the ``test_161`` AC14 precedent.
 
+2026-10-02 (item 203): ``test_ac8_...``, ``test_adv_refined_clause_...``,
+``test_ac9_...`` and ``test_adv_bar_predicate_...`` are retired, with their
+helpers and fixtures. Modes 2 and 3 are now signed at the bar, so the dated
+Stage 20 clause and the empty at-the-bar set they compared against live state
+are false by design; evidence in ``progress.md`` is a dated measurement and is
+not rewritten.
+
 Discipline followed (Testing Strategy):
 
 - Stage-section and acceptance-box location goes entirely through
@@ -28,10 +35,6 @@ Discipline followed (Testing Strategy):
   loaded in-process (the ``test_150`` / ``test_161`` idiom). The one helper
   this module writes for that is continuation-line gathering, since neither
   of those functions returns box or bullet *text*, only line indices.
-- One module-scoped fixture builds ``catalogue.build_catalogue(strict=True)``
-  once; one holds the per-mode ``bar_conditions`` results computed from it.
-  No test body calls ``build_catalogue()`` or ``bar_conditions()`` a second
-  time outside those fixtures.
 - No integer, mode id or rung name is written into this module as a literal
   expectation -- every comparison is derived from ``SPECIFICATION``,
   ``MODE_SIGN_OFFS``, ``derive_status``, ``derive_mode_rung`` and
@@ -52,9 +55,7 @@ from __future__ import annotations
 import importlib.util
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
-
-import pytest
+from typing import List
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
@@ -75,29 +76,6 @@ def _aide_module():
 
 def _progress_lines() -> List[str]:
     return _PROGRESS_PATH.read_text(encoding="utf-8").splitlines()
-
-
-# =========================================================================== #
-# Shared fixtures (Testing Strategy: build once, reuse).
-# =========================================================================== #
-
-
-@pytest.fixture(scope="module")
-def cached_catalogue():
-    from segfacet.catalogue import build_catalogue
-
-    return build_catalogue(strict=True)
-
-
-@pytest.fixture(scope="module")
-def bar_conditions_by_mode(cached_catalogue):
-    import segfacet.failure_modes as fm
-    import segfacet.traceability as traceability
-
-    return {
-        mode_id: traceability.bar_conditions(mode_id, catalogue=cached_catalogue)
-        for mode_id in fm.SPECIFICATION
-    }
 
 
 # =========================================================================== #
@@ -193,27 +171,6 @@ def _live_rung_counts():
         rung = fm.derive_mode_rung(mode)
         counts[rung or "none"] += 1
     return counts
-
-
-def _render_ids(ids) -> str:
-    return ", ".join(str(i) for i in sorted(ids))
-
-
-def _modes_at_bar(bar_conditions_by_mode: Dict[int, Tuple], sign_offs) -> List[int]:
-    """AC9's predicate: a mode id is "at the bar" iff every
-    ``bar_conditions`` record is ``met`` **and** *sign_offs* carries a record
-    for it with ``outcome == "at-the-bar"``. Takes *sign_offs* as an argument
-    (rather than reading ``MODE_SIGN_OFFS`` directly) so an adversarial case
-    can drive it over a local, constructed mapping without touching the
-    shipped one."""
-    result = []
-    for mode_id, conditions in bar_conditions_by_mode.items():
-        if not all(condition.met for condition in conditions):
-            continue
-        record = sign_offs.get(mode_id)
-        if record is not None and record.outcome == "at-the-bar":
-            result.append(mode_id)
-    return sorted(result)
 
 
 # =========================================================================== #
@@ -313,149 +270,6 @@ def test_ac7_rung_count_clause_equals_live_derivation():
     assert nrd == live_counts["needs-real-data"]
     assert su == live_counts["structurally-unobservable"]
     assert none_ == live_counts["none"]
-
-
-# =========================================================================== #
-# AC8: the refined/bar/drafts clause equals the live partition.
-# =========================================================================== #
-
-_REFINED_BAR_DRAFTS_RE = re.compile(
-    r"modes refined by stage 32: ([0-9, ]+); "
-    r"at the fully-specified bar: ([0-9, ]+|none); "
-    r"left as documented drafts: (\d+)"
-)
-
-
-def test_ac8_refined_bar_drafts_clause_equals_live_partition(bar_conditions_by_mode):
-    import segfacet.failure_modes as fm
-
-    aide = _aide_module()
-    lines = _progress_lines()
-    section = aide.stage_section(lines, _STAGE_20)
-    assert section is not None, "no Stage 20 section found in progress.md"
-    start, end, _stage_num = section
-    text = "\n".join(lines[start:end])
-
-    matches = list(_REFINED_BAR_DRAFTS_RE.finditer(text))
-    assert matches, (
-        "Stage 20's section carries no refined/bar/drafts clause yet "
-        "(expected until item 169's bookkeeping step runs)"
-    )
-    match = matches[-1]
-    refined_str, bar_str, drafts_str = match.group(1), match.group(2), match.group(3)
-
-    expected_refined = _render_ids(fm.MODE_SIGN_OFFS)
-    expected_bar_ids = _modes_at_bar(bar_conditions_by_mode, fm.MODE_SIGN_OFFS)
-    expected_bar_str = _render_ids(expected_bar_ids) if expected_bar_ids else "none"
-    expected_drafts = len(fm.SPECIFICATION) - len(fm.MODE_SIGN_OFFS)
-
-    assert refined_str == expected_refined, (
-        f"clause names refined modes {refined_str!r}; sorted(MODE_SIGN_OFFS) "
-        f"renders as {expected_refined!r}"
-    )
-    assert bar_str == expected_bar_str, (
-        f"clause names the at-the-bar set {bar_str!r}; live recomputation is "
-        f"{expected_bar_str!r}"
-    )
-    assert int(drafts_str) == expected_drafts, (
-        f"clause names {drafts_str} documented drafts; "
-        f"len(SPECIFICATION) - len(MODE_SIGN_OFFS) == {expected_drafts}"
-    )
-
-
-def test_adv_refined_clause_names_a_wrong_mode_disagrees_with_live():
-    """`refined-clause-names-a-wrong-mode`: a clause whose refined-modes list
-    disagrees with `sorted(MODE_SIGN_OFFS)` fails -- guards a hand-written
-    clause drifting from the mapping it claims to summarise. The wrong id is
-    derived from live state (a mode id not in `MODE_SIGN_OFFS`), never a
-    hardcoded literal, so the control cannot coincide with live state by
-    accident."""
-    import segfacet.failure_modes as fm
-
-    live_ids = sorted(fm.MODE_SIGN_OFFS)
-    assert live_ids, "MODE_SIGN_OFFS is empty; this fixture needs >=1 signed mode"
-    unsigned_ids = [i for i in sorted(fm.SPECIFICATION) if i not in fm.MODE_SIGN_OFFS]
-    assert unsigned_ids, "every mode is signed off; this fixture needs an unsigned one"
-    wrong_ids = live_ids[:-1] + [unsigned_ids[0]]
-    assert sorted(wrong_ids) != live_ids
-
-    text = (
-        f"modes refined by stage 32: {_render_ids(wrong_ids)}; "
-        f"at the fully-specified bar: none; left as documented drafts: 0"
-    )
-    match = _REFINED_BAR_DRAFTS_RE.search(text)
-    assert match is not None
-    refined_str = match.group(1)
-    assert refined_str != _render_ids(live_ids), (
-        "expected the wrong-mode clause to disagree with the live "
-        "MODE_SIGN_OFFS rendering"
-    )
-
-
-# =========================================================================== #
-# AC9: no mode, recomputed live, meets all six bar conditions.
-# =========================================================================== #
-
-
-def test_ac9_no_mode_recomputed_live_meets_all_six_bar_conditions(bar_conditions_by_mode):
-    import segfacet.failure_modes as fm
-
-    at_bar = _modes_at_bar(bar_conditions_by_mode, fm.MODE_SIGN_OFFS)
-
-    # Per-sign-off diagnostic (which of the two halves -- conditions 1-5,
-    # outcome -- failed), folded into the failure message rather than
-    # asserted separately: nothing beyond "the set is empty" is required.
-    diagnostics = {}
-    for mode_id, record in fm.MODE_SIGN_OFFS.items():
-        conditions_met = all(c.met for c in bar_conditions_by_mode[mode_id])
-        diagnostics[mode_id] = {
-            "conditions_1_5_met": conditions_met,
-            "outcome": record.outcome,
-        }
-
-    assert at_bar == [], (
-        f"expected no mode to meet all six bar conditions live; found "
-        f"{at_bar} (per-sign-off diagnostics: {diagnostics})"
-    )
-
-
-def test_adv_bar_predicate_is_not_vacuous(bar_conditions_by_mode):
-    """`bar-predicate-is-not-vacuous`: over a constructed mapping in which
-    one mode whose conditions 1-5 all hold carries `outcome="at-the-bar"`,
-    AC9's predicate returns that mode -- guards a predicate that yields the
-    empty set for the wrong reason, such as an outcome string that never
-    matches."""
-    import segfacet.failure_modes as fm
-
-    qualifying = [
-        mode_id
-        for mode_id, conditions in bar_conditions_by_mode.items()
-        if all(c.met for c in conditions)
-    ]
-    assert qualifying, (
-        "expected >=1 mode to meet bar_conditions 1-5 live -- if none does, "
-        "this fixture needs a different source of a qualifying mode"
-    )
-    mode_id = sorted(qualifying)[0]
-
-    local_sign_offs = {
-        mode_id: fm.ModeSignOff(
-            mode_id=mode_id,
-            date="2026-09-22",
-            outcome="at-the-bar",
-            note="constructed for the adversarial test only, not shipped",
-        )
-    }
-    assert mode_id not in fm.MODE_SIGN_OFFS or fm.MODE_SIGN_OFFS[mode_id].outcome != (
-        "at-the-bar"
-    ), "the constructed claim must exercise the predicate, not just repeat live state"
-
-    at_bar = _modes_at_bar(bar_conditions_by_mode, local_sign_offs)
-    assert at_bar == [mode_id], (
-        f"expected the predicate to return [{mode_id}] for a mode that "
-        f"clears all five live conditions and carries a local 'at-the-bar' "
-        f"claim; got {at_bar}"
-    )
 
 
 # =========================================================================== #

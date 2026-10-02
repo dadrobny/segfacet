@@ -26,6 +26,10 @@ by loading ``.aide/scripts/aide.py`` in process and calling its
 ``human_gates()`` / ``_split_row``, the idiom ``tests/test_150_maintainer_sign_off.py``
 established -- never a hand-written Markdown table parser, and never a write
 to ``progress.md``.
+
+2026-10-02 (item 203): ``test_ac12_...`` is retired. It asserted every record
+carries ``gate-bb24``'s date (2026-09-22), which is false by design now that
+modes 2 and 3 are re-signed at ``gate-0133``; item 203's AC6 succeeds it.
 """
 
 from __future__ import annotations
@@ -334,29 +338,6 @@ def test_ac11_a_record_exists_iff_the_gate_is_resolved():
         f"bool(MODE_SIGN_OFFS)={bool(fm.MODE_SIGN_OFFS)!r} disagrees with "
         f"gate.kind={gate.kind!r}"
     )
-
-
-def test_ac12_a_recorded_sign_off_carries_the_resolved_gates_own_date():
-    import segfacet.failure_modes as fm
-
-    aide = _aide_module()
-    lines = _progress_lines()
-    _index, gate = _sign_off_gate(aide, lines)
-    status_cell = aide._split_row(lines[gate.lineno - 1])[2]
-    match = re.search(r"\((\d{4}-\d{2}-\d{2})\)", status_cell)
-
-    # Vacuously true while MODE_SIGN_OFFS ships empty and the gate stays
-    # unresolved (no ISO date to compare against); the adversarial cases
-    # above/below exercise AC9's and AC11's ability to fail instead.
-    count = 0
-    for entry in fm.MODE_SIGN_OFFS.values():
-        count += 1
-        assert match is not None, (
-            "a sign-off record exists but the gate's Status cell carries no "
-            f"ISO date to compare it against: {status_cell!r}"
-        )
-        assert entry.date == match.group(1)
-    assert count == len(fm.MODE_SIGN_OFFS)
 
 
 # =========================================================================== #
