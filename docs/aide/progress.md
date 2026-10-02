@@ -60,8 +60,8 @@
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
-| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
-| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 🚧     |
+| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
+| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | ✅     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -1763,7 +1763,7 @@ changes here.**
 
 ---
 
-## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — 🚧
+## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — ✅
 
 **Goal.** The specification documents all sixteen modes without committing to implement
 them (2026-09-15: validated 1, 4, 6, 9, 15, 16; implemented 2, 3, 8; proposed 5, 7,
@@ -1794,7 +1794,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
 - ✅ **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
   with date and outcome in the specification module. *(Item 168)*
-- 🔍 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
+- ✅ **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
   refined and those left as documented drafts. *(Item 204)*
@@ -1834,7 +1834,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 ---
 
-## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 🚧
+## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — ✅
 
 **Goal.** Rebuild the geometric corpus base as a lordotic L1–L5, re-author the fixtures that
 do not express their mode, re-home the rules the queue-022 review named (`insights.md`,
@@ -1927,7 +1927,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
 - ✅ **D5 re-plan** Mode 3's own detector, from whole-label contact fraction and small
   size. *(Item 208)*
 - ✅ **D5** Modes 2 and 3 signed by the maintainer at the bar (human gate gate-0133, re-scoped from modes 3 and 4 when gate-51da was declined on 2026-09-30), with the outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
-- 🔍 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
+- ✅ **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
   Stage 32's criterion 1. *(Item 204)*
 
 **Acceptance.**
