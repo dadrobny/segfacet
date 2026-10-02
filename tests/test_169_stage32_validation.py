@@ -28,6 +28,12 @@ Stage 20 clause and the empty at-the-bar set they compared against live state
 are false by design; evidence in ``progress.md`` is a dated measurement and is
 not rewritten.
 
+2026-10-02 (item 204): ``test_ac10_stage32_criterion1_box_unticked_with_dated_reason``
+is retired, with ``_STAGE_32``, ``_ANNOTATION_RE``, ``_TRAIL_LINE_RE`` and
+``_box_text``. Item 204 ticks Stage 32's criterion 1 once modes 2 and 3 are
+attested at the bar, so the assertion that the box stays unticked is false by
+design.
+
 Discipline followed (Testing Strategy):
 
 - Stage-section and acceptance-box location goes entirely through
@@ -62,7 +68,6 @@ _AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
 _PROGRESS_PATH = _REPO_ROOT / "docs" / "aide" / "progress.md"
 
 _STAGE_20 = "20"
-_STAGE_32 = "32"
 
 
 def _aide_module():
@@ -83,28 +88,6 @@ def _progress_lines() -> List[str]:
 # test_161 idiom: stage_section/acceptance_boxes return line indices, not
 # text).
 # =========================================================================== #
-
-#: Mirrors `.aide/scripts/aide.py`'s own dated-trail-line shape (test_161).
-_TRAIL_LINE_RE = re.compile(r"^\s+[-*]\s+\*\*\d{4}-\d{2}-\d{2}\*\*\s*→")
-_ANNOTATION_RE = re.compile(r"\*\(.+\)\*", re.DOTALL)
-
-
-def _box_text(lines: List[str], box: int, sub_end: int) -> str:
-    """The checkbox line at *box* plus its indented continuation lines,
-    stopping at a trail line, a blank line, the next box, or the section
-    end (test_161's ``_box_text``)."""
-    parts = [lines[box]]
-    for i in range(box + 1, sub_end):
-        line = lines[i]
-        if not line.strip():
-            break
-        if _TRAIL_LINE_RE.match(line):
-            break
-        if not line[:1].isspace():
-            break
-        parts.append(line)
-    return "\n".join(parts)
-
 
 #: A top-level Deliverables bullet: `- <icon> ...`. Sub-bullets (retraction
 #: trail lines, etc.) are indented and never match `^- `.
@@ -270,56 +253,6 @@ def test_ac7_rung_count_clause_equals_live_derivation():
     assert nrd == live_counts["needs-real-data"]
     assert su == live_counts["structurally-unobservable"]
     assert none_ == live_counts["none"]
-
-
-# =========================================================================== #
-# AC10: Stage 32's criterion-1 box is unticked with a dated, live-derived
-# reason.
-# =========================================================================== #
-
-
-def test_ac10_stage32_criterion1_box_unticked_with_dated_reason():
-    import segfacet.failure_modes as fm
-
-    aide = _aide_module()
-    lines = _progress_lines()
-    section = aide.stage_section(lines, _STAGE_32)
-    assert section is not None, "no Stage 32 section found in progress.md"
-    start, end, _stage_num = section
-    boxes = aide.acceptance_boxes(lines, start, end)
-    assert boxes, "Stage 32 section carries no acceptance boxes"
-
-    first_box = boxes[0]
-    box_line = lines[first_box]
-    assert re.match(r"^\s*[-*]\s*\[\s\]", box_line), (
-        f"Stage 32's first acceptance box must stay unticked; it reads: {box_line!r}"
-    )
-
-    sub_end = boxes[1] if len(boxes) > 1 else end
-    text = _box_text(lines, first_box, sub_end)
-    annotations = _ANNOTATION_RE.findall(text)
-    assert annotations, (
-        f"Stage 32 criterion 1 carries no *(...)* annotation naming the "
-        f"measured reason: {text!r}"
-    )
-    full_annotation = " ".join(annotations)
-
-    assert "item 169" in full_annotation, full_annotation
-    assert re.search(r"\d{4}-\d{2}-\d{2}", full_annotation), (
-        f"criterion-1 annotation carries no ISO date: {full_annotation!r}"
-    )
-
-    non_bar_modes = sorted(
-        mode_id
-        for mode_id, record in fm.MODE_SIGN_OFFS.items()
-        if record.outcome != "at-the-bar"
-    )
-    for mode_id in non_bar_modes:
-        assert re.search(rf"\b{mode_id}\b", full_annotation), (
-            f"mode {mode_id} carries a sign-off whose outcome != 'at-the-bar' "
-            f"but is not named in Stage 32 criterion 1's annotation: "
-            f"{full_annotation!r}"
-        )
 
 
 # =========================================================================== #
