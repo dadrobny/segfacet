@@ -1779,10 +1779,10 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 **Deliverables.**
 
-- 📋 **D0** Stage 20's deferred exercise-reporting (per rule and per operator) and
+- ❌ **D0** Stage 20's deferred exercise-reporting (per rule and per operator) and
   specificity-ratchet deliverables (allowlist derived from each case's `expected_firing`)
   re-specified against the specification and built at the head of the first queue; they
-  stay tracked by their Stage 20 bullets.
+  stay tracked by their Stage 20 bullets. *(2026-10-02, resolved by hand: the work shipped as #162 and #163, both ✅ under Stage 20, so this bullet tracks nothing of its own.)*
 - ✅ First-class detector ids on multi-detector rules, referenced by the
   specification's intended-rule edges, so "a detector serves no other mode" is
   checked mechanically (prerequisite of D1's condition 4). *(Item 164)*

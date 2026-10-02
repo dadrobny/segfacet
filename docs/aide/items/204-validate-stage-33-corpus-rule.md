@@ -659,7 +659,127 @@ Gate `gate-0133` names its reach — `Blocks: 203, 204` — and is approved.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Replay recorded 2026-10-02. Every replay criterion held; no box was left
+unticked and no divergence was found, so no `insights.md` line was added (the
+stale-stage-title finding of A9 was already captured the same day).
+
+**AC1, rig.** Clone path (scratchpad, deleted at the end of AC14):
+`/tmp/claude-1005/-mnt-data-spine-codes-SegFACET/0b43425d-80b5-432f-9053-b7c023f300f0/scratchpad/clone`.
+Clone `HEAD` at replay time: `e0c17ab3ad292735280e26f9251146c3a87bc4d8`, the
+test-writer's commit and this branch's tip at clone time. The clone's own `aide
+env --bootstrap` built its venv (Python 3.11, numpy 2.4.6, scipy 1.17.1,
+matplotlib 3.11.2). `<clone>/.venv/bin/python -P -c "import segfacet;
+print(segfacet.__file__)"` printed `<clone>/src/segfacet/__init__.py`. Every
+pytest run used `-P`, `-c <clone>/pyproject.toml` and `--rootdir <clone>` so the
+working checkout's `tests` package could not shadow the clone's.
+
+**AC2, artifacts.** Each of the seven generators exited 0 and every
+`read_bytes()` comparison was equal: `failure_modes.generated.json` and `.md`,
+`traceability_matrix.generated.json` and `.md`, `feature_catalogue.generated.json`
+and `.md`, `golden_evidence.generated.json`, `rules.generated.md`; the 17 files
+of `tests/corpus` (manifest plus 16 fixtures) and the 6 files of
+`tests/corpus/intensity` (manifest plus 5 fixtures). The corpus sheet:
+`tests/test_178_corpus_sheet.py::test_ac7_committed_sheet_is_current` passed in
+the clone (with the AC3 modules: 7 passed, 0 skipped).
+
+**AC3, the bar.** For modes 2 and 3, `bar_conditions` conditions 1-5 are all
+`met True`; subjects: condition 2 mode 2 `('fuse_adjacent','split','fuse_separate')`,
+mode 3 `('split_own_label',)`; condition 3 mode 2
+`component_contacts[].contact_fraction`, `physical_volume_mm3`,
+`spacing_consistency.spacings_mm[]`, mode 3 `label_contact_fraction`,
+`physical_volume_mm3`; condition 4 mode 2 `fused_label/fused_label`,
+`neighbour_contact/stray_contact`, mode 3 `split_fragment/split_fragment`;
+condition 5 `('validated',)` for both; condition 1 names the eight entry parts
+for both. `mode_sign_off` is `2026-10-02, at-the-bar` for both. Over every mode
+in `SPECIFICATION` the at-the-bar set is `[2, 3]` (mode 9 fails condition 3
+only; mode 4 meets 1-5 and is `intermediate-state`; mode 1 and mode 16 meet
+1-5 and carry no sign-off).
+
+**AC4, conformance.** `test_163_specificity_ratchet.py`: 24 passed. 18 cases
+driven, 14 geometric and 4 intensity (ids as in the Description), equal to the
+union of both manifests' `case_id` sets, no id shared; `agree_count` 18,
+`disagree_count` 0, `agrees False` count 0, `conformant True`,
+`unspecified_cases ()`.
+
+**AC5, attribution.** `specification_conflicts()` is `()`. The five named
+modules passed (58). The four 2026-09-22 findings hold live: `crop_at_border`
+is `kind condition`, `fov_truncation`; `fuse_adjacent` is mode 2 (one component,
+item 176); `force_overlap` is in neither manifest; `split` is mode 2 and
+`split_own_label` mode 3. One row per case, with the dated decision record:
+
+| Corpus | Case | Kind | Attributed to | Decision record |
+|---|---|---|---|---|
+| geometric | clean_control | clean_control | none | items 040, 155 |
+| geometric | crop_at_border | condition | fov_truncation | item 175; maintainer decision 2026-09-24 (A1) |
+| geometric | crop_fov_si | condition | fov_truncation | item 175 |
+| geometric | displace | condition | displaced_vertebra | items 120, 177, 189 |
+| geometric | fragment | failure | mode 1 | items 040, 194 |
+| geometric | fuse_adjacent | failure | mode 2 | items 176, 183 |
+| geometric | fuse_separate | failure | mode 2 | items 205, 206 |
+| geometric | inject_islands | failure | mode 4 | item 165 |
+| geometric | relabel_swap | failure | mode 9 | items 039, 192 |
+| geometric | remove_level | failure | mode 6 | items 039, 040 |
+| geometric | remove_level_relabel | failure | mode 6 | items 039, 040 |
+| geometric | sequence_break | failure | mode 9 | items 039, 192 |
+| geometric | split | failure | mode 2 | items 166, 205 |
+| geometric | split_own_label | failure | mode 3 | items 166, 205 |
+| intensity | clean_hu | clean_control | none | items 058, 155 |
+| intensity | degenerate_uniform | failure | mode 16 | items 058, 062 |
+| intensity | implausible_metal | failure | mode 16 | items 058, 062 |
+| intensity | implausible_soft_tissue | failure | mode 16 | items 058, 062 |
+
+Measured expected sets (all agree): `clean_control` and `clean_hu` `()`;
+`crop_at_border` `(border,)`; `crop_fov_si` `()`; `displace` `(spline_offset,)`;
+`fragment`, `inject_islands` `(fragmentation,)`; `fuse_adjacent` `(fused_label,)`;
+`fuse_separate` `(fragmentation, fused_label)`; `relabel_swap`, `sequence_break`
+`(mislabel, sequence)`; `remove_level` `(coverage, sequence)`;
+`remove_level_relabel` `()`; `split` `(neighbour_contact,)`; `split_own_label`
+`(bounds, split_fragment)`; the three intensity failures `(intensity,)`.
+
+**AC6, detectors.** The ten named modules passed (125). `modes_for_detector`
+over all 27 registered detectors: border `expected_end` `()`, `unexpected_clip`
+`()`; bounds `metric_out_of_range` `(2,3,4)` (proxy); coverage
+`count_shortfall`, `incomplete_span`, `missing_interior` `(10,)`; fragmentation
+`components` `(1,)`, `islands` `(4,)`; fused_label `(2,)`; intensity
+`degenerate`, `too_high`, `too_low` `(16,)`; intensity_reference_delta
+`distance`, `out_of_range`, `robust_z` `()`; mislabel `ordering` `(9,)`;
+neighbour_contact `stray_contact` `(2,)`; overlap `overlapping_segments`
+`(15,)`; reference_delta `distance`, `out_of_range`, `robust_z` `()`; sequence
+`shift`, `swap` `(9,)`, `skip` `(10,)`, `transitional` `(11,)`; spline_offset
+`()`; split_fragment `(3,)`. Every row meets its target; no sequence detector
+serves 12. Condition 4 subjects are recorded under AC3 and name no proxy rule.
+
+**AC7/AC8, T12/L1.** `test_204_stage33_validation.py` plus
+`test_186...::test_ac2_t12_map_no_coverage_finding`: 3 passed. The map has
+`relationships.missing_levels == []`; `run_rules` returns six findings, all
+`(border, unexpected_clip)`, none from a mode 6 or 10 detector.
+
+**AC9/AC10, counts** (16 modes; read in the clone): status validated 6,
+implemented 3, specified 2, proposed 5; rungs synthetic-demonstrable 6,
+needs-real-data 2, structurally-unobservable 1, none 7. `sorted(MODE_SIGN_OFFS)`
+`[2,3,4]`; at the bar `[2,3]`; drafts `16 - 3 = 13`. All equal the Description's
+live-state figures.
+
+**AC11, bookkeeping,** in order, all with the clone commit `e0c17ab3...`:
+`aide progress accept 32 --criterion 1 --evidence "..."` (AC3, states it
+supersedes the 2026-09-22 note); `amend 32 --criterion 5` (AC10, both counts
+clauses plus `modes refined by stages 32 and 33: 2, 3, 4; at the
+fully-specified bar: 2, 3; left as documented drafts: 13`); `accept 33
+--criterion 1` (AC3), `2` (AC4 with AC5), `3` (AC6), `5` (AC9); `amend 33
+--criterion 4` (AC7 and AC8). The full evidence text of each is the annotation
+under its box in `progress.md`. Criterion 2 and 3 evidence states the A1 and A2
+readings.
+
+**AC12.** Stage 32's D0 bullet flipped 📋 to ❌ by hand with the dated note
+pointing at items 162 and 163. No other Stage 32 bullet was hand-edited.
+
+**AC13.** No row of the gated-capability table names Stage 33 or items
+170-208 in "Introduced by", and no spec numbered 170-208 has an `## Environment
+/ Hardware Dependencies` section. `aide env` exit 0 (`OK`); `--profile
+pyradiomics` exit 1 (no module `radiomics`); `--profile docker` exit 1;
+`--profile gpu` exit 1 (no module `cupy`). The table is unedited.
+
+**AC14 and `aide check`:** see the closing record below.
 
 - **Left open:** a computed predicate for "a case's label map expresses the
   mode or condition it is attributed to" (A1). AC5 attests on decision
