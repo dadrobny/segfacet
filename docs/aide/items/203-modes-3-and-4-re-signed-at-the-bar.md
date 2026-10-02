@@ -842,6 +842,15 @@ To be updated during implementation.
   criterion (2026-10-02).** "This item did not touch key 4" is a diff-time
   claim (Validation, correction, step 4). Pinning mode 4's date or outcome
   in the suite would invert at mode 4's next legitimate re-sign.
+- **Implemented 2026-10-02 (gate-0133).** `MODE_SIGN_OFFS` now holds keys 2, 3
+  and 4. Modes 2 and 3 are `at-the-bar`, dated 2026-10-02, with the notes
+  given verbatim in Implementation Steps (correction). Key 4 is untouched.
+  The comment block and the two "shipped empty" phrases (`ModeSignOff`
+  docstring, module Public API entry) were rewritten. Both
+  `failure_modes.generated.*` files were regenerated with
+  `.venv/bin/python -m segfacet.failure_modes`. The test retirements in
+  `test_168` and `test_169` were committed with the tests, so none was made
+  here.
 
 ---
 

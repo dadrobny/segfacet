@@ -53,7 +53,7 @@ Corpus cases:
 - Status, authored: specified
 - Status, derived (live): validated
 - Derived rung (strongest edge, live): synthetic-demonstrable
-- Maintainer sign-off: (none recorded)
+- Maintainer sign-off: 2026-10-02 -- at-the-bar -- At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 are at the bar". Non-blocking feedback given at the sign-off is recorded in docs/aide/insights.md (gap entries, gate-0133, 2026-10-02): fused_label's centroid-spacing judgement, and neighbour_contact's stray_contact reading one contact direction.
 
 Candidate features:
 
@@ -94,7 +94,7 @@ Corpus cases:
 - Status, authored: specified
 - Status, derived (live): validated
 - Derived rung (strongest edge, live): synthetic-demonstrable
-- Maintainer sign-off: 2026-09-22 -- intermediate-state -- Signed at a recorded intermediate state, not at the bar. The neighbour_contact detector's 100 mm^2 threshold has no evidence: the geometric corpus base is five non-touching axis-aligned boxes, so its one firing value (750 mm^2) is the fixture's maximum cross-section and every other reading is structurally 0.0. Before signing at the bar: neighbour_contact moves out of fragmentation into its own rule; the split case is re-authored at ~20 percent of the body on a lordotic base, with a second sub-type where the split part carries its own label. Maintainer review of 2026-09-22; lands as queue 023.
+- Maintainer sign-off: 2026-10-02 -- at-the-bar -- At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 are at the bar". Supersedes the gate-bb24 intermediate-state record of 2026-09-22, which predates the mode 2/3 boundary re-draw at gate-51da (2026-09-30).
 
 Candidate features:
 

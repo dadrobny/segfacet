@@ -387,8 +387,8 @@ Public API
     The frozen per-mode maintainer sign-off record (item 168, roadmap Stage
     32 bar condition 6) and its closed, two-member outcome vocabulary.
 ``MODE_SIGN_OFFS`` / ``mode_sign_off(mode_id) -> Optional[ModeSignOff]``
-    The read-only mapping of recorded sign-offs, keyed by mode id -- shipped
-    empty until a person resolves the gate -- and its accessor.
+    The read-only mapping of recorded sign-offs, keyed by mode id, each
+    transcribed from a resolved human gate -- and its accessor.
 ``SPECIFICATION``
     The immutable, ascending-by-id seed (a ``MappingProxyType``).
 ``iter_modes() -> Iterator[ModeSpec]``
@@ -643,7 +643,7 @@ class ModeSignOff:
     """One maintainer sign-off of a mode (item 168, roadmap Stage 32 bar
     condition 6): the mode id, the resolution date of the human gate that
     recorded it, the chosen outcome and the maintainer's note. Only a person
-    may create one -- see :data:`MODE_SIGN_OFFS`, shipped empty."""
+    may create one -- see :data:`MODE_SIGN_OFFS`."""
 
     mode_id: int
     date: str
@@ -2605,32 +2605,37 @@ CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
 
 
 #: The maintainer sign-off record per mode (item 168, roadmap Stage 32 bar
-#: condition 6). Shipped empty by item 168's Half A while the human gate
-#: ("Stage 32 selected-mode sign-off", ``docs/aide/progress.md``) was still
-#: ``⏳ Awaiting`` -- no agent may add an entry here on its own (AC11). The
-#: gate was resolved ``✅ Approved (2026-09-22)``, and these two records are
-#: its Half B, keyed by their own ``mode_id`` and dated with the gate row's
-#: resolution date. Both are ``intermediate-state``: conditions 1-5 held
-#: live when signed, and the maintainer review of 2026-09-22
-#: (``docs/aide/insights.md``, entries dated 2026-09-22) names what must
-#: change before either mode is signed at the bar.
+#: condition 6). No agent may add an entry here on its own (AC11); each is
+#: transcribed from a resolved human gate, keyed by its own ``mode_id`` and
+#: dated with the gate row's resolution date. Three records are held:
+#: mode 4 from ``gate-bb24`` (2026-09-22, ``intermediate-state``), and modes 2
+#: and 3 from ``gate-0133`` (2026-10-02, ``at-the-bar``). Mode 3's record
+#: replaces its ``gate-bb24`` one (one record per mode, no history); that
+#: earlier record stays in ``gate-bb24``'s row and in git.
 MODE_SIGN_OFFS: Mapping[int, ModeSignOff] = MappingProxyType(
     {
+        2: ModeSignOff(
+            mode_id=2,
+            date="2026-10-02",
+            outcome="at-the-bar",
+            note=(
+                'At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 '
+                'are at the bar". Non-blocking feedback given at the sign-off '
+                "is recorded in docs/aide/insights.md (gap entries, gate-0133, "
+                "2026-10-02): fused_label's centroid-spacing judgement, and "
+                "neighbour_contact's stray_contact reading one contact "
+                "direction."
+            ),
+        ),
         3: ModeSignOff(
             mode_id=3,
-            date="2026-09-22",
-            outcome="intermediate-state",
+            date="2026-10-02",
+            outcome="at-the-bar",
             note=(
-                "Signed at a recorded intermediate state, not at the bar. "
-                "The neighbour_contact detector's 100 mm^2 threshold has no "
-                "evidence: the geometric corpus base is five non-touching "
-                "axis-aligned boxes, so its one firing value (750 mm^2) is the "
-                "fixture's maximum cross-section and every other reading is "
-                "structurally 0.0. Before signing at the bar: neighbour_contact "
-                "moves out of fragmentation into its own rule; the split case "
-                "is re-authored at ~20 percent of the body on a lordotic base, "
-                "with a second sub-type where the split part carries its own "
-                "label. Maintainer review of 2026-09-22; lands as queue 023."
+                'At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 '
+                'are at the bar". Supersedes the gate-bb24 intermediate-state '
+                "record of 2026-09-22, which predates the mode 2/3 boundary "
+                "re-draw at gate-51da (2026-09-30)."
             ),
         ),
         4: ModeSignOff(
