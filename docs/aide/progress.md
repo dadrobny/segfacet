@@ -1925,7 +1925,7 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   *(Item 207)*
 - ✅ **D5 re-plan** Mode 3's own detector, from whole-label contact fraction and small
   size. *(Item 208)*
-- 📋 **D5** Modes 2 and 3 signed by the maintainer at the bar (human gate gate-0133, re-scoped from modes 3 and 4 when gate-51da was declined on 2026-09-30), with the outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
+- 🚧 **D5** Modes 2 and 3 signed by the maintainer at the bar (human gate gate-0133, re-scoped from modes 3 and 4 when gate-51da was declined on 2026-09-30), with the outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
 - 📋 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
   Stage 32's criterion 1. *(Item 204)*
 
