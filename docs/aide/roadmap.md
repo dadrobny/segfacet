@@ -1983,7 +1983,15 @@ is not blocked by it and belongs to no stage.
 
 ---
 
-## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8)
+## Stage 33 — Corpus & Rule Re-grounding: modes 2 and 3 to the bar (G2, G7, G8)
+
+> **Re-targeted 2026-09-30.** The stage was titled and scoped for modes 3 and 4. At gate
+> `gate-51da` (declined 2026-09-30) the maintainer re-drew the mode 2/3 boundary and moved
+> the selected modes to **2 (fused vertebra segments) and 3 (split vertebra segment)**;
+> mode 4 (islands) left the stage with its `gate-bb24` intermediate-state record standing
+> (`insights.md`, 2026-09-30). The goal and scope paragraphs below are kept as written on
+> 2026-09-22 and read through this note; D5 and the acceptance criteria name the final
+> targets. Title corrected 2026-10-03 (`insights.md`, item 204, 2026-10-02).
 
 **Goal.** Queue-022 took modes 3 (split vertebra segment) and 4 (islands) through bar
 conditions 1–5, but the maintainer signed both off only at a recorded intermediate state
@@ -2105,9 +2113,10 @@ re-measured on the new base, never carried over.
   - A generated `docs/aide/rules.generated.md` gives one row per detector: the question
     it asks, the path it reads, when it fires, its default, and the modes it serves
     (`insights.md`, 2026-09-22).
-- **D5 — modes 3 and 4 re-signed at the bar (human gate).** The maintainer reads both
+- **D5 — modes 2 and 3 re-signed at the bar (human gate).** The maintainer reads both
   modes' rendering, the corpus sheet and the rule table, and signs each off at the bar or
-  records why not. The outcome is written to `MODE_SIGN_OFFS`.
+  records why not. The outcome is written to `MODE_SIGN_OFFS`. (Written for modes 3 and 4;
+  re-targeted to 2 and 3 at `gate-51da`, 2026-09-30, and signed at `gate-0133`.)
 - **D6 — stage validation, closing Stage 32.** Run from a clean clone: every generated
   artifact byte-identical, every corpus case's measured firing equal to its expected set,
   and the detection count re-stated per status and rung. This is Stage 32's D3 re-run on
