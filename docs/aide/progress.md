@@ -1319,14 +1319,23 @@ justified in writing.
 
 - 📋 The taxonomy, written down with rationale, alternatives considered, and every deviation
   from the starting proposal justified — reviewed with the maintainer before migration (a
-  human-checkpoint stage in the same sense Stage 19 was).
+  human-checkpoint stage in the same sense Stage 19 was). *(Item 214)*
 - 📋 The migration applied, the feature catalogue
   (`docs/aide/feature_catalogue.generated.md`) regenerated, its drift test
-  (`tests/test_104_feature_catalogue_drift.py`) as the safety net.
+  (`tests/test_104_feature_catalogue_drift.py`) as the safety net. *(Items 215, 216)*
 - 📋 Answers for the known instances: duplicated `label`/`level_name` identity fields across
   four containers; `stage3.*` / `image_features.*` parallel to `per_label.{label}.*`;
   image-axis-relative shape features (bbox/extent, `principal_axis`) awaiting a vertebra
-  coordinate system; reference-delta hardcoded to `physical_volume_mm3`.
+  coordinate system; reference-delta hardcoded to `physical_volume_mm3`. *(Item 214)*
+- 📋 **Maintenance** `test_155`'s tracked-shape scan: nested scopes reported once, walrus,
+  `match` and `>= 1.0` shapes covered, value defaults let through. *(Item 209)*
+- 📋 **Maintenance** The monotonicity check's reference curve made label-free and
+  direction-robust. *(Item 210)*
+- 📋 **Maintenance** `fused_label` judges the pair of adjacent spacings together.
+  *(Item 211)*
+- 📋 **Maintenance** `crop_at_border` re-authored as a true anterior crop. *(Item 212)*
+- 📋 **Maintenance** The Windows CI leg runs a pinned OS-sensitive subset. *(Item 213)*
+- 📋 Stage validation from a clean clone. *(Item 217)*
 
 **Acceptance.**
 
