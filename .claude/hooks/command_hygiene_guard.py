@@ -216,9 +216,38 @@ def _blank_single_quoted(cmd):
     return "".join(out)
 
 
+def _local_config_root():
+    """The directory whose ``.aide/local.toml`` the readers below open.
+
+    Anchored at the project root, not at whatever the process's working
+    directory happens to be: the runtime names the root in
+    ``CLAUDE_PROJECT_DIR``, and a hook spawned for a sub-agent whose cwd is a
+    subdirectory — or an isolated worktree, where the gitignored file was
+    never checked out — still reads the one the developer wrote (issue
+    #353). The first of the project root and the working directory that
+    holds the file wins; with neither, the project root (else the cwd) is
+    where it would be, which is what the legacy note looks beside.
+    """
+    project = os.environ.get("CLAUDE_PROJECT_DIR") or ""
+    for root in (project, os.getcwd()):
+        if root and os.path.isfile(os.path.join(root, ".aide", "local.toml")):
+            return root
+    return project or os.getcwd()
+
+
+def _read_local_config():
+    """``.aide/local.toml``'s text from `_local_config_root`, or None."""
+    try:
+        with open(os.path.join(_local_config_root(), ".aide", "local.toml"),
+                  encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
 def _framework_local_path():
-    """``[framework] local_path`` from ``.aide/local.toml`` (cwd = repo root),
-    or None.
+    """``[framework] local_path`` from ``.aide/local.toml`` (found by
+    `_local_config_root`), or None.
 
     The documented framework-update workflow operates on a second repo (the
     framework clone), which structurally needs a directory-targeting git
@@ -239,12 +268,8 @@ def _framework_local_path():
     retired supervisor. An ``install.py --update`` moves it; a copy left at
     the old path is not read (`_legacy_local_config_note`).
     """
-    try:
-        with open(
-            ".aide/local.toml", encoding="utf-8"
-        ) as fh:
-            text = fh.read()
-    except OSError:
+    text = _read_local_config()
+    if text is None:
         return None
     in_framework = False
     for line in text.splitlines():
@@ -273,9 +298,10 @@ def _legacy_local_config_note():
     that it is in the wrong copy, which is what the installer's own conflict
     line says in full.
     """
+    root = _local_config_root()
     try:
-        if (os.path.isfile(os.path.join(".aide", "loop", "loop.local.toml"))
-                and not os.path.exists(os.path.join(".aide", "local.toml"))):
+        if (os.path.isfile(os.path.join(root, ".aide", "loop", "loop.local.toml"))
+                and not os.path.exists(os.path.join(root, ".aide", "local.toml"))):
             return (" Note: .aide/loop/loop.local.toml is no longer read as of "
                     "2.0.0 — move it to .aide/local.toml (its [loop] table is "
                     "no longer read either and may be deleted).")
@@ -306,10 +332,8 @@ def _hygiene_extra_repos():
     machine-specific filesystem paths, same reasoning as
     ``[framework] local_path``.
     """
-    try:
-        with open(".aide/local.toml", encoding="utf-8") as fh:
-            text = fh.read()
-    except OSError:
+    text = _read_local_config()
+    if text is None:
         return []
 
     in_hygiene = False
@@ -452,8 +476,12 @@ def _git_repo_override_all_declared(cmd):
         return False
     import os
     norm = lambda p: os.path.normcase(os.path.normpath(os.path.abspath(p)))
+    # A declared path is relative to the directory its file was read from;
+    # a path in the command, to the cwd the command runs in.
+    config_root = _local_config_root()
 
     def _all_match(declared):
+        declared = os.path.join(config_root, declared)
         declared_norm = norm(declared)
         declared_dotgit_norm = norm(os.path.join(declared, ".git"))
 

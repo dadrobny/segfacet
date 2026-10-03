@@ -30,8 +30,16 @@ item**, never an agent reading the merge off the forge.
 
 A ⏸️ item **is work postponed, not work done**: it never lets its stage reach
 ✅, and a stage whose only open bullets are ⏸️ reads ⏸️. `aide progress set
-NNN deferred --reason …` writes it, and any forward `aide progress set`
-resumes it (§1 → `progress.md`).
+NNN deferred --reason …` writes it, and `aide progress set NNN resumed
+--reason …` alone takes it back, to 📋 — `set` refuses to move it forward
+while its bullets are all ⏸️ or 📋 (§1 → `progress.md`).
+
+A ❌ item **is work decided against**: it counts toward its stage's ✅, as
+nothing is left to wait for. `aide progress set NNN dropped --reason …` writes
+it, and `aide progress set NNN restored --reason …` alone takes it back, to
+📋 — `set` and `aide merge` refuse to move it forward while its bullets are
+all ❌ or 📋 (§1 → `progress.md`). A stage whose summary row is ❌ is
+withdrawn whole, and speaks for no objective.
 
 **Structural positions only.** The parsers read icons *only* at structural
 positions: a table row's **Status (last) cell**, a stage header's **trailing**
@@ -47,8 +55,8 @@ take it for the header's status; other documents are not scanned.
 - **Why ✅ is mode-independent.** It used to mean two different things depending
   on the mode — merged under `auto-merge`, *pushed and awaiting review* under
   `pr` — while everything downstream read it as "done", including `aide gc`,
-  whose default ground is "the item is ✅" and whose action is `git branch -D`
-  plus a remote delete. The exhaustion sweep therefore offered to delete the
+  whose default ground was then "the item is ✅" (❌ joined it in 2.35.0, §2)
+  and whose action is `git branch -D` plus a remote delete. The exhaustion sweep therefore offered to delete the
   head branch of an open PR, and the line a human was asked to approve read
   like confirmation. A run must be stable under either mode, so 🔍 was added
   and ✅ narrowed to the merge itself.
@@ -56,6 +64,10 @@ take it for the header's status; other documents are not scanned.
   produced ⏸️, so a stage an owner had deferred read 📋 or 🚧 and could not be
   told from one nobody had started, or one in flight. It is computed now,
   from bullets a verb writes with a reason.
+- **Why ❌ has a way back and no way forward.** Until issue #381 ❌ ranked
+  lowest and nothing guarded it, so any forward `set`, or a merge's tick,
+  silently undid an owner's drop; the refusal and the restore keep that
+  decision on the record, beside the drop's reason.
 - **Why the landed-🔍 check is a content check.** `sync` and `status` use the
   same merge-tree comparison `gc` uses, so closing a 🔍 item needs no forge
   call that could silently degrade to "no open PRs found".

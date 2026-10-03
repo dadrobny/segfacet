@@ -56,8 +56,10 @@ running (issue #332), and
 neither is ``checks=none`` until it has held for {grace} s, since just after a
 push or ``aide queue ready`` CI may not have registered a run; ``unknown`` is
 the answer once {unknown} readings in a row say it, since one failed ``gh``
-call is not. It gives up after {ceiling} s. Its log is the stack line and the
-``failing check:`` / ``pending check:`` / ``checks unknown:`` / ``ci fix
+call is not. ``checks=-`` beside an open PR is ``status`` saying
+``[git] ci = "none"`` declares no CI, and answers at once: ``aide.toml`` has
+one reader, the engine (issue #355). It gives up after {ceiling} s. Its log
+is the stack line and the ``failing check:`` / ``pending check:`` / ``checks unknown:`` / ``ci fix
 rounds:`` lines under it, each time they
 change, then its verdict. ``poll-ci`` blocks until then, so it is only ever
 run this way; a crash of the poll itself exits 1, with its traceback in the
@@ -85,13 +87,15 @@ Exit codes:
                         and the CI fix rounds begun where any has
     {none}                  checks=none held for the grace — no CI ran
     {unknown_code}                  checks=unknown — the reason is named
-    {no_pr}                  no PR (checks=-, local mode included), a closed or
-                        merged one, or the branch has no stack line: not an
-                        unmerged queue branch
+    {no_pr}                  no PR (checks=-, local mode and no declared forge
+                        included), a closed or merged one, or the branch
+                        has no stack line: not an unmerged queue branch
     {pending}                  still pending at the ceiling — a red answer
                         with a leg still running included
     {draft}                  the PR is a draft (pr=#N/draft…, (fixing) included),
                         so CI that skips drafts has nothing to run
+    {none_declared}                  checks=- on an open PR: aide.toml declares
+                        no CI ([git] ci = "none"), so there is none to wait on
 
 None of 64, 75 or 90–93 is a code pytest (0–5), ``aide merge`` or ``ci``
 returns, and none is 128+N, a signal death. State lives under the git directory
@@ -155,6 +159,7 @@ CI_UNKNOWN = 12
 CI_NO_PR = 13
 CI_PENDING = 14
 CI_DRAFT = 15
+CI_NONE_DECLARED = 16
 #: One `aide status` stack line; `status -h` states every field.
 _STACK_LINE_RE = re.compile(
     r"^\s*stack \d+: (?P<branch>\S+) .*?\bpr=(?P<pr>\S+) checks=(?P<checks>\S+)")
@@ -396,6 +401,14 @@ def poll_ci(branch: str, read_status, *, interval: float = CI_INTERVAL,
             print(f"ci: PR {pr} is a draft, not marked ready, so CI that skips "
                   f"drafts will not run on it", flush=True)
             return CI_DRAFT
+        # `checks=-` beside a PR is `status` saying no CI is declared — it
+        # prints a CI state for every PR it can ask about otherwise (#355).
+        # A draft answered above: one `queue ready` did not take, or one a
+        # fix round reopened, is never "stop for the merge".
+        if checks == "-" and state == "open":
+            print(f"ci: none declared — aide.toml's [git] ci = \"none\", so "
+                  f"PR {pr} has no CI to wait on", flush=True)
+            return CI_NONE_DECLARED
         if checks == "success":
             print("ci: success", flush=True)
             return CI_SUCCESS
@@ -408,7 +421,8 @@ def poll_ci(branch: str, read_status, *, interval: float = CI_INTERVAL,
             return CI_FAILURE
         if checks == "-":
             print(f"ci: {branch} has no pull request here (or git.mode is "
-                  f"local), so there is no CI to wait on", flush=True)
+                  f"local, or no forge is declared), so there is no CI to "
+                  f"wait on", flush=True)
             return CI_NO_PR
         if checks == "unknown" and unknown_run >= CI_UNKNOWN_READS:
             print("ci: unknown — the forge could not be read", flush=True)
@@ -800,7 +814,8 @@ def _doc() -> str:
                         ("unknown", CI_UNKNOWN_READS), ("ceiling", CI_CEILING),
                         ("failure", CI_FAILURE), ("none", CI_NONE),
                         ("unknown_code", CI_UNKNOWN), ("no_pr", CI_NO_PR),
-                        ("pending", CI_PENDING), ("draft", CI_DRAFT)):
+                        ("pending", CI_PENDING), ("draft", CI_DRAFT),
+                        ("none_declared", CI_NONE_DECLARED)):
         text = text.replace("{" + name + "}", str(value))
     return text
 

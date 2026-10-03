@@ -403,7 +403,22 @@ def test_local_mode_asks_no_forge_about_the_stack(tmp_path: Path, monkeypatch, c
     f = _status(repo, capsys)
     assert [(s["pr"], s["orphaned"]) for s in f["stack"]] == [("-", "-")] * 2
     assert f["awaiting"] == "no"
-    assert all("--head" not in c for c in calls)
+    assert calls == []
+
+
+def test_local_mode_asks_no_forge_for_the_open_prs_either(
+        tmp_path: Path, monkeypatch, capsys):
+    """Issue #352: `local` makes no network call (§4), and the last line of
+    `status` still asked `gh` — "open PRs: unknown — could not look (gh is
+    not on PATH)" on a machine meant to be offline."""
+    repo = _init(tmp_path, mode="local")
+
+    def must_not_run(repo_root, args):
+        raise AssertionError(f"_gh called in local mode: {args}")
+
+    monkeypatch.setattr(aide, "_gh", must_not_run)
+    f = _status(repo, capsys)
+    assert f["open_prs"] == "open PRs: - (local mode)"
 
 
 # --------------------------------------------------------------------------- #

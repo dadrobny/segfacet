@@ -36,7 +36,9 @@ error rate, a benchmark), mirror it as a row of the optional
 `## Outcome targets` table, **not** as an acceptance checkbox — targets gate
 objectives, never stages (`.aide/conventions.md` §1 → `progress.md`).
 
-Run `python .aide/scripts/aide.py check` after writing — it must pass.
+Run `python .aide/scripts/aide.py check` after writing — it must pass, apart from
+any `this machine:` error, which is reported to the human, never fixed by
+editing `aide.toml`.
 
 ### Updating an existing progress file
 

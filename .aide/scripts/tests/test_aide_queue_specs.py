@@ -691,9 +691,12 @@ def test_check_queue_fails_on_an_error_finding(tmp_path: Path, capsys):
     assert "Asserts against" in capsys.readouterr().out
 
 
-def test_check_without_queue_is_unchanged(tmp_path: Path, capsys):
+def test_check_without_queue_is_unchanged(tmp_path: Path, capsys, monkeypatch):
     """The cross-spec checks are opt-in: a bare `aide check` must not start
     reporting them."""
+    # Documents, not the machine: `aide check` also errors on what aide.toml
+    # needs of this machine (issue #354), which a scratch directory lacks.
+    monkeypatch.setattr(aide, "dependency_errors", lambda repo_root, config: [])
     repo = _make_repo(tmp_path, {
         27: _spec_text(27, may=["src/cli.py"]),
         28: _spec_text(28, may=["src/other.py"], asserts=["src/cli.py"]),
@@ -808,13 +811,72 @@ def test_a_queue_end_item_among_the_final_items_meets_the_need(tmp_path: Path):
     assert _qe(repo, "queue-end-idle") == []
 
 
-def test_a_queue_end_item_that_is_not_final_does_not_meet_the_need(tmp_path: Path):
+#: Items 027–029 open, 029 the stage's queue-end item.
+_PROGRESS_QE_29 = PROGRESS_QE.replace(
+    "- 📋 C. *(Item 028)*", "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*")
+
+
+def test_an_open_queue_end_item_that_is_not_final_meets_the_need(tmp_path: Path):
+    """Issue #347: an item added after planning is listed after `Validate
+    stage 1`. `aide claim` holds the open queue-end item until 028 has left
+    the way, so it still runs last and meets the need — the warning is about
+    where the file lists it, not a missing item to plan."""
     repo = _qe_repo(tmp_path, queue_items=(27, 29, 28),
-                    titles={29: "Validate stage 1: Rules"},
-                    progress=PROGRESS_QE.replace(
-                        "- 📋 C. *(Item 028)*",
-                        "- 📋 C. *(Item 028)*\n- 📋 Stage validation. *(Item 029)*"))
+                    titles={29: "Validate stage 1: Rules"}, progress=_PROGRESS_QE_29)
+    assert _qe(repo, "queue-end-needed") == []
+    hits = _qe(repo, "queue-end-not-last")
+    assert len(hits) == 1 and hits[0].severity == "warning"
+    assert hits[0].items == (29, 28)
+    assert "move it to the end of the queue" in hits[0].message
+
+
+def test_an_item_depending_on_the_queue_end_item_is_not_out_of_place(
+        tmp_path: Path):
+    """028's spec names 029 as a dependency, so it belongs after it: claim
+    does not hold 029 behind it, and the check does not ask to move 029."""
+    repo = _qe_repo(tmp_path, queue_items=(27, 29, 28),
+                    specs={28: "# Item 028 — Thing 28\n\n## Dependencies\n\n"
+                               "- Item 029\n"},
+                    titles={29: "Validate stage 1: Rules"}, progress=_PROGRESS_QE_29)
+    assert _qe(repo, "queue-end-not-last") == []
+
+
+def test_a_spent_queue_end_item_that_is_not_final_does_not_meet_the_need(
+        tmp_path: Path):
+    """A ✅ `Validate stage 1` listed before open work ran before that work:
+    the need is still there, and a settled record is never out of place."""
+    progress = _PROGRESS_QE_29.replace("- 📋 Stage validation.", "- ✅ Stage validation.")
+    repo = _qe_repo(tmp_path, queue_items=(27, 29, 28),
+                    titles={29: "Validate stage 1: Rules"}, progress=progress)
     assert len(_qe(repo, "queue-end-needed")) == 1
+    assert _qe(repo, "queue-end-not-last") == []
+
+
+def test_a_settled_record_never_puts_a_queue_end_item_out_of_place(tmp_path: Path):
+    """Only open work after an open queue-end item counts (the #338
+    convention): a ✅, ❌ or ⏸️ item listed after it is history, not a plan."""
+    for k, icon in enumerate(("✅", "❌", "⏸️")):
+        progress = _PROGRESS_QE_29.replace("- 📋 C. *(Item 028)*",
+                                           f"- {icon} C. *(Item 028)*")
+        repo = _qe_repo(tmp_path / f"s{k}",
+                        queue_items=(27, 29, 28),
+                        titles={29: "Validate stage 1: Rules"}, progress=progress)
+        assert _qe(repo, "queue-end-not-last") == [], icon
+
+
+def test_two_trailing_queue_end_items_are_in_place(tmp_path: Path):
+    """A queue may end on two queue-end items; neither is out of place for
+    the other."""
+    progress = _PROGRESS_QE_29.replace(
+        "- 📋 D. *(Item 040)*", "- 📋 D. *(Item 040)*\n- 📋 Stage 2 check. *(Item 030)*")
+    repo = _qe_repo(tmp_path, queue_items=(27, 28, 29, 30), progress=progress,
+                    titles={29: "Validate stage 1: Rules", 30: "Validate stage 2: Later"})
+    assert _qe(repo, "queue-end-not-last") == []
+    assert aide.queue_end_holds(repo, aide.load_config(repo),
+                                (repo / "docs/aide/queue/queue-003.md")
+                                .read_text(encoding="utf-8"),
+                                aide._progress_item_status(repo, aide.load_config(repo))
+                                ) == {29: [27, 28], 30: [27, 28]}
 
 
 def test_every_criterion_annotated_or_ticked_is_no_need(tmp_path: Path):

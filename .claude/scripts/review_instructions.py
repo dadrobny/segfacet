@@ -81,6 +81,9 @@ EMPTY_HINT = (
     "  2. No session has run since the hook was installed.\n"
     "  3. The log was rotated by a review (--rotate) and no session has run\n"
     "     since; the reviewed records are in log.reviewed.jsonl beside it.\n"
+    "And one that is not healthy: no working python3 or python on this machine.\n"
+    "Every hook then runs nothing, and each call shows a hook error reading\n"
+    "'aide: no working python3/python for .claude/hooks/<script>'.\n"
 )
 
 

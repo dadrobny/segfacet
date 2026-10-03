@@ -17,6 +17,7 @@ the state today.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 from typing import List
@@ -363,6 +364,7 @@ def test_reopen_routes_its_finding_into_the_inbox(tmp_path: Path, capsys):
 
 def test_status_prints_a_reopened_item_by_its_status_today(tmp_path: Path, capsys):
     repo = _repo(tmp_path, _reopen())
+    _git_init(repo)
     assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
     out = capsys.readouterr().out
     assert "reopened: item 027 (2026-09-24) — operator run never happened" in out
@@ -426,6 +428,7 @@ def test_check_and_status_word_a_re_accepted_box_by_its_tick(tmp_path: Path, cap
     hits = [w for w in warnings if "retracted" in w]
     assert len(hits) == 1 and "re-accepted on 2026-07-03" in hits[0], warnings
     assert "open again" not in hits[0]
+    _git_init(repo)
     assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
     assert ("retracted: stage 1 criterion 1 (2026-07-02) — the host was "
             "misread; re-accepted on 2026-07-03") in capsys.readouterr().out
@@ -580,3 +583,9 @@ def test_a_fix_round_through_an_attested_stage_reads_as_no_regression(tmp_path: 
         "progress.md: item 027 was reopened on 2026-09-29 (CI build: test_027 "
         "[CI round 1]) and completed again since — the reopening is kept in "
         "the trail under its bullet"]
+
+
+def _git_init(path: Path) -> None:
+    """`aide status` refuses outside a repository (issue #352)."""
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)

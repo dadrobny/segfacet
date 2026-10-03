@@ -94,7 +94,9 @@ A `framework` entry belongs to AIDE itself, not this project. If
 `gh issue create --repo <owner/repo>` with a body carrying the observation and a
 proposal. This stays `ask`-gated — `gh issue create` is on the `ask` list in
 `.claude/settings.json`, so a human confirms. Otherwise leave the entry
-unchecked with a `(pending handover)` note.
+unchecked with a `(pending handover)` note — and so too where the command is
+denied, as an `ask` is in an unattended (`-p`) run: name the command in your
+report instead.
 
 **A `framework` issue body opens with the engine version the observation was
 made under** — the body's first line, before the observation

@@ -13,17 +13,21 @@ Subcommands::
     python .aide/scripts/aide.py progress set NNN <in-progress|in-review|done>
     python .aide/scripts/aide.py progress set NNN deferred --reason TEXT  # ⏸️, with its why
     python .aide/scripts/aide.py progress set --stage N --deliverable K deferred --reason TEXT  # ⏸️ on a bullet with no item marker
+    python .aide/scripts/aide.py progress set --stage N --deliverable K dropped --reason TEXT  # ❌ on one the stage does not need
+    python .aide/scripts/aide.py progress set NNN resumed --reason TEXT  # ⏸️ back to 📋 (--stage N --deliverable K for an unmarked bullet)
+    python .aide/scripts/aide.py progress set NNN dropped --reason TEXT  # ❌ on an item the stage does not need
+    python .aide/scripts/aide.py progress set NNN restored --reason TEXT  # ❌ back to 📋 (--stage N --deliverable K for an unmarked bullet)
     python .aide/scripts/aide.py gate list|approve|decline [N|ID]  # human gates in progress.md
     python .aide/scripts/aide.py queue start NNN       # create the queue branch (--specs for specs-)
     python .aide/scripts/aide.py queue tidy NNN        # mark a superseded queue as completed
     python .aide/scripts/aide.py queue gate NNN        # raise a planned queue's plan-review gate
     python .aide/scripts/aide.py queue restack         # merge a stack of queue branches forward
-    python .aide/scripts/aide.py insights list|tick|archive|resolve  # the insight inbox
+    python .aide/scripts/aide.py insights add|list|tick|archive|resolve  # the insight inbox
     python .aide/scripts/aide.py ledger abandon NNN --rounds N  # the ledger row for an item that never merged
     python .aide/scripts/aide.py claim [--queue NNN]   # pick + claim the next 📋 item
     python .aide/scripts/aide.py test                  # run the suite, recorded for merge to reuse
     python .aide/scripts/aide.py merge NNN [--base R]  # merge a validated item per git.mode
-    python .aide/scripts/aide.py env                   # venv existence / import check + bootstrap
+    python .aide/scripts/aide.py env                   # dependency report (git, origin, gh, runner, venv) + bootstrap
     python .aide/scripts/aide.py sync [--item NNN]     # preflight: fetch, clean-tree check, right branch
     python .aide/scripts/aide.py gc [--merged] [--yes] # delete claim branches whose work landed
     python .aide/scripts/aide.py status                # one-call roadmap-state report
@@ -350,6 +354,239 @@ class ConfigError(Exception):
     """
 
 
+class MissingTool(Exception):
+    """A program a verb must run is not there, or cannot do its job — git
+    refusing the repository it is pointed at (issue #352).
+
+    Raised by the one guarded entry for each program the engine runs — `git`
+    and the configured test command — and turned by ``main`` into
+    ``aide <verb>: <sentence>`` and exit 1. Deliberately **not** an
+    ``OSError``: the engine's best-effort readers catch ``OSError`` to degrade
+    one answer, and a missing program is not one answer degraded but every
+    later one — `_list_claim_branches` once read it as "no claim branches",
+    so `merge` refused with "no claim branch found".
+    """
+
+
+class GitMissing(MissingTool):
+    def __init__(self) -> None:
+        super().__init__("git is not on PATH — install git or put it on PATH, "
+                         "then re-run")
+
+
+class GitRefused(MissingTool):
+    """git ran, and could not read a repository whose `.git` is there."""
+
+    def __init__(self, repo_root: Path, stderr: str) -> None:
+        why = next((l.strip() for l in (stderr or "").splitlines() if l.strip()),
+                   "git gave no reason")
+        super().__init__(f"git cannot read the repository {repo_root} is in — "
+                         f"{why}")
+
+
+class RunnerMissing(MissingTool):
+    def __init__(self, program: str, repo_root: Optional[Path] = None) -> None:
+        # A path is read from the repository root, where the command runs.
+        at = Path(program)
+        if not at.is_absolute() and repo_root is not None:
+            at = Path(repo_root) / at
+        where = ("is not on PATH" if not ("/" in program or os.sep in program)
+                 else "is not an executable file" if at.is_file()
+                 else "does not exist")
+        super().__init__(f"the test command '{program}' {where} — install it, "
+                         f"or fix [python] test_command in aide.toml")
+
+
+class ToolMisconfigured(MissingTool):
+    """`.aide/local.toml` names where a program is, and it is not there — or
+    the file cannot be read, so where it puts the program cannot be known
+    (issue #353).
+
+    Raised by `resolve_tool` and never passed over for whatever PATH holds:
+    a key someone wrote is a decision, and a run that quietly used another
+    `gh` or `git` than the one named would report on a machine nobody
+    configured.
+    """
+
+
+#: The per-machine config, relative to the repository root: machine facts —
+#: where a program is, the framework clone, sibling repos — that a committed
+#: `aide.toml` may not hold. Gitignored; `local.toml.example` is its shape.
+LOCAL_CONFIG = Path(".aide") / "local.toml"
+
+#: The programs `[tools]` in `LOCAL_CONFIG` may locate for the engine to run.
+#: `python` is in the table too, but it is only ever printed (`printed_python`).
+RUN_TOOLS = ("gh", "git")
+
+
+def _local_tools(repo_root: Path) -> Dict[str, object]:
+    """The `[tools]` table of *repo_root*'s `.aide/local.toml`; empty when
+    the file or the table is absent.
+
+    Only the `[tools]` table's own lines are parsed. The other tables belong
+    to an adapter's hooks, whose reader is lenient, so a file those hooks
+    have always accepted — a double-quoted Windows path in `extra_repos`,
+    say — never stops a git call here. A `[tools]` table that is there and
+    cannot be read or parsed raises `ToolMisconfigured`: where it puts a
+    program is then unknowable, and reading it as "nothing configured" is
+    the silent fallback to PATH a key exists to prevent. Only a verb that
+    runs a program asks, so one that runs none is untouched by it.
+
+    Read on every ask, never cached: the file is a few lines, a spawn costs
+    far more, and a cache would outlive an edit made between two verbs run in
+    one process.
+    """
+    path = Path(repo_root) / LOCAL_CONFIG
+    try:
+        text = path.read_text(encoding=_ENCODING)
+    except FileNotFoundError:
+        return {}
+    except (OSError, UnicodeDecodeError) as exc:
+        if not path.exists():
+            return {}
+        raise ToolMisconfigured(f"{LOCAL_CONFIG.as_posix()} cannot be read "
+                                f"({exc}), so where its [tools] table puts a "
+                                f"program is unknown — fix or remove it") from None
+    try:
+        import tomllib  # type: ignore
+        parse = tomllib.loads
+    except ModuleNotFoundError:
+        parse = _parse_toml
+    table: List[str] = []
+    inside = False
+    top_level = True
+    for line in text.splitlines():
+        header = re.match(r"\s*\[(\[?)\s*([^\]]*?)\s*\]", line)
+        if header:
+            top_level = False
+            name = header.group(2)
+            inside = name == "tools" and not header.group(1)
+            if inside:
+                # Canonical, so the 3.9 reader — which knows only a bare
+                # `[name]` line — sees the header a trailing comment hides.
+                table.append("[tools]")
+                continue
+            if name.strip("\"'") == "tools":
+                raise ToolMisconfigured(
+                    f"{LOCAL_CONFIG.as_posix()}: {line.strip()} is not the "
+                    f"[tools] table — write it as [tools] with one key per "
+                    f"program")
+        elif top_level and re.match(r"\s*[\"']?tools[\"']?\s*[.=]", line):
+            raise ToolMisconfigured(
+                f"{LOCAL_CONFIG.as_posix()}: {line.strip()} is not the [tools] "
+                f"table — write it as [tools] with one key per program")
+        if inside:
+            table.append(line)
+    if not table:
+        return {}
+    try:
+        parsed = parse("\n".join(table) + "\n")
+    except (ConfigError, ValueError) as exc:
+        raise ToolMisconfigured(f"{LOCAL_CONFIG.as_posix()} is malformed "
+                                f"({exc}), so where its [tools] table puts a "
+                                f"program is unknown — fix it") from None
+    return parsed.get("tools", {})
+
+
+def _has_directory(command: str) -> bool:
+    """Does *command* name a file by its path, rather than a name for PATH?"""
+    return (os.path.isabs(command) or "/" in command
+            or (os.sep != "/" and os.sep in command)
+            or bool(os.altsep and os.altsep in command))
+
+
+def _pathext_file(path: str) -> Optional[str]:
+    """*path* with the first PATHEXT suffix that names a file, or None.
+
+    `shutil.which` applies PATHEXT to a path only from Python 3.12, so on an
+    older Windows interpreter `C:/tools/gh` would miss the `gh.exe` beside
+    it — and `gh-2.40` its `gh-2.40.exe`: a dot is not always a suffix.
+    """
+    for ext in os.environ.get("PATHEXT", ".EXE;.CMD;.BAT").split(os.pathsep):
+        if ext and os.path.isfile(path + ext):
+            return path + ext
+    return None
+
+
+def resolve_tool(name: str, repo_root: Path) -> Optional[str]:
+    """Where the program *name* is, for the engine to run: the one resolver
+    every program the engine starts goes through (issue #353).
+
+    For `gh` and `git` (`RUN_TOOLS`), a non-empty `[tools] <name>` in
+    *repo_root*'s `.aide/local.toml` decides: a path (absolute, or relative
+    to *repo_root*) must be an executable file, and a bare name is looked up
+    on PATH. Either way, one that is not there raises `ToolMisconfigured`
+    naming the key — never a fallback to PATH. Unset or empty, *name* is
+    looked up on PATH, and ``None`` is "not there": the caller says what that
+    means for it. Any other *name* — a test command's program — is only
+    looked up, from *repo_root* when it carries a directory. `shutil.which`
+    applies PATHEXT on Windows, so `gh` finds the `gh.exe` installed there.
+    """
+    configured = _local_tools(repo_root).get(name) if name in RUN_TOOLS else None
+    if configured is None or configured == "":
+        command = name
+    elif not isinstance(configured, str):
+        raise ToolMisconfigured(f"[tools] {name} = {configured!r} in "
+                                f"{LOCAL_CONFIG.as_posix()} is not a string — "
+                                f"write a command on PATH or a path, in quotes")
+    else:
+        command = configured.strip()
+    if _has_directory(command):
+        where = Path(command)
+        if not where.is_absolute():
+            where = Path(repo_root) / where
+        found = shutil.which(str(where))
+        if found is None and os.name == "nt":
+            found = _pathext_file(str(where))
+    else:
+        where = None
+        found = shutil.which(command)
+    if found is not None or configured in (None, ""):
+        return found
+    if where is None:
+        why = "is not on PATH"
+    elif where.is_file():
+        why = "is not an executable file"
+    else:
+        why = "does not exist"
+    raise ToolMisconfigured(f"[tools] {name} = {configured!r} in "
+                            f"{LOCAL_CONFIG.as_posix()} {why} — fix it, or "
+                            f"remove the key to look for {name} on PATH")
+
+
+def _git_unavailable(repo_root: Path) -> Optional[str]:
+    """Why git cannot be run for *repo_root*, or None when it can."""
+    try:
+        return None if resolve_tool("git", repo_root) else "git is not on PATH"
+    except ToolMisconfigured as exc:
+        return str(exc)
+
+
+def printed_python(repo_root: Optional[Path]) -> str:
+    """The interpreter the engine prints in the commands it suggests:
+    `[tools] python`, else ``python``.
+
+    Printed, never run and never checked — a suggestion is not a spawn, and
+    a malformed file reads as unset here, since every program the engine
+    does run refuses on it already. Quoted when it holds a space, so a
+    pasted `C:/Program Files/…` stays one word.
+    """
+    value = "python"
+    if repo_root is not None:
+        try:
+            configured = _local_tools(repo_root).get("python")
+        except ToolMisconfigured:
+            configured = None
+        if isinstance(configured, str) and configured.strip():
+            value = configured.strip()
+    return f'"{value}"' if " " in value else value
+
+
+def aide_command(repo_root: Optional[Path], rest: str) -> str:
+    """``<python> .aide/scripts/aide.py <rest>``, as the engine prints it."""
+    return f"{printed_python(repo_root)} .aide/scripts/aide.py {rest}"
+
+
 def _parse_toml(text: str) -> Dict[str, Dict[str, object]]:
     """Minimal TOML reader for the flat ``[table] key = value`` shape of aide.toml.
 
@@ -491,9 +728,88 @@ def plan_review(config: Dict[str, Dict[str, object]]
     return value, None
 
 
+#: `[git] mode`'s values. Every site compares against one of them, so any
+#: other string — a `"Local"` — silently ran as `auto-merge` (issue #352).
+GIT_MODE_VALUES = ("auto-merge", "pr", "local")
+
+
+def git_mode_error(config: Dict[str, Dict[str, object]]) -> Optional[str]:
+    """Why ``[git] mode`` is unusable, or ``None``."""
+    value = config.get("git", {}).get("mode", "auto-merge")
+    if isinstance(value, str) and value in GIT_MODE_VALUES:
+        return None
+    return (f"aide.toml [git] mode = {value!r} is not one of "
+            f"{', '.join(repr(v) for v in GIT_MODE_VALUES)} — any other value "
+            f"runs as 'auto-merge' (default 'auto-merge')")
+
+
+#: `[git] forge`'s values: "github" is the one forge the engine can ask, through
+#: `gh`; "none" declares there is none (issue #355).
+GIT_FORGE_VALUES = ("github", "none")
+#: `[git] ci`'s values: "pr" runs CI on the queue PR, "none" declares no CI.
+#: There is no push-triggered value: the queue end reads only the PR.
+GIT_CI_VALUES = ("pr", "none")
+
+
+def declared_forge(config: Dict[str, Dict[str, object]]) -> str:
+    """``[git] forge`` as the verbs act on it: ``none`` only when it says so.
+
+    Any other value — ``github``, unset, or one `aide check` reports as an
+    error — is ``github``, so a misspelt key keeps today's behaviour rather
+    than silently dropping the queue PR.
+    """
+    return "none" if config.get("git", {}).get("forge") == "none" else "github"
+
+
+def declared_ci(config: Dict[str, Dict[str, object]]) -> str:
+    """``[git] ci`` as the verbs act on it: ``pr`` or ``none``.
+
+    Unset, it follows the forge: ``pr`` on ``github``, ``none`` with no forge,
+    since CI on a pull request needs a forge to hold one. A forge of ``none``
+    is ``none`` whatever ``ci`` says; `aide check` reports the contradiction.
+    """
+    if declared_forge(config) == "none":
+        return "none"
+    return "none" if config.get("git", {}).get("ci") == "none" else "pr"
+
+
+def git_forge_errors(config: Dict[str, Dict[str, object]]) -> List[str]:
+    """Why ``[git] forge`` / ``[git] ci`` are unusable, alone or together."""
+    git_cfg = config.get("git", {})
+    errors: List[str] = []
+    forge = git_cfg.get("forge", "github")
+    if not (isinstance(forge, str) and forge in GIT_FORGE_VALUES):
+        errors.append(
+            f"aide.toml [git] forge = {forge!r} is not one of "
+            f"{', '.join(repr(v) for v in GIT_FORGE_VALUES)} — any other "
+            f"value runs as 'github' (default 'github')")
+    ci = git_cfg.get("ci")
+    if ci is not None and not (isinstance(ci, str) and ci in GIT_CI_VALUES):
+        errors.append(
+            f"aide.toml [git] ci = {ci!r} is not one of "
+            f"{', '.join(repr(v) for v in GIT_CI_VALUES)} — any other value "
+            f"runs as the default ('pr' with a forge, 'none' without)")
+    if forge == "none":
+        if git_cfg.get("mode", "auto-merge") == "pr":
+            errors.append(
+                'aide.toml [git] mode = "pr" with forge = "none": under pr a '
+                "person opens each item's pull request on the forge, so the "
+                'mode needs one — declare forge = "github", or set mode = '
+                '"auto-merge" or "local"')
+        if ci == "pr":
+            errors.append(
+                'aide.toml [git] ci = "pr" with forge = "none": CI on the '
+                "queue PR needs a forge to hold the PR — set ci = \"none\", "
+                'or declare forge = "github"')
+    return errors
+
+
 def loop_config_errors(config: Dict[str, Dict[str, object]]) -> List[str]:
-    """``aide check``'s errors for the ``[loop]`` keys the engine itself reads."""
-    return [why for _, why in (max_open_queues(config), plan_review(config))
+    """``aide check``'s errors for the ``aide.toml`` keys the loop itself
+    reads: ``[loop]`` ``max_open_queues`` and ``plan_review``, and ``[git]
+    mode``, ``forge`` and ``ci``."""
+    return [why for why in (max_open_queues(config)[1], plan_review(config)[1],
+                            git_mode_error(config), *git_forge_errors(config))
             if why is not None]
 
 
@@ -1874,7 +2190,73 @@ def _objective_row_stages(delivered_by: str) -> List[str]:
     return re.findall(r"\d+", delivered_by)
 
 
-def objective_rollup(nums: List[str], stage_status: Dict[str, str]) -> Optional[str]:
+def withdrawn_stages(lines: List[str]) -> Set[str]:
+    """The stage numbers whose Stage summary row reads ❌ — withdrawn whole.
+
+    A ❌ summary row is what excludes a stage (§1 → `progress.md`), and no
+    rollup writes or overwrites one. Read by `objective_rollup`'s callers,
+    so an objective is derived from the stages still in scope (issue #382).
+    """
+    out: Set[str] = set()
+    for line in lines:
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if (cells and _reads(_STAGE_SUMMARY, cells)
+                and _icon_status(cells[3]) == "excluded"):
+            out.add(cells[0])
+    return out
+
+
+def withdrawn_stage_items(lines: List[str]) -> Dict[int, List[str]]:
+    """Items every deliverable bullet of which sits in a withdrawn stage,
+    each mapped to those stages' numbers (issue #387).
+
+    A ❌ summary row withdraws the stage's work whatever its bullets still
+    read (`withdrawn_stages`), so an item with a bullet in any stage still in
+    scope, or outside every stage section, is not one: part of it is still
+    wanted. Stage numbers are matched by value, so `Stage 07` is stage 7.
+    """
+    withdrawn = {str(int(s)) if s.isdigit() else s
+                 for s in withdrawn_stages(lines)}
+    if not withdrawn:
+        return {}
+    inside: Dict[int, List[str]] = {}
+    rest = list(lines)
+    for start, end, num in stage_sections(lines):
+        if (str(int(num)) if num.isdigit() else num) not in withdrawn:
+            continue
+        for n in _parse_item_status(lines[start:end])[2]:
+            inside.setdefault(n, []).append(num)
+        rest[start:end] = [""] * (end - start)
+    elsewhere = _parse_item_status(rest)[2]
+    return {n: stages for n, stages in inside.items() if n not in elsewhere}
+
+
+def spent_by_withdrawal(lines: List[str],
+                        item_status: Dict[int, str]) -> Dict[int, str]:
+    """Items whose claim branch is spent by a ❌ rather than a ✅, each with
+    the words saying what the item is (issue #387): ``❌ (dropped)`` for an
+    item ❌ by its own bullets, ``📋 in withdrawn stage N`` for one every
+    bullet of which sits in a withdrawn stage — the stage is ❌, not the
+    item, so the message says which.
+
+    The ❌ half of §2's stale-claim ground, which `aide check`, `aide status`
+    and `aide gc` read beside the ✅ half. The withdrawn-stage route takes a
+    📋 item only (a ❌ one is ``dropped`` already): a 🚧 or ⏸️ item there is
+    live or owner-held work, a ✅ one is the other half, and a 🔍 one's
+    branch is an open PR's head — none is stale until its owner drops it
+    (`aide progress set NNN dropped`), which puts it on the dropped ground.
+    """
+    out: Dict[int, str] = {n: "❌ (dropped)" for n, st in item_status.items()
+                           if st == "excluded"}
+    for n, stages in withdrawn_stage_items(lines).items():
+        if n not in out and item_status.get(n, "planned") == "planned":
+            out[n] = (f"📋 in withdrawn stage{'' if len(stages) == 1 else 's'} "
+                      + ", ".join(stages))
+    return out
+
+
+def objective_rollup(nums: List[str], stage_status: Dict[str, str],
+                     withdrawn: Set[str] = frozenset()) -> Optional[str]:
     """What an Objective row derives to from the stages it names — in full.
 
     The stage rule over the stages' own rollups (a stage never rolls up to
@@ -1886,8 +2268,17 @@ def objective_rollup(nums: List[str], stage_status: Dict[str, str]) -> Optional[
     nothing; None when none does. No never-downgrade and no hand-held cell:
     those are the writer's (`_apply_objective_rollup`), and `aide check`
     compares a row with this (`derived_cell_findings`).
+
+    A stage in *withdrawn* — its summary row ❌ (`withdrawn_stages`) — is left
+    out, since its bullets no longer speak for it, and a row every named
+    stage of which is withdrawn derives to ❌ (issue #382). Read from the
+    bullets alone, a stage withdrawn with 📋 bullets held an objective it
+    shared with a ✅ stage at 🚧 for good, and a ✅ typed there was an error.
     """
-    return rollup_status([stage_status[n] for n in nums if n in stage_status])
+    live = [n for n in nums if n not in withdrawn]
+    if nums and not live:
+        return "excluded"
+    return rollup_status([stage_status[n] for n in live if n in stage_status])
 
 
 def _blocked_objectives(lines: List[str]) -> Set[str]:
@@ -1910,10 +2301,17 @@ def _apply_objective_rollup(lines: List[str], stage_status: Dict[str, str],
     is work deferred — and except a row naming a stage that rolls up to ⏸️,
     which `_recompute_rollups` writes down from any status, so the row
     follows it. A ⏸️ row is left alone unless it names a stage in either set
-    (`_held_by_hand`)."""
+    (`_held_by_hand`).
+
+    A stage whose summary row is ❌ is withdrawn and speaks for no row
+    (issue #382): it is left out of the derivation and of the downgrade
+    test, and a row every stage of which is withdrawn is written ❌ from any
+    status, the one ❌ the writer puts on a row — what the summary rows
+    already decided, so `aide check` finds nothing to report there."""
     # An objective linked to an outcome target that is not ✅ Met can never
     # roll up to ✅: its stages shipping is necessary but not sufficient.
     blocked = _blocked_objectives(lines)
+    withdrawn = withdrawn_stages(lines)
     for i, line in enumerate(lines):
         if not line.strip().startswith("|"):
             continue
@@ -1936,15 +2334,16 @@ def _apply_objective_rollup(lines: List[str], stage_status: Dict[str, str],
             # self-heals from 🚧 to ⏸️ leaves its objective 🚧 over stages that
             # say ⏸️ and 📋 (issue #281, PR #284 review).
             allow_downgrade = by_verb or any(
-                stage_status.get(n) == "deferred" for n in nums)
-            derived = objective_rollup(nums, stage_status)
+                stage_status.get(n) == "deferred"
+                for n in nums if n not in withdrawn)
+            derived = objective_rollup(nums, stage_status, withdrawn)
             if derived is None or (derived == "planned" and not allow_downgrade):
                 # 📋 only on a way down — a reopen or a deferral, or a row over
                 # a stage that rolls up to ⏸️; otherwise the row stays as set.
                 derived = current
             if derived == "complete" and gm.group(0) in blocked:
                 derived = "in-progress"
-            if (allow_downgrade or derived == "deferred"
+            if (allow_downgrade or derived in ("deferred", "excluded")
                     or RANK[derived] >= RANK[current]):
                 lines[i] = _sub_status_cell(line, derived)
 
@@ -2308,6 +2707,229 @@ def defer_item(text: str, num: int, reason: str, date: str,
             f"item {num:03d}: deferred — {reason}")
 
 
+#: The trail prefix a resumption writes under a deliverable bullet (issue
+#: #380): why deferred work is wanted now, beside the deferral's why.
+_RESUMED_PREFIX = "resumed: "
+
+
+def _item_bullet_statuses(lines: List[str], num: int) -> List[str]:
+    """The statuses of every deliverable bullet whose trailing marker names
+    item *num*, in file order — empty when none does."""
+    return [ICON_TO_STATUS[_BULLET_RE.match(lines[s]).group("icon")]
+            for s, l in _deliverable_bullet_spans(lines)
+            if num in _bullet_marker_item_numbers(lines[l])]
+
+
+def resume_item(text: str, num: int, reason: str, date: str,
+                splits: Optional[List[BulletSplit]] = None) -> Tuple[str, str]:
+    """Resume a deferred item — its ⏸️ bullets back to 📋, append-only;
+    ``(updated text, message)`` (issue #380).
+
+    The one way out of ⏸️ through `set`: a forward status on a ⏸️ item that
+    was never claimed left it 🚧 with no branch, which `claim` never offers
+    and `status` counts as work to build. 📋 is what `claim` hands out, so the
+    item is claimable again — or, when a claim branch from before the
+    deferral still exists, resumed on it by the runner. Every ⏸️ bullet whose
+    trailing marker names *num* flips to 📋 and gains a dated ``resumed:
+    <reason>`` trail line — the grammar `defer_item` writes — and the stages
+    holding them roll up with a downgrade allowed, as a deferral's do.
+
+    Refuses when any such bullet is 🚧, 🔍, ✅ or ❌, naming the status found:
+    only postponed work is resumed, and a ❌ item was decided against rather
+    than postponed. An item already 📋 throughout is no change, as a repeated
+    deferral is. A shared marker is desugared first, so no sibling is resumed
+    with it.
+    """
+    lines = text.splitlines()
+    statuses = _item_bullet_statuses(lines, num)
+    if not statuses:
+        raise ValueError(
+            f"no deliverable bullet's trailing *(Item {num:03d})* marker names "
+            f"item {num:03d}, so there is nothing to resume")
+    other = [st for st in statuses if st not in ("deferred", "planned")]
+    if other:
+        shown = ", ".join(sorted({f"{STATUS_TO_ICON[st]} {st}" for st in other}))
+        raise ValueError(
+            f"item {num:03d} is {shown}; only a ⏸️ deferred item can be "
+            f"resumed")
+    if "deferred" not in statuses:
+        return text, f"item {num:03d}: no change (already 📋 planned)"
+    lines = _split_multi_item_bullets(lines, num, "planned", splits, downgrade=True)
+    stages: Set[str] = set()
+    # Bottom-up, so an inserted trail line never shifts a span still to visit.
+    for start, last in reversed(_deliverable_bullet_spans(lines)):
+        if num not in _bullet_marker_item_numbers(lines[last]):
+            continue
+        if ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")] != "deferred":
+            continue
+        lines[start] = _replace_first_icon(lines[start], "planned")
+        _insert_trail_line(lines, start, last,
+                           deliverable_bullet_trail(lines, last),
+                           date, _RESUMED_PREFIX + reason)
+        stage = _stage_of_line(lines, start)
+        if stage is not None:
+            stages.add(stage)
+    _recompute_rollups(lines, stages)
+    return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+            f"item {num:03d}: resumed — {reason}")
+
+
+#: The trail prefix a restoration writes under a deliverable bullet (issue
+#: #381): why work decided against is wanted after all, beside the drop's why.
+_RESTORED_PREFIX = "restored: "
+
+
+def held_from_forward(lines: List[str], num: int) -> Optional[str]:
+    """``"deferred"`` or ``"excluded"`` when a forward `set` must refuse item
+    *num*, else None (issues #380, #381).
+
+    An item is held only where the verb that takes it back to 📋 can: one
+    whose bullets are all ⏸️ or 📋, at least one ⏸️, is ``resumed``'s, and
+    one whose bullets are all ❌ or 📋, at least one ❌, is ``restored``'s. A
+    ⏸️ or ❌ bullet beside started or settled work — only a hand edit makes
+    one — is an item both verbs refuse, so the forward set stays its way out.
+    `aide merge` reads the ❌ half; a ⏸️ item it still ticks.
+    """
+    bullets = set(_item_bullet_statuses(lines, num))
+    for status in ("deferred", "excluded"):
+        if status in bullets and bullets <= {status, "planned"}:
+            return status
+    return None
+
+
+def _stages_left_all_dropped(lines: List[str], stages: Set[str]) -> List[str]:
+    """Those of *stages* whose every deliverable bullet reads ❌ — the stage a
+    drop must not leave behind, which the rollup reads as 📋 (issue #362).
+
+    A stage already withdrawn — its summary row ❌ — is not one: the refusal
+    exists to send the owner to that row, and its bullets no longer speak for
+    the stage (issue #381, PR #386 review)."""
+    out: List[str] = []
+    withdrawn = withdrawn_stages(lines)
+    for start, end, stage_num in stage_sections(lines):
+        statuses = stage_deliverable_statuses(lines, start, end)
+        if (stage_num in stages and stage_num not in withdrawn and statuses
+                and all(st == "excluded" for st in statuses)):
+            out.append(stage_num)
+    return out
+
+
+def drop_item(text: str, num: int, reason: str, date: str,
+              splits: Optional[List[BulletSplit]] = None) -> Tuple[str, str]:
+    """Drop item NNN as not needed — its open bullets to ❌, append-only;
+    ``(updated text, message)`` (issue #381).
+
+    The item form of `drop_deliverable`. No verb wrote ❌ on an item, so an
+    abandoned item stayed 🚧, a carried one was hand-typed ❌, and one its
+    owner decided against was a hand edit. Every 📋, 🚧, 🔍 or ⏸️ bullet
+    whose trailing marker names *num* flips to ❌ and gains a dated
+    ``dropped: <reason>`` trail line, and the stages holding them roll up
+    with a downgrade allowed, as a deferral's do; ❌ counts toward ✅.
+
+    Refuses an item no bullet names; one with a ✅ bullet, which shipped
+    (`reopen` first); and a drop that would leave every deliverable bullet of
+    a stage ❌, which the rollup reads as 📋 — that stage is withdrawn whole,
+    by its ❌ summary row. An item already ❌ throughout is no change. A
+    shared marker is desugared first, so no sibling is dropped with it.
+    """
+    lines = text.splitlines()
+    statuses = _item_bullet_statuses(lines, num)
+    if not statuses:
+        raise ValueError(
+            f"no deliverable bullet's trailing *(Item {num:03d})* marker names "
+            f"item {num:03d}, so there is nothing to drop")
+    if "complete" in statuses:
+        raise ValueError(
+            f"item {num:03d} is ✅ complete; it shipped, so there is nothing "
+            f"to drop — send it back with `aide progress reopen` first")
+    if all(st == "excluded" for st in statuses):
+        return text, f"item {num:03d}: no change (already dropped)"
+    lines = _split_multi_item_bullets(lines, num, "excluded", splits,
+                                      downgrade=True)
+    stages: Set[str] = set()
+    # Bottom-up, so an inserted trail line never shifts a span still to visit.
+    for start, last in reversed(_deliverable_bullet_spans(lines)):
+        if num not in _bullet_marker_item_numbers(lines[last]):
+            continue
+        if ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")] == "excluded":
+            continue
+        lines[start] = _replace_first_icon(lines[start], "excluded")
+        _insert_trail_line(lines, start, last,
+                           deliverable_bullet_trail(lines, last),
+                           date, _DROPPED_PREFIX + reason)
+        stage = _stage_of_line(lines, start)
+        if stage is not None:
+            stages.add(stage)
+    emptied = _stages_left_all_dropped(lines, stages)
+    if emptied:
+        shown = ", ".join(emptied)
+        raise ValueError(
+            f"dropping item {num:03d} would leave every deliverable of stage "
+            f"{shown} ❌, and a stage whose every deliverable is dropped has "
+            f"nothing left to deliver — withdraw the stage whole instead, by "
+            f"marking its row in the Stage summary table ❌, which takes its "
+            f"header with it, and any Objective row only this stage delivers")
+    _recompute_rollups(lines, stages)
+    return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+            f"item {num:03d}: dropped — {reason}")
+
+
+def restore_item(text: str, num: int, reason: str, date: str,
+                 splits: Optional[List[BulletSplit]] = None) -> Tuple[str, str]:
+    """Restore a dropped item — its ❌ bullets back to 📋, append-only;
+    ``(updated text, message)`` (issue #381).
+
+    The one way out of ❌ through `set`: `RANK` puts ❌ lowest, so a forward
+    status over a ❌ item used to flip it silently, with no reason and no
+    trail line, and `aide merge` ticked it ✅ the same way. Both refuse a
+    dropped item now and name this verb. Every ❌ bullet whose trailing
+    marker names *num* flips to 📋 — what `claim` hands out — and gains a
+    dated ``restored: <reason>`` trail line beside the drop's, and the stages
+    holding them roll up with a downgrade allowed: a stage the ❌ let close
+    is open work again.
+
+    Refuses when any such bullet is 🚧, 🔍, ✅ or ⏸️, naming the status
+    found: only work decided against is restored, and a ⏸️ one is resumed.
+    An item already 📋 throughout is no change. A shared marker is desugared
+    first, so no sibling is restored with it.
+    """
+    lines = text.splitlines()
+    statuses = _item_bullet_statuses(lines, num)
+    if not statuses:
+        raise ValueError(
+            f"no deliverable bullet's trailing *(Item {num:03d})* marker names "
+            f"item {num:03d}, so there is nothing to restore")
+    other = [st for st in statuses if st not in ("excluded", "planned")]
+    if other:
+        shown = ", ".join(sorted({f"{STATUS_TO_ICON[st]} {st}" for st in other}))
+        hint = (f" — a ⏸️ item is resumed with `aide progress set {num:03d} "
+                f"resumed --reason …`" if set(other) == {"deferred"}
+                else "")
+        raise ValueError(
+            f"item {num:03d} is {shown}; only a ❌ dropped item can be "
+            f"restored{hint}")
+    if "excluded" not in statuses:
+        return text, f"item {num:03d}: no change (already 📋 planned)"
+    lines = _split_multi_item_bullets(lines, num, "planned", splits, downgrade=True)
+    stages: Set[str] = set()
+    # Bottom-up, so an inserted trail line never shifts a span still to visit.
+    for start, last in reversed(_deliverable_bullet_spans(lines)):
+        if num not in _bullet_marker_item_numbers(lines[last]):
+            continue
+        if ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")] != "excluded":
+            continue
+        lines[start] = _replace_first_icon(lines[start], "planned")
+        _insert_trail_line(lines, start, last,
+                           deliverable_bullet_trail(lines, last),
+                           date, _RESTORED_PREFIX + reason)
+        stage = _stage_of_line(lines, start)
+        if stage is not None:
+            stages.add(stage)
+    _recompute_rollups(lines, stages)
+    return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+            f"item {num:03d}: restored — {reason}")
+
+
 def stage_deliverable_spans(lines: List[str], stage: str
                             ) -> Optional[List[Tuple[int, int]]]:
     """``(first, last)`` of each deliverable bullet in stage *stage*, in file
@@ -2337,6 +2959,70 @@ def _unmarked_open_positions(lines: List[str], stage: str) -> List[int]:
     return out
 
 
+def _stage_can_lose_a_bullet(lines: List[str], stage: str) -> bool:
+    """Whether dropping one of stage *stage*'s open bullets leaves a bullet
+    that is not ❌ — the condition `drop_deliverable` refuses without, so a
+    remedy names the drop only where it would be taken (issue #362)."""
+    spans = stage_deliverable_spans(lines, stage) or []
+    return sum(ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")]
+               != "excluded" for start, _ in spans) >= 2
+
+
+def _unmarked_deliverable_at(lines: List[str], stage: int, position: int,
+                             verb: str) -> Tuple[int, int, str, str]:
+    """``(first, last, where, status)`` of stage *stage*'s *position*-th
+    deliverable bullet, refusing one the positional forms cannot address.
+
+    The lookup `defer_deliverable`, `drop_deliverable`, `resume_deliverable`
+    and `restore_deliverable` share: an unknown
+    stage, a position outside the stage's bullets (naming how many it has) and
+    a bullet that carries an item marker are refused, each with a ValueError
+    whose message *verb* words — an itemised bullet's status is its item's, so
+    no positional form moves it, and the message names the item form.
+    """
+    spans = stage_deliverable_spans(lines, str(stage))
+    if spans is None:
+        raise ValueError(f"no '## Stage {stage}' section in progress.md")
+    where = f"stage {stage} deliverable {position}"
+    if not 1 <= position <= len(spans):
+        count = (f"has {len(spans)} deliverable bullet"
+                 f"{'' if len(spans) == 1 else 's'}, numbered from 1"
+                 if spans else "has no deliverable bullet")
+        raise ValueError(f"{where}: stage {stage} {count}")
+    start, last = spans[position - 1]
+    marked = _bullet_marker_item_numbers(lines[last])
+    if marked:
+        # Every positional status has its item form since issue #381, so the
+        # refusal names it rather than only saying what the bullet is not.
+        named = ", ".join(f"item {n:03d}" for n in marked)
+        forms = " / ".join(f"`aide progress set {n:03d} {verb} --reason …`"
+                           for n in marked)
+        raise ValueError(
+            f"{where} is itemised — its trailing marker names {named}, so "
+            f"{_POSITIONAL_VERB[verb]} it by item with {forms}")
+    current = ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")]
+    return start, last, where, current
+
+
+#: The imperative each positional status's refusal words its item form with.
+_POSITIONAL_VERB = {"deferred": "defer", "dropped": "drop",
+                    "resumed": "resume", "restored": "restore"}
+
+
+def _write_unmarked_deliverable(text: str, lines: List[str], start: int,
+                                last: int, status: str, date: str,
+                                trail: str) -> str:
+    """Flip the bullet at *start* to *status*, write its dated *trail* line
+    under *last*, and roll its stage up with a downgrade allowed — which also
+    releases a ⏸️ cell held by hand, since a verb moved a bullet of the stage."""
+    lines[start] = _replace_first_icon(lines[start], status)
+    _insert_trail_line(lines, start, last, deliverable_bullet_trail(lines, last),
+                       date, trail)
+    stage_num = _stage_of_line(lines, start)
+    _recompute_rollups(lines, {stage_num} if stage_num is not None else set())
+    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+
+
 def defer_deliverable(text: str, stage: int, position: int, reason: str,
                       date: str) -> Tuple[str, str]:
     """Defer stage *stage*'s *position*-th deliverable bullet, one with no item
@@ -2355,38 +3041,134 @@ def defer_deliverable(text: str, stage: int, position: int, reason: str,
     ⏸️ is no change, as a repeated ``set NNN deferred`` is.
     """
     lines = text.splitlines()
-    spans = stage_deliverable_spans(lines, str(stage))
-    if spans is None:
-        raise ValueError(f"no '## Stage {stage}' section in progress.md")
-    where = f"stage {stage} deliverable {position}"
-    if not 1 <= position <= len(spans):
-        count = (f"has {len(spans)} deliverable bullet"
-                 f"{'' if len(spans) == 1 else 's'}, numbered from 1"
-                 if spans else "has no deliverable bullet")
-        raise ValueError(f"{where}: stage {stage} {count}")
-    start, last = spans[position - 1]
-    marked = _bullet_marker_item_numbers(lines[last])
-    if marked:
-        forms = " / ".join(f"`aide progress set {n:03d} deferred --reason …`"
-                           for n in marked)
-        raise ValueError(
-            f"{where} is itemised — its trailing marker names "
-            f"{', '.join(f'item {n:03d}' for n in marked)}, so defer it by item "
-            f"with {forms}")
-    current = ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")]
+    start, last, where, current = _unmarked_deliverable_at(
+        lines, stage, position, "deferred")
     if current == "deferred":
         return text, f"{where}: no change (already deferred)"
     if current not in _DEFERRABLE:
         raise ValueError(
             f"{where} is {STATUS_TO_ICON[current]} {current}; only a 📋, 🚧 or "
             f"🔍 deliverable can be deferred")
-    lines[start] = _replace_first_icon(lines[start], "deferred")
-    _insert_trail_line(lines, start, last, deliverable_bullet_trail(lines, last),
-                       date, _DEFERRED_PREFIX + reason)
-    stage_num = _stage_of_line(lines, start)
-    _recompute_rollups(lines, {stage_num} if stage_num is not None else set())
-    return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+    return (_write_unmarked_deliverable(text, lines, start, last, "deferred",
+                                        date, _DEFERRED_PREFIX + reason),
             f"{where}: deferred — {reason}")
+
+
+#: The trail prefix a drop writes under a deliverable bullet (issue #362): why
+#: the stage turned out not to need it.
+_DROPPED_PREFIX = "dropped: "
+#: What `drop_deliverable` moves to ❌: any bullet still open, a deferred one
+#: included — the issue's case is a ⏸️ bullet the owner then decides the stage
+#: does not need. ✅ has shipped, so there is nothing left to drop.
+_DROPPABLE = _DEFERRABLE + ("deferred",)
+
+
+def drop_deliverable(text: str, stage: int, position: int, reason: str,
+                     date: str) -> Tuple[str, str]:
+    """Drop stage *stage*'s *position*-th deliverable bullet, one with no item
+    marker, as not needed; ``(updated text, message)`` (issue #362).
+
+    A ⏸️ bullet is kept out of the ✅ rule (#173), so a started stage whose
+    only open bullet the owner had deferred could roll up no further than ⏸️ —
+    and a stage whose Dependencies name it could never see it met. A drop is
+    the other decision about such a bullet: the stage does not need it. The
+    bullet flips to ❌, which counts toward ✅, gains a dated ``dropped:
+    <reason>`` trail line, and its stage rolls up with a downgrade allowed, as
+    a deferral's does.
+
+    Refuses an unknown stage, a position outside the stage's bullets, a bullet
+    that carries a marker, a ✅ bullet, and a drop that would leave every
+    deliverable bullet of the stage ❌ — which the rollup reads as 📋, a stage
+    still to plan. A stage with nothing left to deliver is withdrawn whole, by
+    a ❌ on its summary row, which no rollup overwrites, and on any Objective
+    row only it delivers. A bullet already ❌ is no
+    change.
+    """
+    lines = text.splitlines()
+    start, last, where, current = _unmarked_deliverable_at(
+        lines, stage, position, "dropped")
+    if current == "excluded":
+        return text, f"{where}: no change (already dropped)"
+    if current not in _DROPPABLE:
+        raise ValueError(
+            f"{where} is {STATUS_TO_ICON[current]} {current}; it shipped, so "
+            f"there is nothing to drop — only a 📋, 🚧, 🔍 or ⏸️ deliverable "
+            f"can be dropped")
+    others = [ICON_TO_STATUS[_BULLET_RE.match(lines[first]).group("icon")]
+              for first, _ in stage_deliverable_spans(lines, str(stage)) or []
+              if first != start]
+    # A stage already withdrawn by its ❌ summary row is not refused: the
+    # refusal points at that row, which already says it (PR #386 review).
+    if (all(st == "excluded" for st in others)
+            and str(stage) not in withdrawn_stages(lines)):
+        raise ValueError(
+            f"{where} is the last deliverable of stage {stage} not ❌, and a "
+            f"stage whose every deliverable is dropped has nothing left to "
+            f"deliver — withdraw the stage whole instead, by marking its row "
+            f"in the Stage summary table ❌, which takes its header with it, and "
+            f"any Objective row only this stage delivers")
+    return (_write_unmarked_deliverable(text, lines, start, last, "excluded",
+                                        date, _DROPPED_PREFIX + reason),
+            f"{where}: dropped — {reason}")
+
+
+def resume_deliverable(text: str, stage: int, position: int, reason: str,
+                       date: str) -> Tuple[str, str]:
+    """Resume stage *stage*'s *position*-th deliverable bullet, one with no
+    item marker, from ⏸️ back to 📋; ``(updated text, message)`` (issue #380).
+
+    The positional mirror of `resume_item`. A deferred bullet no marker names
+    used to resume only "once it is itemised" — but an item born on a ⏸️
+    bullet is ⏸️ itself, so its queue read as done the moment it was written.
+    The bullet is resumed first, here, and itemised as a 📋 one. It gains a
+    dated ``resumed: <reason>`` trail line and its stage rolls up with a
+    downgrade allowed, as a deferral's does.
+
+    Refuses an unknown stage, a position outside the stage's bullets, a bullet
+    that carries a marker, and a bullet that is not ⏸️ — a ❌ one was decided
+    against, not postponed. A bullet already 📋 is no change.
+    """
+    lines = text.splitlines()
+    start, last, where, current = _unmarked_deliverable_at(
+        lines, stage, position, "resumed")
+    if current == "planned":
+        return text, f"{where}: no change (already 📋 planned)"
+    if current != "deferred":
+        raise ValueError(
+            f"{where} is {STATUS_TO_ICON[current]} {current}; only a ⏸️ "
+            f"deferred deliverable can be resumed")
+    return (_write_unmarked_deliverable(text, lines, start, last, "planned",
+                                        date, _RESUMED_PREFIX + reason),
+            f"{where}: resumed — {reason}")
+
+
+def restore_deliverable(text: str, stage: int, position: int, reason: str,
+                        date: str) -> Tuple[str, str]:
+    """Restore stage *stage*'s *position*-th deliverable bullet, one with no
+    item marker, from ❌ back to 📋; ``(updated text, message)`` (issue #381).
+
+    The positional mirror of `restore_item`, and the way back from
+    `drop_deliverable`: a drop was the one decision about such a bullet that
+    had no undo but typing 📋 over it. The bullet gains a dated ``restored:
+    <reason>`` trail line beside the drop's, and its stage rolls up with a
+    downgrade allowed — a stage the drop let close is open work again.
+
+    Refuses an unknown stage, a position outside the stage's bullets, a bullet
+    that carries a marker, and a bullet that is not ❌ — a ⏸️ one is resumed.
+    A bullet already 📋 is no change.
+    """
+    lines = text.splitlines()
+    start, last, where, current = _unmarked_deliverable_at(
+        lines, stage, position, "restored")
+    if current == "planned":
+        return text, f"{where}: no change (already 📋 planned)"
+    if current != "excluded":
+        raise ValueError(
+            f"{where} is {STATUS_TO_ICON[current]} {current}; only a ❌ "
+            f"dropped deliverable can be restored")
+    return (_write_unmarked_deliverable(text, lines, start, last, "planned",
+                                        date, _RESTORED_PREFIX + reason),
+            f"{where}: restored — {reason}")
 
 
 def reword_deliverable(text: str, num: int, new_text: str
@@ -2983,7 +3765,8 @@ _CONFLICT_CLOSE_RE = re.compile(r"^>{7}(?: |$)")
 _CONFLICT_LINT_RES = (_CONFLICT_OPEN_RE, _CONFLICT_BASE_RE, _CONFLICT_CLOSE_RE)
 
 
-def conflict_marker_errors(ddir: Path) -> List[str]:
+def conflict_marker_errors(ddir: Path,
+                           repo_root: Optional[Path] = None) -> List[str]:
     """Flag git conflict markers committed into ``insights.md`` — an error.
 
     The inbox is append-only by contract (conventions.md §1 → ``insights.md``),
@@ -3012,7 +3795,7 @@ def conflict_marker_errors(ddir: Path) -> List[str]:
                 f"insights.md:{lineno}: an unresolved git conflict marker "
                 f"({line.split(' ')[0]}) — the inbox is append-only, so this "
                 f"merge is a union of entries; resolve it with "
-                f"`python .aide/scripts/aide.py insights resolve` (add "
+                f"`{aide_command(repo_root, 'insights resolve')}` (add "
                 f"--dry-run to see it first) rather than by hand, which is "
                 f"where a captured claim gets reworded"
             )
@@ -3391,9 +4174,9 @@ def insight_position_citations(repo_root: Path,
     Records are listed too, unlike `aide check`'s positional warning (issue
     #338): the listing is printed once, by the run that moves the entries,
     and its ID is the one the position held before this move — the mapping
-    that preserves what a record's citation meant, which nothing can
-    reconstruct afterwards. The check's warning names the entry there
-    *today*, which on a record is a guess; this one is not.
+    that preserves what a record's citation meant. The check recovers it
+    from git history since issue #361 (``_CitationHistory``), but only where
+    the history is there to read; this listing needs none.
     """
     out: List[Tuple[str, int, str, int]] = []
     docs, tests = _citation_files(repo_root, config, ddir)
@@ -3424,13 +4207,15 @@ def insight_reference_findings(repo_root: Path,
       longer IDs that tell them apart; it resolved when written, and only a
       later same-day capture made its short form ambiguous;
     * a **citation by position** (``_positional_citations``) — a warning
-      naming the ID the position holds today, since an archive or a merge
-      renumbers it. Tests are read too (issue #295): a comment or an assertion
-      message naming "insight 28" goes stale on the same archive a spec does.
-      A record (``record_documents`` — a ✅, ❌ or ⏸️ item's spec, a queue
-      with no open item) is not warned about (issue #338): §1 never rewrites
-      one, so the warning could not be cleared, and its "today" hint names
-      whatever an archive since moved to that number.
+      naming the ID the position held when the citing line was committed
+      (``_CitationHistory``, issue #361), since an archive or a merge
+      renumbers it; today's holder only for an uncommitted line, or as a
+      labelled fallback where there is no history to read. Tests are read
+      too (issue #295): a comment or an assertion message naming "insight
+      28" goes stale on the same archive a spec does. A record
+      (``record_documents`` — a ✅, ❌ or ⏸️ item's spec, a queue with no
+      open item) is not warned about (issue #338): §1 never rewrites one, so
+      the warning could not be cleared.
 
     The first finding holds in a record too: an ID naming nothing is a
     citation no reader can follow, whoever wrote it.
@@ -3449,6 +4234,7 @@ def insight_reference_findings(repo_root: Path,
     # Read lazily and once: most files cite nothing, and a repo whose tests
     # cite no insight never opens the inbox or an archive for this check.
     cache: Dict[str, object] = {}
+    history = _CitationHistory(repo_root, ddir)
 
     def _entries() -> List[InsightEntry]:
         if "pool" not in cache:
@@ -3462,10 +4248,20 @@ def insight_reference_findings(repo_root: Path,
 
     for path in docs + tests:
         try:
-            text = path.read_text(encoding=_ENCODING)
+            # newline="": universal-newline reading turns a lone \r into \n,
+            # which git does not count, so the line numbers git blames by
+            # could no longer be recovered (`_git_line_numbers`).
+            with open(path, encoding=_ENCODING, newline="") as fh:
+                text = fh.read()
         except (OSError, UnicodeDecodeError):
             continue
         where = _rel_display(path, repo_root)
+        gitline = _git_line_numbers(text)
+        if path not in records:
+            # Every cited line first, so the file is blamed once for all.
+            for lineno, line in enumerate(text.splitlines(), start=1):
+                if _positional_citations(line, lambda: len(_entries())):
+                    history.want(path, gitline[lineno - 1])
         for lineno, line in enumerate(text.splitlines(), start=1):
             cited = list(_INSIGHT_ID_CITATION_RE.finditer(line))
             if _INSIGHT_CONTEXT_RE.search(line):
@@ -3492,19 +4288,217 @@ def insight_reference_findings(repo_root: Path,
             if path in records:
                 continue
             for m in _positional_citations(line, lambda: len(_entries())):
-                n = int(m.group("n"))
                 _entries()
-                live_ids = cache["live_ids"]
-                now = ""
-                if 1 <= n <= len(live_ids) and live_ids[n - 1]:  # type: ignore[arg-type,index]
-                    now = (f"; entry {n} of the inbox is insight "
-                           f"{live_ids[n - 1]} today — cite that if it is "  # type: ignore[index]
-                           f"the one meant")
+                meant = history.hint(path, gitline[lineno - 1], int(m.group("n")),
+                                     cache["pool"], cache["ids"])  # type: ignore[arg-type]
                 warnings.append(
                     f"{where}:{lineno}: `{m.group(0).strip()}` cites an insight "
                     f"by position, which an archive or a merge renumbers — "
-                    f"cite its ID (`aide insights list`){now}")
+                    f"cite its ID (`aide insights list`){meant}")
     return errors, warnings
+
+
+class _CitationHistory:
+    """What a positional insight citation meant when it was written (#361).
+
+    `aide check`'s positional warning used to name the entry a position
+    holds *today*. For a citation written before an `insights archive` that
+    is a different claim, and following the hint rewrote the citation to
+    something its author never meant. So the position is resolved against
+    the inbox as it stood in the commit that last wrote the citing line:
+
+    * ``git blame --porcelain`` names that commit — **one run per file**, over
+      every cited line in it at once. Lines are git's, counted by ``\n``
+      alone; the caller maps its own numbering onto them (``_git_line_numbers``);
+    * ``git show <commit>:./<inbox>`` reads the inbox then — **once per
+      commit**, cached, since a batch of citations usually shares one. The
+      path is taken from *repo_root*, which may sit below git's top level;
+    * the entry at that position is named by the ID it has **today**, found
+      by its date and claim hash in the inbox and its archives — an ID
+      resolves in an archive too, so it is always a citation `check` accepts.
+
+    A line not committed yet (blame's all-zero commit), and a file git does
+    not track, were written against the working tree's inbox: today's holder
+    is then the right answer, and the hint says why. Everything that leaves
+    the past inbox unknown falls back to today's holder, **labelled** "history
+    unavailable", rather than stating something about the past: no git, not a
+    work tree, a path outside it, a blame that fails, a ``git show`` that
+    fails (the inbox under another path then, say), and a line blamed on a
+    shallow clone's boundary commit — blame stops there, so the commit it
+    names is where history ends, not where the line was written. "Named no
+    entry" is said only when that commit's inbox was read and is shorter.
+    """
+
+    _ZERO = re.compile(r"^0+$")
+    _HEADER = re.compile(r"^(?P<sha>[0-9a-f]{40,64}) \d+ (?P<final>\d+)(?: \d+)?$")
+    #: A blamed line whose commit is past what this clone holds.
+    UNKNOWN = ""
+
+    def __init__(self, repo_root: Path, ddir: Path) -> None:
+        self.repo_root = repo_root
+        self.inbox_rel = self._rel(insights_path(ddir))
+        self._blame: Dict[Path, Optional[Dict[int, Optional[str]]]] = {}
+        self._shown: Dict[str, Optional[List[InsightEntry]]] = {}
+        self._wanted: Dict[Path, Set[int]] = {}
+        self._grafts: Optional[Set[str]] = None
+
+    def _rel(self, path: Path) -> Optional[str]:
+        try:
+            return path.resolve().relative_to(self.repo_root.resolve()).as_posix()
+        except ValueError:
+            return None
+
+    def want(self, path: Path, gitline: int) -> None:
+        """Register a cited line, so the file's one blame covers all of them."""
+        self._wanted.setdefault(path, set()).add(gitline)
+
+    def _shallow_commits(self) -> Set[str]:
+        """The commits a shallow clone was cut at; empty in a full clone."""
+        if self._grafts is None:
+            self._grafts = set()
+            try:
+                where = git(["rev-parse", "--git-path", "shallow"],
+                            self.repo_root, check=False).stdout.strip()
+                path = Path(where)
+                if where and not path.is_absolute():
+                    path = self.repo_root / path
+                if where and path.is_file():
+                    self._grafts = {l.strip() for l in path.read_text(
+                        encoding="utf-8", errors="replace").splitlines() if l.strip()}
+            except (OSError, subprocess.SubprocessError):
+                pass
+        return self._grafts
+
+    def _commits(self, path: Path) -> Optional[Dict[int, Optional[str]]]:
+        """``{git line: commit, None when not committed, UNKNOWN past a
+        shallow boundary}``; None for the whole file: no history."""
+        if path in self._blame:
+            return self._blame[path]
+        rel = self._rel(path)
+        lines = sorted(self._wanted.get(path, ()))
+        out: Optional[Dict[int, Optional[str]]] = None
+        if rel is not None and lines:
+            try:
+                res = git(["blame", "--porcelain",
+                           *[f"-L{n},{n}" for n in lines], "--", rel],
+                          self.repo_root, check=False)
+                if res.returncode == 0:
+                    out = {}
+                    boundary: Set[str] = set()
+                    current = None
+                    for text in res.stdout.splitlines():
+                        h = self._HEADER.match(text)
+                        if h:
+                            current = h.group("sha")
+                            out[int(h.group("final"))] = (
+                                None if self._ZERO.match(current) else current)
+                        elif text == "boundary" and current:
+                            boundary.add(current)
+                    # `boundary` also marks a true root commit; only one the
+                    # clone was cut at hides where the line was written.
+                    cut = boundary & self._shallow_commits()
+                    for n, sha in out.items():
+                        if sha in cut:
+                            out[n] = self.UNKNOWN
+                elif git(["rev-parse", "--is-inside-work-tree"], self.repo_root,
+                         check=False).stdout.strip() == "true" and git(
+                             ["ls-files", "--error-unmatch", "--", rel],
+                             self.repo_root, check=False).returncode != 0:
+                    # A file git does not track (or a repository with no
+                    # commit yet): every line of it is uncommitted work.
+                    out = {n: None for n in lines}
+            except (OSError, subprocess.SubprocessError):
+                out = None
+        self._blame[path] = out
+        return out
+
+    def _inbox_at(self, sha: str) -> Optional[List[InsightEntry]]:
+        """The inbox's entries in *sha*, or None when they cannot be read."""
+        if sha not in self._shown:
+            entries: Optional[List[InsightEntry]] = None
+            if self.inbox_rel is not None:
+                try:
+                    # `./` makes the path relative to the cwd, repo_root —
+                    # a bare `<sha>:<path>` is read from git's top level.
+                    res = git(["show", f"{sha}:./{self.inbox_rel}"],
+                              self.repo_root, check=False)
+                    if res.returncode == 0:
+                        text = res.stdout
+                        if text.startswith("\ufeff"):
+                            # `git()` decodes as utf-8, not utf-8-sig: a BOM
+                            # would make the first entry no `- ` line.
+                            text = text[1:]
+                        entries = parse_insights(text)
+                except (OSError, subprocess.SubprocessError):
+                    pass
+            self._shown[sha] = entries
+        return self._shown[sha]
+
+    @staticmethod
+    def _fallback(n: int, today: Optional[str]) -> str:
+        if today is None:
+            return f"; history unavailable, and today's inbox has no entry {n}"
+        return (f"; entry {n} of the inbox is insight {today} today "
+                f"(today's holder; history unavailable) — cite that if it is "
+                f"the one meant")
+
+    def hint(self, path: Path, gitline: int, n: int,
+             pool: List[Tuple[str, InsightEntry]],
+             ids: List[Optional[str]]) -> str:
+        """The warning's second half: the ID entry *n* meant, and how known."""
+        live_ids = [i for (rel, _), i in zip(pool, ids) if rel == "insights.md"]
+        today = live_ids[n - 1] if 1 <= n <= len(live_ids) else None
+        commits = self._commits(path)
+        if commits is None or gitline not in commits:
+            return self._fallback(n, today)
+        sha = commits[gitline]
+        if sha is None:
+            if today is None:
+                return (f"; this line is not committed, and today's inbox has "
+                        f"no entry {n}")
+            return (f"; this line is not committed, so it was written against "
+                    f"today's inbox, where entry {n} is insight {today} — cite "
+                    f"that")
+        then = self._inbox_at(sha) if sha else None
+        if then is None:
+            return self._fallback(n, today)
+        when = f"when {sha[:7]} wrote this line"
+        if n > len(then):
+            return (f"; the inbox held no entry {n} {when}, so the citation "
+                    f"named no entry — find the claim meant with `aide "
+                    f"insights list`")
+        entry = then[n - 1]
+        claim = insight_claim_hash(entry)
+        if claim is None:
+            return (f"; entry {n} {when} was a malformed line with no ID — "
+                    f"find the claim meant with `aide insights list`")
+        found = [i for i, (_, e) in enumerate(pool)
+                 if e.date == entry.date and insight_claim_hash(e) == claim]
+        if not found:
+            meant = insight_ids(then)[n - 1]
+            return (f"; entry {n} was insight {meant} {when}, a claim no longer "
+                    f"in the inbox or its archives")
+        meant = ids[found[0]]
+        if meant == today:
+            return f"; entry {n} was insight {meant} {when}, and still is — cite that"
+        return (f"; entry {n} was insight {meant} {when} — cite that; an "
+                f"archive or a merge has moved it since")
+
+
+def _git_line_numbers(text: str) -> List[int]:
+    """For each line `str.splitlines` yields, the line git counts it on.
+
+    git numbers lines by ``\n`` alone; `splitlines` also breaks on ``\r``,
+    ``\x0b``, ``\x0c``, ``\x1c``–``\x1e``, ``\x85``, U+2028 and U+2029, so
+    after any of those the two numberings part — and a blame asked for the
+    wrong line names the wrong commit.
+    """
+    out: List[int] = []
+    line = 1
+    for chunk in text.splitlines(keepends=True):
+        out.append(line)
+        line += chunk.count("\n")
+    return out
 
 
 #: A citation of a human gate by ID: the ``gate-<hex>`` token itself, standing
@@ -5740,6 +6734,31 @@ def _roadmap_dependency_text(lines: List[str], start: int, end: int) -> Optional
     return " ".join(p for p in parts if p)
 
 
+def _stages_under_way(ddir: Path, plines: List[str]) -> Set[str]:
+    """Stage numbers (by value) that are under way, for issue #384's warning:
+    deliverables rolling up to 🚧, or a 📋 item listed in an open queue.
+
+    The open queues are `queue_is_open`'s, read from the queue files under
+    *ddir*; an item belongs to the stages whose bullets name it
+    (`stage_item_numbers`). A queued item with bullets in two stages makes
+    both under way — an accepted false positive, since this feeds a warning.
+    """
+    out = {str(int(n)) for n, st in stage_rollups(plines).items()
+           if n.isdigit() and st == "in-progress"}
+    item_status = _parse_item_status(plines)[2]
+    queued: Set[int] = set()
+    for path in iter_queue_paths(ddir / "queue"):
+        text = path.read_text(encoding=_ENCODING)
+        if queue_is_open(text, item_status):
+            queued.update(n for n in queue_item_numbers(text)
+                          if item_status.get(n, "planned") == "planned")
+    if queued:
+        for _start, _end, num in stage_sections(plines):
+            if num.isdigit() and queued & set(stage_item_numbers(plines, num)):
+                out.add(str(int(num)))
+    return out
+
+
 def forward_dependency_warnings(ddir: Path) -> List[str]:
     """Roadmap stages whose blocking Dependencies name a later-numbered stage.
 
@@ -5759,12 +6778,24 @@ def forward_dependency_warnings(ddir: Path) -> List[str]:
     started stage is frozen, so an error would fail a document the author has
     no edit left to fix but a deferral — a decision for the human at the
     queue boundary, who reads warnings.
+
+    The same pass warns on a stage **under way over an unmet earlier
+    dependency** (issue #384): one whose deliverables roll up to 🚧 in
+    `progress.md`, or that has a 📋 item listed in an open queue, while an
+    earlier stage its blocking slot names is ⏸️ (header or summary row) or
+    withdrawn (summary row ❌, `withdrawn_stages`). §1 → roadmap.md meets a
+    dependency only once its stage is ✅; a 📋, 🚧 or 🔍 earlier stage is
+    the ordinary wait a queue ends, so only the two states a queue cannot
+    end are named. A dependent stage itself ⏸️ or withdrawn is not under way;
+    with no `progress.md` nothing is.
     """
     rpath = ddir / "roadmap.md"
     if not rpath.is_file():
         return []
     rlines = rpath.read_text(encoding=_ENCODING).splitlines()
     deferred: Set[str] = set()
+    withdrawn: Set[str] = set()
+    under_way: Set[str] = set()
     ppath = ddir / "progress.md"
     if ppath.is_file():
         plines = ppath.read_text(encoding=_ENCODING).splitlines()
@@ -5776,12 +6807,35 @@ def forward_dependency_warnings(ddir: Path) -> List[str]:
             if (cells and _reads(_STAGE_SUMMARY, cells) and cells[0].isdigit()
                     and _icon_status(cells[3]) == "deferred"):
                 deferred.add(str(int(cells[0])))
+        withdrawn = {str(int(n)) for n in withdrawn_stages(plines) if n.isdigit()}
+        under_way = _stages_under_way(ddir, plines) - deferred - withdrawn
     out: List[str] = []
     for start, end, num in stage_sections(rlines):
         text = _roadmap_dependency_text(rlines, start, end)
         if text is None:
             continue
-        later = [n for n in blocking_dependency_stages(text) if n > int(num)]
+        named_deps = blocking_dependency_stages(text)
+        if str(int(num)) in under_way:
+            for dep in (n for n in named_deps if n < int(num)):
+                if str(dep) in withdrawn:
+                    out.append(
+                        f"roadmap.md: stage {int(num)} is under way while "
+                        f"stage {dep}, which its Dependencies name, is "
+                        f"withdrawn (❌ summary row in progress.md) — a "
+                        f"dependency on a withdrawn stage is never met, so "
+                        f"stage {int(num)} is re-planned: its Dependencies "
+                        f"reworded while it is 📋, or it is withdrawn too, or "
+                        f"what it still needs enters as a new stage — "
+                        f"§1 → roadmap.md")
+                elif str(dep) in deferred:
+                    out.append(
+                        f"roadmap.md: stage {int(num)} is under way while "
+                        f"stage {dep}, which its Dependencies name, is ⏸️ "
+                        f"deferred — a dependency is met only once its stage "
+                        f"is ✅, so stage {int(num)} waits until stage "
+                        f"{dep}'s owner resumes or drops its deferred work "
+                        f"— §1 → roadmap.md")
+        later = [n for n in named_deps if n > int(num)]
         if not later or str(int(num)) in deferred:
             continue
         named = ", ".join(str(n) for n in later)
@@ -6396,14 +7450,19 @@ def _cells_shown(cells: List[Tuple[str, str]]) -> str:
 
 
 def _deferral_fix(whose: str, unmarked: List[Tuple[str, List[int]]],
-                  marked_open: bool, derived: str) -> str:
+                  marked_open: bool, derived: str,
+                  droppable: bool = False) -> str:
     """The remedy for a ⏸️ cell over open work: defer that work, each bullet
     by the form that addresses it, or restore what the rollup computes.
 
     *unmarked* pairs each stage with the 1-based positions of its open bullets
     that carry no item marker (issue #336), which only the positional form
     reaches; *marked_open* says an itemised bullet is open too, so the item
-    form is named beside it.
+    form is named beside it. The positional form also drops such a bullet
+    the stage does not need (issue #362), so the remedy names that beside it
+    where *droppable* says every stage in *unmarked* would take the drop: a
+    ⏸️ cell over an unmarked bullet the owner meant as "not needed" is the
+    case the drop exists for, and a stage left all ❌ is the one it refuses.
     """
     restore = f"or restore {STATUS_TO_ICON[derived]}"
     item_form = "'aide progress set NNN deferred --reason …'"
@@ -6418,6 +7477,9 @@ def _deferral_fix(whose: str, unmarked: List[Tuple[str, List[int]]],
                           for n, ks in unmarked)
         by_position = (f"'aide progress set --stage N --deliverable K "
                        f"deferred --reason …' ({where})")
+    if droppable:
+        by_position += (" — or `dropped` in place of `deferred` for one the "
+                        "stage does not need")
     if marked_open:
         return (f"defer {whose} open items with {item_form} and the "
                 f"deliverables with no item marker with {by_position}, "
@@ -6428,7 +7490,7 @@ def _deferral_fix(whose: str, unmarked: List[Tuple[str, List[int]]],
 
 def _stage_drift_fix(off: List[Tuple[str, str]], derived: str,
                      stage: str = "N", unmarked: Sequence[int] = (),
-                     marked_open: bool = True) -> str:
+                     marked_open: bool = True, droppable: bool = False) -> str:
     """The remedy a stage's drift warning names, by what the cells and the
     bullets disagree about.
 
@@ -6445,7 +7507,8 @@ def _stage_drift_fix(off: List[Tuple[str, str]], derived: str,
             return "nothing is left open to defer, so restore ✅"
         return _deferral_fix("the stage's" if marked_open or not unmarked
                              else "its", [(stage, list(unmarked))]
-                             if unmarked else [], marked_open, derived)
+                             if unmarked else [], marked_open, derived,
+                             droppable)
     return (f"a stage's cells follow its bullets, so set the {target} to "
             f"{STATUS_TO_ICON[derived]}, or move the bullets with "
             f"'aide progress set'")
@@ -6473,7 +7536,10 @@ def derived_cell_findings(lines: List[str]
     Objective row whose stages roll up to ✅ under a target that is not ✅ Met
     is the target comparisons' to report, which already do, so a ✅ row
     there is not reported twice; and the third value, the G-codes this named,
-    is what `run_checks` leaves out of those target comparisons in turn.
+    is what `run_checks` leaves out of those target comparisons in turn. A
+    stage whose summary row is ❌ is left out of an Objective row's
+    derivation too (issue #382), and a row naming withdrawn stages alone is
+    compared with ❌ — an error where it reads ✅, a warning otherwise.
     """
     errors: List[str] = []
     warnings: List[str] = []
@@ -6516,7 +7582,7 @@ def derived_cell_findings(lines: List[str]
                 warnings.append(
                     f"stage {num}: {_cells_shown(rest)} but its deliverables "
                     f"roll up to {STATUS_TO_ICON[derived]} {derived} — "
-                    f"{_stage_drift_fix(rest, derived, num, unmarked, marked_open)}")
+                    f"{_stage_drift_fix(rest, derived, num, unmarked, marked_open, _stage_can_lose_a_bullet(lines, num))}")
         if not off and header_status and summ and header_status != summ:
             warnings.append(
                 f"stage {num}: header {header_status} disagrees with summary {summ}")
@@ -6524,6 +7590,7 @@ def derived_cell_findings(lines: List[str]
     stage_status = stage_rollups(lines)
     section_nums = {num for _, _, num in stage_sections(lines)}
     blocked = _blocked_objectives(lines)
+    withdrawn = {n for n, st in summary_status.items() if st == "excluded"}
     for line in lines:
         cells = _split_row(line) if line.strip().startswith("|") else []
         if not (cells and _reads(_OBJECTIVE_COVERAGE, cells)):
@@ -6539,8 +7606,18 @@ def derived_cell_findings(lines: List[str]
             continue
         if current == "excluded":
             continue
-        derived = objective_rollup(nums, stage_status)
+        derived = objective_rollup(nums, stage_status, withdrawn)
         if derived is None:
+            continue
+        if derived == "excluded":
+            # Every stage the row names is withdrawn (issue #382): nothing is
+            # left to deliver it, and a ✅ claims delivery by none of them.
+            named.add(g)
+            shown = ", ".join(nums)
+            (errors if current == "complete" else warnings).append(
+                f"objective {g}: {STATUS_TO_ICON[current]} {current} but "
+                f"every stage it names (stage {shown}) is withdrawn — ❌ in "
+                f"the Stage summary table — so set it to ❌")
             continue
         held = derived == "complete" and g in blocked
         if held:
@@ -6550,8 +7627,10 @@ def derived_cell_findings(lines: List[str]
         if current == derived:
             continue
         named.add(g)
-        stages = ", ".join(f"{n} {STATUS_TO_ICON[stage_status[n]]}"
-                           for n in nums if n in stage_status)
+        stages = ", ".join(
+            f"{n} ❌ withdrawn" if n in withdrawn
+            else f"{n} {STATUS_TO_ICON[stage_status[n]]}"
+            for n in nums if n in stage_status or n in withdrawn)
         why = (" (held below ✅ by an Outcome target not ✅ Met)"
                if held else "")
         if current == "complete":
@@ -6565,7 +7644,8 @@ def derived_cell_findings(lines: List[str]
             fix = "every stage it names is ✅ or ⏸️, so set it to ⏸️"
         elif current == "deferred":
             named_sections = [(start, end, n) for start, end, n in
-                              stage_sections(lines) if n in nums]
+                              stage_sections(lines)
+                              if n in nums and n not in withdrawn]
             unmarked = [(n, _unmarked_open_positions(lines, n))
                         for _, _, n in named_sections]
             unmarked = [(n, ks) for n, ks in unmarked if ks]
@@ -6574,7 +7654,10 @@ def derived_cell_findings(lines: List[str]
                              for st in stage_deliverable_statuses(lines, start, end))
             marked_open = open_total > sum(len(ks) for _, ks in unmarked)
             fix = _deferral_fix("the" if marked_open or not unmarked else "its",
-                                unmarked, marked_open, derived)
+                                unmarked, marked_open, derived,
+                                bool(unmarked) and all(
+                                    _stage_can_lose_a_bullet(lines, n)
+                                    for n, _ in unmarked))
         else:
             fix = (f"an Objective row follows its stages, so set it to "
                    f"{STATUS_TO_ICON[derived]}")
@@ -6618,7 +7701,7 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     # is wrong whether or not this repo keeps a document set (issue #302).
     errors.extend(loop_config_errors(config))
     errors.extend(template_residue_errors(ddir))
-    errors.extend(conflict_marker_errors(ddir))
+    errors.extend(conflict_marker_errors(ddir, repo_root))
     warnings.extend(stray_icon_warnings(ddir))
     warnings.extend(insight_warnings(ddir))
     # Reads tests_dir as well as docs_dir, so it runs before the early
@@ -6801,18 +7884,40 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     if branches is None:
         branches = _list_claim_branches(repo_root, prefix)
     _, _, item_status = _parse_item_status(lines)
-    unpublished = (set(_unpublished_branches(repo_root, config, prefix))
-                   if branches else set())
+    withdrawn_items = spent_by_withdrawal(lines, item_status)
+    off_origin = (_branches_off_origin(repo_root, config, prefix)
+                  if branches else {})
     for br in branches:
         n = _branch_item_number(br, prefix)
-        if br in unpublished:
-            # Read against the last fetch, like every other remote question
-            # here, and a warning rather than an error for that reason.
+        why = off_origin.get(br)
+        # Read against the last fetch, like every other remote question here,
+        # and a warning rather than an error for that reason. Only a branch
+        # origin never had is advised a push: one deleted there was deleted
+        # on purpose, as far as this checkout can tell (issue #364).
+        if why is not None and why.kind == OFF_ORIGIN_UNPUBLISHED:
             warnings.append(
                 f"unpublished branch {br}: this checkout has it and origin "
                 f"does not, so it is invisible to every other checkout — a "
                 f"failed 'aide claim' or 'aide queue start' push is the usual "
                 f"cause. Publish it ('git push -u origin {br}') or delete it.")
+        elif why is not None and why.kind == OFF_ORIGIN_GONE_LANDED:
+            warnings.append(
+                f"stale branch {br}: it was published and has since been "
+                f"deleted on origin, and everything on it is already in "
+                f"{why.where}, so there is nothing to publish — "
+                f"'{_gc_merged_hint(why.where, config)}' deletes it.")
+        elif why is not None:
+            warnings.append(
+                f"branch {br} was deleted on origin and its work COULD NOT BE "
+                f"FOUND in {why.where}: it was published (its upstream "
+                f"origin/{br} is gone), so either it landed in a shape this "
+                f"check cannot see — squash-merged and then built over on the "
+                f"same lines, or squash-merged under git older than 2.38 — or "
+                f"this checkout holds the only copy. Check whether its work "
+                f"merged: if it did, 'git branch -D {br}' deletes it ('aide "
+                f"gc --merged' measures the same way and will not); if not, "
+                f"land the work through a reviewed branch before deleting "
+                f"anything. Never re-publish it blindly.")
         if n is None:
             # Not a claim branch. A queue branch is expected and silent; anything
             # else carrying the prefix is reported rather than ignored, so a real
@@ -6830,6 +7935,14 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
         # until the human merges is how a real warning gets tuned out.
         if item_status.get(n) == "complete":
             warnings.append(f"stale claim branch {br}: item {n:03d} is already ✅")
+        elif n in withdrawn_items:
+            # The ❌ half of the stale ground (issue #387): a dropped item's
+            # branch had no route out, since `merge` refuses a ❌ item.
+            warnings.append(
+                f"stale claim branch {br}: item {n:03d} is "
+                f"{withdrawn_items[n]}, so nothing will merge it — 'aide gc' "
+                f"deletes it once git shows nothing on it unlanded, and "
+                f"'aide gc --abandon' deletes it with its work")
 
     return errors, warnings
 
@@ -6881,12 +7994,195 @@ def git(args: List[str], repo_root: Path, check: bool = True) -> subprocess.Comp
     `errors="replace"` rather than strict: a stray byte in one branch name must
     not raise out of `aide claim`. The replacement character fails the same
     match a mangled one did, and does it identically on every platform.
+
+    The one entry the engine runs git through, so the one place its absence
+    is read: `GitMissing`, never a `FileNotFoundError` traceback (issue
+    #352). `resolve_tool` decides where git is — `[tools] git` in
+    `.aide/local.toml`, else PATH — and a key naming a git that is not there
+    is its `ToolMisconfigured` (issue #353). Decided before the spawn,
+    because a missing *cwd* raises the same error with git present.
     """
+    try:
+        exe = resolve_tool("git", repo_root)
+        missing: Optional[MissingTool] = None if exe else GitMissing()
+    except ToolMisconfigured as exc:
+        exe, missing = None, exc
+    if exe is None:
+        assert missing is not None
+        if _GIT_OPTIONAL:
+            failed = subprocess.CompletedProcess(
+                ["git", *args], 127, "", str(missing))
+            if check:
+                raise subprocess.CalledProcessError(
+                    127, failed.args, "", failed.stderr)
+            return failed
+        raise missing
     return subprocess.run(
-        ["git", *args], cwd=str(repo_root), check=check,
+        [exe, *args], cwd=str(repo_root), check=check,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         encoding="utf-8", errors="replace",
     )
+
+
+#: Set by `aide check` alone, for its one run, when git is not on PATH: a
+#: missing git then reads as a git that failed — no repository, no branches,
+#: no history — instead of `GitMissing`. The check is the documents' verdict,
+#: and it has judged them in a repository whose git is off PATH since 1.26.0;
+#: what it could not look at is said in one warning, never passed over. That
+#: aide.toml needs a git this machine lacks is a separate error, from the
+#: dependency report (issue #354).
+_GIT_OPTIONAL = False
+
+#: `git_toplevel`'s answers, by repo root, for one invocation: `main` clears
+#: it, so a test that drives several verbs in one process never reads a stale
+#: one, and a verb asks git at most once however many sites need the answer.
+_TOPLEVEL: Dict[str, Optional[Path]] = {}
+
+
+def _dot_git_at_or_above(repo_root: Path) -> bool:
+    """Is there a `.git` at *repo_root* or any directory above it?
+
+    Not the reading of "is this a repository" — `git_toplevel` is — but what
+    tells the two ways git can fail to give one apart: no git and no `.git`
+    is a directory nothing was ever committed in, while a `.git` git cannot
+    read, or cannot be run over, is a repository something is wrong with.
+    """
+    try:
+        here = Path(repo_root).resolve()
+    except OSError:
+        here = Path(repo_root)
+    return any((d / ".git").exists() for d in (here, *here.parents))
+
+
+def git_toplevel(repo_root: Path) -> Optional[Path]:
+    """The top of the git work tree *repo_root* is in, or ``None`` outside one.
+
+    The engine's one reading of "is this a repository" (issue #352), from git
+    rather than from ``repo_root / ".git"``: `aide.toml` may sit below the
+    top level, where no `.git` is, and a linked worktree's `.git` is a file.
+    Asked once per repo root per invocation, since a spawn costs about 13x
+    as much on Windows.
+
+    Where git cannot answer, a `.git` decides what that means. Git not on
+    PATH: a `.git` at or above *repo_root* is a repository it cannot be run
+    over, so `GitMissing`; none is no repository, and a recording verb leaves
+    its edit uncommitted as it always did. Git ran and refused: only a `.git`
+    at *repo_root itself* is this project's repository, and `GitRefused`
+    carries git's own words (a `safe.directory` ownership check, a bare or
+    corrupt repository). One further up that git refuses — a `~/.git` owned
+    by another user, a bare dotfiles repository — is someone else's, and
+    reads as no repository, as it did before the engine asked git (issue
+    #352). Under `aide check`'s `_GIT_OPTIONAL` every case reads as none.
+    """
+    key = str(repo_root)
+    if key not in _TOPLEVEL:
+        top: Optional[Path] = None
+        if Path(repo_root).is_dir():
+            try:
+                res = git(["rev-parse", "--show-toplevel"], repo_root, check=False)
+            except GitMissing:
+                if _dot_git_at_or_above(repo_root):
+                    raise
+                res = None
+            out = res.stdout.strip() if res is not None else ""
+            if res is not None and res.returncode == 0 and out:
+                top = Path(out)
+            elif (res is not None and not _GIT_OPTIONAL
+                  and (Path(repo_root) / ".git").exists()):
+                raise GitRefused(repo_root, res.stderr)
+        _TOPLEVEL[key] = top
+    return _TOPLEVEL[key]
+
+
+def _root_prefix(repo_root: Path) -> List[str]:
+    """*repo_root*'s path below git's top level, as parts; empty at the top."""
+    top = git_toplevel(repo_root)
+    if top is None:
+        return []
+    try:
+        rel = Path(repo_root).resolve().relative_to(top.resolve())
+    except (ValueError, OSError):
+        return []
+    return [p for p in rel.as_posix().split("/") if p not in ("", ".")]
+
+
+def root_relative(repo_root: Path, paths: List[str]) -> List[str]:
+    """Paths git named from its top level, renamed relative to *repo_root*.
+
+    Every path reader that compares git's output with the engine's own paths
+    goes through this (issue #352): `aide.toml` may sit below the top level,
+    where git's `project/src/a.py` is the engine's `src/a.py`. A path outside
+    *repo_root* comes back as `../…` rather than being dropped, so `scope`
+    still reports a change there — `--relative` would hide it. Unchanged at
+    the top level, the common case, with no spawn beyond the cached one.
+    """
+    prefix = _root_prefix(repo_root)
+    if not prefix:
+        return list(paths)
+    out: List[str] = []
+    for path in paths:
+        parts = path.split("/")
+        i = 0
+        while i < len(prefix) and i < len(parts) - 1 and parts[i] == prefix[i]:
+            i += 1
+        out.append("/".join([".."] * (len(prefix) - i) + parts[i:]))
+    return out
+
+
+def in_repository(repo_root: Path) -> bool:
+    """Is *repo_root* inside a git work tree? See `git_toplevel`."""
+    return git_toplevel(repo_root) is not None
+
+
+def not_a_repository(verb: str, repo_root: Path) -> str:
+    """The one sentence a verb that needs a repository refuses with outside one.
+
+    Its hint depends on git being there: `git init` is no advice on a machine
+    without git, where this is the answer for no `.git` and no git at all.
+    """
+    why = _git_unavailable(repo_root)
+    hint = ("('git init' makes one)" if why is None
+            else "— git is not on PATH either, so install it first"
+            if why == "git is not on PATH" else f"— and {why}")
+    return (f"aide {verb}: {repo_root} is not inside a git repository — this "
+            f"verb reads and records git state, so run it from a git work "
+            f"tree {hint}")
+
+
+def _require_repository(verb: str, repo_root: Path) -> bool:
+    """Print `not_a_repository` and return False outside a repository."""
+    if in_repository(repo_root):
+        return True
+    print(not_a_repository(verb, repo_root), file=sys.stderr)
+    return False
+
+
+def _commits_here(no_commit: bool, repo_root: Path,
+                  before: Optional[Dict[Path, Optional[bytes]]] = None) -> bool:
+    """Does a recording verb commit the edit it has just written?
+
+    Not under ``--no-commit``, and not outside a repository. Outside one with
+    git not on PATH either — no `.git` at or above *repo_root* — the edit is
+    kept uncommitted, as it always was there, and a `notice:` says why. A
+    repository git cannot be run over, or cannot read, is different: the
+    edit in *before* is put back before the `MissingTool` goes on to
+    ``main``, since an edit left written and uncommitted reads as made to the
+    re-run that follows (issue #309).
+    """
+    if no_commit:
+        return False
+    try:
+        if in_repository(repo_root):
+            return True
+    except MissingTool:
+        if before:
+            _put_back(before)
+        raise
+    why = _git_unavailable(repo_root)
+    if why is not None:
+        print(f"notice: left uncommitted — {why}, and there is "
+              f"no .git at or above {repo_root}")
+    return False
 
 
 def _push_new_branch(repo_root: Path, branch: str) -> Optional[str]:
@@ -6914,13 +8210,16 @@ def _push_new_branch(repo_root: Path, branch: str) -> Optional[str]:
 
 
 def _list_claim_branches(repo_root: Path, prefix: str) -> List[str]:
-    if not (repo_root / ".git").exists():
+    """Every claim branch, local or on origin, by its short name.
+
+    Empty outside a repository. A git that cannot be run is *not* empty: it
+    raises, since "no claim branch" is an answer `merge` refuses on and `check`
+    reports no stale branch from (issue #352).
+    """
+    if not in_repository(repo_root):
         return []
-    try:
-        out_local = git(["branch", "--format=%(refname:short)"], repo_root, check=False).stdout
-        out_remote = git(["branch", "-r", "--format=%(refname:short)"], repo_root, check=False).stdout
-    except (OSError, subprocess.SubprocessError):
-        return []
+    out_local = git(["branch", "--format=%(refname:short)"], repo_root, check=False).stdout
+    out_remote = git(["branch", "-r", "--format=%(refname:short)"], repo_root, check=False).stdout
     names: List[str] = []
     for line in (out_local + out_remote).splitlines():
         name = line.strip()
@@ -7252,6 +8551,52 @@ def queue_end_stages(title: Optional[str]) -> Optional[List[int]]:
     return _introducing_stages(title)
 
 
+def queue_item_title(repo_root: Path, config, titles: Dict[int, str],
+                     number: int) -> Optional[str]:
+    """Item *number*'s title: the queue's `### Item NNN:` line, else its spec's.
+
+    The one title a queue-end reading goes by, so `aide claim`'s hold and
+    `aide check --queue`'s warnings cannot disagree about which item is one.
+    """
+    return titles.get(number) or _spec_stage_and_title(repo_root, config, number)[1]
+
+
+def queue_end_holds(repo_root: Path, config, queue_text: str,
+                    item_status: Dict[int, str]) -> Dict[int, List[int]]:
+    """Each queue-end item the queue lists, with the queue-mates holding it.
+
+    A queue-end item runs after the rest of its queue whatever order the file
+    lists it in (issue #347): it is held by every other item the queue lists
+    that is not itself a queue-end item and whose status still blocks a claim
+    (📋, 🚧, 🔍). Read from the queue file and progress.md alone — an item with
+    no spec is held as surely as one with. Queue-end items never hold each
+    other, since a queue ending on two would otherwise never start either, and
+    an item whose spec depends on the queue-end item — directly or through
+    other queue-mates' `## Dependencies` — never holds it, since each would
+    then wait on the other for ever.
+    """
+    titles = _queue_titles(queue_text)
+    order = queue_item_numbers(queue_text)
+    ends = [n for n in order
+            if queue_end_stages(queue_item_title(repo_root, config, titles, n))
+            is not None]
+    rest = [n for n in order if n not in ends
+            and item_status.get(n, "planned") in BLOCKING_STATUSES]
+    deps = {n: set(_item_dependencies(repo_root, config, n)) for n in rest}
+    holds: Dict[int, List[int]] = {}
+    for end in ends:
+        after: Set[int] = {end}
+        grew = True
+        while grew:
+            grew = False
+            for n in rest:
+                if n not in after and deps[n] & after:
+                    after.add(n)
+                    grew = True
+        holds[end] = [n for n in rest if n not in after]
+    return holds
+
+
 def queue_closed_stages(lines: List[str], qdir: Path, number: int) -> List[str]:
     """The stages queue *number* closes, in progress.md order.
 
@@ -7306,8 +8651,11 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     queue-end item's own spec, and an excluded item's, annotate nothing here —
     the first would count the item as the reason it is not needed. The need is
     met by a queue-end item naming the stage in the queue's trailing run of
-    them. The mirror warning names a planned queue-end item with nothing to do.
-    A queue whose items are all spent gets neither: nothing is left to plan.
+    them, or by one naming it that is still open anywhere on the queue. The
+    mirror warning names a planned queue-end item with nothing to do, and a
+    third names an open queue-end item listed ahead of open work that is not
+    one (issue #347). A queue whose items are all spent gets none of them:
+    nothing is left to plan.
     """
     ddir = docs_dir(repo_root, config)
     qdir, idir = ddir / "queue", ddir / "items"
@@ -7328,14 +8676,23 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     titles = _queue_titles(qtext)
 
     def title_of(n: int) -> Optional[str]:
-        return titles.get(n) or _spec_stage_and_title(repo_root, config, n)[1]
+        return queue_item_title(repo_root, config, titles, n)
 
     end_stages = {n: queue_end_stages(title_of(n)) for n in order}
-    trailing: Set[int] = set()
+    # The need is met by a queue-end item that will run last: one in the
+    # queue's trailing run of them, or one still open anywhere on it, since
+    # `aide claim` holds an open one until the rest of the queue has left the
+    # way (issue #347) — where it sits is `queue-end-not-last`'s business. A
+    # spent one listed before open work ran before that work, so it meets
+    # nothing.
+    met: Set[int] = set()
     for n in reversed(order):
         if end_stages[n] is None:
             break
-        trailing.update(end_stages[n])
+        met.update(end_stages[n])
+    for n in order:
+        if end_stages[n] and item_status.get(n, "planned") not in spent:
+            met.update(end_stages[n])
 
     annotated: Set[Tuple[int, int]] = set()
     specced: Set[int] = set()
@@ -7399,7 +8756,7 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
                              "(## Environment / Hardware Dependencies) with no "
                              "capability row")
         reasons_by_stage[s] = reasons
-        if reasons and s not in trailing:
+        if reasons and s not in met:
             findings.append(SpecFinding(
                 "warning", "queue-end-needed", (number,),
                 f"queue {number:03d} closes stage {s} and needs a queue-end "
@@ -7435,6 +8792,26 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
                 "warning", "queue-end-idle", (n,),
                 f"item {n:03d} is a queue-end item for stage {s}, but {why} — "
                 f"drop it before it is claimed"))
+
+    # Out of place (issue #347): an open queue-end item listed ahead of open
+    # work that is not one. `aide claim` holds it until that work has left the
+    # way, so it still runs last; the warning keeps the file saying so. A
+    # settled record either side (✅, ❌, ⏸️) is history, not a plan (#338),
+    # and an item whose dependencies lead back to it belongs after it.
+    holds = queue_end_holds(repo_root, config, qtext, item_status)
+    for i, n in enumerate(order):
+        if end_stages[n] is None or item_status.get(n, "planned") in spent:
+            continue
+        after = [m for m in order[i + 1:] if m in holds.get(n, ())]
+        if after:
+            findings.append(SpecFinding(
+                "warning", "queue-end-not-last", (n, *after),
+                f"item {n:03d} is a queue-end item, but queue {number:03d} "
+                f"lists open item(s) "
+                + ", ".join(f"{m:03d}" for m in after)
+                + " after it — move it to the end of the queue; `aide claim` "
+                f"holds it until they are ✅, ❌ or ⏸️ either way "
+                f"(§1 → queue-NNN.md)"))
     return findings
 
 
@@ -7485,53 +8862,89 @@ def cmd_check(args: argparse.Namespace) -> int:
               "findings to report without one", file=sys.stderr)
         return 2
 
+    global _GIT_OPTIONAL
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
     ddir = docs_dir(repo_root, config)
-    # Before the checks, so the file they then shape-check is the one that
-    # exists — a run that created the inbox and warned about its absence in
-    # the same breath would be reporting on two different repositories.
-    ensure_insights_inbox(repo_root, config, verb="check")
-    errors, warnings = run_checks(repo_root, config)
+    # A git that is not there fails no document (issue #352): every reading
+    # that needs it comes back empty, and one warning says so — "OK" alone
+    # would claim branches and history were checked.
+    # The same for a git that runs and refuses the repository (a
+    # `safe.directory` check): the refusal's own words are the warning.
+    git_problem = _git_unavailable(repo_root)
+    if git_problem is None:
+        try:
+            in_repository(repo_root)
+        except MissingTool as exc:
+            git_problem = str(exc)
+    # What the committed configuration needs of this machine and it lacks,
+    # decided offline (issue #354). Asked before git turns optional below,
+    # so a repository git refuses is git's own words here too. Only where
+    # an aide.toml is there — the check also lints repos with no AIDE
+    # configuration, whose defaults nobody committed — and only on a plain
+    # run: `--queue` is a planner's or reviewer's judgement of documents,
+    # and a machine error there would invite the edit of `[git] mode` or
+    # `test_command` §4 forbids. Prefixed, so no reader takes one for a
+    # document error.
+    machine_errors = ([f"{MACHINE_PREFIX}{e}" for e in
+                       dependency_errors(repo_root, config)]
+                      if queue is None and (repo_root / "aide.toml").is_file()
+                      else [])
+    _GIT_OPTIONAL = git_problem is not None
+    try:
+        # Before the checks, so the file they then shape-check is the one that
+        # exists — a run that created the inbox and warned about its absence in
+        # the same breath would be reporting on two different repositories.
+        ensure_insights_inbox(repo_root, config, verb="check")
+        errors, warnings = run_checks(repo_root, config)
+        errors.extend(machine_errors)
+        if git_problem is not None:
+            warnings.append(f"{git_problem}, so nothing that reads git was "
+                            f"checked — stale claim branches, insight citations' "
+                            f"history, and the commit of a created inbox")
 
-    if not ddir.exists() and queue is None:
-        # A notice, not a warning: nothing is wrong, but the reader must not
-        # read "OK" as "the documents were checked and are fine".
-        #
-        # Only on a non-`--queue` run. `--queue` sends `queue_spec_findings`
-        # looking for a queue file under the same absent directory, so it runs
-        # and errors — and "only the repo-agnostic checks ran" would be false
-        # next to that error. The notice exists to stop a *pass* being
-        # over-read; a run that fails needs no such guard.
-        print(f"notice: no {_rel_display(ddir, repo_root)}/ — this repo has no "
-              f"AIDE document set, so only the repo-agnostic checks ran")
+        if not ddir.exists() and queue is None:
+            # A notice, not a warning: nothing is wrong, but the reader must not
+            # read "OK" as "the documents were checked and are fine".
+            #
+            # Only on a non-`--queue` run. `--queue` sends `queue_spec_findings`
+            # looking for a queue file under the same absent directory, so it runs
+            # and errors — and "only the repo-agnostic checks ran" would be false
+            # next to that error. The notice exists to stop a *pass* being
+            # over-read; a run that fails needs no such guard.
+            print(f"notice: no {_rel_display(ddir, repo_root)}/ — this repo has no "
+                  f"AIDE document set, so only the repo-agnostic checks ran")
 
-    if queue is not None:
-        findings, unspecced = queue_spec_findings(repo_root, config, queue)
-        # Not a cross-spec conflict, so not `queue_spec_findings`' — but the
-        # same run the planner makes after writing a queue, and the same
-        # worklist the spec-reviewer reads once the specs exist (#333).
-        findings += queue_end_findings(repo_root, config, queue)
-        for f in findings:
-            (errors if f.severity == "error" else warnings).append(f.message)
-        if unspecced:
-            listed = ", ".join(f"{n:03d}" for n in unspecced)
-            print(f"aide check: queue {queue:03d} — {len(unspecced)} item(s) "
-                  f"not yet specced, so not compared: {listed}")
-        report = getattr(args, "report", None)
-        if report:
-            _write_findings_report(Path(report), queue, findings, unspecced)
-            print(f"aide check: wrote {report}")
+        if queue is not None:
+            findings, unspecced = queue_spec_findings(repo_root, config, queue)
+            # Not a cross-spec conflict, so not `queue_spec_findings`' — but the
+            # same run the planner makes after writing a queue, and the same
+            # worklist the spec-reviewer reads once the specs exist (#333).
+            findings += queue_end_findings(repo_root, config, queue)
+            for f in findings:
+                (errors if f.severity == "error" else warnings).append(f.message)
+            if unspecced:
+                listed = ", ".join(f"{n:03d}" for n in unspecced)
+                print(f"aide check: queue {queue:03d} — {len(unspecced)} item(s) "
+                      f"not yet specced, so not compared: {listed}")
+            report = getattr(args, "report", None)
+            if report:
+                _write_findings_report(Path(report), queue, findings, unspecced)
+                print(f"aide check: wrote {report}")
 
-    for w in warnings:
-        print(f"warning: {w}")
-    for e in errors:
-        print(f"error: {e}")
-    if errors:
-        print(f"aide check: FAIL ({len(errors)} error(s), {len(warnings)} warning(s))")
-        return 1
-    print(f"aide check: OK ({len(warnings)} warning(s))")
-    return 0
+        for w in warnings:
+            print(f"warning: {w}")
+        for e in errors:
+            print(f"error: {e}")
+        if errors:
+            print(f"aide check: FAIL ({len(errors)} error(s), {len(warnings)} warning(s))")
+            return 1
+        print(f"aide check: OK ({len(warnings)} warning(s))")
+        return 0
+    finally:
+        # Reset here, not only by the next `main()`: a caller that runs the
+        # check in-process and then another verb must not inherit it.
+        _GIT_OPTIONAL = False
 
 
 def set_gate_status(text: str, index: int, kind: str,
@@ -7712,7 +9125,7 @@ def cmd_gate(args: argparse.Namespace) -> int:
     # position it was resolved at.
     handle = gate_ids(gates)[index - 1] or f"gate {index}"
     print(f"{handle}: {kind}")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         # A decision left written but uncommitted reads as resolved to a
         # re-run, which would never commit it (issue #309).
         return _commit_or_restore(repo_root, config, f"aide gate {args.action}",
@@ -7787,19 +9200,21 @@ def cmd_progress(args: argparse.Namespace) -> int:
         return _cmd_progress_reopen(args)
     if args.action != "set":
         print("usage: aide progress set NNN <in-progress|in-review|done> | "
-              "set NNN deferred --reason TEXT | "
+              "set NNN <deferred|resumed|dropped|restored> --reason TEXT | "
               "reopen NNN --reason TEXT | accept|amend|retract|reword STAGE "
               "(see aide progress -h)", file=sys.stderr)
         return 2
     if args.status is None:
         print("usage: aide progress set NNN <in-progress|in-review|done> | "
-              "set NNN deferred --reason TEXT", file=sys.stderr)
+              "set NNN <deferred|resumed|dropped|restored> --reason TEXT",
+              file=sys.stderr)
         return 2
-    if args.status == "deferred":
+    if args.status in _ITEM_SET:
         return _cmd_progress_defer(args)
     if args.status not in _SET_STATUS_MAP:
-        print("status must be 'in-progress', 'in-review', 'done' or "
-              "'deferred'", file=sys.stderr)
+        print("status must be 'in-progress', 'in-review', 'done', "
+              "'deferred', 'resumed', 'dropped' or 'restored'",
+              file=sys.stderr)
         return 2
     status_map = _SET_STATUS_MAP
     repo_root = find_repo_root(args.repo)
@@ -7810,6 +9225,26 @@ def cmd_progress(args: argparse.Namespace) -> int:
         return 1
     text = progress_path.read_text(encoding=_ENCODING)
     original = text
+    # A ⏸️ item leaves ⏸️ by `set NNN resumed` alone (issue #380). A forward
+    # status over it used to resume it, and `in-progress` on one never
+    # claimed left it 🚧 with no branch: `claim` offered nothing, `status`
+    # counted it as work to build and `sync --item` asked for a claim.
+    # A ❌ item leaves ❌ by `set NNN restored` alone (issue #381): ❌ ranks
+    # lowest, so a forward status cleared a drop silently, with no reason
+    # and no trail line. Only an item the way back can take is held
+    # (`held_from_forward`); one it refuses — a ⏸️ or ❌ beside a 🚧/🔍/✅
+    # bullet, which only a hand edit makes — keeps the forward set as its
+    # way out.
+    held = held_from_forward(text.splitlines(), args.number)
+    if held is not None:
+        word, verb = (("deferred", "resumed") if held == "deferred"
+                      else ("dropped", "restored"))
+        print(f"error: item {args.number:03d} is {STATUS_TO_ICON[held]} "
+              f"{word}, and a {word} item is not set forward — {verb[:-1]} it "
+              f"with `aide progress set {args.number:03d} {verb} --reason …`, "
+              f"which sends it back to 📋 for `aide claim` to offer; "
+              f"progress.md NOT changed", file=sys.stderr)
+        return 1
     # An item is only trackable if some deliverable bullet's trailing marker
     # names it — the ownership rule set_item_status flips by — otherwise the
     # set would be a silent no-op. A prose mention on someone else's bullet
@@ -7865,7 +9300,7 @@ def cmd_progress(args: argparse.Namespace) -> int:
         progress_path.write_text(updated, encoding="utf-8")
         print(f"item {args.number:03d}: set to {args.status}")
         _report_bullet_splits(args.number, updated.splitlines(), splits)
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         message = f"progress(aide): item {args.number:03d} -> {args.status}"
         if before is None:
             # Nothing written, so nothing of this run's to lose: the commit
@@ -7913,7 +9348,7 @@ def _cmd_progress_accept(args: argparse.Namespace) -> int:
         return 0
     before = _snapshot([progress_path])
     progress_path.write_text(updated, encoding="utf-8")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         what = "all criteria" if args.all_criteria else f"criterion {args.criterion}"
         return _commit_or_restore(
             repo_root, config, "aide progress accept", "the acceptance",
@@ -8068,7 +9503,7 @@ def _cmd_progress_retract(args: argparse.Namespace) -> int:
           f"the tolerated warning set needs widening for stage {args.number} "
           f"criterion {args.criterion}; do it in this change, not at the merge "
           f"gate")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         rels = [_progress_rel(config)]
         if rel_insights:
             rels.append(rel_insights)
@@ -8147,7 +9582,7 @@ def _cmd_progress_reopen(args: argparse.Namespace) -> int:
           f"the record is permanent, not a defect to clear. A test that pins "
           f"the tolerated warning set needs widening for item "
           f"{args.number:03d}; do it in this change, not at the merge gate")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         rels = [_progress_rel(config)]
         if rel_insights:
             rels.append(rel_insights)
@@ -8183,29 +9618,43 @@ def _ci_round_scope(repo_root: Path, config: Dict[str, Dict[str, object]],
     return items | {num}
 
 
+#: The statuses `set NNN` writes with a reason, each with the function that
+#: writes it and the noun its commit and messages use (issues #281, #380).
+_ITEM_SET = {"deferred": (defer_item, "the deferral"),
+             "resumed": (resume_item, "the resumption"),
+             "dropped": (drop_item, "the drop"),
+             "restored": (restore_item, "the restoration")}
+
+
 def _cmd_progress_defer(args: argparse.Namespace) -> int:
-    """``aide progress set NNN deferred --reason TEXT`` — postpone an item.
+    """``aide progress set NNN <deferred|resumed|dropped|restored> --reason
+    TEXT`` — postpone an item or drop it, or take either back up.
 
     The one way to write ⏸️ on a deliverable (issue #281): it used to be a hand
     edit, with no record of why, and a whole stage deferred that way read as
     one nobody had started. The reason goes on a trail line under each flipped
-    bullet, as `reopen`'s does. No insight is captured: a deferral is a
-    decision about order, not a finding about the work.
+    bullet, as `reopen`'s does. `resumed` is the way back to 📋 (issue #380),
+    with its own reason beside the deferral's. `dropped` writes ❌ on an item
+    the stage does not need, and `restored` takes it back to 📋 (issue #381).
+    No insight is captured by any of them: a deferral and a resumption are
+    decisions about order, a drop and a restoration decisions about scope,
+    not findings about the work.
     """
-    usage = ("usage: aide progress set NNN deferred --reason TEXT "
-             "[--date YYYY-MM-DD]")
+    status = args.status
+    usage = (f"usage: aide progress set NNN {status} --reason TEXT "
+             f"[--date YYYY-MM-DD]")
     if args.criterion is not None or args.all_criteria:
-        print(f"{usage}\naide progress set: an item is deferred whole — it "
+        print(f"{usage}\naide progress set: an item is {status} whole — it "
               f"takes no --criterion or --all", file=sys.stderr)
         return 2
     if not (args.reason or "").strip():
-        print("aide progress set NNN deferred: --reason is required — the "
-              "reason is what the record keeps", file=sys.stderr)
+        print(f"aide progress set NNN {status}: --reason is required — the "
+              f"reason is what the record keeps", file=sys.stderr)
         return 2
     reason = args.reason.strip()
     if "\n" in reason or "\r" in reason:
-        print("aide progress set NNN deferred: the reason may not contain a "
-              "line break — it is written into one trail line", file=sys.stderr)
+        print(f"aide progress set NNN {status}: the reason may not contain a "
+              f"line break — it is written into one trail line", file=sys.stderr)
         return 2
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
@@ -8217,8 +9666,9 @@ def _cmd_progress_defer(args: argparse.Namespace) -> int:
     date = args.date or _dt.date.today().isoformat()
     text = progress_path.read_text(encoding=_ENCODING)
     splits: List[BulletSplit] = []
+    write, noun = _ITEM_SET[status]
     try:
-        updated, message = defer_item(text, args.number, reason, date, splits)
+        updated, message = write(text, args.number, reason, date, splits)
     except ValueError as exc:
         print(f"error: {exc}; progress.md NOT changed", file=sys.stderr)
         return 1
@@ -8228,29 +9678,43 @@ def _cmd_progress_defer(args: argparse.Namespace) -> int:
     before = _snapshot([progress_path])
     progress_path.write_text(updated, encoding="utf-8")
     _report_bullet_splits(args.number, updated.splitlines(), splits)
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         return _commit_or_restore(
-            repo_root, config, "aide progress set", "the deferral",
-            f"progress(aide): item {args.number:03d} -> deferred",
+            repo_root, config, "aide progress set", noun,
+            f"progress(aide): item {args.number:03d} -> {status}",
             [_progress_rel(config)], before)
     return 0
 
 
+#: The statuses `set --stage N --deliverable K` writes, each with the
+#: function that writes it and the noun its commit and messages use.
+_POSITIONAL_SET = {"deferred": (defer_deliverable, "the deferral"),
+                   "dropped": (drop_deliverable, "the drop"),
+                   "resumed": (resume_deliverable, "the resumption"),
+                   "restored": (restore_deliverable, "the restoration")}
+
+
 def _cmd_progress_defer_deliverable(args: argparse.Namespace) -> int:
-    """``aide progress set --stage N --deliverable K deferred --reason TEXT``.
+    """``aide progress set --stage N --deliverable K
+    <deferred|dropped|resumed|restored> --reason TEXT``.
 
     The deferral of a deliverable bullet no item marker names (issue #336),
-    addressed by its position in the stage. Otherwise `_cmd_progress_defer`
-    exactly: the reason is required and on one line, and the edit is
-    committed or put back.
+    addressed by its position in the stage, its drop as not needed (issue
+    #362), its resumption from ⏸️ back to 📋 so it can be itemised (issue
+    #380), and its restoration from ❌ back to 📋 (issue #381). Otherwise
+    `_cmd_progress_defer` exactly: the reason is required and on one line,
+    and the edit is committed or put back. No insight is captured by any of
+    them: a deferral and a resumption are decisions about order, a drop and a
+    restoration ones about scope.
     """
-    usage = ("usage: aide progress set --stage N --deliverable K deferred "
-             "--reason TEXT [--date YYYY-MM-DD]")
+    usage = ("usage: aide progress set --stage N --deliverable K "
+             "<deferred|dropped|resumed|restored> --reason TEXT "
+             "[--date YYYY-MM-DD]")
     tag = "aide progress set --stage/--deliverable"
     if args.action != "set":
         print(f"{usage}\naide progress {args.action}: --stage and "
-              f"--deliverable belong to `set … deferred` alone",
-              file=sys.stderr)
+              f"--deliverable belong to `set … deferred`, `set … dropped`, "
+              f"`set … resumed` and `set … restored` alone", file=sys.stderr)
         return 2
     if args.stage is None or args.deliverable is None:
         print(f"{usage}\n{tag}: --stage and --deliverable go together — the "
@@ -8261,28 +9725,31 @@ def _cmd_progress_defer_deliverable(args: argparse.Namespace) -> int:
     if isinstance(args.number, str) and status is None:
         status = args.number
     elif args.number is not None:
-        print(f"{usage}\n{tag}: takes no item number — an itemised bullet is "
-              f"deferred with `aide progress set NNN deferred --reason …`",
+        # Every positional status has its item form (issues #380, #381).
+        named = status if status in _POSITIONAL_SET else "deferred"
+        print(f"{usage}\n{tag}: takes no item number — an itemised bullet "
+              f"is {named} with `aide progress set NNN {named} --reason …`",
               file=sys.stderr)
         return 2
-    if status != "deferred":
+    if status not in _POSITIONAL_SET:
         shown = f"'{status}'" if status else "no status"
-        print(f"{usage}\n{tag}: only `deferred` is set by position, not "
-              f"{shown} — a deliverable with no item marker resumes by being "
-              f"itemised, after which `aide progress set NNN <status>` moves "
-              f"it", file=sys.stderr)
+        print(f"{usage}\n{tag}: only `deferred`, `dropped`, `resumed` or "
+              f"`restored` is set by position, not {shown} — a deliverable "
+              f"with no item marker moves forward once it is itemised, after "
+              f"which `aide progress set NNN <status>` moves it",
+              file=sys.stderr)
         return 2
     if args.criterion is not None or args.all_criteria:
-        print(f"{usage}\n{tag}: a deliverable is deferred whole — it takes no "
+        print(f"{usage}\n{tag}: a deliverable is {status} whole — it takes no "
               f"--criterion or --all", file=sys.stderr)
         return 2
     if not (args.reason or "").strip():
-        print(f"{tag} deferred: --reason is required — the reason is what the "
+        print(f"{tag} {status}: --reason is required — the reason is what the "
               f"record keeps", file=sys.stderr)
         return 2
     reason = args.reason.strip()
     if "\n" in reason or "\r" in reason:
-        print(f"{tag} deferred: the reason may not contain a line break — it "
+        print(f"{tag} {status}: the reason may not contain a line break — it "
               f"is written into one trail line", file=sys.stderr)
         return 2
     repo_root = find_repo_root(args.repo)
@@ -8294,9 +9761,10 @@ def _cmd_progress_defer_deliverable(args: argparse.Namespace) -> int:
     import datetime as _dt
     date = args.date or _dt.date.today().isoformat()
     text = progress_path.read_text(encoding=_ENCODING)
+    write, noun = _POSITIONAL_SET[status]
     try:
-        updated, message = defer_deliverable(text, args.stage, args.deliverable,
-                                             reason, date)
+        updated, message = write(text, args.stage, args.deliverable, reason,
+                                 date)
     except ValueError as exc:
         print(f"error: {exc}; progress.md NOT changed", file=sys.stderr)
         return 1
@@ -8305,11 +9773,11 @@ def _cmd_progress_defer_deliverable(args: argparse.Namespace) -> int:
         return 0
     before = _snapshot([progress_path])
     progress_path.write_text(updated, encoding="utf-8")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         return _commit_or_restore(
-            repo_root, config, "aide progress set", "the deferral",
+            repo_root, config, "aide progress set", noun,
             f"progress(aide): stage {args.stage} deliverable "
-            f"{args.deliverable} -> deferred",
+            f"{args.deliverable} -> {status}",
             [_progress_rel(config)], before)
     return 0
 
@@ -8391,7 +9859,7 @@ def _cmd_progress_reword(args: argparse.Namespace) -> int:
         print("  roadmap.md: mirrored")
     else:
         print("  roadmap.md: no acceptance block for this stage — nothing to mirror")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         return _commit_or_restore(
             repo_root, config, "aide progress reword", "the rewording",
             f"progress(aide): stage {args.number} reword criterion {args.criterion}",
@@ -8441,7 +9909,7 @@ def _cmd_progress_reword_deliverable(args: argparse.Namespace) -> int:
           f"(progress.md:{lineno})")
     print(f"  was: {old}")
     print(f"  now: {args.text.strip()}")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         return _commit_or_restore(
             repo_root, config, "aide progress reword", "the rewording",
             f"progress(aide): item {args.item:03d} reword deliverable",
@@ -8468,7 +9936,7 @@ def _apply_criterion_edit(args: argparse.Namespace, edit, message: str) -> int:
     before = _snapshot([progress_path])
     progress_path.write_text(updated, encoding="utf-8")
     print(f"stage {args.number}: {msg}")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         return _commit_or_restore(
             repo_root, config, f"aide progress {args.action}", "the edit",
             f"progress(aide): {message}", [_progress_rel(config)], before)
@@ -8483,6 +9951,15 @@ def _snapshot(paths: List[Path]) -> Dict[Path, Optional[bytes]]:
     """Each path's bytes as they are now — ``None`` for one not yet written —
     for `_commit_or_restore` to put back."""
     return {p: (p.read_bytes() if p.is_file() else None) for p in paths}
+
+
+def _put_back(before: Dict[Path, Optional[bytes]]) -> None:
+    """Every file in *before* back to its bytes; one that did not exist, gone."""
+    for path, data in before.items():
+        if data is not None:
+            path.write_bytes(data)
+        elif path.exists():
+            path.unlink()
 
 
 def _commit_or_put_back(repo_root: Path, config, message: str,
@@ -8516,11 +9993,7 @@ def _commit_or_put_back(repo_root: Path, config, message: str,
         moved = False
     if moved:
         return failure, True
-    for path, data in before.items():
-        if data is not None:
-            path.write_bytes(data)
-        elif path.exists():
-            path.unlink()
+    _put_back(before)
     return failure, False
 
 
@@ -8581,7 +10054,7 @@ def _commit_docs_files(repo_root: Path, config, message: str,
 
     What a caller does with a reason is split by who ran it (issue #309).
     A verb a person or an agent runs to record something — `gate`, the
-    `progress` sub-verbs, `insights tick`/`archive`, `ledger`, `queue gate` —
+    `progress` sub-verbs, `insights add`/`tick`/`archive`, `ledger`, `queue gate` —
     goes through `_commit_or_restore`, which turns a reason into exit 1 and,
     when no commit was made, puts the edit back so a re-run makes it again.
     ``ensure_insights_inbox`` keeps the reason a printed notice: the inbox is
@@ -8601,7 +10074,8 @@ def _commit_docs_files(repo_root: Path, config, message: str,
     to "modified" or "untracked" rather than "staged": ``aide sync`` refuses
     either, but a caller can say which and why. A ``git`` that cannot be run
     at all is a reason, not a traceback; ``check`` in particular must keep
-    passing in a repo whose ``git`` is off PATH, as it did before 1.26.0.
+    judging the documents in a repo whose ``git`` is off PATH, as it did
+    before 1.26.0.
 
     *pull* rebases the new commit onto the upstream **afterwards**, which is
     right for an edit to a file other machines also edit (a tick, an archive)
@@ -8675,8 +10149,11 @@ def _commit_docs_files(repo_root: Path, config, message: str,
         # One path per line, never whitespace-split: a `docs_dir` with a space
         # in it must match its own entry. `core.quotepath=false` keeps a
         # non-ASCII path literal rather than octal-escaped and quoted.
+        # `--relative`: *rels* are relative to repo_root, which may sit below
+        # git's top level (issue #352), and git names paths from the top.
         out = git(["-c", "core.quotepath=false", "show", "--name-only",
-                   "--format=", "HEAD"], repo_root, check=False).stdout
+                   "--relative", "--format=", "HEAD"], repo_root,
+                  check=False).stdout
         shown = [line.strip() for line in out.splitlines() if line.strip()]
         missing = [r for r in rels if r not in shown]
         if missing:
@@ -8695,7 +10172,7 @@ def _commit_docs_files(repo_root: Path, config, message: str,
         if _has_unpushed_merge(repo_root):
             return None
         pulled = git(["pull", "--rebase"], repo_root, check=False)
-    except (OSError, subprocess.SubprocessError) as exc:
+    except (OSError, subprocess.SubprocessError, MissingTool) as exc:
         # Loud here, not only in the return: the best-effort callers discard
         # the reason, and a verb that prints its success line over an
         # uncommitted edit is the failure this names.
@@ -8748,8 +10225,9 @@ def ensure_insights_inbox(repo_root: Path, config: Dict[str, Dict[str, object]],
     no ``docs_dir`` gets nothing, since a project may adopt the CLI without
     the loop and the directory itself is project-owned.
 
-    This is the engine's side of the §1 guarantee that capture is a plain
-    append to a file that exists. Before it, every agent spec told the role to
+    This is the engine's side of the §1 guarantee that capture — `insights
+    add`, or a line of the same shape written by hand — appends to a file
+    that exists. Before it, every agent spec told the role to
     copy the template by hand the first time an insight needed a home — six
     restatements of one step, and the one that made every spec name
     ``templates/`` (issue #85). The copy is byte-exact: ``read_bytes`` /
@@ -8779,19 +10257,28 @@ def ensure_insights_inbox(repo_root: Path, config: Dict[str, Dict[str, object]],
     if not template.is_file():
         print(f"aide {verb}: {rel} is missing and could not be created — "
               f"{_rel_display(template, repo_root)} is not there, so the install "
-              f"is incomplete (`python install.py --into . --check` from a "
+              f"is incomplete (`{printed_python(repo_root)} install.py --into . "
+              f"--check` from a "
               f"framework checkout says how)", file=sys.stderr)
         return None
     path.write_bytes(template.read_bytes())
     fate = ""
     if not commit:
         fate = ", left uncommitted (--no-commit)"
-    elif (repo_root / ".git").exists():
+    elif _git_unavailable(repo_root) is not None:
+        # Created whatever git's state: the inbox is a file `check` makes on
+        # its caller's behalf, and a missing git is the notice's reason, never
+        # the run's failure (issue #352).
+        why = _git_unavailable(repo_root)
+        fate = (f" but NOT committed — {why}; commit it with the "
+                "next work" if _dot_git_at_or_above(repo_root)
+                else f", left untracked — {why}")
+    elif _commits_here(False, repo_root, {path: None}):
         why = _commit_created_file(repo_root, config, rel)
         fate = (" and committed it" if why is None
                 else f" but NOT committed — {why}; commit it with the next work")
     print(f"notice: created {rel} from .aide/templates/insights.md{fate} — the "
-          f"insight inbox, so a capture is a plain append (conventions.md §1)")
+          f"insight inbox, which `insights add` captures into (conventions.md §1)")
     return path
 
 
@@ -8838,27 +10325,47 @@ def cmd_insights(args: argparse.Namespace) -> int:
 
     Every other document has the CLI doing its mechanical work; this one made
     each triage pass an agent reading and hand-parsing the whole file, which is
-    the cost that kept triage getting deferred. ``list`` answers "what is
-    outstanding" without loading the archive with it, ``tick`` performs the one
-    in-place edit the immutability rule permits, ``archive`` keeps the live
-    file the size of its working set, and ``resolve`` merges the file's one
-    recurring conflict — two branches that each appended — without a hand ever
-    retyping a claim.
+    the cost that kept triage getting deferred. ``add`` captures one entry in
+    the §1 shape, ``list`` answers "what is outstanding" without loading the
+    archive with it, ``tick`` performs the one in-place edit the immutability
+    rule permits, ``archive`` keeps the live file the size of its working set,
+    and ``resolve`` merges the file's one recurring conflict — two branches
+    that each appended — without a hand ever retyping a claim.
     """
     import datetime as _dt
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
     ddir = docs_dir(repo_root, config)
     path = insights_path(ddir)
-    if args.action == "list":
+    if args.claim is not None and args.action != "add":
+        print(f"aide insights {args.action}: unexpected argument "
+              f"{args.claim!r} — only add takes a claim", file=sys.stderr)
+        return 2
+    capture: Optional[str] = None
+    if args.action == "add":
+        # Refused before anything is created: a refusal writes nothing, the
+        # inbox included.
+        capture, problem = insight_capture_line(
+            args.number, args.claim, args.provenance,
+            _dt.date.today().isoformat(), _engine_stamp())
+        if problem is not None:
+            print(f"aide insights add: {problem}", file=sys.stderr)
+            return 2
+        if args.date is not None:
+            print("aide insights add: --date is not taken — an entry is dated "
+                  "the day it is captured", file=sys.stderr)
+            return 2
+    if args.action in ("list", "add"):
         # An empty backlog is an answer, not an error: `list` on a repo whose
         # document set has no inbox yet creates the inbox — the same way
-        # `check` does — and reports it empty. The other two verbs edit an
-        # entry, and there is no entry to edit in a file that does not exist.
+        # `check` does — and reports it empty; `add` creates it to append to.
+        # The other verbs edit an entry, and there is no entry to edit in a
+        # file that does not exist.
         if not ddir.is_dir():
+            what = "capture into" if args.action == "add" else "list"
             print(f"aide insights: no {_rel_display(ddir, repo_root)}/ — this "
-                  f"repo has no AIDE document set, so there is no inbox to list",
-                  file=sys.stderr)
+                  f"repo has no AIDE document set, so there is no inbox to "
+                  f"{what}", file=sys.stderr)
             return 2
         ensure_insights_inbox(repo_root, config, verb="insights",
                               commit=not args.no_commit)
@@ -8870,6 +10377,9 @@ def cmd_insights(args: argparse.Namespace) -> int:
     text = path.read_text(encoding=_ENCODING)
     ddir_rel = ddir.relative_to(repo_root).as_posix()
 
+    if args.action == "add":
+        return _cmd_insights_add(path, ddir, ddir_rel, repo_root, config, args,
+                                 capture or "")
     if args.action == "list":
         return _cmd_insights_list(parse_insights(text), load_insight_pool(ddir), args)
     if args.action == "tick":
@@ -9010,11 +10520,138 @@ def _cmd_insights_tick(path: Path, text: str, ddir: Path, ddir_rel: str,
     before = _snapshot([path])
     path.write_text(updated, encoding="utf-8")
     print(f"{message} (insight {handle})" if handle != str(ordinal) else message)
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         return _commit_or_restore(
             repo_root, config, "aide insights tick", "the tick",
             f"docs(aide): triage insight {handle}",
             [f"{ddir_rel}/insights.md"], before)
+    return 0
+
+
+def _has_line_break(text: str) -> bool:
+    """Would `str.splitlines` break *text*? It breaks on more than ``\n`` and
+    ``\r`` (``\x0b``, ``\x0c``, ``\x1c``–``\x1e``, ``\x85``, U+2028,
+    U+2029), and `parse_insights` reads the file through it, so any of them
+    inside a claim would split one captured entry into two lines."""
+    return len((text + "x").splitlines()) > 1
+
+
+def insight_capture_line(type_: Optional[str], claim: Optional[str],
+                         provenance: Optional[str], date: str,
+                         stamp: Optional[str]) -> Tuple[str, Optional[str]]:
+    """The entry line `insights add` writes, and why not when it cannot.
+
+    ``(line, None)``, or ``("", reason)`` when the input is refused. The line
+    is §1's shape — ``- [ ] <type> — <claim> *(<provenance>, <date>,
+    <stamp>)*``, the provenance and the stamp each dropped with its comma
+    when absent. Refused: a type §1 does not name, an empty claim, a line
+    break in the claim or the provenance, and **any input whose line would
+    read back as a different entry**. That last one is decided by parsing the
+    line with `parse_insights` and comparing every field to what was given —
+    not by a list of dangerous characters — so the refusal is exactly as wide
+    as the reader: a provenance holding ``)`` (the marker would close early),
+    a claim carrying an ``*(…, YYYY-MM-DD)*`` aside followed by ``→`` (read as
+    the marker and a pointer), a claim or provenance the shape check would
+    warn on. An aside the parser reads past is not refused: it reads back as
+    written.
+    """
+    types = "|".join(_INSIGHT_TYPES)
+    if type_ not in _INSIGHT_TYPES:
+        what = f"{type_!r} is not" if type_ else "no type given; it must be"
+        return "", f"{what} one of {types}"
+    claim = (claim or "").strip()
+    if not claim:
+        return "", "the claim is empty — capture is one line of text"
+    if _has_line_break(claim):
+        return "", ("the claim contains a line break — an entry is one line, "
+                    "so write it as one")
+    prov = (provenance or "").strip() or None
+    if prov is not None and _has_line_break(prov):
+        return "", "--provenance contains a line break — it is part of one line"
+    if prov is not None and ")" in prov:
+        return "", ("--provenance contains ')', which would close the entry's "
+                    "*(…)* marker early — write it without one")
+    marker = ", ".join(x for x in (prov, date, stamp) if x)
+    line = f"- [ ] {type_} — {claim} *({marker})*"
+    parsed = parse_insights(line + "\n")
+    want = {"type": type_, "claim": claim, "provenance": prov, "date": date,
+            "engine note": stamp, "pointer": None}
+    if len(parsed) != 1 or not _INSIGHT_RE.match(line):
+        return "", ("the line would not read back as one well-formed entry — "
+                    "an insights.md shape warning from the moment it landed")
+    e = parsed[0]
+    got = {"type": e.type, "claim": e.text, "provenance": e.source,
+           "date": e.date, "engine note": e.note, "pointer": e.pointer}
+    for field, value in want.items():
+        if got[field] != value:
+            return "", (f"the line would read back with its {field} as "
+                        f"{got[field]!r}, not {value!r} — a `*(…, YYYY-MM-DD)*` "
+                        f"aside in the claim, or a `)` in --provenance, is what "
+                        f"does that; reword it")
+    return line, None
+
+
+def _append_line_bytes(path: Path, line: str) -> None:
+    """Append *line* at the end of *path*, touching no byte already there.
+
+    Bytes rather than text, so a BOM and the file's line endings survive: the
+    new line ends with ``\r\n`` when the file already uses it, and a file
+    whose last line has no newline gets one before the new line rather than
+    the new line glued onto it. An empty file gets the line alone.
+    """
+    data = path.read_bytes()
+    body = data[3:] if data.startswith(b"\xef\xbb\xbf") else data
+    eol = b"\r\n" if b"\r\n" in body else b"\n"
+    lead = eol if body and not body.endswith(b"\n") else b""
+    with open(path, "ab") as fh:
+        fh.write(lead + line.encode("utf-8") + eol)
+
+
+def _cmd_insights_add(path: Path, ddir: Path, ddir_rel: str, repo_root: Path,
+                      config, args: argparse.Namespace, line: str) -> int:
+    """`insights add TYPE CLAIM [--provenance TEXT]` — capture one entry (#363).
+
+    *line* was built and checked by ``insight_capture_line`` before the inbox
+    was created, so nothing here can refuse. The entry is appended, its ID is
+    printed — the one `insights list` would print, computed over the inbox
+    and its archives so a same-day prefix clash is already lengthened — and
+    the file is committed the way `tick` commits: by default, not under
+    --no-commit, and on a failed commit the file is put back and the verb
+    exits 1 (`_commit_or_restore`). The ID is printed only once the entry is
+    certain to stay: after the commit, or under --no-commit — never for an
+    entry the failed commit has just removed again.
+    """
+    text = path.read_text(encoding=_ENCODING)
+    if any(rx.match(l) for l in text.splitlines() for rx in _CONFLICT_LINT_RES):
+        # An entry appended below a conflict's closing marker is one more
+        # line for `resolve` to place, and one the refusal there would name
+        # as a change to the shared history.
+        print(f"aide insights add: insights.md carries an unresolved git "
+              f"conflict — run `{aide_command(repo_root, 'insights resolve')}` "
+              f"first, then capture", file=sys.stderr)
+        return 2
+    before = _snapshot([path])
+    _append_line_bytes(path, line)
+    pool = load_insight_pool(ddir)
+    live_ids = [i for (rel, _), i in zip(pool, insight_ids([e for _, e in pool]))
+                if rel == "insights.md"]
+    iid = live_ids[-1] if live_ids else None
+    handle = iid or "(no ID)"
+    if _commits_here(args.no_commit, repo_root, before):
+        rc = _commit_or_restore(
+            repo_root, config, "aide insights add", "the capture",
+            f"docs(aide): capture insight {handle}",
+            [f"{ddir_rel}/insights.md"], before)
+        if rc != 0 and _snapshot([path]) == before:
+            # Put back: there is no entry to cite, so no ID is printed.
+            return rc
+        if rc != 0:
+            # Committed, but its replay onto origin stopped: the entry is in
+            # a commit here, and its ID stands.
+            print(f"aide insights add: captured insight {handle} — cite it "
+                  f"by that ID")
+            return rc
+    print(f"aide insights add: captured insight {handle} — cite it by that ID")
     return 0
 
 
@@ -9124,7 +10761,7 @@ def _cmd_insights_archive(path: Path, text: str, ddir: Path, ddir_rel: str,
     path.write_text(remaining, encoding="utf-8")
     print(f"aide insights archive: moved {total} entr{'y' if total == 1 else 'ies'}; "
           f"{len(parse_insights(remaining))} remain — their list numbers have shifted")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         code = _commit_or_restore(
             repo_root, config, "aide insights archive", "the archive",
             f"docs(aide): archive insights closed before {args.before}",
@@ -9151,13 +10788,13 @@ def _is_unmerged(repo_root: Path, rel: str) -> bool:
     routine here — `check`, `claim` and `queue start` each create the inbox
     from the template when it is missing — and conflating the two made the
     verb decline to stage exactly the conflict a consumer hits first.
+
+    Outside a repository, no. A git that is not there, or refuses the
+    repository, is `in_repository`'s `MissingTool`, not an answer here.
     """
-    if not (repo_root / ".git").exists():
+    if not in_repository(repo_root):
         return False
-    try:
-        out = git(["ls-files", "-u", "--", rel], repo_root, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return False
+    out = git(["ls-files", "-u", "--", rel], repo_root, check=False)
     return out.returncode == 0 and bool(out.stdout.strip())
 
 
@@ -9165,16 +10802,14 @@ def _merge_base_text(repo_root: Path, rel: str) -> Optional[str]:
     """Stage 1 of *rel* — the merge base of a stalled merge or rebase, or None.
 
     What turns the resolver's append check from an inference into a fact.
-    ``None`` covers every way it can be absent: no repository, no conflict, an
-    add/add conflict that has no base at all, or git off PATH. The resolver
-    falls back to comparing the two sides alone.
+    ``None`` covers every way it can be absent: no repository, no conflict,
+    or an add/add conflict that has no base at all, and the resolver then
+    falls back to comparing the two sides alone. A git that is not there is
+    not one of them: `_is_unmerged` raises `MissingTool` first (issue #352).
     """
     if not _is_unmerged(repo_root, rel):
         return None
-    try:
-        out = git(["show", f":1:{rel}"], repo_root, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return None
+    out = git(["show", f":1:./{rel}"], repo_root, check=False)
     return out.stdout if out.returncode == 0 else None
 
 
@@ -9461,7 +11096,8 @@ def _ledger_diff_cells(repo_root: Path, config, number: int,
                 merge_base, branch], repo_root, check=False)
     if diff.returncode != 0:
         return "", ""
-    changed = [line.strip() for line in diff.stdout.splitlines() if line.strip()]
+    changed = root_relative(repo_root, [line.strip() for line in
+                                        diff.stdout.splitlines() if line.strip()])
     added = added_test_functions(repo_root, config, changed, merge_base,
                                  renamed_paths(repo_root, merge_base), ref=branch)
     own, others = split_reconciled_tests(repo_root, config, added, number)
@@ -9577,7 +11213,8 @@ def append_ledger_row(repo_root: Path, config, cells: List[str],
         if not template.is_file():
             print(f"aide {verb}: {rel} is missing and could not be created — "
                   f"{_rel_display(template, repo_root)} is not there, so the "
-                  f"install is incomplete (`python install.py --into . --check` "
+                  f"install is incomplete (`{printed_python(repo_root)} "
+                  f"install.py --into . --check` "
                   f"from a framework checkout says how)", file=sys.stderr)
             return None
         path.write_bytes(template.read_bytes())
@@ -9588,6 +11225,45 @@ def append_ledger_row(repo_root: Path, config, cells: List[str],
         text += "\n"
     path.write_text(text + ledger_row(cells) + "\n", encoding="utf-8")
     return rel
+
+
+def _merged_row_already_recorded(repo_root: Path, config, number: int,
+                                 cells: List[str]) -> Optional[str]:
+    """``ledger.md:<line>`` of the row an earlier merge of this item wrote, or None.
+
+    Only where the item is **already ✅** on every bullet before this run
+    ticks it (issue #346): a merge whose tick commit landed and whose push
+    failed is re-run with the ✅ and the row both in place, and a second row
+    would be a second record of one merge. A reopened item is never ✅ when it merges again —
+    `progress reopen` sends every bullet back to 📋 — so the second row §1 →
+    `ledger.md` expects for it is appended as before; so is the first row of
+    an item ticked by hand ahead of its merge, since there is no `merged` row
+    for it to find. Matched on the item and its queue, as the row records
+    them.
+    """
+    ddir = docs_dir(repo_root, config)
+    progress, path = ddir / "progress.md", ledger_path(ddir)
+    if not (progress.is_file() and path.is_file()):
+        return None
+    try:
+        lines = progress.read_text(encoding=_ENCODING).splitlines()
+        rows = ledger_rows(path.read_text(encoding=_ENCODING))
+    except (OSError, UnicodeDecodeError):
+        return None
+    # Every bullet ✅, not the most advanced one `_parse_item_status` reports:
+    # a reopened item with one bullet ticked by hand is still owed its row.
+    statuses = [ICON_TO_STATUS[_BULLET_RE.match(lines[start]).group("icon")]
+                for start, last in _deliverable_bullet_spans(lines)
+                if number in _bullet_marker_item_numbers(lines[last])]
+    if not statuses or any(st != "complete" for st in statuses):
+        return None
+    want = dict(zip(LEDGER_COLUMNS, cells))
+    for lineno, row_cells in rows:
+        row = dict(zip(LEDGER_COLUMNS, row_cells))
+        if (row.get("Item") == want["Item"] and row.get("Outcome") == "merged"
+                and row.get("Queue", "") == want["Queue"]):
+            return f"{path.name}:{lineno}"
+    return None
 
 
 def ledger_rows(text: str) -> List[Tuple[int, List[str]]]:
@@ -9673,10 +11349,38 @@ def ledger_warnings(ddir: Path) -> List[str]:
     return out
 
 
+#: Which of `ledger`'s options each action reads; one given to the other action
+#: is a usage error, never silently ignored — `report --rounds 3` must not read
+#: as though it recorded something (the `_QUEUE_OPTIONS` reasoning).
+_LEDGER_OPTIONS = {
+    "abandon": {"number", "rounds", "findings", "no_commit"},
+    "report": {"queue", "as_json"},
+}
+
+
 def cmd_ledger(args: argparse.Namespace) -> int:
-    """Write a ledger row for an item no merge will ever write one for."""
+    """Write a ledger row for an item no merge will ever write one for, or
+    report on the rows already written."""
+    stray = sorted(opt for action, opts in _LEDGER_OPTIONS.items()
+                   if action != args.action for opt in opts
+                   if getattr(args, opt, None) is not None
+                   and getattr(args, opt, None) is not False)
+    if stray:
+        names = ", ".join("<number>" if o == "number" else
+                          "--json" if o == "as_json" else
+                          "--" + o.replace("_", "-") for o in stray)
+        verb = "does" if len(stray) == 1 else "do"
+        print(f"aide ledger {args.action}: {names} {verb} not belong to "
+              f"{args.action}, which does not read it", file=sys.stderr)
+        return 2
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if args.action == "report":
+        return _ledger_report_command(repo_root, config, args)
+    if args.number is None:
+        print(f"aide ledger {args.action}: the item number is required",
+              file=sys.stderr)
+        return 2
     if args.rounds is None:
         print(f"aide ledger {args.action}: --rounds is required — the round "
               f"count is why this row exists, and an abandoned item with no "
@@ -9716,7 +11420,7 @@ def cmd_ledger(args: argparse.Namespace) -> int:
         return 1
     print(f"aide ledger {args.action}: item {args.number:03d} recorded in {rel} "
           f"as abandoned after {args.rounds} round(s)")
-    if not args.no_commit and (repo_root / ".git").exists():
+    if _commits_here(args.no_commit, repo_root, before):
         # No pull: this is an append to a file the loop owns, on whatever
         # branch the cap was hit on, and a verb that only records must not
         # fetch on the caller's behalf (`ensure_insights_inbox` reasons the
@@ -9729,7 +11433,245 @@ def cmd_ledger(args: argparse.Namespace) -> int:
             return 1
     print(f"aide ledger {args.action}: progress.md is untouched — this verb "
           f"records what the run cost and decides nothing about the item's "
-          f"status")
+          f"status; if its owner decides against the work, `aide progress "
+          f"set {args.number:03d} dropped --reason …` records that")
+    return 0
+
+
+# ledger report — the rows read back, per engine cohort and kind (issue #251)
+# --------------------------------------------------------------------------- #
+#: The first engine whose finding cells mean what §1 → `ledger.md` says: from
+#: 1.59.0 a no-review run writes `-`, so a blank is a count not passed. Before
+#: it a blank finding cell could also be a project with no reviewer at all,
+#: and a ratio over such rows is not the reading a later cohort's is.
+LEDGER_FINDINGS_SINCE = (1, 59, 0)
+#: Where each kind sits in a report; a kind outside the vocabulary follows,
+#: as written.
+_LEDGER_KIND_ORDER = ("normal", "maintenance", "validate-stage")
+
+
+def _ledger_engine_key(cell: str) -> Optional[Tuple[int, int, int]]:
+    """``"2.25.0"`` -> ``(2, 25, 0)``; anything else -> ``None``."""
+    m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", cell.strip())
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+
+
+def _ledger_count(cell: str) -> Optional[int]:
+    """A cell's integer, or ``None`` for a blank or anything that is not one."""
+    return int(cell) if re.fullmatch(r"[0-9]+", cell.strip()) else None
+
+
+def _ratio(numerator: float, denominator: float) -> Optional[float]:
+    return round(numerator / denominator, 2) if denominator else None
+
+
+def ledger_report(text: str, queue: Optional[int] = None) -> Dict[str, object]:
+    """The readings `aide ledger report` prints, over a ledger's text.
+
+    Pure: a function of the rows alone, so the verb's `-h` is a statement
+    about this and nothing else. Every ratio is returned with its `n`, the
+    rows it was drawn from, and never averaged across two kinds (§1 →
+    `ledger.md`). What it reads the cells as, each exactly as the section
+    defines them: a blank is unrecorded and joins no ratio; `-` says no review
+    ran and joins no finding ratio; a merged row whose Tests and Files are
+    both `0` lost its diff rather than measured an empty one.
+    """
+    skipped: List[int] = []
+    rows: List[Tuple[int, Dict[str, str]]] = []
+    queue_at = LEDGER_COLUMNS.index("Queue")
+    for lineno, cells in ledger_rows(text):
+        if queue is not None and (len(cells) <= queue_at
+                                  or _ledger_count(cells[queue_at]) != queue):
+            continue
+        if len(cells) not in (len(LEDGER_COLUMNS), LEDGER_TEMPLATE_2_WIDTH):
+            skipped.append(lineno)
+            continue
+        cells = cells + [""] * (len(LEDGER_COLUMNS) - len(cells))
+        rows.append((lineno, dict(zip(LEDGER_COLUMNS, cells))))
+
+    # A merge re-run after a failed push, before 2.25.1 (issue #346),
+    # appended a second `merged` row for the item with its diff read after
+    # the branch had landed: Tests and Files both 0. That row is the
+    # duplicate and the earlier one is the record; any other repeat is a
+    # reopened item merged again, and both rows count.
+    def number(cell: str) -> str:
+        value = _ledger_count(cell)
+        return cell if value is None else str(value)
+
+    merged_before: Set[Tuple[str, str]] = set()
+    dropped: List[int] = []
+    kept: List[Tuple[int, Dict[str, str]]] = []
+    for lineno, row in rows:
+        key = (number(row["Item"]), number(row["Queue"]))
+        if row["Outcome"] == "merged":
+            if (key in merged_before and _ledger_count(row["Tests"]) == 0
+                    and _ledger_count(row["Files"]) == 0):
+                dropped.append(lineno)
+                continue
+            merged_before.add(key)
+        kept.append((lineno, row))
+
+    groups: Dict[Tuple[str, str], List[Dict[str, str]]] = {}
+    for _, row in kept:
+        groups.setdefault((row["Engine"], row["Kind"]), []).append(row)
+
+    def order(key: Tuple[str, str]):
+        engine, kind = key
+        version = _ledger_engine_key(engine)
+        rank = (_LEDGER_KIND_ORDER.index(kind) if kind in _LEDGER_KIND_ORDER
+                else len(_LEDGER_KIND_ORDER))
+        return (version is None, version or (0, 0, 0), engine, rank, kind)
+
+    cohorts: List[Dict[str, object]] = []
+    for key in sorted(groups, key=order):
+        cohorts.append(_ledger_group(key[0], key[1], groups[key]))
+    return {"rows": len(kept), "skipped": skipped, "counted_once": dropped,
+            "cohorts": cohorts}
+
+
+def _ledger_group(engine: str, kind: str,
+                  rows: List[Dict[str, str]]) -> Dict[str, object]:
+    """One cohort-and-kind's readings — see ``ledger_report``."""
+    version = _ledger_engine_key(engine)
+    withheld = version is None or version < LEDGER_FINDINGS_SINCE
+    unrecorded = {c: 0 for c in ("ACs", "Tests", "Files") + LEDGER_COUNT_COLUMNS}
+    rounds: List[int] = []
+    tests = criteria = tests_n = 0
+    found = {c: [] for c in LEDGER_FINDING_COLUMNS}
+    no_review = blank = cells = unknown_diff = 0
+    for row in rows:
+        ac, test, files = (_ledger_count(row[c]) for c in ("ACs", "Tests", "Files"))
+        if row["Outcome"] == "merged" and test == 0 and files == 0:
+            test = files = None
+            unknown_diff += 1
+        for column, value in (("ACs", ac), ("Tests", test), ("Files", files)):
+            unrecorded[column] += value is None
+        # A spec with no criterion has no tests-per-criterion to give.
+        if ac and test is not None:
+            tests, criteria, tests_n = tests + test, criteria + ac, tests_n + 1
+        r = _ledger_count(row["Rounds"])
+        cells += 1
+        if r is None:
+            unrecorded["Rounds"] += 1
+            blank += 1
+        else:
+            rounds.append(r)
+        if withheld:
+            continue
+        if any(row[c] == LEDGER_NO_REVIEW_CELL for c in LEDGER_FINDING_COLUMNS):
+            no_review += 1
+        for column in LEDGER_FINDING_COLUMNS:
+            if row[column] == LEDGER_NO_REVIEW_CELL:
+                continue
+            cells += 1
+            value = _ledger_count(row[column])
+            if value is None:
+                unrecorded[column] += 1
+                blank += 1
+            else:
+                found[column].append(value)
+    histogram: Dict[str, int] = {}
+    for r in sorted(rounds):
+        histogram[str(r)] = histogram.get(str(r), 0) + 1
+
+    def dated(column: str) -> List[str]:
+        return sorted({row[column] for row in rows if row[column]},
+                      key=lambda v: (_ledger_count(v) is None,
+                                     _ledger_count(v) or 0, v))
+
+    dates = sorted(row["Date"] for row in rows if row["Date"])
+    return {
+        "engine": engine, "kind": kind, "rows": len(rows),
+        "merged": sum(row["Outcome"] == "merged" for row in rows),
+        "abandoned": sum(row["Outcome"] == "abandoned" for row in rows),
+        "queues": dated("Queue"), "stages": dated("Stage"),
+        "first_date": dates[0] if dates else None,
+        "last_date": dates[-1] if dates else None,
+        "rounds": {"per_item": _ratio(sum(rounds), len(rounds)),
+                   "n": len(rounds), "max": max(rounds) if rounds else None,
+                   "histogram": histogram},
+        "tests_per_ac": {"value": _ratio(tests, criteria), "n": tests_n},
+        "findings": None if withheld else {
+            column.lower(): {"per_item": _ratio(sum(values), len(values)),
+                             "n": len(values)}
+            for column, values in found.items()},
+        "no_review": None if withheld else no_review,
+        "caller_blank": {"blank": blank, "cells": cells},
+        "unrecorded": {c: (None if withheld and c in LEDGER_FINDING_COLUMNS
+                           else n) for c, n in unrecorded.items()},
+        "unknown_diff": unknown_diff,
+    }
+
+
+def _ledger_reading(value: Optional[float], n: int) -> str:
+    return "—" if value is None else f"{value:g} (n={n})"
+
+
+def _ledger_report_table(report: Dict[str, object]) -> List[str]:
+    """The report as a markdown table, one line per cohort and kind."""
+    head = ["Engine", "Kind", "Stages", "Rows", "Merged", "Abandoned",
+            "Rounds/item", "Rounds", "Tests/AC", "Blocking/item",
+            "Minor/item", "Nit/item", "Blank"]
+    body = []
+    for c in report["cohorts"]:
+        findings = c["findings"]
+        ranks = (["withheld"] * 3 if findings is None else
+                 [_ledger_reading(findings[r]["per_item"], findings[r]["n"])
+                  for r in LEDGER_FINDING_RANKS])
+        body.append([
+            c["engine"] or "(blank)", c["kind"] or "(blank)",
+            ",".join(c["stages"]) or "—", str(c["rows"]), str(c["merged"]),
+            str(c["abandoned"]),
+            _ledger_reading(c["rounds"]["per_item"], c["rounds"]["n"]),
+            " ".join(f"{k}:{v}" for k, v in c["rounds"]["histogram"].items())
+            or "—",
+            _ledger_reading(c["tests_per_ac"]["value"], c["tests_per_ac"]["n"]),
+            *ranks,
+            f"{c['caller_blank']['blank']}/{c['caller_blank']['cells']}"])
+    widths = [max(len(r[i]) for r in [head] + body) for i in range(len(head))]
+
+    def line(cells: List[str]) -> str:
+        return "| " + " | ".join(v.ljust(w) for v, w in zip(cells, widths)) + " |"
+    return ([line(head), "|" + "|".join("-" * (w + 2) for w in widths) + "|"]
+            + [line(r) for r in body])
+
+
+def _ledger_report_command(repo_root: Path, config,
+                           args: argparse.Namespace) -> int:
+    """`aide ledger report` — read-only, so a missing file is a report too."""
+    path = ledger_path(docs_dir(repo_root, config))
+    rel = _rel_display(path, repo_root)
+    queue = args.queue
+    if not path.is_file():
+        if args.as_json:
+            print(json.dumps({"ledger": rel, "exists": False,
+                              "queue": queue, "rows": 0, "skipped": [],
+                              "counted_once": [], "cohorts": []}, indent=2))
+        else:
+            print(f"aide ledger report: no {rel} — no item has been merged or "
+                  f"abandoned through the engine yet; nothing to report")
+        return 0
+    report = ledger_report(path.read_text(encoding=_ENCODING), queue)
+    if args.as_json:
+        print(json.dumps({"ledger": rel, "exists": True, "queue": queue,
+                          **report}, indent=2, ensure_ascii=False))
+        return 0
+    scope = f" on queue {queue:03d}" if queue is not None else ""
+    if not report["cohorts"]:
+        print(f"aide ledger report: {rel} holds no row{scope}")
+    else:
+        print(f"aide ledger report: {report['rows']} row(s){scope} in {rel}, "
+              f"by Engine cell and Kind (n = the rows a ratio is drawn from)")
+        print()
+        for text in _ledger_report_table(report):
+            print(text)
+    if report["counted_once"]:
+        print(f"counted once: {', '.join(f'{path.name}:{n}' for n in report['counted_once'])} "
+              f"— a repeat merged row with Tests and Files both 0, a merge "
+              f"re-run's duplicate; the earlier row is read")
+    if report["skipped"]:
+        print(f"skipped: {', '.join(f'{path.name}:{n}' for n in report['skipped'])} "
+              f"— a cell count no ledger template draws (`aide check` names it)")
     return 0
 
 
@@ -9821,6 +11763,8 @@ def _queue_start(args: argparse.Namespace) -> int:
     """
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("queue start", repo_root):
+        return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
     branch = (specs_queue_branch_name(prefix, args.number) if args.specs
@@ -9999,7 +11943,7 @@ def _queue_gate(args: argparse.Namespace) -> int:
         gid = next(i for g, i in zip(gates, ids) if gate_hash(g) == key(cell))
         state = "raised" if (cell, blocks) in new else "already raised"
         print(f"{gid}: {state} — {cell} (blocks {blocks})")
-    if new and not args.no_commit and (repo_root / ".git").exists():
+    if new and _commits_here(args.no_commit, repo_root, before):
         # A row left written and uncommitted reads as "already raised" to a
         # re-run, which would then never commit it.
         return _commit_or_restore(repo_root, config, tag, "the gate row",
@@ -10020,7 +11964,8 @@ def _queue_pr_branch(repo_root: Path, config: Dict[str, Dict[str, object]],
     ``<prefix>queue-NNN``, which must be a local branch, else the current
     branch, which must be one. A specs-queue branch is not: its work lands on
     its queue branch, which carries the PR. Then the forge must be reachable
-    at all — `local` mode and a checkout with no origin open no PR.
+    at all — `[git] forge = "none"`, `local` mode and a checkout with no
+    origin open no PR.
     """
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
@@ -10038,6 +11983,10 @@ def _queue_pr_branch(repo_root: Path, config: Dict[str, Dict[str, object]],
                   f"queue number", file=sys.stderr)
             return None, None
         number = int(branch[len(prefix) + len(_QUEUE_TOKEN):])
+    if declared_forge(config) == "none":
+        print(f'{tag}: no forge is declared (git.forge = "none")',
+              file=sys.stderr)
+        return None, None
     if mode == "local":
         print(f"{tag}: git.mode is \"local\", which pushes nothing and opens "
               f"no pull request", file=sys.stderr)
@@ -10104,6 +12053,8 @@ def _queue_pr(args: argparse.Namespace) -> int:
             return 2
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("queue pr", repo_root):
+        return 1
     branch, number = _queue_pr_branch(repo_root, config, tag, args.number)
     if branch is None or number is None:
         return 1
@@ -10160,6 +12111,8 @@ def _queue_ready(args: argparse.Namespace) -> int:
     tag = "aide queue ready" + (" --undo" if args.undo else "")
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("queue ready", repo_root):
+        return 1
     branch, number = _queue_pr_branch(repo_root, config, tag, args.number)
     if branch is None or number is None:
         return 1
@@ -10429,7 +12382,7 @@ def _restack_merge(repo_root: Path, upper: str, other: str, current: str,
         res = git([*cmd, upper, other], repo_root, check=False)
         lines = res.stdout.splitlines()
         if res.returncode == 1:
-            paths = [l.strip() for l in lines[1:] if l.strip()]
+            paths = root_relative(repo_root, [l.strip() for l in lines[1:] if l.strip()])
             return f"conflicts in {', '.join(paths) or 'the tree'}"
         if res.returncode != 0 or not lines:
             return (res.stderr.strip() or f"git merge-tree exited {res.returncode}")
@@ -10475,6 +12428,8 @@ def _queue_restack(args: argparse.Namespace) -> int:
     """
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("queue restack", repo_root):
+        return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
     main = str(config["git"].get("main_branch", "main"))
@@ -10868,11 +12823,18 @@ def venv_python(repo_root: Path, config: Dict[str, Dict[str, object]]) -> Path:
     return venv / "bin" / "python"
 
 
+def has_venv(config: Dict[str, Dict[str, object]]) -> bool:
+    """Does this project keep a venv? ``[python] venv = ""`` says it does not
+    (issue #354): a project in another language, whose `aide env` would
+    otherwise fail forever on a venv nobody meant to build."""
+    return bool(str(config["python"].get("venv", ".venv") or "").strip())
+
+
 def resolve_test_command(repo_root: Path, config: Dict[str, Dict[str, object]]) -> List[str]:
     """The configured test command, with a leading ``python`` bound to the venv."""
     raw = str(config["python"].get("test_command", "python -m pytest")).split()
     vpy = venv_python(repo_root, config)
-    if raw and raw[0] == "python" and vpy.exists():
+    if raw and raw[0] == "python" and has_venv(config) and vpy.exists():
         return [str(vpy), *raw[1:]]
     return raw
 
@@ -11009,6 +12971,274 @@ def env_status(repo_root: Path, config: Dict[str, Dict[str, object]]) -> str:
     return env_report(repo_root, config)[0]
 
 
+# --------------------------------------------------------------------------- #
+# the dependency report — what this machine has for what the config asks
+# --------------------------------------------------------------------------- #
+class Requirement(NamedTuple):
+    """One line of `aide env`'s dependency report (issue #354).
+
+    ``needed_by`` is what makes the requirement one — ``"always"``, or the
+    setting that asks for it (``[git] mode = "pr"``) — and ``None`` where the
+    configuration does not need it. ``refusal`` is the sentence for a
+    requirement the configuration needs and this machine lacks, naming the
+    setting and the two ways out: meet it, or change the setting. Never an
+    adaptation: nothing here lowers a mode to fit the machine. ``in_check``
+    marks the four `aide check` also errors on — git, the repository,
+    `origin`, the test command — decidable offline and about the project; a
+    gh login needs the network, and the interpreter and venv are `env`'s own.
+    ``note`` is a fact worth fixing that fails nothing: the interpreter the
+    engine prints in its suggestions, which no verb runs.
+    """
+    name: str
+    found: str
+    needed_by: Optional[str]
+    refusal: Optional[str] = None
+    in_check: bool = False
+    note: Optional[str] = None
+
+
+def origin_url(repo_root: Path) -> Optional[str]:
+    """The URL of the remote named ``origin``, or None when there is none."""
+    res = git(["remote", "get-url", "origin"], repo_root, check=False)
+    url = res.stdout.strip()
+    return url if res.returncode == 0 and url else None
+
+
+def _version_text(repo_root: Path) -> Optional[str]:
+    """git's own version string (``2.43.0``), or None when unreadable."""
+    out = git(["--version"], repo_root, check=False).stdout
+    m = re.search(r"\d+\.\d+(?:\.\d+)?", out)
+    return m.group(0) if m else None
+
+
+def _git_requirement(repo_root: Path, offline: bool
+                     ) -> Tuple[Requirement, bool]:
+    """The git line, and whether git can be run for the lines after it.
+    *offline* leaves the version out: it decides no refusal, and a check
+    pays for every spawn."""
+    try:
+        exe = resolve_tool("git", repo_root)
+    except ToolMisconfigured as exc:
+        return Requirement("git", "not run", "always", str(exc), True), False
+    if exe is None:
+        return Requirement(
+            "git", "not on PATH", "always",
+            "git is not on PATH — every claim, merge and document edit is "
+            "recorded in git; install it, or name one in [tools] git in "
+            f"{LOCAL_CONFIG.as_posix()}", True), False
+    if offline:
+        return Requirement("git", exe, "always", None, True), True
+    text = _version_text(repo_root)
+    version = (tuple(int(n) for n in text.split(".")[:2])
+               if text is not None else None)
+    features = []
+    for minimum, what in ((_MERGE_TREE_MIN_GIT, "merge-tree --write-tree "
+                           "(gc's landed check)"),
+                          (_MERGE_BASE_OPTION_MIN_GIT, "merge-tree --merge-base "
+                           "(queue restack past a squash)")):
+        has = version is not None and version >= minimum
+        features.append(f"{what}, {minimum[0]}.{minimum[1]}+: "
+                        f"{'yes' if has else 'no'}")
+    found = f"{exe}, {text or 'version unreadable'} — {'; '.join(features)}"
+    return Requirement("git", found, "always", None, True), True
+
+
+def _repository_requirement(repo_root: Path, git_runs: bool
+                            ) -> Tuple[Requirement, bool]:
+    """The repository line, and whether there is one for `origin` to be in."""
+    if not git_runs:
+        return Requirement("repository", "not asked — git cannot be run",
+                           "always", None, True), False
+    try:
+        top = git_toplevel(repo_root)
+    except MissingTool as exc:
+        return Requirement("repository", "unreadable", "always", str(exc),
+                           True), False
+    if top is None:
+        return Requirement(
+            "repository", "none", "always",
+            f"{repo_root} is not inside a git repository — the loop records "
+            f"its work in git; run 'git init' there", True), False
+    if not (Path(repo_root) / "aide.toml").is_file():
+        where = "no aide.toml at the repo root, so the defaults apply"
+    else:
+        rel = _root_prefix(repo_root)
+        where = ("aide.toml at its top level" if not rel
+                 else f"aide.toml in {'/'.join(rel)}/, below its top level")
+    return Requirement("repository", f"{top} ({where})", "always", None,
+                       True), True
+
+
+def dependency_report(repo_root: Path, config: Dict[str, Dict[str, object]],
+                      offline: bool = False) -> List[Requirement]:
+    """Each requirement this project's configuration makes of the machine,
+    what the machine has, and the refusal where a needed one is missing
+    (issue #354): git, the repository, `origin`, `gh`, the test command,
+    Python and the venv, in that order.
+
+    *offline* is the half `aide check` and `install.py` run — git, the
+    repository, `origin` and the test command, the lines marked
+    ``in_check``: the `gh` login is asked of the forge, and the interpreter
+    and the venv cost spawns a check has no use for. A
+    requirement that cannot be asked because an earlier one is missing (no
+    `origin` without a repository) says so and adds no refusal of its own.
+    Under ``[git] mode`` other than ``local`` — any value but ``local`` runs
+    as a mode that pushes — `origin` is needed, and `gh` too unless ``[git]
+    forge = "none"`` declares no forge, which leaves the `gh` line out
+    (issue #355).
+    """
+    lines: List[Requirement] = []
+    git_line, git_runs = _git_requirement(repo_root, offline)
+    lines.append(git_line)
+    repo_line, in_repo = _repository_requirement(repo_root, git_runs)
+    lines.append(repo_line)
+
+    mode = config.get("git", {}).get("mode", "auto-merge")
+    pushes = mode != "local"
+    setting = f'[git] mode = "{mode}"' if pushes else None
+    unneeded = '' if pushes else ' (not needed under [git] mode = "local")'
+    if not in_repo:
+        lines.append(Requirement("origin", "not asked — no repository",
+                                 setting, None, True))
+    else:
+        url = origin_url(repo_root)
+        refusal = None
+        if url is None and pushes:
+            refusal = (f'{setting} in aide.toml needs a remote named origin — '
+                       f"add one ('git remote add origin <url>'), or set "
+                       f'[git] mode = "local"')
+        lines.append(Requirement("origin", (url or "none") + unneeded,
+                                 setting, refusal, True))
+
+    no_forge = declared_forge(config) == "none"
+    # Out of a gh refusal's ways out under `pr`, which needs a forge.
+    other = (' or [git] forge = "none"' if mode != "pr" else "")
+    if not offline and not no_forge:
+        try:
+            gh = resolve_tool("gh", repo_root)
+            misconfigured = None
+        except ToolMisconfigured as exc:
+            gh, misconfigured = None, str(exc)
+        refusal = None
+        if misconfigured is not None:
+            found = "not run"
+            refusal = misconfigured if pushes else None
+        elif gh is None:
+            found = "not on PATH"
+            if pushes:
+                refusal = (f"{setting} in aide.toml needs gh, which opens and "
+                           f"reads the queue's pull request — install it, or "
+                           f"name one in [tools] gh in "
+                           f"{LOCAL_CONFIG.as_posix()}, or set [git] mode = "
+                           f'"local"{other}')
+        elif not pushes:
+            found = gh                  # never asked: `local` asks no forge
+        else:
+            _, why = _gh(repo_root, ["auth", "status"])
+            found = f"{gh}, " + ("logged in" if why is None
+                                 else f"no login confirmed ({why})")
+            if why is not None:
+                refusal = (f"{setting} in aide.toml needs gh logged in, and "
+                           f"'gh auth status' did not confirm one ({why}) — "
+                           f"run 'gh auth login', or set [git] mode = "
+                           f'"local"{other}')
+        lines.append(Requirement("gh", found + unneeded, setting, refusal))
+
+    raw = str(config["python"].get("test_command", "python -m pytest")).split()
+    if not raw:
+        lines.append(Requirement(
+            "test command", "empty", "always",
+            "[python] test_command is empty in aide.toml — set it", True))
+    else:
+        argv = resolve_test_command(repo_root, config)
+        if argv[0] != raw[0]:
+            lines.append(Requirement("test command",
+                                     f"{raw[0]} → {argv[0]} (the venv)",
+                                     "always", None, True))
+        elif argv[0] == "git" and not git_runs:
+            lines.append(Requirement("test command", "git, as above",
+                                     "always", None, True))
+        else:
+            try:
+                found_at = resolve_tool(argv[0], repo_root)
+                refusal = None
+            except ToolMisconfigured as exc:
+                found_at, refusal = None, str(exc)
+            if refusal is not None:
+                pass
+            elif found_at is None and raw[0] == "python":
+                build = (f"build the venv ('{aide_command(repo_root, 'env --bootstrap')}'), "
+                         if has_venv(config) else "")
+                instead = ""
+                if shutil.which("python3"):
+                    instead = (" — this machine has python3, so '"
+                               + " ".join(["python3", *raw[1:]])
+                               + "' would run")
+                refusal = (f"the test command's 'python' is not on PATH, and "
+                           f"there is no venv to run it from — {build}put a "
+                           f"python on PATH, or change [python] test_command "
+                           f"in aide.toml{instead}")
+            elif found_at is None:
+                refusal = str(RunnerMissing(argv[0], repo_root))
+            lines.append(Requirement("test command",
+                                     f"{argv[0]} → {found_at or 'not found'}",
+                                     "always", refusal, True))
+
+    if offline:
+        return lines
+    printed = printed_python(repo_root)
+    bare = printed.strip('"')
+    if _has_directory(bare) and not os.path.isabs(bare):
+        bare = str(Path(repo_root) / bare)
+    printed_at = shutil.which(bare)
+    if printed_at is None and os.name == "nt" and _has_directory(bare):
+        printed_at = _pathext_file(bare)
+    found = (f"the engine runs on {sys.executable} "
+             f"({sys.version_info[0]}.{sys.version_info[1]}); the commands it "
+             f"suggests start {printed}"
+             + (f" ({printed_at})" if printed_at else ", which is not found"))
+    # A note, never a refusal: the printed interpreter decides only what a
+    # suggestion says, not what any verb runs (§4).
+    note = None
+    if printed_at is None:
+        fix = (f"set [tools] python = \"python3\" in "
+               f"{LOCAL_CONFIG.as_posix()} — this machine has python3"
+               if printed != "python3" and shutil.which("python3")
+               else f"put one on PATH, or name the interpreter to print in "
+                    f"[tools] python in {LOCAL_CONFIG.as_posix()}")
+        note = (f"the engine prints '{printed}' in the commands it suggests, "
+                f"and this machine has no {printed} on PATH; {fix}")
+    lines.append(Requirement("python", found, "always", None, note=note))
+
+    if has_venv(config):
+        venv = str(config["python"].get("venv", ".venv"))
+        status, detail = env_report(repo_root, config)
+        refusal = None
+        if status != "ok":
+            refusal = (f"the venv is {status} — {detail}; run "
+                       f"'{aide_command(repo_root, 'env --bootstrap')}' to "
+                       f'build it, or set [python] venv = "" in aide.toml '
+                       f"for a project with no venv")
+        lines.append(Requirement("venv", f"{status} — {detail}",
+                                 f'[python] venv = "{venv}"', refusal))
+    return lines
+
+
+#: What `aide check` puts before an error about the machine rather than the
+#: documents (issue #354): reported to a person, never fixed by editing
+#: `aide.toml` to fit.
+MACHINE_PREFIX = "this machine: "
+
+
+def dependency_errors(repo_root: Path,
+                      config: Dict[str, Dict[str, object]]) -> List[str]:
+    """`aide check`'s errors from the offline half of the dependency report:
+    a missing git, repository, `origin` or test command (issue #354)."""
+    found = [r.refusal for r in dependency_report(repo_root, config, offline=True)
+             if r.refusal and r.in_check]
+    return list(dict.fromkeys(found))
+
+
 #: Seconds a ``[validation]`` expression may run. Generous — importing a GPU
 #: stack and initialising its driver takes seconds — but finite: a profile is
 #: evaluated inside unattended runs, where a hang stalls the loop silently.
@@ -11032,7 +13262,8 @@ def evaluate_profile(repo_root: Path, config: Dict[str, Dict[str, object]],
     never disagree about whether this machine has a capability.
     """
     vpy = venv_python(repo_root, config)
-    interpreter = str(vpy) if vpy.exists() else sys.executable
+    interpreter = (str(vpy) if has_venv(config) and vpy.exists()
+                   else sys.executable)
     code = f"import sys\nsys.exit(0 if ({expr}) else 1)"
     try:
         # §6: name the codec — a traceback carrying a non-ASCII path decodes
@@ -11070,14 +13301,52 @@ def cmd_env(args: argparse.Namespace) -> int:
               f"validation gated on it must record '❓ Unverified', never a silent pass")
         return 1
 
-    status, detail = env_report(repo_root, config)
-    if status == "ok":
-        print(f"aide env: OK ({detail})")
-        return 0
-    if not args.bootstrap:
-        print(f"aide env: {status} — {detail}; run "
-              f"'python .aide/scripts/aide.py env --bootstrap' to build it")
+    if args.bootstrap and not has_venv(config):
+        print('aide env: [python] venv = "" in aide.toml says this project '
+              'keeps no venv, so there is none to build — set it to a '
+              'directory to build one there', file=sys.stderr)
         return 1
+    if args.bootstrap:
+        # The venv alone, as before the report existed: the validator runs
+        # this to get a suite runner, and a gh login it does not need for
+        # that must not read as a failed build.
+        status, detail = env_report(repo_root, config)
+        if status == "ok":
+            print(f"aide env: OK ({detail})")
+            return 0
+        return _bootstrap_venv(repo_root, config)
+    return _print_dependency_report(repo_root, config)
+
+
+def _print_dependency_report(repo_root: Path,
+                             config: Dict[str, Dict[str, object]]) -> int:
+    """Print `dependency_report`, one line per requirement, then each
+    refusal and the verdict: exit 0 when nothing needed is missing, else 1."""
+    lines = dependency_report(repo_root, config)
+    print("aide env: what this machine has for this project's configuration")
+    width = max(len(r.name) for r in lines)
+    for r in lines:
+        needed = ("needed always" if r.needed_by == "always"
+                  else f"needed by {r.needed_by}" if r.needed_by
+                  else "not needed")
+        print(f"  {r.name:<{width}}  {r.found} · {needed}")
+    for r in lines:
+        if r.note:
+            print(f"aide env: note: {r.note}")
+    refusals = list(dict.fromkeys(r.refusal for r in lines if r.refusal))
+    for refusal in refusals:
+        print(f"aide env: {refusal}")
+    if refusals:
+        print(f"aide env: FAIL — {len(refusals)} requirement(s) this "
+              f"configuration needs are not met on this machine")
+        return 1
+    venv = next((r.found for r in lines if r.name == "venv"), None)
+    print(f"aide env: OK ({venv.partition(' — ')[2] if venv else 'no venv'})")
+    return 0
+
+
+def _bootstrap_venv(repo_root: Path, config: Dict[str, Dict[str, object]]) -> int:
+    """Build and populate the venv from `[python] interpreter`; 0 when built."""
     venv = _venv_dir(repo_root, config)
     bootstrap = str(config["python"].get("bootstrap", "pip install -e .[dev]")).split()
     interpreter = _configured_interpreter(config)
@@ -11192,8 +13461,12 @@ def _pick_item(repo_root: Path, config, queue_text: str,
                claim_branches: List[str]) -> Optional[Tuple[int, str]]:
     """First queue item that is planned, unclaimed, and unblocked. (number, title).
 
-    "Unblocked" covers three things: its `## Dependencies` are all under way,
-    no claim branch exists for it, and **no unresolved human gate holds it**. A
+    "Unblocked" covers four things: its `## Dependencies` are all under way,
+    no claim branch exists for it, **no unresolved human gate holds it**, and,
+    for a queue-end item, no other item of its queue still blocks
+    (`queue_end_holds`). An item every bullet of which sits in a withdrawn
+    stage is not planned work at all, and is skipped first
+    (`withdrawn_stage_items`, issue #387). A
     gate naming items (directly, or via a stage reach) skips just those, so the
     queue keeps producing other work; an `all` gate stops everything, which is
     the point of declaring one — a pending decision that could invalidate what
@@ -11215,12 +13488,23 @@ def _pick_item(repo_root: Path, config, queue_text: str,
     claimed_nums = {n for n in (_branch_item_number(br, prefix) for br in claim_branches)
                     if n is not None}
     titles = _queue_titles(queue_text)
+    holds = queue_end_holds(repo_root, config, queue_text, item_status)
+    withdrawn = withdrawn_stage_items(plines)
     for num in queue_item_numbers(queue_text):
         if item_status.get(num, "planned") != "planned":
+            continue
+        # A 📋 item whose every bullet sits in a withdrawn stage is work the
+        # plan no longer wants (issue #387); a dropped item is ❌, and so
+        # never reaches here.
+        if num in withdrawn:
             continue
         if num in claimed_nums:
             continue
         if num in gate_blocked:
+            continue
+        # A queue-end item waits for the rest of its queue, spec or no spec
+        # and wherever the file lists it (issue #347).
+        if holds.get(num):
             continue
         deps = _item_dependencies(repo_root, config, num)
         # 🔍 blocks like 🚧 does: an item whose PR is still open is work that is
@@ -11281,10 +13565,11 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     started: issue #137, where a failed push left a claim branch behind and
     the next run called the queue exhausted.
 
-    Two of the reasons are ordinary — a claim in flight, a dependency not
-    landed — and keep exit 0. An **unpublished** claim is not: it is a `claim`
-    whose push failed, holding an item on evidence no other checkout can see,
-    so it exits 1 and says how to finish or release it. Nor is an
+    Three of the reasons are ordinary — a claim in flight, a dependency not
+    landed, a stage withdrawn under a 📋 item (issue #387) — and keep exit
+    0. An **unpublished** claim is not: it is a `claim` whose push failed,
+    holding an item on evidence no other checkout can see, so it exits 1 and
+    says how to finish or release it. Nor is an
     **unreadable gate row**, which holds every item on a gate nobody can read:
     exit 1, naming the row.
 
@@ -11315,8 +13600,10 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     scan_order: List[int] = []
     seen = set()
     titles: Dict[int, str] = {}
+    holds: Dict[int, List[int]] = {}
     for qt in candidates:
         titles.update(_queue_titles(qt))
+        holds.update(queue_end_holds(repo_root, config, qt, item_status))
         for n in queue_item_numbers(qt):
             if n not in seen:
                 seen.add(n)
@@ -11324,6 +13611,13 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     open_items = {n for n in seen
                   if item_status.get(n, "planned") == "planned"}
     open_ordered = [n for n in scan_order if n in open_items]
+    # 📋 items of a withdrawn stage (issue #387) are named, never offered,
+    # and wait on nothing a gate or a claim could release: every reading
+    # below of what holds the queue takes the rest.
+    withdrawn = {n: st for n, st in withdrawn_stage_items(plines).items()
+                 if n in open_items}
+    live_items = open_items - set(withdrawn)
+    live_ordered = [n for n in open_ordered if n not in withdrawn]
 
     # Attribute the empty result to a gate ONLY when a gate actually explains
     # it: an `all` gate, or a gate reaching an item that is still open in a
@@ -11332,10 +13626,10 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     # false explanation, which is worse than none.
     def _reached(g):
         if g.blocks_all:
-            return set(open_items)
+            return set(live_items)
         if g.stage is not None:
-            return set(gate_stage_items(plines, g)) & open_items
-        return set(g.blocks) & open_items
+            return set(gate_stage_items(plines, g)) & live_items
+        return set(g.blocks) & live_items
 
     all_gates = human_gates(plines)
     relevant = [(n, g, gid) for n, (g, gid)
@@ -11350,28 +13644,64 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
         num = _branch_item_number(br, prefix)
         if num is not None:
             claimed.setdefault(num, br)
-    stranded = {n: br for n, br
-                in _unpublished_claim_branches(repo_root, config, prefix).items()
-                if n in open_items}
+    # A claim branch origin lacks holds its item without being work in flight,
+    # for one of three reasons (issue #364), and each exits 1: an exit 0 would
+    # tell the runner to wait on a hold nothing in the loop will release.
+    stranded = {n: pair for n, pair
+                in _off_origin_claim_branches(repo_root, config, prefix).items()
+                if n in live_items}
     gated: set = set()
     for _, g, _ in relevant:
         gated |= _reached(g)
-    early = _early_ready(repo_root, config, open_ordered,
+    early = _early_ready(repo_root, config, live_ordered,
                          [(n, g) for n, g, _ in relevant], gated,
-                         claimed, item_status, scan_order)
+                         claimed, item_status, scan_order, holds)
+
+    def _stranded_reason(num: int) -> str:
+        br, why = stranded[num]
+        if why.kind == OFF_ORIGIN_UNPUBLISHED:
+            return (f"claimed by {br}, WHICH ORIGIN HAS NEVER SEEN — the "
+                    f"claim's push did not land, so this item is held by a "
+                    f"claim no other checkout can see")
+        if why.kind == OFF_ORIGIN_GONE_LANDED:
+            return (f"claimed by {br}, which origin has DELETED and whose every "
+                    f"commit is already in {why.where} — its work landed or "
+                    f"the claim was abandoned; either way it is not in flight")
+        return (f"claimed by {br}, which origin has deleted and whose work "
+                f"COULD NOT BE FOUND in {why.where} — not in flight: it landed "
+                f"in a shape that cannot be measured here, or this checkout "
+                f"holds the only copy of it")
 
     def _stranded_lines() -> None:
         for num in open_ordered:
             if num in stranded:
                 print(f"  {num:03d} {titles.get(num, 'item ' + str(num))} — "
-                      f"claimed by {stranded[num]}, WHICH ORIGIN HAS NEVER "
-                      f"SEEN — the claim's push did not land, so this item is "
-                      f"held by a claim no other checkout can see")
+                      f"{_stranded_reason(num)}")
 
     def _stranded_notice() -> None:
-        print("  An unpublished claim is a failed 'aide claim' push, not work "
-              "in flight. Publish it ('git push -u origin <branch>') or "
-              "release the item ('git branch -D <branch>'), then claim again.")
+        kinds = {why.kind for _, why in stranded.values()}
+        if OFF_ORIGIN_UNPUBLISHED in kinds:
+            print("  An unpublished claim is a failed 'aide claim' push, not "
+                  "work in flight. Publish it ('git push -u origin <branch>') "
+                  "or release the item ('git branch -D <branch>'), then claim "
+                  "again.")
+        if OFF_ORIGIN_GONE_LANDED in kinds:
+            hints = sorted({_gc_merged_hint(why.where, config)
+                            for _, why in stranded.values()
+                            if why.kind == OFF_ORIGIN_GONE_LANDED})
+            print("  A claim branch deleted on origin with all of it already "
+                  "in its base is never re-published. If its work is the "
+                  "item's, record it ('aide progress set <NNN> done') first; "
+                  "then " + " / ".join(f"'{h}'" for h in hints) + " deletes "
+                  "the branch, releasing the item if it is still open.")
+        if OFF_ORIGIN_GONE_UNFOUND in kinds:
+            print("  A claim branch deleted on origin whose work could not be "
+                  "found in its base is never re-published blindly. A squash "
+                  "merge the base has since built over, or git older than "
+                  "2.38, hides landed work, so check whether its work merged: if "
+                  "it did, record the item ('aide progress set <NNN> done') "
+                  "and delete the branch ('git branch -D <branch>'); if not, "
+                  "land its work or release the item.")
 
     if relevant:
         print("none left — held by an unresolved human gate:")
@@ -11382,8 +13712,8 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
             print(f"  gate {n}: {g.text}{f' ({gid})' if gid else ''} — blocks {where}")
         print("  A person decides these, never an agent. Once decided: "
               "aide gate approve <n|ID> --evidence \"…\" (or gate decline <n|ID>).")
-        # A broken state is not hidden behind a gate: an unpublished claim
-        # exits 1 on this path exactly as on the per-item one.
+        # A broken state is not hidden behind a gate: an unpublished or
+        # deleted claim exits 1 on this path exactly as on the per-item one.
         if stranded:
             _stranded_lines()
             _stranded_notice()
@@ -11399,19 +13729,28 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     for num in open_ordered:
         head = f"  {num:03d} {titles.get(num, 'item ' + str(num))} —"
         br = claimed.get(num)
-        if num in stranded:
-            print(f"{head} claimed by {stranded[num]}, WHICH ORIGIN HAS NEVER "
-                  f"SEEN — the claim's push did not land, so this item is held "
-                  f"by a claim no other checkout can see")
+        if num in withdrawn:
+            stages = withdrawn[num]
+            print(f"{head} in withdrawn stage"
+                  f"{'' if len(stages) == 1 else 's'} {', '.join(stages)} "
+                  f"(❌ summary row), so not offered — drop it ('aide "
+                  f"progress set {num:03d} dropped --reason …'), or take the "
+                  f"stage's summary row off ❌")
+        elif num in stranded:
+            print(f"{head} {_stranded_reason(num)}")
         elif br is not None:
             print(f"{head} claimed by {br}, already in flight")
         else:
             blockers = [d for d in _item_dependencies(repo_root, config, num)
                         if item_status.get(d, "planned") in BLOCKING_STATUSES]
+            held_by = holds.get(num, [])
+            blockers += [d for d in held_by if d not in blockers]
             if blockers:
                 print(f"{head} waiting on "
                       + ", ".join(f"{d:03d} ({item_status.get(d, 'planned')})"
-                                  for d in blockers))
+                                  for d in blockers)
+                      + (" — a queue-end item, held until the rest of "
+                         "its queue has left the way" if held_by else ""))
             else:
                 print(f"{head} open and unblocked, yet not offered — please "
                       f"report this")
@@ -11426,7 +13765,8 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
 def _early_ready(repo_root: Path, config, open_ordered: List[int],
                  gates: List[Tuple[int, "HumanGate"]], gated: set,
                  claimed: Dict[int, str], item_status: Dict[int, str],
-                 scan_order: List[int]) -> str:
+                 scan_order: List[int],
+                 holds: Optional[Dict[int, List[int]]] = None) -> str:
     """The ``early ready:`` line ending a ``none left — …`` report that exits 0.
 
     ``yes`` when every gate holding the queue is still ⏳ awaiting its
@@ -11452,9 +13792,14 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
     held = {n for n in gated if n not in claimed}
     # An item waiting only on held items is held too: to a fixed point, since
     # a chain of dependencies can hang off one gated item, listed in any order.
+    # A queue-end item waits on its queue-mates (`holds`, issue #347) as it
+    # waits on a declared dependency.
+    holds = holds or {}
     deps = {n: [d for d in _item_dependencies(repo_root, config, n)
                 if item_status.get(d, "planned") in BLOCKING_STATUSES]
             for n in open_ordered}
+    for n in open_ordered:
+        deps[n] += [d for d in holds.get(n, []) if d not in deps[n]]
     grew = True
     while grew:
         grew = False
@@ -11494,6 +13839,8 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
 def cmd_claim(args: argparse.Namespace) -> int:
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("claim", repo_root):
+        return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
     scope = str(config["loop"].get("claim_scope", "live-queue"))
@@ -11678,7 +14025,8 @@ def _unmerged_paths(repo_root: Path) -> List[str]:
         return []
     if out.returncode != 0:
         return []
-    return sorted({line.strip() for line in out.stdout.splitlines() if line.strip()})
+    return sorted(set(root_relative(
+        repo_root, [line.strip() for line in out.stdout.splitlines() if line.strip()])))
 
 
 def _interrupted_op(repo_root: Path) -> Optional[str]:
@@ -11751,7 +14099,7 @@ def _inbox_conflict_hint(repo_root: Path,
     unmerged = _unmerged_paths(repo_root)
     if rel not in unmerged:
         return None
-    verb = "python .aide/scripts/aide.py insights resolve"
+    verb = aide_command(repo_root, "insights resolve")
     warn = (f"Do NOT resolve {rel} by hand — it is append-only, so the "
             f"conflict is a union of entries, and retyping the block is where "
             f"a captured claim gets reworded (conventions.md §1).")
@@ -11883,7 +14231,7 @@ def _unsafe_tree_state(repo_root: Path,
     # against `repo_root`: `aide.toml` may sit BELOW git's top level, and there
     # git's `docs/aide/progress.md` is this repo's `sub/docs/aide/progress.md`.
     if tick_path is not None and len(paths) == 1:
-        top = git(["rev-parse", "--show-toplevel"], repo_root, check=False).stdout.strip()
+        top = git_toplevel(repo_root)
         try:
             is_tick = (Path(top or repo_root) / paths[0]).resolve() == tick_path.resolve()
         except OSError:                          # an unresolvable path is not the tick
@@ -12029,9 +14377,11 @@ def _promote_item_to_complete(repo_root: Path, config, number: int,
     has just appended (§1 → `ledger.md`). One commit, because the row and the
     ✅ are one fact about one item: two would let a run land the tick and lose
     the row, leaving a ledger a reader has to reconcile against progress.md.
-    They are committed even where the tick itself is a no-op (a re-run over an
-    item already ✅), since the row is new either way. With no path to commit
-    — a no-op tick and no row — nothing is committed and nothing is owed.
+    They are committed even where the tick itself is a no-op (an item ticked
+    by hand ahead of its merge), since the row is new then. A re-run over an
+    item the earlier run already ticked and recorded brings no row (issue
+    #346): with no path to commit — a no-op tick and no row — nothing is
+    committed and nothing is owed, and the push that failed is all it retries.
     """
     progress_path = docs_dir(repo_root, config) / "progress.md"
     rels = list(extra_rels)
@@ -12048,7 +14398,7 @@ def _promote_item_to_complete(repo_root: Path, config, number: int,
             _report_bullet_splits(number, updated.splitlines(), splits)
             rels.insert(0, str(config["project"].get("docs_dir", "docs/aide"))
                         + "/progress.md")
-    if rels and not no_commit and (repo_root / ".git").exists():
+    if rels and _commits_here(no_commit, repo_root, before):
         failure, committed = _commit_or_put_back(
             repo_root, config, f"progress(aide): item {number:03d} -> done",
             rels, before)
@@ -12185,6 +14535,19 @@ def junit_failure_ids(xml_text: str,
     return tuple(sorted(ids))
 
 
+def _run_suite_argv(argv: List[str], repo_root: Path) -> subprocess.CompletedProcess:
+    """The one entry the engine runs the test command through: a program that
+    is not there is `RunnerMissing`, never a `FileNotFoundError` traceback
+    (issue #352), and an empty command is refused by each verb before this."""
+    try:
+        return subprocess.run(argv, cwd=str(repo_root))
+    except (FileNotFoundError, PermissionError):
+        # PermissionError: a path that names a file with no execute bit.
+        if resolve_tool(argv[0], repo_root) is None:
+            raise RunnerMissing(argv[0], repo_root) from None
+        raise
+
+
 def run_test_suite(repo_root: Path, argv: List[str],
                    identify: bool) -> SuiteRun:
     """Run *argv* in *repo_root* and time it; with *identify*, name the failures.
@@ -12197,7 +14560,7 @@ def run_test_suite(repo_root: Path, argv: List[str],
     """
     if not identify:
         start = time.monotonic()
-        res = subprocess.run(argv, cwd=str(repo_root))
+        res = _run_suite_argv(argv, repo_root)
         # A green run has no failures to name whatever the runner, so it
         # reads back from the store as green (`read_suite_result`).
         if res.returncode == 0:
@@ -12207,8 +14570,8 @@ def run_test_suite(repo_root: Path, argv: List[str],
     with tempfile.TemporaryDirectory(prefix="aide-junit-") as tmp:
         report = Path(tmp) / "report.xml"
         start = time.monotonic()
-        res = subprocess.run([*argv, "--continue-on-collection-errors",
-                              f"--junitxml={report}"], cwd=str(repo_root))
+        res = _run_suite_argv([*argv, "--continue-on-collection-errors",
+                               f"--junitxml={report}"], repo_root)
         seconds = time.monotonic() - start
         if res.returncode == 0:
             return SuiteRun(0, seconds, ())
@@ -12498,8 +14861,8 @@ def validated_suite_run(repo_root: Path, config, argv: List[str], branch: str,
                    repo_root, check=False)
         if diff.returncode != 0:
             continue
-        changed = tuple(sorted(l.strip() for l in diff.stdout.splitlines()
-                               if l.strip()))
+        changed = tuple(sorted(root_relative(
+            repo_root, [l.strip() for l in diff.stdout.splitlines() if l.strip()])))
         others = [c for c in changed if c != progress_rel]
         if others:
             why = (f"{branch} changed {others[0]}"
@@ -12791,7 +15154,8 @@ def cmd_test(args: argparse.Namespace) -> int:
               file=sys.stderr)
         return 2
     refusal = failure_identity_refusal(cmd)
-    clean = tree_is_clean(repo_root)
+    repo = in_repository(repo_root)
+    clean = repo and tree_is_clean(repo_root)
     sys.stdout.flush()
     run, tree = recorded_suite_run(repo_root, cmd, identify=refusal is None,
                                    by=SUITE_RECORDED_BY_TEST)
@@ -12810,13 +15174,54 @@ def cmd_test(args: argparse.Namespace) -> int:
               f"at {commit[:10]}, where `aide merge` can take it in place of "
               f"its own run.")
     else:
-        why = ("the tree has tracked changes or an operation in progress, so "
-               "the run is of no commit" if not clean else
-               "HEAD or a tracked file changed while it ran, or the result store could not be "
-               "written")
+        # The cause that was there before the run is named first: outside a
+        # repository, or before the first commit, there is nothing to record
+        # a run against, and "HEAD changed while it ran" would send a reader
+        # looking for a change nobody made (issue #352).
+        if not repo:
+            why = (f"{repo_root} is not inside a git repository, so there is "
+                   f"no commit to record the run against")
+        elif _head_commit(repo_root) is None:
+            why = ("the repository has no commit yet, so there is none to "
+                   "record the run against")
+        elif not clean:
+            why = ("the tree has tracked changes or an operation in progress, "
+                   "so the run is of no commit")
+        else:
+            why = ("HEAD or a tracked file changed while it ran, or the result "
+                   "store could not be written")
         print(f"aide test: {outcome}. NOT recorded: {why}.", file=sys.stderr)
     code = run.returncode
     return code if code >= 0 else 128 - code
+
+
+def _merge_dropped_item(repo_root: Path, config, number: int,
+                        base: str) -> str:
+    """Where item *number* reads ❌ dropped — ``"the working tree"``, ``"on
+    <base>"`` or both, joined — or ``""`` where neither does (issue #381).
+
+    Both are read because a drop is recorded where its owner stood: on the
+    queue branch the item lands on, or on the checkout the merge runs from.
+    `held_from_forward` decides, so a ❌ beside started work — a hand edit,
+    which `restored` refuses — does not hold the merge. The item branch is
+    deliberately not read: a drop is the owner's, made on the queue branch
+    or the checkout, never from inside the item being built.
+    """
+    rel = _progress_rel(config)
+    places: List[str] = []
+    path = repo_root / rel
+    if path.is_file():
+        try:
+            text = path.read_text(encoding=_ENCODING)
+        except (OSError, UnicodeDecodeError):
+            text = ""
+        if held_from_forward(text.splitlines(), number) == "excluded":
+            places.append("the working tree")
+    shown = git(["show", f"{base}:./{rel}"], repo_root, check=False)
+    if (shown.returncode == 0
+            and held_from_forward(shown.stdout.splitlines(), number) == "excluded"):
+        places.append(f"on {base}")
+    return " and ".join(places)
 
 
 def cmd_merge(args: argparse.Namespace) -> int:
@@ -12824,6 +15229,15 @@ def cmd_merge(args: argparse.Namespace) -> int:
     config = load_config(repo_root)
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
+    # Refused before git is touched, as `aide test` refuses it: an empty
+    # command reached the post-merge run as `subprocess.run([])` and left the
+    # merge made and unpushed behind an IndexError (issue #352).
+    if not args.no_test and not resolve_test_command(repo_root, config):
+        print("aide merge: [python] test_command is empty in aide.toml — set "
+              "it, or pass --no-test", file=sys.stderr)
+        return 2
+    if not _require_repository("merge", repo_root):
+        return 1
     branch = args.branch or _find_claim_branch(repo_root, prefix, args.number)
     if not branch:
         print(f"aide merge: no claim branch found for item {args.number:03d}", file=sys.stderr)
@@ -12876,6 +15290,20 @@ def cmd_merge(args: argparse.Namespace) -> int:
                   if _ref_exists(repo_root, main) else "no such local branch")
         print(f"aide merge: base '{main}' cannot be merged into: {detail}. "
               f"Pass a local branch as --base.", file=sys.stderr)
+        return 1
+
+    dropped_in = _merge_dropped_item(repo_root, config, args.number, main)
+    if dropped_in:
+        # Refused before anything moves (issue #381): ❌ ranks lowest, so the
+        # tick used to flip a dropped item ✅ with no reason on the record —
+        # the owner's decision against the work, undone by a merge. A ⏸️
+        # item is still ticked: a merge records work that landed.
+        print(f"aide merge: item {args.number:03d} is ❌ dropped in "
+              f"progress.md ({dropped_in}), and a dropped item is not "
+              f"merged — nothing was merged, pushed or written. If the work "
+              f"is wanted after all, restore it with `aide progress set "
+              f"{args.number:03d} restored --reason …`, then re-run "
+              f"'aide merge {args.number:03d}'.", file=sys.stderr)
         return 1
 
     if mode == "pr":
@@ -13119,7 +15547,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
             if doc_warnings:
                 print(f"aide merge: `aide check` reports {len(doc_warnings)} "
                       f"warning(s), which do not block a merge; "
-                      f"'python .aide/scripts/aide.py check' lists them.")
+                      f"'{aide_command(repo_root, 'check')}' lists them.")
 
             # ✅ is set HERE, by the process that just did the merge, so it always means
             # "merged" — not "an agent said so before attempting one". The validator
@@ -13143,7 +15571,18 @@ def cmd_merge(args: argparse.Namespace) -> int:
             before = _snapshot([ddir / "progress.md", ledger_path(ddir),
                                 insights_path(ddir)])
             ledger_rel = None
-            if pending_row is not None:
+            recorded = (None if pending_row is None else
+                        _merged_row_already_recorded(repo_root, config,
+                                                     args.number, pending_row))
+            if recorded is not None:
+                # A re-run after a push that failed (issue #346): the earlier
+                # run's tick commit landed here, row and all, and only the
+                # push did not. That row is the one measured while the claim
+                # branch still had its diff and the run was validation's; this
+                # run's would read 0 tests, 0 files and a fresh suite time.
+                print(f"aide merge: ledger row for item {args.number:03d} "
+                      f"already recorded ({recorded}) — not appended")
+            elif pending_row is not None:
                 pending_row[LEDGER_COLUMNS.index("Suite s")] = suite_cell
                 pending_row[LEDGER_COLUMNS.index("Inherited")] = (
                     "" if inherited is None else str(len(inherited)))
@@ -13262,21 +15701,43 @@ def cmd_merge(args: argparse.Namespace) -> int:
             # side effect on the way out and the original exception continues to
             # unwind, so an interrupted run still exits as interrupted.
             #
-            # The restore is owed either way; the WORDING is not. A test
-            # command that is not on PATH raises `FileNotFoundError` here, and
-            # a run that reported itself "interrupted" would send a human
-            # hunting for a signal nobody sent — the same failure the
-            # `--no-commit` message was fixed for in issue #133. So the cause
-            # is named, and the traceback that follows says the rest.
-            _restore_claim_branch(repo_root, branch, branch_tip, branch_base)
-            cause = ("interrupted"
+            # The restore is owed either way; the WORDING is not. A run that
+            # reported itself "interrupted" would send a human hunting for a
+            # signal nobody sent — the same failure the `--no-commit` message
+            # was fixed for in issue #133. So the cause is named. A program
+            # that is not there (`MissingTool`: the test command, or git gone
+            # mid-run) is a state a person fixes, not a bug, so it is
+            # reported and the verb exits 1 (issue #352); an interrupt or a
+            # genuine bug still re-raises, and its traceback says the rest.
+            missing = isinstance(exc, MissingTool)
+            unrestored: Optional[str] = None
+            try:
+                _restore_claim_branch(repo_root, branch, branch_tip, branch_base)
+            except MissingTool as restore_exc:
+                # git itself went with the test run: the message must not
+                # claim a restore that never ran, and names the two commands
+                # that do it by hand.
+                unrestored = str(restore_exc)
+            cause = (f"{exc}; that stopped the run" if missing
+                     else "interrupted"
                      if isinstance(exc, (KeyboardInterrupt, _Terminated))
                      else f"failed with {type(exc).__name__}")
+            if unrestored is None:
+                kept = (f"so {branch} has been put back with {main} recorded "
+                        f"as its base")
+            else:
+                by_hand = f"'git branch {branch} {branch_tip}'"
+                if branch_base:
+                    by_hand += (f" and 'git config branch.{branch}."
+                                f"{_BASE_CONFIG_KEY} {branch_base}'")
+                kept = (f"and {branch} could NOT be put back ({unrestored}). "
+                        f"Restore it by hand: {by_hand}")
             print(f"aide merge: {cause} after {main} took the merge of "
-                  f"{branch} but before it was pushed, so {branch} has been "
-                  f"put back with {main} recorded as its base. The merge is "
+                  f"{branch} but before it was pushed, {kept}. The merge is "
                   f"in THIS repository only. Re-run "
                   f"'merge {args.number:03d} --base {main}'.", file=sys.stderr)
+            if missing:
+                return 1
             raise
 
     if local_gone and remote_gone:
@@ -13288,7 +15749,8 @@ def cmd_merge(args: argparse.Namespace) -> int:
         print(f"aide merge: item {args.number:03d} merged to {main}, but the "
               f"{'/'.join(where)} claim branch {branch} could NOT be deleted:\n"
               f"{(del_res.stderr or '').strip()}\n"
-              f"Run 'python .aide/scripts/aide.py gc' to sweep it up.", file=sys.stderr)
+              f"Run '{aide_command(repo_root, 'gc')}' to sweep it up.",
+              file=sys.stderr)
     return 0
 
 
@@ -13310,11 +15772,55 @@ def _remote_branches(repo_root: Path) -> List[str]:
     return names
 
 
-def _unpublished_branches(repo_root: Path, config, prefix: str) -> List[str]:
-    """Branches under *prefix* that this checkout has and origin has not.
+#: Why a prefixed branch this checkout has is missing from origin (issue #364).
+#: ``unpublished``: origin never had it — no upstream on origin under its own
+#: name, so no push of it ever landed. ``gone-landed``: it was published and has
+#: since been deleted on origin, and everything on it is already in a base.
+#: ``gone-unfound``: published, deleted on origin, and its work could not be
+#: found in any base — which is a measurement, not a verdict: a squash merge
+#: the base has since built over, or any squash merge under git < 2.38, reads
+#: this way too, so the reports say what was measured and never "unlanded".
+OFF_ORIGIN_UNPUBLISHED = "unpublished"
+OFF_ORIGIN_GONE_LANDED = "gone-landed"
+OFF_ORIGIN_GONE_UNFOUND = "gone-unfound"
+
+
+class OffOrigin(NamedTuple):
+    """One prefixed branch this checkout has and origin's tracking refs lack."""
+    kind: str
+    #: gone-landed: the ref its work is already in. gone-unfound: every ref
+    #: that was asked, joined for a sentence. unpublished: None.
+    where: Optional[str] = None
+
+
+def _branches_off_origin(repo_root: Path, config,
+                         prefix: str) -> Dict[str, OffOrigin]:
+    """Branches under *prefix* that this checkout has and origin has not, and why.
 
     Read against the remote-tracking refs, so it reports what the last fetch
     saw — `claim` fetches first and `status` does too unless asked not to.
+
+    "Origin lacks it now" is not "origin never had it" (issue #364): a queue
+    branch whose PR merged is routinely deleted on origin — hosting may do it
+    on merge — and advising `git push -u` for it recreates a branch deleted on
+    purpose. Every engine push is `push -u` (`_push_new_branch`), so an upstream
+    of ``refs/remotes/origin/<the same name>`` whose ref is gone is git's own
+    record that a push landed and the branch was removed since. Ancestry alone
+    cannot be the test: a claim whose push just failed sits at its base's tip,
+    already "in" main, and is exactly the half-claim of issue #137.
+
+    A published-then-deleted branch is ``gone-landed`` when its tip is an
+    ancestor of — or, where git can measure it, its content already in — its
+    recorded base, ``main_branch`` or ``origin/<main_branch>``; otherwise
+    ``gone-unfound``. Those probes run only for gone branches, which are rare,
+    and the listing itself is one ``for-each-ref`` spawn (issue #74).
+
+    ``gone-unfound`` is what was measured, not that the work never landed. A
+    squash merge that the base has since changed again over the same lines
+    makes ``merge-tree`` conflict, and git < 2.38 cannot ask at all, so landed
+    work reads this way too. No cheap probe closes that: patch-id matching
+    breaks on a squash whose context moved or whose conflicts were resolved on
+    the host. So the reports name both readings and send a person to the PR.
 
     No origin at all is deliberately *not* an exemption. Off ``local`` mode
     the engine pushes every branch it creates, so a repository with no remote
@@ -13324,17 +15830,63 @@ def _unpublished_branches(repo_root: Path, config, prefix: str) -> List[str]:
     an unpushed claim branch is the design rather than a failure.
     """
     if str(config["git"].get("mode", "auto-merge")) == "local":
-        return []
-    remote = set(_remote_branches(repo_root))
-    out = [line.strip() for line
-           in git(["branch", "--format=%(refname:short)"],
-                  repo_root, check=False).stdout.splitlines()]
-    return sorted(br for br in out if br.startswith(prefix) and br not in remote)
+        return {}
+    # Tab-separated: a refname cannot contain a control character, so the
+    # split is exact on every platform, and no shell is involved.
+    listing = git(["for-each-ref", "--format=%(refname)%09%(upstream)",
+                   "refs/heads/", "refs/remotes/origin/"],
+                  repo_root, check=False).stdout
+    local: Dict[str, str] = {}
+    remote: Set[str] = set()
+    for line in listing.splitlines():
+        ref, _, upstream = line.partition("\t")
+        ref = ref.strip()
+        if ref.startswith("refs/remotes/origin/"):
+            remote.add(ref[len("refs/remotes/origin/"):])
+        elif ref.startswith("refs/heads/"):
+            local[ref[len("refs/heads/"):]] = upstream.strip()
+    out: Dict[str, OffOrigin] = {}
+    main = str(config["git"].get("main_branch", "main"))
+    can_measure: Optional[bool] = None
+    for br in sorted(local):
+        if not br.startswith(prefix) or br in remote:
+            continue
+        if local[br] != f"refs/remotes/origin/{br}":
+            out[br] = OffOrigin(OFF_ORIGIN_UNPUBLISHED)
+            continue
+        targets: List[str] = []
+        for ref in (_recorded_branch_base(repo_root, br), main, f"origin/{main}"):
+            if ref and ref != br and ref not in targets:
+                targets.append(ref)
+        # Exit 0 is "ancestor"; 1 is "not", and 128 an unreadable ref — both
+        # simply move on to the next base.
+        landed = next((t for t in targets
+                       if git(["merge-base", "--is-ancestor", br, t],
+                              repo_root, check=False).returncode == 0), None)
+        if landed is None:
+            # A squash merge leaves the tip off every base: ask for content.
+            if can_measure is None:
+                can_measure = _has_merge_tree(repo_root)
+            if can_measure:
+                landed = next((t for t in targets
+                               if _branch_content_landed(repo_root, t, br) is True),
+                              None)
+        out[br] = (OffOrigin(OFF_ORIGIN_GONE_LANDED, landed) if landed
+                   else OffOrigin(OFF_ORIGIN_GONE_UNFOUND, " or ".join(targets)))
+    return out
 
 
-def _unpublished_claim_branches(repo_root: Path, config,
-                                prefix: str) -> Dict[int, str]:
-    """Item number -> a claim branch this checkout has that origin has not.
+def _gc_merged_hint(landed_in: str, config) -> str:
+    """The `gc` invocation that collects a branch whose work is in *landed_in*."""
+    main = str(config["git"].get("main_branch", "main"))
+    return ("aide gc --merged" if landed_in == main
+            else f"aide gc --merged --base {landed_in}")
+
+
+def _off_origin_claim_branches(repo_root: Path, config,
+                               prefix: str) -> Dict[int, Tuple[str, OffOrigin]]:
+    """Item number -> (claim branch, why origin lacks it), for claim branches
+    this checkout has and origin has not.
 
     Off ``local`` mode a claim is published by construction: `claim` creates
     the branch and pushes it in the same breath, and refuses out loud when the
@@ -13343,15 +15895,21 @@ def _unpublished_claim_branches(repo_root: Path, config,
     counted as a claim by `_pick_item` regardless. That is the half-claim of
     issue #137, and naming it is what stops it reading as work in flight.
 
+    A claim branch origin *had* and has deleted is not in flight either, but it
+    is not a failed push: its work landed, the claim was abandoned (§2: delete
+    the remote branch), or its work cannot be found in a base — removed before
+    it landed, or landed in a shape that cannot be measured. The kind says
+    which, so `claim` never advises re-publishing it (issue #364).
+
     ``local`` mode is the one configuration that reports nothing: there, an
     unpushed claim branch is the design. A repository with no origin at all is
-    *not* an exemption — see `_unpublished_branches`, which this narrows.
+    *not* an exemption — see `_branches_off_origin`, which this narrows.
     """
-    out: Dict[int, str] = {}
-    for br in _unpublished_branches(repo_root, config, prefix):
+    out: Dict[int, Tuple[str, OffOrigin]] = {}
+    for br, why in _branches_off_origin(repo_root, config, prefix).items():
         num = _branch_item_number(br, prefix)
         if num is not None:
-            out.setdefault(num, br)
+            out.setdefault(num, (br, why))
     return out
 
 
@@ -14016,7 +16574,8 @@ def renamed_paths(repo_root: Path, merge_base: str) -> Dict[str, str]:
     for line in status.stdout.splitlines():
         cells = line.split("\t")
         if len(cells) == 3 and cells[0][:1] in ("R", "C"):
-            out[cells[2].strip()] = cells[1].strip()
+            new, old = root_relative(repo_root, [cells[2].strip(), cells[1].strip()])
+            out[new] = old
     return out
 
 
@@ -14057,11 +16616,11 @@ def added_test_functions(repo_root: Path, config, changed: List[str],
             except (OSError, UnicodeDecodeError):
                 continue
         else:
-            at_ref = git(["show", f"{ref}:{rel}"], repo_root, check=False)
+            at_ref = git(["show", f"{ref}:./{rel}"], repo_root, check=False)
             if at_ref.returncode != 0:
                 continue
             new = _test_functions(at_ref.stdout)
-        shown = git(["show", f"{merge_base}:{renamed.get(rel, rel)}"], repo_root, check=False)
+        shown = git(["show", f"{merge_base}:./{renamed.get(rel, rel)}"], repo_root, check=False)
         # Keyed on the name alone: a function present at the base is an edit,
         # whatever its parametrize ids became.
         old = set(_test_function_names(shown.stdout)) if shown.returncode == 0 else set()
@@ -14244,6 +16803,8 @@ def cmd_scope(args: argparse.Namespace) -> int:
     """
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("scope", repo_root):
+        return 2
     prefix = str(config["git"].get("branch_prefix", "aide/"))
 
     number = args.number
@@ -14294,7 +16855,10 @@ def cmd_scope(args: argparse.Namespace) -> int:
               file=sys.stderr)
         return 2
 
-    changed = [ln.strip() for ln in diff.stdout.splitlines() if ln.strip()]
+    # Relative to repo_root, which may sit below git's top level; a change
+    # outside it comes back as `../…` and is reported, never dropped.
+    changed = root_relative(repo_root, [ln.strip() for ln in
+                                        diff.stdout.splitlines() if ln.strip()])
     ddir_rel = docs_dir(repo_root, config).relative_to(repo_root).as_posix()
     always = _always_authorised_paths(ddir_rel) + (rel_spec,)
     unauthorised, contradictions = scope_findings(changed, authorised, always)
@@ -14384,8 +16948,8 @@ def _landed_review_items(repo_root: Path, config, prefix: str,
         if landed is not None:
             base = landed
             lines.append(f"aide sync: item {num:03d} is 🔍 but its work is now in "
-                         f"{base} — run 'python .aide/scripts/aide.py progress "
-                         f"set {num:03d} done'")
+                         f"{base} — run "
+                         f"'{aide_command(repo_root, f'progress set {num:03d} done')}'")
     return lines
 
 
@@ -14400,8 +16964,15 @@ def cmd_sync(args: argparse.Namespace) -> int:
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
     main = str(config["git"].get("main_branch", "main"))
+    # Outside a repository every read below comes back empty, and empty read
+    # as "on '', tree clean" — an OK for a start point that does not exist.
+    if not _require_repository("sync", repo_root):
+        return 1
 
-    if mode != "local" and _has_origin(repo_root):
+    # Whether origin was asked, for the success line: `mode` alone said
+    # "remotes fetched" over a repository with no origin (issue #352).
+    fetched = mode != "local" and _has_origin(repo_root)
+    if fetched:
         res = git(["fetch", "--all", "--prune"], repo_root, check=False)
         if res.returncode != 0:
             print(f"aide sync: fetch failed — {res.stderr.strip()}", file=sys.stderr)
@@ -14434,7 +17005,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
         claim = _find_claim_branch(repo_root, prefix, args.item)
         if not claim:
             print(f"aide sync: no claim branch for item {args.item:03d} — run "
-                  f"'python .aide/scripts/aide.py claim' first", file=sys.stderr)
+                  f"'{aide_command(repo_root, 'claim')}' first", file=sys.stderr)
             return 1
         if branch != claim:
             res = git(["switch", claim], repo_root, check=False)
@@ -14486,7 +17057,8 @@ def cmd_sync(args: argparse.Namespace) -> int:
         print(line)
 
     print(f"aide sync: OK — on '{branch}', tree clean"
-          + ("" if mode == "local" else ", remotes fetched"))
+          + (", remotes fetched" if fetched
+             else "" if mode == "local" else ", no origin to fetch"))
     return 0
 
 
@@ -14506,12 +17078,16 @@ def _gh(repo_root: Path, args: List[str]) -> Tuple[Optional[str], Optional[str]]
     and `queue pr` / `queue ready` open and flip the queue's own PR through
     it (issue #330). Never raises: missing, unauthenticated, offline and timed out all come
     back as a reason, which is what lets `status` tell "no PR" from "could
-    not look" (issue #303). Resolved through `shutil.which`, which applies
-    PATHEXT on Windows, so the `gh.exe` the GitHub CLI installs is found as
-    `gh` is on POSIX. Tests replace this function; nothing else in the engine
-    calls the forge.
+    not look" (issue #303). Located by `resolve_tool`: `[tools] gh` in
+    `.aide/local.toml`, else PATH, where the `gh.exe` the GitHub CLI installs
+    on Windows is found as `gh` is on POSIX; a key naming a `gh` that is not
+    there is the reason, never a look on PATH instead (issue #353). Tests
+    replace this function; nothing else in the engine calls the forge.
     """
-    exe = shutil.which("gh")
+    try:
+        exe = resolve_tool("gh", repo_root)
+    except ToolMisconfigured as exc:
+        return None, str(exc)
     if exe is None:
         return None, "gh is not on PATH"
     try:
@@ -14575,7 +17151,8 @@ def _branch_pr_facts(repo_root: Path, branch: str
     out, why = ask("number,state,isDraft,statusCheckRollup")
     rollup_why: Optional[str] = None
     if (out is None and why is not None
-            and not why.startswith(("gh is not on PATH", "gh could not start"))):
+            and not why.startswith(("gh is not on PATH", "gh could not start",
+                                    "[tools] gh", LOCAL_CONFIG.as_posix()))):
         rollup_why = why
         out, why = ask("number,state,isDraft")
     if out is None:
@@ -14722,7 +17299,7 @@ def _branch_queue_items(repo_root: Path, config: Dict[str, Dict[str, object]],
     own = int(branch[len(prefix) + len(_QUEUE_TOKEN):])
     items: Set[int] = set()
     for path in _branch_queue_files(repo_root, config, ref, base, own).values():
-        shown = git(["show", f"{ref}:{path}"], repo_root, check=False)
+        shown = git(["show", f"{ref}:./{path}"], repo_root, check=False)
         if shown.returncode == 0:
             items.update(queue_item_numbers(shown.stdout))
     return items
@@ -14744,7 +17321,7 @@ def _queue_branch_ci(repo_root: Path, config: Dict[str, Dict[str, object]],
     items = _branch_queue_items(repo_root, config, ref, base, branch)
     if not items:
         return False, 0
-    shown = git(["show", f"{ref}:{_docs_rel(config)}/progress.md"],
+    shown = git(["show", f"{ref}:./{_docs_rel(config)}/progress.md"],
                 repo_root, check=False)
     if shown.returncode != 0:
         return False, 0
@@ -14760,8 +17337,10 @@ class StackBranch(NamedTuple):
     Each field is one token of the ``stack N:`` line, spelled as printed:
     ``base`` the recorded base or ``?``; ``pr`` ``#N/open|draft|merged|closed``,
     ``#N/draft(fixing)``, ``none``, ``unknown`` (could not look) or ``-``
-    (local mode); ``checks`` ``none|pending|success|failure|unknown``, or
-    ``-`` with no PR to ask about; ``lower`` ``current``, ``moved``,
+    (local mode, or no forge declared); ``checks``
+    ``none|pending|success|failure|unknown``, or ``-`` with no PR to ask
+    about and beside one under ``[git] ci = "none"`` (no CI declared, the
+    one ``-`` beside a PR); ``lower`` ``current``, ``moved``,
     ``landed``, ``gone``, ``unknown`` or ``-`` (based on no queue branch);
     ``orphaned`` ``yes``, ``no``, ``unknown`` or ``-``. ``failing`` names
     each failed check and ``checks_why`` why checks are unknown; each is
@@ -14798,7 +17377,8 @@ def queue_stack_facts(repo_root: Path, config: Dict[str, Dict[str, object]],
 
     The stack is `_unmerged_queue_branches` — the set `queue start` counts
     against the cap — ordered bottom first by recorded base. The forge is
-    asked about each branch's pull request only off `local` mode, and about
+    asked about each branch's pull request only off `local` mode and where
+    `[git] forge` declares one, its checks only where `[git] ci` does, and about
     a recorded lower that has left the stack without landing (``gone``), so a
     lower closed and then deleted still orphans what sits on it. A lower that
     git says landed is not orphaning, whatever its PR says: content is git's
@@ -14807,11 +17387,16 @@ def queue_stack_facts(repo_root: Path, config: Dict[str, Dict[str, object]],
     """
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
-    look = mode != "local"
+    pushes = mode != "local"
+    no_forge = declared_forge(config) == "none"
+    # The forge is asked only where one is declared and the mode is not
+    # offline; origin's branches are git's, read under any pushing mode.
+    look = pushes and not no_forge
+    no_ci = declared_ci(config) == "none"
     unmerged = _unmerged_queue_branches(repo_root, config)
     local = set(_local_branches(repo_root))
     remote = (set(_remote_branches(repo_root))
-              if look and _has_origin(repo_root) else set())
+              if pushes and _has_origin(repo_root) else set())
 
     def newest(b: str) -> str:
         """Origin's tip where it is ahead of this checkout's, else the local one."""
@@ -14865,6 +17450,8 @@ def queue_stack_facts(repo_root: Path, config: Dict[str, Dict[str, object]],
             elif got is None:
                 prs[b] = "none"
             else:
+                if no_ci:               # no CI declared: no checks read (#355)
+                    got = got._replace(checks="-", failing=[], running=())
                 facts[b] = got
                 prs[b] = got.label
                 # A draft with reopened items still open is one a CI fix
@@ -14904,7 +17491,7 @@ def queue_stack_facts(repo_root: Path, config: Dict[str, Dict[str, object]],
         return "unknown" if unsure else "no"
 
     def checks(b: str) -> Tuple[str, Tuple[str, ...], Optional[str]]:
-        if not look:
+        if not look or no_ci:           # no forge, or no CI declared (#355)
             return "-", (), None
         if b in facts:
             f = facts[b]
@@ -14943,7 +17530,8 @@ def queue_stack_facts(repo_root: Path, config: Dict[str, Dict[str, object]],
 
     open_prs = [s for s in branches if s.pr.endswith("/open")]
     if not look:
-        awaiting = ("no", "local mode opens no pull requests")
+        awaiting = ("no", "no forge is declared" if no_forge
+                    else "local mode opens no pull requests")
     elif open_prs:
         awaiting = ("yes", ", ".join(f"{s.pr.split('/')[0]} ({s.name})"
                                      for s in open_prs))
@@ -14969,6 +17557,10 @@ def cmd_status(args: argparse.Namespace) -> int:
     config = load_config(repo_root)
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
+    # Outside a repository the lines below read "branch: (unknown)" and
+    # "tree: clean" — empty git output parsed as an answer (issue #352).
+    if not _require_repository("status", repo_root):
+        return 1
 
     if not args.no_fetch and mode != "local" and _has_origin(repo_root):
         git(["fetch", "--all", "--prune"], repo_root, check=False)
@@ -15086,23 +17678,46 @@ def cmd_status(args: argparse.Namespace) -> int:
                   f"{again}")
 
     branches = _list_claim_branches(repo_root, prefix)
-    # Guarded the way `run_checks` guards it: two git spawns are not worth
+    # Guarded the way `run_checks` guards it: a git spawn is not worth
     # paying on every `status` in the common "claims: none" case, and the
     # windows leg spends ~13x on a spawn (issue #74).
-    unpublished = (set(_unpublished_branches(repo_root, config, prefix))
-                   if branches else set())
+    off_origin = (_branches_off_origin(repo_root, config, prefix)
+                  if branches else {})
+
+    def _gone_note(br: str) -> str:
+        """The note for a branch origin had and deleted (issue #364), or ''."""
+        why = off_origin.get(br)
+        if why is None or why.kind == OFF_ORIGIN_UNPUBLISHED:
+            return ""
+        if why.kind == OFF_ORIGIN_GONE_LANDED:
+            return (f" — deleted on origin, all of it already in {why.where} "
+                    f"('{_gc_merged_hint(why.where, config)}' deletes it)")
+        return (f" — deleted on origin, its work NOT FOUND in {why.where}: "
+                f"check whether its work merged — this checkout may hold the "
+                f"only copy")
+
+    unpublished = {br for br, why in off_origin.items()
+                   if why.kind == OFF_ORIGIN_UNPUBLISHED}
+    withdrawn_items: Dict[int, str] = {}
+    ppath = docs_dir(repo_root, config) / "progress.md"
+    if branches and ppath.is_file():
+        withdrawn_items = spent_by_withdrawal(
+            ppath.read_text(encoding=_ENCODING).splitlines(), item_status)
     if branches:
         for br in branches:
             num = _branch_item_number(br, prefix)
             if num is None:
                 kind = "queue branch" if _is_queue_branch(br, prefix) else "unrecognised"
-                extra = " — NOT on origin" if br in unpublished else ""
+                extra = (" — NOT on origin" if br in unpublished
+                         else _gone_note(br))
                 print(f"  branch: {br} ({kind} — not an item claim){extra}")
                 continue
             st = item_status.get(num, "planned")
             note = ""
             if st == "complete":
                 note = " — STALE (item ✅; run 'aide gc')"
+            elif num in withdrawn_items:
+                note = f" — STALE (item {withdrawn_items[num]}; run 'aide gc')"
             elif st == "in-review":
                 # Recommending `gc` here would be recommending the deletion of
                 # an open PR's head branch. It is awaiting a human, not stale.
@@ -15114,6 +17729,7 @@ def cmd_status(args: argparse.Namespace) -> int:
                 note += (f" — NOT on origin: the claim's push did not land, so "
                          f"no other checkout can see this claim "
                          f"('git push -u origin {br}' to publish it)")
+            note += _gone_note(br)
             print(f"  claim: {br} (item {num:03d}: {st}){note}")
     else:
         print("  claims: none")
@@ -15143,6 +17759,13 @@ def cmd_status(args: argparse.Namespace) -> int:
           f"{facts.awaiting_review[1]}")
 
     # Every open PR, best effort — and "could not look" said, never silence.
+    # Not asked at all in `local` mode, which makes no network call (§4).
+    if mode == "local":
+        print("  open PRs: - (local mode)")
+        return 0
+    if declared_forge(config) == "none":
+        print("  open PRs: - (no forge declared)")
+        return 0
     if facts.could_not_look is not None:
         out, why = None, facts.could_not_look
     else:
@@ -15320,12 +17943,15 @@ def _gc_ref(branch: str, local: List[str]) -> str:
 
 
 def cmd_gc(args: argparse.Namespace) -> int:
-    """Delete claim branches whose work has landed (item ✅ in progress.md, or
-    ``--merged`` branches already merged into main). Dry-run by default; pass
+    """Delete claim branches whose work has landed (item ✅ in progress.md —
+    or ❌, dropped or withdrawn with its stage — or ``--merged`` branches
+    already merged into main). Dry-run by default; pass
     ``--yes`` to delete. The one destructive verb in the CLI, so it is never
     implicit."""
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
+    if not _require_repository("gc", repo_root):
+        return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
     # The `--merged` ground is "already merged into <base>", so it takes a base
@@ -15338,9 +17964,11 @@ def cmd_gc(args: argparse.Namespace) -> int:
 
     progress_path = docs_dir(repo_root, config) / "progress.md"
     item_status: Dict[int, str] = {}
+    withdrawn_items: Dict[int, str] = {}
     if progress_path.is_file():
-        _, _, item_status = _parse_item_status(
-            progress_path.read_text(encoding=_ENCODING).splitlines())
+        plines = progress_path.read_text(encoding=_ENCODING).splitlines()
+        _, _, item_status = _parse_item_status(plines)
+        withdrawn_items = spent_by_withdrawal(plines, item_status)
 
     local = [b for b in _local_branches(repo_root) if b.startswith(prefix)]
     remote = [b for b in _remote_branches(repo_root) if b.startswith(prefix)]
@@ -15364,8 +17992,14 @@ def cmd_gc(args: argparse.Namespace) -> int:
         # unreviewed work. It stays eligible under --merged, where the ground
         # is "already merged into main" and is checked against git itself.
         num = _branch_item_number(br, prefix)
-        if num is not None and item_status.get(num) == "complete":
-            reason = f"item {num:03d} is ✅"
+        # A ❌ item's branch — dropped, or withdrawn with its stage — is on
+        # the item ground too (issue #387): `merge` refuses it, so nothing
+        # else ever collects it. Same oracle, so a ❌ branch carrying work
+        # is skipped exactly as a ✅ one is, and `--abandon` is its route.
+        if num is not None and (item_status.get(num) == "complete"
+                                or num in withdrawn_items):
+            reason = (f"item {num:03d} is ✅" if num not in withdrawn_items
+                      else f"item {num:03d} is {withdrawn_items[num]}")
             # `progress.md` is a document, edited by agents and humans; git is
             # the authority on whether the commits landed, and until 1.20.0 it
             # was never asked. A ✅ can outrun the merge easily — a commit added
@@ -15484,6 +18118,16 @@ def build_parser() -> argparse.ArgumentParser:
         "template, and the file --report names)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
+            "Without --queue, where aide.toml is there, the check also "
+            "ERRORS on each requirement of its configuration this machine "
+            "lacks that is decided offline: git, the repository, a remote "
+            "named origin under a [git] mode other than local, and the test "
+            "command's program, each prefixed `this machine:` and worded as "
+            "`aide env` words it. Such an error is the machine's, for a "
+            "person to meet, not a document to edit. A --queue run judges "
+            "documents only. gh's login, the interpreter and the venv are "
+            "reported by `aide env` alone.\n"
+            "\n"
             "--queue NNN checks one queue's specs against each other: two items "
             "claiming one path under May change (warning), one item changing a "
             "path another pins under Asserts against (error), a dependency "
@@ -15522,12 +18166,15 @@ def build_parser() -> argparse.ArgumentParser:
             "`Validate stage N`, and neither its own spec nor an excluded "
             "item's annotates anything here. The check warns when a stage "
             "with a need has no queue-end item for it among the queue's "
-            "final items, naming each reason, and when a queue-end item not "
+            "final items or still open anywhere on it, naming each reason; "
+            "when an open queue-end item is listed ahead of an open item "
+            "that is not one, which `aide claim` holds it behind; and when "
+            "a queue-end item not "
             "\u2705, \u274c or \u23f8\ufe0f names no stage, a stage the "
             "queue does not close, or one with no need, unless `aide "
             "progress reopen` sent it back and it is still open: it was "
             "needed once, and is back for a fix. A queue whose items "
-            "are all \u2705, \u274c or \u23f8\ufe0f gets neither warning.\n"
+            "are all \u2705, \u274c or \u23f8\ufe0f gets none of them.\n"
             "\n"
             "Over progress.md's tables, ERRORS: a missing stage summary "
             "table, objective coverage table or stage section; a stage "
@@ -15536,7 +18183,8 @@ def build_parser() -> argparse.ArgumentParser:
             "stage header or Objective row so marked over a rollup that is "
             "not \u2705 \u2014 an Objective row's rollup being the same "
             "rule over the rollups of the stages its Delivered by cell "
-            "names; an "
+            "names, less any whose summary row is \u274c, and \u274c where "
+            "every stage it names has such a row; an "
             "objective marked \u2705 over an "
             "Outcome target that is \u274c Not met \u2014 the goal-level "
             "mirror of that over-claim; and a row of the stage summary, "
@@ -15607,7 +18255,13 @@ def build_parser() -> argparse.ArgumentParser:
             "before', where a stage number is one "
             "after the word Stage or Stages, or a slot of bare numbers "
             "\u2014 unless progress.md shows that stage \u23f8\ufe0f on "
-            "its header or summary row; a progress.md stage section with no "
+            "its header or summary row; a roadmap.md stage under way \u2014 "
+            "its deliverables rolling up to \U0001f6a7, or a \U0001f4cb "
+            "item of it listed in an open queue \u2014 while an earlier "
+            "stage its blocking slot names is \u23f8\ufe0f on its header or "
+            "summary row, or withdrawn by a \u274c summary row, where a "
+            "stage itself \u23f8\ufe0f or withdrawn is never under way; a "
+            "progress.md stage section with no "
             "Stage summary row, \u23f8\ufe0f and \u274c stages included, "
             "where a row the reader cannot use still counts for the stage "
             "its Stage cell names; a vision.md G-code with no row in "
@@ -15636,8 +18290,12 @@ def build_parser() -> argparse.ArgumentParser:
             "insights.md and ledger.md, on a queue while it is open and on an "
             "item spec "
             "until its item is \u2705 or \u274c, and never on a document with "
-            "no such line. A \U0001f50d item's claim branch "
-            "is not reported stale.\n"
+            "no such line. A claim branch is reported stale when its item "
+            "is \u2705, or \u274c by its own bullets, or \U0001f4cb with "
+            "every bullet in a stage whose summary row is \u274c; a "
+            "\U0001f6a7 or \u23f8\ufe0f item in such a stage is not, until "
+            "it is dropped. A "
+            "\U0001f50d item's claim branch is not reported stale.\n"
             "\n"
             "Over insight citations in docs/aide and tests_dir, the inbox and "
             "its archives excepted: an insight ID written after the word "
@@ -15647,8 +18305,11 @@ def build_parser() -> argparse.ArgumentParser:
             "different claims is a warning naming their longer IDs; and a "
             "citation by position \u2014 insight 28, insights.md entry 28, "
             "or entry 28 on a line that says insight or inbox \u2014 is a "
-            "warning naming the ID that position holds today, in a test as "
-            "in a document other than a record.\n"
+            "warning naming the ID that position held when the citing line "
+            "was last committed, read from git blame and that commit's "
+            "insights.md; today's holder for a line not yet committed, and "
+            "today's, labelled as such, where there is no git history to "
+            "read; in a test as in a document other than a record.\n"
             "\n"
             "Over human-gate citations in docs/aide, the inbox and its "
             "archives excepted: a gate-<hex> token that names no row of "
@@ -15684,7 +18345,18 @@ def build_parser() -> argparse.ArgumentParser:
             "`deferred: <reason>` line under it; `set --stage N "
             "--deliverable K deferred --reason TEXT` does the same to the "
             "Kth deliverable bullet of stage N, for a bullet no item marker "
-            "names\n"
+            "names, and `set --stage N --deliverable K dropped --reason TEXT` "
+            "flips such a bullet to \u274c instead, with a dated `dropped: "
+            "<reason>` line, for a deliverable the stage does not need. "
+            "`set NNN resumed --reason TEXT` takes a \u23f8\ufe0f item back "
+            "to \U0001f4cb with a dated `resumed: <reason>` line, and "
+            "`set --stage N --deliverable K resumed --reason TEXT` does the "
+            "same to such a bullet. `set NNN dropped --reason TEXT` flips an "
+            "item's bullets to \u274c with a dated `dropped: <reason>` line, "
+            "and `set NNN restored --reason TEXT` takes a \u274c item back "
+            "to \U0001f4cb with a dated `restored: <reason>` line, as `set "
+            "--stage N --deliverable K restored --reason TEXT` does for such "
+            "a bullet\n"
             "accept:  tick one acceptance criterion (--criterion N) or every "
             "one in the stage (--all), with --evidence\n"
             "amend:   append a dated correction under a ticked box; the tick "
@@ -15720,12 +18392,18 @@ def build_parser() -> argparse.ArgumentParser:
             "follow, as does an Objective row whose stages are all \u2705 "
             "or \u23f8\ufe0f, which reads \u23f8\ufe0f; an objective "
             "linked to an Outcome target that is not "
-            "\u2705 Met never rolls up. A header, summary row or Objective "
+            "\u2705 Met never rolls up. A stage whose summary row is "
+            "\u274c is withdrawn and left out of every Objective row that "
+            "names it, and a row naming withdrawn stages alone reads "
+            "\u274c. A header, summary row or Objective "
             "row marked \u23f8\ufe0f by hand stays as it reads until a verb "
-            "moves a bullet of its stage. Apart from deferring, set never "
-            "downgrades a status, and a \u23f8\ufe0f item resumes under any "
-            "other status set names; only "
-            "reopen moves one back, and only from \u2705. No rollup ever "
+            "moves a bullet of its stage. Apart from deferring, dropping, "
+            "resuming and restoring, set never downgrades a status; an item "
+            "whose bullets are all \u23f8\ufe0f or \U0001f4cb leaves "
+            "\u23f8\ufe0f by resuming alone, back to \U0001f4cb, one whose "
+            "bullets are all \u274c or \U0001f4cb leaves \u274c by "
+            "restoring alone, back to \U0001f4cb, "
+            "and only reopen moves a \u2705 item back. No rollup ever "
             "ticks an acceptance box.\n"
             "\n"
             "reword matches the Nth box to the Nth non-`Target:` bullet of the "
@@ -15780,15 +18458,80 @@ def build_parser() -> argparse.ArgumentParser:
             "\u23f8\ufe0f throughout is no change. No insight is "
             "captured: a deferral is a decision about order, not a finding.\n"
             "\n"
+            "set NNN resumed flips each \u23f8\ufe0f bullet whose trailing "
+            "marker names the item back to \U0001f4cb, writes the reason on "
+            "a dated trail line under it, and rolls its stage up again, "
+            "moving down where its bullets now say less; an item already "
+            "\U0001f4cb throughout is no change. The item is then claimable: "
+            "claim offers it, or, where a claim branch from before the "
+            "deferral still exists, holds it as in flight on that branch. It "
+            "refuses, writing nothing, without a stated reason, or when a "
+            "bullet naming the item is \U0001f6a7, \U0001f50d, \u2705 or "
+            "\u274c \u2014 only deferred work is resumed. set NNN in-progress, "
+            "in-review and done each refuse a \u23f8\ufe0f item, writing "
+            "nothing, and name the resume.\n"
+            "\n"
+            "set NNN dropped flips each \U0001f4cb, \U0001f6a7, \U0001f50d "
+            "or \u23f8\ufe0f bullet whose trailing marker names the item to "
+            "\u274c, writes the reason on a dated trail line under it, and "
+            "rolls its stage up again, moving down where its bullets now say "
+            "less; an item already \u274c throughout is no change. It "
+            "refuses, writing nothing, without a stated reason, when a "
+            "bullet naming the item is \u2705 \u2014 reopen it first "
+            "\u2014 or when the drop would leave every deliverable bullet of "
+            "a stage \u274c, unless that stage's summary row is already "
+            "\u274c.\n"
+            "\n"
+            "set NNN restored flips each \u274c bullet whose trailing marker "
+            "names the item back to \U0001f4cb, writes the reason on a dated "
+            "trail line under it, and rolls its stage up again, moving down "
+            "where its bullets now say less; an item already \U0001f4cb "
+            "throughout is no change. It refuses, writing nothing, without a "
+            "stated reason, or when a bullet naming the item is \U0001f6a7, "
+            "\U0001f50d, \u2705 or \u23f8\ufe0f \u2014 only dropped work "
+            "is restored. set NNN in-progress, in-review and done each "
+            "refuse an item whose bullets are all \u274c or \U0001f4cb, "
+            "writing nothing, and name the restore; `aide merge` refuses "
+            "it too.\n"
+            "\n"
             "set --stage N --deliverable K counts the stage's deliverable "
             "bullets from 1 in file order, a wrapped line belonging to its "
-            "bullet, and takes no NNN and no status but deferred. It refuses, "
-            "writing nothing, without a stated reason, when stage N has no "
-            "Kth bullet, when that bullet is \u2705 or \u274c, or when it "
-            "carries an item marker \u2014 defer that one by its item. "
-            "Otherwise it writes what set NNN deferred writes, and a bullet "
-            "already \u23f8\ufe0f is no change. Such a bullet resumes once "
-            "it is itemised, under set NNN."))
+            "bullet, and takes no NNN and no status but deferred, dropped, "
+            "resumed or restored. Each form refuses, writing nothing, without a stated reason, "
+            "when stage N has no Kth bullet, or when that bullet carries an item "
+            "marker \u2014 its status is its item's.\n"
+            "\n"
+            "set --stage N --deliverable K deferred also refuses a bullet "
+            "that is \u2705 or \u274c. Otherwise it writes what set NNN "
+            "deferred writes, and a bullet already \u23f8\ufe0f is no "
+            "change.\n"
+            "\n"
+            "set --stage N --deliverable K resumed writes what set NNN "
+            "resumed writes, to a \u23f8\ufe0f bullet; it refuses any "
+            "other but \U0001f4cb, which is no change. Resume such a bullet "
+            "before it is itemised: an item born on a \u23f8\ufe0f bullet "
+            "is \u23f8\ufe0f from the start.\n"
+            "\n"
+            "set --stage N --deliverable K restored writes what set NNN "
+            "restored writes, to a \u274c bullet; it refuses any other but "
+            "\U0001f4cb, which is no change.\n"
+            "\n"
+            "set --stage N --deliverable K dropped flips a \U0001f4cb, "
+            "\U0001f6a7, \U0001f50d or \u23f8\ufe0f bullet to \u274c, "
+            "writes the reason on a dated trail line under it, and rolls its "
+            "stage up again, moving down where its bullets now say less; "
+            "\u274c counts toward the \u2705 rule above where "
+            "\u23f8\ufe0f does not. It refuses a \u2705 bullet, which shipped, and a "
+            "bullet already \u274c is no change. It also refuses, writing "
+            "nothing, a drop that would leave every deliverable bullet of the "
+            "stage \u274c, which the rollup reads as \U0001f4cb: a stage "
+            "with nothing left to deliver is withdrawn whole, by a \u274c "
+            "on its summary row and on any Objective row only it delivers. "
+            "A stage whose summary row is already \u274c is withdrawn, so "
+            "neither drop form refuses there. "
+            "No insight is captured: "
+            "dropping a deliverable is a decision about scope, not a "
+            "finding."))
     p_prog.add_argument("action",
                         choices=["set", "accept", "amend", "retract", "reword",
                                  "reopen"])
@@ -15797,8 +18540,11 @@ def build_parser() -> argparse.ArgumentParser:
                              "(every other action; none for reword --item)")
     p_prog.add_argument("status", nargs="?", default=None,
                         help="set: in-progress | in-review | done | deferred "
-                             "(in-review = pushed, awaiting a human's merge; "
-                             "deferred needs --reason)")
+                             "| dropped | resumed | restored (in-review = "
+                             "pushed, awaiting a human's merge; the last four "
+                             "need --reason and take --stage and "
+                             "--deliverable in place of NNN for a bullet no "
+                             "item marker names)")
     #: A criterion or a deliverable bullet, never both in one call: the two
     #: `reword` forms address different lines by different keys (issue #320).
     p_target = p_prog.add_mutually_exclusive_group()
@@ -15809,12 +18555,15 @@ def build_parser() -> argparse.ArgumentParser:
                                "prose --text replaces, in place of STAGE and "
                                "--criterion")
     p_prog.add_argument("--stage", type=int, default=None, metavar="N",
-                        help="set deferred: the stage whose deliverable "
-                             "bullet --deliverable names, in place of NNN")
+                        help="set deferred|dropped|resumed|restored: the "
+                             "stage whose "
+                             "deliverable bullet --deliverable names, in "
+                             "place of NNN")
     p_prog.add_argument("--deliverable", type=int, default=None, metavar="K",
-                        help="set deferred: the 1-based position of a "
-                             "deliverable bullet with no item marker among "
-                             "the stage's deliverable bullets")
+                        help="set deferred|dropped|resumed|restored: the "
+                             "1-based position "
+                             "of a deliverable bullet with no item marker "
+                             "among the stage's deliverable bullets")
     p_prog.add_argument("--all", action="store_true", dest="all_criteria",
                         help="accept: every acceptance criterion in the stage "
                              "(amend/retract/reword act on one criterion only)")
@@ -15824,15 +18573,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_prog.add_argument("--reason", default=None,
                         help="retract: why the attestation is withdrawn; "
                              "reopen: why the item is not done after all; "
-                             "set deferred: why the item waits "
-                             "(required for all three)")
+                             "set deferred: why the item waits; "
+                             "set dropped: why the stage does not need the "
+                             "deliverable or item; set resumed: why the "
+                             "deferred work is wanted now; set restored: why "
+                             "the dropped work is wanted after all (required "
+                             "for all six)")
     p_prog.add_argument("--text", default=None,
                         help="reword: the criterion's new wording, or with "
                              "--item the bullet's new prose (required)")
     p_prog.add_argument("--date", default=None,
-                        help="amend/retract/reopen/set deferred: ISO date "
-                             "for the trail "
-                             "line (default: today)")
+                        help="amend/retract/reopen/set "
+                             "deferred|dropped|resumed|restored: "
+                             "ISO date for the trail line (default: today)")
     p_prog.add_argument("--no-commit", action="store_true", help="edit only, do not git commit")
     p_prog.set_defaults(func=cmd_progress, progress_parser=p_prog)
 
@@ -16004,7 +18757,8 @@ def build_parser() -> argparse.ArgumentParser:
             "refuse, exit 1: a branch that is not a queue branch, local mode "
             "or no origin, a branch with no PR (`queue pr` opens it), a PR "
             "closed or merged, a forge that could not be asked, and a failed "
-            "push or change.\n"
+            "push or change. Under [git] forge = \"none\" both refuse, exit "
+            "1, before the forge is asked anything: no forge is declared.\n"
             "\n"
             "An option the action does not read is refused, exit 2, before "
             "anything is done: pr and ready take no --dry-run, --base, "
@@ -16041,9 +18795,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_queue.set_defaults(func=cmd_queue)
 
     p_ins = sub.add_parser(
-        "insights", help="list / tick / archive / resolve the insight inbox",
+        "insights", help="add / list / tick / archive / resolve the insight inbox",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
+            "add:     capture one entry \u2014 append `- [ ] TYPE \u2014 CLAIM "
+            "*(PROVENANCE, YYYY-MM-DD, engine X.Y.Z)*` at the end of the "
+            "inbox, the date today's and the engine version read from "
+            ".aide/VERSION, the provenance and its comma left out when "
+            "--provenance is not given; print the entry's ID, the one list "
+            "prints, and commit. Refuses with exit 2, writing nothing, a type "
+            "that is not knowledge, defect, gap, automation or framework, an "
+            "empty claim, a line break in the claim or the provenance, and a "
+            "claim or provenance whose line would read back as a different "
+            "entry. In a POSIX shell, single-quote the claim so backticks in "
+            "it stay literal, and write an apostrophe inside it as '\\''\n"
             "list:    number the entries by position and print them all, "
             "ticked ones included; --open narrows to the untriaged, and an "
             "archived entry is in neither. Each entry is printed with its ID "
@@ -16076,13 +18841,20 @@ def build_parser() -> argparse.ArgumentParser:
             "or a side that archived.\n"
             "\n"
             "A missing insights.md is created from .aide/templates/insights.md "
-            "by list (and by check, claim and queue start) and committed when "
+            "by list and add (and by check, claim and queue start) and "
+            "committed when "
             "git can — on a branch, with an identity; otherwise it is left "
             "untracked and the notice says why."))
-    p_ins.add_argument("action", choices=["list", "tick", "archive", "resolve"])
-    p_ins.add_argument("number", nargs="?", default=None, metavar="N|ID",
+    p_ins.add_argument("action", choices=["add", "list", "tick", "archive", "resolve"])
+    p_ins.add_argument("number", nargs="?", default=None, metavar="N|ID|TYPE",
                        help="tick: the entry number or ID from `insights list`; "
-                            "list: print that one entry")
+                            "list: print that one entry; add: the entry's type")
+    p_ins.add_argument("claim", nargs="?", default=None, metavar="CLAIM",
+                       help="add: the claim, one line")
+    p_ins.add_argument("--provenance", default=None,
+                       help="add: where the insight came from, free-form "
+                            "(item NNN, queue-NNN, items NNN-NNN); omitted "
+                            "when not given")
     p_ins.add_argument("--open", action="store_true", dest="open_only",
                        help="list: only entries still untriaged")
     p_ins.add_argument("--type", default=None,
@@ -16106,8 +18878,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_ins.set_defaults(func=cmd_insights)
 
     p_ledger = sub.add_parser(
-        "ledger", help="record what an item cost where no merge will "
-        "(one row per item, docs/aide/ledger.md)",
+        "ledger", help="record what an item cost where no merge will, and "
+        "read the rows back (one row per item, docs/aide/ledger.md)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "abandon: the row for an item that never merged \u2014 one "
@@ -16132,19 +18904,58 @@ def build_parser() -> argparse.ArgumentParser:
             "\n"
             "It writes the ledger and nothing else: progress.md keeps "
             "whatever status the run left it, since what becomes of an "
-            "abandoned item is a decision, not a record. The file is created "
+            "abandoned item is a decision, not a record: its owner's, and "
+            "`aide progress set NNN dropped --reason TEXT` records one "
+            "against the work. The file is created "
             "from .aide/templates/ledger.md when this is the first row, and "
-            "committed on the branch the run is standing on, with no pull."))
-    p_ledger.add_argument("action", choices=["abandon"])
-    p_ledger.add_argument("number", type=int)
+            "committed on the branch the run is standing on, with no pull.\n"
+            "\n"
+            "report: reads the ledger and writes nothing \u2014 a table, or "
+            "with --json the same numbers for a reader to annotate; --queue "
+            "NNN keeps that queue's rows. Rows are grouped by their Engine "
+            "cell as written, and within it by Kind, never pooled across "
+            "kinds. Each group shows its Stage cells, merged and abandoned "
+            "counts, rounds per item and how many rows took each round "
+            "count, tests per acceptance criterion, findings per item by "
+            "rank, and how many of its caller-supplied cells (Rounds and "
+            "the three finding cells) are blank. Every ratio carries its n, "
+            "the rows it is drawn from. A blank cell joins no ratio and is "
+            "counted as unrecorded; a `-` finding cell joins no finding "
+            "ratio; a merged row whose Tests and Files are both 0 is read "
+            "as unrecorded in those two cells, never as zero \u2014 except "
+            "where the item already has an earlier merged row on the same "
+            "queue: that repeat is a merge re-run's duplicate and is left "
+            "out, and the earlier row counts. Any other repeat merged row is "
+            "a reopened item merged again, and both count. Finding ratios "
+            "are withheld "
+            "from a group whose Engine cell is not 1.59.0 or later, where a "
+            "blank finding cell may also mean no review ran. Rounds are a "
+            "distribution, not a share at the round cap: the cap is a "
+            "setting, and it may have moved under the rows. A row with a "
+            "cell count no ledger template draws is skipped and named "
+            "(under --queue, only one whose Queue cell names that queue). A "
+            "missing ledger is reported and exits 0; report never creates "
+            "one.\n"
+            "\n"
+            "The groups are descriptive and not comparable: another engine, "
+            "another setting or another batch of work sits behind each, and "
+            "a small one is an anecdote."))
+    p_ledger.add_argument("action", choices=["abandon", "report"])
+    p_ledger.add_argument("number", type=int, nargs="?", default=None,
+                          help="abandon: the item (required)")
     p_ledger.add_argument("--rounds", type=_non_negative_argument, default=None,
-                          help="build\u2194validate rounds the item took "
+                          help="abandon: build\u2194validate rounds the item took "
                                "before it was abandoned (required)")
     p_ledger.add_argument("--findings", type=_findings_argument, default=None,
-                          help="findings by rank: blocking=A,minor=B,nit=C "
+                          help="abandon: findings by rank: blocking=A,minor=B,nit=C "
                                "\u2014 any subset, any order")
     p_ledger.add_argument("--no-commit", action="store_true",
-                          help="write the row, do not git commit")
+                          help="abandon: write the row, do not git commit")
+    p_ledger.add_argument("--queue", type=_non_negative_argument, default=None,
+                          metavar="NNN",
+                          help="report: only the rows whose Queue cell is NNN")
+    p_ledger.add_argument("--json", action="store_true", dest="as_json",
+                          help="report: print the readings as JSON")
     p_ledger.set_defaults(func=cmd_ledger)
 
     register_git_subcommands(sub)  # claim / merge / env (git layer)
@@ -16160,7 +18971,15 @@ def register_git_subcommands(sub) -> None:
             "Picks the first 📋 item the queue lists \u2014 its own "
             "order, not the item numbers \u2014 whose dependencies have all "
             "left the way (\u2705, \u274c or "
-            "\u23f8\ufe0f) and that no unresolved human gate reaches. It "
+            "\u23f8\ufe0f) and that no unresolved human gate reaches. An "
+            "item every deliverable bullet of which sits in a stage whose "
+            "Stage summary row is \u274c \u2014 withdrawn whole \u2014 "
+            "is not offered either, and the report names the stage; an item "
+            "dropped by its own bullets is \u274c, not \U0001f4cb. A "
+            "queue-end item, one titled `Validate stage N`, waits besides on "
+            "every other item its queue lists that is not one, as on a "
+            "dependency, with or without a spec and wherever the queue lists "
+            "it, bar an item whose dependencies lead back to it. It "
             "will not offer a blocked item: where a gate holds the pick, the "
             "report names that gate, what it blocks and who may resolve it, "
             "rather than an unexplained \"none left\". Every \"none left "
@@ -16176,7 +18995,10 @@ def register_git_subcommands(sub) -> None:
             "\"none left\" (nothing open, no gate) carries no such line. An "
             "unpublished claim \u2014 a claim branch origin has never seen "
             "\u2014 exits 1 with how to publish or release it, whether or not "
-            "a gate holds the rest. "
+            "a gate holds the rest. A claim branch origin had and has since "
+            "deleted exits 1 the same way, named as already in its base or "
+            "as work that could not be found there, and is never advised a "
+            "push. "
             "A human-gates row it "
             "cannot read holds every item, since what it blocks is unknown: "
             "the report names the row and exits 1. A missing insights.md "
@@ -16235,10 +19057,21 @@ def register_git_subcommands(sub) -> None:
             "progress.md, the ledger and insights.md as they were before the "
             "tick, and exits 1, so the re-run writes the row once. A commit "
             "that is made but whose replay onto origin stops is kept, and "
-            "refuses the push the same way. An item "
+            "refuses the push the same way. A push that fails after the "
+            "tick's commit is made keeps that commit, and the re-run finds "
+            "the item \u2705 with its merged row and appends no second one; "
+            "the second row of an item is written only by a merge of it "
+            "after `aide progress reopen` sent it back. An item "
             "stopped at the "
             "validation-round cap never reaches this verb, and "
             "`aide ledger abandon` writes its row instead.\n"
+            "\n"
+            "An item progress.md shows \u274c dropped \u2014 every bullet "
+            "naming it \u274c or \U0001f4cb, in the working tree or on the "
+            "base \u2014 is refused before anything is merged, pushed or "
+            "written, exit 1, and the refusal names `aide progress set NNN "
+            "restored`. A \u23f8\ufe0f item is merged and ticked: a merge "
+            "records work that landed.\n"
             "\n"
             "The finding cells read [loop] review, from aide.toml. Where it "
             "is off no reviewer ran, so the three of them are written as `-` "
@@ -16335,11 +19168,44 @@ def register_git_subcommands(sub) -> None:
             "base had moved, or anything else changed, it runs the suite."))
     p_test.set_defaults(func=cmd_test)
 
-    p_env = sub.add_parser("env", help="venv health (exists, bootstrap finished, "
-                                        "interpreter matches, imports, test runner) + bootstrap")
+    p_env = sub.add_parser(
+        "env", help="what this machine has for this project's configuration "
+                    "(git, repository, origin, gh, test command, Python, venv "
+                    "health) + venv bootstrap",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Reports, one line each, what this project's configuration needs "
+            "of this machine and what the machine has: git, with its version "
+            "and the merge-tree features gc (2.38+) and queue restack (2.40+) "
+            "use; the repository, and whether aide.toml is at its top level; "
+            "a remote named origin; gh, and whether `gh auth status` confirms "
+            "a login; the test command's program; the interpreter the engine "
+            "runs on and the one its suggested commands print ([tools] python "
+            "in .aide/local.toml); and the venv \u2014 it exists, its last "
+            "bootstrap finished, it is the [python] interpreter's version, "
+            "import_check and a `python -m` test runner import.\n"
+            "\n"
+            "origin and gh are needed under every [git] mode but local. "
+            "[git] forge = \"none\" declares no forge: gh is then not needed, "
+            "and its line is left out. A "
+            "requirement the configuration needs and this machine lacks is a "
+            "refusal naming the setting that needs it and the two ways out "
+            "\u2014 meet it, or change the setting \u2014 and exits 1; nothing "
+            "is adapted to fit the machine. A printed interpreter this "
+            "machine lacks is a note that fails nothing: it decides only "
+            "what a suggestion says. [python] venv = \"\" means the "
+            "project keeps no venv: the venv line is left out, and --bootstrap "
+            "refuses. Exits 0 when every requirement the configuration needs "
+            "is met. `aide check` without --queue errors on the offline "
+            "part of the same report.\n"
+            "\n"
+            "--bootstrap builds the venv where it is missing or stale and "
+            "reports on the venv alone: exit 0 when the venv is OK, whatever "
+            "else the report would refuse."))
     p_env.add_argument("--bootstrap", action="store_true",
                        help="create + populate the venv if missing/stale, from "
-                            "[python] interpreter when set")
+                            "[python] interpreter when set; reports on the "
+                            "venv alone")
     p_env.add_argument("--profile", default=None,
                        help="evaluate a named [validation] environment profile "
                             "(exit 0 iff satisfied; one that runs past "
@@ -16357,7 +19223,10 @@ def register_git_subcommands(sub) -> None:
         description=(
             "Deletes claim branches, local and remote, whose item is \u2705 in "
             "progress.md, and with --merged also branches already merged into "
-            "the base. On the \u2705 ground a branch goes only when "
+            "the base. An item \u274c by its own bullets, or \U0001f4cb "
+            "with every bullet in a stage whose summary row is \u274c, is "
+            "on the \u2705 ground too. On the \u2705 ground a branch goes "
+            "only when "
             "`git merge-tree --write-tree` says merging it into the base would "
             "change nothing; a branch that still carries unlanded content is "
             "skipped with the base named, unless --abandon. merge-tree "
@@ -16376,8 +19245,9 @@ def register_git_subcommands(sub) -> None:
                       help="ref --merged is measured against (default: the "
                            "current branch's recorded base, else main_branch)")
     p_gc.add_argument("--abandon", action="store_true",
-                      help="delete a ✅ item's branch even though its content "
-                           "is not in the base — for a genuinely abandoned claim")
+                      help="delete a ✅ or ❌ item's branch even though its "
+                           "content is not in the base — for a genuinely "
+                           "abandoned claim")
     p_gc.add_argument("--yes", action="store_true", help="actually delete (default: dry run)")
     p_gc.set_defaults(func=cmd_gc)
 
@@ -16456,6 +19326,11 @@ def register_git_subcommands(sub) -> None:
             "the stack was closed without merging, and a lower git says "
             "landed never orphans; unknown when one below it could not be "
             "looked up or has no recorded base; - in local mode.\n\n"
+            "Under [git] forge = \"none\" no forge is asked at all: pr=, "
+            "checks= and orphaned= are - as in local mode, awaiting review "
+            "is no and the open-PR list is -. Under [git] ci = \"none\" "
+            "checks= is - on every stack line, a PR or not: no CI is "
+            "declared, so none is read.\n\n"
             "Two facts follow, each `yes`, `no` or (the second only) "
             "`unknown` before an em dash, and a repo can be both. "
             "runnable: is no when a queue PR in the stack was closed without "
@@ -16467,7 +19342,8 @@ def register_git_subcommands(sub) -> None:
             "nothing \u2014 unknown when none was seen ready but gh could not "
             "be asked, and no otherwise \u2014 in "
             "local mode always. The open-PR list says it could not look, and "
-            "gh's reason, rather than going silent."))
+            "gh's reason, rather than going silent; in local mode it is - "
+            "and gh is not asked."))
     p_status.add_argument("--no-fetch", action="store_true", help="skip the fetch --all --prune preflight")
     p_status.add_argument("--profiles", action="store_true",
                           help="evaluate the [validation] profile each "
@@ -16532,6 +19408,25 @@ def register_git_subcommands(sub) -> None:
     p_scope.set_defaults(func=cmd_scope)
 
 
+#: The verbs, by action, that write a document and then commit it through
+#: `_commits_here` — ``None`` for every action of the verb.
+_RECORDING_ACTIONS: Dict[str, Optional[Tuple[str, ...]]] = {
+    "gate": ("approve", "decline"),
+    "progress": None,
+    "insights": ("add", "tick", "archive"),
+    "ledger": ("abandon",),
+    "queue": ("gate",),
+}
+
+
+def _records_an_edit(args: argparse.Namespace) -> bool:
+    """Will this run write a document and commit it?"""
+    if getattr(args, "no_commit", False) or args.command not in _RECORDING_ACTIONS:
+        return False
+    actions = _RECORDING_ACTIONS[args.command]
+    return actions is None or getattr(args, "action", None) in actions
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     # Windows consoles often default to a non-UTF-8 codepage (cp1252), where
     # printing a status icon raises UnicodeEncodeError and kills the command
@@ -16557,7 +19452,15 @@ def main(argv: Optional[List[str]] = None) -> int:
             args.number = _progress_number(extra[0])
         else:
             parser.error(f"unrecognized arguments: {' '.join(extra)}")
+    global _GIT_OPTIONAL
+    _TOPLEVEL.clear()
+    _GIT_OPTIONAL = False
     try:
+        if _records_an_edit(args):
+            # Asked before the verb writes anything: a repository git cannot
+            # be run over refuses here, so no success line is printed for an
+            # edit `_commits_here` would then put back (issue #352).
+            in_repository(find_repo_root(args.repo))
         return args.func(args)
     except ConfigError as exc:
         # A broken aide.toml is a user-fixable state, not a crash. Every
@@ -16565,6 +19468,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         # traceback off the screen for all of them.
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    except MissingTool as exc:
+        # git or the test command is not there (issue #352): one sentence
+        # naming it, exit 1 — the same end whichever verb met it first. `scope`
+        # keeps its own contract, where 1 is "out of bounds" and "could not
+        # check" is 2.
+        verb = args.command
+        if args.command == "queue":
+            verb += f" {args.action}"
+        print(f"aide {verb}: {exc}", file=sys.stderr)
+        return 2 if args.command == "scope" else 1
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Tests for `aide insights` — list / tick / archive over the inbox.
+"""Tests for `aide insights` — add / list / tick / archive over the inbox.
 
 The inbox is the one living document whose contract is *immutability of the
 claim*, so the assertions here are mostly about what the verbs must NOT do:
@@ -21,6 +21,15 @@ _spec = importlib.util.spec_from_file_location("aide_cli_insights", _MODULE_PATH
 aide = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = aide
 _spec.loader.exec_module(aide)  # type: ignore[union-attr]
+
+
+@pytest.fixture(autouse=True)
+def _documents_not_the_machine(monkeypatch):
+    """`aide check` also errors on what aide.toml needs of this machine and it
+    lacks (issue #354) — a repository, `origin`, a runnable test command.
+    These tests judge documents in scratch directories, so that half is
+    taken out of them; `test_aide_env_report.py` holds it."""
+    monkeypatch.setattr(aide, "dependency_errors", lambda repo_root, config: [])
 
 AIDE_TOML = ('[project]\nname = "Demo"\ndocs_dir = "docs/aide"\n\n'
              '[git]\nmode = "local"\nmain_branch = "main"\nbranch_prefix = "aide/"\n')
@@ -1045,11 +1054,12 @@ def test_the_shared_committer_is_loud_when_git_cannot_run(
                                   ["docs/aide/insights.md"])
     assert why and "git could not be run" in why
     assert "could not commit docs/aide/insights.md" in capsys.readouterr().err
+    # Through the verb, git's absence is met before the commit: one sentence
+    # naming it, the edit put back first (issue #352).
     assert aide.main(["--repo", str(repo), "insights", "tick", "2",
                       "--pointer", "item 003"]) == 1
     err = capsys.readouterr().err
-    assert "could not commit docs/aide/insights.md" in err and "Traceback" not in err
-    assert "the tick could not be committed" in err
+    assert "aide insights: git is not on PATH" in err and "Traceback" not in err
     monkeypatch.undo()
     assert "- [x] defect" not in _inbox(repo)  # the edit was put back ...
     assert "insights.md" not in _status(repo)  # ... byte for byte
@@ -1831,3 +1841,463 @@ def test_an_archive_lists_no_citation_whose_number_it_leaves_alone(
     assert aide.main(["--repo", str(repo), "insights", "archive",
                       "--before", "2026-01-03"]) == 0
     assert "by position" not in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- #
+# insights add — capture through the CLI (issue #363)
+#
+# Capture was a hand edit, and in an unattended run every hand edit of the
+# inbox stopped on a permission prompt. The verb writes §1's shape itself —
+# the date and the engine filled in — so these tests are about the line it
+# writes reading back exactly as given, and about the refusals writing nothing.
+# --------------------------------------------------------------------------- #
+import datetime as _dt  # noqa: E402
+
+
+def _today() -> str:
+    return _dt.date.today().isoformat()
+
+
+def _engine() -> str:
+    return aide.installed_engine_version()
+
+
+def _add(repo: Path, *args: str) -> int:
+    return aide.main(["--repo", str(repo), "insights", "add", *args])
+
+
+def _inbox_bytes(repo: Path) -> bytes:
+    return (repo / "docs" / "aide" / "insights.md").read_bytes()
+
+
+def test_add_appends_the_section_shape_with_the_date_and_engine_filled_in(
+        tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    head = _head(repo)
+    assert _add(repo, "defect", "`aide scope` misses renamed files",
+                "--provenance", "item 042") == 0
+    line = _inbox(repo).splitlines()[-1]
+    assert line == (f"- [ ] defect — `aide scope` misses renamed files "
+                    f"*(item 042, {_today()}, engine {_engine()})*")
+    entry = aide.parse_insights(_inbox(repo))[-1]
+    assert (entry.type, entry.text, entry.source, entry.date, entry.note,
+            entry.pointer, entry.item) == (
+        "defect", "`aide scope` misses renamed files", "item 042", _today(),
+        f"engine {_engine()}", None, 42)
+    # Appended, nothing else touched.
+    assert _inbox(repo) == INBOX + line + "\n"
+    # Committed, one commit on top, naming the ID it printed.
+    iid = aide.insight_ids(aide.parse_insights(_inbox(repo)))[-1]
+    assert f"captured insight {iid}" in capsys.readouterr().out
+    assert _run(["git", "rev-parse", "HEAD~1"], repo).stdout.strip() == head
+    assert _run(["git", "log", "-1", "--pretty=%s"], repo).stdout.strip() == (
+        f"docs(aide): capture insight {iid}")
+    assert _clean(repo)
+
+
+def test_add_without_provenance_leaves_it_out_with_its_comma(tmp_path: Path):
+    repo = _repo(tmp_path)
+    assert _add(repo, "gap", "nothing exercises a Windows install") == 0
+    line = _inbox(repo).splitlines()[-1]
+    assert line == (f"- [ ] gap — nothing exercises a Windows install "
+                    f"*({_today()}, engine {_engine()})*")
+    assert aide.parse_insights(_inbox(repo))[-1].source is None
+    assert aide.insight_warnings(repo / "docs" / "aide") == []
+
+
+def test_add_without_an_engine_version_leaves_the_note_out(tmp_path: Path,
+                                                           monkeypatch):
+    repo = _repo(tmp_path)
+    monkeypatch.setattr(aide, "_VERSION_FILE", tmp_path / "no-such-VERSION")
+    assert _add(repo, "knowledge", "a fact", "--no-commit") == 0
+    assert _inbox(repo).splitlines()[-1] == f"- [ ] knowledge — a fact *({_today()})*"
+
+
+def test_the_id_add_prints_is_the_one_list_prints_even_when_lengthened(
+        tmp_path: Path, capsys):
+    first, second = _colliding_claims()
+    repo = _repo(tmp_path, f"# Insight Inbox\n\n- [ ] gap — {first} *({_today()})*\n")
+    assert _add(repo, "gap", second, "--no-commit") == 0
+    printed = capsys.readouterr().out
+    ids = aide.insight_ids(aide.parse_insights(_inbox(repo)))
+    assert len(ids[-1]) > len(_today()) + 1 + aide.INSIGHT_ID_MIN_HEX
+    assert f"captured insight {ids[-1]} " in printed
+    assert aide.main(["--repo", str(repo), "insights", "list"]) == 0
+    assert ids[-1] in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("argv", [
+    ["bogus", "a claim"],                                  # unknown type
+    ["Defect", "a claim"],                                 # types are lowercase
+    ["gap"],                                               # no claim
+    ["gap", "   "],                                        # empty claim
+    ["gap", "two\nlines"],                                 # a line break
+    ["gap", "two lines"],                             # one splitlines breaks on
+    ["gap", "a claim", "--provenance", "item\n042"],       # a break in provenance
+    ["gap", "a claim", "--provenance", "item 042)"],       # closes the marker
+    ["gap", "x *(prod, 2020-01-01)* → y"],                 # reads as marker + pointer
+    ["gap", "a claim", "--date", "2020-01-01"],            # capture is dated today
+], ids=["unknown-type", "capitalised-type", "no-claim", "blank-claim",
+        "newline", "line-separator", "provenance-newline", "provenance-paren",
+        "aside-and-pointer", "date"])
+def test_add_refuses_with_exit_2_and_writes_nothing(tmp_path: Path, argv, capsys):
+    repo = _repo(tmp_path)
+    before, head = _inbox_bytes(repo), _head(repo)
+    assert _add(repo, *argv) == 2
+    assert _inbox_bytes(repo) == before and _head(repo) == head
+    err = capsys.readouterr().err.strip()
+    assert err.startswith("aide insights add:") and len(err.splitlines()) == 1
+
+
+def test_a_refused_add_creates_no_inbox_either(tmp_path: Path):
+    repo = _loop_repo_without_inbox(tmp_path)
+    assert _add(repo, "bogus", "a claim") == 2
+    assert not (repo / "docs" / "aide" / "insights.md").exists()
+
+
+def test_an_aside_the_parser_reads_past_is_not_refused(tmp_path: Path):
+    """The refusal is exactly as wide as the reader: an aside that parses back
+    as part of the claim is captured as written."""
+    repo = _repo(tmp_path)
+    claim = "the default is *(prod, 2020-01-01)* not staging"
+    assert _add(repo, "gap", claim, "--no-commit") == 0
+    assert aide.parse_insights(_inbox(repo))[-1].text == claim
+
+
+def test_the_verbs_line_is_the_line_a_hand_would_write():
+    """A hand-appended line of the same shape is the same entry: check, list
+    and the ID read the line, not how it got there."""
+    line, problem = aide.insight_capture_line("gap", "  a claim ", "item 007",
+                                              "2026-09-30", "engine 2.28.0")
+    assert problem is None
+    assert line == "- [ ] gap — a claim *(item 007, 2026-09-30, engine 2.28.0)*"
+    by_hand = aide.parse_insights(
+        "- [ ] gap — a claim *(item 007, 2026-09-30, engine 2.28.0)*\n")
+    assert aide.insight_ids(aide.parse_insights(line + "\n")) == aide.insight_ids(by_hand)
+
+
+def test_add_creates_a_missing_inbox_and_appends_to_it(tmp_path: Path):
+    repo = _loop_repo_without_inbox(tmp_path)
+    assert _add(repo, "gap", "a claim") == 0
+    template = (aide._TEMPLATES_DIR / "insights.md").read_bytes()
+    data = _inbox_bytes(repo)
+    assert data.startswith(template)
+    assert aide.parse_insights(_inbox(repo))[-1].text == "a claim"
+    assert _clean(repo)
+
+
+def test_add_no_commit_leaves_the_capture_uncommitted(tmp_path: Path):
+    repo = _repo(tmp_path)
+    head = _head(repo)
+    assert _add(repo, "gap", "a claim", "--no-commit") == 0
+    assert _head(repo) == head
+    assert "insights.md" in _run(["git", "status", "--porcelain"], repo).stdout
+
+
+def test_a_capture_git_will_not_commit_is_put_back_and_exits_1(
+        tmp_path: Path, monkeypatch, capsys):
+    """What `tick` does (issue #309): an edit left written but uncommitted
+    reads as already made to the re-run. And no ID is printed: the entry it
+    would name has just been removed again."""
+    repo = _repo(tmp_path)
+    before, head = _inbox_bytes(repo), _head(repo)
+    _without_git_identity(repo, monkeypatch, tmp_path)
+    capsys.readouterr()
+    assert _add(repo, "gap", "a claim") == 1
+    assert _inbox_bytes(repo) == before and _head(repo) == head
+    assert "captured insight" not in capsys.readouterr().out
+
+
+def test_the_id_add_prints_is_lengthened_against_an_archived_claim(
+        tmp_path: Path, capsys):
+    """The clash is with an archived entry of the same day: an ID computed
+    over the live inbox alone would print four hex digits, and `check` would
+    then call the citation ambiguous."""
+    first, second = _colliding_claims()
+    repo = _repo(tmp_path, "# Insight Inbox\n\n")
+    quarter = aide.insight_quarter(_today())
+    _cite(repo, f"docs/aide/insights/archive-{quarter}.md",
+          f"# Insight Archive\n\n- [x] gap — {first} *({_today()})* → x\n")
+    assert _add(repo, "gap", second, "--no-commit") == 0
+    printed = capsys.readouterr().out
+    pool = aide.load_insight_pool(repo / "docs" / "aide")
+    ids = aide.insight_ids([e for _, e in pool])
+    mine = ids[[e.text for _, e in pool].index(second)]
+    assert len(mine) > len(_today()) + 1 + aide.INSIGHT_ID_MIN_HEX
+    assert f"captured insight {mine} " in printed
+    _cite(repo, "docs/aide/items/007-x.md", f"Fixes insight {mine}.\n")
+    assert _findings(repo) == ([], [])
+
+
+def test_add_never_glues_onto_a_last_line_with_no_newline(tmp_path: Path):
+    repo = _repo(tmp_path, INBOX.rstrip("\n"))
+    assert _add(repo, "gap", "a claim", "--no-commit") == 0
+    lines = _inbox(repo).splitlines()
+    assert lines[-2] == INBOX.rstrip("\n").splitlines()[-1]
+    assert aide.parse_insights(lines[-1] + "\n")[0].text == "a claim"
+    assert _inbox(repo).endswith("\n") and "\n\n" not in _inbox(repo)[len(INBOX) - 2:]
+
+
+def test_add_keeps_a_bom_and_crlf_line_endings(tmp_path: Path):
+    repo = _repo(tmp_path)
+    path = repo / "docs" / "aide" / "insights.md"
+    original = b"\xef\xbb\xbf" + INBOX.replace("\n", "\r\n").encode("utf-8")
+    path.write_bytes(original)
+    assert _add(repo, "gap", "a claim", "--no-commit") == 0
+    data = path.read_bytes()
+    assert data.startswith(original)
+    assert data[len(original):].endswith(b")*\r\n")
+    assert b"\n" not in data[len(original):-2]
+
+
+def test_add_refuses_a_conflicted_inbox(tmp_path: Path):
+    repo = _repo(tmp_path, INBOX + "<<<<<<< HEAD\n- [ ] gap — a *(2026-08-20)*\n"
+                                   "=======\n- [ ] gap — b *(2026-08-20)*\n"
+                                   ">>>>>>> other\n")
+    before = _inbox_bytes(repo)
+    assert _add(repo, "gap", "a claim", "--no-commit") == 2
+    assert _inbox_bytes(repo) == before
+
+
+def test_only_add_takes_a_claim(tmp_path: Path):
+    repo = _repo(tmp_path)
+    assert aide.main(["--repo", str(repo), "insights", "list", "1", "extra"]) == 2
+
+
+# --------------------------------------------------------------------------- #
+# a positional citation names what it meant when written (issue #361)
+#
+# Before, the hint named the entry the position holds *today*; after an
+# archive that is a different claim, and following it rewrote the citation.
+# --------------------------------------------------------------------------- #
+_FIVE = """\
+# Insight Inbox
+
+- [x] gap — claim one *(2026-01-01)* → a
+- [x] gap — claim two *(2026-01-02)* → a
+- [x] gap — claim three *(2026-01-03)* → a
+- [x] gap — claim four *(2026-01-04)* → a
+- [ ] gap — claim five *(2026-01-10)*
+"""
+
+
+def _commit_all(repo: Path, message: str = "cite") -> None:
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", message], repo)
+
+
+def _archived_after_citing(tmp_path: Path, citation: str) -> Path:
+    """The issue's repro: five entries, 1-4 ticked; a committed citation;
+    then an archive that leaves the fifth entry at position 1."""
+    repo = _repo(tmp_path, _FIVE)
+    _cite(repo, "docs/aide/items/007-x.md", citation)
+    _commit_all(repo)
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", "2026-01-05", "--yes"]) == 0
+    return repo
+
+
+def test_a_committed_citation_names_the_entry_it_meant_not_todays_holder(
+        tmp_path: Path):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _archived_after_citing(tmp_path, "Fixes insight 1.\n")
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1
+    assert f"entry 1 was insight {ids[0]} when " in warnings[0]
+    assert ids[4] not in warnings[0]          # today's holder of position 1
+    # The ID it names is one check accepts: it resolves in the archive.
+    _cite(repo, "docs/aide/items/007-x.md", f"Fixes insight {ids[0]}.\n")
+    assert _findings(repo) == ([], [])
+
+
+def test_the_issue_repro_entry_4_names_the_archived_fourth_entry(tmp_path: Path):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _archived_after_citing(tmp_path, "Mirrors the inbox entry 4.\n")
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1 and f"insight {ids[3]}" in warnings[0]
+    assert "moved it since" in warnings[0]
+
+
+def test_a_committed_citation_nothing_moved_says_it_still_is(tmp_path: Path):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _repo(tmp_path, _FIVE)
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 5.\n")
+    _commit_all(repo)
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1 and f"insight {ids[4]}" in warnings[0]
+    assert "and still is" in warnings[0]
+
+
+def test_an_uncommitted_citation_names_todays_holder(tmp_path: Path):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _archived_after_citing(tmp_path, "Nothing cited here yet.\n")
+    with open(repo / "docs" / "aide" / "items" / "007-x.md", "a",
+              encoding="utf-8") as fh:
+        fh.write("Fixes insight 1.\n")
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1 and warnings[0].startswith("docs/aide/items/007-x.md:2:")
+    assert "not committed" in warnings[0] and f"insight {ids[4]}" in warnings[0]
+
+
+def test_a_position_beyond_the_inbox_at_its_commit_named_no_entry(tmp_path: Path):
+    repo = _repo(tmp_path, _FIVE)
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 7.\n")
+    _commit_all(repo)
+    # The inbox grows to seven entries afterwards; position 7 was never
+    # an entry when the line was written.
+    with open(repo / "docs" / "aide" / "insights.md", "a", encoding="utf-8") as fh:
+        fh.write("- [ ] gap — six *(2026-02-01)*\n- [ ] gap — seven *(2026-02-02)*\n")
+    _commit_all(repo, "two more captures")
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1 and "held no entry 7" in warnings[0]
+    seven = aide.insight_ids(aide.parse_insights(_inbox(repo)))[6]
+    assert seven not in warnings[0]
+
+
+def test_without_git_history_todays_holder_is_the_labelled_fallback(tmp_path: Path):
+    repo = tmp_path / "repo"
+    (repo / "docs" / "aide").mkdir(parents=True)
+    (repo / "aide.toml").write_text(AIDE_TOML, encoding="utf-8")
+    (repo / "docs" / "aide" / "insights.md").write_text(_FIVE, encoding="utf-8")
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1
+    assert "today's holder; history unavailable" in warnings[0]
+    assert f"insight {ids[1]}" in warnings[0]
+
+
+def test_history_costs_one_blame_per_file_and_one_show_per_commit(
+        tmp_path: Path, monkeypatch):
+    repo = _archived_after_citing(
+        tmp_path, "Fixes insight 1.\nAnd insight 2.\nAnd inbox entry 3.\n")
+    _cite(repo, "docs/aide/queue/queue-001.md",
+          "# Q\n\n### Item 007: X\nRoutes insight 4.\n")
+    _commit_all(repo, "a queue citing, in a commit of its own")
+    calls = []
+    real = aide.git
+
+    def counting(args, root, check=True):
+        calls.append(args[0])
+        return real(args, root, check=check)
+
+    monkeypatch.setattr(aide, "git", counting)
+    _, warnings = _findings(repo)
+    assert len(warnings) == 4
+    assert calls.count("blame") == 2
+    assert calls.count("show") == 2           # two distinct commits wrote them
+
+
+def test_a_bom_on_the_inbox_then_does_not_shift_its_positions(tmp_path: Path):
+    """`git show` output is decoded as utf-8, not utf-8-sig: a BOM left on
+    would make the first entry no `- ` line and move every position by one."""
+    # The first entry on the first line, where the BOM lands.
+    bommed = "\ufeff" + _FIVE.split("\n\n", 1)[1]
+    repo = _repo(tmp_path)
+    (repo / "docs" / "aide" / "insights.md").write_bytes(bommed.encode("utf-8"))
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 1 and insight 5.\n")
+    _commit_all(repo)
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", "2026-01-05", "--yes"]) == 0
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    _, warnings = _findings(repo)
+    assert len(warnings) == 2
+    assert f"entry 1 was insight {ids[0]} when " in warnings[0]
+    assert f"entry 5 was insight {ids[4]} when " in warnings[1]
+
+
+def test_history_is_read_when_repo_root_is_below_the_git_top_level(tmp_path: Path):
+    """`<sha>:<path>` is read from git's top level; the inbox path is
+    repo_root's, so it is asked for as `<sha>:./<path>`."""
+    top = tmp_path / "mono"
+    top.mkdir()
+    _run(["git", "init", "-b", "main"], top)
+    _run(["git", "config", "user.email", "t@e.com"], top)
+    _run(["git", "config", "user.name", "T"], top)
+    _run(["git", "config", "core.autocrlf", "false"], top)
+    repo = top / "sub"
+    (repo / "docs" / "aide").mkdir(parents=True)
+    (repo / "aide.toml").write_text(AIDE_TOML, encoding="utf-8")
+    (repo / "docs" / "aide" / "insights.md").write_text(_FIVE, encoding="utf-8")
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 1.\n")
+    _commit_all(top)
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", "2026-01-05", "--yes"]) == 0
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1 and f"entry 1 was insight {ids[0]} when " in warnings[0]
+
+
+def test_an_inbox_that_cannot_be_read_then_is_the_labelled_fallback(tmp_path: Path):
+    """A failed `git show` — here the inbox was never committed — says nothing
+    about the past: not "named no entry", but today's holder, labelled."""
+    repo = _repo(tmp_path, _FIVE)
+    _run(["git", "rm", "-q", "--cached", "docs/aide/insights.md"], repo)
+    _run(["git", "commit", "-q", "-m", "untrack the inbox"], repo)
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    _run(["git", "add", "docs/aide/items/007-x.md"], repo)
+    _run(["git", "commit", "-q", "-m", "cite"], repo)
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1
+    assert "named no entry" not in warnings[0]
+    assert "history unavailable" in warnings[0] and f"insight {ids[1]}" in warnings[0]
+
+
+def test_a_line_blamed_on_a_shallow_clones_boundary_is_the_labelled_fallback(
+        tmp_path: Path):
+    """blame stops at the commit the clone was cut at, and `git show` of it is
+    today's inbox — a confident, wrong answer unless the boundary is read."""
+    src = _archived_after_citing(tmp_path, "Fixes insight 1.\n")
+    clone = tmp_path / "clone"
+    _run(["git", "clone", "-q", "--depth", "1", src.resolve().as_uri(),
+          str(clone)], tmp_path)
+    assert _run(["git", "rev-parse", "--is-shallow-repository"],
+                clone).stdout.strip() == "true"
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    _, warnings = _findings(clone)
+    assert len(warnings) == 1
+    assert "history unavailable" in warnings[0]
+    assert f"insight {ids[4]}" in warnings[0] and " was insight " not in warnings[0]
+
+
+def test_a_root_commit_is_history_not_a_boundary(tmp_path: Path):
+    """blame marks a true root commit `boundary` too; only a shallow cut hides
+    history. A citation written in a repository's first commit resolves."""
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = tmp_path / "repo"
+    (repo / "docs" / "aide" / "items").mkdir(parents=True)
+    (repo / "aide.toml").write_text(AIDE_TOML, encoding="utf-8")
+    (repo / "docs" / "aide" / "insights.md").write_text(_FIVE, encoding="utf-8")
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 1.\n")
+    _run(["git", "init", "-b", "main"], repo)
+    _run(["git", "config", "user.email", "t@e.com"], repo)
+    _run(["git", "config", "user.name", "T"], repo)
+    _run(["git", "config", "core.autocrlf", "false"], repo)
+    _commit_all(repo, "root")
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1 and f"entry 1 was insight {ids[0]} when " in warnings[0]
+
+
+@pytest.mark.parametrize("brk", ["\x0c", "\x0b", "\x85", "\u2028", "\r"])
+def test_blame_is_asked_for_gits_line_not_splitlines(tmp_path: Path, brk):
+    """git counts lines by \\n alone; a form feed, a U+2028 or a lone \\r
+    before a citation puts `splitlines`' number past git's, and the blame of
+    the wrong line names the wrong commit."""
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _repo(tmp_path, _FIVE)
+    cite = repo / "docs" / "aide" / "items" / "007-x.md"
+    cite.parent.mkdir(parents=True, exist_ok=True)
+    cite.write_bytes(f"x{brk}y\nFixes insight 1.\nlast\n".encode("utf-8"))
+    _commit_all(repo)
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", "2026-01-05", "--yes"]) == 0
+    # git's line 3, splitlines' line 4, is edited and left uncommitted.
+    cite.write_bytes(f"x{brk}y\nFixes insight 1.\nlast, edited\n".encode("utf-8"))
+    _, warnings = _findings(repo)
+    assert len(warnings) == 1
+    assert f"entry 1 was insight {ids[0]} when " in warnings[0]
+
+
+def test_git_line_numbers_count_newlines_only():
+    assert aide._git_line_numbers("a\nb\r\nc\x0cd\ne") == [1, 2, 3, 3, 4]

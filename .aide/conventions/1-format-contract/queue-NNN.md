@@ -36,17 +36,21 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
   one.** It is the one place for queue-level judgement that produces
   committed artefacts — a spec reviewable at the plan gate, tests that stay
   in the suite, an independent validator — and it is the queue's final item.
-  Stage validation is its only trigger today, so it is planned only on a
-  queue that closes a roadmap stage, and only when `aide check --queue NNN`
-  warns that the stage still has work for one. The planner reads that warning
-  and never works the need out itself; with no such warning, the queue ends
+  Wherever the file lists it, it runs last: `aide claim` holds it until every
+  other item on its queue that is not a queue-end item has left the way, bar
+  one whose dependencies lead back to it, and `aide check --queue NNN` warns
+  when open work that does not depend on it is listed after it, so an item
+  added after planning goes above it. Stage validation is its only trigger
+  today, so it is planned only on a queue that closes a roadmap stage, and
+  only when `aide check --queue NNN` warns that the stage still has work for
+  one. The planner reads that warning and never works the need out itself; with no such warning, the queue ends
   with its last deliverable. The same check warns on a planned queue-end item
   with nothing to do. What closes a stage, and what counts as a need, is
   `aide check -h`. The stage variant is titled `Validate stage N: <stage
   title>`: it attests the stage criteria no item's AC annotates, replays the
   stage's use cases end-to-end, and updates the capability table (§1 →
-  environment-gated capabilities). *(aide check, queue-planner, spec-author,
-  aide merge)*
+  environment-gated capabilities). *(aide check, claim, queue-planner,
+  spec-author, aide merge)*
 
 #### Rationale
 
@@ -67,6 +71,15 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
   row is open and nothing gated was introduced, it re-attests what the
   validators already attested; the progress rollup and the coverage and
   capability-table warnings are already mechanical (#333).
+- **Why claim holds it rather than trusting the order.** An item added after
+  planning was numbered and listed after `Validate stage N`, and neither had
+  a spec: with no `## Dependencies` to read, the queue-end item counted as
+  unblocked and was claimed first, validating a stage whose last deliverable
+  had not been built. The title is the one thing the engine knows the item
+  by, so the hold is read from it and from `progress.md` alone, never from a
+  spec that may not exist yet; queue-end items do not hold each other, or a
+  queue ending on two would start neither. The file is still made to say
+  so, because a person reads the queue in its listed order (#347).
 - **Why the engine decides and not the planner.** The need is read from
   `progress.md`, the queue files and the specs, so the same tree always gives
   the same answer. At plan time no spec exists, so every unticked criterion is

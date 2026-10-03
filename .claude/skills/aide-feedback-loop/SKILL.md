@@ -15,9 +15,9 @@ Analyze the current state of the project documents and recent work.
 
 ### The modular passes this loop may call
 
-Four passes are skills of their own, because each is useful without the rest of
-the retrospective and each costs a whole loop to reach otherwise. Call the ones
-this run needs; none of them is restated below.
+Five passes are skills of their own, because each is useful without the rest
+of the retrospective and each costs a whole loop to reach otherwise. Call the
+ones this run needs; none of them is restated below.
 
 | Pass | What it does | When |
 |---|---|---|
@@ -25,6 +25,7 @@ this run needs; none of them is restated below.
 | `/aide-review-permissions` | ranks the auto-logged permission prompts an unattended run stalls on | when a run needed a human to approve a command |
 | `/aide-review-instructions` | reports which instruction files actually reached which sessions | when a rule looks like it never bound |
 | `/aide-status-report` | regenerates the living HTML status page | when the visible snapshot has gone stale |
+| `/aide-review-ledger` | reads the run ledger back by engine version and kind, and annotates each cohort boundary with the releases and `aide.toml` changes behind it | when a queue has just closed and `docs/aide/ledger.md` exists; skipped without it |
 
 Triage is the one that always runs, and it runs *first*: what it routes is the
 raw material for everything below.
@@ -62,7 +63,8 @@ Framework/process changes land via a **reviewed PR**, never a direct merge.
 ### 4. Consistency, permission bottlenecks & instruction delivery
 
 - Run `python .aide/scripts/aide.py check` — fix any format-contract errors it
-  reports (they break the scripts the loop depends on).
+  reports (they break the scripts the loop depends on). A `this machine:`
+  error is reported to the human, never fixed by editing `aide.toml`.
 - **Permission bottlenecks and instruction delivery are queue-boundary questions
   too**, and both have a pass of their own (table above): run
   `/aide-review-permissions` for the prompts an unattended run stalled on, and

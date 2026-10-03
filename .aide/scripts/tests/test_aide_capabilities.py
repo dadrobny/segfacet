@@ -12,6 +12,7 @@ interpreter that cannot start.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -199,6 +200,7 @@ STATUS_ROWS = (
 def _status(tmp_path: Path, capsys, *flags: str) -> str:
     repo = _repo(tmp_path, _progress(*STATUS_ROWS),
                  validation='gpu = "True"\nweights = "False"')
+    _git_init(repo)
     assert aide.main(["--repo", str(repo), "status", "--no-fetch", *flags]) == 0
     return capsys.readouterr().out
 
@@ -235,6 +237,7 @@ def test_status_evaluates_each_profile_once(tmp_path: Path, monkeypatch, capsys)
                         lambda root, config, expr: calls.append(expr) or (True, ""))
     rows = (ROW, ROW.replace("GPU path", "GPU training"))
     repo = _repo(tmp_path, _progress(*rows))
+    _git_init(repo)
     assert aide.main(["--repo", str(repo), "status", "--no-fetch", "--profiles"]) == 0
     assert calls == ["True"]
     assert capsys.readouterr().out.count("profile 'gpu' is satisfied here") == 2
@@ -261,3 +264,9 @@ def test_a_profile_whose_interpreter_cannot_start_is_not_satisfied(
     satisfied, detail = aide.evaluate_profile(repo, aide.load_config(repo), "True")
     assert satisfied is False
     assert detail.startswith("interpreter ") and "cannot be run" in detail
+
+
+def _git_init(path: Path) -> None:
+    """`aide status` refuses outside a repository (issue #352)."""
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)

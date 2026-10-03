@@ -59,7 +59,8 @@ Options: `--out <path>`, `--junit <results.xml>` (from
 
 ## Instructions for the agent
 
-1. Ensure the venv is current (`python .aide/scripts/aide.py env`).
+1. Ensure the venv is current (`python .aide/scripts/aide.py env --bootstrap`,
+   which answers for the venv alone).
 2. Optionally run pytest with `--junitxml=results.xml` first for real outcomes.
 3. Run the generator with any relevant image folders.
 4. Report the output path.

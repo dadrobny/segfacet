@@ -51,11 +51,41 @@ states.
 
 **Deferral is recorded on the item, with its reason, and the stage follows.**
 Postpone an item with `aide progress set NNN deferred --reason …`, never by
-typing ⏸️ over a bullet or a stage; deferred work resumes through any forward
-`aide progress set`. A bullet no item marker names is deferred by its place
-instead, with `aide progress set --stage N --deliverable K deferred --reason …`,
-K counting the stage's deliverable bullets from 1; it resumes once it is
-itemised.
+typing ⏸️ over a bullet or a stage. A bullet no item marker names is deferred
+by its place instead, with `aide progress set --stage N --deliverable K
+deferred --reason …`, K counting the stage's deliverable bullets from 1.
+
+**Deferred work resumes with its own verb, back to 📋, with its reason.**
+Resume an item with `aide progress set NNN resumed --reason …`, and a bullet no
+item marker names with `aide progress set --stage N --deliverable K resumed
+--reason …`; a resumed item is claimable again. A forward `aide progress set`
+refuses an item whose bullets are all ⏸️ or 📋. Resuming is the owner's decision, and the reason says why
+the work is wanted now. A ⏸️ or ❌ bullet is never itemised as it stands: a ⏸️
+one is resumed first, and a ❌ one was decided against, so it is not queued
+until it is restored.
+
+**A deliverable the stage turns out not to need is dropped, with its reason,
+and the stage can close.** Drop a bullet no item marker names with `aide
+progress set --stage N --deliverable K dropped --reason …`, never by typing ❌
+over it: the bullet reads ❌, which counts toward its stage's ✅ where a ⏸️
+bullet never does — a ⏸️ bullet included, once its owner decides the stage
+does not need it at all. Defer what the stage needs later, drop what it does
+not need. Drop an item with `aide progress set NNN dropped --reason …` — a
+shipped item is reopened first. A drop that would leave every deliverable
+bullet of the stage ❌ is refused: a stage with nothing left to deliver is
+withdrawn whole, by a ❌ on its summary row and on any Objective row only it
+delivers; a stage already withdrawn that way refuses no drop.
+
+**Dropped work is restored with its own verb, back to 📋, with its reason.**
+Restore an item with `aide progress set NNN restored --reason …`, and a bullet
+no item marker names with `aide progress set --stage N --deliverable K
+restored --reason …`. A forward `aide progress set`, and `aide merge`, refuse
+an item whose bullets are all ❌ or 📋. Restoring is the owner's decision, and
+the reason says why the work is wanted after all.
+
+**A withdrawn stage speaks for no objective**: an Objective row reads ❌ only
+when every stage it names is withdrawn, and is otherwise derived from the
+stages still in scope.
 
 **A stage may be ✅ with an unticked box; say why in an annotation beside it.**
 
@@ -70,7 +100,7 @@ per goal, **its Target cell never empty and its Objective cell naming the
 blocks its stage** — the stage
 closes when its work ships, and the target gates the Objective coverage rows
 instead. **Marking a target `❌ Not met` is a *finding*, so route it like one:
-append a `- [ ] gap — …` line to `insights.md` in the same edit.** Write the
+capture a `gap` with `aide insights add` alongside the edit.** Write the
 row with care: **a table row its reader cannot use is an `aide check`
 error** — a `|` inside a cell, usually.
 

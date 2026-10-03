@@ -882,3 +882,66 @@ def test_a_gh_missing_from_path_is_asked_once_not_retried(
     got, why = aide._branch_pr_facts(tmp_path, Q1)
     assert (got, why) == (None, "gh is not on PATH")
     assert len(calls) == 1
+
+
+# --------------------------------------------------------------------------- #
+# [git] forge = "none" and [git] ci = "none" (issue #355)
+# --------------------------------------------------------------------------- #
+def _declare(repo: Path, keys: str) -> None:
+    """Add *keys* to the ``[git]`` table, the way a person edits aide.toml."""
+    path = repo / "aide.toml"
+    path.write_text(path.read_text(encoding="utf-8").replace(
+        'branch_prefix = "aide/"\n', f'branch_prefix = "aide/"\n{keys}\n'),
+        encoding="utf-8")
+
+
+@pytest.mark.parametrize("argv", [("pr", "--body", "x"), ("ready",),
+                                  ("ready", "--undo")])
+def test_no_forge_refuses_pr_and_ready_and_asks_nothing(
+        tmp_path: Path, monkeypatch, capsys, argv):
+    """`auto-merge` pushing to a remote with no GitHub behind it: origin is
+    there, and still neither verb reaches for a forge."""
+    repo = _init(tmp_path, mode="auto-merge")
+    _start(repo, 1)
+    _plan(repo, 1)
+    _declare(repo, 'forge = "none"')
+    calls = _forge(monkeypatch, why="must not be asked")
+    capsys.readouterr()
+    assert _run(repo, *argv) == 1
+    assert 'no forge is declared (git.forge = "none")' in capsys.readouterr().err
+    assert calls == []
+
+
+def test_no_forge_reads_every_forge_field_as_a_dash_and_asks_nothing(
+        tmp_path: Path, monkeypatch, capsys):
+    repo = _init(tmp_path, mode="auto-merge")
+    _start(repo, 1)
+    _plan(repo, 1)
+    _declare(repo, 'forge = "none"')
+
+    def must_not_run(repo_root, args):
+        raise AssertionError(f"_gh called with no forge declared: {args}")
+
+    monkeypatch.setattr(aide, "_gh", must_not_run)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert f"stack 1: {Q1} base=main pr=- checks=- lower=- orphaned=-" in out
+    assert "awaiting review: no — no forge is declared" in out
+    assert "open PRs: - (no forge declared)" in out
+
+
+def test_no_ci_reads_checks_as_a_dash_on_a_pr_whatever_the_rollup(
+        tmp_path: Path, monkeypatch, capsys):
+    """The PR is still the forge's to report; its checks are not asked of
+    it, so a red rollup names no failing check and counts no fix round."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _plan(repo, 1)
+    _declare(repo, 'ci = "none"')
+    _forge(monkeypatch, {Q1: [{
+        "number": 7, "state": "OPEN", "isDraft": False,
+        "statusCheckRollup": [_run_check("build", "COMPLETED", "FAILURE")]}]})
+    (q1,) = _status_stack(repo, capsys)
+    assert (q1["pr"], q1["checks"], q1["failing"]) == ("#7/open", "-", [])
+    assert "rounds" not in q1 and q1["awaiting"] == "yes"

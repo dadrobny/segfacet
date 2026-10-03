@@ -1,9 +1,11 @@
 <!--
-  AIDE insight inbox. Any role appends ONE line here, at any time, when it
-  learns something true but out of scope for its task, and returns to that
-  task. The engine creates docs/aide/insights.md from this file, byte for
-  byte, the first time `aide check`, `claim`, `queue start` or `insights
-  list` finds it missing; nobody copies it by hand.
+  AIDE insight inbox. Any role captures ONE line here, at any time, when it
+  learns something true but out of scope for its task — by running
+  `python .aide/scripts/aide.py insights add`, which writes the entry shape
+  below — and returns to that task. The engine creates
+  docs/aide/insights.md from this file, byte for byte, the first time
+  `aide check`, `claim`, `queue start`, `insights list` or `insights add`
+  finds it missing; nobody copies it by hand.
   The rules — what is captured, what is immutable, what each verb does — are
   conventions.md §1 → insights.md and `python .aide/scripts/aide.py insights
   -h`. This comment is the shapes; the aide-template line below it names
@@ -32,7 +34,7 @@
       - **2026-08-20** → aide-loop issue #50
       - **2026-10-11** → resolved in engine 1.16.0
 -->
-<!-- aide-template: insights 1 -->
+<!-- aide-template: insights 2 -->
 # Insight Inbox
 
 _Entries below, newest last._

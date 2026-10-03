@@ -3,7 +3,14 @@
 Where out-of-scope learning goes so it is never lost *and* never acted on out
 of scope. Every role captures into this file, so every role reads this section;
 what happens to an entry *after* capture is two sections of its own, named at
-the end. Any role, at any time, appends **one line** and returns to its task:
+the end. Any role, at any time, captures **one line** with `aide insights add`
+and returns to its task:
+
+```
+python .aide/scripts/aide.py insights add <type> '<one line>' [--provenance 'item NNN']
+```
+
+which appends
 
 ```
 - [ ] <type> — <one line> *(item NNN, YYYY-MM-DD, engine X.Y.Z)*
@@ -21,31 +28,36 @@ finding's rank (§9) — a word inside the one line, not a change to the entry's
 shape, and nothing parses it.
 
 **The file exists before a role needs it — the engine puts it there.**
-`aide check`, `aide claim`, `aide queue start` and `aide insights list` each
-create a missing `insights.md` as a byte-exact copy of
+`aide check`, `aide claim`, `aide queue start`, `aide insights list` and
+`aide insights add` each create a missing `insights.md` as a byte-exact copy of
 `.aide/templates/insights.md`. No role copies the template by hand, and an
 existing file — malformed or not — is never touched.
 
 **Name where it came from, in whatever form is honest.** The provenance before
-the date is free-form and optional — write `item NNN` from inside an item,
-`queue-NNN` for planning or spec-authoring done before any item exists,
-`items NNN-NNN` for a finding that genuinely spans several, or omit it entirely
-from a role outside the loop. Those are the conventional spellings, not a
+the date — `--provenance` — is free-form and optional: write `item NNN` from
+inside an item, `queue-NNN` for planning or spec-authoring done before any item
+exists, `items NNN-NNN` for a finding that genuinely spans several, or omit it
+entirely from a role outside the loop. Those are the conventional spellings, not a
 grammar the CLI enforces: **the ISO date is the only part that is
 load-bearing**, since `archive` cuts on it. Never bend a provenance to fit a
 shape — collapsing `items 099-101` to `item 099` is a rewording the immutability
 rule below forbids.
 
 **Name the engine you were running, after the date** — `engine X.Y.Z`, one read
-of `.aide/VERSION`. Optional and unenforced like the provenance — and **never
-retrofitted**, since the claim line below is immutable: an entry captured
-without one stays as captured.
+of `.aide/VERSION`. `add` fills in both the date and this; the engine is
+optional and unenforced like the provenance — and **never retrofitted**, since
+the claim line below is immutable: an entry captured without one stays as
+captured.
 
 `aide check` shape-checks entries, and only the date strictly.
 
-**Capture is a plain append; everything after it has a verb.**
+**Capture has a verb, and so does everything after it.** `add` refuses,
+writing nothing, an input whose line would not read back as the entry given. A line of the same shape appended by hand is still an entry —
+`check`, `list` and the ID read the line, not how it got there — but it is the
+improvised form of `add`, as a hand-flipped `[x]` is of `tick`.
 
 ```
+python .aide/scripts/aide.py insights add <type> '<one line>' [--provenance TEXT]
 python .aide/scripts/aide.py insights list [N|ID] [--open] [--type T] [--trail]
 python .aide/scripts/aide.py insights tick N|ID --pointer "<where it landed>" [--trail]
 python .aide/scripts/aide.py insights archive --before YYYY-MM-DD [--yes]
@@ -58,10 +70,10 @@ what remains, so re-run `list` after one.
 
 **Cite an entry by its ID, never by its position.** Every entry has an ID —
 its capture date and the leading hex of a hash of its claim, as in
-`2026-09-24-3fa1` — which `insights list` prints and no one writes: capture
-stays one line. The ID is computed from the claim alone, which is immutable,
-so no tick, trail line, archive or merge changes it, and it names an archived
-entry as well as a live one. Wherever a durable artifact names an entry — an
+`2026-09-24-3fa1` — which `insights add` and `insights list` print and no one
+writes: capture stays one line. The ID is computed from the claim alone, which
+is immutable, so no tick, trail line, archive or merge changes it, and it names
+an archived entry as well as a live one. Wherever a durable artifact names an entry — an
 item spec, a queue file, `progress.md`, a trail line, a test, a commit message,
 another entry's claim — write `insight <ID>`; the word before it is what
 `aide check` reads a citation by. A position (`list`'s `N`) is for the session
@@ -76,7 +88,10 @@ that just ran `list`, and nowhere else.
   entry in `insights.md` or its archives is an **error** — it blocks a merge,
   like every check error. A cited ID matching two different claims, and a
   citation by position in `docs/aide/**` or `tests_dir`, are warnings naming
-  the ID to write. The inbox and its archives are not swept, and a **record**
+  the ID to write — for a position, the entry it named in the commit that last
+  wrote the citing line, read from git history, and today's only for a line
+  not yet committed or where there is no history (the warning says which).
+  The inbox and its archives are not swept, and a **record**
   is not read for positions: the spec of an item `progress.md` shows ✅, ❌ or
   ⏸️, and a queue naming items none of which is still open. An ID in a record
   that resolves to nothing is still an error. A position is never
@@ -143,6 +158,14 @@ whichever of them the entry is heading for.
   entry and its trail across line for line and says so; an entry too malformed
   to yield a date can be moved by no cut at all, so `archive` names each one it
   left behind rather than dropping it silently.
+- **Why capture has a verb.** Capture was a hand edit, and an unattended role
+  stalled on a permission prompt for every one — eleven in one consumer queue
+  (issue #363). Pre-approving edits of the file was the rejected alternative:
+  it would have waved through every hand edit of a file whose claims are
+  immutable, where a prompt is the right answer. The verb also guarantees the
+  line's shape and fills the date and engine, so the shape check has nothing
+  to warn about on a captured line; the round-trip refusal exists because a
+  warning on a captured line can never be cleared.
 - **Why `resolve` exists, and why it refuses.** Append-only means every pair of
   branches conflicts here, and the conflict is always a union: two branches
   that each captured an insight added lines at the same position, so a merge or
@@ -184,7 +207,9 @@ whichever of them the entry is heading for.
   case with queue branches, so capture would need a verb or a merge-time
   renumbering — the problem again. A hash of the immutable claim collides only
   on the same claim captured the same day, which *is* the same claim; it needs
-  no writer, so capture stays an append.
+  no counter and no state on the writing side — `add` computes nothing another
+  branch could also have taken — so two branches capturing at once never
+  collide, and capture stays an append.
 - **Why only the claim is hashed.** It is exactly the part no one may edit.
   The checkbox, the pointer and the trail are written by triage, so hashing
   them would change the ID on the first tick; whitespace is collapsed so an
@@ -196,19 +221,23 @@ whichever of them the entry is heading for.
   a file name, and a false error there would block a merge on prose. The
   word costs the author nothing and makes a match a citation by construction.
   A positional citation is only a warning, because what a number meant when
-  written cannot be recovered from the file — the warning names what that
-  number holds *today*, which the author confirms. Except once: the archive
-  run still knows what every number meant, so it prints the mapping before
-  the move rather than refusing — the listing preserves it, and the move
-  already waits on `--yes` (issue #295). After it, the warning's "today" names
-  whatever now sits at that number.
+  written cannot be recovered from the file alone. The archive run still knows
+  what every number meant, so it prints the mapping before the move rather
+  than refusing — the listing preserves it, and the move already waits on
+  `--yes` (issue #295). After it, the check recovers the meaning from history
+  (issue #361): the commit that last wrote the citing line, and the inbox as
+  it stood in that commit. It once named what the number held *today*, and
+  after an archive that is a different claim — following the hint rewrote the
+  citation to point at something its author never meant. Today's holder is
+  right only for a line not yet committed, and is offered, labelled, only
+  where there is no history to read.
 - **Why a record is not read for positions.** A record is never rewritten, so
   the warning could not be cleared — one consumer carried 394 warnings, about
   330 of them on merged specs and finished queues (issue #338) — and on a
-  record written before an archive, its "today" names whatever moved into
-  that number since, which is a wrong answer offered as a fix. The archive
-  listing still names a record's positions: it is printed by the one run that
-  knows what the number meant. A dangling ID stays an error there, because
+  record written before an archive, the warning's hint then named whatever
+  moved into that number since, which is a wrong answer offered as a fix. The
+  archive listing still names a record's positions: it is printed by the one
+  run that knows what the number meant. A dangling ID stays an error there, because
   no reader can follow it whoever wrote it.
 - **Why tests are read for positions too.** A test comment or assertion
   message naming "insight 28" goes stale on the next archive or merge exactly
