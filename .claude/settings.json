@@ -102,7 +102,8 @@
       "Bash(awk:*)",
       "Bash(top -bn1:*)",
       "Bash(mkdir:*)",
-      "Bash(.venv/bin/segfacet:*)"
+      "Bash(.venv/bin/segfacet:*)",
+      "Bash(git blame:*)"
     ],
     "ask": [
       "Bash(git push --force:*)",
