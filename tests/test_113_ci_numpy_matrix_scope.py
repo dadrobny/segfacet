@@ -382,7 +382,17 @@ def test_ac5_verify_environment_gated_assert_no_skips_command_unchanged(ci_workf
 
 def test_ac6_test_job_install_and_test_commands_unchanged(ci_workflow):
     assert _normalize_run(ci_workflow["test_install_run"]) == EXPECTED_TEST_INSTALL_RUN
-    assert _normalize_run(ci_workflow["test_test_run"]) == EXPECTED_TEST_TEST_RUN
+    # Item 113's claim is that the `test` job keeps the whole suite at -n 4
+    # and that the numpy legs' --ignore/--deselect of the environment-gated
+    # modules never leaks into it. Pinning the whole command line was a
+    # diff-time claim (.aide/conventions.md §6) and blocked the 2026-10-03
+    # Windows-leg change (an OS-conditional --ignore of the framework
+    # engine's own tests, plus --durations), so the pin is now the prefix
+    # and the two leak checks.
+    test_run = _normalize_run(ci_workflow["test_test_run"])
+    assert test_run.startswith(EXPECTED_TEST_TEST_RUN)
+    assert "--deselect" not in test_run
+    assert "--ignore=tests/" not in test_run
 
 
 def test_ac6_test_job_matrix_still_covers_both_platforms(ci_workflow):
