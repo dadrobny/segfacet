@@ -53,7 +53,7 @@ All code (tests, CLI, scripts) runs inside a local **`.venv`** at the project
 root — gitignored, built per machine. Bootstrap or verify it with:
 
 ```
-python .aide/scripts/aide.py env              # check
+python .aide/scripts/aide.py env              # check (engine 2.30.0: the whole configuration, exit 1 on any missing requirement)
 python .aide/scripts/aide.py env --bootstrap  # create + install if missing/stale
 ```
 
@@ -208,7 +208,9 @@ already written down there rather than in `docs/aide/`.
   the `/aide-run-{item,queue,roadmap}` orchestrators, the
   `/aide-review-{permissions,instructions}` boundary reviews, and
   `/aide-review-insights` (engine 1.42.0), the inbox-triage pass spun out of
-  `/aide-feedback-loop` and called by `/aide-run-roadmap` at a queue boundary.
+  `/aide-feedback-loop` and called by `/aide-run-roadmap` at a queue boundary,
+  and `/aide-review-ledger` (engine 2.27.0), which reads `aide ledger report`
+  back by engine version and kind after a queue closes.
   `.claude/skills/` also holds **section skills** — `aide-document-format`,
   `aide-human-gates`, `aide-item-specs`, `aide-off-platform-verification`,
   `aide-progress-file`, `aide-queue-and-inbox`, `aide-review-and-validation`,
@@ -262,7 +264,8 @@ is §1 → vision.md. `docs/aide/ledger.md` (engine 1.58.0, §1 → ledger.md) i
 created by `aide merge` from its template with the first row it writes, and
 nobody authors a row by hand. Its header still follows template bumps: it moved
 to ledger template 3 at engine 2.20.1, which added the `Suite s` and `Inherited`
-columns. The older fourteen-cell rows are read as they stand.
+columns. The older fourteen-cell rows are read as they stand, and `aide ledger
+report` (engine 2.27.0) is how the rows are read back, never a hand count.
 
 **Read `$AIDE_LOOP/CLAUDE.md` before changing anything there — it is not in
 context.** An agent's instruction files are loaded for the *working directory's*
