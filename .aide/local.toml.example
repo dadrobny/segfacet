@@ -2,13 +2,34 @@
 # (gitignored) and edit. Nothing here is shared or committed.
 #
 # It holds the filesystem paths that are true of this machine and of no other,
-# which is why they may not live in the committed aide.toml: [framework] names
-# the framework clone itself, [hygiene] the other repos this project spans. Set
-# any, all, or none.
+# which is why they may not live in the committed aide.toml: [tools] says
+# where the programs the engine runs are, [framework] names the framework
+# clone itself, [hygiene] the other repos this project spans. Set any, all, or
+# none.
 #
-# The reader is an adapter's hooks — the command-hygiene guard, where the
-# adapter has one. Under a runtime whose adapter ships no such hook nothing
-# reads this file, and it is then inert rather than wrong.
+# Two kinds of reader, each finding the file at the repository root (beside
+# aide.toml), never in whatever directory a command happens to run from. The
+# engine (`.aide/scripts/aide.py`) reads [tools]. An adapter's hooks read
+# [framework] and [hygiene] — the command-hygiene guard, where the adapter has
+# one; under a runtime whose adapter ships no such hook those two tables are
+# inert rather than wrong.
+
+[tools]
+# Where a program is on this machine, when PATH does not say: a command on
+# PATH or a path (absolute, or relative to the repository root; use forward
+# slashes or a 'single-quoted' string on Windows). Empty/absent = looked up on
+# PATH. A value naming a program that is not there is refused by name — the
+# engine never falls back to PATH behind a key you wrote. A [tools] table
+# that cannot be parsed is refused the same way by every verb that runs git or
+# gh; the engine parses this table alone, never the two below it.
+gh = ""       # the forge CLI `aide status` and `aide queue pr|ready` ask
+git = ""
+# The interpreter the engine PRINTS in the commands it suggests ("run
+# `python .aide/scripts/aide.py gc`"). Printed only: nothing is run with it,
+# and the control files and the permission allow-list keep saying `python`.
+# On a host with python3 and no python, put a `python` on PATH instead (a
+# shim, or Debian's python-is-python3) — that is what everything else calls.
+python = ""
 
 [framework]
 # Local checkout of the aide-loop framework repo itself, for the documented

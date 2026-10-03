@@ -115,12 +115,15 @@ rewrite; a **major structural change**; or edits to **framework/process** files
 
 When you learn something true but OUT OF SCOPE for this task — a doc gap, a
 latent defect, a missing capability, a recurring manual step that
-deterministic code could replace, or an AIDE-framework issue — append ONE
-line to `docs/aide/insights.md` and carry on. Never act on it here. Entry
-shape:
+deterministic code could replace, or an AIDE-framework issue — capture ONE
+line in `docs/aide/insights.md` with the verb and carry on. Never act on it
+here:
 
-    - [ ] <knowledge|defect|gap|automation|framework> — <one line> *(item NNN, YYYY-MM-DD, engine X.Y.Z)*
+    python .aide/scripts/aide.py insights add <knowledge|defect|gap|automation|framework> '<one line>' --provenance 'item NNN'
+
+It appends the entry, the date and engine version filled in, and prints its
+ID to cite it by.
 
 The feedback loop triages the inbox at the queue boundary. Capturing is cheap
-and always in scope; acting out of scope is forbidden. This append is the one
+and always in scope; acting out of scope is forbidden. This capture is the one
 write allowed outside your edit scope.

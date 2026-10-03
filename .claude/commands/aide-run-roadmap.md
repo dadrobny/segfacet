@@ -89,7 +89,11 @@ series of improvised git/gh probes:
    branch, bottom first, with its `base=`, `pr=`, `lower=` and `orphaned=`
    fields, then the `runnable:` and `awaiting review:` lines. What each
    value means is `aide status -h`'s to say; the table below keys on the
-   values and restates none of it.
+   values and restates none of it. Then `python .aide/scripts/aide.py env`:
+   read its `origin` line whatever the exit status (a refusal elsewhere in
+   the report is not a stop here). It reads `not needed` in `local` mode
+   (§4) and `none` with no origin, and either way skip every `git pull` and
+   `git push` below.
 3. Take every queue branch's PR state from its `pr=` field — never from a
    `gh` probe of your own, so the command and the engine cannot disagree
    about what is blocked. `pr=unknown` (or `awaiting review: unknown`) means
@@ -104,10 +108,10 @@ series of improvised git/gh probes:
    to resolve, never yours).
 5. **The branch to build is the lowest open queue branch with work left** —
    usually the top of the stack (§4: a stack is built bottom up). `git switch`
-   to it and `git pull`, and run `status` **again there**: its queue file, its
-   items' states and its plan gate live on that branch only, so a `status` on
-   `main` cannot see them. `python .aide/scripts/aide.py gate list` prints
-   each gate's ID.
+   to it and `git pull` (not in `local` mode or with no origin), and run
+   `status` **again there**: its queue file, its items' states and its plan
+   gate live on that branch only, so a `status` on `main` cannot see them.
+   `python .aide/scripts/aide.py gate list` prints each gate's ID.
 
 Read `docs/aide/roadmap.md`, `docs/aide/progress.md` and the queue files as
 needed. The loop runs **in-place in the primary checkout** (see *Working in
@@ -116,10 +120,10 @@ parallel* below if you need isolation).
 | State | Action |
 |---|---|
 | **Roadmap exhausted** — `stack: 0/…`, every stage ✅ / deferred / excluded | Report done. Stop. |
-| **A queue branch's PR has merged** — its line reads `pr=#N/merged` | `git switch` to `main`, `git pull`, then `python .aide/scripts/aide.py queue restack` **before** any clean-up — it reads the landed branch's record to hand the branch above it to `main`. Then `python .aide/scripts/aide.py gc --merged` to preview and `--yes` to delete the landed branches (a squash-merged queue branch too: `--merged` compares content, not ancestry, where git is recent enough to measure it). If a queue PR was stacked on the merged one, check its base: `gh pr view <prefix>queue-M --json baseRefName`. GitHub retargets it to `main` only once the merged branch is deleted on origin; if it still names the merged branch, run `gh pr edit <prefix>queue-M --base main` — `ask`-gated, so an unattended run reports the command instead and carries on. Re-read the state. |
+| **A queue branch's PR has merged** — its line reads `pr=#N/merged` | `git switch` to `main`, `git pull` (not in `local` mode or with no origin), then `python .aide/scripts/aide.py queue restack` **before** any clean-up — it reads the landed branch's record to hand the branch above it to `main`. Then `python .aide/scripts/aide.py gc --merged` to preview and `--yes` to delete the landed branches (a squash-merged queue branch too: `--merged` compares content, not ancestry, where git is recent enough to measure it). If a queue PR was stacked on the merged one, check its base: `gh pr view <prefix>queue-M --json baseRefName`. GitHub retargets it to `main` only once the merged branch is deleted on origin; if it still names the merged branch, run `gh pr edit <prefix>queue-M --base main` — `ask`-gated, so an unattended run reports the command instead and carries on. Re-read the state. |
 | **A queue branch's PR was closed without merging** — a line reads `pr=#N/closed` or `orphaned=yes` (`runnable: no` says so too) | **Stop.** Say the PR was closed unmerged and ask the human whether the queue is abandoned (delete the branch and re-plan, via `/aide-feedback-loop` if the roadmap needs it) or the PR should be reopened. Name every `orphaned=yes` branch — built on a batch that was rejected; never restack, build on, approve for, or reopen any of them yourself. |
 | **`queue restack` stopped** (exit 1) | **Stop.** Report its message: a conflict names both branches and leaves everything as it was, and a lower branch git cannot judge names both remedies. |
-| **A lower queue branch has 📋 items again** — a person added an item to its PR in review, and `restack` carried it up the stack | Build it **on that branch**, not the top: switch to it and go to **Run a queue**. Its PR stays ready. When it is exhausted, push, run `queue restack` to carry the result up, and re-read the state. |
+| **A lower queue branch has 📋 items again** — a person added an item to its PR in review, and `restack` carried it up the stack | Build it **on that branch**, not the top: switch to it and go to **Run a queue**. Its PR stays ready. When it is exhausted, push (not in `local` mode or with no origin), run `queue restack` to carry the result up, and re-read the state. |
 | **The open queue branch being built is built out** — its queue has no 📋/🚧 item left | Go to **Queue end**. |
 | **The open queue branch being built has 📋 items held by its plan gate**, still ⏳ Awaiting (or ❌ Declined) | **Stop.** Tell the human to review the draft PR, and to approve the gate on that branch (see **Generate the next queue**); a declined one is re-planned, not approved. If the branch has no PR yet, open it as that section says first. |
 | **The open queue branch being built has 📋 items and no gate holds them** — its plan gate approved, or none raised under `plan_review` | Run the queue on its branch → go to **Run a queue**. |
@@ -161,7 +165,8 @@ end**, below the cap. Call the base `<base>` below — `main`, or
   queue files in the one PR — the split decision (what went to maintenance and
   what went to the stage) is only reviewable with both in front of the human.
 - **Create the queue branch with the CLI.** Off `main`, from an up-to-date
-  `main` (`git pull --rebase`): `python .aide/scripts/aide.py queue start NNN`.
+  `main` (`git pull --rebase`, not in `local` mode or with no origin):
+  `python .aide/scripts/aide.py queue start NNN`.
   On the stack, from the finished queue branch:
   `python .aide/scripts/aide.py queue start NNN --base <prefix>queue-N`, where
   NNN is one above the highest-numbered queue file on that branch. Either way
@@ -191,14 +196,19 @@ end**, below the cap. Call the base `<base>` below — `main`, or
   ```
   On exit 1 relay its sentence and **stop** — a PR on the branch that was
   closed or merged is a person's decision, and the verb opens no second PR
-  over it. A gate row the planner raised is committed on the branch either
+  over it. The exception is a refusal for no forge — `local` mode, `[git]
+  forge = "none"`, or no remote named origin: say so and go on without a PR
+  — the queue branch is what a person reviews. A gate row the planner raised is committed on the branch either
   way, so nothing it holds can be built until a person has looked at it.
 - **If `queue gate` raised a gate, STOP and tell the user**: review the draft
   PR — reshape the plan there if it needs it, and front-load the specs with
   `/aide-spec-queue NNN` if the batch warrants it, which commits them onto the
   same branch — then approve the gate **on the queue branch** and push it, so
   the approval travels in the PR as its record:
-  `python .aide/scripts/aide.py gate approve <gate-ID>`, then `git push`.
+  `python .aide/scripts/aide.py gate approve <gate-ID>`, then `git push`
+  (not in `local` mode or with no origin, where the approval is committed
+  with nothing to push). With no forge there is no PR: the review is of the
+  queue branch.
   Re-invoke `/aide-run-roadmap` afterwards. **Never approve the gate
   yourself** (§1 → human gates): the decision it holds is the whole point of
   the stop.
@@ -225,11 +235,15 @@ ready`, the wait on CI and the reading of its answer. When `/aide-run-queue`
 reported the queue exhausted it has already run it on the way out — take its
 answer rather than running it twice; when you arrived here from the state
 table, run it now. A lower queue re-opened in review (the state table) was
-already ready: push, restack, and re-read the state instead of going on below.
+already ready: push (not in `local` mode or with no origin), restack, and
+re-read the state instead of going on below.
 
 A red answer is not a stop by itself: `/aide-run-queue` → **Queue end**
 runs the CI fix round, goes back to its loop, and ends on the round's own
-answer — take that one. Go on below only on CI `success`. Anything else,
+answer — take that one. Go on below only on CI `success`, or on CI none
+declared (`[git] ci = "none"`), and with no forge at all (`local` mode,
+`[git] forge = "none"`, or no remote named origin) where `aide queue ready`
+refused for that. Anything else,
 and an early ready above all (a gate still holds items of this queue), is a
 **stop**: report the answer and the batches awaiting review.
 
@@ -253,10 +267,12 @@ next queue** off `main`.
 
 Tidying the now-superseded queue NNN-1 is the planner's step, not yours: it
 runs `python .aide/scripts/aide.py queue tidy <NNN-1>`, which writes the
-completion note, then reflects each item's final `progress.md` state so a stale
-📋 list isn't left implying open work, and commits that alongside the new queue
-on the `aide/queue-NNN` branch — branched from a `main` the previous queue's
-PR has already landed on, or, on a stack, from the previous queue's branch.
+completion note — it writes nothing else into that file, since a queue entry
+carries no icon and status lives in `progress.md` alone, and defers any item it
+carries over with `aide progress set NNN deferred --reason …` — and commits
+that alongside the new queue on the `aide/queue-NNN` branch — branched from a
+`main` the previous queue's PR has already landed on, or, on a stack, from the
+previous queue's branch.
 
 The shape of the stamp is `.aide/conventions.md` §1 → `queue-NNN.md`'s, and the
 planner has that section preloaded — so the verb writes it and nobody types

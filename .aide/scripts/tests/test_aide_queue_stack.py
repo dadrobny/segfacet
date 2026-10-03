@@ -13,6 +13,7 @@ import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -274,6 +275,92 @@ def test_the_check_accepts_both_keys_at_their_documented_values(tmp_path: Path):
                      loop=f'max_open_queues = 2\nplan_review = "{value}"')
         errors, _ = aide.run_checks(repo, aide.load_config(repo))
         assert not any("[loop]" in e for e in errors), errors
+
+
+@pytest.mark.parametrize("mode", ["Local", "auto_merge", "offline", ""])
+def test_a_git_mode_outside_the_three_fails_the_check(tmp_path: Path, mode: str):
+    """Issue #352: every site compares against one of the three, so any other
+    string ran as `auto-merge` — `"Local"` pushed from a checkout meant to be
+    offline."""
+    repo = _init(tmp_path / "r", mode=mode)
+    errors, _ = aide.run_checks(repo, aide.load_config(repo))
+    assert [e for e in errors if "[git] mode" in e] == [
+        f"aide.toml [git] mode = {mode!r} is not one of 'auto-merge', 'pr', "
+        f"'local' — any other value runs as 'auto-merge' (default "
+        f"'auto-merge')"]
+
+
+def test_the_check_accepts_the_three_git_modes(tmp_path: Path):
+    for mode in aide.GIT_MODE_VALUES:
+        repo = _init(tmp_path / mode, mode=mode)
+        errors, _ = aide.run_checks(repo, aide.load_config(repo))
+        assert not any("[git] mode" in e for e in errors), errors
+
+
+# --------------------------------------------------------------------------- #
+# [git] forge and [git] ci — declared, never inferred (issue #355)
+# --------------------------------------------------------------------------- #
+def _git_keys(repo: Path, keys: str) -> List[str]:
+    """`aide check`'s errors naming ``[git]`` after *keys* join that table."""
+    path = repo / "aide.toml"
+    path.write_text(path.read_text(encoding="utf-8").replace(
+        'branch_prefix = "aide/"\n', f'branch_prefix = "aide/"\n{keys}\n'),
+        encoding="utf-8")
+    errors, _ = aide.run_checks(repo, aide.load_config(repo))
+    return [e for e in errors if "[git]" in e]
+
+
+def test_pr_mode_with_no_forge_fails_the_check(tmp_path: Path):
+    """Under `pr` a person opens each item's PR on the forge, so the
+    combination has no meaning."""
+    repo = _init(tmp_path / "r", mode="pr")
+    (error,) = _git_keys(repo, 'forge = "none"')
+    assert error.startswith('aide.toml [git] mode = "pr" with forge = "none"')
+
+
+def test_ci_on_a_pr_with_no_forge_fails_the_check(tmp_path: Path):
+    repo = _init(tmp_path / "r", mode="auto-merge")
+    (error,) = _git_keys(repo, 'forge = "none"\nci = "pr"')
+    assert error.startswith('aide.toml [git] ci = "pr" with forge = "none"')
+
+
+@pytest.mark.parametrize("keys, named", [
+    ('forge = "gitlab"', "[git] forge = 'gitlab' is not one of 'github', 'none'"),
+    ('forge = "GitHub"', "[git] forge = 'GitHub' is not one of"),
+    ('ci = "push"', "[git] ci = 'push' is not one of 'pr', 'none'"),
+    ('ci = ""', "[git] ci = '' is not one of"),
+])
+def test_a_forge_or_ci_outside_its_values_fails_the_check(
+        tmp_path: Path, keys: str, named: str):
+    repo = _init(tmp_path / "r", mode="auto-merge")
+    (error,) = _git_keys(repo, keys)
+    assert named in error
+
+
+@pytest.mark.parametrize("mode, keys", [
+    ("auto-merge", 'forge = "none"'),
+    ("auto-merge", 'forge = "none"\nci = "none"'),
+    ("local", 'forge = "none"'),
+    ("pr", 'forge = "github"\nci = "none"'),
+    ("auto-merge", 'forge = "github"\nci = "pr"'),
+    ("pr", ""),
+])
+def test_the_check_accepts_every_meaningful_combination(
+        tmp_path: Path, mode: str, keys: str):
+    repo = _init(tmp_path / "r", mode=mode)
+    assert _git_keys(repo, keys) == []
+
+
+@pytest.mark.parametrize("git_table, forge, ci", [
+    ({}, "github", "pr"),
+    ({"forge": "none"}, "none", "none"),
+    ({"forge": "none", "ci": "pr"}, "none", "none"),
+    ({"ci": "none"}, "github", "none"),
+    ({"forge": "gitlab", "ci": "push"}, "github", "pr"),
+])
+def test_ci_defaults_follow_the_forge(git_table, forge: str, ci: str):
+    config = {"git": git_table}
+    assert (aide.declared_forge(config), aide.declared_ci(config)) == (forge, ci)
 
 
 # --------------------------------------------------------------------------- #

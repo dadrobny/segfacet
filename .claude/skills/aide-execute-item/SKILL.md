@@ -37,7 +37,9 @@ python .aide/scripts/aide.py claim           # claim the next unclaimed item
 
 or, resuming an existing claim, `python .aide/scripts/aide.py sync --item NNN`
 (it lands on the claim branch and pulls it up to date). Verify the venv first:
-`python .aide/scripts/aide.py env` (add `--bootstrap` if missing/stale).
+`python .aide/scripts/aide.py env --bootstrap` (it builds the venv only if
+missing/stale, and answers for the venv alone); skip it when `aide.toml` sets
+`[python] venv = ""`, which keeps no venv.
 
 ### During implementation
 
@@ -60,10 +62,10 @@ or, resuming an existing claim, `python .aide/scripts/aide.py sync --item NNN`
    complete, even if their criteria happen to be satisfied as a side effect.
 6. **Capture out-of-scope insights** — anything true but beyond this item (a
    doc gap, a latent defect, a missing capability, a recurring manual step
-   deterministic code could replace, an AIDE-framework issue) gets ONE
-   appended line in `docs/aide/insights.md`, then carry on:
+   deterministic code could replace, an AIDE-framework issue) gets ONE line
+   in `docs/aide/insights.md`, captured with the verb, then carry on:
 
-       - [ ] <knowledge|defect|gap|automation|framework> — <one line> *(item NNN, YYYY-MM-DD, engine X.Y.Z)*
+       python .aide/scripts/aide.py insights add <knowledge|defect|gap|automation|framework> '<one line>' --provenance 'item NNN'
 
    The feedback loop triages the inbox at the queue boundary; never act on an
    insight out of scope here.

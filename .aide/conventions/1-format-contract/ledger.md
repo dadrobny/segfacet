@@ -5,7 +5,9 @@ it cost in build↔validate rounds, and what it added. Two verbs write it —
 `aide merge` and `aide ledger abandon` — and **no role reads it at spawn**: its
 readers are the person standing at a queue boundary, who asks what the batch
 cost, and the feedback-loop pass over a finished queue, which reads the
-project's own ratios and their trend.
+project's own ratios and their trend. **The rows are read back through
+`aide ledger report`**, which draws no conclusion: what the readings mean is
+the reader's.
 
 - **One row per item, appended where the ✅ is.** `aide merge` adds the row in
   the commit that ticks the item, so a row exists exactly for an item the
@@ -152,6 +154,15 @@ project's own ratios and their trend.
   which is the role that decided what each one was. A reviewer appending its
   own rows would record the same finding twice — once as it saw it, once as it
   was triaged — with no way to tell the two apart.
+- **Why the reader is a verb, and a verb that judges nothing.** For the
+  ledger's first 41 rows in one consumer nothing read them at all: the
+  feedback-loop pass this section named had no way in but the whole file,
+  and a ratio re-derived by hand each time drifts from the cell rules above —
+  a blank averaged as a zero, a `-` read as a count, a lost diff read as an
+  empty one (issue #251). The counting is mechanical, so it is the engine's;
+  what a change between two engine versions means needs the release notes
+  and the project's own setting history beside it, which only a reader can
+  hold, so the verb stops at the numbers and each ratio carries its `n`.
 - **Why no role reads it at spawn.** Every row is about work that is already
   finished, so nothing an agent decides depends on it; putting it on any
   role's read-set would cost a growing file per spawn and change no decision.

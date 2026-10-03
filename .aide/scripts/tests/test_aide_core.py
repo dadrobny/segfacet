@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -1230,7 +1231,10 @@ def test_insight_malformed_entry_warns(tmp_path: Path):
 # --------------------------------------------------------------------------- #
 # CLI end-to-end
 # --------------------------------------------------------------------------- #
-def test_cli_check_ok(tmp_path: Path, capsys):
+def test_cli_check_ok(tmp_path: Path, capsys, monkeypatch):
+    # Documents, not the machine: `aide check` also errors on what aide.toml
+    # needs of this machine (issue #354), which a scratch directory lacks.
+    monkeypatch.setattr(aide, "dependency_errors", lambda repo_root, config: [])
     root = _docs(tmp_path)
     rc = aide.main(["--repo", str(root), "check"])
     assert rc == 0
@@ -1384,6 +1388,7 @@ def test_cli_progress_set_errors_when_the_backfill_recorded_nothing(
 
 def test_cli_status_reports_queues_and_claims(tmp_path: Path, capsys):
     root = _docs(tmp_path)
+    _git_init(root)
     rc = aide.main(["--repo", str(root), "status", "--no-fetch"])
     assert rc == 0
     out = capsys.readouterr().out
@@ -1473,3 +1478,9 @@ def test_a_wrapped_copy_compares_by_its_whole_prose():
     out = aide.set_item_status(text, 17, "complete")
     warnings = aide.identical_deliverable_warnings(out.splitlines())
     assert len(warnings) == 1 and "016, 017" in warnings[0] and "018" not in warnings[0]
+
+
+def _git_init(path: Path) -> None:
+    """`aide status` refuses outside a repository (issue #352)."""
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)

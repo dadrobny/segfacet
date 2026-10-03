@@ -61,7 +61,7 @@
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
-| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | ✅     |
+| 33    | Corpus & Rule Re-grounding: modes 2 and 3 to the bar                    | G2, G7, G8      | ✅     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -122,6 +122,9 @@
 > rules, and re-signs **modes 3 and 4 at the bar**. Its close attests Stage 32's
 > criterion 1, so Stage 32 stays 🚧 until then. Run order, stated once at the top of
 > [`roadmap.md`](roadmap.md): **33 → 27 → 21 → 16**.
+> **Re-targeted 2026-09-30** at gate `gate-51da`: the selected modes became **2 and 3**
+> (mode 4 left the stage at its `gate-bb24` intermediate state), signed at the bar at
+> `gate-0133` on 2026-10-02. The stage title was corrected on 2026-10-03.
 
 ## Two kinds of "done" — implementation vs. validation
 
@@ -155,7 +158,7 @@ shipped"). See "Two kinds of done" above._
 | G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16)* | 🚧     |
 | G3 Distinguish failure from variation        | Stages 6, 7, 12*(real grounding: Stage 14)*            | 🚧     |
 | G4 Per-case and cohort reports               | Stage 1 (ext. 2–4); cohort characterisation: Stage 18   | ✅     |
-| G5 Deploy on XNAT*(deferred)*              | Stage 9*(real session data: Stage 15)*                 | 🚧     |
+| G5 Deploy on XNAT*(removed from scope 2026-07-25)* | Stage 9 shipped the artefacts; validation was Stage 15 ❌ | ❌     |
 | G6 Portable / GPU*(deferred)*              | Stage 10                                                 | ✅     |
 | G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16)* | 🚧     |
 | G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | 🚧     |
@@ -1834,13 +1837,15 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 ---
 
-## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — ✅
+## Stage 33 — Corpus & Rule Re-grounding: modes 2 and 3 to the bar (G2, G7, G8) — ✅
 
 **Goal.** Rebuild the geometric corpus base as a lordotic L1–L5, re-author the fixtures that
 do not express their mode, re-home the rules the queue-022 review named (`insights.md`,
-entries dated 2026-09-22), and bring **modes 3 and 4** to an **at-the-bar** sign-off. That
-sign-off closes Stage 32's criterion 1 as well as this stage. Modes 2 and 6 are
-re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
+entries dated 2026-09-22), and bring **modes 2 and 3** to an **at-the-bar** sign-off. That
+sign-off closes Stage 32's criterion 1 as well as this stage. Mode 6 is re-grounded but
+not driven to the bar. Vertebra-local extents are Stage 27's. (Scoped on 2026-09-22 for
+modes 3 and 4; re-targeted to 2 and 3 at `gate-51da`, 2026-09-30, when the mode 2/3
+boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 
 **Deliverables.**
 

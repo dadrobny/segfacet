@@ -211,6 +211,9 @@ def test_check_reports_drift_as_a_warning_and_still_exits_zero(
         tmp_path: Path, capsys, monkeypatch):
     """The whole path a consumer runs: `main`, the installed templates read from
     disk, and the exit code a warning never moves."""
+    # Documents, not the machine: `aide check` also errors on what aide.toml
+    # needs of this machine (issue #354), which a scratch directory lacks.
+    monkeypatch.setattr(aide, "dependency_errors", lambda repo_root, config: [])
     templates = tmp_path / "templates"
     templates.mkdir()
     (templates / "progress.md").write_text(

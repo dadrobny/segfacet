@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import pytest
 
@@ -1570,6 +1571,121 @@ def test_a_published_claim_is_in_flight_not_a_failure(tmp_path: Path, capsys):
     assert "ORIGIN HAS NEVER SEEN" not in out
 
 
+def test_a_resumed_item_is_claimed_again_or_held_on_its_branch(
+        tmp_path: Path, capsys):
+    """Issue #380. A ⏸️ item set forward used to land 🚧 with no branch,
+    which `claim` never offers; the forward set is refused now, and `set NNN
+    resumed` sends the item back to 📋, which `claim` offers. Deferred again
+    after its claim and resumed once more, it is held as in flight on the
+    branch it already has — the runner's resume step picks it up there."""
+    root = _init_repo(tmp_path / "r", mode="local")
+    prog = ["--repo", str(root), "progress", "set"]
+    for n in ("027", "028"):
+        assert aide.main([*prog, n, "deferred", "--reason", "later"]) == 0
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim"]) == 1
+    assert "no open queue" in capsys.readouterr().err
+
+    assert aide.main([*prog, "027", "in-progress"]) == 1
+    assert "resumed --reason" in capsys.readouterr().err
+    assert aide.main([*prog, "027", "resumed", "--reason", "wanted now"]) == 0
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim"]) == 0
+    assert _current_branch(root) == "aide/027-bounds-rules"
+
+    # Deferred mid-build and resumed: 📋 again, with its claim branch still
+    # there, so claim names it in flight rather than offering it twice.
+    assert aide.main([*prog, "027", "deferred", "--reason", "blocked"]) == 0
+    assert aide.main([*prog, "027", "resumed", "--reason", "unblocked"]) == 0
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim"]) == 0
+    out = capsys.readouterr().out
+    assert "027 Bounds rules — claimed by aide/027-bounds-rules, already in flight" in out
+
+
+def test_merge_refuses_a_dropped_item_until_it_is_restored(
+        tmp_path: Path, capsys):
+    """Issue #381. ❌ ranks lowest, so the tick flipped a dropped item ✅ with
+    nothing on the record. A drop committed on the base holds the merge even
+    run from the claim branch, whose own progress.md never saw it; refused
+    before anything moves, it names `restored`, after which the merge lands."""
+    root = _init_repo(tmp_path / "r", mode="local")
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
+    # A hand-edited ❌ beside a 📋 bullet of the same item is held too: it is
+    # an item `restored` can take (`held_from_forward`).
+    ppath = root / "docs" / "aide" / "progress.md"
+    ppath.write_text(ppath.read_text(encoding="utf-8").replace(
+        "- 📋 Bounds. *(Item 027)*\n",
+        "- 📋 Bounds. *(Item 027)*\n- ❌ Bounds docs. *(Item 027)*\n"),
+        encoding="utf-8")
+    _run(["git", "commit", "-am", "hand edit"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 1
+    assert "item 027 is ❌ dropped" in capsys.readouterr().err
+    assert not (root / "feature.txt").is_file()
+    assert aide.main(["--repo", str(root), "progress", "set", "27", "restored",
+                      "--reason", "docs wanted"]) == 0
+
+    assert aide.main(["--repo", str(root), "progress", "set", "27", "dropped",
+                      "--reason", "not needed"]) == 0
+    head = _run(["git", "rev-parse", "main"], root).stdout
+    _run(["git", "switch", "aide/027-bounds-rules"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 1
+    err = capsys.readouterr().err
+    assert "item 027 is ❌ dropped in progress.md (on main)" in err
+    assert "`aide progress set 027 restored --reason …`" in err
+    assert _current_branch(root) == "aide/027-bounds-rules"
+    assert _run(["git", "rev-parse", "main"], root).stdout == head
+
+    _run(["git", "switch", "main"], root)
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 1
+    assert ("(the working tree and on main)" in capsys.readouterr().err)
+    assert not (root / "feature.txt").is_file()
+
+    assert aide.main(["--repo", str(root), "progress", "set", "27", "restored",
+                      "--reason", "wanted after all"]) == 0
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 0
+    assert (root / "feature.txt").is_file()
+    progress = (root / "docs" / "aide" / "progress.md").read_text(encoding="utf-8")
+    assert aide._parse_item_status(progress.splitlines())[2][27] == "complete"
+
+    # A ⏸️ item is not held: a merge records work that landed.
+    _make_item_branch(root, "aide/028-coverage-rules", "coverage.txt")
+    assert aide.main(["--repo", str(root), "progress", "set", "28", "deferred",
+                      "--reason", "later"]) == 0
+    assert aide.main(["--repo", str(root), "merge", "28", "--no-test"]) == 0
+    progress = (root / "docs" / "aide" / "progress.md").read_text(encoding="utf-8")
+    assert aide._parse_item_status(progress.splitlines())[2][28] == "complete"
+
+
+def test_pr_mode_merge_refuses_a_dropped_item_and_pushes_nothing(
+        tmp_path: Path, capsys):
+    """Issue #381 under `pr` mode, where the merge only pushes: the refusal
+    comes before the push, so origin never sees the claim branch and its
+    main does not move."""
+    remote = _mkbare(tmp_path / "remote.git")
+    root = _init_repo(tmp_path / "r", mode="pr")
+    _run(["git", "remote", "add", "origin", str(remote)], root)
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
+    assert aide.main(["--repo", str(root), "progress", "set", "27", "dropped",
+                      "--reason", "not needed", "--no-commit"]) == 0
+    _run(["git", "commit", "-am", "drop 027"], root)
+    _run(["git", "push", "-u", "origin", "main"], root)
+    before = _run(["git", "ls-remote", str(remote)], root).stdout
+    head = _run(["git", "rev-parse", "HEAD"], root).stdout
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "merge", "27",
+                      "aide/027-bounds-rules", "--no-test"]) == 1
+    err = capsys.readouterr().err
+    assert "item 027 is ❌ dropped" in err
+    assert "`aide progress set 027 restored --reason …`" in err
+    assert _run(["git", "ls-remote", str(remote)], root).stdout == before
+    assert "aide/027-bounds-rules" not in before
+    assert _run(["git", "rev-parse", "HEAD"], root).stdout == head
+    assert _run(["git", "status", "--porcelain"], root).stdout == ""
+
+
 def test_local_mode_never_calls_a_claim_branch_unpublished(tmp_path: Path, capsys):
     """`local` mode is the one place an unpushed claim branch is the design."""
     root = _init_repo(tmp_path / "r", mode="local")
@@ -1663,6 +1779,221 @@ def test_check_is_silent_about_claim_branches_in_local_mode(tmp_path: Path, caps
     assert "unpublished branch" not in capsys.readouterr().out
 
 
+# --------------------------------------------------------------------------- #
+# published, then deleted on origin — issue #364: not an unpublished branch
+# --------------------------------------------------------------------------- #
+def _published_then_deleted(tmp_path: Path, branch: str,
+                            land: Optional[str] = None) -> Path:
+    """*branch* pushed with ``-u`` as the engine pushes, landed on main by
+    *land* (``"merge"``, ``"squash"``, ``"squash-moved-on"`` — squashed, then
+    main changes the same lines again — or not at all), then deleted **on
+    origin** — by hosting on merge, say, not by this checkout — and pruned.
+
+    Which leaves exactly #364's state: ``track=[gone]`` on an upstream of
+    ``origin/<branch>``, and the local branch still here.
+    """
+    remote = _mkbare(tmp_path / "remote.git")
+    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], root)
+    _run(["git", "push", "-u", "origin", "main"], root)
+    _make_item_branch(root, branch, branch.replace("/", "-") + ".txt")
+    _run(["git", "push", "-u", "origin", branch], root)
+    if land == "merge":
+        _run(["git", "merge", "--no-ff", "-m", f"merge {branch}", branch], root)
+    elif land in ("squash", "squash-moved-on"):
+        _squash_merge(root, branch, f"squash {branch}")
+    if land == "squash-moved-on":
+        path = root / (branch.replace("/", "-") + ".txt")
+        path.write_text("work\nmore\n", encoding="utf-8")
+        _run(["git", "commit", "-am", "main builds over the squash"], root)
+    if land:
+        _run(["git", "push", "origin", "main"], root)
+    _run(["git", "branch", "-D", branch], remote)
+    _run(["git", "fetch", "--prune", "origin"], root)
+    track = _run(["git", "for-each-ref", "--format=%(upstream:track)",
+                  f"refs/heads/{branch}"], root).stdout.strip()
+    assert track == "[gone]"
+    return root
+
+
+def test_check_calls_a_merged_branch_deleted_on_origin_stale_not_unpublished(
+        tmp_path: Path, capsys):
+    """#364's reproduction: the queue PR merged, origin deleted the branch,
+    and `check` advised pushing it back."""
+    root = _published_then_deleted(tmp_path, "aide/queue-010", land="merge")
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "check"])
+    out = capsys.readouterr().out
+    assert "unpublished branch" not in out
+    assert "git push" not in out
+    assert "stale branch aide/queue-010" in out
+    assert "already in main" in out
+    assert "'aide gc --merged' deletes it" in out
+
+
+def test_check_reads_a_squash_merged_branch_as_landed(tmp_path: Path, capsys):
+    """A squash merge leaves the tip off main; the content question answers."""
+    root = _published_then_deleted(tmp_path, "aide/queue-010", land="squash")
+    if not aide._has_merge_tree(root):
+        pytest.skip("git < 2.38 cannot measure a squash merge")
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "check"])
+    out = capsys.readouterr().out
+    assert "stale branch aide/queue-010" in out
+    assert "COULD NOT BE FOUND" not in out
+
+
+def test_check_is_loud_about_a_branch_whose_work_is_not_found(
+        tmp_path: Path, capsys):
+    """Published, deleted on origin, work in no base: this checkout may hold
+    the only copy, and a push is still not the advice."""
+    root = _published_then_deleted(tmp_path, "aide/queue-010")
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "check"])
+    out = capsys.readouterr().out
+    assert ("branch aide/queue-010 was deleted on origin and its work COULD "
+            "NOT BE FOUND in main or origin/main") in out
+    assert "this checkout holds the only copy" in out
+    assert "Check whether its work merged" in out
+    assert "unpublished branch" not in out
+    assert "git push" not in out
+
+
+def test_a_squash_merge_main_built_over_is_not_called_unlanded(tmp_path: Path,
+                                                               capsys):
+    """Review round 1 on PR #367: squashed, then main changed the same lines,
+    so `merge-tree` conflicts and the content question cannot answer. The
+    report must say what was measured — not found — and name this very shape,
+    never that the work was deleted before it landed."""
+    root = _published_then_deleted(tmp_path, "aide/queue-010",
+                                   land="squash-moved-on")
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "check"])
+    out = capsys.readouterr().out
+    assert "stale branch aide/queue-010" not in out
+    assert "COULD NOT BE FOUND in main" in out
+    assert "squash-merged and then built over on the same lines" in out
+    assert "BEFORE ITS WORK LANDED" not in out
+    assert "git push" not in out
+
+
+def test_an_upstream_elsewhere_is_not_evidence_of_publication(tmp_path: Path,
+                                                              capsys):
+    """Only ``origin/<the same name>`` says the branch reached origin: an
+    upstream on another remote, or on origin under another name, leaves the
+    branch unpublished, with today's warning."""
+    remote = _mkbare(tmp_path / "remote.git")
+    fork = _mkbare(tmp_path / "fork.git")
+    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], root)
+    _run(["git", "remote", "add", "fork", str(fork)], root)
+    _run(["git", "push", "-u", "origin", "main"], root)
+    _run(["git", "branch", "aide/queue-010"], root)
+    _run(["git", "push", "-u", "fork", "aide/queue-010"], root)
+    _run(["git", "branch", "aide/queue-011"], root)
+    _run(["git", "push", "-u", "origin", "aide/queue-011:elsewhere"], root)
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "check"])
+    out = capsys.readouterr().out
+    assert "unpublished branch aide/queue-010" in out
+    assert "unpublished branch aide/queue-011" in out
+    assert "stale branch" not in out and "COULD NOT BE FOUND" not in out
+
+
+def test_the_gc_hint_names_a_recorded_base_that_is_not_main(tmp_path: Path,
+                                                            capsys):
+    """A claim that landed in its queue branch is collected by measuring
+    against that branch, so the hint carries ``--base``."""
+    remote = _mkbare(tmp_path / "remote.git")
+    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], root)
+    _run(["git", "push", "-u", "origin", "main"], root)
+    _run(["git", "switch", "-c", "aide/queue-003"], root)
+    _run(["git", "push", "-u", "origin", "aide/queue-003"], root)
+    branch = "aide/027-bounds-rules"
+    _make_item_branch(root, branch, "bounds.txt", base="aide/queue-003")
+    _run(["git", "push", "-u", "origin", branch], root)
+    _run(["git", "switch", "aide/queue-003"], root)
+    _run(["git", "merge", "--no-ff", "-m", "merge 027", branch], root)
+    _run(["git", "push", "origin", "aide/queue-003"], root)
+    _run(["git", "switch", "main"], root)
+    _run(["git", "branch", "-D", branch], remote)
+    _run(["git", "fetch", "--prune", "origin"], root)
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "check"])
+    out = capsys.readouterr().out
+    assert (f"stale branch {branch}: it was published and has since been "
+            "deleted on origin, and everything on it is already in "
+            "aide/queue-003") in out
+    assert "'aide gc --merged --base aide/queue-003' deletes it" in out
+
+
+def _claim_028_in_flight(root: Path) -> None:
+    """028 claimed and published, so `claim` has nothing left to offer."""
+    _make_item_branch(root, "aide/028-coverage-rules", "coverage.txt")
+    _run(["git", "push", "-u", "origin", "aide/028-coverage-rules"], root)
+
+
+def test_claim_names_a_landed_claim_branch_deleted_on_origin(tmp_path: Path,
+                                                            capsys):
+    """Not a failed push, and not in flight: exit 1, never 'push it'."""
+    root = _published_then_deleted(tmp_path, "aide/027-bounds-rules",
+                                   land="merge")
+    _claim_028_in_flight(root)
+    capsys.readouterr()
+    rc = aide.main(["--repo", str(root), "claim"])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "NEVER SEEN" not in out
+    assert "git push" not in out
+    assert ("027 Bounds rules — claimed by aide/027-bounds-rules, which origin "
+            "has DELETED and whose every commit is already in main") in out
+    assert "'aide progress set <NNN> done'" in out
+    assert "'aide gc --merged' deletes the branch" in out
+    assert "028 Coverage rules — claimed by aide/028-coverage-rules, already " \
+           "in flight" in out
+    assert "early ready:" not in out
+
+
+def test_claim_names_an_unfound_claim_branch_deleted_on_origin(tmp_path: Path,
+                                                              capsys):
+    root = _published_then_deleted(tmp_path, "aide/027-bounds-rules")
+    _claim_028_in_flight(root)
+    capsys.readouterr()
+    rc = aide.main(["--repo", str(root), "claim"])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "NEVER SEEN" not in out
+    assert "git push" not in out
+    assert ("claimed by aide/027-bounds-rules, which origin has deleted and "
+            "whose work COULD NOT BE FOUND in main or origin/main") in out
+    assert "never re-published blindly" in out
+    assert "check whether its work merged" in out
+
+
+def test_status_names_a_claim_branch_deleted_on_origin(tmp_path: Path, capsys):
+    root = _published_then_deleted(tmp_path, "aide/027-bounds-rules",
+                                   land="merge")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert ("claim: aide/027-bounds-rules (item 027: planned) — deleted on "
+            "origin, all of it already in main") in out
+    assert "NOT on origin" not in out
+
+
+def test_status_is_loud_about_a_branch_whose_work_is_not_found(tmp_path: Path,
+                                                              capsys):
+    root = _published_then_deleted(tmp_path, "aide/queue-010")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert ("branch: aide/queue-010 (queue branch — not an item claim) — "
+            "deleted on origin, its work NOT FOUND in main or origin/main: "
+            "check whether its work merged") in out
+    assert "NOT on origin" not in out
+
+
 def test_claim_offers_the_first_planned_item_the_queue_lists(tmp_path: Path,
                                                             capsys):
     """`aide claim -h` says "the first \U0001f4cb item the queue lists", and means it.
@@ -1682,6 +2013,117 @@ def test_claim_offers_the_first_planned_item_the_queue_lists(tmp_path: Path,
     assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
     first = capsys.readouterr().out.splitlines()[0]
     assert first.startswith("would claim item 028"), first
+
+
+# --------------------------------------------------------------------------- #
+# a queue-end item waits for the rest of its queue (issue #347)
+# --------------------------------------------------------------------------- #
+#: The issue's fixture: 026 done, `Validate stage 1` planned as the last item,
+#: then 028 added after planning and listed after it. No spec for either.
+QUEUE_END_MID = """\
+# Demo — Work Queue 003
+
+### Item 026: Rule engine core
+Core.
+
+### Item 027: Validate stage 1: Rules
+Validates the stage.
+
+### Item 028: Coverage rules
+Coverage, added after planning.
+"""
+
+
+def _queue_end_repo(tmp_path: Path, queue: str = QUEUE_END_MID) -> Path:
+    root = _init_repo(tmp_path / "r", mode="local")
+    (root / "docs" / "aide" / "queue" / "queue-003.md").write_text(queue,
+                                                                   encoding="utf-8")
+    return root
+
+
+def test_claim_holds_a_queue_end_item_behind_a_later_listed_item(tmp_path: Path,
+                                                                 capsys):
+    """The walk reaches 027 first, and 027 has no spec to name a dependency:
+    it is still held, because 028 is its queue-mate and still 📋."""
+    root = _queue_end_repo(tmp_path)
+    cfg = aide.load_config(root)
+    assert aide._pick_item(root, cfg, QUEUE_END_MID, claim_branches=[])[0] == 28
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    assert capsys.readouterr().out.splitlines()[0].startswith("would claim item 028")
+
+
+def test_claim_offers_the_queue_end_item_once_the_rest_has_left_the_way(
+        tmp_path: Path, capsys):
+    """🚧 and 🔍 hold it as 📋 does; ✅, ❌ and ⏸️ let it go — the complement
+    of BLOCKING_STATUSES, as for a declared dependency."""
+    root = _queue_end_repo(tmp_path)
+    cfg = aide.load_config(root)
+    ppath = root / "docs" / "aide" / "progress.md"
+    for icon, offered in (("🚧", None), ("🔍", None),
+                          ("✅", 27), ("❌", 27), ("⏸️", 27)):
+        ppath.write_text(PROGRESS.replace("- 📋 Coverage. *(Item 028)*",
+                                          f"- {icon} Coverage. *(Item 028)*"),
+                         encoding="utf-8")
+        pick = aide._pick_item(root, cfg, QUEUE_END_MID, claim_branches=[])
+        assert (pick[0] if pick else None) == offered, icon
+
+
+def test_queue_end_items_never_hold_each_other(tmp_path: Path):
+    """A queue may end on two queue-end items: each waits on the deliverables,
+    never on the other, or neither would ever be offered."""
+    queue = QUEUE_END_MID.replace(
+        "### Item 028: Coverage rules\nCoverage, added after planning.\n",
+        "### Item 028: Validate stage 1: Rules again\nAgain.\n")
+    root = _queue_end_repo(tmp_path, queue)
+    cfg = aide.load_config(root)
+    assert aide._pick_item(root, cfg, queue, claim_branches=[])[0] == 27
+
+
+def test_an_item_depending_on_the_queue_end_item_never_holds_it(tmp_path: Path):
+    """A queue-mate whose spec names the queue-end item as a dependency —
+    directly, or through another mate's — would otherwise wait on it while it
+    waits on them, and neither would ever be offered."""
+    queue = QUEUE_END_MID + "### Item 029: Follow-up\nAfter 028.\n"
+    root = _queue_end_repo(tmp_path, queue)
+    idir = root / "docs" / "aide" / "items"
+    (idir / "028-coverage.md").write_text(
+        "# Item 028 — Coverage rules\n\n## Dependencies\n\n- Item 027\n",
+        encoding="utf-8")
+    (idir / "029-follow-up.md").write_text(
+        "# Item 029 — Follow-up\n\n## Dependencies\n\n- Item 028\n",
+        encoding="utf-8")
+    cfg = aide.load_config(root)
+    holds = aide.queue_end_holds(root, cfg, queue,
+                                 aide._progress_item_status(root, cfg))
+    assert holds[27] == []
+    assert aide._pick_item(root, cfg, queue, claim_branches=[])[0] == 27
+
+
+def test_a_queue_end_item_titled_only_in_its_spec_is_held(tmp_path: Path):
+    """The title falls back to the spec's header, as `aide check --queue`
+    reads it, so the two agree on which item is a queue-end item."""
+    queue = QUEUE_END_MID.replace("### Item 027: Validate stage 1: Rules",
+                                  "### Item 027:")
+    root = _queue_end_repo(tmp_path, queue)
+    (root / "docs" / "aide" / "items" / "027-validate.md").write_text(
+        "# Item 027 — Validate stage 1: Rules\n\n## Dependencies\n\nNone.\n",
+        encoding="utf-8")
+    cfg = aide.load_config(root)
+    assert aide._pick_item(root, cfg, queue, claim_branches=[])[0] == 28
+
+
+def test_none_left_names_the_queue_end_hold(tmp_path: Path, capsys):
+    """With 028 claimed elsewhere, nothing is offerable: the report says 027
+    waits on 028 and why, rather than "open and unblocked, yet not offered"."""
+    root = _queue_end_repo(tmp_path)
+    assert aide.main(["--repo", str(root), "progress", "set", "28",
+                      "in-progress"]) == 0
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    line = next(ln for ln in out.splitlines() if ln.startswith("  027"))
+    assert "waiting on 028 (in-progress)" in line and "queue-end item" in line
+    assert "please report this" not in out
 
 
 def test_none_left_reports_in_the_queues_own_order(tmp_path: Path, capsys):
@@ -1827,6 +2269,16 @@ def test_a_venv_with_no_test_runner_cannot_report_ok(bare_venv: Path, capsys):
 def test_a_stdlib_runner_in_a_bare_venv_is_ok(bare_venv: Path, capsys):
     (bare_venv / "aide.toml").write_text(_env_toml("python -m unittest"), encoding="utf-8")
     assert aide.env_status(bare_venv, aide.load_config(bare_venv)) == "ok"
+    # The rest of `env`'s report met too (issue #354): a repository, `local`
+    # so no origin or gh is needed, and a printed interpreter that exists.
+    subprocess.run(["git", "init", "-q", str(bare_venv)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    with (bare_venv / "aide.toml").open("a", encoding="utf-8") as f:
+        f.write('[git]\nmode = "local"\n')
+    (bare_venv / ".aide").mkdir(exist_ok=True)
+    (bare_venv / ".aide" / "local.toml").write_text(
+        f"[tools]\npython = '{Path(sys.executable).as_posix()}'\n",
+        encoding="utf-8")
     assert aide.main(["--repo", str(bare_venv), "env"]) == 0
     assert "venv is Python" in capsys.readouterr().out
 
@@ -1939,15 +2391,7 @@ def test_a_merge_killed_mid_suite_puts_the_branch_and_its_base_back(
     assert "interrupted" in capsys.readouterr().err
 
 
-def test_a_failure_in_the_window_restores_but_is_not_called_an_interrupt(
-        tmp_path: Path, monkeypatch, capsys):
-    """The restore is owed to any exception; the word "interrupted" is not.
-
-    A test command that is not on PATH raises `FileNotFoundError` right here.
-    Reporting that as an interrupt would send a human hunting for a signal
-    nobody sent — the failure class the `--no-commit` message was fixed for in
-    issue #133.
-    """
+def _claimed_and_worked(tmp_path: Path) -> Tuple[Path, str]:
     root = _init_repo(tmp_path / "r", mode="local")
     assert aide.main(["--repo", str(root), "queue", "start", "3"]) == 0
     assert aide.main(["--repo", str(root), "claim", "--queue", "3"]) == 0
@@ -1956,23 +2400,74 @@ def test_a_failure_in_the_window_restores_but_is_not_called_an_interrupt(
     _run(["git", "add", "-A"], root)
     _run(["git", "commit", "-m", "work"], root)
     _run(["git", "switch", "aide/queue-003"], root)
+    return root, branch
 
+
+def test_a_missing_runner_in_the_window_restores_and_is_reported(
+        tmp_path: Path, monkeypatch, capsys):
+    """The restore is owed to any exception; the word "interrupted" is not.
+
+    A test command that is not on PATH is met right here. Reporting that as
+    an interrupt would send a human hunting for a signal nobody sent — the
+    failure class the `--no-commit` message was fixed for in issue #133 — and
+    re-raising it was a traceback over a state a person fixes by installing
+    one program (issue #352): it is named, and the verb exits 1.
+    """
+    root, branch = _claimed_and_worked(tmp_path)
+    monkeypatch.setattr(aide, "resolve_test_command",
+                        lambda repo_root, config: ["nosuchrunner-aide-352", "-q"])
+    assert aide.main(["--repo", str(root), "merge", "27"]) == 1
+
+    assert branch in aide._local_branches(root)
+    assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
+    err = capsys.readouterr().err
+    assert ("aide merge: the test command 'nosuchrunner-aide-352' is not on "
+            "PATH") in err
+    assert "interrupted" not in err and "Traceback" not in err
+
+
+def test_a_restore_that_cannot_run_is_not_reported_as_made(
+        tmp_path: Path, monkeypatch, capsys):
+    """git gone with the runner: the restore itself raises. The message must
+    not say the branch was put back, and names the two commands that do it."""
+    root, branch = _claimed_and_worked(tmp_path)
+    tip = aide._rev(root, branch)
+    monkeypatch.setattr(aide, "resolve_test_command",
+                        lambda repo_root, config: ["nosuchrunner-aide-352", "-q"])
+
+    def _no_git(*a, **kw):
+        raise aide.GitMissing()
+
+    monkeypatch.setattr(aide, "_restore_claim_branch", _no_git)
+    assert aide.main(["--repo", str(root), "merge", "27"]) == 1
+    err = capsys.readouterr().err
+    assert "has been put back" not in err
+    assert f"{branch} could NOT be put back (git is not on PATH" in err
+    assert (f"Restore it by hand: 'git branch {branch} {tip}' and 'git config "
+            f"branch.{branch}.aide-base aide/queue-003'") in err
+
+
+def test_a_genuine_bug_in_the_window_restores_and_still_raises(
+        tmp_path: Path, monkeypatch, capsys):
+    """Only a missing program is reported and swallowed; anything else is a
+    bug whose traceback is the report, after the restore."""
+    root, branch = _claimed_and_worked(tmp_path)
     real_run = aide.subprocess.run
     test_cmd = aide.resolve_test_command(root, aide.load_config(root))
 
-    def _no_such_command(cmd, *a, **kw):
+    def _broken(cmd, *a, **kw):
         if list(cmd)[:len(test_cmd)] == list(test_cmd):
-            raise FileNotFoundError(2, "No such file or directory", cmd[0])
+            raise RuntimeError("a bug in the runner seam")
         return real_run(cmd, *a, **kw)
 
-    monkeypatch.setattr(aide.subprocess, "run", _no_such_command)
-    with pytest.raises(FileNotFoundError):
+    monkeypatch.setattr(aide.subprocess, "run", _broken)
+    with pytest.raises(RuntimeError):
         aide.main(["--repo", str(root), "merge", "27"])
 
     assert branch in aide._local_branches(root)
     assert aide._recorded_branch_base(root, branch) == "aide/queue-003"
     err = capsys.readouterr().err
-    assert "FileNotFoundError" in err and "interrupted" not in err
+    assert "failed with RuntimeError" in err and "interrupted" not in err
 
 
 def test_the_restore_window_ends_at_the_push_not_at_the_return(tmp_path: Path):
@@ -2021,3 +2516,309 @@ def test_restore_records_the_base_the_run_merged_into_not_the_old_record(tmp_pat
     aide._restore_claim_branch(root, branch, tip, "main")      # branch still exists
     assert aide._recorded_branch_base(root, branch) == "main"
     assert aide.resolve_base(root, aide.load_config(root), None, branch) == "main"
+
+
+# --------------------------------------------------------------------------- #
+# [tools] in .aide/local.toml — where a program is, read by one resolver
+# (issue #353)
+# --------------------------------------------------------------------------- #
+def _local_tools(root: Path, body: str) -> None:
+    (root / ".aide").mkdir(parents=True, exist_ok=True)
+    (root / ".aide" / "local.toml").write_text(body, encoding="utf-8")
+
+
+def _stub_on_path(tmp_path: Path, monkeypatch, name: str) -> Path:
+    """A runnable *name* in a directory that is all of PATH: a `.cmd` on
+    Windows, where PATHEXT finds it, an executable script elsewhere."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    if os.name == "nt":
+        stub = bin_dir / f"{name}.cmd"
+        stub.write_text("@echo off\r\n", encoding="utf-8")
+    else:
+        stub = bin_dir / name
+        stub.write_text("#!/bin/sh\n", encoding="utf-8")
+        stub.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+    return stub
+
+
+def _same_file(a: Optional[str], b: Path) -> bool:
+    return a is not None and os.path.normcase(os.path.abspath(a)) == \
+        os.path.normcase(os.path.abspath(str(b)))
+
+
+def test_a_configured_tool_that_is_there_is_the_one_run(tmp_path: Path):
+    _local_tools(tmp_path, f"[tools]\ngit = '{sys.executable}'\n")
+    assert _same_file(aide.resolve_tool("git", tmp_path), Path(sys.executable))
+
+
+def test_a_configured_tool_path_that_is_not_there_is_refused_naming_the_key(
+        tmp_path: Path, monkeypatch):
+    """Never a fallback to PATH: the `gh` on PATH is not the one named."""
+    _stub_on_path(tmp_path, monkeypatch, "gh")
+    missing = (tmp_path / "nowhere" / "gh").as_posix()
+    _local_tools(tmp_path, f"[tools]\ngh = '{missing}'\n")
+    with pytest.raises(aide.ToolMisconfigured) as exc:
+        aide.resolve_tool("gh", tmp_path)
+    assert isinstance(exc.value, aide.MissingTool)
+    assert f"[tools] gh = '{missing}'" in str(exc.value)
+    assert "does not exist" in str(exc.value)
+    # `status` reads it as could-not-look, with the key as the reason.
+    out, why = aide._gh(tmp_path, ["pr", "list"])
+    assert out is None and why.startswith("[tools] gh = ")
+
+
+def test_an_unset_tool_is_found_on_path(tmp_path: Path, monkeypatch):
+    stub = _stub_on_path(tmp_path, monkeypatch, "gh")
+    assert _same_file(aide.resolve_tool("gh", tmp_path), stub)
+    _local_tools(tmp_path, '[tools]\ngh = ""\n')       # empty reads as unset
+    assert _same_file(aide.resolve_tool("gh", tmp_path), stub)
+
+
+def test_an_unset_tool_not_on_path_is_none(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+    assert aide.resolve_tool("gh", tmp_path) is None
+
+
+def test_a_configured_bare_name_is_looked_up_on_path(tmp_path: Path, monkeypatch):
+    stub = _stub_on_path(tmp_path, monkeypatch, "gh-2")
+    _local_tools(tmp_path, '[tools]\ngh = "gh-2"\n')
+    assert _same_file(aide.resolve_tool("gh", tmp_path), stub)
+    _local_tools(tmp_path, '[tools]\ngh = "gh-3"\n')
+    with pytest.raises(aide.ToolMisconfigured, match=r"gh-3.*is not on PATH"):
+        aide.resolve_tool("gh", tmp_path)
+
+
+def test_a_configured_git_that_is_not_there_refuses_every_git_call(tmp_path: Path):
+    _local_tools(tmp_path, "[tools]\ngit = 'no/such/git'\n")
+    with pytest.raises(aide.ToolMisconfigured, match=r"\[tools\] git = "):
+        aide.git(["--version"], tmp_path)
+
+
+def test_a_malformed_local_toml_is_refused_where_a_program_is_needed(tmp_path: Path):
+    _local_tools(tmp_path, '[tools]\ngh = "unterminated\n')
+    with pytest.raises(aide.ToolMisconfigured, match="local.toml is malformed"):
+        aide.resolve_tool("gh", tmp_path)
+    # Printing a suggested command is not running one: it reads as unset.
+    assert aide.aide_command(tmp_path, "check") == "python .aide/scripts/aide.py check"
+
+
+def test_only_the_tools_table_is_parsed(tmp_path: Path):
+    """The hooks' tables are read leniently by the hooks; a Windows path in
+    `extra_repos` that strict TOML rejects never stops a git call (#353)."""
+    _local_tools(tmp_path, '[hygiene]\nextra_repos = ["C:\\Users\\me\\repo"]\n'
+                 f"[tools]\ngh = '{sys.executable}'\n"
+                 '[framework]\nlocal_path = "C:\\aide"\n')
+    assert _same_file(aide.resolve_tool("gh", tmp_path), Path(sys.executable))
+    _local_tools(tmp_path, '[hygiene]\nextra_repos = ["C:\\Users\\me"]\n')
+    assert aide.resolve_tool("gh", tmp_path) == shutil.which("gh")
+
+
+@pytest.mark.parametrize("header", ["[tools] # this machine", "[ tools ]"])
+def test_a_tools_header_either_reader_accepts_is_read(tmp_path: Path, header: str):
+    _local_tools(tmp_path, f"{header}\ngh = '{sys.executable}'\n")
+    assert _same_file(aide.resolve_tool("gh", tmp_path), Path(sys.executable))
+
+
+@pytest.mark.parametrize("body", ["tools = { gh = 'x' }\n", "tools.gh = 'x'\n",
+                                  "[[tools]]\ngh = 'x'\n", "[\"tools\"]\ngh = 'x'\n"])
+def test_tools_written_other_than_as_its_table_is_refused(tmp_path: Path, body: str):
+    """Read as "nothing configured", these would fall back to PATH behind a
+    key someone wrote."""
+    _local_tools(tmp_path, body)
+    with pytest.raises(aide.ToolMisconfigured, match="is not the \\[tools\\] table"):
+        aide.resolve_tool("gh", tmp_path)
+
+
+@pytest.mark.parametrize("name", ["gh", "gh-2.40"])
+def test_a_configured_path_finds_its_pathext_file(tmp_path: Path, monkeypatch,
+                                                  name: str):
+    """What the resolver adds on Windows, where `which` applies PATHEXT to a
+    path only from 3.12 — whether or not the name already holds a dot."""
+    (tmp_path / f"{name}.EXE").write_text("", encoding="utf-8")
+    monkeypatch.setenv("PATHEXT", os.pathsep.join([".COM", ".EXE"]))
+    where = str(tmp_path / name)
+    assert aide._pathext_file(where) == where + ".EXE"
+    assert aide._pathext_file(str(tmp_path / "absent")) is None
+
+
+def test_tools_python_is_the_interpreter_suggested_commands_print(tmp_path: Path):
+    _local_tools(tmp_path, '[tools]\npython = "python3"\n')
+    assert aide.aide_command(tmp_path, "gc") == "python3 .aide/scripts/aide.py gc"
+    ddir = tmp_path / "docs" / "aide"
+    ddir.mkdir(parents=True)
+    (ddir / "insights.md").write_text("<<<<<<< HEAD\n", encoding="utf-8")
+    assert any("`python3 .aide/scripts/aide.py insights resolve`" in e
+               for e in aide.conflict_marker_errors(ddir, tmp_path))
+
+
+# --------------------------------------------------------------------------- #
+# Withdrawn work and the claim protocol — issue #387
+# --------------------------------------------------------------------------- #
+# Since 2.34.0 ❌ has two routes: `aide progress set NNN dropped` for an item,
+# and a ❌ Stage summary row for a whole stage. `claim` offered a withdrawn
+# stage's 📋 items, and a ❌ item's claim branch had no route out: the stale
+# ground was ✅ alone, and `merge` refuses a ❌ item.
+WITHDRAWN_PROGRESS = """\
+# Demo — Progress
+
+## Stage summary
+
+| Stage | Title | Objectives | Status |
+|-------|-------|-----------|--------|
+| 1 | Rules | G1 | 🚧 |
+| 2 | Later | G1 | ❌ |
+
+## Objective coverage
+
+| Objective | Delivered by | Status |
+|-----------|--------------|--------|
+| G1 Rules | Stage 1, 2 | 🚧 |
+
+## Stage 1 — Rules — 🚧
+
+**Deliverables.**
+- ✅ Core. *(Item 026)*
+- ❌ Bounds. *(Item 027)*
+- 📋 Coverage. *(Item 028)*
+- 📋 Shared, first half. *(Item 030)*
+
+## Stage 2 — Later
+
+**Deliverables.**
+- 📋 Extras. *(Item 029)*
+- 📋 Shared, second half. *(Item 030)*
+
+**Acceptance.**
+- [ ] Rules fire.
+"""
+
+
+def test_withdrawn_stage_items_reads_only_items_wholly_inside_one():
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    # 030 has a bullet in stage 1 as well, so part of it is still wanted.
+    assert aide.withdrawn_stage_items(lines) == {29: ["2"]}
+    status = aide._parse_item_status(lines)[2]
+    assert aide.spent_by_withdrawal(lines, status) == {
+        27: "❌ (dropped)", 29: "📋 in withdrawn stage 2"}
+
+
+def test_spent_by_withdrawal_takes_only_a_planned_item_of_a_withdrawn_stage():
+    """A 🔍 item's branch is an open PR's head, a ✅ one is stale on the ✅
+    ground already, and a 🚧 or ⏸️ one is live or owner-held work — stale
+    only once its owner drops it."""
+    for icon in ("🔍", "✅", "🚧", "⏸️"):
+        lines = WITHDRAWN_PROGRESS.replace("- 📋 Extras.",
+                                           f"- {icon} Extras.").splitlines()
+        status = aide._parse_item_status(lines)[2]
+        assert 29 not in aide.spent_by_withdrawal(lines, status)
+
+
+def _withdrawn_repo(tmp_path: Path) -> Path:
+    root = _init_repo(tmp_path / "r", mode="local")
+    d = root / "docs" / "aide"
+    (d / "progress.md").write_text(WITHDRAWN_PROGRESS, encoding="utf-8")
+    (d / "queue" / "queue-003.md").write_text(
+        QUEUE.replace("### Item 026", "### Item 029: Extras\nExtras.\n\n"
+                                      "### Item 026"), encoding="utf-8")
+    _run(["git", "add", "-A"], root)
+    _run(["git", "commit", "-m", "withdraw stage 2"], root)
+    return root
+
+
+def test_claim_skips_an_item_of_a_withdrawn_stage(tmp_path: Path, capsys):
+    """029 is listed first and 📋, but stage 2 is withdrawn; 027 is ❌."""
+    root = _withdrawn_repo(tmp_path)
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "would claim item 028" in out
+
+
+def test_claim_names_a_withdrawn_stage_as_the_reason(tmp_path: Path, capsys):
+    root = _withdrawn_repo(tmp_path)
+    d = root / "docs" / "aide"
+    text = (d / "progress.md").read_text(encoding="utf-8")
+    (d / "progress.md").write_text(
+        text.replace("- 📋 Coverage.", "- ✅ Coverage.")
+            .replace("- 📋 Shared, first half.", "- ✅ Shared, first half."),
+        encoding="utf-8")
+    rc = aide.main(["--repo", str(root), "claim", "--dry-run"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "none left — 1 item(s) still open" in out
+    assert "029 Extras — in withdrawn stage 2" in out
+    assert "early ready: no" in out
+
+
+def test_check_and_status_name_a_withdrawn_items_branch_stale(tmp_path: Path,
+                                                             capsys):
+    root = _withdrawn_repo(tmp_path)
+    cfg = aide.load_config(root)
+    branches = ["aide/027-bounds-rules", "aide/029-extras", "aide/030-shared"]
+    _, warnings = aide.run_checks(root, cfg, branches=branches)
+    stale = [w for w in warnings if w.startswith("stale claim branch")]
+    assert len(stale) == 2
+    assert any("item 027 is ❌ (dropped)" in w for w in stale)
+    assert any("item 029 is 📋 in withdrawn stage 2" in w for w in stale)
+    _run(["git", "branch", "aide/029-extras"], root)
+    _run(["git", "branch", "aide/030-shared"], root)
+    capsys.readouterr()
+    aide.main(["--repo", str(root), "status"])
+    out = capsys.readouterr().out
+    assert "aide/029-extras (item 029: planned) — STALE (item 📋 in withdrawn stage 2" in out
+    assert "aide/030-shared (item 030: planned)\n" in out
+
+
+def test_gc_collects_a_dropped_items_landed_branch(tmp_path: Path):
+    """An empty ❌ claim branch — nothing on it the base lacks — goes."""
+    root = _withdrawn_repo(tmp_path)
+    _run(["git", "branch", "aide/027-bounds-rules"], root)
+    aide._record_branch_base(root, "aide/027-bounds-rules", "main")
+    assert aide.main(["--repo", str(root), "gc", "--yes"]) == 0
+    assert "aide/027-bounds-rules" not in _run(["git", "branch"], root).stdout
+
+
+def test_gc_keeps_a_withdrawn_items_branch_carrying_work(tmp_path: Path, capsys):
+    """The safety is the ✅ ground's: git is asked, and work on the branch
+    holds it until --abandon says to discard it."""
+    root = _withdrawn_repo(tmp_path)
+    _make_item_branch(root, "aide/029-extras", "extras.txt")
+    _make_item_branch(root, "aide/027-bounds-rules", "bounds.txt")
+    rc = aide.main(["--repo", str(root), "gc", "--yes"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    branches = _run(["git", "branch"], root).stdout
+    assert "aide/029-extras" in branches and "aide/027-bounds-rules" in branches
+    assert "skipping aide/029-extras" in out and "item 029 is 📋 in withdrawn stage 2" in out
+    assert aide.main(["--repo", str(root), "gc", "--abandon", "--yes"]) == 0
+    branches = _run(["git", "branch"], root).stdout
+    assert "aide/029-extras" not in branches
+    assert "aide/027-bounds-rules" not in branches
+
+
+def test_gc_leaves_a_live_item_of_the_shared_stage_alone(tmp_path: Path):
+    """030 has a bullet in a stage still in scope: not withdrawn, not stale."""
+    root = _withdrawn_repo(tmp_path)
+    _run(["git", "branch", "aide/030-shared"], root)
+    assert aide.main(["--repo", str(root), "gc", "--abandon", "--yes"]) == 0
+    assert "aide/030-shared" in _run(["git", "branch"], root).stdout
+
+
+def test_a_started_item_of_a_withdrawn_stage_is_not_stale_nor_collected(
+        tmp_path: Path, capsys):
+    """A 🚧 item in a withdrawn stage is not ❌: check says nothing stale
+    about its branch, and gc leaves it even with --abandon."""
+    root = _withdrawn_repo(tmp_path)
+    d = root / "docs" / "aide"
+    text = (d / "progress.md").read_text(encoding="utf-8")
+    (d / "progress.md").write_text(text.replace("- 📋 Extras.", "- 🚧 Extras."),
+                                   encoding="utf-8")
+    _run(["git", "commit", "-am", "029 started"], root)
+    _run(["git", "branch", "aide/029-extras"], root)
+    aide._record_branch_base(root, "aide/029-extras", "main")
+    cfg = aide.load_config(root)
+    _, warnings = aide.run_checks(root, cfg, branches=["aide/029-extras"])
+    assert not any(w.startswith("stale claim branch") for w in warnings)
+    assert aide.main(["--repo", str(root), "gc", "--abandon", "--yes"]) == 0
+    assert "aide/029-extras" in _run(["git", "branch"], root).stdout

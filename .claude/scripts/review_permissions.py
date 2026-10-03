@@ -27,7 +27,9 @@ from urllib.parse import urlparse
 # prompts is the tell-tale sign of an untrusted folder: the logging hook only
 # runs in a trusted project, and an untrusted folder ALSO silently disables the
 # .claude/settings.json allow-list this command is meant to tune. So the empty
-# log and the "my allow-list is ignored" symptom share one root cause.
+# log and the "my allow-list is ignored" symptom share one root cause. The
+# other cause is a hook wrapper that found no interpreter to run the logger
+# with (issue #352): this script may still run, from a venv or a full path.
 TRUST_HINT = (
     "Are you actually seeing permission prompts even though this log is EMPTY?\n"
     "That usually means the project FOLDER IS NOT TRUSTED. An untrusted folder\n"
@@ -39,6 +41,10 @@ TRUST_HINT = (
     "  case-sensitive path string -- mind c: vs C: and any OneDrive/symlinked\n"
     "  spelling; a mismatched key is treated as a separate, untrusted project.\n"
     "  Fix: re-open the folder and accept the trust prompt, or set that flag true.\n"
+    "The other cause: no working python3 or python on this machine. Every hook\n"
+    "then runs nothing -- the command-hygiene guard included -- and each call\n"
+    "shows a hook error reading 'aide: no working python3/python for\n"
+    ".claude/hooks/<script>'. Install one, or put it on PATH.\n"
 )
 
 # Both the settings this reads and the log it parses live in a consumer repo and

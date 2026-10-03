@@ -52,6 +52,31 @@ forward dependency tolerated. The rule binds the blocking slot only: a later
 sentence about ordering without blocking may name any stage. `aide check`
 warns on a forward dependency whose stage is not ⏸️.
 
+**A blocking dependency on an earlier stage is met only once that stage is
+✅.** A 📋, 🚧 or 🔍 earlier stage still has work to land, so the dependent
+stage is queued behind it — after its queue, or in the same one where a phase
+fits the cap. A ⏸️ earlier stage does not meet the dependency either, and its
+deferred work waits on its owner's decision, not on the next queue: the
+dependent stage waits until the owner resumes the deferred bullets, or drops
+those the stage turns out not to need (§1 → `progress.md`), and the earlier
+stage closes ✅. The ⏸️ that excuses a
+*forward* dependency above excuses the dependent stage, never the stage it
+waits on.
+
+**A blocking dependency on a withdrawn stage is never met** — a stage whose
+`progress.md` summary row is ❌ never becomes ✅ — **so the dependent stage is
+re-planned, not queued.** While it is 📋 Planned, its Dependencies are
+reworded here to drop the withdrawn stage, or name what replaces it; started,
+it is frozen, so it is withdrawn too, or what it still needs enters as a new
+stage. Either is the owner's decision, made through the create-roadmap entry
+point (§5); the queue planner hands back rather than queue the dependent
+stage.
+
+`aide check` warns on a stage under way — 🚧 in `progress.md`, or with a 📋
+item in an open queue — while an earlier stage its blocking Dependencies name
+is ⏸️ or withdrawn: the two states no queue ends. A 📋, 🚧 or 🔍 earlier stage
+is the ordinary wait, and is not named.
+
 #### Rationale
 
 - **Why a started stage is frozen.** Queues were cut from it, items were
@@ -84,6 +109,49 @@ warns on a forward dependency whose stage is not ⏸️.
   does not reach it. The consumer's own swept roadmap kept exactly one forward
   dependency, on a stage it had deferred. 🚧 and 📋 are not exempt — a stage in
   either is still expected to close in its turn.
+- **Why a ⏸️ earlier stage does not meet a dependency.** Issue #362: in a
+  consumer on 2.25.0 a started stage's two items had shipped and its one
+  optional, never-itemised deliverable was deferred, so the stage read ⏸️ —
+  and a later stage's Dependencies named it. The section tolerated a ⏸️ stage
+  as a forward dependency and said nothing about a ⏸️ earlier one, and the
+  queue planner had no rule for reading it. A ⏸️ stage is one whose remaining
+  work is still wanted, later, so a stage that depends on it would build on
+  work not yet done; reading it as met would let the plan run ahead of the
+  stage it names. A 📋, 🚧 or 🔍 earlier stage is the ordinary case — a queue
+  lands its work, the next one or the same one for a phase — so queueing
+  behind it is all the rule asks; ⏸️ is the one state that waits on a
+  decision rather than a queue, which is why it needs the owner. The owner's
+  remedy for a deliverable never needed is the drop route, which closes the
+  stage ✅.
+- **Why a dependency on a withdrawn stage re-plans its dependent.** Issue
+  #382: the ✅-only rule above left a stage whose dependency had been
+  withdrawn blocked for good, and no rule said so — a ❌ stage has nothing
+  left to land, so neither waiting for a queue nor an owner's resume can
+  meet it. The dependency was written against work that will not exist, so
+  only the plan can answer what the dependent stage needs instead; a 📋 stage
+  is the one the roadmap lets be edited, which is why rewording is offered
+  there and withdrawal or a new stage past it. The planner hands back
+  because the answer changes `roadmap.md`, which it never edits.
+- **Why the check names a stage under way over an unmet dependency.** Issue
+  #384: the two rules above bound the planner, which hands back on them, but
+  nothing checked them, so a queue cut over a ⏸️ or withdrawn dependency by
+  hand, or by a runtime without the planner's rule, built on work that was not
+  coming and `aide check` passed it clean. Under way, not merely named: a 📋
+  stage queued nowhere is doing what the rule asks — waiting — and warning on
+  it would fire on every roadmap with a deferral in it. A warning, for the
+  forward-dependency reason above: a started stage is frozen, and what follows
+  is the owner's decision.
+- **Why an item reads a ⏸️ dependency the other way.** An item's
+  `## Dependencies` are met by a ⏸️ item, which "leaves the queue's way"
+  (§1 → `items.md`), while a stage's are not met by a ⏸️ stage. The two act
+  at different moments. The item rule orders claims inside a queue already
+  planned and approved, during an unattended run with no owner to ask; a
+  deferred item that still blocked would stall every item behind it until the
+  queue ends. The stage rule acts when the next queue is planned, before any
+  item is built, so waiting on the owner's decision costs one hand-back
+  rather than a stalled run. A dependent item built past a
+  deferred one is the price, paid in the open: the deferral's reason is on
+  the deferred item's trail.
 - **Why the coverage table is checked for completeness.** The check said
   only that the table existed, so a G-code no row mapped — an objective no
   stage was planned to deliver — and a row naming a stage the roadmap never

@@ -170,3 +170,131 @@ def test_check_reports_it_as_a_warning_and_never_an_error(tmp_path: Path):
     errors, warnings = aide.run_checks(tmp_path, config, branches=[])
     assert any("stage 2's Dependencies name later stage 4" in w for w in warnings)
     assert not any("Dependencies name later" in e for e in errors)
+
+
+# --------------------------------------------------------------------------- #
+# A stage under way over a ⏸️ or withdrawn earlier dependency — issue #384
+# --------------------------------------------------------------------------- #
+# Since 2.32.0 §1 → roadmap.md meets a blocking dependency on an earlier stage
+# only once that stage is ✅: a ⏸️ one waits on its owner, and (2.34.0) a
+# withdrawn one is never met, so the dependent stage is re-planned. The
+# queue-planner hands back on both; `aide check` now says so when a stage
+# is under way regardless.
+
+UNDER_WAY_ROADMAP = """\
+# R
+
+## Stage 1 — Base
+
+**Dependencies.** None.
+
+## Stage 2 — Build
+
+**Dependencies.** Stage 1.
+"""
+
+
+def _two_stage_progress(dep_header: str, dep_summary: str,
+                        dependent_bullet: str,
+                        dependent_summary: str = "📋",
+                        dependent_header: str = "",
+                        dep_bullet: str = "") -> str:
+    return (
+        "# P\n\n"
+        "| Stage | Title | Objectives | Status |\n"
+        "|-------|-------|-----------|--------|\n"
+        f"| 1 | Base | G1 | {dep_summary} |\n"
+        f"| 2 | Build | G1 | {dependent_summary} |\n\n"
+        f"## Stage 1 — Base — {dep_header}\n\n"
+        "**Deliverables.**\n"
+        f"- {dep_bullet or dep_header} The base. *(Item 001)*\n\n"
+        f"## Stage 2 — Build{' — ' + dependent_header if dependent_header else ''}\n\n"
+        "**Deliverables.**\n"
+        f"- {dependent_bullet} The build. *(Item 002)*\n"
+        "- 📋 The rest. *(Item 003)*\n")
+
+
+def _queue(tmp_path: Path, *items: int) -> None:
+    qdir = tmp_path / "docs" / "aide" / "queue"
+    qdir.mkdir(parents=True, exist_ok=True)
+    (qdir / "queue-001.md").write_text(
+        "# Queue 001\n\n" + "".join(f"### Item {n:03d}: thing {n}\n\n"
+                                    for n in items), encoding="utf-8")
+
+
+@pytest.mark.parametrize("dep_header, dep_summary, word", [
+    ("⏸️", "⏸️", "⏸️ deferred"),
+    ("⏸️", "📋", "⏸️ deferred"),   # the header alone says ⏸️
+    ("📋", "⏸️", "⏸️ deferred"),   # the summary row alone says ⏸️
+    ("📋", "❌", "withdrawn"),
+])
+def test_a_started_stage_over_a_deferred_or_withdrawn_dependency_warns(
+        tmp_path: Path, dep_header: str, dep_summary: str, word: str):
+    out = _warnings(tmp_path, roadmap=UNDER_WAY_ROADMAP,
+                    progress=_two_stage_progress(dep_header, dep_summary, "🚧",
+                                                 dep_bullet="📋"))
+    assert len(out) == 1
+    assert "stage 2 is under way while stage 1" in out[0] and word in out[0]
+
+
+def test_a_queued_stage_over_a_withdrawn_dependency_warns(tmp_path: Path):
+    """Not yet started, but a 📋 item of it sits in an open queue."""
+    _queue(tmp_path, 3)
+    out = _warnings(tmp_path, roadmap=UNDER_WAY_ROADMAP,
+                    progress=_two_stage_progress("📋", "❌", "📋"))
+    assert len(out) == 1 and "stage 2 is under way" in out[0]
+
+
+@pytest.mark.parametrize("dependent_bullet, dependent_summary", [
+    ("📋", "📋"),   # waiting, queued nowhere: what the rule asks for
+    ("✅", "✅"),   # nothing left to build over it
+    ("⏸️", "⏸️"),   # the dependent is itself deferred
+    ("🚧", "❌"),   # the dependent is withdrawn too
+])
+def test_a_stage_not_under_way_is_silent(tmp_path: Path, dependent_bullet: str,
+                                          dependent_summary: str):
+    progress = _two_stage_progress("📋", "❌", dependent_bullet,
+                                   dependent_summary)
+    if dependent_bullet == "✅":
+        progress = progress.replace("- 📋 The rest.", "- ✅ The rest.")
+    if dependent_bullet == "⏸️":
+        progress = progress.replace("- 📋 The rest.", "- ⏸️ The rest.")
+    assert _warnings(tmp_path, roadmap=UNDER_WAY_ROADMAP,
+                     progress=progress) == []
+
+
+@pytest.mark.parametrize("dependent_summary, dependent_header, queued", [
+    ("⏸️", "", False),    # ⏸️ summary row over a 🚧 bullet
+    ("📋", "⏸️", False),  # ⏸️ header over a 🚧 bullet
+    ("⏸️", "", True),     # ⏸️ summary row, a 📋 item of it queued
+])
+def test_a_deferred_dependent_is_never_under_way(
+        tmp_path: Path, dependent_summary: str, dependent_header: str,
+        queued: bool):
+    """The ⏸️ exemption reads the dependent's header and summary row, not
+    only what its bullets roll up to."""
+    if queued:
+        _queue(tmp_path, 3)
+    progress = _two_stage_progress("⏸️", "⏸️", "📋" if queued else "🚧",
+                                   dependent_summary, dependent_header)
+    assert _warnings(tmp_path, roadmap=UNDER_WAY_ROADMAP,
+                     progress=progress) == []
+
+
+@pytest.mark.parametrize("icon", ["📋", "🚧", "✅"])
+def test_a_dependency_a_queue_can_still_meet_is_silent(tmp_path: Path, icon: str):
+    """A 📋 or 🚧 earlier stage is the ordinary wait; a ✅ one is met."""
+    assert _warnings(tmp_path, roadmap=UNDER_WAY_ROADMAP,
+                     progress=_two_stage_progress(icon, icon, "🚧")) == []
+
+
+def test_check_reports_an_unmet_earlier_dependency_as_a_warning(tmp_path: Path):
+    ddir = tmp_path / "docs" / "aide"
+    ddir.mkdir(parents=True)
+    (ddir / "roadmap.md").write_text(UNDER_WAY_ROADMAP, encoding="utf-8")
+    (ddir / "progress.md").write_text(
+        _two_stage_progress("⏸️", "⏸️", "🚧"), encoding="utf-8")
+    config = {"project": {"docs_dir": "docs/aide"}, "git": {}}
+    errors, warnings = aide.run_checks(tmp_path, config, branches=[])
+    assert any("stage 2 is under way while stage 1" in w for w in warnings)
+    assert not any("under way while" in e for e in errors)

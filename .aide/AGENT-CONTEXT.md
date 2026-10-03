@@ -27,18 +27,19 @@ with none of the conversation.
 ## Out-of-scope learning is captured, never acted on — §1 → `insights.md`
 
 Out-of-scope learning goes to `docs/aide/insights.md` so it is never lost *and*
-never acted on out of scope. Any role, at any time, appends **one line** and
-returns to its task:
+never acted on out of scope. Any role, at any time, captures **one line** with
+`aide insights add` and returns to its task:
 
 ```
-- [ ] <knowledge|defect|gap|automation|framework> — <one line> *(item NNN, YYYY-MM-DD, engine X.Y.Z)*
+python .aide/scripts/aide.py insights add <knowledge|defect|gap|automation|framework> '<one line>' [--provenance 'item NNN']
 ```
 
-The ISO date is the only part that is load-bearing. What precedes it is
-free-form provenance and says where the insight came from: `item NNN` from
+It appends `- [ ] <type> — <one line> *(item NNN, YYYY-MM-DD, engine X.Y.Z)*`
+and prints the entry's ID. The ISO date is the only part that is load-bearing;
+the verb fills it, and `engine X.Y.Z`, one read of `.aide/VERSION`. The
+provenance is free-form and says where the insight came from: `item NNN` from
 inside an item, `queue-NNN` from planning done before any item exists,
-`items NNN-NNN` for a finding spanning several, or nothing at all. What follows
-it is `engine X.Y.Z`, one read of `.aide/VERSION`.
+`items NNN-NNN` for a finding spanning several, or nothing at all.
 
 A captured claim is **immutable**: never reworded, reordered, or deleted, not
 even when it turns out to be wrong. Ticking the checkbox is the one in-place
@@ -76,8 +77,8 @@ queue and item derived from it.
 ```
 python .aide/scripts/aide.py check | status | env | sync | claim | scope
     | test | merge | gc | progress set/accept/amend/retract/reword/reopen
-    | gate list/approve/decline | insights list/tick/archive/resolve
-    | queue start/tidy/restack/gate/pr/ready | ledger abandon
+    | gate list/approve/decline | insights add/list/tick/archive/resolve
+    | queue start/tidy/restack/gate/pr/ready | ledger abandon/report
 ```
 
 Prefer the verb to hand-editing a document or improvising git: it is what keeps

@@ -238,6 +238,10 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
      R is the rounds actually run. No merge will ever write a row for this
      item, and this is the one a reader at the queue boundary is looking for
      (`ledger -h`). It records; it decides nothing about the item's status.
+     That is the user's call: if they decide against the work, record it
+     with `python .aide/scripts/aide.py progress set NNN dropped --reason
+     "<their decision>"` — never a ❌ typed over the bullet — and if they
+     want it later, with `deferred` the same way.
    - **INCOMPLETE — a run hit the validator's 50-minute dispatch budget, hung,
      or died** → not a FAIL and not a round: nothing failed for a builder to
      fix. Do not re-dispatch a validator into the same wait — report the

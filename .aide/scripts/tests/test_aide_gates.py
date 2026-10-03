@@ -463,6 +463,24 @@ def test_an_item_waiting_only_on_a_gated_item_is_held_by_the_gate(
     assert _early_line(capsys.readouterr().out).startswith("early ready: yes")
 
 
+def test_a_queue_end_item_behind_a_gated_item_is_held_by_the_gate(
+        tmp_path: Path, capsys):
+    """Issue #347: 028 is `Validate stage 1`, with no spec to name 027 — it
+    waits on 027 as its queue-mate, and 027 is gated, so the gate is what
+    holds the queue's end too."""
+    repo = _early_repo(tmp_path, "| G | 027 | ⏳ Awaiting | — |")
+    ppath = repo / "docs" / "aide" / "progress.md"
+    ppath.write_text(ppath.read_text(encoding="utf-8").replace(
+        "- 📋 B. *(Item 028)*", "- 📋 B. *(Item 028)*\n- ✅ C. *(Item 026)*"),
+        encoding="utf-8")
+    qpath = repo / "docs" / "aide" / "queue" / "queue-003.md"
+    qpath.write_text(QUEUE.replace("Item 028: Beta", "Item 028: Validate stage 1: X")
+                     + "\n### Item 026: Gamma\nC.\n", encoding="utf-8")
+    _run(["git", "commit", "-am", "queue-end item"], repo)
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    assert _early_line(capsys.readouterr().out).startswith("early ready: yes")
+
+
 def test_early_ready_is_no_before_any_item_has_landed(tmp_path: Path, capsys):
     """A queue held whole by its plan gate has nothing built: marking its PR
     ready would ask for a review of a plan as if it were a batch."""

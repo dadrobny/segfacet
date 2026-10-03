@@ -69,24 +69,35 @@ _PATH_KEYS = {
 }
 
 
-def _declared_repo_paths():
-    """Every repo declared in ``.aide/local.toml``, as written.
-
-    Delegates to the command-hygiene guard, which already owns this parse and
-    has the test suite pinning its edge cases (a malformed array grants
-    nothing, a bare key does not wedge the file, a new section header ends an
-    unterminated array). Two hand-rolled TOML readers over one file is one too
-    many, and they sit in the same installed directory.
-    """
+def _guard():
+    """The command-hygiene guard module, loaded from beside this file."""
     module_path = Path(__file__).resolve().parent / "command_hygiene_guard.py"
     spec = importlib.util.spec_from_file_location(
         "_aide_command_hygiene_guard", module_path
     )
     if spec is None or spec.loader is None:
-        return []
+        return None
     guard = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(guard)
-    return list(guard._declared_repo_paths())
+    return guard
+
+
+def _declared_repo_paths():
+    """Every repo declared in ``.aide/local.toml``, as written, and the
+    directory that file was read from — which a relative declaration is
+    relative to.
+
+    Delegates to the command-hygiene guard, which already owns this parse and
+    has the test suite pinning its edge cases (a malformed array grants
+    nothing, a bare key does not wedge the file, a new section header ends an
+    unterminated array), and where the file is found (the project root the
+    runtime names, then the cwd). Two hand-rolled TOML readers over one file
+    is one too many, and they sit in the same installed directory.
+    """
+    guard = _guard()
+    if guard is None:
+        return [], os.getcwd()
+    return list(guard._declared_repo_paths()), guard._local_config_root()
 
 
 def _instruction_filename(path=None):
@@ -281,16 +292,16 @@ def main():
     if not touched:
         return
 
-    declared = _declared_repo_paths()
+    declared, config_root = _declared_repo_paths()
     if not declared:
         return
 
     # Two different bases, deliberately. A declared repo path is relative to
-    # wherever `.aide/local.toml` was just read from — the process cwd,
-    # which the runtime sets to the project root. A path inside a Bash command is
+    # wherever `.aide/local.toml` was just read from — the project root the
+    # runtime names, else the process cwd. A path inside a Bash command is
     # relative to the session's cwd, which the payload reports and which need not
     # be the same directory.
-    config_base = Path.cwd().resolve()
+    config_base = Path(config_root).resolve()
     session_cwd = Path(payload.get("cwd") or os.getcwd()).resolve()
     instruction_file = _instruction_filename()
     marker = _marker_path(payload.get("session_id", ""))

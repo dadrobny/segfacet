@@ -156,7 +156,17 @@ jobs:
         # the whole workflow at 21.0 min (run 33483503854). Re-measured
         # locally 2026-09-18: 8989 tests in 8m35s -- the suite grew, the
         # runner did not; what is slow is in docs/aide/insights.md that date.
-        run: python -m pytest -n 4
+        # Re-measured on run 37042666246 (2026-10-02): Windows Test step
+        # 24.4 min against ubuntu's 15.9 min, the workflow's whole critical
+        # path. So the Windows leg skips `.aide/scripts/tests`: those are the
+        # framework engine's own tests, process-spawn heavy (the shape
+        # Windows runs 8-21x slower, per aide-loop's tests.yml), and the
+        # framework's own CI already runs the identical files on Windows.
+        # Ubuntu keeps the whole suite. `--durations=30` on both legs is the
+        # per-module data for the next step -- a pinned list of what Windows
+        # can actually refute (path, newline, subprocess, CLI) -- which is
+        # open in docs/aide/insights.md (2026-10-03).
+        run: python -m pytest -n 4 --durations=30 ${{ runner.os == 'Windows' && '--ignore=.aide/scripts/tests' || '' }}
 
   # Item 095: numpy-major agnosticism check. pyproject.toml declares a numpy
   # *range* (`numpy>=1.26,<3`), not a pin, specifically so the identical

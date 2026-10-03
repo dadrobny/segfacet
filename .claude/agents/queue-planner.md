@@ -66,8 +66,14 @@ Follow the `aide-create-queue` skill in full. In brief:
    ```
    python .aide/scripts/aide.py queue tidy <NNN-1>
    ```
-   (Skip if this is the first queue.) Then reflect each item's final `progress.md`
-   state in that file if any still read 📋.
+   (Skip if this is the first queue.) Write nothing else into that file: a
+   queue entry carries no icon, and an item's status lives in `progress.md`
+   alone (§1 → `progress.md`, preloaded above). An item of it carried to
+   the next queue is deferred there with `aide progress set NNN deferred
+   --reason …`, and one its owner decided against — your brief says so,
+   naming the item — is dropped with `aide progress set NNN dropped --reason
+   …`, so the why is on record either way; never type ⏸️ or ❌ over it. Name
+   each in step 8's summary.
 4. **Write** `docs/aide/queue/queue-NNN.md` from `.aide/templates/queue.md`: the
    next batch of logical, locally-testable items, no duplicates, each as
    `### Item NNN: Short Title` + a description paragraph. **Scope the batch to one
@@ -77,6 +83,23 @@ Follow the `aide-create-queue` skill in full. In brief:
    pad with the following stage. A stage needing more spans multiple queues at the
    cap. The cap is a context budget, not a target. Prioritise by roadmap order and
    unblocked dependencies.
+
+   **A blocking dependency on an earlier stage is met only once that stage is
+   ✅** (§1 → `roadmap.md`, which is not preloaded — read it there): queue a
+   stage behind an earlier 📋, 🚧 or 🔍 one it depends on, never ahead of it.
+   **A ⏸️ earlier stage does not meet the dependency either, and its
+   deferred work waits on its owner's decision, not on the next queue**, so
+   do not queue the stage that waits on it, nor its deferred bullets. If that leaves nothing to queue, stop and hand back,
+   naming the waiting stage, the ⏸️ one and its deferred bullets: resuming
+   them, or dropping those the stage does not need, is the owner's decision
+   (§1 → `progress.md`, preloaded above).
+
+   **A blocking dependency on a withdrawn stage is never met** — one whose
+   summary row in `progress.md` is ❌ — **so the dependent stage is
+   re-planned, not queued.** Do not queue it: rewording its Dependencies, or
+   withdrawing it too, changes `roadmap.md`, which you never edit. If that
+   leaves nothing to queue, stop and hand back, naming the dependent stage
+   and the withdrawn one.
 5. **Wire every item into `progress.md`.** For each `### Item NNN` you just wrote,
    ensure the number appears as an `*(Item NNN)*` reference on the matching
    **deliverable bullet** under that item's roadmap **stage section** in
@@ -86,7 +109,23 @@ Follow the `aide-create-queue` skill in full. In brief:
    shorthand, not a shared status cell: the first status change to any of its
    items splits the bullet into one per item. **Never change a status
    icon** (leave deliverables 📋 — status transitions are `aide progress set`'s job
-   during execution). Item numbers are born here, so their `progress.md` references
+   during execution).
+
+   **Wire a marker onto a 📋 bullet only.** An item born on a ⏸️ or ❌
+   bullet is settled from the start, and its queue reads done the moment it
+   is written (§1 → `progress.md`, preloaded above). A ⏸️ bullet is queued
+   only where its owner decided to resume it — your brief says so, naming the
+   bullet — and you resume it first, by its place, with the owner's decision
+   and why it is queued now as the reason:
+   ```
+   python .aide/scripts/aide.py progress set --stage N --deliverable K resumed --reason "<owner's decision: why now>"
+   ```
+   then wire the marker onto the 📋 bullet it leaves, and say in step 8's
+   summary which deferred work you queued and why. With no such decision it
+   is not queued (step 4). A ❌ bullet is never queued: the owner decided
+   the stage does not need it.
+
+   Item numbers are born here, so their `progress.md` references
    must be recorded here: `aide progress set NNN` locates the bullet to flip by its
    reference and now **hard-errors** on an unreferenced item (engine ≥ 1.0.1)
    instead of silently no-op'ing.
@@ -196,13 +235,17 @@ and resolving it destroys the only thing the gate protects.
 - **Do NOT push or open a PR.** Commit only; the orchestrator handles push/PR.
 - **Do NOT run `pytest`.**
 - Edit only `docs/aide/queue/*.md` and `docs/aide/progress.md` — and in
-  `progress.md` only the item-reference back-fill (step 5), the tidy reflection
-  (step 3), and **adding a row to `## Human gates`** (above), never a
-  deliverable's status icon and never new stages/acceptance. Adding a gate row
+  `progress.md` only the item-reference back-fill (step 5), the deferral of
+  a carried item or the drop of one its owner decided against (step 3) and
+  the resume of a deferred bullet its owner decided to queue (step 5), each
+  by its verb, and
+  **adding a row to `## Human gates`** (above), never a deliverable's status
+  icon by hand and never new stages/acceptance. Adding a gate row
   is permitted because raising a blocker is safe; **resolving** one is not
   yours, ever.
 - `docs/aide/insights.md` is the one file outside that scope you touch, and
-  only through the verb: an append (below) and the `insights tick` of step 7.
+  only through the verbs: an `insights add` (below) and the `insights tick` of
+  step 7.
   **Never edit a captured line by hand** — the claim is immutable and ticking
   the checkbox is the one in-place edit, which `tick` owns.
 
@@ -217,11 +260,14 @@ if the roadmap is ambiguous about what comes next, say so rather than guessing.
 
 When you learn something true but OUT OF SCOPE for this task — a doc gap, a
 latent defect, a missing capability, a recurring manual step that
-deterministic code could replace, or an AIDE-framework issue — append ONE
-line to `docs/aide/insights.md` and carry on. Never act on it here. Entry
-shape:
+deterministic code could replace, or an AIDE-framework issue — capture ONE
+line in `docs/aide/insights.md` with the verb and carry on. Never act on it
+here:
 
-    - [ ] <knowledge|defect|gap|automation|framework> — <one line> *(queue-NNN, YYYY-MM-DD, engine X.Y.Z)*
+    python .aide/scripts/aide.py insights add <knowledge|defect|gap|automation|framework> '<one line>' --provenance queue-NNN
+
+It appends the entry, the date and engine version filled in, and prints its
+ID to cite it by.
 
 The provenance names where the insight came from; `queue-NNN` is yours,
 because you work a queue and there may be no item to name yet.
@@ -229,5 +275,5 @@ because you work a queue and there may be no item to name yet.
 The insight-review pass triages the inbox at the queue boundary — which is why
 its open `defect`, `gap` and `automation` entries are an input to step 1 rather
 than a pile nobody reads. Capturing is cheap and always in scope; acting out of
-scope is forbidden. This append, and the `insights tick` of step 7, are the
+scope is forbidden. This capture, and the `insights tick` of step 7, are the
 only writes allowed outside your edit scope.

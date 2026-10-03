@@ -45,14 +45,19 @@ that moved everything.
   *"an excluded item is never offered"*, *"whichever builds second inherits the
   first's edits"*, *"an item awaiting review or deferred has not shipped"* and
   *"each attestation was made separately and is corrected or withdrawn
-  separately"* and *"a deferral is a decision about order, not a finding"*
-  (`progress`), *"the stage is dropped, so its bullets no longer speak for
+  separately"*, *"a deferral is a decision about order, not a finding"* and
+  *"dropping a deliverable is a decision about scope, not a finding"*,
+  *"only deferred work is resumed"*, *"only dropped work is restored"* and
+  *"Resume such a bullet before it is itemised"* (`progress`), *"a merge
+  records work that landed"* (`merge`), *"the stage is dropped, so its bullets no longer speak for
   it"* (`check`), *"roadmap.md's deliverables carry no item marker, so there
   is no bullet of the item to mirror"* (`progress`) — rationale for a rule
   pinned beside them, not a second rule.
 * *"reopen a ✅ item first"*, *"defer that one by its item"* and *"Otherwise
-  it writes what set NNN deferred writes"* (`progress`) — pointers at another
-  form, the refusal or the write they point at being pinned.
+  it writes what set NNN deferred writes"* (`progress`), and *"its owner's,
+  and `aide progress set NNN dropped --reason TEXT` records one against the
+  work"* (`ledger`) — pointers at another form, the refusal or the write they
+  point at being pinned.
 * *"since the row is dropped from every check it would have fed"*, *"the
   goal-level mirror of that over-claim"*, *"a normal state rather than a
   defect"* (twice), *"a satisfied profile under an unverified row is a row
@@ -87,6 +92,18 @@ that moved everything.
   outside the item is an insights.md line and no cell here"* is §9's rule
   about what the caller counts, which no cell the engine writes can measure —
   the engine records the number it is handed.
+* *"The groups are descriptive and not comparable: another engine, another
+  setting or another batch of work sits behind each, and a small one is an
+  anecdote"*, *"where a blank finding cell may also mean no review ran"* and
+  *"the cap is a setting, and it may have moved under the rows"* (`ledger`)
+  — how to read the report and why two pinned behaviours are what they are.
+  *"Each group shows its Stage cells, merged and abandoned counts, …"* is the
+  list of readings, each held by the pin on the cell rule it follows.
+* *"In a POSIX shell, single-quote the claim so backticks in it stay
+  literal, and write an apostrophe inside it as '\\''"* (`insights`) — how a
+  caller's shell hands the verb its argument, which the engine never sees:
+  argv arrives already unquoted, and a guard driving a POSIX shell would not
+  run on the Windows leg.
 * The `-h` **option** help (`--queue`, `--base`, `--yes`, …). Argparse prints
   those below the description; this row is the description blocks, and an
   option line is one clause about one flag rather than a statement of what the
@@ -100,6 +117,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -156,8 +174,85 @@ def _help_for(verb: str) -> str:
 #: a claim is never half-guarded by a test that covers the easier half.
 HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
 
+    # ------------------------------------------------------------------ env --
+    "env": [
+        # `dependency_report`: `pushes = mode != "local"` sets `needed_by` and
+        # the refusal of the origin and gh lines alike.
+        # `dependency_report`: no gh line under forge none, in any mode (#355).
+        ("[git] forge = \"none\" declares no forge: gh is then not needed, "
+         "and its line is left out",
+         "test_aide_env_report::test_no_forge_needs_no_gh_and_leaves_its_line_out"),
+        ("origin and gh are needed under every [git] mode but local",
+         ("test_aide_env_report::"
+          "test_auto_merge_with_no_origin_is_refused_naming_the_setting",
+          "test_aide_env_report::test_local_needs_no_origin_and_never_asks_the_forge",
+          "test_aide_env_report::test_a_pushing_mode_without_gh_is_refused",
+          "test_aide_env_report::test_pr_with_no_login_is_refused")),
+        # `_print_dependency_report`: any refusal -> exit 1; aide.toml is never
+        # written.
+        ("A requirement the configuration needs and this machine lacks is a "
+         "refusal naming the setting that needs it and the two ways out "
+         "\u2014 meet it, or change the setting \u2014 and exits 1; nothing "
+         "is adapted to fit the machine",
+         "test_aide_env_report::"
+         "test_auto_merge_with_no_origin_is_refused_naming_the_setting"),
+        # The python line's `note`, never its `refusal`.
+        ("A printed interpreter this machine lacks is a note that fails "
+         "nothing",
+         ("test_aide_env_report::test_a_printed_interpreter_this_machine_lacks_is_a_note",
+          "test_aide_env_report::test_with_no_python3_either_the_note_names_the_key")),
+        # `has_venv` false: no venv line; `cmd_env` refuses --bootstrap.
+        ("[python] venv = \"\" means the project keeps no venv: the venv "
+         "line is left out, and --bootstrap refuses",
+         ("test_aide_env_report::test_an_empty_venv_setting_leaves_the_venv_line_out",
+          "test_aide_env_report::test_bootstrap_refuses_when_no_venv_is_kept")),
+        # `cmd_env`: `--bootstrap` returns on `env_report` / `_bootstrap_venv`
+        # and never reaches `_print_dependency_report`.
+        ("--bootstrap builds the venv where it is missing or stale and "
+         "reports on the venv alone: exit 0 when the venv is OK, whatever "
+         "else the report would refuse",
+         ("test_aide_env_report::test_bootstrap_answers_for_the_venv_alone",
+          "test_aide_git::test_bootstrap_with_an_interpreter_this_machine_lacks_is_a_sentence")),
+        ("Exits 0 when every requirement the configuration needs is met",
+         ("test_aide_env_report::test_every_requirement_met_under_pr_exits_zero",
+          "test_aide_git::test_a_stdlib_runner_in_a_bare_venv_is_ok")),
+        # The lines `dependency_report` builds, in order; the venv's facts are
+        # `env_report`'s, held by the #166 tests in test_aide_git.
+        ("the interpreter the engine runs on and the one its suggested "
+         "commands print ([tools] python in .aide/local.toml)",
+         "test_aide_env_report::test_a_printed_interpreter_this_machine_lacks_is_a_note"),
+        ("git, with its version and the merge-tree features gc (2.38+) and "
+         "queue restack (2.40+) use",
+         "test_aide_env_report::test_the_git_line_names_the_merge_tree_features"),
+        ("it exists, its last bootstrap finished, it is the [python] "
+         "interpreter's version, import_check and a `python -m` test runner "
+         "import",
+         ("test_aide_git::test_a_venv_with_no_test_runner_cannot_report_ok",
+          "test_aide_git::test_a_failed_bootstrap_record_makes_the_venv_stale",
+          "test_aide_git::test_the_configured_interpreter_is_compared_with_the_venvs_version")),
+    ],
+
     # ---------------------------------------------------------------- check --
     "check": [
+        # `cmd_check`: `dependency_errors` only where `aide.toml` is a file;
+        # it keeps the report's `in_check` lines, built with `offline=True`.
+        ("Without --queue, where aide.toml is there, the check also ERRORS on "
+         "each requirement of its configuration this machine lacks that is "
+         "decided offline: git, the repository, a remote named origin under "
+         "a [git] mode other than local, and the test command's program, "
+         "each prefixed `this machine:`",
+         ("test_aide_env_report::test_check_errors_on_auto_merge_with_no_origin",
+          "test_aide_env_report::"
+          "test_check_errors_outside_a_repository_and_on_a_missing_runner",
+          "test_aide_env_report::test_check_without_an_aide_toml_judges_no_machine",
+          "test_aide_env_report::test_check_under_local_with_no_origin_passes")),
+        # `cmd_check`: `machine_errors` only when `queue is None`.
+        ("A --queue run judges documents only",
+         "test_aide_env_report::test_check_queue_never_fails_on_the_machine"),
+        # `offline=True` returns before the gh, python and venv lines.
+        ("gh's login, the interpreter and the venv are reported by `aide env` "
+         "alone",
+         "test_aide_env_report::test_check_leaves_gh_the_interpreter_and_the_venv_to_env"),
         # `queue_spec_findings`, row 1: severity "warning", kind
         # "may-change-overlap", and `bookkeeping` excluded from it.
         ("two items claiming one path under May change (warning)",
@@ -260,12 +355,24 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_queue_specs::test_queue_end_stages_reads_the_title",
           "test_aide_queue_specs::"
           "test_a_queue_end_items_own_annotation_does_not_retire_its_need")),
-        # `trailing` — the suffix of the queue's items that are queue-end items.
+        # `met` — the suffix of the queue's items that are queue-end items,
+        # plus any queue-end item not ✅, ❌ or ⏸️ (issue #347).
         ("The check warns when a stage with a need has no queue-end item for "
-         "it among the queue's final items, naming each reason",
+         "it among the queue's final items or still open anywhere on it, "
+         "naming each reason",
          ("test_aide_queue_specs::test_a_queue_end_item_among_the_final_items_meets_the_need",
           "test_aide_queue_specs::"
-          "test_a_queue_end_item_that_is_not_final_does_not_meet_the_need")),
+          "test_an_open_queue_end_item_that_is_not_final_meets_the_need",
+          "test_aide_queue_specs::"
+          "test_a_spent_queue_end_item_that_is_not_final_does_not_meet_the_need")),
+        # The `queue-end-not-last` loop: open queue-end item, open non-queue-end
+        # item after it; settled records either side exempt (issue #347).
+        ("when an open queue-end item is listed ahead of an open item that is "
+         "not one, which `aide claim` holds it behind",
+         ("test_aide_queue_specs::"
+          "test_an_open_queue_end_item_that_is_not_final_meets_the_need",
+          "test_aide_queue_specs::test_a_settled_record_never_puts_a_queue_end_item_out_of_place",
+          "test_aide_queue_specs::test_two_trailing_queue_end_items_are_in_place")),
         # The `queue-end-idle` loop: no stage, not closed, empty reasons.
         ("and when a queue-end item not ✅, ❌ or ⏸️ names no stage, a stage "
          "the queue does not close, or one with no need",
@@ -280,7 +387,7 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "test_aide_queue_specs::"
          "test_a_queue_end_item_a_fix_round_reopened_is_never_reported_idle"),
         # The early `return []` when every listed item is spent.
-        ("A queue whose items are all ✅, ❌ or ⏸️ gets neither warning",
+        ("A queue whose items are all ✅, ❌ or ⏸️ gets none of them",
          ("test_aide_queue_specs::test_a_spent_queue_is_reported_neither_way",
           "test_aide_queue_specs::"
           "test_a_queue_whose_only_open_work_in_the_stage_is_deferred_closes_nothing")),
@@ -380,6 +487,14 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("every human gate still blocking",
          ("test_aide_gates::test_awaiting_gate_warns_with_its_reach",
           "test_aide_help_pins::test_a_warning_alone_still_exits_zero")),
+        # `withdrawn` from the summary rows, passed to `objective_rollup` in
+        # `derived_cell_findings`, and its `derived == "excluded"` branch
+        # (issue #382).
+        ("an Objective row's rollup being the same rule over the rollups of "
+         "the stages its Delivered by cell names, less any whose summary row "
+         "is \u274c, and \u274c where every stage it names has such a row",
+         ("test_aide_defer::test_check_reads_an_objective_from_the_stages_still_in_scope",
+          "test_aide_defer::test_an_objective_whose_every_stage_is_withdrawn_reads_excluded")),
         # `if summ == "excluded": continue` — before every stage comparison
         # in `derived_cell_findings`, not just the warning.
         ("A summary row marked \u274c is left out of every "
@@ -485,6 +600,22 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "summary row",
          ("test_aide_forward_deps::test_a_deferred_stage_is_exempt",
           "test_aide_forward_deps::test_any_other_status_is_not_exempt")),
+        # The same pass (issue #384): `_stages_under_way` — `stage_rollups`
+        # "in-progress", or a 📋 item `queue_is_open` lists — minus the
+        # deferred and `withdrawn_stages` sets, over earlier deps only.
+        ("a roadmap.md stage under way \u2014 its deliverables rolling up to "
+         "\U0001f6a7, or a \U0001f4cb item of it listed in an open queue "
+         "\u2014 while an earlier stage its blocking slot names is "
+         "\u23f8\ufe0f on its header or summary row, or withdrawn by a "
+         "\u274c summary row",
+         ("test_aide_forward_deps::"
+          "test_a_started_stage_over_a_deferred_or_withdrawn_dependency_warns",
+          "test_aide_forward_deps::test_a_queued_stage_over_a_withdrawn_dependency_warns",
+          "test_aide_forward_deps::test_a_dependency_a_queue_can_still_meet_is_silent",
+          "test_aide_forward_deps::"
+          "test_check_reports_an_unmet_earlier_dependency_as_a_warning")),
+        ("where a stage itself \u23f8\ufe0f or withdrawn is never under way",
+         "test_aide_forward_deps::test_a_stage_not_under_way_is_silent"),
         # `coverage_completeness_warnings` (issue #289), called from
         # run_checks on the warnings side. Case 1 takes every row
         # `_table_rows(_STAGE_SUMMARY)` yields, an unusable one by the number
@@ -569,10 +700,32 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # Same function: `_positional_citations` over docs and test files
         # alike (issue #295).
         ("a citation by position \u2014 insight 28, insights.md entry 28, or "
-         "entry 28 on a line that says insight or inbox \u2014 is a warning "
-         "naming the ID that position holds today, in a test as in a document",
+         "entry 28 on a line that says insight or inbox \u2014 is a warning",
          ("test_aide_insights::test_a_positional_citation_is_a_warning_naming_the_id",
           "test_aide_insights::test_a_positional_citation_in_a_test_is_a_warning_too")),
+        # `_CitationHistory.hint` (issue #361): blame names the commit, `git
+        # show` that commit's inbox, and the entry there is named by the ID
+        # it has today in the inbox or its archives.
+        ("naming the ID that position held when the citing line was last "
+         "committed, read from git blame and that commit's insights.md",
+         ("test_aide_insights::"
+          "test_a_committed_citation_names_the_entry_it_meant_not_todays_holder",
+          "test_aide_insights::test_the_issue_repro_entry_4_names_the_archived_fourth_entry",
+          "test_aide_insights::test_a_position_beyond_the_inbox_at_its_commit_named_no_entry",
+          "test_aide_insights::test_history_costs_one_blame_per_file_and_one_show_per_commit",
+          "test_aide_insights::test_a_bom_on_the_inbox_then_does_not_shift_its_positions",
+          "test_aide_insights::test_history_is_read_when_repo_root_is_below_the_git_top_level",
+          "test_aide_insights::test_a_root_commit_is_history_not_a_boundary",
+          "test_aide_insights::test_blame_is_asked_for_gits_line_not_splitlines")),
+        # Same class: blame's all-zero commit (or an untracked file) is
+        # today's inbox; no history at all is today's, labelled.
+        ("today's holder for a line not yet committed, and today's, labelled "
+         "as such, where there is no git history to read",
+         ("test_aide_insights::test_an_uncommitted_citation_names_todays_holder",
+          "test_aide_insights::test_without_git_history_todays_holder_is_the_labelled_fallback",
+          "test_aide_insights::test_an_inbox_that_cannot_be_read_then_is_the_labelled_fallback",
+          "test_aide_insights::"
+          "test_a_line_blamed_on_a_shallow_clones_boundary_is_the_labelled_fallback")),
         # `insight_reference_findings` skips `record_documents` before the
         # positional loop, after the ID loop (issue #338).
         ("in a test as in a document other than a record",
@@ -666,6 +819,20 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # "in-review": its PR is open, and its branch is not litter.
         ("A \U0001f50d item's claim branch is not reported stale",
          "test_aide_git::test_check_does_not_call_a_branch_awaiting_review_stale"),
+        # The ✅ half is `item_status.get(n) == "complete"`, the ❌ half
+        # `spent_by_withdrawal` — `item_status` "excluded", or every bullet
+        # in a `withdrawn_stages` section (`withdrawn_stage_items`) for a 📋
+        # item only (issue #387).
+        ("A claim branch is reported stale when its item is \u2705, or "
+         "\u274c by its own bullets, or \U0001f4cb with every bullet in a "
+         "stage whose summary row is \u274c",
+         ("test_aide_core::test_check_warns_stale_claim_branch",
+          "test_aide_git::test_check_and_status_name_a_withdrawn_items_branch_stale",
+          "test_aide_git::test_withdrawn_stage_items_reads_only_items_wholly_inside_one")),
+        ("a \U0001f6a7 or \u23f8\ufe0f item in such a stage is not, until "
+         "it is dropped",
+         ("test_aide_git::test_spent_by_withdrawal_takes_only_a_planned_item_of_a_withdrawn_stage",
+          "test_aide_git::test_a_started_item_of_a_withdrawn_stage_is_not_stale_nor_collected")),
     ],
 
     # ------------------------------------------------------------- progress --
@@ -802,16 +969,42 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "never rolls up",
          "test_aide_core::test_unmet_target_blocks_objective_rollup_not_stage"),
         # `RANK` guards the write: a lower-ranked status is not applied.
-        ("Apart from deferring, set never downgrades a status",
+        ("Apart from deferring, dropping, resuming and restoring, set never "
+         "downgrades a status",
          ("test_aide_core::test_set_item_never_downgrades",
-          "test_aide_defer::test_deferring_the_only_in_progress_item_rolls_the_stage_back_to_planned")),
-        # ⏸️ ranks below 🚧, 🔍 and ✅ in `RANK`, so the forward flip applies.
-        ("a \u23f8\ufe0f item resumes under any other status set names",
-         ("test_aide_defer::test_a_deferred_item_resumes_under_any_forward_status",
+          "test_aide_defer::test_deferring_the_only_in_progress_item_rolls_the_stage_back_to_planned",
+          "test_aide_defer::test_dropping_the_only_in_progress_bullet_rolls_the_stage_back_down",
+          "test_aide_defer::test_resuming_the_only_open_item_rolls_a_deferred_stage_back_to_planned",
+          "test_aide_defer::test_restoring_a_dropped_item_reopens_the_stage_it_let_close")),
+        # `held_from_forward`'s ❌ arm in `cmd_progress` (issue #381): an item
+        # whose bullets are all ❌ or 📋 is refused, a mixed one is let
+        # through; `restore_item` writes 📋.
+        ("one whose bullets are all \u274c or \U0001f4cb leaves \u274c by "
+         "restoring alone, back to \U0001f4cb",
+         ("test_aide_defer::test_a_forward_set_over_a_dropped_item_is_refused_naming_the_restore",
+          "test_aide_defer::test_a_forward_set_still_moves_an_item_restored_would_refuse",
+          "test_aide_defer::test_restoring_a_dropped_item_reopens_the_stage_it_let_close",
+          "test_aide_defer::test_an_item_with_a_dropped_and_a_planned_bullet_is_held_and_restored",
+          "test_aide_git::test_merge_refuses_a_dropped_item_until_it_is_restored")),
+        # `withdrawn_stages` read by `_apply_objective_rollup` and
+        # `objective_rollup` (issue #382): a ❌ summary row's stage is left
+        # out, and a row naming withdrawn stages alone derives to ❌.
+        ("A stage whose summary row is \u274c is withdrawn and left out of "
+         "every Objective row that names it, and a row naming withdrawn "
+         "stages alone reads \u274c",
+         ("test_aide_defer::test_the_writer_follows_a_withdrawn_stage_and_check_stays_silent",
+          "test_aide_defer::test_a_withdrawn_stage_is_left_out_of_the_objective_rollup")),
+        # `cmd_progress` refuses a forward status over an item whose bullets
+        # are all ⏸️ or 📋 before it writes, and lets a mixed one through
+        # (issue #380); `resume_item` writes 📋.
+        ("an item whose bullets are all \u23f8\ufe0f or \U0001f4cb leaves "
+         "\u23f8\ufe0f by resuming alone, back to \U0001f4cb",
+         ("test_aide_defer::test_a_forward_set_over_a_deferred_item_is_refused_naming_the_resume",
+          "test_aide_defer::test_a_forward_set_still_moves_an_item_resumed_would_refuse",
           "test_aide_defer::test_resuming_a_deferred_item_moves_the_stage_back_up")),
         # `reopen_item` refuses any bullet not ✅, and is the one caller that
         # passes `downgrade_stages` to `_recompute_rollups` (issue #271).
-        ("only reopen moves one back, and only from \u2705",
+        ("only reopen moves a \u2705 item back",
          ("test_aide_reopen::test_reopen_refuses_an_item_that_is_not_done_and_names_its_status",
           "test_aide_reopen::test_reopen_rolls_the_stage_and_its_objective_back_down")),
         # `stage_deliverable_statuses` skips `_CHECKBOX_RE` lines, and nothing
@@ -931,7 +1124,8 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "test_aide_defer::test_deferring_a_deferred_item_again_is_no_change"),
         ("No insight is captured",
          ("test_aide_defer::test_set_deferred_writes_no_insight",
-          "test_aide_defer::test_set_deferred_on_a_done_item_exits_one_and_writes_nothing")),
+          "test_aide_defer::test_set_deferred_on_a_done_item_exits_one_and_writes_nothing",
+          "test_aide_defer::test_drop_by_position_writes_through_the_cli_and_no_insight")),
 
         # `_cmd_progress_defer_deliverable` / `defer_deliverable` (issue #336).
         ("`set --stage N --deliverable K deferred --reason TEXT` does the same "
@@ -943,24 +1137,210 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # usage refusals in `_cmd_progress_defer_deliverable`.
         ("set --stage N --deliverable K counts the stage's deliverable bullets "
          "from 1 in file order, a wrapped line belonging to its bullet, and "
-         "takes no NNN and no status but deferred",
+         "takes no NNN and no status but deferred, dropped, resumed or "
+         "restored",
          ("test_aide_defer::test_defer_deliverable_flips_the_bullet_and_writes_the_trail_under_its_last_line",
-          "test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2")),
-        ("It refuses, writing nothing, without a stated reason, when stage N "
-         "has no Kth bullet, when that bullet is \u2705 or \u274c, or when it "
-         "carries an item marker",
+          "test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2",
+          "test_aide_defer::test_drop_by_position_writes_through_the_cli_and_no_insight",
+          "test_aide_defer::test_resume_by_position_writes_through_the_cli",
+          "test_aide_defer::test_restore_by_position_writes_through_the_cli")),
+        # `_unmarked_deliverable_at`, shared by the three writers (issues
+        # #362, #380), and the reason checks in
+        # `_cmd_progress_defer_deliverable`.
+        ("Each form refuses, writing nothing, without a stated reason, when "
+         "stage N has no Kth bullet, or when that bullet carries an item "
+         "marker",
          ("test_aide_defer::test_set_by_position_refuses_its_usage_errors_with_exit_2",
           "test_aide_defer::test_set_by_position_refuses_what_it_cannot_defer_with_exit_1",
           "test_aide_defer::test_defer_deliverable_refuses",
-          "test_aide_defer::test_defer_deliverable_refuses_a_finished_bullet")),
+          "test_aide_defer::test_drop_by_position_refuses_its_usage_errors_with_exit_2",
+          "test_aide_defer::test_drop_by_position_refuses_what_it_cannot_drop_with_exit_1",
+          "test_aide_defer::test_drop_deliverable_refuses",
+          "test_aide_defer::test_resume_by_position_refuses_and_writes_nothing",
+          "test_aide_defer::test_restore_deliverable_refuses_an_itemised_bullet_naming_the_item_form")),
+        # `defer_deliverable`'s `_DEFERRABLE` check.
+        ("set --stage N --deliverable K deferred also refuses a bullet that "
+         "is \u2705 or \u274c",
+         "test_aide_defer::test_defer_deliverable_refuses_a_finished_bullet"),
         ("a bullet already \u23f8\ufe0f is no change",
          "test_aide_defer::test_defer_deliverable_again_is_no_change"),
-        ("Such a bullet resumes once it is itemised, under set NNN",
-         "test_aide_defer::test_an_unmarked_deferred_bullet_resumes_once_itemised"),
+
+        # `resume_deliverable` (issue #380): `_unmarked_deliverable_at`, the
+        # ⏸️-only check, and `_write_unmarked_deliverable` to 📋.
+        ("set --stage N --deliverable K resumed writes what set NNN resumed "
+         "writes, to a \u23f8\ufe0f bullet; it refuses any other but "
+         "\U0001f4cb, which is no change",
+         ("test_aide_defer::test_an_unmarked_deferred_bullet_resumes_by_place_then_is_itemised",
+          "test_aide_defer::test_resume_deliverable_refuses_a_bullet_that_is_not_deferred",
+          "test_aide_defer::test_resume_deliverable_again_is_no_change")),
+        # A marker wired onto a ⏸️ bullet leaves `_parse_item_status` reading
+        # the item ⏸️, which `queue_is_open` counts as settled.
+        ("an item born on a \u23f8\ufe0f bullet is \u23f8\ufe0f from the "
+         "start",
+         "test_aide_defer::test_an_itemised_deferred_bullet_resumes_by_its_item"),
+
+        # `resume_item` and `_cmd_progress_defer` (issue #380): the
+        # `_RESUMED_PREFIX` trail line through `_insert_trail_line`, and
+        # `_recompute_rollups` with the stages allowed down.
+        ("`set NNN resumed --reason TEXT` takes a \u23f8\ufe0f item back to "
+         "\U0001f4cb with a dated `resumed: <reason>` line",
+         ("test_aide_defer::test_resuming_a_deferred_item_moves_the_stage_back_up",
+          "test_aide_defer::test_set_resumed_writes_through_the_cli_and_no_insight")),
+        ("set NNN resumed flips each \u23f8\ufe0f bullet whose trailing "
+         "marker names the item back to \U0001f4cb, writes the reason on a "
+         "dated trail line under it, and rolls its stage up again, moving "
+         "down where its bullets now say less",
+         ("test_aide_defer::test_resuming_a_deferred_item_moves_the_stage_back_up",
+          "test_aide_defer::test_resuming_the_only_open_item_rolls_a_deferred_stage_back_to_planned",
+          "test_aide_defer::test_resume_desugars_a_shared_marker_and_moves_only_the_named_item")),
+        ("an item already \U0001f4cb throughout is no change",
+         "test_aide_defer::test_resuming_a_planned_item_is_no_change"),
+        # `_pick_item` offers a 📋 item with no claim branch and skips one
+        # that has one; `_report_nothing_claimable` names the branch.
+        ("The item is then claimable: claim offers it, or, where a claim "
+         "branch from before the deferral still exists, holds it as in "
+         "flight on that branch",
+         "test_aide_git::test_a_resumed_item_is_claimed_again_or_held_on_its_branch"),
+        ("It refuses, writing nothing, without a stated reason, or when a "
+         "bullet naming the item is \U0001f6a7, \U0001f50d, \u2705 or "
+         "\u274c",
+         ("test_aide_defer::test_set_resumed_refuses_and_writes_nothing",
+          "test_aide_defer::test_resume_refuses_an_item_that_is_not_deferred_and_names_its_status")),
+        ("set NNN in-progress, in-review and done each refuse a "
+         "\u23f8\ufe0f item, writing nothing, and name the resume",
+         ("test_aide_defer::test_a_forward_set_over_a_deferred_item_is_refused_naming_the_resume",
+          "test_aide_git::test_a_resumed_item_is_claimed_again_or_held_on_its_branch")),
+
+        # `drop_item` and `_cmd_progress_defer` (issue #381): the
+        # `_DROPPED_PREFIX` trail line, `_recompute_rollups` with the stages
+        # allowed down, and `restore_item`'s `_RESTORED_PREFIX` the same way.
+        ("`set NNN dropped --reason TEXT` flips an item's bullets to \u274c "
+         "with a dated `dropped: <reason>` line, and `set NNN restored "
+         "--reason TEXT` takes a \u274c item back to \U0001f4cb with a "
+         "dated `restored: <reason>` line",
+         ("test_aide_defer::test_drop_item_flips_its_bullet_and_writes_the_reason_under_it",
+          "test_aide_defer::test_set_dropped_and_restored_write_through_the_cli_and_no_insight")),
+        ("set NNN dropped flips each \U0001f4cb, \U0001f6a7, \U0001f50d or "
+         "\u23f8\ufe0f bullet whose trailing marker names the item to "
+         "\u274c, writes the reason on a dated trail line under it, and "
+         "rolls its stage up again, moving down where its bullets now say "
+         "less; an item already \u274c throughout is no change",
+         ("test_aide_defer::test_drop_item_takes_every_open_bullet",
+          "test_aide_defer::test_dropping_every_open_item_lets_the_stage_close",
+          "test_aide_defer::test_drop_item_desugars_a_shared_marker_and_moves_only_the_named_item",
+          "test_aide_defer::test_dropping_a_dropped_item_is_no_change")),
+        # `drop_item`'s ✅ check and `_stages_left_all_dropped`, both raised
+        # before the caller writes.
+        ("It refuses, writing nothing, without a stated reason, when a "
+         "bullet naming the item is \u2705 \u2014 reopen it first \u2014 "
+         "or when the drop would leave every deliverable bullet of a stage "
+         "\u274c",
+         ("test_aide_defer::test_set_dropped_and_restored_refuse_and_write_nothing",
+          "test_aide_defer::test_drop_item_refuses_a_shipped_item_naming_reopen",
+          "test_aide_defer::test_drop_item_refuses_leaving_a_stage_all_dropped")),
+        # `_stages_left_all_dropped` skips `withdrawn_stages` (PR #386 review).
+        ("unless that stage's summary row is already \u274c",
+         "test_aide_defer::test_a_withdrawn_stage_lets_its_last_bullet_drop_by_either_form"),
+        ("set NNN restored flips each \u274c bullet whose trailing marker "
+         "names the item back to \U0001f4cb, writes the reason on a dated "
+         "trail line under it, and rolls its stage up again, moving down "
+         "where its bullets now say less",
+         ("test_aide_defer::test_restoring_a_dropped_item_reopens_the_stage_it_let_close",
+          "test_aide_defer::test_restoring_a_planned_item_is_no_change")),
+        ("It refuses, writing nothing, without a stated reason, or when a "
+         "bullet naming the item is \U0001f6a7, \U0001f50d, \u2705 or "
+         "\u23f8\ufe0f",
+         ("test_aide_defer::test_set_dropped_and_restored_refuse_and_write_nothing",
+          "test_aide_defer::test_restore_refuses_an_item_that_is_not_dropped_and_names_its_status")),
+        # `held_from_forward` in `cmd_progress`, and `_merge_dropped_item`
+        # in `cmd_merge`, before any git work.
+        ("set NNN in-progress, in-review and done each refuse an item whose "
+         "bullets are all \u274c or \U0001f4cb, writing nothing, and name "
+         "the restore; `aide merge` refuses it too",
+         ("test_aide_defer::test_a_forward_set_over_a_dropped_item_is_refused_naming_the_restore",
+          "test_aide_git::test_merge_refuses_a_dropped_item_until_it_is_restored")),
+        # `restore_deliverable`: `_unmarked_deliverable_at`, the ❌-only
+        # check, and `_write_unmarked_deliverable` to 📋.
+        ("set --stage N --deliverable K restored writes what set NNN "
+         "restored writes, to a \u274c bullet; it refuses any other but "
+         "\U0001f4cb, which is no change",
+         ("test_aide_defer::test_restore_deliverable_takes_a_dropped_bullet_back_to_planned",
+          "test_aide_defer::test_restore_deliverable_refuses_a_bullet_that_is_not_dropped",
+          "test_aide_defer::test_restore_by_position_writes_through_the_cli")),
+
+        # `_cmd_progress_defer_deliverable` / `drop_deliverable` (issue #362):
+        # `_DROPPABLE`, the `_DROPPED_PREFIX` trail line through
+        # `_insert_trail_line`, and `_recompute_rollups` with the stage
+        # allowed down, which also releases a ⏸️ cell held by hand.
+        ("`set --stage N --deliverable K dropped --reason TEXT` flips such a "
+         "bullet to \u274c instead, with a dated `dropped: <reason>` line, "
+         "for a deliverable the stage does not need",
+         ("test_aide_defer::test_dropping_the_deferred_bullet_closes_the_issues_stage",
+          "test_aide_defer::test_drop_by_position_writes_through_the_cli_and_no_insight")),
+        ("set --stage N --deliverable K dropped flips a \U0001f4cb, "
+         "\U0001f6a7, \U0001f50d or \u23f8\ufe0f bullet to \u274c, writes "
+         "the reason on a dated trail line under it, and rolls its stage up "
+         "again, moving down where its bullets now say less",
+         ("test_aide_defer::test_drop_deliverable_takes_every_open_bullet",
+          "test_aide_defer::test_dropping_the_only_in_progress_bullet_rolls_the_stage_back_down",
+          "test_aide_defer::test_a_drop_releases_a_header_held_at_deferred_by_hand")),
+        # `rollup_status`'s ✅ arm takes `("complete", "excluded")`; the
+        # model test compares the predicate over the whole input space.
+        ("\u274c counts toward the \u2705 rule above where \u23f8\ufe0f "
+         "does not",
+         ("test_aide_defer::test_dropping_the_deferred_bullet_closes_the_issues_stage",
+          "test_aide_core::test_progress_help_states_the_rollup_the_code_applies")),
+        ("It refuses a \u2705 bullet, which shipped, and a bullet already "
+         "\u274c is no change",
+         ("test_aide_defer::test_drop_deliverable_refuses_a_shipped_bullet",
+          "test_aide_defer::test_drop_by_position_refuses_what_it_cannot_drop_with_exit_1",
+          "test_aide_defer::test_drop_deliverable_again_is_no_change")),
+        # `drop_deliverable`'s check over the stage's other bullets, raised
+        # before any write.
+        ("It also refuses, writing nothing, a drop that would leave every "
+         "deliverable bullet of the stage \u274c",
+         ("test_aide_defer::test_a_drop_that_would_leave_every_bullet_dropped_is_refused",
+          "test_aide_defer::test_the_cli_refuses_dropping_the_last_bullet_and_writes_nothing")),
+        # `drop_deliverable`'s refusal skips a stage in `withdrawn_stages`.
+        ("A stage whose summary row is already \u274c is withdrawn, so "
+         "neither drop form refuses there",
+         "test_aide_defer::test_a_withdrawn_stage_lets_its_last_bullet_drop_by_either_form"),
     ],
 
     # ------------------------------------------------------------- insights --
     "insights": [
+        # `insight_capture_line` builds the line from today's date and
+        # `_engine_stamp()` (`.aide/VERSION`), dropping an absent provenance
+        # with its comma; `_append_line_bytes` writes it after the last byte
+        # (issue #363).
+        ("append `- [ ] TYPE \u2014 CLAIM *(PROVENANCE, YYYY-MM-DD, engine "
+         "X.Y.Z)*` at the end of the inbox, the date today's and the engine "
+         "version read from .aide/VERSION, the provenance and its comma left "
+         "out when --provenance is not given",
+         ("test_aide_insights::"
+          "test_add_appends_the_section_shape_with_the_date_and_engine_filled_in",
+          "test_aide_insights::test_add_without_provenance_leaves_it_out_with_its_comma",
+          "test_aide_insights::test_add_without_an_engine_version_leaves_the_note_out",
+          "test_aide_insights::test_add_never_glues_onto_a_last_line_with_no_newline")),
+        # `_cmd_insights_add`: the ID from `insight_ids` over the whole pool,
+        # then `_commit_or_restore`, as `tick` does.
+        ("print the entry's ID, the one list prints, and commit",
+         ("test_aide_insights::"
+          "test_the_id_add_prints_is_the_one_list_prints_even_when_lengthened",
+          "test_aide_insights::"
+          "test_add_appends_the_section_shape_with_the_date_and_engine_filled_in",
+          "test_aide_insights::test_a_capture_git_will_not_commit_is_put_back_and_exits_1",
+          "test_aide_insights::"
+          "test_the_id_add_prints_is_lengthened_against_an_archived_claim")),
+        # `insight_capture_line`'s refusals, checked before
+        # `ensure_insights_inbox` runs; the last one is a parse round trip.
+        ("Refuses with exit 2, writing nothing, a type that is not knowledge, "
+         "defect, gap, automation or framework, an empty claim, a line break "
+         "in the claim or the provenance, and a claim or provenance whose line "
+         "would read back as a different entry",
+         ("test_aide_insights::test_add_refuses_with_exit_2_and_writes_nothing",
+          "test_aide_insights::test_a_refused_add_creates_no_inbox_either",
+          "test_aide_insights::test_an_aside_the_parser_reads_past_is_not_refused")),
         # `_cmd_insights_list`: `shown` filters only on --open/--type, and the
         # ordinal is the entry's position in the file.
         ("number the entries by position and print them all, ticked ones included",
@@ -1069,8 +1449,10 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("or a side that archived",
          "test_aide_insights::test_an_archive_on_one_side_is_refused_by_the_prefix_check_alone"),
         # `ensure_insights_inbox(..., verb="insights")` on the `list` branch.
-        ("A missing insights.md is created from .aide/templates/insights.md by list",
-         "test_aide_insights::test_list_on_a_missing_inbox_creates_it_and_reports_an_empty_backlog"),
+        # ... and on the `add` branch, after its refusals.
+        ("A missing insights.md is created from .aide/templates/insights.md by list and add",
+         ("test_aide_insights::test_list_on_a_missing_inbox_creates_it_and_reports_an_empty_backlog",
+          "test_aide_insights::test_add_creates_a_missing_inbox_and_appends_to_it")),
         # `_commit_created_file` returns the reason; the notice carries it.
         ("committed when git can — on a branch, with an identity; "
          "otherwise it is left untracked and the notice says why",
@@ -1092,6 +1474,28 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `gate_blocked_items` -> `if num in gate_blocked: continue`.
         ("that no unresolved human gate reaches",
          "test_aide_gates::test_claim_skips_a_gated_item_and_offers_the_next"),
+        # `queue_end_holds` -> `if holds.get(num): continue` (issue #347):
+        # other queue-end items and ✅/❌/⏸️ mates never hold.
+        ("A queue-end item, one titled `Validate stage N`, waits besides on "
+         "every other item its queue lists that is not one, as on a "
+         "dependency, with or without a spec and wherever the queue lists it, "
+         "bar an item whose dependencies lead back to it",
+         ("test_aide_git::test_claim_holds_a_queue_end_item_behind_a_later_listed_item",
+          "test_aide_git::test_an_item_depending_on_the_queue_end_item_never_holds_it",
+          "test_aide_git::test_claim_offers_the_queue_end_item_once_the_rest_has_left_the_way",
+          "test_aide_git::test_queue_end_items_never_hold_each_other",
+          "test_aide_git::test_a_queue_end_item_titled_only_in_its_spec_is_held")),
+        # `withdrawn_stage_items(plines)` -> `if num in withdrawn: continue`,
+        # right after the 📋 test that already skips a dropped (❌) item, and
+        # the report's per-item reason (issue #387).
+        ("An item every deliverable bullet of which sits in a stage whose "
+         "Stage summary row is \u274c \u2014 withdrawn whole \u2014 is not "
+         "offered either, and the report names the stage",
+         ("test_aide_git::test_claim_skips_an_item_of_a_withdrawn_stage",
+          "test_aide_git::test_claim_names_a_withdrawn_stage_as_the_reason",
+          "test_aide_git::test_withdrawn_stage_items_reads_only_items_wholly_inside_one")),
+        ("an item dropped by its own bullets is \u274c, not \U0001f4cb",
+         "test_aide_git::test_claim_skips_an_item_of_a_withdrawn_stage"),
         # The "none left" report is built from the gates that actually apply.
         ("It will not offer a blocked item",
          "test_aide_gates::test_none_left_names_only_the_gates_that_apply"),
@@ -1111,6 +1515,7 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "least one item of the queues checked is \u2705",
          ("test_aide_gates::test_early_ready_is_yes_when_every_open_item_waits_on_a_gate",
           "test_aide_gates::test_an_item_waiting_only_on_a_gated_item_is_held_by_the_gate",
+          "test_aide_gates::test_a_queue_end_item_behind_a_gated_item_is_held_by_the_gate",
           "test_aide_gates::test_a_chain_listed_before_the_gated_item_it_hangs_off_is_held",
           "test_aide_gates::test_a_landed_dependency_does_not_loosen_a_held_item",
           "test_aide_gates::test_early_ready_is_no_while_an_open_item_is_claimed",
@@ -1128,6 +1533,13 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "\u2014 exits 1 with how to publish or release it, whether or not a "
          "gate holds the rest",
          "test_aide_gates::test_an_unpublished_claim_behind_a_gate_exits_1_with_no_early_line"),
+        # `_branches_off_origin`: an upstream origin/<branch> that is gone is
+        # a deleted branch, not an unpublished one (issue #364).
+        ("A claim branch origin had and has since deleted exits 1 the same "
+         "way, named as already in its base or as work that could not be "
+         "found there, and is never advised a push",
+         ("test_aide_git::test_claim_names_a_landed_claim_branch_deleted_on_origin",
+          "test_aide_git::test_claim_names_an_unfound_claim_branch_deleted_on_origin")),
         # `if not relevant and not open_items: print("none left")` returns
         # before `_early_ready` is printed.
         ("A bare \"none left\" (nothing open, no gate) carries no such line",
@@ -1161,6 +1573,16 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("Deletes claim branches, local and remote, whose item is ✅ in "
          "progress.md",
          "test_aide_git::test_gc_yes_deletes_local_and_remote"),
+        # `or num in withdrawn_items` beside the ✅ test, through the same
+        # oracle and the same `--abandon` (issue #387).
+        ("An item \u274c by its own bullets, or \U0001f4cb with every "
+         "bullet in a stage whose summary row is \u274c, is on the \u2705 "
+         "ground too",
+         ("test_aide_git::test_a_started_item_of_a_withdrawn_stage_is_not_stale_nor_collected",
+          "test_aide_git::test_gc_collects_a_dropped_items_landed_branch",
+          "test_aide_git::test_gc_keeps_a_withdrawn_items_branch_carrying_work",
+          "test_aide_git::test_gc_leaves_a_live_item_of_the_shared_stage_alone",
+          "test_aide_git::test_spent_by_withdrawal_takes_only_a_planned_item_of_a_withdrawn_stage")),
         # `_merged_prefixed_branches(repo_root, main, prefix)`.
         ("with --merged also branches already merged into the base",
          "test_aide_git::test_gc_merged_deletes_merged_branch"),
@@ -1379,6 +1801,19 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_status_stack::test_could_not_look_is_unknown_and_never_none",
           "test_aide_status_stack::test_gh_missing_from_path_is_a_reason",
           "test_aide_status_stack::test_gh_exiting_non_zero_is_a_reason_naming_the_exit")),
+        # `queue_stack_facts`: `look` false and `no_ci` (#355); `cmd_status`
+        # returns before `_gh` with no forge declared.
+        ("Under [git] forge = \"none\" no forge is asked at all: pr=, "
+         "checks= and orphaned= are - as in local mode, awaiting review is no "
+         "and the open-PR list is -",
+         "test_aide_queue_pr::test_no_forge_reads_every_forge_field_as_a_dash_and_asks_nothing"),
+        ("Under [git] ci = \"none\" checks= is - on every stack line, a PR "
+         "or not",
+         "test_aide_queue_pr::test_no_ci_reads_checks_as_a_dash_on_a_pr_whatever_the_rollup"),
+        # `cmd_status` prints the `local` line and returns before `_gh`
+        # (issue #352).
+        ("in local mode it is - and gh is not asked",
+         "test_aide_status_stack::test_local_mode_asks_no_forge_for_the_open_prs_either"),
     ],
 
     # ---------------------------------------------------------------- scope --
@@ -1491,6 +1926,18 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
     # #275); everything else `merge` does is stated in its option help, which
     # this register does not read.
     "merge": [
+        # `_merge_dropped_item` over the working tree and `git show
+        # <base>:progress.md`, read by `held_from_forward` before the pr-mode
+        # push and before `git switch` (issue #381); its ⏸️ arm is not read.
+        ("An item progress.md shows \u274c dropped \u2014 every bullet "
+         "naming it \u274c or \U0001f4cb, in the working tree or on the "
+         "base \u2014 is refused before anything is merged, pushed or "
+         "written, exit 1, and the refusal names `aide progress set NNN "
+         "restored`",
+         ("test_aide_git::test_merge_refuses_a_dropped_item_until_it_is_restored",
+          "test_aide_git::test_pr_mode_merge_refuses_a_dropped_item_and_pushes_nothing")),
+        ("A \u23f8\ufe0f item is merged and ticked",
+         "test_aide_git::test_merge_refuses_a_dropped_item_until_it_is_restored"),
         # `pending_row` -> `append_ledger_row`, one row, `ledger_path(ddir)`.
         ("The row is one per item, in docs/aide/ledger.md",
          "test_aide_ledger::"
@@ -1558,6 +2005,18 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("so the re-run writes the row once",
          "test_aide_ledger::"
          "test_the_re_run_after_a_failed_tick_lands_the_item_with_one_row"),
+        # `_merged_row_already_recorded`, read before the tick: the item ✅
+        # and a `merged` row for it on its queue (#346). A reopened item is 📋
+        # when it merges again, so its second row is appended.
+        ("A push that fails after the tick's commit is made keeps that "
+         "commit, and the re-run finds the item ✅ with its merged row and "
+         "appends no second one",
+         "test_aide_ledger::"
+         "test_the_re_run_after_a_failed_push_appends_no_second_row"),
+        ("the second row of an item is written only by a merge of it after "
+         "`aide progress reopen` sent it back",
+         "test_aide_ledger::"
+         "test_a_reopened_item_merged_again_takes_a_second_row"),
         # `tick_ci_reopening_gap`, its rel added to the tick's `extra_rels`
         # under the snapshot `cmd_merge` took before any write (#332).
         ("Where the item's latest reopening is a CI one (a reason `aide "
@@ -1806,6 +2265,66 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_ledger::test_abandon_under_review_off_marks_the_finding_cells",
           "test_aide_ledger::"
           "test_abandon_run_twice_under_review_off_still_records_the_item_once")),
+        # `report` (issue #251): `_ledger_report_command` reads one file and
+        # writes none; `--json` dumps what `ledger_report` returns, `--queue`
+        # is its `queue` filter.
+        ("report: reads the ledger and writes nothing",
+         "test_aide_ledger_report::test_report_prints_json_and_writes_nothing"),
+        ("--queue NNN keeps that queue's rows",
+         "test_aide_ledger_report::test_queue_keeps_that_queues_rows"),
+        # `ledger_report`'s `groups` key `(row["Engine"], row["Kind"])`.
+        ("Rows are grouped by their Engine cell as written, and within it by "
+         "Kind, never pooled across kinds",
+         ("test_aide_ledger_report::"
+          "test_rows_are_grouped_by_engine_cell_and_within_it_by_kind",
+          "test_aide_ledger_report::test_an_engine_cell_is_a_cohort_as_written")),
+        # `_ledger_group`: every reading is `{value/per_item, n}`.
+        ("Every ratio carries its n, the rows it is drawn from",
+         "test_aide_ledger_report::"
+         "test_every_ratio_carries_its_n_and_counts_the_outcomes"),
+        # `_ledger_count` -> None, counted in `unrecorded` and `caller_blank`.
+        ("A blank cell joins no ratio and is counted as unrecorded",
+         "test_aide_ledger_report::"
+         "test_a_blank_cell_joins_no_ratio_and_is_counted_unrecorded"),
+        # The `LEDGER_NO_REVIEW_CELL` `continue` in the finding loop.
+        ("a `-` finding cell joins no finding ratio",
+         "test_aide_ledger_report::"
+         "test_a_no_review_finding_cell_joins_no_finding_ratio"),
+        # `test == 0 and files == 0` on a merged row -> both None.
+        ("a merged row whose Tests and Files are both 0 is read as unrecorded "
+         "in those two cells, never as zero",
+         "test_aide_ledger_report::"
+         "test_a_merged_row_with_zero_tests_and_zero_files_is_unrecorded_not_zero"),
+        # `merged_before` / `dropped`: a repeat merged 0/0 row is left out.
+        ("where the item already has an earlier merged row on the same "
+         "queue: that repeat is a merge re-run's duplicate and is left out, "
+         "and the earlier row counts",
+         "test_aide_ledger_report::"
+         "test_a_repeat_merged_row_with_a_zero_diff_is_left_out_and_the_earlier_counts"),
+        # Every other repeat is kept: the 0/0 test fails for it.
+        ("Any other repeat merged row is a reopened item merged again, and "
+         "both count",
+         "test_aide_ledger_report::test_a_reopened_item_merged_twice_keeps_both_rows"),
+        # `withheld` against `LEDGER_FINDINGS_SINCE`.
+        ("Finding ratios are withheld from a group whose Engine cell is not "
+         "1.59.0 or later",
+         "test_aide_ledger_report::"
+         "test_finding_ratios_are_withheld_from_a_group_before_1_59_0"),
+        # `rounds.histogram`, and no cap read anywhere in `ledger_report`.
+        ("Rounds are a distribution, not a share at the round cap",
+         "test_aide_ledger_report::"
+         "test_rounds_are_a_distribution_and_not_a_share_at_the_cap"),
+        # The width test in `ledger_report`, before padding a 14-cell row.
+        ("A row with a cell count no ledger template draws is skipped and "
+         "named",
+         ("test_aide_ledger_report::"
+          "test_a_row_with_another_cell_count_is_skipped_and_named",
+          "test_aide_ledger_report::"
+          "test_a_fourteen_cell_row_and_a_sixteen_cell_row_read_alike")),
+        # `_ledger_report_command`'s `not path.is_file()` branch.
+        ("A missing ledger is reported and exits 0; report never creates one",
+         "test_aide_ledger_report::"
+         "test_a_missing_ledger_is_reported_exits_0_and_is_never_created"),
     ],
 
     # ---------------------------------------------------------------- queue --
@@ -1950,6 +2469,10 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "nothing; one already a draft is left alone, exit 0",
          ("test_aide_queue_pr::test_undo_turns_a_ready_pr_back_to_draft_and_pushes_nothing",
           "test_aide_queue_pr::test_undo_leaves_a_draft_alone_and_exits_0")),
+        # `_queue_pr_branch`: `declared_forge` before the mode (#355).
+        ("Under [git] forge = \"none\" both refuse, exit 1, before the forge "
+         "is asked anything",
+         "test_aide_queue_pr::test_no_forge_refuses_pr_and_ready_and_asks_nothing"),
         # `_queue_stray_options`, first thing in `cmd_queue`.
         ("An option the action does not read is refused, exit 2, before "
          "anything is done",
@@ -2198,7 +2721,7 @@ def test_the_normaliser_still_sees_a_reword():
 
 
 def test_every_verb_with_a_description_block_is_registered():
-    """Seven blocks, seven entries — the register is the whole row, not a
+    """Every block, one entry each — the register is the whole row, not a
     sample of it. A verb that grows a description block and no pin would be a
     copy of engine text with nobody deciding anything about it, which is the
     state issue #205 exists to end."""
@@ -2444,13 +2967,16 @@ def test_a_retracted_criterion_reaches_check_as_a_warning(tmp_path: Path):
     assert not any("retracted" in e for e in errors), errors
 
 
-def test_a_warning_alone_still_exits_zero(tmp_path: Path, capsys):
+def test_a_warning_alone_still_exits_zero(tmp_path: Path, capsys, monkeypatch):
     """`cmd_check` returns 1 iff `errors` — the whole meaning of the split.
 
     A run with warnings and no errors exits 0 and prints them, so a consumer
     with a known-normal state (a blocking gate, a retracted criterion) is not
     stopped by it, and an unattended loop does not stall on a report.
     """
+    # Documents, not the machine: `aide check` also errors on what aide.toml
+    # needs of this machine (issue #354), which a scratch directory lacks.
+    monkeypatch.setattr(aide, "dependency_errors", lambda repo_root, config: [])
     text = PROGRESS + """
 ## Human gates
 
@@ -2578,9 +3104,16 @@ def test_status_prints_the_four_states_it_promises(tmp_path: Path, capsys):
         "- [ ] Rules fire. *(verified 2026-07-01)*\n"
         "  - **2026-07-02** → retracted: the host was misread")
     repo = _repo(tmp_path, progress=text)
+    _git_init(repo)
     assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
     out = capsys.readouterr().out
     assert "gate 1: Sign off the schema" in out
     assert "target: p95 under 200ms" in out
     assert "retracted: stage 1 criterion 1" in out
     assert "unreadable: progress.md:" in out and "human-gate row" in out
+
+
+def _git_init(path: Path) -> None:
+    """`aide status` refuses outside a repository (issue #352)."""
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)

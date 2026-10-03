@@ -47,25 +47,31 @@ today**: on a queue that closes a roadmap stage, `aide check --queue NNN`
 warns when the stage still has work for one, and names why. **The planner
 reads that warning and never works the need out itself** — with no such
 warning, the queue ends with its last deliverable. **The same check warns on
-a planned queue-end item with nothing to do.** **The stage variant is titled
-`Validate stage N: <stage title>`**; `/aide-create-queue` says when to run the
+a planned queue-end item with nothing to do.** **Wherever the file lists it,
+it runs last**: `aide claim` holds it until the rest of its queue has left
+the way, bar an item whose dependencies lead back to it, and `aide check
+--queue NNN` warns when open work that does not depend on it is listed after
+it, so an item added after planning goes above it. **The stage variant is
+titled `Validate stage N: <stage title>`**; `/aide-create-queue` says when to run the
 check and what to write.
 
 **The file exists before a role needs it — the engine puts it there** (§1 →
-`insights.md`): `aide check`, `aide claim`, `aide queue start` and
-`aide insights list` each create a missing `insights.md` from the template. No
-role copies the template by hand.
+`insights.md`): `aide check`, `aide claim`, `aide queue start`,
+`aide insights list` and `aide insights add` each create a missing
+`insights.md` from the template. No role copies the template by hand.
 
-**Capture is a plain append; everything after it has a verb** (§1 →
-`insights.md`): `aide insights list --open` reads the backlog without the
+**Capture has a verb, and so does everything after it** (§1 →
+`insights.md`): `aide insights add <type> '<one line>' --provenance queue-NNN`
+captures an entry and prints its ID, `aide insights list --open` reads the
+backlog without the
 closed history around it, `aide insights tick N|ID --pointer "<where it landed>"`
 closes an entry — **ticking the checkbox is the one in-place edit**, and the
 verb owns it, so a hand-flipped `[x]` is the improvised form of `tick` — and
 `aide insights archive --before <date> --yes` moves closed entries out (a dry
 run without `--yes`); an archive renumbers what remains, so re-run `list`
 after one. Reading the file raw costs the whole closed history to see a
-working set of a dozen lines; editing it by hand is the failure `tick` exists
-to prevent.
+working set of a dozen lines; editing it by hand is the failure `add` and
+`tick` exist to prevent.
 
 **Cite an entry by its ID, never by its position** (§1 → `insights.md`). The
 queue file routing an entry into an item, and the item spec it charters, name

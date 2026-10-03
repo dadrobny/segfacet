@@ -36,6 +36,7 @@
 .claude/skills/aide-queue-and-inbox/SKILL.md
 .claude/skills/aide-review-and-validation/SKILL.md
 .claude/skills/aide-review-insights/SKILL.md
+.claude/skills/aide-review-ledger/SKILL.md
 .claude/skills/aide-spec-queue/SKILL.md
 .claude/skills/aide-status-report/SKILL.md
 .claude/skills/aide-test-hygiene/SKILL.md

@@ -7,8 +7,9 @@ carry it out.
 
 `auto-merge` and `pr` differ **only** in how an item lands, inside
 `aide claim` / `aide merge`. `local` also turns off every fetch, pull and push
-any verb makes, not only those of `claim` and `merge`. Agent instructions are
-identical across modes.
+any verb makes, not only those of `claim` and `merge`, and every question to
+the forge. Agent instructions are identical across modes. Any other value is
+an `aide check` error.
 
 - **`auto-merge`** (default) — claim branch pushed; on validator PASS `aide merge`
   direct-merges to `main`, deletes the claim branch, then re-runs the test
@@ -21,6 +22,30 @@ identical across modes.
 - **`local`** — no fetch, pull or push at all (offline). Claim is a local
   branch only (no multi-machine signal); merge is local into `main`, behind
   the same gate.
+
+**Whether the project has a forge, and whether CI runs on its queue PR, are
+declared, never inferred.** `[git] forge` is `"github"` (default) or
+`"none"`; `[git] ci` is `"pr"` — CI runs on the queue PR — or `"none"`, and
+defaults to `"pr"` with a forge and `"none"` without one. With no forge, no
+verb asks one anything: `aide queue pr` and `aide queue ready` refuse, `aide
+status` reads every forge field as `-`, and the queue-end step reports that no
+forge exists and ends, as in `local` mode; `auto-merge` still pushes. With no
+CI, `aide status` reads `checks=` as `-`, and the queue-end step goes from
+marking the PR ready to stopping for the merge. `mode = "pr"` with no forge
+is an `aide check` error — under `pr` a person opens each item's PR on the
+forge — and so is `ci = "pr"` with no forge, or any value outside these.
+`"github"` is the one forge the engine can ask.
+
+**A mode this machine cannot meet is refused, never adapted.** Every mode but
+`local` needs a remote named `origin`, and the forge's CLI, `gh`, logged in
+unless `[git] forge = "none"` declares no forge. A
+requirement the configuration needs and the machine lacks is a refusal that
+names the setting needing it and the two ways out: meet it, or change the
+setting. No verb and no role lowers the mode or rewrites `test_command` to
+fit the machine; a refusal goes to a person. `aide env` reports every
+requirement. A plain `aide check` errors on the part decided offline, each
+error marked `this machine:`; `aide check --queue` judges documents only.
+`aide env -h` and `aide check -h` state each line.
 
 **A red test run is compared with the base before it refuses.** Where the
 test command's report names each failing test — pytest, run as a module —
@@ -164,7 +189,8 @@ its own, never as "no PR". `aide status -h` states each field and value.
 pr` opens the queue branch's draft PR against the base `aide queue start`
 recorded; `aide queue ready` marks it ready for review, and `--undo` turns it
 back into a draft. Each acts on the PR whose head is the queue branch and on
-nothing else, and refuses in `local` mode or with no remote. `aide status`
+nothing else, and refuses in `local` mode, with no forge declared, or with
+no remote. `aide status`
 reports that PR's CI state on its stack line, and tells a draft sent back for
 a fix round from one never marked ready. A caller waiting on CI reads it
 there, never by asking the forge itself, and does not take a first "no
@@ -180,7 +206,52 @@ checks" just after a push as the answer: CI may not have started yet.
   `insights` — a reader choosing a mode was told less than it changes (issue
   #307). The rule names what `local` turns off, not a list of verbs: a list
   goes stale the next time a verb learns to fetch, and "every fetch, pull and
-  push" stays true of it.
+  push" stays true of it. The forge was named later (issue #352): `aide
+  status` still asked `gh` for its open-PR line in `local` mode, and printed
+  "could not look (gh is not on PATH)" on a machine meant to be offline.
+- **Why a mode the machine cannot meet is refused.** Nothing reported whether
+  a machine could run what the configuration asked, so a missing requirement
+  was found mid-run by whichever verb met it first. The worst case was
+  `auto-merge` with no `origin`: `merge` did all of its local work, ticked ✅,
+  then failed at the push on every retry. The installer scaffolded
+  `auto-merge` into a target with no remote, or one that was no repository at
+  all (issue #354); it now reports the offline part after it writes, and its
+  interactive prompt offers `local` on a target with no `origin`. Lowering the
+  mode to `local` instead would silently keep every item on one machine for
+  an owner who chose to publish — the failure an unknown mode already had.
+- **Why the check judges only part of the machine, and only when plain.** The
+  offline part is git, the repository, `origin` and the test command. `gh`'s
+  login is left out because asking needs the network, and the check runs
+  where there may be none; the venv because `aide env --bootstrap` is what
+  builds it. `--queue` is the planner's and the spec-reviewer's run, and a
+  machine error there would read as a document to fix — the edit of `[git]
+  mode` or `test_command` this rule forbids. The `this machine:` mark keeps
+  the plain run's errors apart for the same reason.
+- **Why the printed interpreter is a note.** It decides only what a suggested
+  command says, not what any verb runs, so a host with only `python3` is told
+  the `[tools] python` that fixes the suggestion and fails nothing.
+- **Why an unknown mode is an error.** Every verb compares the value against
+  `local` or `pr`, so anything else — a `"Local"` — ran as `auto-merge`,
+  pushing from a checkout its owner had set offline, and nothing said so
+  (issue #352).
+- **Why the forge and CI are declared.** Both were inferred: "no forge" only
+  as `local` mode or no `origin`, an absent `gh` read as `unknown` rather
+  than `none`, and "no CI" was found by waiting — the queue-end poll held
+  `checks=none` for its grace at every queue end, then reported that no CI
+  ran, failure-shaped, about a project that never had any. A consumer
+  pushing to a non-GitHub remote under `auto-merge` got a permanent `aide
+  env` refusal for a `gh` it would never use (issue #355). They are facts
+  about the project and its process, not the machine, so they sit in the
+  committed `aide.toml` beside the mode; the defaults are the behaviour
+  before the keys existed.
+- **Why there is no push-triggered `ci` value.** The queue end reads CI from
+  the queue PR's head commit and nowhere else, so a workflow that runs on a
+  push but not on the PR has nothing the step could wait on; a value naming
+  it would promise a reading the engine never makes.
+- **Why `pr` with no forge is an error, and `auto-merge` is not.** Under
+  `pr` the merge stops for a person to open the item's PR, which needs a
+  forge to open it on; with none the mode has no meaning. `auto-merge` lands
+  items itself and only pushes, which any remote takes.
 - **Why the claim branch goes before the gate run.** So the run sees what a
   fresh clone sees.
 - **Why `aide check` is part of the gate.** Nothing else in the loop ran it

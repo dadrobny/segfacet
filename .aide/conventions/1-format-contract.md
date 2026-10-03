@@ -67,7 +67,7 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 | items | [`items.md`](1-format-contract/items.md) | An item spec's mandatory sections and the reference forms that link it |
 | Authorised paths | [`authorised-paths.md`](1-format-contract/authorised-paths.md) | An item's declared scope — the two lists `spec-author` writes |
 | Scope proof | [`authorised-paths-proof.md`](1-format-contract/authorised-paths-proof.md) | How that declaration is proved: `aide scope`, `check --queue`, and what a test may never claim |
-| `insights.md` | [`insights.md`](1-format-contract/insights.md) | The compound-engineering inbox every role appends to: entry shape, the verbs, immutability |
+| `insights.md` | [`insights.md`](1-format-contract/insights.md) | The compound-engineering inbox every role captures into: entry shape, the verbs, immutability |
 | Insight triage | [`insights-triage.md`](1-format-contract/insights-triage.md) | Routing an entry by type, judging it, handing a `framework` entry over |
 | The maintenance queue | [`insights-maintenance-queue.md`](1-format-contract/insights-maintenance-queue.md) | Insight-derived fixes, queued ahead of the stage queue |
 | `ledger.md` | [`ledger.md`](1-format-contract/ledger.md) | The run ledger: one row per item worked, what it cost and what it added, written by the verbs that end an item |

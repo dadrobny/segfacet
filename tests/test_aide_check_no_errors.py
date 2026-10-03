@@ -2,10 +2,12 @@
 mechanical guard over the living AIDE documents this suite keeps.
 
 Nothing else in CI plays this role: the `scope-check` job only runs
-`aide scope`, and `aide merge` never calls `run_checks` itself. So without
-this test, a document malformed badly enough for `run_checks` to hard-error
-(an unparseable acceptance box, a broken cross-reference, ...) has no gate at
-all between a bad edit and `main`.
+`aide scope`. `aide merge` does run `run_checks` beside the post-merge suite
+(engine 1.53.0), but only for an item landing through the loop; a document
+edited on a maintenance or framework-update branch reaches `main` through a PR
+this suite gates. So without this test, a document malformed badly enough for
+`run_checks` to hard-error (an unparseable acceptance box, a broken
+cross-reference, ...) has no gate at all between such an edit and `main`.
 
 This asserts on **errors only**, never on warnings, per
 ``.aide/conventions/6-test-hygiene.md`` §6 ("Never pin an exact warning or

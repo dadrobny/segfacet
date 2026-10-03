@@ -210,6 +210,17 @@ CASE_RECIPE: List[_RecipeEntry] = [
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
+    # A translation, not a crop (item 175 D2 kept it so): label 22 is moved
+    # margin + 5 voxels toward the anterior face and the overhang clipped, so
+    # its interior spline offset reads 18.0 mm (over the 13.0 mm threshold)
+    # and `spline_offset` fires on the raw record. The runner's condition
+    # gate (item 191) drops that finding because label 22 touches a face
+    # (`fov_truncation`) and `spline_offset` opts in to no condition -- a
+    # truncated label's centroid is displaced by the cut, so it is never also
+    # judged displaced. That is why the manifest expects `border` alone.
+    # Measured 2026-10-03. The maintainer's 2026-10-03 direction is to
+    # re-author this case as a true anterior volume crop (`crop_fov`,
+    # cut deep enough to reach the body); open in insights.md that date.
     _RecipeEntry(
         case_id="crop_at_border",
         perturbation="crop_at_border",

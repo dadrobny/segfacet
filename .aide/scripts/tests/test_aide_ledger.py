@@ -18,11 +18,22 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "aide.py"
 _spec = importlib.util.spec_from_file_location("aide_cli_ledger", _MODULE_PATH)
 aide = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = aide
 _spec.loader.exec_module(aide)  # type: ignore[union-attr]
+
+
+@pytest.fixture(autouse=True)
+def _documents_not_the_machine(monkeypatch):
+    """`aide check` also errors on what aide.toml needs of this machine and it
+    lacks (issue #354) — a repository, `origin`, a runnable test command.
+    These tests judge documents in scratch directories, so that half is
+    taken out of them; `test_aide_env_report.py` holds it."""
+    monkeypatch.setattr(aide, "dependency_errors", lambda repo_root, config: [])
 
 
 AIDE_TOML = """\
@@ -652,6 +663,77 @@ def test_the_re_run_after_a_failed_tick_lands_the_item_with_one_row(
     assert aide._parse_item_status(
         (repo / "docs" / "aide" / "progress.md").read_text(
             encoding="utf-8").splitlines())[2][27] == "complete"
+
+
+def test_the_re_run_after_a_failed_push_appends_no_second_row(tmp_path: Path):
+    """#346: the tick's commit lands, only the push fails, so nothing is put
+    back. The re-run finds the item ✅ with its `merged` row and appends none
+    — the row the first run measured keeps its diff counts, and there is no
+    second tick commit, only the push the first run owed."""
+    remote = _mkbare(tmp_path / "remote.git")
+    repo = _init_repo(tmp_path / "repo", mode="auto-merge")
+    _run(["git", "remote", "add", "origin", str(remote)], repo)
+    _run(["git", "push", "-u", "origin", "main"], repo)
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    branch = aide._find_claim_branch(repo, "aide/", 27)
+    _run(["git", "remote", "set-url", "--push", "origin",
+          str(tmp_path / "missing.git")], repo)
+
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test",
+                      "--rounds", "1"]) == 1
+    ticked = _rev(repo, "main")
+    (first,) = _rows(repo)
+    assert (first["Tests"], first["Files"]) == ("1", "2")
+
+    _run(["git", "config", "--unset", "remote.origin.pushurl"], repo)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--base", "main",
+                      "--no-test", "--rounds", "1"]) == 0
+
+    assert _rows(repo) == [first]
+    assert _rev(repo, "main") == ticked
+    assert _rev(remote, "main") == ticked
+    assert not _rev(repo, branch) and not _rev(remote, branch)
+    assert _status(repo) == ""
+
+
+def test_a_reopened_item_merged_again_takes_a_second_row(tmp_path: Path):
+    """The other side of #346's guard: `progress reopen` sends the item back
+    to 📋, so its next merge is a second merge and appends a second row, as
+    §1 → `ledger.md` says — the ✅-and-row reading never sees it."""
+    repo = _init_repo(tmp_path / "repo")
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 0
+    assert aide.main(["--repo", str(repo), "progress", "reopen", "27",
+                      "--reason", "the bound was wrong"]) == 0
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    (repo / "src" / "demo" / "bounds.py").write_text("x = 3\n", encoding="utf-8")
+    _run(["git", "commit", "-am", "rework"], repo)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 0
+
+    assert [(r["Item"], r["Outcome"]) for r in _rows(repo)] == [
+        ("027", "merged"), ("027", "merged")]
+
+
+def test_a_part_ticked_item_is_still_owed_its_row(tmp_path: Path):
+    """#346's ✅ reading is every bullet, not the most advanced one: a
+    reopened item with one of its bullets ticked by hand has not been merged
+    again, so its earlier `merged` row does not stand in for the next."""
+    repo = _init_repo(tmp_path / "repo")
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _do_the_work(repo)
+    assert aide.main(["--repo", str(repo), "merge", "27", "--no-test"]) == 0
+    config = aide.load_config(repo)
+    cells = [_rows(repo)[0][c] for c in aide.LEDGER_COLUMNS]
+    progress = repo / "docs" / "aide" / "progress.md"
+    text = progress.read_text(encoding="utf-8")
+    bullet = next(ln for ln in text.splitlines() if "*(Item 027)*" in ln)
+    assert aide._merged_row_already_recorded(repo, config, 27, cells)
+    progress.write_text(text.replace(
+        bullet, bullet + "\n- 📋 Bounds, second half. *(Item 027)*"),
+        encoding="utf-8")
+    assert aide._merged_row_already_recorded(repo, config, 27, cells) is None
 
 
 def test_a_tick_with_nothing_to_commit_is_not_a_failure(
