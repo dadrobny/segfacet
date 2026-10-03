@@ -813,7 +813,9 @@
             "vocabulary"
           ],
           "consuming_rules": [
-            "bounds"
+            "bounds",
+            "fused_label",
+            "split_fragment"
           ],
           "documented": true,
           "failure_modes": [
@@ -829,6 +831,14 @@
           "mode_roles": [
             [
               "bounds",
+              "signal"
+            ],
+            [
+              "fused_label",
+              "signal"
+            ],
+            [
+              "split_fragment",
               "signal"
             ]
           ],
@@ -873,6 +883,22 @@
             [
               "bounds",
               "observed"
+            ],
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ],
+            [
+              "split_fragment",
+              "observed"
+            ],
+            [
+              "split_fragment",
+              "static"
             ]
           ],
           "scale_sensitivity": "scales with spacing",
@@ -1391,7 +1417,7 @@
           ],
           "documented": true,
           "failure_modes": [
-            3
+            2
           ],
           "measures": "A component's contact area with its most-contacted neighbour, as a fraction of the component's own surface -- item 187's relative measure, so a small component whose surface is mostly pressed against a neighbour scores as high as a large one whose absolute contact area happens to be the same.",
           "mode_evidence": [
@@ -1577,6 +1603,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Number of distinct connected pieces the label is split into.",
@@ -1653,6 +1680,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Voxel count of each connected component, largest first.",
@@ -1789,6 +1817,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Alias of largest_component_fraction, exposed under its item-025 public name.",
@@ -1855,12 +1884,24 @@
         {
           "computation": "The label's contact area with its single most-contacted neighbour label (summed across all of its components' contact with that neighbour), divided by the label's total surface area (summed across all of its components' surfaces); 0.0 when the label touches no other non-zero label. Not a second pass: derived from the same per-component tallies as component_contacts.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "split_fragment"
+          ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            3
+          ],
           "measures": "The same relative contact measure as component_contacts[].contact_fraction, computed once more over the label as a whole rather than any single component (item 187).",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "split_fragment",
+              "signal"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 25,
@@ -1896,9 +1937,18 @@
           },
           "origin": "record",
           "path": "per_label.{label}.components.label_contact_fraction",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "split_fragment",
+              "observed"
+            ],
+            [
+              "split_fragment",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
-          "status": "unwired",
+          "status": "keep",
           "units": ""
         },
         {
@@ -1912,6 +1962,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Fraction of the label's voxels belonging to its single largest piece.",
@@ -2081,6 +2132,7 @@
           "documented": true,
           "failure_modes": [
             1,
+            2,
             4
           ],
           "measures": "Voxel sizes of every non-dominant component.",
@@ -2150,7 +2202,7 @@
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Neighbour-label contact area: how much of a label's non-dominant material is pressed against another label -- mode 3's (split vertebra segment) discriminating signal (item 167).",
+          "measures": "Neighbour-label contact area: how much of a label's non-dominant material is pressed against another label -- mode 2's (fused vertebra segments) discriminating signal (items 167, 205).",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {
@@ -2555,9 +2607,11 @@
             "border",
             "bounds",
             "fragmentation",
+            "fused_label",
             "mislabel",
             "neighbour_contact",
-            "sequence"
+            "sequence",
+            "split_fragment"
           ],
           "documented": true,
           "failure_modes": [
@@ -2586,6 +2640,10 @@
               "bookkeeping"
             ],
             [
+              "fused_label",
+              "bookkeeping"
+            ],
+            [
               "mislabel",
               "bookkeeping"
             ],
@@ -2596,6 +2654,10 @@
             [
               "sequence",
               "signal"
+            ],
+            [
+              "split_fragment",
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -2647,6 +2709,10 @@
               "observed"
             ],
             [
+              "fused_label",
+              "observed"
+            ],
+            [
               "mislabel",
               "observed"
             ],
@@ -2656,6 +2722,10 @@
             ],
             [
               "sequence",
+              "observed"
+            ],
+            [
+              "split_fragment",
               "observed"
             ]
           ],
@@ -5164,12 +5234,24 @@
         {
           "computation": "Euclidean centroid-to-centroid distance for each adjacent pair, in input order.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "fused_label"
+          ],
           "documented": true,
-          "failure_modes": [],
+          "failure_modes": [
+            2
+          ],
           "measures": "Per-pair inter-vertebra centroid spacing.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fused_label",
+              "signal"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 19,
@@ -5204,7 +5286,16 @@
           },
           "origin": "record",
           "path": "stage3.spacing_consistency.spacings_mm[]",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "scales with spacing",
           "status": "retune",
           "units": "mm"
@@ -8087,12 +8178,14 @@
             "bounds",
             "coverage",
             "fragmentation",
+            "fused_label",
             "intensity",
             "intensity_reference_delta",
             "mislabel",
             "neighbour_contact",
             "reference_delta",
-            "sequence"
+            "sequence",
+            "split_fragment"
           ],
           "documented": true,
           "failure_modes": [],
@@ -8120,6 +8213,10 @@
               "bookkeeping"
             ],
             [
+              "fused_label",
+              "bookkeeping"
+            ],
+            [
               "intensity",
               "not-read"
             ],
@@ -8141,6 +8238,10 @@
             ],
             [
               "sequence",
+              "bookkeeping"
+            ],
+            [
+              "split_fragment",
               "bookkeeping"
             ]
           ],
@@ -8192,6 +8293,10 @@
               "static"
             ],
             [
+              "fused_label",
+              "static"
+            ],
+            [
               "intensity",
               "static"
             ],
@@ -8213,6 +8318,10 @@
             ],
             [
               "sequence",
+              "static"
+            ],
+            [
+              "split_fragment",
               "static"
             ]
           ],

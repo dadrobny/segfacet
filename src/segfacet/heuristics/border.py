@@ -247,6 +247,16 @@ class BorderRule(Rule):
             RuleDetector(
                 detector_id="expected_end",
                 description=_EXPECTED_END_TAG,
+                question=(
+                    "Does a label touch only the cranio-caudal image face at "
+                    "the end of the present span where the FOV expects it to?"
+                ),
+                fires_when=(
+                    "only when `report_expected_ends` is true: a label touches "
+                    "no in-plane face, and each cranio-caudal face it touches "
+                    "is at its span end (finding severity is `end_severity`)"
+                ),
+                params=(("report_expected_ends", False),),
                 mode_less_reason=(
                     "records the FOV-truncation CONDITION (item 150), not a "
                     "failure mode -- same disposition as the rule overall"
@@ -255,6 +265,16 @@ class BorderRule(Rule):
             RuleDetector(
                 detector_id="unexpected_clip",
                 description=_UNEXPECTED_CLIP_TAG,
+                question=(
+                    "Is a label clipped by the image border in a way the FOV "
+                    "does not explain?"
+                ),
+                fires_when=(
+                    "a label touches any image face and is not an expected "
+                    "end: it touches an in-plane face (left, right, anterior, "
+                    "posterior), or a cranio-caudal face on a label that is "
+                    "not the span end at that side"
+                ),
                 mode_less_reason=(
                     "records the FOV-truncation CONDITION (item 150), not a "
                     "failure mode -- same disposition as the rule overall"

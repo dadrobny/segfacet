@@ -302,6 +302,21 @@ carrying no ``signal`` entry -- the pre-item shape
 all ``not-read``) sat in and the existing empty-classification check could
 not see.
 
+The mode 2/3 boundary re-drawn (item 205, 2026-09-30)
+------------------------------------------------------
+Human gate ``gate-51da`` was declined with a decided boundary. Mode 2 is one
+label covering its own vertebra plus part or all of a neighbour (the paired
+case); mode 3 is part of a vertebra carrying a label of its own that covers
+no other vertebra (the fragment case). The ``split`` corpus case and the
+``neighbour_contact`` ``stray_contact`` edge move from mode 3 to mode 2, with
+the candidate features ``component_contacts[].contact_fraction`` and
+``stray_contact_area_mm2``; mode 3 keeps ``split_own_label`` and gains
+``label_contact_fraction``. The label left covering only the remainder of an
+encroached vertebra has no mode yet (deferred). Four other modes'
+discriminators and the ``fragment`` case's reason are re-pointed. No rule
+``evaluate``, threshold or voxel output changed, so no finding moved.
+:data:`MODE_SIGN_OFFS` is untouched.
+
 Mode 1 is attributed only as the catch-all (item 194, 2026-09-28)
 ------------------------------------------------------------------------
 ``bounds`` no longer declares mode 1: its ``RuleModeDeclaration`` narrows
@@ -372,8 +387,8 @@ Public API
     The frozen per-mode maintainer sign-off record (item 168, roadmap Stage
     32 bar condition 6) and its closed, two-member outcome vocabulary.
 ``MODE_SIGN_OFFS`` / ``mode_sign_off(mode_id) -> Optional[ModeSignOff]``
-    The read-only mapping of recorded sign-offs, keyed by mode id -- shipped
-    empty until a person resolves the gate -- and its accessor.
+    The read-only mapping of recorded sign-offs, keyed by mode id, each
+    transcribed from a resolved human gate -- and its accessor.
 ``SPECIFICATION``
     The immutable, ascending-by-id seed (a ``MappingProxyType``).
 ``iter_modes() -> Iterator[ModeSpec]``
@@ -390,7 +405,7 @@ Public API
     here from ``segfacet.traceability`` (item 147).
 ``derive_status(mode) -> str`` / ``derive_mode_rung(mode) -> Optional[str]``
     Live derivations (AC9/AC10, AC14).
-``measured_firing(case) -> Tuple[str, ...]`` / ``case_agrees(case) -> bool``
+``measured_firing(case) -> Tuple[str, ...]`` / ``measured_detector_firing(case)`` (item 200) / ``case_agrees(case) -> bool``
     Drive one ``CorpusCaseExpectation`` through the same public harness
     ``segfacet.synth.regression`` exposes (dispatching on the manifest case's
     ``detection`` field), and compare against its authored
@@ -421,6 +436,21 @@ this module, the rule declarations, both committed corpora and
 A per-mode sign-off (roadmap Stage 32 bar condition 6, item 168) is a
 separate record from the one above: it lives in :data:`MODE_SIGN_OFFS`, not
 in this docstring.
+
+Item 207 (2026-09-30) gave mode 2 a detector for a label over two whole
+vertebrae: the ``fused_label`` rule (``heuristics/fused_label.py``) fires on
+a label both large against its adjacent labels and flanked by wide centroid
+spacing. ``fuse_adjacent`` and ``fuse_separate`` now expect it, and the
+mechanism clauses of modes 6 and 10 that said no rule reads the spacing
+path describe the spacing in words instead, since ``fused_label`` reads it
+(only beside a doubled size) and neither mode's own rules do.
+
+Item 208 (2026-09-30) gave mode 3 a detector of its own: the
+``split_fragment`` rule (``heuristics/split_fragment.py``) fires on a label
+that both touches a neighbouring label over more than a tenth of its surface
+and is less than half the median volume of its neighbouring labels.
+``split_own_label`` now expects it beside ``bounds``, and mode 3's derived
+rung moves from needs-real-data to synthetic-demonstrable.
 """
 
 from __future__ import annotations
@@ -430,7 +460,7 @@ import json
 import re
 from pathlib import Path
 from types import MappingProxyType
-from typing import Dict, FrozenSet, Iterable, Iterator, Mapping, Optional, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, Iterator, Mapping, Optional, Tuple
 
 __all__ = [
     "ModeSpec",
@@ -455,6 +485,7 @@ __all__ = [
     "derive_mode_rung",
     "modes_for_detector",
     "measured_firing",
+    "measured_detector_firing",
     "case_agrees",
     "specification_conflicts",
     "specification_to_dict",
@@ -612,7 +643,7 @@ class ModeSignOff:
     """One maintainer sign-off of a mode (item 168, roadmap Stage 32 bar
     condition 6): the mode id, the resolution date of the human gate that
     recorded it, the chosen outcome and the maintainer's note. Only a person
-    may create one -- see :data:`MODE_SIGN_OFFS`, shipped empty."""
+    may create one -- see :data:`MODE_SIGN_OFFS`."""
 
     mode_id: int
     date: str
@@ -1003,8 +1034,10 @@ _MODE_1 = ModeSpec(
     ),
     discriminator=(
         "Mode 2 when the overreach covers a substantial part of an adjacent "
-        "vertebra; mode 3 when a substantial part of the vertebra carries "
-        "another label; mode 4 when the surplus is a disconnected island "
+        "vertebra, or a substantial part of the vertebra carries a "
+        "neighbour's label; mode 3 when that part carries a label of its "
+        "own; "
+        "mode 4 when the surplus is a disconnected island "
         "rather than contiguous with the body; mode 5 when the missing part "
         "is background enclosed inside the segment; mode 6 when the whole "
         "vertebra is absent; mode 7 when the segment covers no vertebra at "
@@ -1084,7 +1117,7 @@ _MODE_1 = ModeSpec(
                 "measured live via segfacet.synth.regression."
                 "pipeline_findings (2026-09-15). The operator removes an "
                 "interior slab of label 22's own body, so the pieces carry "
-                "no neighbour's label (not mode 3) and neither is a small "
+                "no neighbour's label (not mode 2) and neither is a small "
                 "island (not mode 4): under-segmentation that disconnects, "
                 "classified at this parent at the 2026-09-15 revision."
             ),
@@ -1102,19 +1135,20 @@ _MODE_2 = ModeSpec(
     short_name="fused vertebra segments",
     scope="vertebra",
     definition=(
-        "One label covers substantial parts of two or more adjacent "
-        "ground-truth vertebrae: a vertebra's label extends across "
-        "the intervertebral space onto its neighbour, or absorbs the "
-        "neighbour whole. Sub-type: transitional lumbosacral anatomy "
+        "One label covers its own ground-truth vertebra plus part or all of "
+        "an adjacent one: the label extends across the intervertebral space "
+        "onto its neighbour, or absorbs the neighbour whole. Sub-type: "
+        "transitional lumbosacral anatomy "
         "(sacralised L5) fused with the sacrum at the junction; a "
         "hypothesised extra signal is disc labels lying inside the sacrum "
         "label, which needs an intervertebral-disc channel the current "
         "label convention does not carry."
     ),
     discriminator=(
-        "Mode 3 is the converse -- one vertebra covered by more than one "
-        "label -- and the two co-occur whenever a neighbour's overreach "
-        "takes part of a vertebra rather than all of it; mode 1 when the "
+        "Mode 3 when the part carries a label of its own that covers no "
+        "other vertebra. The label left covering only the remainder of the "
+        "encroached vertebra has no mode yet (deferred at gate-51da, "
+        "2026-09-30). Mode 1 when the "
         "overreach stays in background or soft tissue; mode 4 when the "
         "surplus is a small disconnected island rather than a substantial "
         "part of a neighbour; mode 6 when the absent vertebra's voxels are "
@@ -1122,16 +1156,38 @@ _MODE_2 = ModeSpec(
         "sharing the label are not adjacent."
     ),
     mechanism=(
-        "Observable from the label map via a proxy, still to be proven: a "
+        "Expressed two ways. The paired case (split): neighbour_contact's "
+        "stray_contact detector fires on "
+        "per_label.{label}.components.component_contacts[].contact_fraction "
+        "-- a stray (non-largest) component's 6-neighbour face-contact area "
+        "with its single most-contacted other non-zero label, as a fraction "
+        "of that component's own surface area -- strictly above "
+        "DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers "
+        "all of L5 plus L4's caudal cap and its stray component reads 0.3317 "
+        "against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; "
+        "re-measured 2026-09-30, item 205), 3.3x the threshold. The "
+        "absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 "
+        "(L3) bridged -- one connected label over two bodies, with L5 "
+        "renumbered 23 so the sequence stays continuous. Its label is a "
+        "single component with no stray component to measure, so "
+        "neighbour_contact is silent; fused_label (item 207) decides it from "
+        "two signals together: per_label.{label}.geometry.physical_volume_mm3 "
+        "(the label's volume over its larger adjacent label's, about 2x) and "
+        "stage3.spacing_consistency.spacings_mm[] (the smaller spacing "
+        "adjacent to the label over the median of the other spacings, about "
+        "1.5x, because the fused centroid falls between its two bodies), "
+        "firing only when both strictly exceed their thresholds "
+        "(DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither "
+        "signal decides alone: split reads size 1.53 at spacing 1.05. The "
+        "separate-bodies case (fuse_separate, item 206) puts L3 and L4 under "
+        "label 22 with the disc gap unlabelled: two whole bodies, so the "
+        "second is a stray component with no contact and neighbour_contact "
+        "is silent; fragmentation fires on "
+        "per_label.{label}.components.fragmentation_index as a co-detection, "
+        "and fused_label fires on the label's doubled size and the widened "
+        "spacings around it. A secondary, needs-real-data proxy: a "
         "fused segment reads over its level's volume/extent range (bounds, "
-        "per_label.{label}.geometry.physical_volume_mm3), needs-real-data. "
-        "The corpus case fuse_adjacent (item "
-        "176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label "
-        "over two bodies, with L5 renumbered 23 so the sequence stays "
-        "continuous -- and fires nothing: its signature is the doubled "
-        "inter-centroid spacing around the fused label "
-        "(stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), "
-        "which no shipped rule reads."
+        "per_label.{label}.geometry.physical_volume_mm3)."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1141,6 +1197,14 @@ _MODE_2 = ModeSpec(
         ),
         CandidateFeature(
             path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="per_label.{label}.components.stray_contact_area_mm2",
+            role="hypothesised",
+        ),
+        CandidateFeature(
+            path="per_label.{label}.components.component_contacts[].contact_fraction",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1170,23 +1234,79 @@ _MODE_2 = ModeSpec(
             detector_ids=("metric_out_of_range",),
             evidence_rung="needs-real-data",
         ),
+        IntendedRule(
+            rule_id="neighbour_contact",
+            detector_ids=("stray_contact",),
+            evidence_rung="synthetic-demonstrable",
+        ),
+        IntendedRule(
+            rule_id="fused_label",
+            detector_ids=("fused_label",),
+            evidence_rung="synthetic-demonstrable",
+        ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="fuse_adjacent",
             corpus="geometric",
-            expected_firing=(),
+            expected_firing=("fused_label",),
             reason=(
-                "fires nothing, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-24, "
-                "item 176): the bridged, renumbered map is one connected "
-                "label 22 over two bodies with a continuous label sequence, "
-                "so no shipped rule fires. Mode 2's own signal is the "
-                "inter-centroid spacing around the fused label "
-                "(stage3.spacing_consistency.spacings_mm[], about 1.5x the "
-                "pitch); no shipped rule reads that spacing, and the rule "
-                "that would is left to a later per-mode queue (roadmap "
-                "Stage 33). An empty expected set never validates a mode."
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "item 207): the bridged, renumbered map (item 176) is one "
+                "connected label 22 over two bodies with a continuous label "
+                "sequence, and carries this mode's own fused_label finding "
+                "alone: volume 45043 mm^3 against 19375 (label 21) and 19344 "
+                "(label 23), size 2.3248; spacings [33.49, 49.51, 53.52], "
+                "spacing 49.51 / 33.49 = 1.4782; against thresholds 1.5 and "
+                "1.25, strictly above both. No other rule fires."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="split",
+            corpus="geometric",
+            expected_firing=("neighbour_contact",),
+            reason=(
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "item 205): mode 2's paired case -- the caudal cap of label "
+                "23 (L4) holding 20% of its voxels (4030 of 19344, slices "
+                "49-57) is given to label 24 (L5), so label 24 covers all of "
+                "L5 plus part of L4. Label 24 carries this mode's own "
+                "Neighbour contact: finding alone (detector id "
+                "stray_contact, item 187): contact_fraction=0.3317 "
+                "(806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, "
+                "+0.2317 above the 0.1 threshold. Mode 1's Fragmentation: "
+                "detector (detector id components) is separately silent: "
+                "label 24's fragmentation_index is 0.8276, above its 0.75 "
+                "threshold. The needs-real-data intended rule (bounds) does "
+                "not fire without a reference: the donor keeps 15314 mm^3 "
+                "and extents 31 / 31 / 23 mm, inside the lumbar bounds. "
+                "Label 23, left covering only the remainder of L4, has no "
+                "mode yet (gate-51da)."
+            ),
+        ),
+        CorpusCaseExpectation(
+            case_id="fuse_separate",
+            corpus="geometric",
+            expected_firing=("fragmentation", "fused_label"),
+            reason=(
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "items 206 and 207): mode 2's separate-bodies case -- L3 and L4 under "
+                "label 22, the 8 mm disc gap left unlabelled, L5 renumbered "
+                "23. Label 22 has two components (sizes 19437 and 19344) and "
+                "carries one Fragmentation: finding (detector id components), "
+                "fragmentation_index=0.5012 below the 0.75 threshold. That is "
+                "a co-detection: mode 1's detector, not mode 2's own, and the "
+                "two parts are two whole vertebrae, so the case is not a "
+                "mode-1 case. neighbour_contact is silent because the second "
+                "body touches nothing (stray_contact_area_mm2 0.0). Mode 2's "
+                "own signal is fused_label's (item 207): label 22's volume "
+                "(38781 mm^3) reads 2.0016x its larger neighbour, and the "
+                "spacings around it (stage3.spacing_consistency.spacings_mm "
+                "[33.49, 49.46, 53.50]) read 1.4768x, strictly above 1.5 and "
+                "1.25 respectively; fragmentation stays a co-detection."
             ),
         ),
     ),
@@ -1202,18 +1322,18 @@ _MODE_3 = ModeSpec(
     short_name="split vertebra segment",
     scope="vertebra",
     definition=(
-        "One ground-truth vertebra is covered by more than one label: a "
-        "substantial part of it carries a neighbouring vertebra's label "
-        "(sub-type a) or a label of its own (sub-type b), such that giving "
-        "that part the vertebra's own label gives a better prediction. "
-        "Typically a mostly correct vertebra that loses a part to another "
-        "label. A further sub-type: transitional lumbosacral anatomy "
-        "(lumbarised S1) split from the sacrum at the junction."
+        "Part of a ground-truth vertebra carries a label of its own, and "
+        "that label covers no other vertebra: the vertebra is split across "
+        "two labels, such that giving the part the vertebra's own label "
+        "gives a better prediction. A further sub-type: transitional "
+        "lumbosacral anatomy (lumbarised S1) split from the sacrum at the "
+        "junction."
     ),
     discriminator=(
-        "Mode 2 is the converse -- one label covering more than one "
-        "vertebra -- and the two co-occur when the label that takes the part "
-        "also keeps its own vertebra; mode 1 when the missing part is left "
+        "Mode 2 when the label on the part also covers its own vertebra. "
+        "The label left covering only the remainder of the encroached "
+        "vertebra has no mode yet (deferred at gate-51da, 2026-09-30). "
+        "Mode 1 when the missing part is left "
         "as background rather than claimed by another label; mode 4 when "
         "the pieces are small islands of the vertebra's own label; mode 13 "
         "when neither label keeps a vertebra of its own and both sit on one; "
@@ -1221,40 +1341,24 @@ _MODE_3 = ModeSpec(
         "part of it."
     ),
     mechanism=(
-        "Its own rule as of item 187: neighbour_contact's stray_contact "
-        "detector fires on "
-        "per_label.{label}.components.component_contacts[].contact_fraction "
-        "-- a stray (non-largest) component's 6-neighbour face-contact area "
-        "with its single most-contacted other non-zero label, as a fraction "
-        "of that component's own surface area -- strictly above "
-        "DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed "
-        "corpora (2026-09-27): the only firing value is 0.3317 (label 24's "
-        "stray component against label 23 on the split case: 806.0 mm^2 "
-        "over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, "
-        "3.3x) and every other stray component of every other case measures "
-        "0.0 (0.1 below it) -- including fuse_adjacent (mode 2, this mode's "
-        "converse), whose fused label is a single component, so it has no "
-        "stray component to measure (item 176). "
-        "The absolute measure item 167 introduced "
-        "(per_label.{label}.components.stray_contact_area_mm2) is unchanged "
-        "and still available, but is no longer read by any rule: it "
-        "understates a small stray component's contact (item 187's reason "
-        "for the move -- a small component shows little absolute contact "
-        "even when most of its surface touches a neighbour). On the split "
-        "corpus case, label 24 carries this mode's own Neighbour contact: "
-        "finding alone: mode 1's Fragmentation: detector (the fragmentation "
-        "rule's per-label fragmentation index) stays silent at 0.8276, above "
-        "its 0.75 threshold. Sub-type (b), a part carrying a label of its own "
-        "(the split_own_label case), is seen only by bounds, not by this "
-        "detector: the part is its label's only component, so it has no "
-        "stray component to measure -- though its label_contact_fraction "
-        "(the same relative measure over the whole label) reads 0.3317, "
-        "which no rule reads (Left open, item 187). A secondary, "
-        "needs-real-data proxy remains: the split vertebra reading under "
-        "its level's volume/extent range (bounds, "
-        "per_label.{label}.geometry.physical_volume_mm3). The neighbour "
-        "that takes the part reads over its range, which is mode 2's "
-        "proxy, so on a real case the two modes' proxy signals co-occur."
+        "The split_fragment rule (item 208) decides it on split_own_label: "
+        "the cap, 20% of L4 kept as a label of its own, both touches its "
+        "neighbour over more than a tenth of its surface "
+        "(per_label.{label}.components.label_contact_fraction reads 0.3317) "
+        "and is less than half the median volume of its neighbouring labels "
+        "(per_label.{label}.geometry.physical_volume_mm3 reads 4030 mm^3 "
+        "against a window median of 19344, ratio 0.2083), both strictly. "
+        "Neither signal decides alone: the remainder of an encroached "
+        "vertebra touches its neighbour too, and a label cropped by the "
+        "field of view is small but touches nothing. The rule also fires on "
+        "the remainder label from about a 50% donation upward (0.4944), "
+        "deferred and left open at gate-51da. The bounds proxy also "
+        "sees the cap: volume 4030 mm^3 below the lumbar minimum of 8000 and "
+        "extent_z 9 mm below 15 (item 186; re-measured 2026-09-30, item "
+        "205). neighbour_contact does not fire on it: the cap is its "
+        "label's only component, so it has no stray component to measure. "
+        "The paired case, a label that also covers its own vertebra, is "
+        "mode 2's."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1267,11 +1371,7 @@ _MODE_3 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="per_label.{label}.components.stray_contact_area_mm2",
-            role="hypothesised",
-        ),
-        CandidateFeature(
-            path="per_label.{label}.components.component_contacts[].contact_fraction",
+            path="per_label.{label}.components.label_contact_fraction",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1290,59 +1390,36 @@ _MODE_3 = ModeSpec(
             evidence_rung="needs-real-data",
         ),
         IntendedRule(
-            rule_id="neighbour_contact",
-            detector_ids=("stray_contact",),
+            rule_id="split_fragment",
+            detector_ids=("split_fragment",),
             evidence_rung="synthetic-demonstrable",
         ),
     ),
     corpus_cases=(
         CorpusCaseExpectation(
-            case_id="split",
-            corpus="geometric",
-            expected_firing=("neighbour_contact",),
-            reason=(
-                "pipeline-detected, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-27, "
-                "item 187): mode 3 sub-type (a) -- the caudal cap of label "
-                "23 (L4) holding 20% of its voxels (4030 of 19344, slices "
-                "49-57) is given to label 24 (L5). Label 24 carries this "
-                "mode's own Neighbour contact: finding alone (detector id "
-                "stray_contact, item 187): contact_fraction=0.3317 "
-                "(806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, "
-                "+0.2317 above the 0.1 threshold. fragmentation no longer "
-                "fires on this case: mode 3's edge moved from its "
-                "neighbour_contact detector (item 167) to this rule; mode "
-                "1's Fragmentation: detector (detector id components) is "
-                "separately silent: label 24's fragmentation_index is "
-                "0.8276, above its 0.75 threshold. The needs-real-data "
-                "intended rule (bounds) does not fire without a reference: "
-                "the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, "
-                "inside the lumbar bounds."
-            ),
-        ),
-        CorpusCaseExpectation(
             case_id="split_own_label",
             corpus="geometric",
-            expected_firing=("bounds",),
+            expected_firing=("bounds", "split_fragment"),
             reason=(
                 "pipeline-detected, measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-27, "
-                "item 186): mode 3 sub-type (b) -- the same 20% caudal cap "
+                "segfacet.synth.regression.pipeline_findings (2026-09-30, "
+                "item 208): mode 3 -- the same 20% caudal cap "
                 "of L4 keeps label 23 as a label of its own, and every "
                 "cranial label shifts up one level (the rest of L4 reads "
-                "22, L1 reads 19). bounds fires twice on the cap (label "
-                "23): volume 4030 mm^3 below the lumbar minimum of 8000, and "
+                "22, L1 reads 19). split_fragment fires once on the cap "
+                "(label 23): contact fraction 0.3317 above 0.1, volume 4030 "
+                "mm^3 against a window median of 19344 mm^3, size ratio "
+                "0.2083 below 0.5. bounds still fires twice on the cap: "
+                "volume 4030 mm^3 below the lumbar minimum of 8000, and "
                 "extent_z 9 mm below the lumbar minimum of 15 -- mode 3's "
-                "own needs-real-data proxy. coverage no longer fires: the "
+                "needs-real-data proxy. coverage does not fire: the "
                 "present levels are T12 (19) through L5 (24), and under the "
                 "default thoracic count of 12 that span is continuous "
                 "(item 186's expected sequence has no T13 between T12 and "
                 "L1, unlike the CANONICAL_ORDER slice it replaced). "
                 "neighbour_contact does not fire (item 187): the cap is its "
                 "own label's only component, so it has no stray component "
-                "to measure; its label_contact_fraction (the same relative "
-                "measure over the whole label) reads about 0.33, which no "
-                "rule reads."
+                "to measure."
             ),
         ),
     ),
@@ -1367,7 +1444,7 @@ _MODE_4 = ModeSpec(
         "Mode 5 is the topological converse (background enclosed inside the "
         "label rather than label outside its body); mode 1 when the surplus "
         "is contiguous with the body, or when the vertebra itself is cut "
-        "into large same-label pieces; modes 2 and 3 when the extra region "
+        "into large same-label pieces; mode 2 when the extra region "
         "is a substantial part of a neighbouring vertebra; mode 14 when the "
         "components are two whole vertebrae. The island's size and distance "
         "from the main body grade the finding rather than bound the mode: "
@@ -1444,7 +1521,7 @@ _MODE_5 = ModeSpec(
     discriminator=(
         "Mode 4 is the topological converse (label outside the main body "
         "rather than background inside it); mode 1 when the missing region "
-        "reaches the segment's outer surface (a dent, not a hole); mode 3 "
+        "reaches the segment's outer surface (a dent, not a hole); mode 2 "
         "when the missing region carries a neighbour's label."
     ),
     mechanism=(
@@ -1513,8 +1590,10 @@ _MODE_6 = ModeSpec(
         "detectors) is a recorded co-detection, not this mode's own evidence. "
         "remove_level_relabel fires nothing: it deletes L3 and renumbers "
         "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
-        "inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) "
-        "that no rule reads. That doubled spacing is this mode's own "
+        "inter-centroid spacing (the spacings_mm list of the stage 3 "
+        "spacing_consistency block) that no mode-6 rule reads; fused_label "
+        "reads spacing only beside a doubled size, so it is silent there. "
+        "That doubled spacing is this mode's own "
         "label-map signal -- it would also catch remove_level -- and its "
         "rule is decided in a later per-mode queue (roadmap Stage 33 scope "
         "decisions). Two further hypothesised signals cover a missing "
@@ -1576,8 +1655,9 @@ _MODE_6 = ModeSpec(
                 "not detected today: label 22 (L3) is deleted and labels "
                 "23/24 (L4/L5) are renumbered to 22/23, so the label "
                 "sequence stays continuous while the centroid spacing "
-                "between L2 and the renumbered L3 doubles; no shipped rule "
-                "reads stage3.spacing_consistency.spacings_mm[], measured "
+                "between L2 and the renumbered L3 doubles; no mode-6 rule "
+                "reads that spacing (fused_label reads it only beside a "
+                "doubled size, so it is silent here), measured "
                 "live via segfacet.synth.regression.pipeline_findings "
                 "(2026-09-14). Recorded so the hypothesised spacing-gap "
                 "signal has its fixture; an empty expected set never "
@@ -1853,9 +1933,9 @@ _MODE_10 = ModeSpec(
         "needs-real-data: a skip-relabel fixture (renumber the labels "
         "caudal to a level down by one without deleting a vertebra) is not "
         "authored. The separating signal is an ordinary inter-centroid "
-        "spacing across the label gap "
-        "(stage3.spacing_consistency.spacings_mm[]); the same path rule as "
-        "mode 6 applies -- no rule reads it yet."
+        "spacing across the label gap (the spacings_mm list of the stage 3 "
+        "spacing_consistency block); as for mode 6, no mode-10 rule reads it "
+        "-- fused_label reads spacing only beside a doubled size."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1996,7 +2076,7 @@ _MODE_13 = ModeSpec(
     ),
     discriminator=(
         "Mode 14 is the converse (one label on two vertebrae rather than two "
-        "labels on one); mode 3 when one of the labels still covers its own "
+        "labels on one); mode 2 when one of the labels still covers its own "
         "vertebra and takes only part of the other; mode 15 needs a shared "
         "voxel, which a collapsed pair of disjoint labels never has."
     ),
@@ -2525,32 +2605,37 @@ CONDITIONS: Mapping[str, ConditionSpec] = _build_conditions(
 
 
 #: The maintainer sign-off record per mode (item 168, roadmap Stage 32 bar
-#: condition 6). Shipped empty by item 168's Half A while the human gate
-#: ("Stage 32 selected-mode sign-off", ``docs/aide/progress.md``) was still
-#: ``⏳ Awaiting`` -- no agent may add an entry here on its own (AC11). The
-#: gate was resolved ``✅ Approved (2026-09-22)``, and these two records are
-#: its Half B, keyed by their own ``mode_id`` and dated with the gate row's
-#: resolution date. Both are ``intermediate-state``: conditions 1-5 held
-#: live when signed, and the maintainer review of 2026-09-22
-#: (``docs/aide/insights.md``, entries dated 2026-09-22) names what must
-#: change before either mode is signed at the bar.
+#: condition 6). No agent may add an entry here on its own (AC11); each is
+#: transcribed from a resolved human gate, keyed by its own ``mode_id`` and
+#: dated with the gate row's resolution date. Three records are held:
+#: mode 4 from ``gate-bb24`` (2026-09-22, ``intermediate-state``), and modes 2
+#: and 3 from ``gate-0133`` (2026-10-02, ``at-the-bar``). Mode 3's record
+#: replaces its ``gate-bb24`` one (one record per mode, no history); that
+#: earlier record stays in ``gate-bb24``'s row and in git.
 MODE_SIGN_OFFS: Mapping[int, ModeSignOff] = MappingProxyType(
     {
+        2: ModeSignOff(
+            mode_id=2,
+            date="2026-10-02",
+            outcome="at-the-bar",
+            note=(
+                'At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 '
+                'are at the bar". Non-blocking feedback given at the sign-off '
+                "is recorded in docs/aide/insights.md (gap entries, gate-0133, "
+                "2026-10-02): fused_label's centroid-spacing judgement, and "
+                "neighbour_contact's stray_contact reading one contact "
+                "direction."
+            ),
+        ),
         3: ModeSignOff(
             mode_id=3,
-            date="2026-09-22",
-            outcome="intermediate-state",
+            date="2026-10-02",
+            outcome="at-the-bar",
             note=(
-                "Signed at a recorded intermediate state, not at the bar. "
-                "The neighbour_contact detector's 100 mm^2 threshold has no "
-                "evidence: the geometric corpus base is five non-touching "
-                "axis-aligned boxes, so its one firing value (750 mm^2) is the "
-                "fixture's maximum cross-section and every other reading is "
-                "structurally 0.0. Before signing at the bar: neighbour_contact "
-                "moves out of fragmentation into its own rule; the split case "
-                "is re-authored at ~20 percent of the body on a lordotic base, "
-                "with a second sub-type where the split part carries its own "
-                "label. Maintainer review of 2026-09-22; lands as queue 023."
+                'At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 '
+                'are at the bar". Supersedes the gate-bb24 intermediate-state '
+                "record of 2026-09-22, which predates the mode 2/3 boundary "
+                "re-draw at gate-51da (2026-09-30)."
             ),
         ),
         4: ModeSignOff(
@@ -2681,10 +2766,22 @@ def measured_firing(case: CorpusCaseExpectation) -> Tuple[str, ...]:
       ``detection == "intensity_pipeline"`` (item 146's public harness, the
       one intensity composition in production).
     """
+    return tuple(sorted({f.rule_id for f in _measured_findings(case)}))
+
+
+def measured_detector_firing(case: CorpusCaseExpectation) -> Tuple[Tuple[str, str], ...]:
+    """The distinct ``(rule_id, detector_id)`` pairs among the findings
+    :func:`measured_firing` reads, sorted (item 200)."""
+    return tuple(
+        sorted({(f.rule_id, f.detector_id) for f in _measured_findings(case)})
+    )
+
+
+def _measured_findings(case: CorpusCaseExpectation) -> Tuple[Any, ...]:
     if case.corpus == "geometric":
-        return _measured_firing_geometric(case)
+        return _measured_findings_geometric(case)
     if case.corpus == "intensity":
-        return _measured_firing_intensity(case)
+        return _measured_findings_intensity(case)
     raise ValueError(
         f"measured_firing: unrecognised corpus {case.corpus!r} for case_id="
         f"{case.case_id!r}; the dispatch vocabulary is exactly "
@@ -2692,7 +2789,7 @@ def measured_firing(case: CorpusCaseExpectation) -> Tuple[str, ...]:
     )
 
 
-def _measured_firing_geometric(case: CorpusCaseExpectation) -> Tuple[str, ...]:
+def _measured_findings_geometric(case: CorpusCaseExpectation) -> Tuple[Any, ...]:
     """The ``corpus == "geometric"`` branch of :func:`measured_firing` --
     today's body verbatim, over ``tests/corpus/manifest.json``."""
     from segfacet.synth.corpus import load_manifest
@@ -2720,10 +2817,10 @@ def _measured_firing_geometric(case: CorpusCaseExpectation) -> Tuple[str, ...]:
             f"measured_firing: unrecognised detection {detection!r} for "
             f"case_id={case.case_id!r}."
         )
-    return tuple(sorted({finding.rule_id for finding in findings}))
+    return tuple(findings)
 
 
-def _measured_firing_intensity(case: CorpusCaseExpectation) -> Tuple[str, ...]:
+def _measured_findings_intensity(case: CorpusCaseExpectation) -> Tuple[Any, ...]:
     """The ``corpus == "intensity"`` branch of :func:`measured_firing`, over
     the committed ``tests/corpus/intensity/manifest.json``.
 
@@ -2754,7 +2851,7 @@ def _measured_firing_intensity(case: CorpusCaseExpectation) -> Tuple[str, ...]:
             f"recognised value is 'intensity_pipeline'."
         )
     findings = intensity_pipeline_findings(manifest_case)
-    return tuple(sorted({finding.rule_id for finding in findings}))
+    return tuple(findings)
 
 
 def case_agrees(case: CorpusCaseExpectation) -> bool:

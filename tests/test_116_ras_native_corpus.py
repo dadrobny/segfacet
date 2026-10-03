@@ -377,9 +377,16 @@ _REFERENCE_SHA = _reference_sha()
 #: ``crop_fov_si``) added to the corpus; no pre-migration golden exists for them at
 #: ``_REFERENCE_GOLDEN_SHA``, so the identity comparison below runs over the
 #: original nine only. Asserted present so the exclusion cannot silently
-#: widen.
+#: widen. Item 206 (2026-09-30) adds ``fuse_separate`` to the set.
 _ITEM_150_NEW_CASES = frozenset(
-    {"fuse_adjacent", "remove_level_relabel", "split", "split_own_label", "crop_fov_si"}
+    {
+        "fuse_adjacent",
+        "remove_level_relabel",
+        "split",
+        "split_own_label",
+        "crop_fov_si",
+        "fuse_separate",
+    }
 )
 assert _ITEM_150_NEW_CASES <= {c["case_id"] for c in _MANIFEST_CASES}
 _REFERENCE_MANIFEST_CASES = [

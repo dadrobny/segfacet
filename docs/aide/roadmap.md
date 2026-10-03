@@ -2121,9 +2121,7 @@ skip-relabel fixture) is not blocked by this stage and belongs to no stage.
 
 **Validation / acceptance.**
 
-- Modes 3 and 4 each meet all six conditions of Stage 32's "fully specified end to end",
-  checked against live state on the lordotic corpus. Each carries a maintainer sign-off
-  at `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**).
+- Modes 2 and 3 each meet all six conditions of Stage 32's "fully specified end to end", checked against live state on the lordotic corpus. Each carries a maintainer sign-off at `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**). Re-targeted from modes 3 and 4 when gate-51da was declined (2026-09-30); mode 4 keeps its gate-bb24 intermediate-state sign-off.
 - No committed corpus case is attributed to a mode or condition that its label map does
   not express, and every case's measured firing equals its expected set, across both
   corpora (**G2**, **G7**).

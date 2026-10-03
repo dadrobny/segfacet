@@ -192,16 +192,44 @@ class CoverageRule(Rule):
             RuleDetector(
                 detector_id="count_shortfall",
                 description=_COUNT_SHORTFALL_TAG,
+                question=(
+                    "Are fewer levels present than the configured expected "
+                    "minimum count?"
+                ),
+                fires_when=(
+                    "`expected_count` is set and the number of present levels "
+                    "< `expected_count`, strictly (not border-aware)"
+                ),
+                params=(("expected_count", None),),
                 signal_paths=("relationships.present_levels[]",),
             ),
             RuleDetector(
                 detector_id="incomplete_span",
                 description=_INCOMPLETE_SPAN_TAG,
+                question=(
+                    "Is an expected level absent just beyond either end of "
+                    "the present span, where the FOV should have covered it?"
+                ),
+                fires_when=(
+                    "an `expected_levels` entry is absent and ranks beyond a "
+                    "span end; with `border_aware`, only the single adjacent "
+                    "level beyond a non-truncated end counts, and nothing "
+                    "beyond a truncated end"
+                ),
+                params=(("expected_levels", ()), ("border_aware", DEFAULT_BORDER_AWARE)),
                 signal_paths=("relationships.present_levels[]",),
             ),
             RuleDetector(
                 detector_id="missing_interior",
                 description=_MISSING_INTERIOR_TAG,
+                question=(
+                    "Is a level missing from inside the observed span of "
+                    "present levels?"
+                ),
+                fires_when=(
+                    "`relationships.missing_levels` is non-empty (always "
+                    "active, never border-suppressed)"
+                ),
                 signal_paths=("relationships.missing_levels[]",),
             ),
         ),

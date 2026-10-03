@@ -10,7 +10,7 @@ Schema version: 2.2.
 - Parent: (none, top-level)
 - Scope: vertebra
 - Definition: Relative to ground truth, the predicted segment for a correctly identified and labelled vertebra misses part of that vertebra (under-segmentation) or extends beyond it into background or adjacent tissue (over-segmentation). This includes fragmentation -- one label in several parts -- where the parts are large pieces of the vertebra's own body cut apart by a missing slab: they carry no neighbour's label and are not small islands. The catch-all for accuracy defects: a corpus case, or a detector's edge, is attributed to this mode only when no other mode applies, and never beside another mode.
-- Discriminator: Mode 2 when the overreach covers a substantial part of an adjacent vertebra; mode 3 when a substantial part of the vertebra carries another label; mode 4 when the surplus is a disconnected island rather than contiguous with the body; mode 5 when the missing part is background enclosed inside the segment; mode 6 when the whole vertebra is absent; mode 7 when the segment covers no vertebra at all; the FOV-truncation condition when the missing part lies beyond an image face.
+- Discriminator: Mode 2 when the overreach covers a substantial part of an adjacent vertebra, or a substantial part of the vertebra carries a neighbour's label; mode 3 when that part carries a label of its own; mode 4 when the surplus is a disconnected island rather than contiguous with the body; mode 5 when the missing part is background enclosed inside the segment; mode 6 when the whole vertebra is absent; mode 7 when the segment covers no vertebra at all; the FOV-truncation condition when the missing part lies beyond an image face.
 - Observability: needs-ground-truth
 - Severity: flagged-for-review
 - Provenance: hypothesised
@@ -38,57 +38,22 @@ Intended rules:
 
 Corpus cases:
 
-- `fragment` (geometric): expected firing = [fragmentation]; agrees with live measurement: True. pipeline-detected; fragmentation (Fragmentation: the label's fragmentation_index falls below threshold, two comparably-sized components) is the sole rule that fires, measured live via segfacet.synth.regression.pipeline_findings (2026-09-15). The operator removes an interior slab of label 22's own body, so the pieces carry no neighbour's label (not mode 3) and neither is a small island (not mode 4): under-segmentation that disconnects, classified at this parent at the 2026-09-15 revision.
+- `fragment` (geometric): expected firing = [fragmentation]; agrees with live measurement: True. pipeline-detected; fragmentation (Fragmentation: the label's fragmentation_index falls below threshold, two comparably-sized components) is the sole rule that fires, measured live via segfacet.synth.regression.pipeline_findings (2026-09-15). The operator removes an interior slab of label 22's own body, so the pieces carry no neighbour's label (not mode 2) and neither is a small island (not mode 4): under-segmentation that disconnects, classified at this parent at the 2026-09-15 revision.
 
 ## Mode 2 (1.1, sub-mode of 1): Fused vertebra segments
 
 - Short name (corpus manifests): fused vertebra segments
 - Parent: 1
 - Scope: vertebra
-- Definition: One label covers substantial parts of two or more adjacent ground-truth vertebrae: a vertebra's label extends across the intervertebral space onto its neighbour, or absorbs the neighbour whole. Sub-type: transitional lumbosacral anatomy (sacralised L5) fused with the sacrum at the junction; a hypothesised extra signal is disc labels lying inside the sacrum label, which needs an intervertebral-disc channel the current label convention does not carry.
-- Discriminator: Mode 3 is the converse -- one vertebra covered by more than one label -- and the two co-occur whenever a neighbour's overreach takes part of a vertebra rather than all of it; mode 1 when the overreach stays in background or soft tissue; mode 4 when the surplus is a small disconnected island rather than a substantial part of a neighbour; mode 6 when the absent vertebra's voxels are left unclaimed rather than absorbed; mode 14 when the vertebrae sharing the label are not adjacent.
-- Observability: single-channel-observable
-- Severity: flagged-for-review
-- Provenance: hypothesised
-- Status, authored: specified
-- Status, derived (live): implemented
-- Derived rung (strongest edge, live): needs-real-data
-- Maintainer sign-off: (none recorded)
-
-Candidate features:
-
-- `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
-- `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
-- `hypothesised` candidate path: `spline_leave_one_out_shape_change`
-- `hypothesised` candidate path: `surface_topology`
-- `hypothesised` candidate path: `metric_change_under_split_candidate`
-- `hypothesised` candidate path: `disc_labels_inside_sacrum_label`
-
-Mechanism: Observable from the label map via a proxy, still to be proven: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3), needs-real-data. The corpus case fuse_adjacent (item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous -- and fires nothing: its signature is the doubled inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch), which no shipped rule reads.
-
-Intended rules:
-
-- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
-
-Corpus cases:
-
-- `fuse_adjacent` (geometric): expected firing = [(none)]; agrees with live measurement: True. fires nothing, measured live via segfacet.synth.regression.pipeline_findings (2026-09-24, item 176): the bridged, renumbered map is one connected label 22 over two bodies with a continuous label sequence, so no shipped rule fires. Mode 2's own signal is the inter-centroid spacing around the fused label (stage3.spacing_consistency.spacings_mm[], about 1.5x the pitch); no shipped rule reads that spacing, and the rule that would is left to a later per-mode queue (roadmap Stage 33). An empty expected set never validates a mode.
-
-## Mode 3 (1.2, sub-mode of 1): Split vertebra segment
-
-- Short name (corpus manifests): split vertebra segment
-- Parent: 1
-- Scope: vertebra
-- Definition: One ground-truth vertebra is covered by more than one label: a substantial part of it carries a neighbouring vertebra's label (sub-type a) or a label of its own (sub-type b), such that giving that part the vertebra's own label gives a better prediction. Typically a mostly correct vertebra that loses a part to another label. A further sub-type: transitional lumbosacral anatomy (lumbarised S1) split from the sacrum at the junction.
-- Discriminator: Mode 2 is the converse -- one label covering more than one vertebra -- and the two co-occur when the label that takes the part also keeps its own vertebra; mode 1 when the missing part is left as background rather than claimed by another label; mode 4 when the pieces are small islands of the vertebra's own label; mode 13 when neither label keeps a vertebra of its own and both sit on one; mode 8 when a whole vertebra carries a wrong label rather than a part of it.
+- Definition: One label covers its own ground-truth vertebra plus part or all of an adjacent one: the label extends across the intervertebral space onto its neighbour, or absorbs the neighbour whole. Sub-type: transitional lumbosacral anatomy (sacralised L5) fused with the sacrum at the junction; a hypothesised extra signal is disc labels lying inside the sacrum label, which needs an intervertebral-disc channel the current label convention does not carry.
+- Discriminator: Mode 3 when the part carries a label of its own that covers no other vertebra. The label left covering only the remainder of the encroached vertebra has no mode yet (deferred at gate-51da, 2026-09-30). Mode 1 when the overreach stays in background or soft tissue; mode 4 when the surplus is a small disconnected island rather than a substantial part of a neighbour; mode 6 when the absent vertebra's voxels are left unclaimed rather than absorbed; mode 14 when the vertebrae sharing the label are not adjacent.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
 - Provenance: hypothesised
 - Status, authored: specified
 - Status, derived (live): validated
 - Derived rung (strongest edge, live): synthetic-demonstrable
-- Maintainer sign-off: 2026-09-22 -- intermediate-state -- Signed at a recorded intermediate state, not at the bar. The neighbour_contact detector's 100 mm^2 threshold has no evidence: the geometric corpus base is five non-touching axis-aligned boxes, so its one firing value (750 mm^2) is the fixture's maximum cross-section and every other reading is structurally 0.0. Before signing at the bar: neighbour_contact moves out of fragmentation into its own rule; the split case is re-authored at ~20 percent of the body on a lordotic base, with a second sub-type where the split part carries its own label. Maintainer review of 2026-09-22; lands as queue 023.
+- Maintainer sign-off: 2026-10-02 -- at-the-bar -- At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 are at the bar". Non-blocking feedback given at the sign-off is recorded in docs/aide/insights.md (gap entries, gate-0133, 2026-10-02): fused_label's centroid-spacing judgement, and neighbour_contact's stray_contact reading one contact direction.
 
 Candidate features:
 
@@ -96,20 +61,59 @@ Candidate features:
 - `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
 - `hypothesised` candidate path: `per_label.{label}.components.stray_contact_area_mm2`
 - `hypothesised` candidate path: `per_label.{label}.components.component_contacts[].contact_fraction`
+- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
-- `hypothesised` candidate path: `metric_change_under_merge_candidate`
+- `hypothesised` candidate path: `surface_topology`
+- `hypothesised` candidate path: `metric_change_under_split_candidate`
+- `hypothesised` candidate path: `disc_labels_inside_sacrum_label`
 
-Mechanism: Its own rule as of item 187: neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). Measured over both committed corpora (2026-09-27): the only firing value is 0.3317 (label 24's stray component against label 23 on the split case: 806.0 mm^2 over 2430.0 mm^2 of surface, 4030 voxels, +0.2317 above threshold, 3.3x) and every other stray component of every other case measures 0.0 (0.1 below it) -- including fuse_adjacent (mode 2, this mode's converse), whose fused label is a single component, so it has no stray component to measure (item 176). The absolute measure item 167 introduced (per_label.{label}.components.stray_contact_area_mm2) is unchanged and still available, but is no longer read by any rule: it understates a small stray component's contact (item 187's reason for the move -- a small component shows little absolute contact even when most of its surface touches a neighbour). On the split corpus case, label 24 carries this mode's own Neighbour contact: finding alone: mode 1's Fragmentation: detector (the fragmentation rule's per-label fragmentation index) stays silent at 0.8276, above its 0.75 threshold. Sub-type (b), a part carrying a label of its own (the split_own_label case), is seen only by bounds, not by this detector: the part is its label's only component, so it has no stray component to measure -- though its label_contact_fraction (the same relative measure over the whole label) reads 0.3317, which no rule reads (Left open, item 187). A secondary, needs-real-data proxy remains: the split vertebra reading under its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3). The neighbour that takes the part reads over its range, which is mode 2's proxy, so on a real case the two modes' proxy signals co-occur.
+Mechanism: Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous. Its label is a single component with no stray component to measure, so neighbour_contact is silent; fused_label (item 207) decides it from two signals together: per_label.{label}.geometry.physical_volume_mm3 (the label's volume over its larger adjacent label's, about 2x) and stage3.spacing_consistency.spacings_mm[] (the smaller spacing adjacent to the label over the median of the other spacings, about 1.5x, because the fused centroid falls between its two bodies), firing only when both strictly exceed their thresholds (DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither signal decides alone: split reads size 1.53 at spacing 1.05. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and fused_label fires on the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).
 
 Intended rules:
 
 - `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
 - `neighbour_contact` (detector: stray_contact) -- evidence rung: synthetic-demonstrable
+- `fused_label` (detector: fused_label) -- evidence rung: synthetic-demonstrable
 
 Corpus cases:
 
-- `split` (geometric): expected firing = [neighbour_contact]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 187): mode 3 sub-type (a) -- the caudal cap of label 23 (L4) holding 20% of its voxels (4030 of 19344, slices 49-57) is given to label 24 (L5). Label 24 carries this mode's own Neighbour contact: finding alone (detector id stray_contact, item 187): contact_fraction=0.3317 (806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, +0.2317 above the 0.1 threshold. fragmentation no longer fires on this case: mode 3's edge moved from its neighbour_contact detector (item 167) to this rule; mode 1's Fragmentation: detector (detector id components) is separately silent: label 24's fragmentation_index is 0.8276, above its 0.75 threshold. The needs-real-data intended rule (bounds) does not fire without a reference: the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, inside the lumbar bounds.
-- `split_own_label` (geometric): expected firing = [bounds]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-27, item 186): mode 3 sub-type (b) -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). bounds fires twice on the cap (label 23): volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's own needs-real-data proxy. coverage no longer fires: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure; its label_contact_fraction (the same relative measure over the whole label) reads about 0.33, which no rule reads.
+- `fuse_adjacent` (geometric): expected firing = [fused_label]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 207): the bridged, renumbered map (item 176) is one connected label 22 over two bodies with a continuous label sequence, and carries this mode's own fused_label finding alone: volume 45043 mm^3 against 19375 (label 21) and 19344 (label 23), size 2.3248; spacings [33.49, 49.51, 53.52], spacing 49.51 / 33.49 = 1.4782; against thresholds 1.5 and 1.25, strictly above both. No other rule fires.
+- `split` (geometric): expected firing = [neighbour_contact]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 205): mode 2's paired case -- the caudal cap of label 23 (L4) holding 20% of its voxels (4030 of 19344, slices 49-57) is given to label 24 (L5), so label 24 covers all of L5 plus part of L4. Label 24 carries this mode's own Neighbour contact: finding alone (detector id stray_contact, item 187): contact_fraction=0.3317 (806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, +0.2317 above the 0.1 threshold. Mode 1's Fragmentation: detector (detector id components) is separately silent: label 24's fragmentation_index is 0.8276, above its 0.75 threshold. The needs-real-data intended rule (bounds) does not fire without a reference: the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, inside the lumbar bounds. Label 23, left covering only the remainder of L4, has no mode yet (gate-51da).
+- `fuse_separate` (geometric): expected firing = [fragmentation, fused_label]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, items 206 and 207): mode 2's separate-bodies case -- L3 and L4 under label 22, the 8 mm disc gap left unlabelled, L5 renumbered 23. Label 22 has two components (sizes 19437 and 19344) and carries one Fragmentation: finding (detector id components), fragmentation_index=0.5012 below the 0.75 threshold. That is a co-detection: mode 1's detector, not mode 2's own, and the two parts are two whole vertebrae, so the case is not a mode-1 case. neighbour_contact is silent because the second body touches nothing (stray_contact_area_mm2 0.0). Mode 2's own signal is fused_label's (item 207): label 22's volume (38781 mm^3) reads 2.0016x its larger neighbour, and the spacings around it (stage3.spacing_consistency.spacings_mm [33.49, 49.46, 53.50]) read 1.4768x, strictly above 1.5 and 1.25 respectively; fragmentation stays a co-detection.
+
+## Mode 3 (1.2, sub-mode of 1): Split vertebra segment
+
+- Short name (corpus manifests): split vertebra segment
+- Parent: 1
+- Scope: vertebra
+- Definition: Part of a ground-truth vertebra carries a label of its own, and that label covers no other vertebra: the vertebra is split across two labels, such that giving the part the vertebra's own label gives a better prediction. A further sub-type: transitional lumbosacral anatomy (lumbarised S1) split from the sacrum at the junction.
+- Discriminator: Mode 2 when the label on the part also covers its own vertebra. The label left covering only the remainder of the encroached vertebra has no mode yet (deferred at gate-51da, 2026-09-30). Mode 1 when the missing part is left as background rather than claimed by another label; mode 4 when the pieces are small islands of the vertebra's own label; mode 13 when neither label keeps a vertebra of its own and both sit on one; mode 8 when a whole vertebra carries a wrong label rather than a part of it.
+- Observability: single-channel-observable
+- Severity: flagged-for-review
+- Provenance: hypothesised
+- Status, authored: specified
+- Status, derived (live): validated
+- Derived rung (strongest edge, live): synthetic-demonstrable
+- Maintainer sign-off: 2026-10-02 -- at-the-bar -- At the bar, signed at gate-0133 (2026-10-02): "modes 2 and 3 are at the bar". Supersedes the gate-bb24 intermediate-state record of 2026-09-22, which predates the mode 2/3 boundary re-draw at gate-51da (2026-09-30).
+
+Candidate features:
+
+- `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
+- `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
+- `hypothesised` candidate path: `per_label.{label}.components.label_contact_fraction`
+- `hypothesised` candidate path: `spline_leave_one_out_shape_change`
+- `hypothesised` candidate path: `metric_change_under_merge_candidate`
+
+Mechanism: The split_fragment rule (item 208) decides it on split_own_label: the cap, 20% of L4 kept as a label of its own, both touches its neighbour over more than a tenth of its surface (per_label.{label}.components.label_contact_fraction reads 0.3317) and is less than half the median volume of its neighbouring labels (per_label.{label}.geometry.physical_volume_mm3 reads 4030 mm^3 against a window median of 19344, ratio 0.2083), both strictly. Neither signal decides alone: the remainder of an encroached vertebra touches its neighbour too, and a label cropped by the field of view is small but touches nothing. The rule also fires on the remainder label from about a 50% donation upward (0.4944), deferred and left open at gate-51da. The bounds proxy also sees the cap: volume 4030 mm^3 below the lumbar minimum of 8000 and extent_z 9 mm below 15 (item 186; re-measured 2026-09-30, item 205). neighbour_contact does not fire on it: the cap is its label's only component, so it has no stray component to measure. The paired case, a label that also covers its own vertebra, is mode 2's.
+
+Intended rules:
+
+- `bounds` (detector: metric_out_of_range) -- evidence rung: needs-real-data
+- `split_fragment` (detector: split_fragment) -- evidence rung: synthetic-demonstrable
+
+Corpus cases:
+
+- `split_own_label` (geometric): expected firing = [bounds, split_fragment]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 208): mode 3 -- the same 20% caudal cap of L4 keeps label 23 as a label of its own, and every cranial label shifts up one level (the rest of L4 reads 22, L1 reads 19). split_fragment fires once on the cap (label 23): contact fraction 0.3317 above 0.1, volume 4030 mm^3 against a window median of 19344 mm^3, size ratio 0.2083 below 0.5. bounds still fires twice on the cap: volume 4030 mm^3 below the lumbar minimum of 8000, and extent_z 9 mm below the lumbar minimum of 15 -- mode 3's needs-real-data proxy. coverage does not fire: the present levels are T12 (19) through L5 (24), and under the default thoracic count of 12 that span is continuous (item 186's expected sequence has no T13 between T12 and L1, unlike the CANONICAL_ORDER slice it replaced). neighbour_contact does not fire (item 187): the cap is its own label's only component, so it has no stray component to measure.
 
 ## Mode 4 (1.3, sub-mode of 1): Islands (disconnected components)
 
@@ -117,7 +121,7 @@ Corpus cases:
 - Parent: 1
 - Scope: vertebra
 - Definition: A label's foreground includes components disconnected from its main body. Typically small islands close to the vertebra (image noise); rarely larger blobs further away (background structures, devices). An island may cover non-vertebra voxels.
-- Discriminator: Mode 5 is the topological converse (background enclosed inside the label rather than label outside its body); mode 1 when the surplus is contiguous with the body, or when the vertebra itself is cut into large same-label pieces; modes 2 and 3 when the extra region is a substantial part of a neighbouring vertebra; mode 14 when the components are two whole vertebrae. The island's size and distance from the main body grade the finding rather than bound the mode: the further an island lies from the label's centroid, the larger it may be and still count as an island.
+- Discriminator: Mode 5 is the topological converse (background enclosed inside the label rather than label outside its body); mode 1 when the surplus is contiguous with the body, or when the vertebra itself is cut into large same-label pieces; mode 2 when the extra region is a substantial part of a neighbouring vertebra; mode 14 when the components are two whole vertebrae. The island's size and distance from the main body grade the finding rather than bound the mode: the further an island lies from the label's centroid, the larger it may be and still count as an island.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
 - Provenance: hypothesised
@@ -149,7 +153,7 @@ Corpus cases:
 - Parent: 1
 - Scope: vertebra
 - Definition: Background voxels enclosed by a label's foreground where the vertebra is bone: a cavity inside the segment, or a tunnel through it beyond the anatomy's own (the vertebral foramen is a natural tunnel of a vertebra segmented with its posterior elements). Typically small and caused by image noise or low-contrast trabecular bone.
-- Discriminator: Mode 4 is the topological converse (label outside the main body rather than background inside it); mode 1 when the missing region reaches the segment's outer surface (a dent, not a hole); mode 3 when the missing region carries a neighbour's label.
+- Discriminator: Mode 4 is the topological converse (label outside the main body rather than background inside it); mode 1 when the missing region reaches the segment's outer surface (a dent, not a hole); mode 2 when the missing region carries a neighbour's label.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
 - Provenance: hypothesised
@@ -198,7 +202,7 @@ Candidate features:
 - `hypothesised` candidate path: `extrapolated_centroid_gap_to_image_face_mm`
 - `hypothesised` candidate path: `scan_boundary_without_terminal_label`
 
-Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (stage3.spacing_consistency.spacings_mm[]) that no rule reads. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.
+Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (the spacings_mm list of the stage 3 spacing_consistency block) that no mode-6 rule reads; fused_label reads spacing only beside a doubled size, so it is silent there. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.
 
 Intended rules:
 
@@ -207,7 +211,7 @@ Intended rules:
 Corpus cases:
 
 - `remove_level` (geometric): expected firing = [coverage, sequence]; agrees with live measurement: True. pipeline-detected; coverage (Missing interior level(s): L3 absent within the observed present-level span) and, since item 192 (2026-09-28), sequence's skip detector (reading the same gap from per_label level names) both fire, measured live via segfacet.synth.regression.pipeline_findings. The vertebra is deleted and the remaining labels are kept, so this is a missed vertebra, not a skipped label (mode 10). coverage and sequence's skip both serve mode 10, not this mode, since item 188/192: this firing is a recorded co-detection that does not validate mode 6.
-- `remove_level_relabel` (geometric): expected firing = [(none)]; agrees with live measurement: True. not detected today: label 22 (L3) is deleted and labels 23/24 (L4/L5) are renumbered to 22/23, so the label sequence stays continuous while the centroid spacing between L2 and the renumbered L3 doubles; no shipped rule reads stage3.spacing_consistency.spacings_mm[], measured live via segfacet.synth.regression.pipeline_findings (2026-09-14). Recorded so the hypothesised spacing-gap signal has its fixture; an empty expected set never validates a mode.
+- `remove_level_relabel` (geometric): expected firing = [(none)]; agrees with live measurement: True. not detected today: label 22 (L3) is deleted and labels 23/24 (L4/L5) are renumbered to 22/23, so the label sequence stays continuous while the centroid spacing between L2 and the renumbered L3 doubles; no mode-6 rule reads that spacing (fused_label reads it only beside a doubled size, so it is silent here), measured live via segfacet.synth.regression.pipeline_findings (2026-09-14). Recorded so the hypothesised spacing-gap signal has its fixture; an empty expected set never validates a mode.
 
 ## Mode 7 (1.6, sub-mode of 1): Hallucinated vertebra
 
@@ -326,7 +330,7 @@ Candidate features:
 - `hypothesised` candidate path: `relationships.missing_levels[]`
 - `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
 
-Mechanism: coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (stage3.spacing_consistency.spacings_mm[]); the same path rule as mode 6 applies -- no rule reads it yet.
+Mechanism: coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (the spacings_mm list of the stage 3 spacing_consistency block); as for mode 6, no mode-10 rule reads it -- fused_label reads spacing only beside a doubled size.
 
 Intended rules:
 
@@ -402,7 +406,7 @@ Corpus cases:
 - Parent: 8
 - Scope: spine
 - Definition: Decidable on centroids alone: two or more labels' centroids lie closer together than a fraction of the expected inter-vertebral spacing, so distinct levels are placed on (nearly) the same vertebra. When centroids coincide exactly the Stage 3 spline fit cannot be computed, the record carries a stage3_unavailable reason instead of a stage3 block, every stage3-reading rule short-circuits and no finding of any kind is raised: the case passes silently (carried defect, item 129, 2026-08-31).
-- Discriminator: Mode 14 is the converse (one label on two vertebrae rather than two labels on one); mode 3 when one of the labels still covers its own vertebra and takes only part of the other; mode 15 needs a shared voxel, which a collapsed pair of disjoint labels never has.
+- Discriminator: Mode 14 is the converse (one label on two vertebrae rather than two labels on one); mode 2 when one of the labels still covers its own vertebra and takes only part of the other; mode 15 needs a shared voxel, which a collapsed pair of disjoint labels never has.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
 - Provenance: hypothesised

@@ -502,19 +502,26 @@ def test_fuse_adjacent_case_records_mode_2_bridged_and_fires_nothing():
 
     Item 176 (2026-09-24): the fuse is now bridged and renumbered; it was
     the unbridged absorb that co-detected as coverage and fragmentation
-    (renamed from ``..._with_both_co_detected_rules``, spec R2)."""
+    (renamed from ``..._with_both_co_detected_rules``, spec R2).
+
+    Item 207 (2026-09-30): ``fused_label`` now fires on label 22 (size 2.3248,
+    spacing 1.4782), so the case expects it and a flagged-for-review verdict;
+    the name keeps its old wording."""
     case = _case("fuse_adjacent")
     assert case["failure_mode"] == 2
     assert case["condition"] == ""
     assert case["detection"] == "pipeline"
-    assert case["expected_rule_ids"] == []
-    assert case["expected_labels"] == []
-    assert case["expected_verdict"] == "pass"
+    # Item 207 (2026-09-30): fused_label now designates this case.
+    assert case["expected_rule_ids"] == ["fused_label"]
+    assert case["expected_labels"] == [22]
+    assert case["expected_verdict"] == "flagged-for-review"
 
     seg_img = _seg_nifti_from_case(case)
     case_result, _block = run_qc(seg_img, bundled_default_config())
-    assert list(case_result.findings) == []
-    assert case_result.verdict.overall == Severity.PASS
+    assert [
+        (f.rule_id, f.detector_id, sorted(f.labels)) for f in case_result.findings
+    ] == [("fused_label", "fused_label", [22])]
+    assert case_result.verdict.overall == Severity.FLAG
 
 
 def test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing():

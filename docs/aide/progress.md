@@ -60,8 +60,8 @@
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
-| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | 🚧     |
-| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | 🚧     |
+| 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
+| 33    | Corpus & Rule Re-grounding: modes 3 and 4 to the bar *(runs next)*      | G2, G7, G8      | ✅     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -256,6 +256,8 @@ may resolve one._
 | Stage 30 failure-mode specification sign-off — the maintainer reads [`failure_modes.generated.md`](failure_modes.generated.md) entry by entry (raised over the ten-entry item-149 rendering; the review re-organised it on 2026-09-14 and 2026-09-15 into sixteen modes plus the FOV-truncation condition, and all sixteen are what is signed; definition, discriminator, expected firing sets, severity, observability, per-edge evidence rungs, lifecycle status, provenance) and either accepts the rendering or names the entries to change. The date and outcome are then recorded in `src/segfacet/failure_modes.py`'s own docstring, the `feature_docs.py::STATUS_OVERRIDES` precedent | 139, 140, 141, 142 | ✅ Approved (2026-09-15) | Reviewed and approved the 16-mode failure-mode catalogue (item 150, revised 2026-09-15, commit ce0c6ec); walkthrough in docs/aide/items/150-maintainer-sign-off-of-the-specification.md |
 | Stage 31 D1 — `vision.md` §6 re-issued as v4: the maintainer reads the draft (PR #77, branch `docs/vision-v4-section-6`) and either accepts it or names the passages to change. What it asks: §6 as principles plus a pointer to `segfacet.failure_modes.SPECIFICATION` with no numbered list, the five observability classes, the FOV-truncation condition as a first-class concept, `validated` as the item-150 sign-off defined it, `scope` / `parent` / one defect per mode, the mode → rule direction scored, and the evidence-rungs example corrected to a single rank descent | 152 | ✅ Approved (2026-09-16) | Accepted the v4 section 6 at 7d800a2 on PR #77 |
 | Stage 32 selected-mode sign-off — the maintainer reads modes 3 (split vertebra segment) and 4 (islands, disconnected components) as rendered in [`failure_modes.generated.md`](failure_modes.generated.md) and, for each, either signs it off at the fully-specified bar, signs it off at a recorded intermediate state, or names what must change first. Roadmap Stage 32's bar condition 6. The decision brief is in [`items/168-maintainer-sign-off-of-modes-3-and-4.md`](items/168-maintainer-sign-off-of-modes-3-and-4.md): both modes clear `traceability.bar_conditions` 1–5 live (measured 2026-09-20), and the open judgements are whether `fragmentation` is the right home for mode 3's `neighbour_contact` detector, the rule-id-granular co-detection on the `split` case, mode 4's unbuilt `island_distance_from_main_body_mm` grading, and item 167's four `Left open` notes. The date and outcome are then recorded as one `ModeSignOff` per mode in `src/segfacet/failure_modes.py`'s `MODE_SIGN_OFFS` | 168, 169 | ✅ Approved (2026-09-22) | Both modes signed off at a recorded intermediate state, not at the bar. Modes 3 and 4 clear bar conditions 1-5 live (measured 2026-09-20) but the maintainer review of 2026-09-22 (insights.md entries dated 2026-09-22) names what must change before either is signed at the bar: the geometric corpus base is five non-touching axis-aligned boxes, so mode 3's neighbour_contact threshold has no evidence (the only firing value is the fixture's maximum cross-section, every other reading is structurally 0.0); neighbour_contact moves out of fragmentation into its own rule; the split case is re-authored at ~20 percent on a lordotic base with a second own-label sub-type; mode 4's island_distance_from_main_body_mm grading is described but unbuilt. These land as queue 023. Item 169 attests Stage 32 with criterion 1 open and closes Stage 20. |
+| Stage 33 at-the-bar sign-off of modes 3 and 4 — the maintainer re-reads modes 3 (split vertebra segment) and 4 (islands) on the lordotic corpus, as rendered in [`failure_modes.generated.md`](failure_modes.generated.md), with the corpus sheet [`corpus_sheet.png`](corpus_sheet.png) and the rule table [`rules.generated.md`](rules.generated.md), and for each either signs it off at the bar, signs it off at a recorded intermediate state with the reason, or names what must change first. Roadmap Stage 33 D5. The decision brief is in [`items/203-modes-3-and-4-re-signed-at-the-bar.md`](items/203-modes-3-and-4-re-signed-at-the-bar.md): both modes clear `traceability.bar_conditions` 1–5 live (measured 2026-09-29), and the open judgements are that mode 3's `split_own_label` sub-type is expressed only through the `bounds` proxy, that no committed value lies near `neighbour_contact`'s 0.1 contact-fraction threshold because the lordotic base's bodies never touch, and that mode 4's distance grading (`island_distance_from_main_body_mm`), the reason given at gate-bb24, is still unbuilt. The outcome and reason per mode are then recorded as one `ModeSignOff` each in `src/segfacet/failure_modes.py`'s `MODE_SIGN_OFFS`, replacing gate-bb24's two intermediate-state records | — | ❌ Declined (2026-09-30) | Neither yet (2026-09-30). Mode 2/3 boundary re-drawn: mode 2 keeps the paired case (a label overreaching onto a neighbour, sub-type (a) today); mode 3 becomes the own-label fragment case only (sub-type (b)). Mode 3 needs its own detector: high label contact fraction plus small volume. Mode 4 needs re-definition: more than one connected component, with small components, or larger components further from the main body; to be refined. Re-planned as new queue-027 items before a fresh sign-off gate. |
+| Stage 33 at-the-bar sign-off of modes 2 and 3 after the mode 2/3 boundary re-draw — raised when gate-51da was declined (2026-09-30), which moved the selected modes from 3 and 4 to 2 and 3. After items 205–208 have landed, the maintainer reads mode 2 (fused vertebra segments: one label covering its own vertebra plus part or all of a neighbour) and mode 3 (split vertebra segment, re-drawn as the own-label fragment) as rendered in [`failure_modes.generated.md`](failure_modes.generated.md), with the corpus sheet [`corpus_sheet.png`](corpus_sheet.png) and the rule table [`rules.generated.md`](rules.generated.md). For each mode, they either sign it off at the bar, sign it off at a recorded intermediate state with the reason, or name what must change first. Roadmap Stage 33 D5. The decision brief is written into [`items/203-modes-3-and-4-re-signed-at-the-bar.md`](items/203-modes-3-and-4-re-signed-at-the-bar.md) when item 203 is re-specified. The outcome and reason per mode are recorded as one `ModeSignOff` each in `src/segfacet/failure_modes.py`'s `MODE_SIGN_OFFS` | 203, 204 | ✅ Approved (2026-10-02) | modes 2 and 3 are at the bar |
 
 ---
 
@@ -1119,6 +1121,8 @@ rule(s) and any features they need; features may be added alone, modes and rules
   - **2026-09-28** → Item 192 (2026-09-28): sequence serves modes 9-11 by sub-type; mode 11 derives implemented at needs-real-data, mode 10 gains a second edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 4, specified 1, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 4, structurally-unobservable 1, none 6.
   - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
   - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed; mode 15 derives implemented. Re-measured live: derived status counts over 16 modes: validated 5, implemented 4, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
+  - **2026-09-30** → Item 205 (2026-09-30): mode 2/3 boundary re-drawn at gate-51da; split and neighbour_contact's stray_contact moved to mode 2, which derives validated. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
+  - **2026-09-30** → Item 208 (2026-09-30): mode 3 gains split_fragment's synthetic-demonstrable edge, moving its derived rung from needs-real-data to synthetic-demonstrable and adding one edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7.
 
 > **Not required:** feature→rule completeness. Unwired features are a designed state.
 
@@ -1639,6 +1643,7 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   - **2026-09-28** → Item 192 (2026-09-28): sequence serves modes 9-11 by sub-type; mode 11 derives implemented at needs-real-data, mode 10 gains a second edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 4, specified 1, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 1.
   - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 1.
   - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed; mode 15 keeps the overlap rule's declaration and carries no corpus case, so it derives implemented. Re-measured live: derived status counts over 16 modes: validated 5, implemented 4, specified 2, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 0.
+  - **2026-09-30** → Item 205 (2026-09-30): mode 2/3 boundary re-drawn at gate-51da; split and neighbour_contact's stray_contact moved to mode 2, which derives validated. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5; validated through a pipeline-detected case 6, through a reconstructed record only 0.
 - [x] For every corpus case across both committed corpora, the measured firing set equals *(AC8 measured all 15 manifest cases (11 geometric + 4 intensity) in clone 6464b2e: every measured firing set equals expected; matrix.conformance.agree_count=15, unspecified_cases=(), disagreements=(); AC10/AC11 mode6_crop_at_border expects {border, mislabel} with reason, measured label 22 touches_anterior=True, offset_mm=17.507 (>13.0 max), is_terminal=False; clean_control label 22 touches_anterior=False. Reading D2 (clean, condition-less cases scored against the empty set) and D3 (mode6_crop_at_border is the fov_truncation condition's fixture, no longer a Stage 20 gate-3 co-detection claim))*
   the specification's expected firing set, and `mode6_crop_at_border` expects
   `{border, mislabel}` with a recorded reason (**G2**).
@@ -1651,6 +1656,8 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 14 edges: synthetic-demonstrable 5, needs-real-data 8, structurally-unobservable 1.
   - **2026-09-28** → Item 194 (2026-09-28): bounds no longer declares mode 1 and mode 1 loses its bounds edge, so mode 1 is attributed only as the catch-all. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 13 edges: synthetic-demonstrable 5, needs-real-data 7, structurally-unobservable 1.
   - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed. Mode 15 keeps its overlap edge at structurally-unobservable and carries no corpus case; the AC15/AC16 force_overlap evidence above is history. test_151's AC16 now asserts that mode 15 carries no corpus case and that no committed geometric case yields an overlap through the pipeline.
+  - **2026-09-30** → Item 207 (2026-09-30): mode 2 gains fused_label's synthetic-demonstrable edge, adding one edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 14 edges: synthetic-demonstrable 6, needs-real-data 7, structurally-unobservable 1.
+  - **2026-09-30** → Item 208 (2026-09-30): mode 3 gains split_fragment's synthetic-demonstrable edge, moving its derived rung from needs-real-data to synthetic-demonstrable and adding one edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7; per-edge rung counts over 15 edges: synthetic-demonstrable 7, needs-real-data 7, structurally-unobservable 1.
 - [x] `failure_modes.generated.{md,json}` and the traceability matrix regenerate *(AC2/AC7 clean-clone regeneration in clone 6464b2e: failure_modes.generated.{json,md} and traceability_matrix.generated.{json,md} cmp exit 0 against committed copies, a second independent regeneration cmp-identical to the first; feature_catalogue.generated.md cmp-identical, .json accepted by assert_matches_committed_artifact and also byte-identical; AC3 matrix primary_source == src/segfacet/failure_modes.py, resolves to the loaded module, per-mode title/authored_status/edge_rungs match SPECIFICATION, row key set == set(SPECIFICATION); AC4 JSON/Markdown notes name the module, modes/conditions lists equal specification_to_dict() live; AC5 matrix header carries both 'Stage-18 metric anchor paths' and 'Rule signal read paths', anchor_paths equals MODE_ANCHOR_PATHS, columns differ for modes 6/8/9/16; AC6 every stage18-metric-anchor candidate renders under the anchor label only, no rule read path under it. Reading D4 (matrix renders the two labelled columns; the specification's own rendering labels anchors only and its 'primary source' reading is via its note + specification_to_dict() equality))*
   byte-identically from a clean tree, name the specification as their primary source, and
   render the metric anchor path and the rule's read paths as separately labelled columns.
@@ -1756,7 +1763,7 @@ changes here.**
 
 ---
 
-## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — 🚧
+## Stage 32 — Selected-Mode Refinement: one failure mode fully specified end to end (G2, G7, G8) — ✅
 
 **Goal.** The specification documents all sixteen modes without committing to implement
 them (2026-09-15: validated 1, 4, 6, 9, 15, 16; implemented 2, 3, 8; proposed 5, 7,
@@ -1772,10 +1779,10 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 **Deliverables.**
 
-- 📋 **D0** Stage 20's deferred exercise-reporting (per rule and per operator) and
+- ❌ **D0** Stage 20's deferred exercise-reporting (per rule and per operator) and
   specificity-ratchet deliverables (allowlist derived from each case's `expected_firing`)
   re-specified against the specification and built at the head of the first queue; they
-  stay tracked by their Stage 20 bullets.
+  stay tracked by their Stage 20 bullets. *(2026-10-02, resolved by hand: the work shipped as #162 and #163, both ✅ under Stage 20, so this bullet tracks nothing of its own.)*
 - ✅ First-class detector ids on multi-detector rules, referenced by the
   specification's intended-rule edges, so "a detector serves no other mode" is
   checked mechanically (prerequisite of D1's condition 4). *(Item 164)*
@@ -1787,17 +1794,17 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ **D2** Mode 3's own feature and detector, or its recorded intermediate state. *(Item 167)*
 - ✅ **D1/D2** Maintainer sign-off of modes 3 and 4 at the queue's human gate, recorded
   with date and outcome in the specification module. *(Item 168)*
-- 📋 **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
+- ✅ **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
   refined and those left as documented drafts. *(Item 204)*
 
 **Acceptance.**
 
-- [ ] At least one mode in the specification meets all six conditions of "fully specified
+- [x] At least one mode in the specification meets all six conditions of "fully specified
   end to end" in [`roadmap.md`](roadmap.md), each checked against live state: the committed
   fixture's measured firing agrees with its expected set, the deciding detector serves no
-  other mode, and the status derives `validated` (**G2**). *(not attested 2026-09-22, item 169: modes 3 and 4 both carry a maintainer sign-off dated 2026-09-22 at outcome="intermediate-state", not "at-the-bar"; conditions 1-5 hold live for both (recomputed via `traceability.bar_conditions`), but condition 6 requires an "at-the-bar" sign-off, so no mode meets all six conditions and the set of modes at the bar is empty)*
+  other mode, and the status derives `validated` (**G2**). *(not attested 2026-09-22, item 169: modes 3 and 4 both carry a maintainer sign-off dated 2026-09-22 at outcome="intermediate-state", not "at-the-bar"; conditions 1-5 hold live for both (recomputed via `traceability.bar_conditions`), but condition 6 requires an "at-the-bar" sign-off, so no mode meets all six conditions and the set of modes at the bar is empty)* *(Item 204 AC3 supersedes the not-attested-2026-09-22 note on this box: recomputed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8 (own venv, segfacet.__file__ resolves under the clone), modes 2 and 3 each meet all six conditions. traceability.bar_conditions(mode_id) returns met True for conditions 1-5 of both (mode 2 condition 4 subjects: fused_label/fused_label, neighbour_contact/stray_contact; mode 3 condition 4 subject: split_fragment/split_fragment; neither names a PROXY_RULE_IDS rule), and mode_sign_off gives date=2026-10-02, outcome=at-the-bar for both (gate-0133, item 203). Recomputed over all 16 modes in SPECIFICATION, the set at the bar is exactly 2 and 3. tests/test_203_modes_2_and_3_signed_at_the_bar.py and tests/test_168_maintainer_sign_off.py::test_ac9_at_the_bar_claims_are_cross_checked_against_live_state pass in the clone (7 passed with the sheet-digest check, 0 skipped).)*
 - [x] Every mode this stage refined carries a maintainer sign-off with date and outcome in
   the specification module (**G8**). *(Item 169 AC11: tests/test_168_maintainer_sign_off.py and tests/test_165_mode_4_at_the_bar.py pass in full in the clean clone (18 + 11 = 29 passed), clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2. sorted(MODE_SIGN_OFFS) == [3, 4], matching the modes queue-022 selected for refinement (mode 3 split, mode 4 islands). Mode 3: date=2026-09-22, outcome=intermediate-state. Mode 4: date=2026-09-22, outcome=intermediate-state.)*
 - [x] Every mode not refined keeps a complete specification entry and is reported at its
@@ -1810,6 +1817,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - [x] The end-to-end detection count is recorded here per lifecycle status and per evidence
   rung, as measured numbers with what they were measured on, naming the modes refined and
   the modes left as documented drafts (**G7**, Stage 20 criterion 5). *(Item 169 AC6-AC8, measured live from segfacet.failure_modes in the clean clone, clone commit 2c4b62bcf2dcad5f37ec88273a74eae432b06df2: derived status counts over 16 modes: validated 7, implemented 2, specified 0, proposed 7. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stage 32: 3, 4; at the fully-specified bar: none; left as documented drafts: 14.)*
+  - **2026-10-02** → Item 204 AC10 re-runs Stage 32 D3 on the re-grounded corpus, read live from segfacet.failure_modes in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8 (the 2026-09-22 clause above stands as the record of that date): derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7. modes refined by stages 32 and 33: 2, 3, 4; at the fully-specified bar: 2, 3; left as documented drafts: 13.
 
 > **Criterion 1 moves with Stage 33** *(2026-09-22)*. Gate `gate-bb24` signed modes 3 and 4 off at a
 > recorded intermediate state, and the review behind that outcome is Stage 33's scope.
@@ -1826,7 +1834,7 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 
 ---
 
-## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — 🚧
+## Stage 33 — Corpus & Rule Re-grounding: modes 3 and 4 to the bar (G2, G7, G8) — ✅
 
 **Goal.** Rebuild the geometric corpus base as a lordotic L1–L5, re-author the fixtures that
 do not express their mode, re-home the rules the queue-022 review named (`insights.md`,
@@ -1904,27 +1912,34 @@ re-grounded but not driven to the bar. Vertebra-local extents are Stage 27's.
   sequence. *(Item 198)*
 - ✅ **Maintenance** Positional gate and insight citations in the records rewritten to
   IDs. *(Item 199)*
-- 📋 **D4** The bar checker's condition 2 made existential and detector-granular.
+- ✅ **D4** The bar checker's condition 2 made existential and detector-granular.
   *(Item 200)*
-- 📋 **D4** The severity-ladder constants re-measured, including the split operators.
+- ✅ **D4** The severity-ladder constants re-measured, including the split operators.
   *(Item 201)*
-- 📋 **D4** A generated `docs/aide/rules.generated.md`. *(Item 202)*
-- 📋 **D5** Modes 3 and 4 re-signed by the maintainer at the bar (human gate), with the
-  outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
-- 📋 **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
+- ✅ **D4** A generated `docs/aide/rules.generated.md`. *(Item 202)*
+- ✅ **D5 re-plan** The mode 2/3 boundary re-drawn: mode 2 keeps the paired case,
+  mode 3 becomes the own-label fragment, and `stray_contact` and `split` move to
+  mode 2. *(Item 205)*
+- ✅ **D5 re-plan** A geometric corpus case for one label over two full, separate
+  vertebrae. *(Item 206)*
+- ✅ **D5 re-plan** Mode 2's fused-label detector, from size and centroid spacing.
+  *(Item 207)*
+- ✅ **D5 re-plan** Mode 3's own detector, from whole-label contact fraction and small
+  size. *(Item 208)*
+- ✅ **D5** Modes 2 and 3 signed by the maintainer at the bar (human gate gate-0133, re-scoped from modes 3 and 4 when gate-51da was declined on 2026-09-30), with the outcome written to `MODE_SIGN_OFFS`. *(Item 203)*
+- ✅ **D6** Stage validation from a clean clone, re-running Stage 32's D3 and attesting
   Stage 32's criterion 1. *(Item 204)*
 
 **Acceptance.**
 
-- [ ] Modes 3 and 4 each meet all six conditions of Stage 32's "fully specified end to end",
-  checked against live state on the lordotic corpus. Each carries a maintainer sign-off at
-  `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**).
-- [ ] No committed corpus case is attributed to a mode or condition that its label map does
+- [x] Modes 2 and 3 each meet all six conditions of Stage 32's "fully specified end to end", checked against live state on the lordotic corpus. Each carries a maintainer sign-off at `outcome="at-the-bar"`, or a recorded reason why it does not (**G2**). Re-targeted from modes 3 and 4 when gate-51da was declined (2026-09-30); mode 4 keeps its gate-bb24 intermediate-state sign-off. *(Item 204 AC3, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8: modes 2 and 3 each return met True for all five records of traceability.bar_conditions (conditions 1-5), and each carries mode_sign_off outcome at-the-bar dated 2026-10-02 (gate-0133, item 203), which is condition 6. Mode 4 keeps its 2026-09-22 intermediate-state sign-off and is not asked for here. tests/test_203_modes_2_and_3_signed_at_the_bar.py and tests/test_168_maintainer_sign_off.py::test_ac9_at_the_bar_claims_are_cross_checked_against_live_state pass in the clone.)*
+- [x] No committed corpus case is attributed to a mode or condition that its label map does
   not express, and every case's measured firing equals its expected set, across both
-  corpora (**G2**, **G7**).
-- [ ] No rule declares a mode through a detector that reads another mode's signal. Condition
-  4 of the bar is checked mechanically at detector granularity (**G2**, **G8**).
+  corpora (**G2**, **G7**). *(Item 204 AC4 and AC5, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8. AC4: tests/test_163_specificity_ratchet.py passes in full (24 passed); traceability.build_matrix().conformance drives 18 cases (14 geometric, 4 intensity), equal to the union of both committed manifests case_id values, with 18 agreeing and 0 whose agrees is False, unspecified_cases (). AC5, read as item 204 A1 defines it (a judgement nothing computes, so attested on three facts): failure_modes.specification_conflicts() returns (); each 2026-09-22 review finding is resolved live (crop_at_border is a fov_truncation condition case, item 175; fuse_adjacent fused label is one connected component, item 176; force_overlap is absent from both manifests, item 195; split is attributed to mode 2 and split_own_label to mode 3, item 205); and every committed case has a dated decision record behind its attribution, tabulated in the item 204 spec. tests/test_175_crop_fov_si.py, test_176_fuse_bridged.py, test_195_force_overlap_removed.py, test_205_mode_2_3_boundary.py and test_206_fuse_separate_fixture.py pass in the clone (58 passed). The legacy crop_at_border remains a translate-then-clip (item 175 Left open), attributed to fov_truncation by the maintainer's 2026-09-24 decision.)*
+- [x] No rule declares a mode through a detector that reads another mode's signal. Condition
+  4 of the bar is checked mechanically at detector granularity (**G2**, **G8**). *(Item 204 AC6, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8, read as item 204 A2 defines it (no computed predicate for reads another mode's signal, so attested against the detectors the review re-homed). tests/test_164, 187, 188, 189, 192, 193, 194, 200, 202 and 205 pass in the clone (125 passed). modes_for_detector over all 27 registered detectors: fragmentation/components (1) and fragmentation/islands (4), neither serving 2 or 3; neighbour_contact/stray_contact (2), re-drawn from mode 3 by gate-51da; fused_label/fused_label (2); split_fragment/split_fragment (3); the three coverage detectors (10); mislabel/ordering (9); sequence/swap and sequence/shift (9); sequence/skip (10); sequence/transitional (11), no sequence detector serving 12; spline_offset/spline_offset (); every reference_delta and intensity_reference_delta detector (). bounds/metric_out_of_range serves 2, 3 and 4 as a recorded proxy. Condition 4 subjects are fused_label/fused_label and neighbour_contact/stray_contact for mode 2, split_fragment/split_fragment for mode 3; none names a PROXY_RULE_IDS rule. The regenerated rules.generated.md equals the committed file byte for byte.)*
 - [x] A label map holding both T12 and L1, and no T13, produces no missing-level finding
   (**G2**). *(item 186 AC2 (test_ac2_t12_map_no_coverage_finding, tests/test_186_expected_level_sequence.py): full suite run 2026-09-27, 9330 passed, 72 env-gated skips; T12 map produces no coverage finding)*
-- [ ] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
-  as measured numbers with what they were measured on (**G7**).
+  - **2026-10-02** → Item 204 AC7 and AC8, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8: tests/test_204_stage33_validation.py and tests/test_186_expected_level_sequence.py::test_ac2_t12_map_no_coverage_finding pass (3 passed). The six-block T12, L1-L5 map (labels 19-24, no 28) has relationships.missing_levels == [] and run_rules under bundled_default_config returns six findings, all (border, unexpected_clip); none comes from a detector serving mode 6 or 10 (the three coverage detectors and sequence/skip, derived from the live registry), so no missing-level finding.
+- [x] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
+  as measured numbers with what they were measured on (**G7**). *(Item 204 AC9, measured in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8 from segfacet.failure_modes (SPECIFICATION, derive_status, derive_mode_rung, a rung of None counted as none): derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7.)*

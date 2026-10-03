@@ -59,6 +59,8 @@ docs/aide/traceability_matrix.generated.md text eol=lf
 # pins above (see CLAUDE.md's Gotchas).
 docs/aide/failure_modes.generated.json text eol=lf
 docs/aide/failure_modes.generated.md text eol=lf
+# Item 202: the generated rule table is byte-compared against a fresh render.
+docs/aide/rules.generated.md text eol=lf
 
 # Item 111: 016_features_report.json and 022_stage3_report.json were the only
 # committed byte-reproducible text fixtures still unpinned -- latent only

@@ -1059,7 +1059,11 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     reads the relative measure instead), so both of item 167's previously
     wired paths become unwired too, adding 2 more to n. Total: n gains 5
     (3 + 2), m gains 5 (the five new paths only) -- (26, 96) -> (31, 101),
-    verified against segfacet.catalogue.build_catalogue() live."""
+    verified against segfacet.catalogue.build_catalogue() live.
+
+    (31, 101) -> (30, 101): item 208 (2026-09-30): label_contact_fraction
+    becomes wired (split_fragment consumes it), so n loses 1 and m is
+    unchanged."""
     import segfacet.catalogue as catalogue
 
     from segfacet.synth.golden import build_report_for_case
@@ -1069,8 +1073,8 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     assert case_id in companion["cases"], f"{case_id!r} missing from the companion"
     entry = companion["cases"][case_id]
     documented_n, documented_m = entry["unwired_leaf_paths"], entry["total_leaf_paths"]
-    assert (documented_n, documented_m) == (31, 101), (
-        f"{case_id!r}'s documented evidence has moved off the pinned 31/101 "
+    assert (documented_n, documented_m) == (30, 101), (  # item 208 (2026-09-30)
+        f"{case_id!r}'s documented evidence has moved off the pinned 30/101 "
         f"value: {documented_n}/{documented_m}"
     )
 

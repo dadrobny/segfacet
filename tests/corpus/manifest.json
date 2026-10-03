@@ -325,11 +325,15 @@
       },
       "case_id": "fuse_adjacent",
       "condition": "",
-      "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the inter-centroid spacing around the fused label, is read by no shipped rule, so no rule is designated.",
+      "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the label's size and the inter-centroid spacing around it, is read by fused_label (item 207), which is designated.",
       "detection": "pipeline",
-      "expected_labels": [],
-      "expected_rule_ids": [],
-      "expected_verdict": "pass",
+      "expected_labels": [
+        22
+      ],
+      "expected_rule_ids": [
+        "fused_label"
+      ],
+      "expected_verdict": "flagged-for-review",
       "failure_mode": 2,
       "failure_mode_name": "fused vertebra segments",
       "kind": "failure",
@@ -406,8 +410,8 @@
         "neighbour_contact"
       ],
       "expected_verdict": "flagged-for-review",
-      "failure_mode": 3,
-      "failure_mode_name": "split vertebra segment",
+      "failure_mode": 2,
+      "failure_mode_name": "fused vertebra segments",
       "kind": "failure",
       "perturbation": "split",
       "perturbation_params": {
@@ -444,7 +448,8 @@
         23
       ],
       "expected_rule_ids": [
-        "bounds"
+        "bounds",
+        "split_fragment"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 3,
@@ -496,6 +501,49 @@
       "scan_fixture": "fixtures/crop_fov_si_scan.nii.gz",
       "seed": 0,
       "seg_fixture": "fixtures/crop_fov_si_seg.nii.gz"
+    },
+    {
+      "base": {
+        "curve_amplitude_mm": 0.0,
+        "levels": [
+          "L1",
+          "L2",
+          "L3",
+          "L4",
+          "L5"
+        ],
+        "spacing": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "case_id": "fuse_separate",
+      "condition": "",
+      "detail": "fuse (unbridged, renumbered): relabelled neighbour label 23 onto target label 22 without filling the gap, so 22 covers two full, separate bodies; renumbered (old, new) [(24, 23)]. Mode 2's own signal (label size and the spacings around it) is read by fused_label (item 207); fragmentation on the two components is a co-detection (mode 1's detector), not a mode-1 case.",
+      "detection": "pipeline",
+      "expected_labels": [
+        22
+      ],
+      "expected_rule_ids": [
+        "fragmentation",
+        "fused_label"
+      ],
+      "expected_verdict": "flagged-for-review",
+      "failure_mode": 2,
+      "failure_mode_name": "fused vertebra segments",
+      "kind": "failure",
+      "perturbation": "fuse",
+      "perturbation_params": {
+        "bridged": false,
+        "neighbour_label": 23,
+        "renumber": true,
+        "target_label": 22
+      },
+      "reconstruction": null,
+      "scan_fixture": "fixtures/base_scan.nii.gz",
+      "seed": 0,
+      "seg_fixture": "fixtures/fuse_separate_seg.nii.gz"
     }
   ],
   "generator": "segfacet.synth.corpus",

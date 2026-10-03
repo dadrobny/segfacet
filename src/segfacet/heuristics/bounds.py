@@ -369,6 +369,23 @@ class BoundsRule(Rule):
                     "extent, below-min and above-max are the two directions "
                     "of one decision (A3)"
                 ),
+                question=(
+                    "Is a label's volume or x/y/z extent outside the plausible "
+                    "[min, max] range for its level?"
+                ),
+                fires_when=(
+                    "per metric (volume, extent_x, extent_y, extent_z): value "
+                    "< min or value > max, strictly; min/max are the level's "
+                    "reference percentiles when `source` is `reference` and "
+                    "the level is covered, else the hand-set group bounds; "
+                    "labels with no cervical/thoracic/lumbar group are skipped"
+                ),
+                params=(
+                    ("source", DEFAULT_SOURCE),
+                    ("reference_lower_pct", DEFAULT_REFERENCE_LOWER_PCT),
+                    ("reference_upper_pct", DEFAULT_REFERENCE_UPPER_PCT),
+                    ("reference_stratum", DEFAULT_REFERENCE_STRATUM),
+                ),
                 signal_paths=(
                     "per_label.{label}.geometry.extent_x_mm",
                     "per_label.{label}.geometry.extent_y_mm",

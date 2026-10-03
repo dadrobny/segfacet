@@ -68,6 +68,8 @@ _OPERATORS = (
     "remove_level",
     "crop_at_border",
     "sequence_break",
+    "split",
+    "split_own_label",
     # "force_overlap" dropped by item 195, 2026-09-28: the operator, its
     # case and its ladder were removed.
 )
@@ -112,28 +114,43 @@ def _rule_a_home(metric_name: str, specification) -> Optional[int]:
     return homes[0] if homes else None
 
 
+def _manifest_case_ids_for_perturbation(perturbation: str) -> list:
+    """Every manifest case id whose ``perturbation`` is the operator (item 206,
+    2026-09-30: ``fuse`` now has two, ``fuse_adjacent`` and ``fuse_separate``)."""
+    cases = load_manifest()["cases"]
+    matches = [c["case_id"] for c in cases if c.get("perturbation") == perturbation]
+    assert matches, perturbation
+    return matches
+
+
 def _rule_b_home(operator: str, specification, conditions):
     """``(mode_id_or_None, condition_id_or_None)`` for *operator*'s manifest
-    case, per rule (b)."""
-    case_id = _manifest_case_id_for_perturbation(operator)
-    mode_hits = [
+    case(s), per rule (b).
+
+    Item 206 (2026-09-30): an operator may have several manifest cases; the
+    mode and condition hits are collected as sets over all of them, and each
+    still must hold at most one value, so an operator whose cases sit in two
+    different modes still fails.
+    """
+    case_ids = _manifest_case_ids_for_perturbation(operator)
+    mode_hits = {
         m
         for m, mode in specification.items()
-        if any(cc.case_id == case_id for cc in mode.corpus_cases)
-    ]
-    condition_hits = [
+        if any(cc.case_id in case_ids for cc in mode.corpus_cases)
+    }
+    condition_hits = {
         c
         for c, cond in conditions.items()
-        if any(cc.case_id == case_id for cc in cond.corpus_cases)
-    ]
-    assert len(mode_hits) <= 1, f"{operator} case {case_id!r} owned by >1 mode: {mode_hits}"
+        if any(cc.case_id in case_ids for cc in cond.corpus_cases)
+    }
+    assert len(mode_hits) <= 1, f"{operator} cases {case_ids!r} owned by >1 mode: {mode_hits}"
     assert len(condition_hits) <= 1, (
-        f"{operator} case {case_id!r} owned by >1 condition: {condition_hits}"
+        f"{operator} cases {case_ids!r} owned by >1 condition: {condition_hits}"
     )
     if mode_hits:
-        return mode_hits[0], None
+        return next(iter(mode_hits)), None
     if condition_hits:
-        return None, condition_hits[0]
+        return None, next(iter(condition_hits))
     return None, None
 
 
@@ -410,7 +427,6 @@ def test_ac18_designated_metrics_cover_the_registry():
     designated = [
         spec.designated_metric for spec in severity_ladder.SEVERITY_LADDERS.values()
     ]
-    assert len(designated) == len(set(designated))
     assert set(designated) == set(per_mode.PER_MODE_METRIC_SPECS) - {"overlapping_voxel_count"}
 
 

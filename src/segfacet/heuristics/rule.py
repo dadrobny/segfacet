@@ -29,7 +29,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 from segfacet.heuristics.finding import Finding
 
@@ -120,12 +120,24 @@ class RuleDetector:
     A detector declares **no** modes of its own (A1): which modes it serves
     is derived from ``segfacet.failure_modes.SPECIFICATION`` by
     ``modes_for_detector(rule_id, detector_id)``, never authored here.
+
+    ``question``, ``fires_when`` and ``params`` (item 202) are read-only
+    documentation metadata, read by ``segfacet.rule_table`` and never by
+    ``evaluate``. ``question`` is one sentence on what the branch judges;
+    ``fires_when`` is the comparison as ``evaluate`` codes it; ``params`` is
+    a tuple of ``(config_key, code_default)`` pairs for the non-severity keys
+    the branch's decision reads, each default the same value ``evaluate``
+    passes to ``config.rule_param`` (hashable and JSON-serialisable: a
+    scalar, ``None`` or a tuple).
     """
 
     detector_id: str
     description: str
     signal_paths: Tuple[str, ...] = ()
     mode_less_reason: str = ""
+    question: str = ""
+    fires_when: str = ""
+    params: Tuple[Tuple[str, Any], ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -349,6 +361,11 @@ class RuleModeDeclaration:
                 raise ValueError(
                     f"RuleModeDeclaration: detector {detector_id!r} 'signal_paths' "
                     f"must be a tuple, got {type(element.signal_paths).__name__}."
+                )
+            if not isinstance(element.params, tuple):
+                raise ValueError(
+                    f"RuleModeDeclaration: detector {detector_id!r} 'params' "
+                    f"must be a tuple, got {type(element.params).__name__}."
                 )
             for signal_path in element.signal_paths:
                 if signal_path not in signal_path_set:

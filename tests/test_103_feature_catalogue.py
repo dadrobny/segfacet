@@ -605,14 +605,20 @@ _RULE_MODE_MAP = {
     # Item 187 (2026-09-28): the split case's rule_id moved from
     # fragmentation to its own neighbour_contact, so fragmentation
     # (1, 3, 4) -> (1, 4) and a new neighbour_contact (3,) entry appears.
-    "fragmentation": (1, 4),  # fragment (1), islands (4)
+    # Item 206 (2026-09-30): fuse_separate (mode 2) fires fragmentation as a
+    # co-detection, so (1, 4) -> (1, 2, 4).
+    "fragmentation": (1, 2, 4),  # fragment (1), fuse_separate (2), islands (4)
     "coverage": (6,),  # remove_level (6)
     "sequence": (9,),  # sequence_break
     # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the
     # only case that scanned to "overlap") was removed.
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
     "bounds": (3,),  # split_own_label (3)
-    "neighbour_contact": (3,),  # split (3)
+    "neighbour_contact": (2,),  # split (2); item 205 (2026-09-30) moved from mode 3
+    # Item 207 (2026-09-30): fuse_adjacent and fuse_separate (mode 2) designate it.
+    "fused_label": (2,),
+    # Item 208 (2026-09-30): split_own_label (mode 3) designates it.
+    "split_fragment": (3,),
 }
 
 

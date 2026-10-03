@@ -161,6 +161,12 @@ class AllowlistEntry:
 #: ``_KNOWN_BYTE_EXACT_FIXTURE_FAMILIES`` covers that separately).
 ALLOWLIST: Tuple[AllowlistEntry, ...] = (
     AllowlistEntry(
+        path="docs/aide/rules.generated.md",
+        ground="exact-parameter-floats",
+        reason="Every float is a config or code-default literal rendered by "
+        "json.dumps; no computed measurement (item 202).",
+    ),
+    AllowlistEntry(
         path="tests/corpus/manifest.json",
         ground="exact-parameter-floats",
         reason="36 float leaves, all declared generator parameters or exact "

@@ -192,9 +192,10 @@ def test_ac1_reexported_from_heuristics_package():
 def test_ac1_iter_rule_declarations_ascending_by_rule_id():
     # Item 187 (2026-09-27): the new neighbour_contact rule brought the
     # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
-    # (mislabel's moved Detector A) brings it to twelve.
+    # (mislabel's moved Detector A) brings it to twelve. Item 207
+    # (2026-09-30): the new fused_label rule brings it to thirteen.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 12
+    assert len(pairs) == 14  # item 208 (2026-09-30): 13 -> 14
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -255,8 +256,9 @@ def test_ac2_ill_formed_declaration_raises_naming_field(kwargs, expected_field_n
 def test_ac3_ten_rules_registered():
     # Item 187 (2026-09-27): the new neighbour_contact rule brought the
     # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
-    # brings it to twelve.
-    assert len(list(iter_rules())) == 12
+    # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
+    # thirteen.
+    assert len(list(iter_rules())) == 14  # item 208 (2026-09-30): 13 -> 14
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
@@ -336,11 +338,16 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
     # Revised 2026-09-28 (item 188): ("coverage", 6) enters the set --
     # coverage now declares mode 10, so its firing on `remove_level` (mode 6)
     # is a recorded co-detection rather than the rule's own declaration.
+    # Item 206 (2026-09-30): ("fragmentation", 2) re-enters the set through
+    # fuse_separate, whose two whole bodies under one label fire
+    # fragmentation, mode 1's detector. The item-176 sentence above stays as
+    # the record of its earlier exit.
     expected_co_detections = {
         # Item 189 (2026-09-28): ("mislabel", 1) left the set -- the
         # spline_offset detector that co-detected displace moved to its own
         # mode-less spline_offset rule.
         ("coverage", 6),  # coverage now declares mode 10, not mode 6
+        ("fragmentation", 2),  # item 206: fuse_separate co-detects it
     }
 
     measured_co_detections = set()
@@ -837,7 +844,17 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     paths (``contact_fraction``, ``neighbour_label``) are consumed by
     ``neighbour_contact``, so neither lands in ``()``.
     ``stayed_rule_unmapped`` stays 0 (re-measured against the regenerated
-    committed catalogue, not assumed)."""
+    committed catalogue, not assumed).
+
+    Reconciled again (item 207, 2026-09-30): ``stage3.spacing_consistency.
+    spacings_mm[]`` leaves the ``()`` bucket because the new ``fused_label``
+    rule consumes it: ``stayed_empty`` moves 91 -> 90. ``stayed_rule_unmapped``
+    stays 0.
+
+    Reconciled again (item 208, 2026-09-30): ``per_label.{label}.components.
+    label_contact_fraction`` leaves the ``()`` bucket because the new
+    ``split_fragment`` rule consumes it: ``stayed_empty`` moves 90 -> 89.
+    ``stayed_rule_unmapped`` stays 0."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
@@ -847,7 +864,7 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
 
     assert stayed_rule_unmapped == 0
-    assert stayed_empty == 91
+    assert stayed_empty == 89  # item 207 (2026-09-30): 91 -> 90; item 208 (2026-09-30): 90 -> 89
 
 
 # =========================================================================== #

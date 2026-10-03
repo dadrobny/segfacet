@@ -779,7 +779,11 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     `crop_at_border`; condition `displaced_vertebra` `displace`.
     `fuse_adjacent`, `remove_level_relabel` and `crop_fov_si` expect "pass"
     and are not expected-failure records, so mode 6 scores exactly one case
-    and modes 0, 2 and 10 score none."""
+    and modes 0, 2 and 10 score none.
+
+    Item 207 (2026-09-30): ``fuse_adjacent`` now expects "flagged-for-review"
+    (``fused_label``) and is an expected-failure record, so mode 2 scores
+    three cases and the n_cases sum is 11."""
     metrics = _corpus_cohort_metrics()
     # Item 174 (2026-09-23): 9/10 -> 10/11.
     # Item 175 (2026-09-24): 10/11 -> 11/12.
@@ -812,7 +816,10 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     # dropping it out of the mode/condition n_cases sum: 11 -> 10.
     # Item 195 (2026-09-28): force_overlap removed, dropping mode 15's
     # zero-case entry out of the per-mode map: 10 -> 9.
-    assert sum(m.n_cases for m in metrics.per_mode) == 9
+    # Item 206 (2026-09-30): fuse_separate adds a mode-2 case: 9 -> 10.
+    # Item 207 (2026-09-30): fuse_adjacent now expects a flag
+    # (fused_label) and becomes an expected-failure record: 10 -> 11.
+    assert sum(m.n_cases for m in metrics.per_mode) == 11
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
     assert mode_six.n_cases == 1
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)

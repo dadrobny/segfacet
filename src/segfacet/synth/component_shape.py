@@ -18,7 +18,10 @@ failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
   supplementary severity ladder. ``bridged=True`` (item 176) also fills the
   gap between the pair and renumbers every caudal label one position up:
   one connected label over two bodies with a continuous sequence, mode 2's
-  corpus fixture ``fuse_adjacent``.
+  corpus fixture ``fuse_adjacent``. ``bridged=False, renumber=True`` (item
+  206) relabels without filling and renumbers: two full, separate bodies
+  under one label with a continuous sequence, the corpus fixture
+  ``fuse_separate``.
 * :class:`InjectIslandsPerturbation` (``"inject_islands"``) -- adds one or
   more tiny (default 27-voxel, 3x3x3) disconnected components to a target
   label in verified-empty space, inset from every FOV face and separated
@@ -26,11 +29,12 @@ failure mode (a ``failure_modes.SPECIFICATION`` id) and the offending label(s):
   island-kind ``"Rogue island(s):"`` finding while the target's dominant
   body stays above the fragmentation-index threshold.
 * :class:`SplitPerturbation` (``"split"``, item 166, re-authored by item
-  174) -- mode 3 sub-type (a): the target's neighbour-facing cap, the
-  smallest whole-slice run holding at least ``donated_fraction`` of its
-  voxels, is relabelled onto the adjacent neighbour.
+  174) -- mode 2's paired case (item 205): the target's neighbour-facing
+  cap, the smallest whole-slice run holding at least ``donated_fraction`` of
+  its voxels, is relabelled onto the adjacent neighbour, which then covers
+  its own vertebra plus part of the target.
 * :class:`SplitOwnLabelPerturbation` (``"split_own_label"``, item 174) --
-  mode 3 sub-type (b): the same caudal cap gets a label of its own (the
+  mode 3 (the fragment case): the same caudal cap gets a label of its own (the
   target's), and every label cranial to it shifts up one level (l -> l - 1).
 
 Implemented strictly against the unchanged item-036 contract (``Perturbation``,
@@ -266,6 +270,27 @@ class FragmentPerturbation(Perturbation):
 # --------------------------------------------------------------------------- #
 
 
+def _require_next_higher(labels, target, neighbour):
+    if labels.index(neighbour) != labels.index(target) + 1:
+        raise FacetInputError(
+            f"FusePerturbation(renumbered): neighbour_label={neighbour!r} "
+            f"must be the next-higher present label after "
+            f"target_label={target!r} in {labels!r}, or the caudal "
+            "renumbering would relabel the target itself."
+        )
+
+
+def _renumber_caudal(data, orig, labels, neighbour):
+    """Renumber every present label above ``neighbour`` down one present step
+    (shared by the bridged and unbridged-renumbered fuse forms; callers run
+    ``_require_next_higher`` first)."""
+    caudal = [lbl for lbl in labels if lbl > neighbour]
+    renumbered = list(zip(caudal, [neighbour] + caudal[:-1]))
+    for old, new in renumbered:
+        data[orig == old] = new
+    return renumbered
+
+
 @register_perturbation
 class FusePerturbation(Perturbation):
     """Merge an adjacent label pair into a single label.
@@ -286,6 +311,18 @@ class FusePerturbation(Perturbation):
     label greater than the neighbour is renumbered to the present label
     before it, so the sequence stays continuous. The neighbour must be the
     next-higher present label.
+
+    ``bridged=False, renumber=True`` (item 206, 2026-09-30) is mode 2's second
+    corpus fixture, ``fuse_separate``: the neighbour is relabelled onto the
+    target, nothing is filled, and the caudal labels are renumbered as in the
+    bridged form -- one label over two full, separate bodies. ``renumber``
+    defaults to ``bridged``; ``bridged=True, renumber=False`` raises.
+
+    Item 207 (2026-09-30): the bridged form designates ``fused_label`` alone
+    (flagged-for-review on the target label); the unbridged-renumbered form
+    designates ``fragmentation`` and ``fused_label``. The default unbridged
+    form keeps its ``{coverage, fragmentation}`` designation (it now also
+    fires ``fused_label``, like ``sequence``, which it already omits).
     """
 
     name = "fuse"
@@ -296,10 +333,19 @@ class FusePerturbation(Perturbation):
         target_label: Optional[int] = None,
         neighbour_label: Optional[int] = None,
         bridged: bool = False,
+        renumber: Optional[bool] = None,
     ):
         self._target_label = target_label
         self._neighbour_label = neighbour_label
         self._bridged = bool(bridged)
+        # Item 206 (2026-09-30): ``None`` resolves to ``bridged``, so the
+        # default unbridged form and the bridged form are unchanged.
+        self._renumber = self._bridged if renumber is None else bool(renumber)
+        if self._bridged and not self._renumber:
+            raise FacetInputError(
+                "FusePerturbation: bridged=True always renumbers the caudal "
+                "labels; renumber=False is not supported with it."
+            )
 
     def apply(self, labelmap: nib.Nifti1Image, seed: int) -> PerturbationResult:
         labels = _present_labels(labelmap)
@@ -329,7 +375,7 @@ class FusePerturbation(Perturbation):
         else:
             target, neighbour = _choose_adjacent_pair(labels, seed)
 
-        if not self._bridged:
+        if not self._bridged and not self._renumber:
             data = np.array(np.asanyarray(labelmap.dataobj), copy=True)
             data[data == neighbour] = target
             rule_ids = frozenset({"coverage", "fragmentation"})
@@ -345,16 +391,30 @@ class FusePerturbation(Perturbation):
                 "missing from the span -- not mode 2's own bounds proxy, "
                 "which needs a reference."
             )
-        else:
-            if labels.index(neighbour) != labels.index(target) + 1:
-                raise FacetInputError(
-                    f"FusePerturbation(bridged=True): neighbour_label={neighbour!r} "
-                    f"must be the next-higher present label after "
-                    f"target_label={target!r} in {labels!r}, or the caudal "
-                    "renumbering would relabel the target itself."
-                )
+        elif not self._bridged:
+            # Item 206: unbridged but renumbered -- label ``target`` covers two
+            # full, separate bodies; nothing is filled.
             orig = np.asanyarray(labelmap.dataobj)
             data = np.array(orig, copy=True)
+            _require_next_higher(labels, target, neighbour)
+            data[orig == neighbour] = target
+            renumbered = _renumber_caudal(data, orig, labels, neighbour)
+            rule_ids = frozenset({"fragmentation", "fused_label"})
+            offending = frozenset({target})
+            verdict = "flagged-for-review"
+            detail = (
+                f"fuse (unbridged, renumbered): relabelled neighbour label "
+                f"{neighbour} onto target label {target} without filling the "
+                f"gap, so {target} covers two full, separate bodies; "
+                f"renumbered (old, new) {renumbered}. Mode 2's own signal "
+                "(label size and the spacings around it) is read by "
+                "fused_label (item 207); fragmentation on the two components "
+                "is a co-detection (mode 1's detector), not a mode-1 case."
+            )
+        else:
+            orig = np.asanyarray(labelmap.dataobj)
+            data = np.array(orig, copy=True)
+            _require_next_higher(labels, target, neighbour)
             axis = si_axis(labelmap.affine)
 
             # Column walk on a view of the private copy, stacking axis last.
@@ -389,21 +449,18 @@ class FusePerturbation(Perturbation):
             n_columns = int(np.count_nonzero(bridge.any(-1)))
 
             data[orig == neighbour] = target
-            caudal = [lbl for lbl in labels if lbl > neighbour]
-            renumbered = list(zip(caudal, [neighbour] + caudal[:-1]))
-            for old, new in renumbered:
-                data[orig == old] = new
+            renumbered = _renumber_caudal(data, orig, labels, neighbour)
 
-            rule_ids = frozenset()
-            offending = frozenset()
-            verdict = "pass"
+            rule_ids = frozenset({"fused_label"})
+            offending = frozenset({target})
+            verdict = "flagged-for-review"
             detail = (
                 f"fuse (bridged): fused neighbour label {neighbour} into target "
                 f"label {target}, filling {n_bridged} background voxels over "
                 f"{n_columns} columns along the stacking axis (array axis "
                 f"{axis}); renumbered (old, new) {renumbered}. Mode 2's own "
-                "signal, the inter-centroid spacing around the fused label, is "
-                "read by no shipped rule, so no rule is designated."
+                "signal, the label's size and the inter-centroid spacing around "
+                "it, is read by fused_label (item 207), which is designated."
             )
 
         out_img = _new_image(data, labelmap)
@@ -432,8 +489,9 @@ class FusePerturbation(Perturbation):
 class SplitPerturbation(Perturbation):
     """Relabel one label's neighbour-facing cap onto its adjacent neighbour.
 
-    Registered under ``"split"``: mode 3 sub-type (a), part of a vertebra
-    carries a neighbouring vertebra's label (item 166; re-authored by item
+    Registered under ``"split"``: mode 2's paired case (item 205,
+    2026-09-30; mode 3 before), one label covers its own vertebra plus part
+    of a neighbour (item 166; re-authored by item
     174, 2026-09-23). The cap is the part of the target beyond one S-I cut on
     the side facing the neighbour along the affine-resolved stacking axis
     (item 116, via :func:`segfacet.synth.axes.si_axis`): the smallest number
@@ -501,8 +559,8 @@ class SplitPerturbation(Perturbation):
         out_img = _new_image(data, labelmap)
 
         expectation = Expectation(
-            failure_mode=3,
-            failure_mode_name=FAILURE_MODE_NAMES[3],
+            failure_mode=2,
+            failure_mode_name=FAILURE_MODE_NAMES[2],
             expected_rule_ids=frozenset({"neighbour_contact"}),
             expected_labels=frozenset({neighbour}),
             expected_verdict="flagged-for-review",
@@ -527,7 +585,7 @@ class SplitPerturbation(Perturbation):
 class SplitOwnLabelPerturbation(Perturbation):
     """Give one label's caudal cap a label of its own, shifting cranial labels.
 
-    Registered under ``"split_own_label"``: mode 3 sub-type (b), part of a
+    Registered under ``"split_own_label"``: mode 3, part of a
     vertebra carries a label of its own (item 174, 2026-09-23). The cap faces
     the next-higher present label (caudal, since ascending labels advance
     caudally) and is cut by the same rule as :class:`SplitPerturbation`.
@@ -585,7 +643,8 @@ class SplitOwnLabelPerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=3,
             failure_mode_name=FAILURE_MODE_NAMES[3],
-            expected_rule_ids=frozenset({"bounds"}),
+            # item 208 (2026-09-30): split_fragment fires on the cap beside bounds.
+            expected_rule_ids=frozenset({"bounds", "split_fragment"}),
             expected_labels=frozenset({target}),
             expected_verdict="flagged-for-review",
             detail=(

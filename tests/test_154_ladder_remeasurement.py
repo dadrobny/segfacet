@@ -423,38 +423,24 @@ def test_ac14_disposition_ladders_are_derived_from_the_homes(sl):
     expected = tuple(
         operator
         for operator in sl.SEVERITY_LADDERS
-        if PER_MODE_METRIC_SPECS[sl.SEVERITY_LADDERS[operator].designated_metric].failure_mode
-        == 1
+        if sl.SEVERITY_LADDERS[operator].failure_mode == 1
     )
     assert sl.MODE_LADDER_DISPOSITIONS[1].ladders == expected
 
 
-def test_adv_ac14_rehoming_a_metric_changes_the_derived_tuple(monkeypatch, sl):
-    import segfacet.eval.per_mode as per_mode
+def test_adv_ac14_rehoming_a_ladder_changes_the_derived_tuple(monkeypatch, sl):
+    # Item 201: the disposition follows each ladder's own home
+    # (LadderSpec.failure_mode), so the control re-homes a ladder. Choose the
+    # first ladder whose home is not already mode 1, so the control is
+    # non-vacuous by construction (item 171).
+    operator = next(op for op, spec in sl.SEVERITY_LADDERS.items() if spec.failure_mode != 1)
 
-    # Item 171 (defect class recorded in insights.md 2026-09-20, item 167):
-    # the old literal metric ("rogue_island_count") was wrong only while its
-    # live home was not 1 -- Stage 33 re-homes ladders and metrics, so a
-    # fixed literal could end up already living in mode 1, making this
-    # control vacuous. Choose the first ladder (in SEVERITY_LADDERS order)
-    # whose designated metric does not already live in mode 1 instead, so
-    # the control is non-vacuous by construction.
-    metric_name = next(
-        sl.SEVERITY_LADDERS[operator].designated_metric
-        for operator in sl.SEVERITY_LADDERS
-        if per_mode.PER_MODE_METRIC_SPECS[sl.SEVERITY_LADDERS[operator].designated_metric].failure_mode
-        != 1
-    )
-    assert per_mode.PER_MODE_METRIC_SPECS[metric_name].failure_mode != 1
-
-    patched_specs = dict(per_mode.PER_MODE_METRIC_SPECS)
-    patched_specs[metric_name] = dataclasses.replace(patched_specs[metric_name], failure_mode=1)
-    monkeypatch.setattr(per_mode, "PER_MODE_METRIC_SPECS", patched_specs)
+    patched_ladders = dict(sl.SEVERITY_LADDERS)
+    patched_ladders[operator] = dataclasses.replace(patched_ladders[operator], failure_mode=1)
+    monkeypatch.setattr(sl, "SEVERITY_LADDERS", patched_ladders)
 
     rehomed_ladders = tuple(
-        operator
-        for operator in sl.SEVERITY_LADDERS
-        if patched_specs[sl.SEVERITY_LADDERS[operator].designated_metric].failure_mode == 1
+        op for op, spec in sl.SEVERITY_LADDERS.items() if spec.failure_mode == 1
     )
     assert rehomed_ladders != sl.MODE_LADDER_DISPOSITIONS[1].ladders
 

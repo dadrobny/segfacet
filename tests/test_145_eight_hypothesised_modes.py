@@ -124,7 +124,7 @@ _FOV_CONDITION_ID = "fov_truncation"
 #: least one case demonstrating one of the mode's *own* intended rules).
 _EXPECTED_DERIVED_STATUS = {
     1: "validated",
-    2: "implemented",
+    2: "validated",  # item 205 (2026-09-30): split moved here
     3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
@@ -890,10 +890,25 @@ def test_ac13_co_detection_alone_does_not_validate():
     (item 188, 2026-09-28: ``coverage`` now declares mode 10, not mode 6).
     Re-pointed from mode 1, which the 2026-09-15 revision made validated by
     homing ``fragment`` there. Asserted through the production
-    derivation, with the disjointness recomputed rather than transcribed."""
+    derivation, with the disjointness recomputed rather than transcribed.
+
+    Item 205 (2026-09-30): ``split`` joined mode 2 and fires its own rule, so
+    live mode 2 is ``validated`` and no live mode carries this branch. The
+    test therefore asserts over a probe: mode 2 restricted to its
+    ``fuse_adjacent`` case.
+
+    Item 207 (2026-09-30): ``fuse_adjacent`` now fires ``fused_label``, a
+    mode-2 rule, so the probe also drops that edge; the one firing is then by
+    a rule the probe mode does not own, which is the branch under test."""
     import segfacet.failure_modes as fm
 
-    mode = _mode(fm, 2)
+    live = _mode(fm, 2)
+    mode = dataclasses.replace(
+        live,
+        corpus_cases=tuple(c for c in live.corpus_cases if c.case_id == "fuse_adjacent"),
+        intended_rules=tuple(e for e in live.intended_rules if e.rule_id != "fused_label"),
+    )
+    assert len(mode.corpus_cases) == 1
     assert mode.corpus_cases
     own_rules = {edge.rule_id for edge in mode.intended_rules}
     assert own_rules, mode.id

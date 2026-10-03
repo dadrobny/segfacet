@@ -218,7 +218,7 @@ rules:
 
   # ------------------------------------------------------------------ #
   # neighbour_contact (item 187) -- relative stray-component contact
-  # detector, mode 3 (split vertebra segment). Registered enabled-by-default
+  # detector, mode 2 (fused vertebra segments). Registered enabled-by-default
   # with NO active section here, same section-less-by-design rationale as
   # `intensity` below: an active `rules.neighbour_contact` section would
   # change this file's parsed `rules` dict and hence `config_hash`. Values
@@ -236,6 +236,53 @@ rules:
   #     # is 0.3317 (split, label 24's stray component against label 23),
   #     # every other stray component measures 0.0.
   #     contact_fraction_threshold: 0.1
+  #     severity: flagged-for-review
+
+  # ------------------------------------------------------------------ #
+  # fused_label (item 207) -- size-and-spacing detector, mode 2 (fused
+  # vertebra segments). Reads per_label.{label}.geometry.physical_volume_mm3
+  # and stage3.spacing_consistency.spacings_mm[]. Registered
+  # enabled-by-default with NO active section here, same section-less-by-
+  # design rationale as `neighbour_contact` above: an active
+  # `rules.fused_label` section would change this file's parsed `rules`
+  # dict and hence `config_hash`. Values below are DOCUMENTATION ONLY,
+  # copied verbatim from heuristics/fused_label.py's code defaults.
+  #
+  # fused_label:
+  #   enabled: true
+  #   params:
+  #     # Fires only when BOTH ratios are strictly exceeded. A label's volume
+  #     # over its larger adjacent label's volume (synthetic corpora: fused
+  #     # labels read 2.0-2.3).
+  #     size_ratio_threshold: 1.5
+  #     # The smaller spacing adjacent to the label over the median of the
+  #     # case's other spacings (fused labels read about 1.48-1.57).
+  #     spacing_ratio_threshold: 1.25
+  #     severity: flagged-for-review
+
+  # ------------------------------------------------------------------ #
+  # split_fragment (item 208) -- contact-and-size detector, mode 3 (split
+  # vertebra segment). Reads per_label.{label}.components.
+  # label_contact_fraction and per_label.{label}.geometry.
+  # physical_volume_mm3. Registered enabled-by-default with NO active
+  # section here, same section-less-by-design rationale as `fused_label`
+  # above: an active `rules.split_fragment` section would change this
+  # file's parsed `rules` dict and hence `config_hash`. Values below are
+  # DOCUMENTATION ONLY, copied verbatim from heuristics/split_fragment.py's
+  # code defaults.
+  #
+  # split_fragment:
+  #   enabled: true
+  #   params:
+  #     # Fires only when the label's whole-label contact fraction strictly
+  #     # exceeds this AND its size ratio is strictly below the next value
+  #     # (synthetic corpora: the cap reads 0.33; donor labels read up to
+  #     # 0.19, every other label 0.0).
+  #     contact_fraction_threshold: 0.1
+  #     # The label's volume over the median volume of the up-to-four
+  #     # labels within two places of it (the cap reads 0.21; the lowest
+  #     # silent reading with contact above 0.1 is 0.79).
+  #     size_ratio_threshold: 0.5
   #     severity: flagged-for-review
 
   # ------------------------------------------------------------------ #

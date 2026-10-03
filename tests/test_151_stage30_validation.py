@@ -347,7 +347,8 @@ def test_ac8_case_count_equals_summed_manifest_case_count(conformance_index):
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
     # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
     # Item 195 (2026-09-28): 18 -> 17 (force_overlap removed).
-    assert len(keys) == 17, keys
+    # Item 206 (2026-09-30): 17 -> 18 (fuse_separate).
+    assert len(keys) == 18, keys
     assert set(conformance_index) == set(keys)
 
 
@@ -366,7 +367,8 @@ def test_ac9_no_unspecified_case_and_matrix_is_fully_conformant(matrix):
     # Item 174 (2026-09-23): 16 -> 17 (split_own_label).
     # Item 175 (2026-09-24): 17 -> 18 (crop_fov_si).
     # Item 195 (2026-09-28): 18 -> 17 (force_overlap removed).
-    assert matrix.conformance.agree_count == 17
+    # Item 206 (2026-09-30): 17 -> 18 (fuse_separate).
+    assert matrix.conformance.agree_count == 18
 
 
 def test_adv_ac9_injected_unspecified_case_is_flagged(monkeypatch):
@@ -475,12 +477,14 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
     # 14 -> 13: item 194 (2026-09-28) removes mode 1's bounds edge -- mode 1
     # is attributed only where no other mode applies, and bounds serves
     # modes 2, 3 and 4.
+    # 13 -> 14: item 207 (2026-09-30) adds mode 2's fused_label edge.
+    # 14 -> 15: item 208 (2026-09-30) adds mode 3's split_fragment edge.
     total_edges = 0
     for mode in fm.SPECIFICATION.values():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 13, total_edges
+    assert total_edges == 15, total_edges
 
 
 # =========================================================================== #

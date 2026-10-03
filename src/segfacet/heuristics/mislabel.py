@@ -199,6 +199,16 @@ class MislabelRule(Rule):
             RuleDetector(
                 detector_id="ordering",
                 description=_MISLABEL_TAG,
+                question=(
+                    "Do two labels sit in the wrong order along the fitted "
+                    "spine curve?"
+                ),
+                fires_when=(
+                    "`flag_order_inconsistency` and "
+                    "`stage3.monotonic_consistency.non_monotonic_pairs` lists "
+                    "a level pair; one finding per pair"
+                ),
+                params=(("flag_order_inconsistency", True),),
                 signal_paths=(
                     "stage3.monotonic_consistency.non_monotonic_pairs[]",
                 ),

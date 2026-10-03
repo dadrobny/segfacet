@@ -166,6 +166,12 @@ def test_ac1_no_detector_serves_mode_1_beside_another_mode():
 # =========================================================================== #
 
 
+# Item 207 (2026-09-30): by-design co-detections. A case listed here is
+# attributed to another mode (AC3) and fires mode 1's detector because its
+# label really is in several parts. Each entry is checked by equality.
+_MODE_1_CO_DETECTIONS = {"fuse_separate": frozenset({1, 2})}
+
+
 def test_ac2_no_committed_case_served_by_mode_1_beside_another_mode(
     served_modes_by_case,
 ):
@@ -179,8 +185,11 @@ def test_ac2_no_committed_case_served_by_mode_1_beside_another_mode(
     assert processed == expected_total, (processed, expected_total)
     assert served, "expected >=1 case in the committed corpora"
 
+    assert set(_MODE_1_CO_DETECTIONS) <= set(served)
     for case_id, modes in served.items():
-        if 1 in modes:
+        if case_id in _MODE_1_CO_DETECTIONS:
+            assert modes == _MODE_1_CO_DETECTIONS[case_id], (case_id, modes)
+        elif 1 in modes:
             assert modes == {1}, (case_id, modes)
 
 
@@ -221,15 +230,17 @@ def test_ac4_rendering_states_mode_1s_catch_all_rule():
 
 
 def test_ac5_mode_2_definition_uses_the_vertebra_wording():
+    # Item 205 (2026-09-30): the opening words follow the re-drawn boundary.
     expected = (
-        "One label covers substantial parts of two or more adjacent "
-        "ground-truth vertebrae:"
+        "One label covers its own ground-truth vertebra plus part or all of "
+        "an adjacent one:"
     )
     assert fm.SPECIFICATION[2].definition.startswith(expected)
 
 
 def test_ac6_mode_3_definition_uses_the_vertebra_wording():
-    expected = "One ground-truth vertebra is covered by more than one label:"
+    # Item 205 (2026-09-30): the opening words follow the re-drawn boundary.
+    expected = "Part of a ground-truth vertebra carries a label of its own,"
     assert fm.SPECIFICATION[3].definition.startswith(expected)
 
 
@@ -264,13 +275,13 @@ def test_adv_planted_shared_mode_1_edge_is_reported():
 
 def test_adv_planted_double_carried_case_is_reported():
     """``planted-double-carried-case``: mode 1 planted with ``split``'s
-    ``CorpusCaseExpectation`` (taken from ``SPECIFICATION[3].corpus_cases``)
+    ``CorpusCaseExpectation`` (taken from ``SPECIFICATION[2].corpus_cases`` since item 205, 2026-09-30; mode 3 before)
     makes AC3's helper report exactly ``{"split"}`` -- it guards a
     disjointness check that compares mode 1 against itself, or against
     conditions only."""
     split_case = next(
         case
-        for case in fm.SPECIFICATION[3].corpus_cases
+        for case in fm.SPECIFICATION[2].corpus_cases  # item 205 (2026-09-30)
         if case.case_id == "split"
     )
     modes = tuple(

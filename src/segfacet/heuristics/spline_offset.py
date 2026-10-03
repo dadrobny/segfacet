@@ -264,6 +264,16 @@ class SplineOffsetRule(Rule):
             RuleDetector(
                 detector_id="spline_offset",
                 description=_MISALIGN_TAG,
+                question=(
+                    "Does a vertebra's centroid sit far off the spinal curve "
+                    "fitted through its neighbours?"
+                ),
+                fires_when=(
+                    "a non-terminal label's `offset_mm` >= `max_offset_mm` "
+                    "(inclusive); terminal (sequence-first/last) labels are "
+                    "skipped"
+                ),
+                params=(("max_offset_mm", _DEFAULT_MAX_OFFSET_MM),),
                 mode_less_reason=(
                     "the offset from the spinal curve is an "
                     "anatomy-classification signal (spondylolisthesis, "

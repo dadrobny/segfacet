@@ -248,7 +248,8 @@ def test_ac10_nothing_fires():
         c for c in failure_modes.SPECIFICATION[2].corpus_cases if c.case_id == "fuse_adjacent"
     ]
     assert len(matches) == 1, matches
-    assert failure_modes.measured_firing(matches[0]) == ()
+    # Item 207 (2026-09-30): fused_label now fires on label 22; the name stays.
+    assert failure_modes.measured_firing(matches[0]) == ("fused_label",)
 
 
 # =========================================================================== #

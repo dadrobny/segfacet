@@ -232,6 +232,19 @@ class IntensityReferenceDeltaRule(Rule):
             RuleDetector(
                 detector_id="distance",
                 description=_DISTANCE_TAG,
+                question=(
+                    "Is the label's overall intensity profile far from its "
+                    "level's cohort intensity reference distribution?"
+                ),
+                fires_when=(
+                    "`flag_distribution_distance` and the label's "
+                    "`distribution_distance` >= `max_distribution_distance` "
+                    "(inclusive), on a label the intensity reference covers"
+                ),
+                params=(
+                    ("flag_distribution_distance", True),
+                    ("max_distribution_distance", DEFAULT_MAX_DISTRIBUTION_DISTANCE),
+                ),
                 mode_less_reason=(
                     "records this mode-less rule's own firing value (item "
                     "193, 2026-09-28) -- same disposition as the rule "
@@ -241,6 +254,16 @@ class IntensityReferenceDeltaRule(Rule):
             RuleDetector(
                 detector_id="out_of_range",
                 description=_OUT_OF_RANGE_TAG,
+                question=(
+                    "Does an intensity feature of the label fall outside its "
+                    "level's reference percentile band?"
+                ),
+                fires_when=(
+                    "`flag_out_of_range` and the feature is listed in the "
+                    "label's `out_of_range_features`, on a label the "
+                    "intensity reference covers; one finding per listed feature"
+                ),
+                params=(("flag_out_of_range", True),),
                 mode_less_reason=(
                     "records this mode-less rule's own firing value (item "
                     "193, 2026-09-28) -- same disposition as the rule "
@@ -250,6 +273,19 @@ class IntensityReferenceDeltaRule(Rule):
             RuleDetector(
                 detector_id="robust_z",
                 description=_ROBUST_Z_TAG,
+                question=(
+                    "Is an intensity feature of the label many robust "
+                    "standard deviations from its level's reference median?"
+                ),
+                fires_when=(
+                    "`flag_robust_z` and |`robust_z`| >= `max_robust_z` "
+                    "(inclusive) for a feature, on a label the intensity "
+                    "reference covers; one finding per feature"
+                ),
+                params=(
+                    ("flag_robust_z", True),
+                    ("max_robust_z", DEFAULT_MAX_ROBUST_Z),
+                ),
                 mode_less_reason=(
                     "records this mode-less rule's own firing value (item "
                     "193, 2026-09-28) -- same disposition as the rule "

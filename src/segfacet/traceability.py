@@ -112,7 +112,8 @@ And, new in item 165, :func:`bar_conditions` reports conditions 1-5 of the
 roadmap's Stage 32 "fully specified end to end" bar (:data:`BAR_CONDITIONS`)
 for one mode, each recomputed live against ``failure_modes.SPECIFICATION``,
 the rule registry and the feature catalogue rather than authored anywhere --
-one :class:`BarCondition` per condition. Condition 6, the maintainer's sign-off, is deliberately **not**
+one :class:`BarCondition` per condition. Condition 2 is existential and
+detector-granular (item 200). Condition 6, the maintainer's sign-off, is deliberately **not**
 computed here: it is a person's decision, not a derivable fact, and item
 168's deliverable.
 
@@ -1172,22 +1173,22 @@ def bar_conditions(mode_id: int, catalogue=None) -> Tuple[BarCondition, ...]:
     )
 
     # Condition 2 -- a committed fixture expresses the mode.
-    own_rule_ids = {edge.rule_id for edge in mode.intended_rules}
-    all_cases_agree = all(
-        failure_modes_module.case_agrees(case) for case in mode.corpus_cases
-    )
-    intersecting_case_ids = tuple(
+    own_pairs = {
+        (edge.rule_id, d) for edge in mode.intended_rules for d in edge.detector_ids
+    }
+    subjects_2 = tuple(
         case.case_id
         for case in mode.corpus_cases
-        if case.expected_firing and own_rule_ids.intersection(case.expected_firing)
+        if failure_modes_module.case_agrees(case)
+        and own_pairs.intersection(failure_modes_module.measured_detector_firing(case))
     )
     condition_2 = BarCondition(
         number=2,
-        met=all_cases_agree and bool(intersecting_case_ids),
-        subjects=intersecting_case_ids,
+        met=bool(subjects_2),
+        subjects=subjects_2,
         detail=(
-            "Corpus case(s) expressing the mode via its own intended rule(s), "
-            f"agreeing with measured firing: {intersecting_case_ids}."
+            "Corpus case(s) that agree with measured firing and fire one of "
+            f"the mode's own intended (rule_id, detector_id) pairs: {subjects_2}."
         ),
     )
 

@@ -165,7 +165,7 @@ def components_to_dict(c: "ComponentsInfo") -> dict:
     no-aliasing contract as ``component_sizes``.
 
     ``stray_contact_area_mm2`` and ``stray_contact_label`` (item 167) are
-    emitted verbatim from the dataclass -- mode 3's neighbour-contact signal
+    emitted verbatim from the dataclass -- mode 2's neighbour-contact signal
     and its bookkeeping label.
 
     ``component_contacts`` and ``label_contact_fraction`` (item 187) are the

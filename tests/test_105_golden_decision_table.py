@@ -270,7 +270,8 @@ def test_ac3_current_tree_has_30_non_py_fixtures():
     # Item 174 (2026-09-23): 23 -> 24.
     # Item 175 (2026-09-24): 24 -> 26.
     # Item 195 (2026-09-28): 26 -> 25.
-    assert len(_walk_tests_non_py_files()) == 25
+    # Item 206 (2026-09-30): 25 -> 26 (fuse_separate_seg.nii.gz added).
+    assert len(_walk_tests_non_py_files()) == 26
 
 
 def test_ac3_section1_fixture_set_equals_filesystem_walk_both_directions(section1_rows, sections):
@@ -710,7 +711,8 @@ def test_adv_ac3_empty_header_only_table_fails_with_full_missing_list():
     # Item 174 (2026-09-23): 23 -> 24 (split_own_label_seg.nii.gz).
     # Item 175 (2026-09-24): 24 -> 26 (crop_fov_si_seg/_scan.nii.gz).
     # Item 195 (2026-09-28): 26 -> 25 (force_overlap_seg.nii.gz removed).
-    assert len(missing) == 25, "an empty table must not trivially pass on two empty sets"
+    # Item 206 (2026-09-30): 25 -> 26 (fuse_separate_seg.nii.gz added).
+    assert len(missing) == 26, "an empty table must not trivially pass on two empty sets"
 
 
 def test_adv_ac6_asserted_by_naming_nonexistent_module_is_detectable():

@@ -571,6 +571,8 @@ _INVENTORY_ADDED_AFTER_126 = {
     # Item 175 (2026-09-24): the S-I FOV crop's seg and its own scan.
     "tests/corpus/fixtures/crop_fov_si_seg.nii.gz",
     "tests/corpus/fixtures/crop_fov_si_scan.nii.gz",
+    # Item 206 (2026-09-30): mode 2's separate-bodies fuse case.
+    "tests/corpus/fixtures/fuse_separate_seg.nii.gz",
 }
 
 #: Removed by item 195 (2026-09-28): the force_overlap case (and its

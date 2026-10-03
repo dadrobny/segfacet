@@ -158,31 +158,29 @@ def test_ac5_h5_survives_derived_home_of_99(monkeypatch):
 
 
 # =========================================================================== #
-# AC6: H6 (test_154) survives rogue_island_count already living in mode 1.
+# AC6: H6 (test_154) survives the inject_islands ladder already living in mode 1.
 # =========================================================================== #
 
 
-def _patch_rogue_island_home_to_1(monkeypatch):
-    """Shared by AC6 and the H6 branch of the adversarial case below: patch
-    both PER_MODE_METRIC_SPECS and MODE_LADDER_DISPOSITIONS the way A4
-    requires, and return the module handles used to build the patch."""
-    import segfacet.eval.per_mode as per_mode
+def _patch_inject_islands_home_to_1(monkeypatch):
+    """Shared by AC6 and the H6 branch of the adversarial case below: re-home
+    the inject_islands ladder to mode 1 and recompute
+    MODE_LADDER_DISPOSITIONS the way A4 requires; return severity_ladder."""
     import segfacet.eval.severity_ladder as severity_ladder
 
-    patched_specs = dict(per_mode.PER_MODE_METRIC_SPECS)
-    patched_specs["rogue_island_count"] = dataclasses.replace(
-        patched_specs["rogue_island_count"], failure_mode=1
+    # Item 201: the disposition follows the ladders' own homes, so the
+    # inject_islands ladder (home mode 4) is what gets re-homed to mode 1.
+    patched_ladders = dict(severity_ladder.SEVERITY_LADDERS)
+    patched_ladders["inject_islands"] = dataclasses.replace(
+        patched_ladders["inject_islands"], failure_mode=1
     )
-    monkeypatch.setattr(per_mode, "PER_MODE_METRIC_SPECS", patched_specs)
+    monkeypatch.setattr(severity_ladder, "SEVERITY_LADDERS", patched_ladders)
 
-    # MODE_LADDER_DISPOSITIONS[1].ladders is computed from the specs at
+    # MODE_LADDER_DISPOSITIONS[1].ladders is computed from the ladders at
     # import (severity_ladder.py); recompute it the same way so the table
-    # stays consistent with the patched specs (A4).
+    # stays consistent with the patched ladders (A4).
     recomputed_ladders = tuple(
-        operator
-        for operator in severity_ladder.SEVERITY_LADDERS
-        if patched_specs[severity_ladder.SEVERITY_LADDERS[operator].designated_metric].failure_mode
-        == 1
+        operator for operator, spec in patched_ladders.items() if spec.failure_mode == 1
     )
     patched_dispositions = dict(severity_ladder.MODE_LADDER_DISPOSITIONS)
     patched_dispositions[1] = dataclasses.replace(
@@ -190,28 +188,25 @@ def _patch_rogue_island_home_to_1(monkeypatch):
     )
     monkeypatch.setattr(severity_ladder, "MODE_LADDER_DISPOSITIONS", patched_dispositions)
 
-    return per_mode, severity_ladder
+    return severity_ladder
 
 
-def test_ac6_h6_survives_rogue_island_count_already_in_mode_1(monkeypatch):
+def test_ac6_h6_survives_inject_islands_ladder_already_in_mode_1(monkeypatch):
     module = _load_module_from_path(
         _TESTS_DIR / "test_154_ladder_remeasurement.py", "_test_171_test_154"
     )
-    per_mode, severity_ladder = _patch_rogue_island_home_to_1(monkeypatch)
+    import segfacet.eval.severity_ladder as live
+
+    # Precondition: the live home is not 1, so the membership assert below
+    # can only pass because of the patch.
+    assert live.SEVERITY_LADDERS["inject_islands"].failure_mode != 1
+    severity_ladder = _patch_inject_islands_home_to_1(monkeypatch)
 
     # The defect is really present before we trust the pass below (§6):
-    # every ladder designating rogue_island_count is now recorded under
-    # mode 1's disposition.
-    designating_ladders = tuple(
-        operator
-        for operator in severity_ladder.SEVERITY_LADDERS
-        if severity_ladder.SEVERITY_LADDERS[operator].designated_metric == "rogue_island_count"
-    )
-    assert designating_ladders
-    for operator in designating_ladders:
-        assert operator in severity_ladder.MODE_LADDER_DISPOSITIONS[1].ladders
+    # the inject_islands ladder is now recorded under mode 1's disposition.
+    assert "inject_islands" in severity_ladder.MODE_LADDER_DISPOSITIONS[1].ladders
 
-    module.test_adv_ac14_rehoming_a_metric_changes_the_derived_tuple(monkeypatch, severity_ladder)
+    module.test_adv_ac14_rehoming_a_ladder_changes_the_derived_tuple(monkeypatch, severity_ladder)
 
 
 # =========================================================================== #
@@ -330,14 +325,12 @@ def _h5_pre_item_body(monkeypatch):
 
 
 def _h6_pre_item_body(monkeypatch):
-    per_mode, severity_ladder = _patch_rogue_island_home_to_1(monkeypatch)
+    severity_ladder = _patch_inject_islands_home_to_1(monkeypatch)
 
-    patched_specs = per_mode.PER_MODE_METRIC_SPECS
     rehomed_ladders = tuple(
         operator
-        for operator in severity_ladder.SEVERITY_LADDERS
-        if patched_specs[severity_ladder.SEVERITY_LADDERS[operator].designated_metric].failure_mode
-        == 1
+        for operator, spec in severity_ladder.SEVERITY_LADDERS.items()
+        if spec.failure_mode == 1
     )
     assert rehomed_ladders != severity_ladder.MODE_LADDER_DISPOSITIONS[1].ladders
 
