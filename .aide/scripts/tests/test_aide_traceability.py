@@ -639,6 +639,29 @@ def test_claim_names_the_assumptions_that_pin_a_dependency(tmp_path: Path, capsy
     assert "A5 (item 039, no code to check against)" in out
 
 
+def test_claim_names_a_withdrawn_planned_dependency_as_absent(tmp_path: Path,
+                                                              capsys):
+    """039 is 📋 in stage 2, whose summary row is ❌: it left the queue's way
+    without landing (issue #393), so A5 has no code to check against — as
+    for the ❌ and ⏸️ dependencies."""
+    repo = _init_repo(tmp_path / "repo", spec=SPEC_WITH_PINS)
+    progress = (PROGRESS
+                .replace("| 1 | Rules | G1 | 🚧 |",
+                         "| 1 | Rules | G1 | 🚧 |\n| 2 | Later | G1 | ❌ |")
+                .replace("- ❌ The importer. *(Item 039)*\n", "")
+                + "\n## Stage 2 — Later\n\n**Deliverables.**\n"
+                  "- 📋 The importer. *(Item 039)*\n")
+    (repo / "docs" / "aide" / "progress.md").write_text(progress,
+                                                       encoding="utf-8")
+    _run(["git", "commit", "-am", "withdraw stage 2"], repo)
+    rc = aide.main(["--repo", str(repo), "claim"])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    assert "claimed item 042" in out
+    assert "A5 (item 039, no code to check against)" in out
+    assert "A1 (item 041)" in out
+
+
 def test_claim_says_nothing_about_pins_when_there_are_none(tmp_path: Path, capsys):
     repo = _init_repo(tmp_path / "repo")
     assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0

@@ -259,7 +259,60 @@ def test_a_base_that_would_fork_the_stack_is_refused(tmp_path: Path):
     assert _base(repo, Q3) == Q2
 
 
-@pytest.mark.parametrize("value", ["0", "-1", "true", "1.5", '"2"'])
+@pytest.mark.parametrize("mode", ["auto-merge", "pr"])
+@pytest.mark.parametrize("extra", [(), ("--dry-run",), ("--specs",)])
+def test_a_start_with_no_origin_is_refused_before_any_branch_exists(
+        tmp_path: Path, capsys, mode: str, extra: tuple):
+    """Issue #377: `queue start` pushes last, so with no origin it left the
+    branch on this machine, base and start recorded, and exited 1. Off local
+    mode it is now refused before any other check, a dry run included; the
+    same checkout in local mode starts the queue."""
+    repo = _init(tmp_path / "r", mode=mode)
+    before = _branches(repo)
+    capsys.readouterr()
+    assert _start(repo, 1, *extra) == 1
+    out, err = capsys.readouterr()
+    assert (f'aide queue start: [git] mode = "{mode}" in aide.toml needs a '
+            f'remote named origin') in err
+    assert "would start" not in out
+    assert _branches(repo) == before
+    assert _git(["config", "--get-regexp", r"branch\..*\.aide-"], repo,
+                check=False).stdout == ""
+
+    (repo / "aide.toml").write_text(AIDE_TOML.format(mode="local", loop=""),
+                                    encoding="utf-8")
+    _git(["commit", "-qam", "local mode"], repo)
+    assert _start(repo, 1, *extra) == 0
+
+
+@pytest.mark.parametrize("extra", [(), ("--dry-run",),
+                                   ("--base", "no-such-branch")])
+def test_no_origin_is_refused_ahead_of_the_cap_and_the_base(
+        tmp_path: Path, capsys, extra: tuple):
+    """The help says the origin refusal comes before the base, the cap or
+    --dry-run is considered. Here the cap is already reached (exit 3 below
+    the origin check) or the base is no branch (its own refusal): the origin
+    sentence is what answers, so the check cannot slip below either."""
+    repo = _init(tmp_path / "r")          # local: queue 1 starts and counts
+    assert _start(repo, 1) == 0
+    _work(repo, "q1.txt")
+    (repo / "aide.toml").write_text(AIDE_TOML.format(mode="auto-merge", loop=""),
+                                    encoding="utf-8")
+    _git(["commit", "-qam", "auto-merge, and no origin"], repo)
+    before = _branches(repo)
+    capsys.readouterr()
+
+    assert _start(repo, 2, *extra) == 1
+    out, err = capsys.readouterr()
+    assert ('aide queue start: [git] mode = "auto-merge" in aide.toml needs a '
+            'remote named origin') in err
+    assert "max_open_queues" not in err
+    assert "is not a local branch" not in err
+    assert "would start" not in out
+    assert _branches(repo) == before
+
+
+@pytest.mark.parametrize("value",["0", "-1", "true", "1.5", '"2"'])
 def test_an_unusable_cap_refuses_the_start_and_fails_the_check(
         tmp_path: Path, value: str):
     repo = _init(tmp_path / "r", loop=f"max_open_queues = {value}")

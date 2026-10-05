@@ -33,7 +33,8 @@ The rules:
   branch is `aide queue start NNN [--specs]`; merging a stack of queue
   branches forward is `aide queue restack`; opening a queue's own PR and
   marking it ready are `aide queue pr` and `aide queue ready`; landing is
-  `aide merge`; branch clean-up is `aide gc`; checking a branch's changed
+  `aide merge`; branch clean-up is `aide gc`, and discarding an empty queue
+  branch is `aide queue discard NNN`; checking a branch's changed
   files against its item's authorised paths is `aide scope`. Do not
   improvise the equivalent `git fetch`/`git status`/`git switch -c`/`git diff
   --name-only` sequences, and do not run `gh pr create` or `gh pr ready`:

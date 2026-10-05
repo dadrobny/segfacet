@@ -22,6 +22,9 @@ Subcommands::
     python .aide/scripts/aide.py queue tidy NNN        # mark a superseded queue as completed
     python .aide/scripts/aide.py queue gate NNN        # raise a planned queue's plan-review gate
     python .aide/scripts/aide.py queue restack         # merge a stack of queue branches forward
+    python .aide/scripts/aide.py queue pr [NNN]        # open the queue branch's draft PR
+    python .aide/scripts/aide.py queue ready [NNN]     # mark the queue PR ready (--undo: back to draft)
+    python .aide/scripts/aide.py queue discard NNN     # delete an empty queue branch (no commits past its base)
     python .aide/scripts/aide.py insights add|list|tick|archive|resolve  # the insight inbox
     python .aide/scripts/aide.py ledger abandon NNN --rounds N  # the ledger row for an item that never merged
     python .aide/scripts/aide.py claim [--queue NNN]   # pick + claim the next 📋 item
@@ -54,7 +57,7 @@ import tempfile
 import time
 import unicodedata
 from pathlib import Path, PurePosixPath, PurePath
-from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Sequence, Set, Tuple
+from typing import Callable, Collection, Dict, Iterator, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 # --------------------------------------------------------------------------- #
 # Status icons (the format contract — see .aide/conventions.md)
@@ -79,12 +82,31 @@ RANK = {"planned": 0, "excluded": 1, "deferred": 2, "in-progress": 3,
         "in-review": 4, "complete": 5}
 #: The statuses that still hold a dependent back. A dependency leaves the way
 #: only by being merged (✅) or by leaving the queue's path (❌ excluded,
-#: ⏸️ deferred) — 🚧 and 🔍 both block, because work in progress and work whose
-#: PR is still open are alike missing from the base a dependent would branch
-#: from. Named once because two separate decisions turn on it being the same
-#: set: which item `aide claim` may offer, and whether a declared dependency
-#: actually orders two specs (`queue_spec_findings`).
+#: ⏸️ deferred, or 📋 in a withdrawn stage — `still_blocks`) — 🚧 and 🔍 both
+#: block, because work in progress and work whose PR is still open are alike
+#: missing from the base a dependent would branch from. Named once because
+#: two separate decisions turn on it being the same set: which item `aide
+#: claim` may offer, and whether a declared dependency actually orders two
+#: specs (`queue_spec_findings`).
 BLOCKING_STATUSES = ("planned", "in-progress", "in-review")
+
+
+def still_blocks(n: int, item_status: Dict[int, str],
+                 withdrawn: Collection[int] = ()) -> bool:
+    """Whether item *n* still holds back what waits on it — a dependent, a
+    queue-end item, or its queue's open state.
+
+    `BLOCKING_STATUSES`, bar a 📋 item in *withdrawn* (`withdrawn_stage_items`,
+    every bullet of it in a stage whose summary row is ❌): `claim` never
+    offers one, so it has left the queue's way as a ❌ item has, and blocking
+    on it stranded its dependents for good (issue #393). A 🚧 or 🔍 item of a
+    withdrawn stage still blocks — live work until its owner drops it (§2).
+    An item progress.md does not know counts as 📋. The one reading behind
+    `queue_is_open`, `queue_end_holds`, `_pick_item`, the `none left` report,
+    `_early_ready` and `check --queue`, so they cannot disagree.
+    """
+    st = item_status.get(n, "planned")
+    return st in BLOCKING_STATUSES and not (st == "planned" and n in withdrawn)
 
 # Icons may be multi-codepoint (⏸️ = U+23F8 U+FE0F), so match by alternation
 # (longest first), never a character class.
@@ -254,7 +276,8 @@ DEFAULT_CONFIG: Dict[str, Dict[str, object]] = {
     # means the Python running the CLI, which is whatever launched it: a
     # consumer whose dependency closure only resolves on 3.12 got a 3.14 venv
     # from an ambient conda, a source build that failed on cmake, and an
-    # `env` that still said OK (issue #166).
+    # `env` that still said OK (issue #166). `bootstrap` is what the build
+    # installs with, read by its first word in `bootstrap_argv` (issue #378).
     "python": {"venv": ".venv", "bootstrap": "pip install -e .[dev]",
                "test_command": "python -m pytest", "import_check": "",
                "interpreter": ""},
@@ -508,7 +531,8 @@ def _pathext_file(path: str) -> Optional[str]:
     return None
 
 
-def resolve_tool(name: str, repo_root: Path) -> Optional[str]:
+def resolve_tool(name: str, repo_root: Path,
+                 path: Optional[str] = None) -> Optional[str]:
     """Where the program *name* is, for the engine to run: the one resolver
     every program the engine starts goes through (issue #353).
 
@@ -521,6 +545,9 @@ def resolve_tool(name: str, repo_root: Path) -> Optional[str]:
     means for it. Any other *name* — a test command's program — is only
     looked up, from *repo_root* when it carries a directory. `shutil.which`
     applies PATHEXT on Windows, so `gh` finds the `gh.exe` installed there.
+    *path*, when given, is the search path a bare name is looked up on in
+    place of this process's PATH — the one the program will run with, as
+    `env --bootstrap`'s command does with the venv first (issue #378).
     """
     configured = _local_tools(repo_root).get(name) if name in RUN_TOOLS else None
     if configured is None or configured == "":
@@ -540,7 +567,8 @@ def resolve_tool(name: str, repo_root: Path) -> Optional[str]:
             found = _pathext_file(str(where))
     else:
         where = None
-        found = shutil.which(command)
+        found = (shutil.which(command) if path is None
+                 else shutil.which(command, path=path))
     if found is not None or configured in (None, ""):
         return found
     if where is None:
@@ -1023,6 +1051,9 @@ class HumanGate(NamedTuple):
     stage_last: Optional[int] = None
     #: True for ``stage N+`` — stage N and every later-numbered stage.
     stage_open: bool = False
+    #: The Blocks cell as written, stripped. Read where "names nothing" must
+    #: be told apart from "names something no reader parses" (issue #396).
+    blocks_cell: str = ""
 
     @property
     def stage_range(self) -> Optional[Tuple[int, Optional[int]]]:
@@ -1389,7 +1420,7 @@ def human_gates(lines: List[str]) -> List[HumanGate]:
         stage_open = bool(sm and sm.group("open"))
         blocks = [] if (blocks_all or stage) else _blocked_item_numbers(blocks_cell)
         out.append(HumanGate(i + 1, cells[0], blocks, stage, blocks_all, kind,
-                             stage_last, stage_open))
+                             stage_last, stage_open, blocks_cell))
     return out
 
 
@@ -2116,6 +2147,16 @@ def reword_roadmap_bullet(text: str, stage: str, n: int, new_text: str,
     i = bullets[n - 1]
     m = re.match(r"^(?P<pre>\s*[-*]\s+)(?P<body>.*)$", lines[i])
     lines[i] = m.group("pre") + new_text.strip()
+    # A wrapped bullet is its first line plus every indented non-bullet line
+    # under it, the shape `acceptance_box_last` reads on the progress side —
+    # replace them all, or the old wording's tail stays under the new text
+    # (issue #391).
+    last = i
+    while (last + 1 < len(lines)
+           and _BOX_CONTINUATION_RE.match(lines[last + 1])
+           and not _GUIDANCE_RE.match(lines[last + 1])):
+        last += 1
+    del lines[i + 1:last + 1]
     return "\n".join(lines) + ("\n" if text.endswith("\n") else ""), None
 
 
@@ -3528,7 +3569,8 @@ def queue_item_numbers(text: str) -> List[int]:
     return [int(m.group(1)) for m in _QUEUE_ITEM_RE.finditer(text)]
 
 
-def queue_is_open(text: str, item_status: Dict[int, str]) -> bool:
+def queue_is_open(text: str, item_status: Dict[int, str],
+                  withdrawn: Collection[int] = ()) -> bool:
     """Derived queue state: open iff any item is 📋/🚧/🔍 per progress.md.
 
     🔍 counts as open: an item whose PR is still awaiting review is not work the
@@ -3539,8 +3581,18 @@ def queue_is_open(text: str, item_status: Dict[int, str]) -> bool:
     queue file is decorative (kept for human readers), and the "live" queue is
     simply the lowest-numbered open one. An item progress.md doesn't know yet
     counts as planned, so a freshly wired queue is open.
+
+    A 📋 item in *withdrawn* — every bullet of it in a stage whose summary
+    row is ❌ (`withdrawn_stage_items`) — does not count, since `claim` will
+    never offer it: a queue left with only such items stayed the live queue
+    and `claim` reported them held rather than moving on (issue #389). A 🚧
+    or 🔍 item there still counts — live work until its owner drops it, as
+    §2 reads it for the stale ground. Every engine reader of "open" passes
+    the set since issue #393 — `status`, `check`'s declared-status comparison
+    and the record readers had kept the bullets alone and disagreed with
+    `claim` about the same tree; without it the bullets alone are read.
     """
-    return any(item_status.get(n, "planned") in ("planned", "in-progress", "in-review")
+    return any(still_blocks(n, item_status, withdrawn)
                for n in queue_item_numbers(text))
 
 
@@ -3562,7 +3614,8 @@ def _progress_item_status(repo_root: Path, config) -> Dict[int, str]:
 _RECORD_ITEM_STATUSES = ("complete", "excluded", "deferred")
 
 
-def record_documents(ddir: Path, item_status: Dict[int, str]) -> Set[Path]:
+def record_documents(ddir: Path, item_status: Dict[int, str],
+                     withdrawn: Collection[int] = ()) -> Set[Path]:
     """The documents under *ddir* that are records, not live (issue #338).
 
     An item spec whose item is ✅, ❌ or ⏸️ in progress.md, and a queue file
@@ -3571,32 +3624,44 @@ def record_documents(ddir: Path, item_status: Dict[int, str]) -> Set[Path]:
     an edit can never be cleared and returns on every run. A queue naming no
     item yet is live: it is being wired. An item progress.md does not know
     counts as planned, so with no progress.md nothing is a record.
+
+    A 📋 item in *withdrawn* (`withdrawn_stage_items`) is settled as a ⏸️
+    one is: its spec is a record, and it keeps no queue open — `claim` never
+    offers it (issue #393). Like ⏸️, the exemption is read on every run, so
+    the warnings return once the stage's summary row is off ❌.
     """
     out: Set[Path] = set()
     idir = ddir / "items"
     if idir.is_dir():
         for ipath in idir.glob("*.md"):
             n = item_spec_number(ipath)
-            if n is not None and item_status.get(n, "planned") in _RECORD_ITEM_STATUSES:
+            if n is None:
+                continue
+            st = item_status.get(n, "planned")
+            if st in _RECORD_ITEM_STATUSES or (st == "planned"
+                                               and n in withdrawn):
                 out.add(ipath)
     for qpath in iter_queue_paths(ddir / "queue"):
         try:
             qtext = qpath.read_text(encoding=_ENCODING)
         except (OSError, UnicodeDecodeError):
             continue
-        if queue_item_numbers(qtext) and not queue_is_open(qtext, item_status):
+        if queue_item_numbers(qtext) and not queue_is_open(
+                qtext, item_status, withdrawn):
             out.add(qpath)
     return out
 
 
-def _docs_item_status(ddir: Path) -> Dict[int, str]:
-    """Item statuses from ``ddir/progress.md``, or ``{}`` when it is unreadable."""
+def _docs_records(ddir: Path) -> Set[Path]:
+    """`record_documents` over ``ddir/progress.md``, read once for the item
+    statuses and the withdrawn stages; unreadable, nothing is a record."""
     path = ddir / "progress.md"
     try:
         lines = path.read_text(encoding=_ENCODING).splitlines()
     except (OSError, UnicodeDecodeError):
-        return {}
-    return _parse_item_status(lines)[2]
+        lines = []
+    return record_documents(ddir, _parse_item_status(lines)[2],
+                            withdrawn_stage_items(lines))
 
 
 def tidy_queue_text(text: str, superseded_by: int, date: str) -> str:
@@ -4213,9 +4278,10 @@ def insight_reference_findings(repo_root: Path,
       labelled fallback where there is no history to read. Tests are read
       too (issue #295): a comment or an assertion message naming "insight
       28" goes stale on the same archive a spec does. A record
-      (``record_documents`` — a ✅, ❌ or ⏸️ item's spec, a queue with no
-      open item) is not warned about (issue #338): §1 never rewrites one, so
-      the warning could not be cleared.
+      (``record_documents`` — a ✅, ❌ or ⏸️ item's spec, or a 📋 one of a
+      withdrawn stage, and a queue with no open item) is not warned about
+      (issue #338, #393): §1 never rewrites one, so the warning could not be
+      cleared.
 
     The first finding holds in a record too: an ID naming nothing is a
     citation no reader can follow, whoever wrote it.
@@ -4230,7 +4296,7 @@ def insight_reference_findings(repo_root: Path,
     docs, tests = _citation_files(repo_root, config, ddir)
     if not docs and not tests:
         return errors, warnings
-    records = record_documents(ddir, _docs_item_status(ddir))
+    records = _docs_records(ddir)
     # Read lazily and once: most files cite nothing, and a repo whose tests
     # cite no insight never opens the inbox or an archive for this check.
     cache: Dict[str, object] = {}
@@ -4552,7 +4618,8 @@ def gate_reference_findings(repo_root: Path,
     # and in a table with no row "gate 2" names nothing it could mean.
     has_rows = bool(gates) or unreadable
     ids = gate_ids(gates)
-    records = record_documents(ddir, _parse_item_status(lines)[2])
+    records = record_documents(ddir, _parse_item_status(lines)[2],
+                               withdrawn_stage_items(lines))
     for path in docs:
         try:
             text = path.read_text(encoding=_ENCODING)
@@ -5162,20 +5229,89 @@ def _reach_with_breadth(lines: List[str], g: HumanGate) -> str:
 
     The count covers the items the gate still sits in front of: a ✅ item has
     merged and a ❌ one is out, so "holding" either would overstate the reach
-    against the very enforcement this message mirrors. (``claim``'s stall
-    report narrows further, to the claimable subset of one queue — that is
-    the runtime view; this is the authoring-time view of the same fact, and a
-    stage whose every item merged falls back to the bare reach.)
+    against the very enforcement this message mirrors. "Out" is read as
+    ``_declined_reach_spent`` reads it (issue #409): ❌ by the item's own
+    bullets, or 📋 with every bullet in a withdrawn stage
+    (``spent_by_withdrawal``) — ``claim`` offers neither, so a warning that
+    goes quiet on that reading must not count them while it still fires.
+    (``claim``'s stall report narrows further, to the claimable subset of one
+    queue — that is the runtime view; this is the authoring-time view of the
+    same fact, and a stage whose every item merged falls back to the bare
+    reach.)
     """
     if g.stage is None:
         return g.reach
     _, _, item_status = _parse_item_status(lines)
+    left = spent_by_withdrawal(lines, item_status)
     items = [i for i in gate_stage_items(lines, g)
-             if item_status.get(i, "planned") not in ("complete", "excluded")]
+             if item_status.get(i) != "complete" and i not in left]
     if not items:
         return g.reach
     return (f"{g.reach} — holding {len(items)} item(s): "
             + ", ".join(f"{i:03d}" for i in items))
+
+
+def _declined_reach_spent(lines: List[str], g: HumanGate) -> bool:
+    """True when declined gate *g* holds nothing open, now or later (issue #396).
+
+    Such a gate has already been re-planned: its items have merged or left,
+    or its Blocks cell is deliberately empty (``—``), kept as the record after
+    the question was re-asked. The check's "still blocks … drop those items
+    or change what the gate asks" then names a remedy with nothing to apply
+    it to, on every run, and no verb can close it. Enforcement is not touched
+    — ``blocking_gates`` still lists the gate — only the warning goes quiet.
+
+    "Open" is what ``claim`` would still offer were the gate gone: an item is
+    spent when it is ✅, or ❌ by its own bullets or by every one of them
+    sitting in a withdrawn stage while it is 📋 (``spent_by_withdrawal``,
+    which ``claim`` never offers either). Anything else — an item with no
+    bullet at all included — is open. Everything that could still hold work
+    later reads open too, erring toward the warning:
+
+    - a Blocks cell that is not empty yet names no reach (``stage 3a``,
+      ``TBD``) is a typo, not a decision to hold nothing;
+    - ``all`` holds every item, including ones not written yet;
+    - ``stage N+`` arms every stage numbered from N on, written or not;
+    - each stage of a ``stage N`` / ``stage N–M`` reach must be written, and
+      every item its bullets reference spent; a stage still in scope must
+      also have at least one bullet, every one ✅ or ❌ — one not written
+      yet, or with nothing queued, may still receive the refused work.
+      A withdrawn stage (❌ summary row) needs no bullet of its own.
+    """
+    if g.blocks_all or g.stage_open:
+        return False
+    item_status = _parse_item_status(lines)[2]
+    left = spent_by_withdrawal(lines, item_status)
+
+    def spent(n: int) -> bool:
+        return item_status.get(n) == "complete" or n in left
+
+    if g.stage is None:
+        if not g.blocks:
+            return g.blocks_cell.strip() in _EMPTY_CELL
+        return all(spent(n) for n in g.blocks)
+    first, last = g.stage_range
+    withdrawn = {int(n) for n in withdrawn_stages(lines) if n.strip().isdigit()}
+    sections: Dict[int, Tuple[int, int, str]] = {}
+    for sec in stage_sections(lines):
+        if sec[2].isdigit():
+            sections.setdefault(int(sec[2]), sec)
+    if last - first + 1 > len(sections) + len(withdrawn):
+        return False   # some stage in the range is not written yet
+    for n in range(first, last + 1):
+        if n not in sections:
+            if n in withdrawn:
+                continue   # withdrawn, and no section to hold an item
+            return False
+        start, end, num = sections[n]
+        if n not in withdrawn:
+            statuses = stage_deliverable_statuses(lines, start, end)
+            if not statuses or any(s not in ("complete", "excluded")
+                                   for s in statuses):
+                return False
+        if not all(spent(i) for i in stage_item_numbers(lines, num)):
+            return False
+    return True
 
 
 def gate_warnings(lines: List[str]) -> List[str]:
@@ -5210,6 +5346,20 @@ def gate_warnings(lines: List[str]) -> List[str]:
                 f"this gate holds NOTHING; write it as stage {rng[1]}–{rng[0]}")
             continue
         if g.kind == "declined":
+            if _declined_reach_spent(lines, g):
+                # Re-planned already: nothing left to drop, so the remedy the
+                # warning names cannot be followed (issue #396).
+                continue
+            if not (g.blocks or g.stage or g.blocks_all):
+                # A cell that is not empty and names no reach: a typo, which
+                # the silence above must not swallow.
+                out.append(
+                    f"progress.md:{g.lineno}: {name} was DECLINED and its "
+                    f"Blocks cell '{g.blocks_cell}' names no item, no "
+                    f"'stage N' (or 'stage N+', 'stage N–M'), and is not "
+                    f"'all' — write '—' if the gate is meant to hold "
+                    f"nothing, or the reach it was meant to hold")
+                continue
             out.append(
                 f"progress.md:{g.lineno}: {name} was DECLINED "
                 f"and still blocks {_reach_with_breadth(lines, g)} — a refusal does not release the "
@@ -5256,8 +5406,12 @@ def gate_warnings(lines: List[str]) -> List[str]:
         elif g.blocks or g.stage or g.blocks_all:
             reach = _reach_with_breadth(lines, g)
         else:
-            reach = ("nothing named — the Blocks cell names no item, no "
-                     "'stage N' (or 'stage N+', 'stage N–M'), and is not "
+            # Quote a non-empty cell, as the declined branch does: the typo
+            # is then on the line that reports it.
+            cell = ("" if g.blocks_cell.strip() in _EMPTY_CELL
+                    else f" '{g.blocks_cell}'")
+            reach = (f"nothing named — the Blocks cell{cell} names no item, "
+                     "no 'stage N' (or 'stage N+', 'stage N–M'), and is not "
                      "'all', so this gate holds nothing")
         out.append(f"progress.md:{g.lineno}: {name} is "
                    f"awaiting a decision — blocks {reach}")
@@ -6739,19 +6893,23 @@ def _stages_under_way(ddir: Path, plines: List[str]) -> Set[str]:
     deliverables rolling up to 🚧, or a 📋 item listed in an open queue.
 
     The open queues are `queue_is_open`'s, read from the queue files under
-    *ddir*; an item belongs to the stages whose bullets name it
-    (`stage_item_numbers`). A queued item with bullets in two stages makes
-    both under way — an accepted false positive, since this feeds a warning.
+    *ddir*, and a withdrawn stage's 📋 item is neither open nor queued work,
+    as `claim` reads it (issue #393); an item belongs to the stages whose
+    bullets name it (`stage_item_numbers`). A queued item with bullets in two
+    stages makes both under way — an accepted false positive, since this
+    feeds a warning.
     """
     out = {str(int(n)) for n, st in stage_rollups(plines).items()
            if n.isdigit() and st == "in-progress"}
     item_status = _parse_item_status(plines)[2]
+    withdrawn = withdrawn_stage_items(plines)
     queued: Set[int] = set()
     for path in iter_queue_paths(ddir / "queue"):
         text = path.read_text(encoding=_ENCODING)
-        if queue_is_open(text, item_status):
+        if queue_is_open(text, item_status, withdrawn):
             queued.update(n for n in queue_item_numbers(text)
-                          if item_status.get(n, "planned") == "planned")
+                          if item_status.get(n, "planned") == "planned"
+                          and n not in withdrawn)
     if queued:
         for _start, _end, num in stage_sections(plines):
             if num.isdigit() and queued & set(stage_item_numbers(plines, num)):
@@ -7033,7 +7191,8 @@ def installed_template_versions() -> Dict[str, int]:
 
 
 def template_drift_warnings(ddir: Path, item_status: Dict[int, str],
-                            installed: Optional[Dict[str, int]] = None) -> List[str]:
+                            installed: Optional[Dict[str, int]] = None,
+                            withdrawn: Collection[int] = ()) -> List[str]:
     """Documents whose template marker disagrees with the installed template.
 
     Rung 4 of the copies rule (``ADAPTER-SPEC.md``, *Copies of engine text*):
@@ -7051,7 +7210,10 @@ def template_drift_warnings(ddir: Path, item_status: Dict[int, str],
     * A queue while it is open, and an item spec while its item is not ✅ or
       ❌ — the same measure ``--queue`` uses for "spent". A finished item's
       spec is a record, and a warning on every one of them each time a template
-      moves is permanent noise over files nobody should edit.
+      moves is permanent noise over files nobody should edit. Open is
+      `queue_is_open`'s with *withdrawn* (`withdrawn_stage_items`), as `claim`
+      reads it (issue #393); a withdrawn stage's 📋 item keeps its spec here,
+      as a ⏸️ one does, since a summary row taken off ❌ revives it.
 
     Only the marker above the title counts (``_above_title``). A document
     **without** one is silent. Every document written before
@@ -7069,7 +7231,8 @@ def template_drift_warnings(ddir: Path, item_status: Dict[int, str],
     qdir = ddir / "queue"
     if qdir.is_dir():
         for qpath in iter_queue_paths(qdir):
-            if queue_is_open(qpath.read_text(encoding=_ENCODING), item_status):
+            if queue_is_open(qpath.read_text(encoding=_ENCODING), item_status,
+                             withdrawn):
                 targets.append(qpath)
     idir = ddir / "items"
     if idir.is_dir():
@@ -7259,10 +7422,11 @@ def item_spec_warnings(ddir: Path, ddir_rel: str = "docs/aide",
     A fifth is advisory rather than structural: an assumption marked with the
     engine it was true for — `- **A8 (engine 1.28.1):** …` — whose engine
     predates the installed one. See `_stale_assumption_pins`. It is read on
-    live specs only — not one whose item progress.md shows ✅, ❌ or ⏸️
-    (``record_documents``, issue #338): §1 never rewrites a merged spec, and
-    the appended re-check that clears the warning goes stale at the next
-    release, so on a record it would return forever.
+    live specs only — not one whose item progress.md shows ✅, ❌ or ⏸️, or 📋
+    in a withdrawn stage (``record_documents``, issues #338, #393): §1 never
+    rewrites a merged spec, and the appended re-check that clears the
+    warning goes stale at the next release, so on a record it would return
+    forever.
 
     None of them reads a file that no lookup finds: one whose name
     `item_spec_number` rejects gets a single warning naming the rename instead
@@ -7287,7 +7451,7 @@ def item_spec_warnings(ddir: Path, ddir_rel: str = "docs/aide",
     out: List[str] = []
     missing_assumptions: List[str] = []
     stale_pins: List[str] = []
-    records = record_documents(ddir, _docs_item_status(ddir)) if engine else set()
+    records = _docs_records(ddir) if engine else set()
     for path in sorted(idir.glob("*.md")):
         num = item_spec_number(path)
         if num is None:
@@ -7777,7 +7941,8 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     warnings.extend(identical_deliverable_warnings(lines))
     warnings.extend(unattributed_reference_warnings(lines))
     warnings.extend(acceptance_drift_warnings(ddir, lines))
-    warnings.extend(template_drift_warnings(ddir, _parse_item_status(lines)[2]))
+    warnings.extend(template_drift_warnings(ddir, _parse_item_status(lines)[2],
+                                            withdrawn=withdrawn_stage_items(lines)))
 
     # Mandatory sections. Rows are taken by shape from anywhere in the file,
     # with the one test `unreadable_row_errors` reports the failures of.
@@ -7843,19 +8008,27 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
 
     # Queues: state is DERIVED from progress.md (open = any 📋/🚧 item); a
     # declared "> **Status:**" line is decorative — warn only when it lies.
+    # Open as `claim` reads it: a withdrawn stage's 📋 item keeps no queue
+    # open (`queue_is_open`), so a queue left with only such items, stamped
+    # completed, is not warned as still open (issue #393).
     qdir = ddir / "queue"
     seen: Dict[int, str] = {}
     if qdir.is_dir():
         _, _, istat = _parse_item_status(lines)
+        q_withdrawn = withdrawn_stage_items(lines)
         for qpath in iter_queue_paths(qdir):
             qtext = qpath.read_text(encoding=_ENCODING)
-            derived_open = queue_is_open(qtext, istat)
+            derived_open = queue_is_open(qtext, istat, q_withdrawn)
             declared = queue_status(qtext)
             if declared:
                 declared_live = declares_live(declared)
                 if declared_live and not derived_open:
+                    idle = any(n in q_withdrawn
+                               and istat.get(n, "planned") == "planned"
+                               for n in queue_item_numbers(qtext))
                     warnings.append(
-                        f"{qpath.name}: declares 'Live' but every item is finished — "
+                        f"{qpath.name}: declares 'Live' but every item is finished"
+                        f"{' or 📋 in a withdrawn stage' if idle else ''} — "
                         f"state is derived from progress.md; run 'aide queue tidy' "
                         f"or drop the decorative Status line")
                 elif not declared_live and derived_open:
@@ -8200,6 +8373,14 @@ def _push_new_branch(repo_root: Path, branch: str) -> Optional[str]:
     already on disk when it fails. Handing back git's own words lets each
     caller say what survives and how to finish it by hand, which is the
     difference between a stall a person can act on and a stack trace.
+
+    `queue restack` calls it too, and so does `_push_if_ahead` for `queue pr`
+    and `queue ready`. No remote at all is not a cause it normally meets:
+    off local mode every caller refuses a missing origin before it pushes —
+    `queue start`, `claim`, `queue restack` and `merge` through
+    `_require_origin`, before their local half exists (issue #377), and
+    `queue pr` and `queue ready` through `_queue_pr_branch`'s own check. What
+    reaches here is an origin that is there and does not take the push.
     """
     res = git(["push", "-u", "origin", branch], repo_root, check=False)
     if res.returncode == 0:
@@ -8370,10 +8551,18 @@ def queue_spec_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     # where one is real — so spent items are discounted below, on both sides
     # of every comparison. Deferred (⏸️) items are NOT spent: their claims are
     # dormant, not dead, and a conflict with one is worth surfacing while
-    # re-planning is still cheap.
-    item_status = _progress_item_status(repo_root, config)
+    # re-planning is still cheap. A 📋 item of a withdrawn stage is spent as
+    # an excluded one is (issue #393): `claim` never offers it, and its
+    # owner's way back is the drop, so a conflict with it is never built.
+    ppath = ddir / "progress.md"
+    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+              if ppath.is_file() else [])
+    item_status = _parse_item_status(plines)[2]
+    withdrawn = withdrawn_stage_items(plines)
     spent = {n for n in numbers
-             if item_status.get(n, "planned") in ("complete", "excluded")}
+             if item_status.get(n, "planned") in ("complete", "excluded")
+             or (item_status.get(n, "planned") == "planned"
+                 and n in withdrawn)}
 
     for num in numbers:
         specs = item_spec_paths(idir, num)
@@ -8406,13 +8595,14 @@ def queue_spec_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     # An item is built after everything it declares a dependency on, and after
     # what those declare in turn — but only along edges that still ORDER the
     # two items. A dependency `aide claim` no longer waits for does not hold
-    # its dependent back: a ⏸️ deferred blocker is skipped by `_pick_item`, so
-    # the dependent is claimable today and would pin a tree the deferred item
-    # has not touched yet. Filtering the edges rather than the pairs also
-    # settles the transitive case, where the link that fails to hold is an
-    # intermediate: `b → c (⏸️) → a` leaves b free to build before a.
+    # its dependent back: a ⏸️ deferred blocker — or a ❌ or withdrawn-stage 📋
+    # one (`still_blocks`) — is skipped by `_pick_item`, so the dependent is
+    # claimable today and would pin a tree the blocker has not touched yet.
+    # Filtering the edges rather than the pairs also settles the transitive
+    # case, where the link that fails to hold is an intermediate: `b → c (⏸️)
+    # → a` leaves b free to build before a.
     ordering_edges = {num: [d for d in deps
-                            if item_status.get(d, "planned") in BLOCKING_STATUSES]
+                            if still_blocks(d, item_status, withdrawn)]
                       for num, deps in deps_by_item.items()}
     built_after = _built_after(ordering_edges)
 
@@ -8479,15 +8669,16 @@ def queue_spec_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     # Row 5 — the dependency graph. A cycle deadlocks `aide claim`: every item
     # in it is blocked by another in it, so the queue silently stops producing
     # work rather than failing. The graph holds only items that can still
-    # block a claim — the same status set `_pick_item` treats as blocking: a
-    # complete, excluded or deferred dependency does not block, and such an
-    # item is never offered, so no cycle through one can deadlock (a cycle
-    # whose members all merged has PROVED its order was satisfiable). The typo
+    # block a claim — the same reading `_pick_item` gives (`still_blocks`): a
+    # complete, excluded or deferred dependency does not block, nor a 📋 one
+    # of a withdrawn stage, and such an item is never offered, so no cycle
+    # through one can deadlock (a cycle whose members all merged has PROVED
+    # its order was satisfiable). The typo
     # pass below shares the filter: a mistyped dependency in a spent or
     # deferred item's spec blocks nothing today, and the warning about it
     # would be unclearable.
     graph = {num: deps for num, deps in deps_by_item.items()
-             if item_status.get(num, "planned") in BLOCKING_STATUSES}
+             if still_blocks(num, item_status, withdrawn)}
     for cycle in _dependency_cycles(graph):
         chain = " → ".join(f"{n:03d}" for n in cycle + [cycle[0]])
         findings.append(SpecFinding(
@@ -8562,7 +8753,8 @@ def queue_item_title(repo_root: Path, config, titles: Dict[int, str],
 
 
 def queue_end_holds(repo_root: Path, config, queue_text: str,
-                    item_status: Dict[int, str]) -> Dict[int, List[int]]:
+                    item_status: Dict[int, str],
+                    withdrawn: Collection[int] = ()) -> Dict[int, List[int]]:
     """Each queue-end item the queue lists, with the queue-mates holding it.
 
     A queue-end item runs after the rest of its queue whatever order the file
@@ -8574,6 +8766,11 @@ def queue_end_holds(repo_root: Path, config, queue_text: str,
     an item whose spec depends on the queue-end item — directly or through
     other queue-mates' `## Dependencies` — never holds it, since each would
     then wait on the other for ever.
+
+    Nor does a 📋 item in *withdrawn* (`withdrawn_stage_items`) hold it: claim
+    never offers one, so a queue-end item waiting on it waited for ever and an
+    unattended run stalled (issue #389). A 🚧 or 🔍 item of a withdrawn stage
+    still holds it — live work until its owner drops it (§2).
     """
     titles = _queue_titles(queue_text)
     order = queue_item_numbers(queue_text)
@@ -8581,7 +8778,7 @@ def queue_end_holds(repo_root: Path, config, queue_text: str,
             if queue_end_stages(queue_item_title(repo_root, config, titles, n))
             is not None]
     rest = [n for n in order if n not in ends
-            and item_status.get(n, "planned") in BLOCKING_STATUSES]
+            and still_blocks(n, item_status, withdrawn)]
     deps = {n: set(_item_dependencies(repo_root, config, n)) for n in rest}
     holds: Dict[int, List[int]] = {}
     for end in ends:
@@ -8667,10 +8864,16 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     order = queue_item_numbers(qtext)
     lines = ppath.read_text(encoding=_ENCODING).splitlines()
     item_status = _parse_item_status(lines)[2]
+    withdrawn = withdrawn_stage_items(lines)
+
     # ⏸️ is settled here as ✅ and ❌ are: `queue_is_open` does not count a
     # deferred item as open, and nobody plans or drops one until it resumes.
-    spent = ("complete", "excluded", "deferred")
-    if all(item_status.get(n, "planned") in spent for n in order):
+    # Nor a 📋 item of a withdrawn stage, which `claim` never offers (issue
+    # #393): spent is exactly not open (`still_blocks`).
+    def spent(n: int) -> bool:
+        return not still_blocks(n, item_status, withdrawn)
+
+    if all(spent(n) for n in order):
         return []
 
     titles = _queue_titles(qtext)
@@ -8691,7 +8894,7 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
             break
         met.update(end_stages[n])
     for n in order:
-        if end_stages[n] and item_status.get(n, "planned") not in spent:
+        if end_stages[n] and not spent(n):
             met.update(end_stages[n])
 
     annotated: Set[Tuple[int, int]] = set()
@@ -8724,7 +8927,7 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
         if unannotated:
             waiting = [n for n in order
                        if n not in specced and end_stages[n] is None
-                       and item_status.get(n, "planned") not in spent]
+                       and not spent(n)]
             reasons.append(
                 f"acceptance criteri{'on' if len(unannotated) == 1 else 'a'} "
                 f"{', '.join(map(str, unannotated))} of stage {s}, which no item "
@@ -8769,8 +8972,7 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     back = {r.item for r in reopened_items(lines) if r.status in _OPEN_STATUSES}
     for n in order:
         named = end_stages[n]
-        if (named is None or item_status.get(n, "planned") in spent
-                or n in back):
+        if named is None or spent(n) or n in back:
             continue
         if not named:
             findings.append(SpecFinding(
@@ -8798,9 +9000,9 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     # way, so it still runs last; the warning keeps the file saying so. A
     # settled record either side (✅, ❌, ⏸️) is history, not a plan (#338),
     # and an item whose dependencies lead back to it belongs after it.
-    holds = queue_end_holds(repo_root, config, qtext, item_status)
+    holds = queue_end_holds(repo_root, config, qtext, item_status, withdrawn)
     for i, n in enumerate(order):
-        if end_stages[n] is None or item_status.get(n, "planned") in spent:
+        if end_stages[n] is None or spent(n):
             continue
         after = [m for m in order[i + 1:] if m in holds.get(n, ())]
         if after:
@@ -11678,10 +11880,12 @@ def _ledger_report_command(repo_root: Path, config,
 #: Which of `queue`'s shared options each action reads; any other one given
 #: is a usage error, never silently ignored — `ready --dry-run` must not push
 #: and flip (issue #330). The older actions are checked only against the
-#: options `pr` and `ready` brought, which they never read.
+#: options `pr` and `ready` brought, which they never read. `discard` reads
+#: none, so `discard --dry-run` is refused rather than run (issue #383).
 _QUEUE_OPTIONS = {
     "pr": {"body", "body_file"},
     "ready": {"undo"},
+    "discard": set(),
 }
 _QUEUE_OPTION_DEFAULTS = {"through": None, "no_commit": False, "specs": False,
                           "base": None, "dry_run": False, "date": None,
@@ -11720,8 +11924,10 @@ def cmd_queue(args: argparse.Namespace) -> int:
         return _queue_start(args)
     if args.action == "gate":
         return _queue_gate(args)
+    if args.action == "discard":
+        return _queue_discard(args)
     if args.action != "tidy":
-        print("usage: aide queue {start|tidy|gate} NNN | aide queue restack "
+        print("usage: aide queue {start|tidy|gate|discard} NNN | aide queue restack "
               "[NNN --base REF] | aide queue {pr|ready} [NNN]", file=sys.stderr)
         return 2
     import datetime as _dt
@@ -11767,6 +11973,8 @@ def _queue_start(args: argparse.Namespace) -> int:
         return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
+    if not _require_origin("queue start", repo_root, mode):
+        return 1
     branch = (specs_queue_branch_name(prefix, args.number) if args.specs
               else queue_branch_name(prefix, args.number))
 
@@ -11806,15 +12014,16 @@ def _queue_start(args: argparse.Namespace) -> int:
             unsure = sorted(b for b, v in unmerged.items() if v is None)
             # Where a queue lands decides the remedy: through a PR into
             # origin's main_branch, which a pull brings here — or, in local
-            # mode or with no origin, by a person merging it into this
-            # checkout's main_branch, where there is nothing to pull.
-            if mode != "local" and _has_origin(repo_root):
+            # mode, by a person merging it into this checkout's main_branch,
+            # where there is nothing to pull. Off local mode origin is there:
+            # `_require_origin` refused above without one (issue #377).
+            if mode != "local":
                 remedy = (f"once a PR merges, update {main} from origin "
                           f"('git switch {main}', then 'git pull')")
             else:
-                remedy = (f"with no origin to pull from, a queue lands when "
-                          f"it is merged into {main} here ('git switch "
-                          f"{main}', then 'git merge <its branch>')")
+                remedy = (f"in local mode nothing is pulled, so a queue "
+                          f"lands when it is merged into {main} here ('git "
+                          f"switch {main}', then 'git merge <its branch>')")
             print(f"aide queue start: "
                   f"{_plural(len(unmerged), 'queue branch is', 'queue branches are')} "
                   f"unmerged ({', '.join(sorted(unmerged))}) and [loop] "
@@ -11851,19 +12060,169 @@ def _queue_start(args: argparse.Namespace) -> int:
     # `/aide-run-roadmap` (queue-planner) and `/aide-spec-queue` (spec-author,
     # spec-reviewer) start here and reach a role before any `check` runs, so
     # the inbox is guaranteed at the same point `claim` guarantees it.
-    ensure_insights_inbox(repo_root, config, verb="queue start")
+    created = ensure_insights_inbox(repo_root, config, verb="queue start")
     if mode != "local":
         failure = _push_new_branch(repo_root, branch)
         if failure is not None:
+            # One command per step (§3). `queue discard` takes a queue branch
+            # with no commit beyond its base, so not a specs-queue branch and
+            # not one carrying the inbox this start just committed (#383).
+            over = (f"'aide queue discard {args.number:03d}'"
+                    if created is None and not args.specs else
+                    f"'git switch {base}', then 'git branch -D {branch}'")
             print(f"aide queue start: {failure}\n"
                   f"{branch} exists locally, branched from {base}, and is "
                   f"checked out — nothing is lost. Publish it with "
                   f"'git push -u origin {branch}' once the remote is "
-                  f"reachable, or start over with 'git switch {base} && "
-                  f"git branch -D {branch}'.", file=sys.stderr)
+                  f"reachable, or start over with {over}.", file=sys.stderr)
             return 1
     note = "" if base == str(config["git"].get("main_branch", "main")) else f" (base {base})"
     print(f"started {branch}{note}")
+    return 0
+
+
+def _queue_discard(args: argparse.Namespace) -> int:
+    """Delete a queue branch that carries nothing beyond its base; see -h.
+
+    The undo of `queue start` for a queue nobody planned (issue #383): a
+    planner that hands back writes no queue, and the branch `queue start`
+    made and pushed is left open and empty, counting against
+    `max_open_queues`. The precondition is the whole safety — no commit on
+    the branch, nor on origin's copy as last fetched, beyond the recorded
+    base — so there is nothing to lose, and no `--yes` or dry run to ask
+    for: `gc` previews because its ground is a judgement about landed work,
+    and here there is no work. Origin's copy is deleted with a lease on the
+    commit that was counted, so a push made since is never deleted.
+
+    Off `local` mode with no remote named origin it still runs, and deletes
+    the local branch only: nothing on origin can be reached, and the local
+    branch is still the one counted against the cap.
+
+    A queue file for the number, or the one after it (a maintenance queue's
+    stage queue), written and not committed is refused too: a
+    planner that broke "a hand-back writes nothing" would otherwise have its
+    plan carried onto the base by the switch, stranded there. Origin's copy
+    already gone (a stale remote-tracking ref) is asked of origin itself,
+    never read from git's localised message, and counts as deleted.
+    """
+    tag = "aide queue discard"
+    repo_root = find_repo_root(args.repo)
+    config = load_config(repo_root)
+    if not _require_repository("queue discard", repo_root):
+        return 1
+    prefix = str(config["git"].get("branch_prefix", "aide/"))
+    mode = str(config["git"].get("mode", "auto-merge"))
+    branch = queue_branch_name(prefix, args.number)
+    tracking = f"origin/{branch}"
+    on_origin = (mode != "local" and _has_origin(repo_root)
+                 and _ref_exists(repo_root, f"refs/remotes/{tracking}"))
+    if not _local_branch_exists(repo_root, branch):
+        if on_origin:
+            print(f"{tag}: {branch} is on origin only — this checkout did not "
+                  f"start it, so its base is unknown here; discard it where "
+                  f"it was started", file=sys.stderr)
+        else:
+            print(f"{tag}: {branch} is not a branch in this checkout or on "
+                  f"origin — there is nothing to discard", file=sys.stderr)
+        return 1
+    base = _recorded_branch_base(repo_root, branch)
+    if base is None:
+        print(f"{tag}: {branch} has no recorded base, so whether it carries "
+              f"work beyond one cannot be told — if it is empty, delete it by "
+              f"hand ('git branch -D {branch}')", file=sys.stderr)
+        return 1
+    for ref in [branch] + ([tracking] if on_origin else []):
+        counted = git(["rev-list", "--count", f"{base}..{ref}"],
+                      repo_root, check=False)
+        ahead = counted.stdout.strip()
+        if counted.returncode != 0 or not ahead.isdigit():
+            print(f"{tag}: git could not count {ref}'s commits beyond its "
+                  f"base {base} ({counted.stderr.strip() or 'no answer'}); "
+                  f"nothing was discarded", file=sys.stderr)
+            return 1
+        if ahead != "0":
+            print(f"{tag}: {ref} carries "
+                  f"{_plural(int(ahead), 'commit', 'commits')} beyond {base}, "
+                  f"which no plan review covers — landing or deleting "
+                  f"{'it' if ahead == '1' else 'them'} is a person's call; "
+                  f"nothing was discarded", file=sys.stderr)
+            return 1
+    qrel = f"{_docs_rel(config)}/queue"
+    status = git(["status", "--porcelain", "-z", "--untracked-files=all",
+                  "--", qrel], repo_root, check=False)
+    fields, written = status.stdout.split("\0"), set()
+    while fields:
+        record = fields.pop(0)
+        if len(record) < 4:
+            continue
+        if record[0] in "RC" and fields:
+            fields.pop(0)                  # a rename's source is its own field
+        written.add(record[3:])
+    # The numbers the branch could own: its own, and NNN+1, the stage queue
+    # a maintenance queue NNN is written with on the same branch.
+    loose = sorted(p for p in written if p.endswith(".md")
+                   and queue_number(Path(p)) in (args.number, args.number + 1))
+    if loose:
+        print(f"{tag}: {', '.join(loose)} "
+              f"{'is' if len(loose) == 1 else 'are'} written and not "
+              f"committed — a plan for this branch, which discarding it would "
+              f"leave stranded on {base}; commit it on {branch} or remove it, "
+              f"then re-run. Nothing was discarded.", file=sys.stderr)
+        return 1
+    current = _current_branch(repo_root)
+    # `worktree list` names the branch each attached worktree sits on. Not
+    # `_checked_out_branches`, which on a detached HEAD adds every branch at
+    # HEAD's commit — a fresh queue branch is at its base's.
+    sitting = {line[len("branch refs/heads/"):].strip() for line in
+               git(["worktree", "list", "--porcelain"], repo_root,
+                   check=False).stdout.splitlines()
+               if line.startswith("branch refs/heads/")}
+    if branch != current and branch in sitting:
+        print(f"{tag}: {branch} is checked out in another worktree, and git "
+              f"deletes no branch a checkout is sitting on — switch that "
+              f"worktree off it first; nothing was discarded", file=sys.stderr)
+        return 1
+    if branch == current:
+        unsafe = _unsafe_tree_state(repo_root)
+        if unsafe:
+            print(f"{tag}: refusing — {unsafe}. {branch} is checked out and "
+                  f"discarding it switches to {base}; commit, stash or finish "
+                  f"that state first. Nothing was discarded.", file=sys.stderr)
+            return 1
+        switched = git(["switch", base], repo_root, check=False)
+        moved = f"; the checkout is now on {base}"
+        if switched.returncode != 0:
+            print(f"{tag}: git would not switch to {base} "
+                  f"({switched.stderr.strip() or 'no answer'}); nothing was "
+                  f"discarded", file=sys.stderr)
+            return 1
+    else:
+        moved = ""
+    if on_origin:
+        lease = f"--force-with-lease=refs/heads/{branch}:{_rev(repo_root, tracking)}"
+        pushed = git(["push", lease, "origin", "--delete", branch],
+                     repo_root, check=False)
+        if pushed.returncode != 0:
+            there = git(["ls-remote", "origin", f"refs/heads/{branch}"],
+                        repo_root, check=False)
+            if there.returncode == 0 and not there.stdout.strip():
+                # Already gone on origin: the tracking ref was stale.
+                git(["update-ref", "-d", f"refs/remotes/{tracking}"],
+                    repo_root, check=False)
+            else:
+                print(f"{tag}: origin did not delete {branch} "
+                      f"({pushed.stderr.strip() or 'no answer'}) — origin "
+                      f"may hold a commit pushed since the last fetch; "
+                      f"nothing was discarded{moved}", file=sys.stderr)
+                return 1
+    deleted = git(["branch", "-D", branch], repo_root, check=False)
+    if deleted.returncode != 0:
+        print(f"{tag}: git would not delete {branch} "
+              f"({deleted.stderr.strip() or 'no answer'})"
+              + ("; its copy on origin is already deleted" if on_origin
+                 else "") + moved, file=sys.stderr)
+        return 1
+    print(f"discarded {branch} (base {base})")
     return 0
 
 
@@ -11963,9 +12322,10 @@ def _queue_pr_branch(repo_root: Path, config: Dict[str, Dict[str, object]],
     ``(branch, number)``, or ``(None, None)`` after printing why: *number*'s
     ``<prefix>queue-NNN``, which must be a local branch, else the current
     branch, which must be one. A specs-queue branch is not: its work lands on
-    its queue branch, which carries the PR. Then the forge must be reachable
-    at all — `[git] forge = "none"`, `local` mode and a checkout with no
-    origin open no PR.
+    its queue branch, which carries the PR. The branch must carry its own
+    queue file, committed — whatever the mode. Then the forge must be
+    reachable at all — `[git] forge = "none"`, `local` mode and a checkout
+    with no origin open no PR.
     """
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
@@ -11983,6 +12343,16 @@ def _queue_pr_branch(repo_root: Path, config: Dict[str, Dict[str, object]],
                   f"queue number", file=sys.stderr)
             return None, None
         number = int(branch[len(prefix) + len(_QUEUE_TOKEN):])
+    # Before the mode and the forge (issue #383): the branch `queue start`
+    # made for a planner that then handed back holds no plan, and a caller
+    # reading a no-forge refusal as "carry on without a PR" must not carry on
+    # from there.
+    if not _branch_carries_queue_file(repo_root, config, branch, number):
+        print(f"{tag}: {branch} carries no {queue_name(number)} file under "
+              f"{_docs_rel(config)}/queue, so there is no plan for a pull "
+              f"request to carry — commit the queue file first; nothing was "
+              f"pushed or asked of the forge", file=sys.stderr)
+        return None, None
     if declared_forge(config) == "none":
         print(f'{tag}: no forge is declared (git.forge = "none")',
               file=sys.stderr)
@@ -11996,6 +12366,24 @@ def _queue_pr_branch(repo_root: Path, config: Dict[str, Dict[str, object]],
               f"no forge to ask", file=sys.stderr)
         return None, None
     return branch, number
+
+
+def _branch_carries_queue_file(repo_root: Path,
+                               config: Dict[str, Dict[str, object]],
+                               branch: str, number: int) -> bool:
+    """Does *branch*'s tip hold a queue file for *number*?
+
+    Read at the branch, not in the working tree: a PR carries what is
+    committed. A listing git cannot give reads as no file, and the caller
+    refuses, which changes nothing.
+    """
+    listed = git(["ls-tree", "--name-only", branch,
+                  f"{_docs_rel(config)}/queue/"], repo_root, check=False)
+    if listed.returncode != 0:
+        return False
+    return any(queue_number(Path(p.strip())) == number
+               for p in listed.stdout.splitlines()
+               if p.strip().endswith(".md"))
 
 
 def _push_if_ahead(repo_root: Path, tag: str, branch: str) -> bool:
@@ -12432,6 +12820,8 @@ def _queue_restack(args: argparse.Namespace) -> int:
         return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
+    if not _require_origin("queue restack", repo_root, mode):
+        return 1
     main = str(config["git"].get("main_branch", "main"))
     dry = bool(args.dry_run)
     say = "would " if dry else ""
@@ -12932,6 +13322,10 @@ def env_report(repo_root: Path, config: Dict[str, Dict[str, object]]) -> Tuple[s
     if not vpy.exists():
         return "missing", f"no venv at {venv}"
     record = _read_bootstrap_record(venv)
+    if record is not None and record.get("unrun"):
+        return "stale", (f"the last `env --bootstrap` could not start its "
+                         f"command, so nothing was installed — "
+                         f"{record.get('unrun')}")
     if record is not None and record.get("exit") not in (0, None):
         return "stale", (f"the last `env --bootstrap` exited "
                          f"{record.get('exit')}, so its install did not finish")
@@ -13104,9 +13498,7 @@ def dependency_report(repo_root: Path, config: Dict[str, Dict[str, object]],
         url = origin_url(repo_root)
         refusal = None
         if url is None and pushes:
-            refusal = (f'{setting} in aide.toml needs a remote named origin — '
-                       f"add one ('git remote add origin <url>'), or set "
-                       f'[git] mode = "local"')
+            refusal = missing_origin(mode)
         lines.append(Requirement("origin", (url or "none") + unneeded,
                                  setting, refusal, True))
 
@@ -13345,9 +13737,110 @@ def _print_dependency_report(repo_root: Path,
     return 0
 
 
+#: The first tokens of `[python] bootstrap` that name Python itself, and are
+#: replaced by the venv's interpreter (issue #378). The set is the one
+#: `resolve_test_command` binds, plus the `python3` a POSIX host may be
+#: written for. Not `py`: the Windows launcher's own arguments (`py -3.12`)
+#: choose an interpreter, and inside a venv that already has one that would
+#: be a different Python, or an argument the venv's Python refuses.
+_BOOTSTRAP_PYTHONS = ("python", "python3")
+
+
+def bootstrap_argv(tokens: List[str], vpy: Path,
+                   repo_root: Path) -> Tuple[List[str], bool]:
+    """How `env --bootstrap` runs `[python] bootstrap` (split on whitespace,
+    as *tokens*) in the venv whose interpreter is *vpy*: the argv, and
+    whether it is a command to look up (True) rather than *vpy* run with
+    arguments (False).
+
+    Before issue #378 every bootstrap but a leading `pip` ran as `<vpy>
+    <value>`, so `uv sync` looked for a script file named `uv` and could
+    never succeed. The command reading applies only to a first word that
+    reading could never have run, so every bootstrap that worked runs the
+    same way:
+
+    1. A leading option (`-m poetry install`, `-c …`) or `.py` file
+       (`setup.py develop`) is arguments to the venv's Python.
+    2. A leading `pip` is the venv's `python -m pip`.
+    3. A leading `python` or `python3` is replaced by the venv's Python.
+    4. A first word naming an existing file under *repo_root* (`manage
+       install`, `tools/bootstrap`, `app.pyz install`), or a directory
+       there holding a `__main__.py`, is arguments to the venv's Python, as
+       before — so a repository shell script is written
+       `sh tools/bootstrap.sh`, and a repository that is itself the tool
+       (a root `invoke/__main__.py`) runs its own tree. An absolute path, or
+       one leading out of the repository, is a command.
+    5. Anything else (`uv sync`, `make dev`) is a command.
+
+    An empty bootstrap installs nothing and never reaches here:
+    `_bootstrap_venv` builds the venv alone, since a bare `<vpy>` would wait
+    on stdin.
+    """
+    first = tokens[0]
+    if first.startswith("-") or first.lower().endswith(".py"):
+        return [str(vpy), *tokens], False
+    if first == "pip":
+        return [str(vpy), "-m", *tokens], False
+    if first in _BOOTSTRAP_PYTHONS:
+        return [str(vpy), *tokens[1:]], False
+    if _repo_python_target(first, Path(repo_root)):
+        return [str(vpy), *tokens], False
+    return list(tokens), True
+
+
+def _repo_python_target(first: str, repo_root: Path) -> bool:
+    """Whether *first* names a file inside *repo_root*, or a directory there
+    holding a `__main__.py` — what `<vpy> <first>` could run before issue
+    #378. An absolute path, or one leading out of the repository, is not:
+    `repo_root / "/opt/uv/bin/uv"` is `/opt/uv/bin/uv`, a program to run."""
+    root = repo_root.resolve()
+    named = (root / first).resolve()
+    try:
+        named.relative_to(root)
+    except ValueError:
+        return False
+    return named.is_file() or (named / "__main__.py").is_file()
+
+
+def bootstrap_command_env(venv: Path, scripts: Path) -> Dict[str, str]:
+    """The environment a bootstrap *command* runs in: this process's, with
+    the venv's script directory *scripts* first on PATH, `VIRTUAL_ENV`
+    naming the venv — what activating it sets, and what `poetry install` or
+    `pdm install` install into — and `UV_PROJECT_ENVIRONMENT` naming it too,
+    since `uv sync` ignores `VIRTUAL_ENV` without `--active` and would fill
+    the project's `.venv` instead of a venv configured elsewhere.
+    `PYTHONHOME` is dropped, as activation drops it."""
+    env = dict(os.environ)
+    env.pop("PYTHONHOME", None)
+    env["VIRTUAL_ENV"] = str(venv)
+    env["UV_PROJECT_ENVIRONMENT"] = str(venv)
+    env["PATH"] = os.pathsep.join(
+        p for p in (str(scripts), env.get("PATH", "")) if p)
+    return env
+
+
+def _bootstrap_unfound(program: str, repo_root: Path, scripts: Path) -> str:
+    """Why the bootstrap command's *program* cannot be found, in the words
+    `RunnerMissing` uses for the test command's (issue #352). A path to a
+    file never reaches here: `bootstrap_argv` hands any existing file to the
+    venv's Python, so a path is missing or names a directory."""
+    if _has_directory(program):
+        at = Path(program)
+        if not at.is_absolute():
+            at = repo_root / at
+        where = "is not a file" if at.exists() else "does not exist"
+    else:
+        where = f"is neither in {scripts} nor on PATH"
+    return (f"the [python] bootstrap program '{program}' {where} — install "
+            f"it, or fix [python] bootstrap in aide.toml")
+
+
 def _bootstrap_venv(repo_root: Path, config: Dict[str, Dict[str, object]]) -> int:
     """Build and populate the venv from `[python] interpreter`; 0 when built."""
     venv = _venv_dir(repo_root, config)
+    # Whitespace, as `test_command` is split: shlex would re-read a value
+    # that works today — a Windows path's backslashes, a quote pip was
+    # handed literally — and nothing in the issue needed quoting.
     bootstrap = str(config["python"].get("bootstrap", "pip install -e .[dev]")).split()
     interpreter = _configured_interpreter(config)
     # A stale venv is rebuilt from nothing: `-m venv` over an existing tree
@@ -13367,19 +13860,51 @@ def _bootstrap_venv(repo_root: Path, config: Dict[str, Dict[str, object]]) -> in
               f"{made.returncode} — nothing was built.", file=sys.stderr)
         return 1
     vpy = venv_python(repo_root, config)
-    cmd = [str(vpy), "-m", *bootstrap] if bootstrap and bootstrap[0] == "pip" else [str(vpy), *bootstrap]
-    installed = subprocess.run(cmd, cwd=str(repo_root), check=False)
+    # `bootstrap = ""` builds the venv and installs nothing: run as before,
+    # it was a bare `<vpy>`, an interactive Python waiting on stdin.
+    cmd, is_command = (bootstrap_argv(bootstrap, vpy, repo_root)
+                       if bootstrap else ([], False))
+    env: Optional[Dict[str, str]] = None
+    unrun: Optional[str] = None
+    if is_command:
+        # Looked up here, on the PATH it will run with: on Windows a list
+        # argv is not searched for on the child's PATH, and `uv` is `uv.exe`.
+        # The record then names the program that ran, venv or not.
+        env = bootstrap_command_env(venv, vpy.parent)
+        found = resolve_tool(cmd[0], repo_root, path=env["PATH"])
+        if found is None:
+            unrun = _bootstrap_unfound(cmd[0], repo_root, vpy.parent)
+        else:
+            cmd = [found, *cmd[1:]]
+    # The shell's statuses for a command that did not start: 127 not found,
+    # 126 found and not executable.
+    returncode = 127 if cmd else 0
+    if unrun is None and cmd:
+        try:
+            returncode = subprocess.run(cmd, cwd=str(repo_root), env=env,
+                                        check=False).returncode
+        except OSError as exc:
+            returncode = 126
+            unrun = f"'{cmd[0]}' cannot be run ({exc})"
     # The record is what lets a later `env` tell a finished install from one
     # that aborted after the editable project landed (issue #166). Written
-    # on both outcomes, so a completed rebuild clears an earlier failure.
-    (venv / _BOOTSTRAP_RECORD).write_text(json.dumps({
-        "exit": installed.returncode, "command": cmd,
+    # on every outcome, so a completed rebuild clears an earlier failure.
+    record: Dict[str, object] = {
+        "exit": returncode, "command": cmd,
         "interpreter": interpreter,
-        "python": _python_version([str(vpy)], repo_root)}, indent=2) + "\n",
-        encoding="utf-8")
-    if installed.returncode != 0:
+        "python": _python_version([str(vpy)], repo_root)}
+    if unrun is not None:
+        record["unrun"] = unrun
+    (venv / _BOOTSTRAP_RECORD).write_text(json.dumps(record, indent=2) + "\n",
+                                          encoding="utf-8")
+    if unrun is not None:
+        print(f"aide env: bootstrap FAILED — {unrun}. The venv exists but "
+              f"nothing was installed in it, and `env` reports it stale "
+              f"until a bootstrap completes.", file=sys.stderr)
+        return 1
+    if returncode != 0:
         print(f"aide env: bootstrap FAILED — '{' '.join(cmd)}' exited "
-              f"{installed.returncode}. The venv exists but its install did "
+              f"{returncode}. The venv exists but its install did "
               f"not finish, and `env` reports it stale until a bootstrap "
               f"completes.", file=sys.stderr)
         return 1
@@ -13488,8 +14013,9 @@ def _pick_item(repo_root: Path, config, queue_text: str,
     claimed_nums = {n for n in (_branch_item_number(br, prefix) for br in claim_branches)
                     if n is not None}
     titles = _queue_titles(queue_text)
-    holds = queue_end_holds(repo_root, config, queue_text, item_status)
     withdrawn = withdrawn_stage_items(plines)
+    holds = queue_end_holds(repo_root, config, queue_text, item_status,
+                            withdrawn)
     for num in queue_item_numbers(queue_text):
         if item_status.get(num, "planned") != "planned":
             continue
@@ -13512,23 +14038,63 @@ def _pick_item(repo_root: Path, config, queue_text: str,
         # from a tree missing the very thing the dependency provides. Under
         # `auto-merge` this window is milliseconds; under `pr` it is however
         # long the human takes, which is exactly when it matters.
-        if any(item_status.get(d, "planned") in BLOCKING_STATUSES for d in deps):
+        # A ❌, ⏸️ or withdrawn-stage 📋 dependency has left the way
+        # (`still_blocks`, issue #393).
+        if any(still_blocks(d, item_status, withdrawn) for d in deps):
             continue
         return num, titles.get(num, f"item {num}")
     return None
 
 
 def _open_queue_texts(repo_root: Path, config) -> List[str]:
-    """Texts of the open queues, lowest-numbered first (derived state)."""
+    """Texts of the open queues, lowest-numbered first (derived state).
+
+    Open as `claim` reads it: a 📋 item of a withdrawn stage, which it never
+    offers, keeps no queue open (`queue_is_open`, issue #389).
+    """
     qdir = docs_dir(repo_root, config) / "queue"
     if not qdir.is_dir():
         return []
-    item_status = _progress_item_status(repo_root, config)
+    ppath = docs_dir(repo_root, config) / "progress.md"
+    plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
+    item_status = _parse_item_status(plines)[2]
+    withdrawn = withdrawn_stage_items(plines)
     out: List[str] = []
     for path in iter_queue_paths(qdir):
         text = path.read_text(encoding=_ENCODING)
-        if queue_is_open(text, item_status):
+        if queue_is_open(text, item_status, withdrawn):
             out.append(text)
+    return out
+
+
+def _withdrawn_queued_lines(repo_root: Path, config) -> List[str]:
+    """One line per 📋 item a queue lists every bullet of which sits in a
+    withdrawn stage — what `claim` names when no queue is open but such
+    items are still undropped (issue #389), with the remedy its ``none
+    left`` report gives."""
+    qdir = docs_dir(repo_root, config) / "queue"
+    ppath = docs_dir(repo_root, config) / "progress.md"
+    if not qdir.is_dir() or not ppath.is_file():
+        return []
+    plines = ppath.read_text(encoding=_ENCODING).splitlines()
+    withdrawn = withdrawn_stage_items(plines)
+    if not withdrawn:
+        return []
+    item_status = _parse_item_status(plines)[2]
+    out: List[str] = []
+    for path in iter_queue_paths(qdir):
+        text = path.read_text(encoding=_ENCODING)
+        titles = _queue_titles(text)
+        for n in queue_item_numbers(text):
+            if n in withdrawn and item_status.get(n, "planned") == "planned":
+                stages = withdrawn[n]
+                out.append(
+                    f"  {n:03d} {titles.get(n, 'item ' + str(n))} — in "
+                    f"withdrawn stage{'' if len(stages) == 1 else 's'} "
+                    f"{', '.join(stages)} (❌ summary row), still 📋 in "
+                    f"{path.name} — drop it ('aide progress set {n:03d} "
+                    f"dropped --reason …'), or take the stage's summary row "
+                    f"off ❌")
     return out
 
 
@@ -13601,9 +14167,11 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     seen = set()
     titles: Dict[int, str] = {}
     holds: Dict[int, List[int]] = {}
+    all_withdrawn = withdrawn_stage_items(plines)
     for qt in candidates:
         titles.update(_queue_titles(qt))
-        holds.update(queue_end_holds(repo_root, config, qt, item_status))
+        holds.update(queue_end_holds(repo_root, config, qt, item_status,
+                                     all_withdrawn))
         for n in queue_item_numbers(qt):
             if n not in seen:
                 seen.add(n)
@@ -13614,7 +14182,7 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     # 📋 items of a withdrawn stage (issue #387) are named, never offered,
     # and wait on nothing a gate or a claim could release: every reading
     # below of what holds the queue takes the rest.
-    withdrawn = {n: st for n, st in withdrawn_stage_items(plines).items()
+    withdrawn = {n: st for n, st in all_withdrawn.items()
                  if n in open_items}
     live_items = open_items - set(withdrawn)
     live_ordered = [n for n in open_ordered if n not in withdrawn]
@@ -13655,7 +14223,15 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
         gated |= _reached(g)
     early = _early_ready(repo_root, config, live_ordered,
                          [(n, g) for n, g, _ in relevant], gated,
-                         claimed, item_status, scan_order, holds)
+                         claimed, item_status, scan_order, holds,
+                         all_withdrawn)
+
+    def _withdrawn_reason(num: int) -> str:
+        stages = withdrawn[num]
+        return (f"in withdrawn stage{'' if len(stages) == 1 else 's'} "
+                f"{', '.join(stages)} (❌ summary row), so not offered — drop "
+                f"it ('aide progress set {num:03d} dropped --reason …'), or "
+                f"take the stage's summary row off ❌")
 
     def _stranded_reason(num: int) -> str:
         br, why = stranded[num]
@@ -13712,6 +14288,12 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
             print(f"  gate {n}: {g.text}{f' ({gid})' if gid else ''} — blocks {where}")
         print("  A person decides these, never an agent. Once decided: "
               "aide gate approve <n|ID> --evidence \"…\" (or gate decline <n|ID>).")
+        # No gate reaches a withdrawn stage's 📋 item (`_reached` takes the
+        # live ones), so it is named here or nowhere (issue #389).
+        for num in open_ordered:
+            if num in withdrawn:
+                print(f"  {num:03d} {titles.get(num, 'item ' + str(num))} — "
+                      f"{_withdrawn_reason(num)}")
         # A broken state is not hidden behind a gate: an unpublished or
         # deleted claim exits 1 on this path exactly as on the per-item one.
         if stranded:
@@ -13730,19 +14312,14 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
         head = f"  {num:03d} {titles.get(num, 'item ' + str(num))} —"
         br = claimed.get(num)
         if num in withdrawn:
-            stages = withdrawn[num]
-            print(f"{head} in withdrawn stage"
-                  f"{'' if len(stages) == 1 else 's'} {', '.join(stages)} "
-                  f"(❌ summary row), so not offered — drop it ('aide "
-                  f"progress set {num:03d} dropped --reason …'), or take the "
-                  f"stage's summary row off ❌")
+            print(f"{head} {_withdrawn_reason(num)}")
         elif num in stranded:
             print(f"{head} {_stranded_reason(num)}")
         elif br is not None:
             print(f"{head} claimed by {br}, already in flight")
         else:
             blockers = [d for d in _item_dependencies(repo_root, config, num)
-                        if item_status.get(d, "planned") in BLOCKING_STATUSES]
+                        if still_blocks(d, item_status, all_withdrawn)]
             held_by = holds.get(num, [])
             blockers += [d for d in held_by if d not in blockers]
             if blockers:
@@ -13766,7 +14343,8 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
                  gates: List[Tuple[int, "HumanGate"]], gated: set,
                  claimed: Dict[int, str], item_status: Dict[int, str],
                  scan_order: List[int],
-                 holds: Optional[Dict[int, List[int]]] = None) -> str:
+                 holds: Optional[Dict[int, List[int]]] = None,
+                 withdrawn: Collection[int] = ()) -> str:
     """The ``early ready:`` line ending a ``none left — …`` report that exits 0.
 
     ``yes`` when every gate holding the queue is still ⏳ awaiting its
@@ -13796,7 +14374,7 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
     # waits on a declared dependency.
     holds = holds or {}
     deps = {n: [d for d in _item_dependencies(repo_root, config, n)
-                if item_status.get(d, "planned") in BLOCKING_STATUSES]
+                if still_blocks(d, item_status, withdrawn)]
             for n in open_ordered}
     for n in open_ordered:
         deps[n] += [d for d in holds.get(n, []) if d not in deps[n]]
@@ -13843,6 +14421,8 @@ def cmd_claim(args: argparse.Namespace) -> int:
         return 1
     prefix = str(config["git"].get("branch_prefix", "aide/"))
     mode = str(config["git"].get("mode", "auto-merge"))
+    if not _require_origin("claim", repo_root, mode):
+        return 1
     scope = str(config["loop"].get("claim_scope", "live-queue"))
     if mode != "local":
         git(["fetch", "--all", "--prune"], repo_root, check=False)
@@ -13855,6 +14435,11 @@ def cmd_claim(args: argparse.Namespace) -> int:
         candidates = [queue_text] if queue_text is not None else []
     if not candidates:
         print("aide claim: no open queue found", file=sys.stderr)
+        if args.queue is None:
+            # A queue left with only a withdrawn stage's 📋 items is not open
+            # (issue #389), and this is the last place they could be named.
+            for line in _withdrawn_queued_lines(repo_root, config):
+                print(line, file=sys.stderr)
         return 1
     branches = _list_claim_branches(repo_root, prefix)
     pick = None
@@ -13940,7 +14525,8 @@ def interface_pins(spec_text: str, deps: List[int],
     are skipped here exactly as §5 lists them: an engine-marked audit entry
     (`assumption_engine_pin`), a bullet already carrying a re-check, and —
     reported rather than skipped — a dependency that left the queue as ❌/⏸️,
-    which has no code to check against.
+    or as 📋 in a withdrawn stage, which has no code to check against
+    (`_interface_pin_report` decides which, issue #393).
     """
     out: List[Tuple[int, str, int, str]] = []
     for index, bullet in enumerate(_assumption_bullets(spec_text), 1):
@@ -13968,13 +14554,21 @@ def _interface_pin_report(repo_root: Path, config, number: int) -> Optional[str]
     deps = _item_dependencies(repo_root, config, number)
     if not deps:
         return None
+    ppath = docs_dir(repo_root, config) / "progress.md"
+    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+              if ppath.is_file() else [])
+    item_status = _parse_item_status(plines)[2]
     pins = interface_pins(specs[0].read_text(encoding=_ENCODING), deps,
-                          _progress_item_status(repo_root, config))
+                          item_status)
     if not pins:
         return None
-    absent = {"excluded", "deferred"}
+    # Left the way without landing — ❌, ⏸️, or 📋 in a withdrawn stage
+    # (`still_blocks`, issue #393) — so there is no code to check against.
+    withdrawn = withdrawn_stage_items(plines)
     parts = [f"{label} (item {dep:03d}"
-             + (", no code to check against" if st in absent else "") + ")"
+             + (", no code to check against" if st != "complete"
+                and not still_blocks(dep, item_status, withdrawn) else "")
+             + ")"
              for _, label, dep, st in pins]
     distinct = len({index for index, _, _, _ in pins})
     return (f"aide claim: {distinct} assumption(s) pin a dependency's interface "
@@ -15224,6 +15818,52 @@ def _merge_dropped_item(repo_root: Path, config, number: int,
     return " and ".join(places)
 
 
+def _merge_withdrawn_item(repo_root: Path, config, number: int, base: str,
+                          branch: str) -> Tuple[str, List[str]]:
+    """Where item *number* reads 📋 with every bullet in a withdrawn stage —
+    ``("the working tree" | "on <base>" | both joined, stages)`` — or
+    ``("", [])`` (issue #389).
+
+    Read where a drop is (`_merge_dropped_item`): the working tree and the
+    base, the owner's places. A 🚧 item of a withdrawn stage is NOT refused
+    — §2 reads it as live work until its owner drops it, the line #388 drew
+    for the stale ground, and the owner's own drop is the signal. The 🚧 is
+    recorded on the item branch (`progress set NNN in-progress`, the
+    builder's step), never on the base, so the claim branch is read for the
+    item's status too: any copy reading it other than 📋 lets the merge on.
+    An item the claim branch never started, in a stage withdrawn on the
+    base, is the one `claim` would no longer offer, and is refused.
+    """
+    rel = _progress_rel(config)
+    copies: List[Tuple[str, List[str]]] = []
+    path = repo_root / rel
+    if path.is_file():
+        try:
+            copies.append(("the working tree",
+                           path.read_text(encoding=_ENCODING).splitlines()))
+        except (OSError, UnicodeDecodeError):
+            pass
+    shown = git(["show", f"{base}:./{rel}"], repo_root, check=False)
+    if shown.returncode == 0:
+        copies.append((f"on {base}", shown.stdout.splitlines()))
+    on_branch = git(["show", f"{branch}:./{rel}"], repo_root, check=False)
+    statuses = [_parse_item_status(lines)[2].get(number, "planned")
+                for _, lines in copies]
+    if on_branch.returncode == 0:
+        statuses.append(_parse_item_status(
+            on_branch.stdout.splitlines())[2].get(number, "planned"))
+    if any(st != "planned" for st in statuses):
+        return "", []
+    places: List[str] = []
+    stages: List[str] = []
+    for where, lines in copies:
+        found = withdrawn_stage_items(lines).get(number)
+        if found:
+            places.append(where)
+            stages += [st for st in found if st not in stages]
+    return " and ".join(places), stages
+
+
 def cmd_merge(args: argparse.Namespace) -> int:
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
@@ -15237,6 +15877,10 @@ def cmd_merge(args: argparse.Namespace) -> int:
               "it, or pass --no-test", file=sys.stderr)
         return 2
     if not _require_repository("merge", repo_root):
+        return 1
+    # Before anything is run, merged or written (issue #377): the push is
+    # the last thing an `auto-merge` merge does, after the suite and the ✅.
+    if not _require_origin("merge", repo_root, mode):
         return 1
     branch = args.branch or _find_claim_branch(repo_root, prefix, args.number)
     if not branch:
@@ -15304,6 +15948,23 @@ def cmd_merge(args: argparse.Namespace) -> int:
               f"is wanted after all, restore it with `aide progress set "
               f"{args.number:03d} restored --reason …`, then re-run "
               f"'aide merge {args.number:03d}'.", file=sys.stderr)
+        return 1
+    withdrawn_in, stages = _merge_withdrawn_item(repo_root, config,
+                                                 args.number, main, branch)
+    if withdrawn_in:
+        # The withdrawn-stage half of the refusal above (issue #389): a 📋
+        # item every bullet of which sits in a stage whose summary row is ❌
+        # is work `claim` no longer offers, and ticking it ✅ would undo the
+        # withdrawal. A 🚧 one is NOT refused — live work until its owner
+        # drops it (§2, the line #388 drew), so `_merge_withdrawn_item`
+        # reads the claim branch, where the builder records the 🚧.
+        print(f"aide merge: item {args.number:03d} is 📋 in withdrawn "
+              f"stage{'' if len(stages) == 1 else 's'} {', '.join(stages)} "
+              f"(❌ summary row, {withdrawn_in}), and a withdrawn stage's "
+              f"unstarted item is not merged — nothing was merged, pushed or "
+              f"written. Drop it ('aide progress set {args.number:03d} "
+              f"dropped --reason …'), or take the stage's summary row off ❌ "
+              f"and re-run 'aide merge {args.number:03d}'.", file=sys.stderr)
         return 1
 
     if mode == "pr":
@@ -15972,6 +16633,33 @@ def _is_queue_branch(branch: str, prefix: str) -> bool:
 def _has_origin(repo_root: Path) -> bool:
     out = git(["remote"], repo_root, check=False).stdout
     return "origin" in out.split()
+
+
+def missing_origin(mode: str) -> str:
+    """The one sentence a mode that pushes is refused with where there is no
+    remote named origin: `aide env`'s origin line, plain `aide check`'s
+    `this machine:` error and `_require_origin` all say it (issues #354,
+    #377)."""
+    return (f'[git] mode = "{mode}" in aide.toml needs a remote named origin '
+            f"— add one ('git remote add origin <url>'), or set [git] mode = "
+            f'"local"')
+
+
+def _require_origin(verb: str, repo_root: Path, mode: str) -> bool:
+    """Print `missing_origin` and return False when *mode* pushes and this
+    checkout has no remote named origin; True otherwise.
+
+    Asked before the verb changes anything (issue #377). `claim`, `queue
+    start`, `queue restack` and `merge` each push last, so a missing origin
+    used to be found after their local half was done: `merge` under
+    `auto-merge` ran the suite, merged, ticked ✅ and committed, then failed
+    at the push — and every re-run paid the suite again to fail at the same
+    place. §4: a requirement the machine cannot meet is refused up front.
+    """
+    if mode == "local" or _has_origin(repo_root):
+        return True
+    print(f"aide {verb}: {missing_origin(mode)}", file=sys.stderr)
+    return False
 
 
 # --------------------------------------------------------------------------- #
@@ -17582,16 +18270,26 @@ def cmd_status(args: argparse.Namespace) -> int:
     dirty = git(["status", "--porcelain"], repo_root, check=False).stdout.strip()
     print(f"  tree: {'dirty (' + str(len(dirty.splitlines())) + ' path(s))' if dirty else 'clean'}")
 
-    item_status = _progress_item_status(repo_root, config)
+    ppath = docs_dir(repo_root, config) / "progress.md"
+    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+              if ppath.is_file() else [])
+    item_status = _parse_item_status(plines)[2]
+    # Open as `claim` reads it (`queue_is_open`, issue #393): a 📋 item of a
+    # withdrawn stage is never offered, so it neither keeps a queue open nor
+    # moves the live marker, and is named on its queue's line instead.
+    withdrawn = withdrawn_stage_items(plines)
     qdir = docs_dir(repo_root, config) / "queue"
     live_seen = False
     live_work: List[int] = []
     if iter_queue_paths(qdir):
         for path in iter_queue_paths(qdir):
             nums = queue_item_numbers(path.read_text(encoding=_ENCODING))
+            idle = [n for n in nums if n in withdrawn
+                    and item_status.get(n, "planned") == "planned"]
             open_nums = [n for n in nums
-                         if item_status.get(n, "planned")
-                         in ("planned", "in-progress", "in-review")]
+                         if still_blocks(n, item_status, withdrawn)]
+            aside = (("not offered, 📋 in a withdrawn stage: "
+                      + ", ".join(f"{n:03d}" for n in idle)) if idle else "")
             if open_nums:
                 tag = " (live)" if not live_seen else ""
                 if not live_seen:
@@ -17601,9 +18299,10 @@ def cmd_status(args: argparse.Namespace) -> int:
                                  in ("planned", "in-progress")]
                 live_seen = True
                 listed = ", ".join(f"{n:03d}" for n in open_nums)
-                print(f"  {path.name}: open{tag} — {len(open_nums)}/{len(nums)} items open ({listed})")
+                print(f"  {path.name}: open{tag} — {len(open_nums)}/{len(nums)} items open ({listed})"
+                      + (f"; {aside}" if aside else ""))
             else:
-                print(f"  {path.name}: done")
+                print(f"  {path.name}: done" + (f" — {aside}" if aside else ""))
     else:
         print("  queues: none")
 
@@ -17921,7 +18620,9 @@ def _gc_empty_notes(repo_root: Path, prefix: str, main: str,
     """
     notes: List[str] = []
     if not merged_flag and (local or remote):
-        extra = _merged_prefixed_branches(repo_root, main, prefix)
+        main_branch = str(load_config(repo_root)["git"].get("main_branch", "main"))
+        extra = [b for b in _merged_prefixed_branches(repo_root, main, prefix)
+                 if _gc_merged_ground_skip(b, main, main_branch, prefix) is None]
         if extra:
             notes.append(
                 f"{_plural(len(extra), 'branch', 'branches')} under '{prefix}' "
@@ -17937,6 +18638,31 @@ def _gc_empty_notes(repo_root: Path, prefix: str, main: str,
     return notes
 
 
+def _gc_merged_ground_skip(branch: str, base: str, main_branch: str,
+                           prefix: str) -> Optional[str]:
+    """Why *branch* is not a target on the ``--merged`` ground under *base*,
+    or None when it may be one (issue #403).
+
+    Two branches are never collected there, however git answers. The base
+    itself, which every ancestry and content test calls merged into itself.
+    And a queue branch under a base other than `main_branch`: on a stack of
+    queue branches each one below the base is an ancestor of it, so it reads
+    as merged — into its successor, not into `main_branch` — while its own PR,
+    still unreviewed, is its route there. Deleting it on origin closes that
+    PR. A claim branch merged into a queue base is a different shape: it
+    landed where it was meant to land, and the queue branch's PR carries its
+    work, so it stays a target.
+    """
+    if base in (branch, f"origin/{branch}"):
+        return "it is the base"
+    if (_is_queue_branch(branch, prefix)
+            and base not in (main_branch, f"origin/{main_branch}")):
+        return (f"a queue branch merged into {base}, not into {main_branch} "
+                f"— its own PR is still its route to {main_branch}; gc "
+                f"takes it once {main_branch} holds its work")
+    return None
+
+
 def _gc_ref(branch: str, local: List[str]) -> str:
     """The ref to measure *branch* by: the local branch, else its remote copy."""
     return branch if branch in local else f"origin/{branch}"
@@ -17945,9 +18671,10 @@ def _gc_ref(branch: str, local: List[str]) -> str:
 def cmd_gc(args: argparse.Namespace) -> int:
     """Delete claim branches whose work has landed (item ✅ in progress.md —
     or ❌, dropped or withdrawn with its stage — or ``--merged`` branches
-    already merged into main). Dry-run by default; pass
-    ``--yes`` to delete. The one destructive verb in the CLI, so it is never
-    implicit."""
+    already merged into the base, a queue branch only when that base is
+    main_branch). Dry-run by default; pass
+    ``--yes`` to delete. The one verb that deletes work, so it is never
+    implicit: `queue discard` deletes a branch only where it carries none."""
     repo_root = find_repo_root(args.repo)
     config = load_config(repo_root)
     if not _require_repository("gc", repo_root):
@@ -17958,6 +18685,7 @@ def cmd_gc(args: argparse.Namespace) -> int:
     # like everything else: on stacked work the branches that have landed have
     # landed into the queue branch, and asking about `main` finds none of them.
     main = resolve_base(repo_root, config, args.base)
+    main_branch = str(config["git"].get("main_branch", "main"))
 
     if mode != "local" and _has_origin(repo_root):
         git(["fetch", "--all", "--prune"], repo_root, check=False)
@@ -17989,8 +18717,9 @@ def cmd_gc(args: argparse.Namespace) -> int:
         # ✅" ground. A queue branch shares the number namespace but not the
         # lifecycle: it aggregates many items and lands as one reviewed PR, so
         # deleting it because some same-numbered item finished would discard
-        # unreviewed work. It stays eligible under --merged, where the ground
-        # is "already merged into main" and is checked against git itself.
+        # unreviewed work. It stays eligible under --merged only while the
+        # base is main_branch: under a queue base, every queue branch below it
+        # on the stack reads as merged into it, and is not in main (#403).
         num = _branch_item_number(br, prefix)
         # A ❌ item's branch — dropped, or withdrawn with its stage — is on
         # the item ground too (issue #387): `merge` refuses it, so nothing
@@ -18023,28 +18752,39 @@ def cmd_gc(args: argparse.Namespace) -> int:
                                  f"{main}; re-check it, or pass --abandon to "
                                  f"delete it anyway")
                 else:
-                    # Not the same statement, and this is the one destructive
-                    # verb: say the measurement failed, not that the branch
+                    # Not the same statement, and this is the one verb that
+                    # deletes work: say the measurement failed, not that the branch
                     # carries work it may not carry.
                     skips[br] = (f"{reason}, but whether its work is in {main} "
                                  f"could not be determined (ref "
                                  f"'{_gc_ref(br, local)}' unreadable); not "
                                  f"deleting — pass --abandon to delete anyway")
-        elif br in merged_local:
-            targets[br] = f"merged into {main}"
-        elif (args.merged and can_measure
-              and _branch_content_landed(repo_root, main, _gc_ref(br, local)) is True):
-            # `--merged` is built on `git branch --merged`, which is ancestry-
-            # based and so misses every squash merge — the very shape `-D` was
-            # reached for. The same oracle that guards the ✅ ground closes that.
-            targets[br] = f"content already in {main}"
+        elif args.merged:
+            if br in merged_local:
+                ground = f"merged into {main}"
+            elif (can_measure and _branch_content_landed(
+                    repo_root, main, _gc_ref(br, local)) is True):
+                # `--merged` is built on `git branch --merged`, which is
+                # ancestry-based and so misses every squash merge — the very
+                # shape `-D` was reached for. The same oracle that guards the
+                # ✅ ground closes that.
+                ground = f"content already in {main}"
+            else:
+                continue
+            # Asked only once git has said the branch is merged, so a branch
+            # the ground would not take anyway is never reported as skipped.
+            why = _gc_merged_ground_skip(br, main, main_branch, prefix)
+            if why is None:
+                targets[br] = ground
+            elif main not in (br, f"origin/{br}"):
+                skips[br] = why
 
     if not targets and not skips:
         # "Nothing to clean" is a claim about the ground and the scope this run
         # actually checked, not about the repository — say which. The default
         # invocation checks only the item ground, and every invocation ignores
-        # branches outside `prefix` (deliberately: gc is the one destructive
-        # verb and must not delete branches it does not own). Left unqualified,
+        # branches outside `prefix` (deliberately: gc is the one verb that
+        # deletes work and must not delete branches it does not own). Left unqualified,
         # the message reads as "no cleanup is available here" and the next
         # reach is the raw `git branch -d` the CLI exists to replace.
         print("aide gc: nothing to clean")
@@ -18055,7 +18795,7 @@ def cmd_gc(args: argparse.Namespace) -> int:
     # Every skip is decided BEFORE anything is printed, so the preview is the
     # set `--yes` acts on rather than a promise it then quietly narrows. A dry
     # run that overstates trains the reader to skim it, and this is the one
-    # destructive verb — the list a human is asked to approve must be exact.
+    # verb that deletes work — the list a human is asked to approve must be exact.
     for br in [b for b in targets if b in protected]:
         del targets[br]
         skips[br] = ("checked out (here or in another worktree) — git refuses to "
@@ -18211,7 +18951,12 @@ def build_parser() -> argparse.ArgumentParser:
             "section, an objective marked \u2705 over a target not yet \u2705 "
             "Met, an Outcome target or human gate whose Status is not one of "
             "its table's marks, and every human gate still blocking \u2014 a "
-            "normal state rather than a defect. A summary row marked "
+            "normal state rather than a defect \u2014 save a \u274c declined "
+            "gate whose reach holds nothing open: a Blocks cell left empty "
+            "(\u2014), or items and stages all \u2705 or \u274c, a "
+            "\U0001f4cb item every bullet of which sits in a withdrawn "
+            "stage counting as \u274c; never `all` or `stage N+`. A "
+            "summary row marked "
             "\u274c is left out of every stage comparison "
             "above, deliverables and header alike: the stage is "
             "dropped, so its bullets no longer speak for it; a header or "
@@ -18324,8 +19069,10 @@ def build_parser() -> argparse.ArgumentParser:
             "zero-padded: 037 is an item number.\n"
             "\n"
             "A record is the spec of an item progress.md shows \u2705, "
-            "\u274c or \u23f8\ufe0f, or a queue naming items none of which "
-            "is still open; an ID naming nothing is an ERROR there too."))
+            "\u274c or \u23f8\ufe0f, or \U0001f4cb with every bullet in a "
+            "stage whose summary row is \u274c, or a queue naming items none "
+            "of which is still open; an ID naming nothing is an ERROR there "
+            "too."))
     p_check.add_argument("--queue", type=int, default=None,
                          help="also check this queue's specs against each other "
                               "(scope overlaps, pinned state, dependency graph)")
@@ -18603,14 +19350,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_queue = sub.add_parser(
         "queue", help="queue branch creation / maintenance, a planned "
         "queue's plan-review gate, keeping a stack of queue branches "
-        "merged forward (restack), and the queue's own PR (pr, ready)",
+        "merged forward (restack), the queue's own PR (pr, ready), and "
+        "discarding a queue branch nothing was committed on (discard)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "start NNN creates <prefix>queue-NNN from --base (default "
             "main_branch), records that base and the commit it started from, "
             "and off local mode pushes it; --specs creates "
             "<prefix>specs-queue-NNN instead, which is never counted or "
-            "stacked. A queue branch is unmerged until its own work has "
+            "stacked. Off local mode a checkout with no remote named origin "
+            "is refused, exit 1, before the base, the cap or --dry-run is "
+            "considered. A queue branch is unmerged until its own work has "
             "landed in main_branch, judged exactly as restack judges it "
             "(below), against this checkout's main_branch — and, off local "
             "mode, over origin's queue branches as last fetched too; one git "
@@ -18619,8 +19369,8 @@ def build_parser() -> argparse.ArgumentParser:
             "unmerged, naming them and the key. A branch whose PR merged "
             "counts until this checkout's main_branch holds its work, so "
             "updating main_branch is what clears it: a pull from origin "
-            "where there is one, and in local mode or with no origin, "
-            "merging the queue branch into main_branch; one git "
+            "off local mode, and in local mode merging the queue branch "
+            "into main_branch; one git "
             "cannot judge is cleared by `aide gc --merged --yes` if it "
             "landed, or by `aide queue restack NNN --base main_branch`, which "
             "records its start, if it is open. Below the cap, while any "
@@ -18716,7 +19466,9 @@ def build_parser() -> argparse.ArgumentParser:
             "branch origin is ahead on, refuses a branch that has diverged "
             "from origin, and once every merge has succeeded pushes, without "
             "force, each stack branch it merged into or that is ahead of "
-            "origin. local mode never fetches or pushes.\n"
+            "origin; with no remote named origin it refuses, exit 1, before "
+            "anything changes, --dry-run included. local mode never fetches "
+            "or pushes.\n"
             "\n"
             "It needs a clean tree, and refuses a stack branch checked out "
             "in another worktree. A conflict aborts that merge, leaves the "
@@ -18758,17 +19510,44 @@ def build_parser() -> argparse.ArgumentParser:
             "or no origin, a branch with no PR (`queue pr` opens it), a PR "
             "closed or merged, a forge that could not be asked, and a failed "
             "push or change. Under [git] forge = \"none\" both refuse, exit "
-            "1, before the forge is asked anything: no forge is declared.\n"
+            "1, before the forge is asked anything: no forge is declared. "
+            "Before the mode or the forge is considered, both refuse, exit "
+            "1, a queue branch whose tip carries no queue file of its own "
+            "number: nothing is planned on it, so a pull request would have "
+            "no plan to carry.\n"
             "\n"
             "An option the action does not read is refused, exit 2, before "
             "anything is done: pr and ready take no --dry-run, --base, "
             "--through, --date, --specs or --no-commit, pr no --undo and ready "
-            "no --body or --body-file; and start, tidy, gate and restack take "
-            "no --body, --body-file or --undo."))
+            "no --body or --body-file; start, tidy, gate and restack take "
+            "no --body, --body-file or --undo; and discard takes none of "
+            "them.\n"
+            "\n"
+            "discard NNN discards a queue branch `queue start` made that "
+            "carries no commits beyond its recorded base, locally and on "
+            "origin; it refuses one that does. Origin's copy, as last "
+            "fetched, is counted too, and deleted only while origin still "
+            "holds the commit counted. With nothing on the branch to lose "
+            "there is no preview and no confirmation. A checked-out branch "
+            "is left for its base first, and uncommitted changes to tracked "
+            "files are refused. local mode never touches origin, and off "
+            "local mode with no remote named origin only the local branch "
+            "is deleted. The branch's recorded base and start go with it. "
+            "Exit 0: discarded; origin's copy found already gone there "
+            "counts as deleted. 1: refused, nothing discarded — no such "
+            "branch here or on origin, one on origin only, no recorded "
+            "base, a commit beyond the base or commits git could not count, "
+            "a queue file of the number or the one after it written and not "
+            "committed, the branch checked out in another worktree, "
+            "uncommitted changes or an unfinished merge or rebase while it "
+            "is checked out, or a switch or push git refused "
+            "(after a switch, the message says the checkout is now on the "
+            "base); and a local delete git refused, where origin's copy, if "
+            "any, is already gone and the message says so. 2: usage."))
     p_queue.add_argument("action", choices=["start", "tidy", "restack", "gate",
-                                            "pr", "ready"])
+                                            "pr", "ready", "discard"])
     p_queue.add_argument("number", type=int, nargs="?", default=None,
-                         help="queue number (start, tidy, gate; restack only "
+                         help="queue number (start, tidy, gate, discard; restack only "
                               "with --base; pr, ready: default the current "
                               "queue branch)")
     p_queue.add_argument("--through", type=int, default=None, metavar="MMM",
@@ -18970,18 +19749,26 @@ def register_git_subcommands(sub) -> None:
         description=(
             "Picks the first 📋 item the queue lists \u2014 its own "
             "order, not the item numbers \u2014 whose dependencies have all "
-            "left the way (\u2705, \u274c or "
-            "\u23f8\ufe0f) and that no unresolved human gate reaches. An "
+            "left the way (\u2705, \u274c, \u23f8\ufe0f, or a "
+            "\U0001f4cb item of a withdrawn stage) and that no unresolved "
+            "human gate reaches. An "
             "item every deliverable bullet of which sits in a stage whose "
             "Stage summary row is \u274c \u2014 withdrawn whole \u2014 "
             "is not offered either, and the report names the stage; an item "
-            "dropped by its own bullets is \u274c, not \U0001f4cb. A "
+            "dropped by its own bullets is \u274c, not \U0001f4cb. Such a "
+            "\U0001f4cb item keeps no queue open, so the default queue is "
+            "the lowest-numbered one with other work open, and where no queue "
+            "is open the refusal names each one still listed; a \U0001f6a7 "
+            "or \U0001f50d item of a withdrawn stage still keeps its queue "
+            "open. A "
             "queue-end item, one titled `Validate stage N`, waits besides on "
             "every other item its queue lists that is not one, as on a "
             "dependency, with or without a spec and wherever the queue lists "
-            "it, bar an item whose dependencies lead back to it. It "
+            "it, bar an item whose dependencies lead back to it and a "
+            "\U0001f4cb item of a withdrawn stage. It "
             "will not offer a blocked item: where a gate holds the pick, the "
             "report names that gate, what it blocks and who may resolve it, "
+            "and each item of a withdrawn stage besides, "
             "rather than an unexplained \"none left\". Every \"none left "
             "\u2014 \u2026\" report that exits 0 ends with an `early ready:` "
             "line, yes or no before an em dash: yes when every gate holding "
@@ -18998,7 +19785,9 @@ def register_git_subcommands(sub) -> None:
             "a gate holds the rest. A claim branch origin had and has since "
             "deleted exits 1 the same way, named as already in its base or "
             "as work that could not be found there, and is never advised a "
-            "push. "
+            "push. Off local mode a checkout with no remote named origin is "
+            "refused, exit 1, before anything is picked, created or fetched, "
+            "--dry-run included. "
             "A human-gates row it "
             "cannot read holds every item, since what it blocks is unknown: "
             "the report names the row and exits 1. A missing insights.md "
@@ -19008,8 +19797,8 @@ def register_git_subcommands(sub) -> None:
             "dependency's interface, to be re-checked before tests are "
             "written; an engine-marked assumption and one already carrying a "
             "re-check are not named, and a dependency that left the queue as "
-            "\u274c or \u23f8\ufe0f is named as having no code to check "
-            "against."))
+            "\u274c, \u23f8\ufe0f or a \U0001f4cb item of a withdrawn stage "
+            "is named as having no code to check against."))
     p_claim.add_argument("--queue", type=int, default=None,
                          help="queue number (default: the lowest-numbered open queue)")
     p_claim.add_argument("--base", default=None,
@@ -19025,7 +19814,9 @@ def register_git_subcommands(sub) -> None:
         description=(
             "Lands the item's claim branch on its base per git.mode, re-runs "
             "the suite and `aide check`, writes the \u2705 and appends one "
-            "ledger row.\n"
+            "ledger row. Off local mode a checkout with no remote named "
+            "origin is refused, exit 1, before anything is run, merged, "
+            "pushed or written.\n"
             "\n"
             "The row is one per item, in docs/aide/ledger.md \u2014 created "
             "from .aide/templates/ledger.md the first time there is a row to "
@@ -19071,7 +19862,12 @@ def register_git_subcommands(sub) -> None:
             "base \u2014 is refused before anything is merged, pushed or "
             "written, exit 1, and the refusal names `aide progress set NNN "
             "restored`. A \u23f8\ufe0f item is merged and ticked: a merge "
-            "records work that landed.\n"
+            "records work that landed. An item \U0001f4cb with every "
+            "bullet in a stage whose summary row is \u274c, in the working "
+            "tree or on the base, is refused the same way, and the refusal "
+            "names `aide progress set NNN dropped`; one the claim branch, "
+            "the working tree or the base reads \U0001f6a7 is merged, since "
+            "started work is live until its owner drops it.\n"
             "\n"
             "The finding cells read [loop] review, from aide.toml. Where it "
             "is off no reviewer ran, so the three of them are written as `-` "
@@ -19201,7 +19997,20 @@ def register_git_subcommands(sub) -> None:
             "\n"
             "--bootstrap builds the venv where it is missing or stale and "
             "reports on the venv alone: exit 0 when the venv is OK, whatever "
-            "else the report would refuse."))
+            "else the report would refuse. It installs with [python] "
+            "bootstrap, split on whitespace and read by its first word: pip "
+            "runs as the venv's `python -m pip`; python or python3 is "
+            "replaced by the venv's Python; an option (-m, -c), a .py file "
+            "or another file in the repository is passed to the venv's "
+            "Python, as every bootstrap but pip was before; anything else "
+            "is a command, found in the venv's script directory first and "
+            "then on PATH, and run with that directory first on PATH and "
+            "VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT set to the venv. A "
+            "command found in neither is a failed bootstrap that names it. "
+            "Only a first word the old reading could never have run is a "
+            "command, so a bootstrap that worked runs the same way, and a "
+            "shell script in the repository is written `sh <script>`. An "
+            "empty bootstrap builds the venv and installs nothing."))
     p_env.add_argument("--bootstrap", action="store_true",
                        help="create + populate the venv if missing/stale, from "
                             "[python] interpreter when set; reports on the "
@@ -19223,7 +20032,10 @@ def register_git_subcommands(sub) -> None:
         description=(
             "Deletes claim branches, local and remote, whose item is \u2705 in "
             "progress.md, and with --merged also branches already merged into "
-            "the base. An item \u274c by its own bullets, or \U0001f4cb "
+            "the base. A queue branch is taken on that ground only when the "
+            "base is main_branch: one merged into any other base is skipped, "
+            "since it has landed in the queue stacked on it and its own PR is "
+            "still its route to main_branch. An item \u274c by its own bullets, or \U0001f4cb "
             "with every bullet in a stage whose summary row is \u274c, is "
             "on the \u2705 ground too. On the \u2705 ground a branch goes "
             "only when "

@@ -9,7 +9,7 @@
     - Implementation Steps            [builder]
     - Authorised paths                [builder, validator, aide scope]
     - Testing Strategy                [test-writer]
-    - Review findings (only once a review round adds a test)  [test-writer, aide scope]
+    - Review findings (only once a review round records a finding)  [test-writer, builder, validator, aide scope]
     - Dependencies                    [aide claim]
     - Decisions & Trade-offs          [spec-author: Left open; builder, as it goes]
   Optional: Validation (how to observe the work beyond the tests; the
@@ -116,13 +116,15 @@ test-writer writes the AC tests and the cases listed here, and no others
 A test of a producer's output reads that output through the producer's code
 or fixture, never a hand-built copy._
 
-## Review findings  <!-- OPTIONAL: absent until a review round adds a test -->
+## Review findings  <!-- OPTIONAL: absent until a review round records a finding -->
 
-_One bullet per finding a review-round test answers, in the Testing
-Strategy's label shape — conventions.md §6 says who writes it and when.
-Leave the section out while there is none._
+_One bullet per finding a review-round test answers, or per blocking
+finding fixed without a test, in the Testing Strategy's label shape —
+conventions.md §6 says who writes it, when, and how a bullet with no test
+ends. Leave the section out while there is none._
 
 - {{label}}: {{the finding}} — {{rank}}; {{fix commit}}
+- {{label}}: {{the finding}} — blocking; {{fix commit}}; no test: {{why}}
 
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 

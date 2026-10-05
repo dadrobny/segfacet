@@ -15,18 +15,19 @@ header and its `## Dependencies`.
   for** — `- **A3 (engine 1.28.1):** …`, the marker `insights.md` provenance
   already carries, in the bold label beside the assumption's own code. `aide
   check` warns when the engine has since moved past a marked assumption, on a
-  live spec only: the spec of an item `progress.md` shows ✅, ❌ or ⏸️ is a
-  record, and is not read for it. Clear it the way
-  every other durable record in this loop is corrected — **append**: a
-  re-check goes into the marker, `(engine 1.28.1, re-checked 1.36.0)`, and the
-  newest version named is the one the claim stands on. A merged spec is never
-  rewritten to agree with a later engine. An unmarked assumption is not warned
-  about — the marker is what makes the claim checkable. *(spec-author,
-  validator, `aide check`)*
+  live spec only: the spec of an item `progress.md` shows ✅, ❌ or ⏸️, or 📋
+  in a withdrawn stage (summary row ❌), is a record, and is not read for it.
+  Clear it the way every other durable record in this loop is corrected —
+  **append**: a re-check goes into the marker, `(engine 1.28.1, re-checked
+  1.36.0)`, and the newest version named is the one the claim stands on. A
+  merged spec is never rewritten to agree with a later engine. An unmarked
+  assumption is not warned about — the marker is what makes the claim
+  checkable. *(spec-author, validator, `aide check`)*
 - **`## Dependencies` blocks `aide claim`.** Every item number named in this
   section (any of the accepted forms in the table above) is read as something
   this item is blocked on until that item is **merged** (✅), or leaves the
-  queue's way as ❌ excluded or ⏸️ deferred. 🚧 and 🔍 both still block.
+  queue's way as ❌ excluded, ⏸️ deferred, or 📋 in a withdrawn stage
+  (summary row ❌). 🚧 and 🔍 both still block, in a withdrawn stage too.
   `aide claim` therefore skips a `📋` item while any of its dependencies is
   still open. Text at or after a literal
   `**Downstream` marker is excluded from that scan, so a forward-looking aside
@@ -128,6 +129,13 @@ forgotten. The queue is bounded the same way, by the posture table's
   returns the moment the item is 📋 again.
 - **Why 🚧 and 🔍 block.** Work in progress is not in the base a dependent
   would branch from, and neither is work whose PR is still open.
+- **Why a withdrawn stage's 📋 item leaves the way.** `aide claim` never
+  offers a 📋 item every bullet of which sits in a stage whose summary row is
+  ❌ (§2), so it will never be merged, and a dependency on it read as 📋
+  stranded its dependents for good with nothing naming why (issue #393). It
+  has left the queue as a ❌ item has, and is read the same way — as a dependency
+  and as a record. A 🚧 one still blocks: it is live work until its owner
+  drops it, the line §2 draws for the stale ground.
 - **Why a bounded diff fails on arrival.** Once the item merges into the
   branch its baseline is derived from, the two sides of the comparison are the
   same tree: the test is then either vacuous — green while asserting nothing —

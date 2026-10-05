@@ -1697,6 +1697,21 @@ def test_a_record_spec_and_a_done_queue_are_not_warned_about_positions(
     assert _findings(repo) == ([], [])
 
 
+def test_a_withdrawn_stages_planned_item_is_a_record_too(tmp_path: Path):
+    """007 is 📋 in stage 2, whose summary row is ❌: `claim` never offers it,
+    so its spec and the queue left with it are records (issue #393)."""
+    repo = _repo(tmp_path)
+    _cite(repo, "docs/aide/progress.md",
+          "# Demo — Progress\n\n## Stage summary\n\n"
+          "| Stage | Title | Objectives | Status |\n|---|---|---|---|\n"
+          "| 1 | Rules | G1 | 🚧 |\n| 2 | Later | G1 | ❌ |\n\n"
+          "## Stage 1 — Rules — 🚧\n\n**Deliverables.**\n- ✅ Y. *(Item 008)*\n\n"
+          "## Stage 2 — Later\n\n**Deliverables.**\n- 📋 X. *(Item 007)*\n")
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    _cite(repo, "docs/aide/queue/queue-001.md", _RECORD_QUEUE)
+    assert _findings(repo) == ([], [])
+
+
 def test_a_queue_with_one_open_item_or_none_named_is_not_a_record(tmp_path: Path):
     """A queue is a record only once every item it names is settled: one 📋
     item beside a ✅ one keeps it live, and so does naming none yet."""

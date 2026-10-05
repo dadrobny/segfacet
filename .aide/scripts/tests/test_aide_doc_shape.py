@@ -254,6 +254,24 @@ def test_a_record_spec_is_not_warned_about_a_stale_engine_marker(
     assert aide.item_spec_warnings(repo / "docs" / "aide", engine="1.35.0") == []
 
 
+def test_a_withdrawn_stages_planned_spec_is_a_record_too(tmp_path: Path):
+    """027 is 📋 in stage 1, whose summary row is ❌: `claim` never offers it,
+    so its spec is a record (issue #393); a 🚧 027 there is live work and is
+    still warned."""
+    repo = _repo(tmp_path)
+    progress = repo / "docs/aide/progress.md"
+    _spec_file(repo, "027-bounds.md", _marked("A8", "engine 1.28.1"))
+    for icon, warned in (("📋", 0), ("🚧", 1)):
+        progress.write_text(
+            "# D — Progress\n\n## Stage summary\n\n"
+            "| Stage | Title | Objectives | Status |\n"
+            "|-------|-------|-----------|--------|\n"
+            "| 1 | Rules | G1 | ❌ |\n\n" + _progress_with(icon).split("\n\n", 1)[1],
+            encoding="utf-8")
+        w = aide.item_spec_warnings(repo / "docs" / "aide", engine="1.35.0")
+        assert len(w) == warned, (icon, w)
+
+
 @pytest.mark.parametrize("icon", ["📋", "🚧", "🔍"])
 def test_a_live_spec_is_still_warned_about_a_stale_engine_marker(
         tmp_path: Path, icon: str):

@@ -1,6 +1,8 @@
 """Tests for the queue PR's CI state in `aide status` and for `aide queue pr`
 and `aide queue ready` (issue #330) — see aide.py `checks_state`,
-`_branch_pr_facts`, `_queue_branch_ci`, `_queue_pr` and `_queue_ready`.
+`_branch_pr_facts`, `_queue_branch_ci`, `_queue_pr` and `_queue_ready` — and
+for what a queue branch nobody planned on meets (issue #383): both verbs'
+refusal, and `aide queue discard` (`_queue_discard`).
 
 Throwaway repositories under ``tmp_path``, each queue branch started with
 `aide queue start` so its recorded base is the one a real run leaves, and a
@@ -530,11 +532,18 @@ def test_pr_opens_no_second_pr_over_a_closed_or_merged_one(
 
 
 def test_pr_refuses_a_branch_with_nothing_ahead_of_its_base(
-        tmp_path: Path, monkeypatch):
+        tmp_path: Path, monkeypatch, capsys):
+    """The queue file is already on the base, so the branch carries it and
+    the refusal is the commit count's (since 2.37.0 a branch with no queue
+    file at all is refused before that; issue #383)."""
     repo = _init(tmp_path)
+    _plan(repo, 1)
+    _git(["push", "origin", "main"], repo)
     _start(repo, 1)
     calls = _forge(monkeypatch, {})
+    capsys.readouterr()
     assert _run(repo, "pr", "--body", "x") == 1
+    assert "has no commits ahead of its base main" in capsys.readouterr().err
     assert calls == []
 
 
@@ -945,3 +954,336 @@ def test_no_ci_reads_checks_as_a_dash_on_a_pr_whatever_the_rollup(
     (q1,) = _status_stack(repo, capsys)
     assert (q1["pr"], q1["checks"], q1["failing"]) == ("#7/open", "-", [])
     assert "rounds" not in q1 and q1["awaiting"] == "yes"
+
+
+# --------------------------------------------------------------------------- #
+# a queue branch with no queue file of its own number (issue #383)
+# --------------------------------------------------------------------------- #
+def _capture(repo: Path) -> None:
+    """A commit that is not a plan — the insight capture a planner that then
+    handed back may still have made on the branch `queue start` left it on."""
+    path = repo / "docs" / "aide" / "insights.md"
+    path.write_text(path.read_text(encoding="utf-8")
+                    + "- [ ] gap — a capture *(queue-001, 2026-10-03)*\n",
+                    encoding="utf-8")
+    _commit(repo, "docs(aide): capture an insight")
+
+
+@pytest.mark.parametrize("argv", [["pr", "--body", "x"], ["ready"],
+                                  ["ready", "--undo"]],
+                         ids=["pr", "ready", "undo"])
+def test_a_queue_branch_with_no_queue_file_is_refused_and_nothing_pushed(
+        tmp_path: Path, monkeypatch, capsys, argv):
+    """The branch is ahead of its base, origin lacks that commit, and even a
+    PR the forge reports for it changes nothing: no push, no forge call."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _capture(repo)
+    before = _on_origin(repo, Q1)
+    calls = _forge(monkeypatch, {Q1: [{"number": 7, "state": "OPEN",
+                                       "isDraft": True}]})
+    capsys.readouterr()
+    assert _run(repo, *argv) == 1
+    err = capsys.readouterr().err
+    assert f"{Q1} carries no queue-001 file under docs/aide/queue" in err
+    assert calls == []
+    assert _on_origin(repo, Q1) == before != _head(repo)
+
+
+@pytest.mark.parametrize("argv", [["pr", "--body", "x"], ["ready"]],
+                         ids=["pr", "ready"])
+def test_the_missing_queue_file_is_refused_before_the_mode_or_the_forge(
+        tmp_path: Path, monkeypatch, capsys, argv):
+    """`local` mode and `forge = "none"` refuse too, but with a sentence a
+    runner reads as "carry on without a PR" — so this refusal comes first."""
+    local = _init(tmp_path / "a", mode="local", origin=False)
+    _start(local, 1)
+    no_forge = _init(tmp_path / "b", mode="auto-merge")
+    _start(no_forge, 1)
+    _declare(no_forge, 'forge = "none"')
+    calls = _forge(monkeypatch, {})
+    for repo in (local, no_forge):
+        capsys.readouterr()
+        assert _run(repo, *argv) == 1
+        err = capsys.readouterr().err
+        assert "carries no queue-001 file" in err
+        assert "local" not in err and "no forge" not in err
+    assert calls == []
+
+
+def test_only_a_committed_queue_file_of_the_branchs_own_number_counts(
+        tmp_path: Path, monkeypatch, capsys):
+    """Stacked on queue 001, queue 002's branch lists queue-001.md, which is
+    not its own; and a queue-002.md written but not committed is not on the
+    branch a PR would carry. Once committed, the PR opens."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _plan(repo, 1)
+    _start(repo, 2, "--base", Q1)
+    _capture(repo)
+    (repo / "docs" / "aide" / "queue" / "queue-002.md").write_text(
+        "# Demo — Work Queue 002\n\n### Item 002: Beta\n", encoding="utf-8")
+    calls = _forge(monkeypatch, {})
+    capsys.readouterr()
+    assert _run(repo, "pr", "--body", "x") == 1
+    assert f"{Q2} carries no queue-002 file" in capsys.readouterr().err
+    assert calls == []
+    _commit(repo, "docs(aide): add work queue 002")
+    assert _run(repo, "pr", "--body", "x") == 0
+    assert [c[:2] for c in _writes(calls)] == [["pr", "create"]]
+
+
+# --------------------------------------------------------------------------- #
+# queue discard — the empty branch a hand-back leaves (issue #383)
+# --------------------------------------------------------------------------- #
+def _discard(repo: Path, *extra: str) -> int:
+    return aide.main(["--repo", str(repo), "queue", "discard", *extra])
+
+
+def _local(repo: Path, branch: str) -> bool:
+    return _git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+                repo, check=False).returncode == 0
+
+
+def _keys(repo: Path, branch: str) -> str:
+    return _git(["config", "--get-regexp", f"branch\\.{branch}\\."], repo,
+                check=False).stdout
+
+
+def _current(repo: Path) -> str:
+    return _git(["rev-parse", "--abbrev-ref", "HEAD"], repo).stdout.strip()
+
+
+def test_discard_deletes_an_empty_queue_branch_here_and_on_origin(
+        tmp_path: Path, capsys):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    assert _keys(repo, Q1) and _on_origin(repo, Q1)
+    capsys.readouterr()
+    assert _discard(repo, "1") == 0
+    assert capsys.readouterr().out.strip() == f"discarded {Q1} (base main)"
+    assert not _local(repo, Q1) and _on_origin(repo, Q1) is None
+    assert _keys(repo, Q1) == "" and _current(repo) == "main"
+    assert not _git(["branch", "-r", "--list", f"origin/{Q1}"], repo).stdout.strip()
+
+
+def test_discard_on_a_stack_returns_to_the_queue_below_and_leaves_it(
+        tmp_path: Path):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _plan(repo, 1)
+    _start(repo, 2, "--base", Q1)
+    below = _head(repo, Q1)
+    assert _discard(repo, "2") == 0
+    assert _current(repo) == Q1 and not _local(repo, Q2)
+    assert _on_origin(repo, Q2) is None
+    assert _head(repo, Q1) == below and _keys(repo, Q1)
+
+
+def _mode_on_main(repo: Path, mode: str) -> None:
+    """Move the mode on main, the queue branch left as `queue start` made it."""
+    _git(["switch", "main"], repo)
+    (repo / "aide.toml").write_text(AIDE_TOML.format(mode=mode),
+                                    encoding="utf-8")
+    _commit(repo, f"{mode} mode")
+
+
+def test_discard_in_local_mode_never_touches_origin(tmp_path: Path):
+    """Started and pushed in `pr` mode, then the mode moved to `local`."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    pushed = _on_origin(repo, Q1)
+    _mode_on_main(repo, "local")
+    assert _discard(repo, "1") == 0
+    assert not _local(repo, Q1) and _on_origin(repo, Q1) == pushed
+
+
+def test_discard_with_no_origin_off_local_mode_deletes_the_local_branch(
+        tmp_path: Path):
+    """Unlike `queue start`, discard runs without an origin: there is
+    nothing on one it could reach, and the local branch is what counts."""
+    repo = _init(tmp_path, mode="local", origin=False)
+    _start(repo, 1)
+    _mode_on_main(repo, "pr")
+    assert _discard(repo, "1") == 0
+    assert not _local(repo, Q1) and _keys(repo, Q1) == ""
+
+
+def test_discard_refuses_a_branch_carrying_a_commit_and_changes_nothing(
+        tmp_path: Path, capsys):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _capture(repo)
+    head = _head(repo)
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    err = capsys.readouterr().err
+    assert f"{Q1} carries 1 commit beyond main, which no plan review covers" in err
+    assert _local(repo, Q1) and _head(repo, Q1) == head
+    assert _current(repo) == Q1 and _on_origin(repo, Q1) is not None
+
+
+def test_discard_refuses_where_origins_copy_carries_a_commit(
+        tmp_path: Path, capsys):
+    """Fetched: origin's copy is counted. Not fetched: the delete's lease on
+    the counted commit makes origin refuse it, and nothing is deleted."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    other = tmp_path / "other"
+    _git(["clone", "--branch", Q1, str(tmp_path / "origin.git"), str(other)],
+         tmp_path)
+    _git(["config", "user.email", "o@example.com"], other)
+    _git(["config", "user.name", "Other"], other)
+    (other / "review.txt").write_text("edit\n", encoding="utf-8")
+    _commit(other, "a reviewer's commit")
+    _git(["push", "origin", Q1], other)
+    pushed = _head(other)
+
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1             # not fetched: the lease
+    err = capsys.readouterr().err
+    assert "origin did not delete" in err
+    assert "the checkout is now on main" in err and _current(repo) == "main"
+    assert _local(repo, Q1) and _on_origin(repo, Q1) == pushed
+
+    _git(["switch", Q1], repo)
+    _git(["fetch", "origin"], repo)
+    assert _discard(repo, "1") == 1             # fetched: counted
+    assert f"origin/{Q1} carries 1 commit beyond main" in capsys.readouterr().err
+    assert _local(repo, Q1) and _on_origin(repo, Q1) == pushed
+
+
+@pytest.mark.parametrize("case", ["missing", "origin-only", "no-base"])
+def test_discard_refuses_a_branch_it_cannot_judge(tmp_path: Path, capsys, case):
+    repo = _init(tmp_path)
+    if case == "origin-only":
+        _start(repo, 1)
+        _git(["switch", "main"], repo)
+        _git(["branch", "-D", Q1], repo)
+    elif case == "no-base":
+        _git(["switch", "-c", Q1], repo)
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    err = capsys.readouterr().err
+    assert {"missing": "is not a branch in this checkout or on origin",
+            "origin-only": "is on origin only",
+            "no-base": "has no recorded base"}[case] in err
+    if case == "no-base":
+        assert f"'git branch -D {Q1}'" in err and _local(repo, Q1)
+    if case == "origin-only":
+        assert _on_origin(repo, Q1) is not None
+
+
+def test_discard_refuses_uncommitted_changes_on_the_checked_out_branch(
+        tmp_path: Path, capsys):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    (repo / "docs" / "aide" / "progress.md").write_text("edited\n",
+                                                         encoding="utf-8")
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    assert "uncommitted changes" in capsys.readouterr().err
+    assert _current(repo) == Q1 and _on_origin(repo, Q1) is not None
+
+
+def test_discard_refuses_a_branch_checked_out_in_another_worktree(
+        tmp_path: Path, capsys):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _git(["switch", "main"], repo)
+    _git(["worktree", "add", str(tmp_path / "wt"), Q1], repo)
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    assert "checked out in another worktree" in capsys.readouterr().err
+    assert _local(repo, Q1) and _on_origin(repo, Q1) is not None
+
+
+@pytest.mark.parametrize("argv", [[], ["1", "--dry-run"], ["1", "--base", "main"]],
+                         ids=["no-number", "dry-run", "base"])
+def test_discard_usage_is_exit_2_and_discards_nothing(tmp_path: Path, argv):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    assert _discard(repo, *argv) == 2
+    assert _local(repo, Q1) and _on_origin(repo, Q1) is not None
+
+
+@pytest.mark.parametrize("staged", [False, True], ids=["untracked", "staged"])
+@pytest.mark.parametrize("name", ["queue-001-stage-2.md", "queue-002.md"],
+                         ids=["own-slugged", "pair-second"])
+def test_discard_refuses_a_queue_file_written_and_not_committed(
+        tmp_path: Path, capsys, staged, name):
+    """A planner that wrote its plan and handed back anyway: the switch to
+    the base would carry the file there, stranded, so nothing is discarded.
+    The branch could own its number and the one after (a maintenance queue
+    and its stage queue); any other number's file is no obstacle."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    qdir = repo / "docs" / "aide" / "queue"
+    (qdir / "queue-007.md").write_text("# other\n", encoding="utf-8")
+    (qdir / name).write_text("# plan\n", encoding="utf-8")
+    if staged:
+        _git(["add", f"docs/aide/queue/{name}"], repo)
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    err = capsys.readouterr().err
+    assert f"docs/aide/queue/{name} is written and not committed" in err
+    assert "queue-007" not in err
+    assert _current(repo) == Q1 and _on_origin(repo, Q1) is not None
+    (qdir / name).unlink()
+    if staged:
+        _git(["rm", "--cached", "-q", f"docs/aide/queue/{name}"], repo)
+    assert _discard(repo, "1") == 0
+
+
+def test_discard_from_a_detached_head_is_not_another_worktree(tmp_path: Path):
+    """Detached at main's commit, which is also the fresh branch's: no
+    worktree sits on the branch, so it is discarded."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _git(["switch", "--detach", "main"], repo)
+    assert _discard(repo, "1") == 0
+    assert not _local(repo, Q1) and _on_origin(repo, Q1) is None
+
+
+def test_discard_counts_origins_copy_already_gone_as_deleted(
+        tmp_path: Path, capsys):
+    """Deleted on origin since the last fetch: the tracking ref is stale,
+    origin is asked, and the branch is discarded here too."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _git(["branch", "-D", Q1], tmp_path / "origin.git")
+    assert _git(["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{Q1}"],
+                repo, check=False).returncode == 0
+    capsys.readouterr()
+    assert _discard(repo, "1") == 0
+    assert capsys.readouterr().out.strip() == f"discarded {Q1} (base main)"
+    assert not _local(repo, Q1)
+    assert _git(["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{Q1}"],
+                repo, check=False).returncode != 0
+
+
+def test_discard_refuses_an_unfinished_merge_on_the_checked_out_branch(
+        tmp_path: Path, capsys):
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    (repo / ".git" / "MERGE_HEAD").write_text(_head(repo) + "\n",
+                                              encoding="utf-8")
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    assert "refusing" in capsys.readouterr().err
+    assert _current(repo) == Q1 and _local(repo, Q1)
+
+
+def test_a_remote_that_cannot_answer_keeps_the_branch_and_its_tracking_ref(
+        tmp_path: Path, capsys):
+    """The delete fails and so does the question whether origin still has
+    the branch: that is no evidence it is gone, so nothing is deleted."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _git(["remote", "set-url", "origin", str(tmp_path / "no-such.git")], repo)
+    capsys.readouterr()
+    assert _discard(repo, "1") == 1
+    assert "origin did not delete" in capsys.readouterr().err
+    assert _local(repo, Q1) and _keys(repo, Q1)
+    assert _git(["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{Q1}"],
+                repo, check=False).returncode == 0

@@ -47,6 +47,11 @@ Validation or Assumptions block, implying `Blocks: NNN`; `progress.md` holds
 the **authoritative row**, always — a gate that exists only as prose in a
 roadmap or a spec blocks nothing. **A declined gate keeps blocking.** The
 remedy is to re-plan: drop the blocked items, or change what the gate asks.
+**A declined gate whose reach holds nothing open is re-planned** — its Blocks
+cell names nothing (`—`), or only items and stages that are already ✅ or ❌.
+The row stays as the record of the decision. `all` and `stage N+` reach work
+not yet written, so a declined one is never re-planned this way. A stage not
+yet written, or with nothing queued, is not spent.
 
 **Cite a gate by its ID, never by its position** — the `gate-<hex>` that
 `aide gate list` prints, in an item spec, a queue file, a roadmap stage or
