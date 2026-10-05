@@ -374,6 +374,59 @@ def test_merge_missing_branch_errors(tmp_path: Path):
     assert rc == 1
 
 
+@pytest.mark.parametrize("mode", ["auto-merge", "pr"])
+def test_merge_with_no_origin_is_refused_before_anything_moves(
+        tmp_path: Path, monkeypatch, capsys, mode: str):
+    """Issue #377: the push is the last thing an `auto-merge` merge does, so a
+    missing origin was found after the suite, the merge and the ✅. Now it is
+    refused first — the suite never runs, main and the claim branch are where
+    they were, no row is written — and `local` mode, which pushes nothing,
+    merges as before."""
+    root = _init_repo(tmp_path / "r", mode=mode)
+    _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
+    tip = _run(["git", "rev-parse", "aide/027-bounds-rules"], root).stdout
+    head = _run(["git", "rev-parse", "main"], root).stdout
+    marker = tmp_path / "suite-ran"
+    monkeypatch.setattr(aide, "resolve_test_command", lambda root, cfg: [
+        sys.executable, "-c", f"open({str(marker)!r}, 'w').close()"])
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "merge", "27"]) == 1
+    err = capsys.readouterr().err
+    assert (f'aide merge: [git] mode = "{mode}" in aide.toml needs a remote '
+            f'named origin') in err
+    assert not marker.exists()
+    assert _run(["git", "rev-parse", "main"], root).stdout == head
+    assert _run(["git", "rev-parse", "aide/027-bounds-rules"],
+                root).stdout == tip
+    assert _current_branch(root) == "main"
+    assert not (root / "docs" / "aide" / "ledger.md").exists()
+
+    (root / "aide.toml").write_text(AIDE_TOML.format(mode="local"),
+                                    encoding="utf-8")
+    _run(["git", "commit", "-qam", "local mode"], root)
+    assert aide.main(["--repo", str(root), "merge", "27", "--no-test"]) == 0
+    assert (root / "feature.txt").is_file()
+
+
+@pytest.mark.parametrize("argv", [["claim"], ["claim", "--dry-run"]])
+def test_claim_with_no_origin_is_refused_before_a_branch_exists(
+        tmp_path: Path, capsys, argv):
+    """Issue #377: `claim` pushes last, so with no origin it used to leave a
+    claim branch on this machine only and exit 1. Off local mode it is now
+    refused before anything is picked or created, a dry run included."""
+    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    before = _run(["git", "branch", "--format=%(refname:short)"], root).stdout
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), *argv]) == 1
+    out, err = capsys.readouterr()
+    assert ('aide claim: [git] mode = "auto-merge" in aide.toml needs a '
+            'remote named origin') in err
+    assert "would claim" not in out
+    assert _run(["git", "branch", "--format=%(refname:short)"],
+                root).stdout == before
+    assert _current_branch(root) == "main"
+
+
 # --------------------------------------------------------------------------- #
 # claim scope (WI-2: derived queue state, opt-in cross-queue claiming)
 # --------------------------------------------------------------------------- #
@@ -1506,13 +1559,24 @@ def test_queue_start_refuses_a_name_that_exists_only_on_origin(tmp_path: Path, c
 # --------------------------------------------------------------------------- #
 # a failed push — issue #137: a sentence, and never a silent half-claim
 # --------------------------------------------------------------------------- #
+def _dead_origin(root: Path, tmp_path: Path) -> Path:
+    """An origin that resolves to nothing, so every push to it fails.
+
+    No origin at all no longer reaches the push: off local mode the verbs
+    refuse it before they change anything (issue #377)."""
+    _run(["git", "remote", "add", "origin", str(tmp_path / "no-such.git")],
+         root)
+    return root
+
+
 def test_claim_push_failure_is_a_sentence_not_a_traceback(tmp_path: Path, capsys):
-    """`auto-merge` with no remote: the push cannot succeed, and used to raise.
+    """`auto-merge` with an unreachable origin: the push cannot succeed, and
+    used to raise.
 
     `git(..., check=True)` let every cause of a failed push out of `main()` as
     a `CalledProcessError` — a raw traceback in a flow meant to be unattended.
     """
-    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    root = _dead_origin(_init_repo(tmp_path / "r", mode="auto-merge"), tmp_path)
     rc = aide.main(["--repo", str(root), "claim"])
     assert rc == 1
     err = capsys.readouterr().err
@@ -1529,7 +1593,7 @@ def test_a_failed_claim_does_not_come_back_as_none_left(tmp_path: Path, capsys):
     failure reported an exhausted queue and exited 0 — the loop's own "is
     there work left?" answering no, successfully, with nothing built.
     """
-    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    root = _dead_origin(_init_repo(tmp_path / "r", mode="auto-merge"), tmp_path)
     assert aide.main(["--repo", str(root), "claim"]) == 1        # 027, push fails
     assert aide.main(["--repo", str(root), "claim"]) == 1        # 028, push fails
     capsys.readouterr()
@@ -1544,7 +1608,7 @@ def test_a_failed_claim_does_not_come_back_as_none_left(tmp_path: Path, capsys):
 
 
 def test_status_names_an_unpublished_claim(tmp_path: Path, capsys):
-    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    root = _dead_origin(_init_repo(tmp_path / "r", mode="auto-merge"), tmp_path)
     assert aide.main(["--repo", str(root), "claim"]) == 1
     capsys.readouterr()
     assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
@@ -1732,17 +1796,35 @@ def test_an_empty_queue_still_says_only_none_left(tmp_path: Path, capsys):
 
 
 def test_queue_start_push_failure_is_a_sentence(tmp_path: Path, capsys):
-    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    root = _dead_origin(_init_repo(tmp_path / "r", mode="auto-merge"), tmp_path)
     rc = aide.main(["--repo", str(root), "queue", "start", "4"])
     assert rc == 1
     err = capsys.readouterr().err
     assert "pushing aide/queue-004 to origin FAILED" in err
     assert "exists locally, branched from main" in err
     assert _current_branch(root) == "aide/queue-004"
+    # This start committed the insights inbox the repo lacked, so the branch
+    # carries a commit and the remedy is two commands, one per call (§3).
+    assert "start over with 'git switch main', then 'git branch -D aide/queue-004'" in err
+
+
+def test_queue_start_push_failure_names_discard_where_it_applies(
+        tmp_path: Path, capsys):
+    """Nothing committed on the branch: the remedy is `queue discard`, and it
+    works — origin never got the branch, so there is no copy there to delete
+    (issue #383)."""
+    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    # `check` creates and commits the inbox, as a scaffold-time check does.
+    assert aide.main(["--repo", str(root), "check"]) in (0, 1)
+    root = _dead_origin(root, tmp_path)
+    assert aide.main(["--repo", str(root), "queue", "start", "4"]) == 1
+    assert "start over with 'aide queue discard 004'" in capsys.readouterr().err
+    assert aide.main(["--repo", str(root), "queue", "discard", "4"]) == 0
+    assert _current_branch(root) == "main"
 
 
 def test_merge_pr_mode_push_failure_leaves_the_item_unticked(tmp_path: Path, capsys):
-    root = _init_repo(tmp_path / "r", mode="pr")
+    root = _dead_origin(_init_repo(tmp_path / "r", mode="pr"), tmp_path)
     _make_item_branch(root, "aide/027-bounds-rules", "feature.txt")
     rc = aide.main(["--repo", str(root), "merge", "27", "aide/027-bounds-rules",
                     "--no-test"])
@@ -1762,7 +1844,7 @@ def test_check_warns_about_an_unpublished_branch(tmp_path: Path, capsys):
     origin has never seen is the same kind of disagreement: the document set
     says an item is taken, and no other checkout can see the claim.
     """
-    root = _init_repo(tmp_path / "r", mode="auto-merge")
+    root = _dead_origin(_init_repo(tmp_path / "r", mode="auto-merge"), tmp_path)
     assert aide.main(["--repo", str(root), "claim"]) == 1
     capsys.readouterr()
     aide.main(["--repo", str(root), "check"])
@@ -2346,6 +2428,219 @@ def test_an_interpreter_path_with_a_space_is_one_command(tmp_path: Path):
     assert aide._configured_interpreter({"python": {"interpreter": ""}}) == [sys.executable]
 
 
+# --------------------------------------------------------------------------- #
+# [python] bootstrap, read by its first word (issue #378)
+# --------------------------------------------------------------------------- #
+def test_each_bootstrap_reading_builds_its_argv(tmp_path: Path):
+    """`uv sync` ran as `<venv python> uv sync`, which looks for a script
+    file named `uv`. Only a first word that reading could never have run is
+    a command: pip, the Python-argv forms and a file in the repository keep
+    what they ran."""
+    repo = tmp_path / "repo"
+    (repo / "tools").mkdir(parents=True)
+    for name in ("manage", "tools/bootstrap", "app.pyz"):
+        (repo / name).write_text("", encoding="utf-8")
+    (repo / "tool").mkdir()
+    (repo / "tool" / "__main__.py").write_text("", encoding="utf-8")
+    vpy = tmp_path / ".venv" / "bin" / "python"
+    v = str(vpy)
+    cases = {
+        "pip install -e .[dev]": ([v, "-m", "pip", "install", "-e", ".[dev]"], False),
+        "python -m pip install .": ([v, "-m", "pip", "install", "."], False),
+        "python3 setup.py develop": ([v, "setup.py", "develop"], False),
+        "-m poetry install": ([v, "-m", "poetry", "install"], False),
+        "-c pass": ([v, "-c", "pass"], False),
+        "setup.py develop": ([v, "setup.py", "develop"], False),
+        "tools/Setup.PY": ([v, "tools/Setup.PY"], False),
+        "manage install": ([v, "manage", "install"], False),
+        "tools/bootstrap": ([v, "tools/bootstrap"], False),
+        "app.pyz install": ([v, "app.pyz", "install"], False),
+        "tool install": ([v, "tool", "install"], False),
+        "tools install": (["tools", "install"], True),
+        "./nope.sh": (["./nope.sh"], True),
+        "sh tools/bootstrap": (["sh", "tools/bootstrap"], True),
+        "uv sync": (["uv", "sync"], True),
+        "make dev": (["make", "dev"], True),
+        "pip3 install .": (["pip3", "install", "."], True),
+        "py -3.12 -m pip install .": (["py", "-3.12", "-m", "pip", "install", "."], True),
+    }
+    # An existing file outside the repository is a program to run, by an
+    # absolute path or one leading out of it.
+    outside = tmp_path / "uv"
+    outside.write_text("", encoding="utf-8")
+    if " " not in str(outside):  # the value is split on whitespace
+        cases[f"{outside} sync"] = ([str(outside), "sync"], True)
+    cases["../uv sync"] = (["../uv", "sync"], True)
+    for value, expected in cases.items():
+        assert aide.bootstrap_argv(value.split(), vpy, repo) == expected, value
+
+
+def test_a_bootstrap_path_that_is_no_file_is_named_for_what_it_is(tmp_path: Path):
+    """An existing file is the venv's Python's to run, so a path that
+    reaches the command lookup is missing or a directory."""
+    (tmp_path / "tools").mkdir()
+    scripts = tmp_path / ".venv" / "bin"
+    assert "'./nope.sh' does not exist" in aide._bootstrap_unfound(
+        "./nope.sh", tmp_path, scripts)
+    assert "'tools/' is not a file" in aide._bootstrap_unfound(
+        "tools/", tmp_path, scripts)
+    assert f"is neither in {scripts} nor on PATH" in aide._bootstrap_unfound(
+        "uv", tmp_path, scripts)
+
+
+def _scripts_dir(venv: Path) -> Path:
+    return venv / ("Scripts" if os.name == "nt" else "bin")
+
+
+def _fake_program(directory: Path, name: str) -> Path:
+    """A file `shutil.which` finds as *name* in *directory*, on either OS."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / (f"{name}.exe" if os.name == "nt" else name)
+    path.write_text("", encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+def _stub_bootstrap_runs(monkeypatch, venv: Path, program: Optional[str],
+                         fail: Optional[OSError] = None):
+    """Stand in for every launch `_bootstrap_venv` makes: the venv build
+    leaves an interpreter (and *program*) in the venv's script directory,
+    a version probe answers, and the bootstrap's own run is recorded and
+    exits 0 — or raises *fail*. The bootstrap runs are returned, each as
+    ``(argv, env)``; the venv report is a stub, since the interpreter left
+    is an empty file."""
+    calls = []
+
+    def run(argv, cwd=None, env=None, **_kw):
+        argv = list(argv)
+        if argv[1:3] == ["-m", "venv"]:
+            _fake_program(_scripts_dir(venv), "python")
+            if program:
+                _fake_program(_scripts_dir(venv), program)
+            return subprocess.CompletedProcess(argv, 0)
+        if "-c" in argv and "sys.version_info" in argv[-1]:
+            return subprocess.CompletedProcess(argv, 0, stdout="3.12\n", stderr="")
+        calls.append((argv, env))
+        if fail is not None:
+            raise fail
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(aide.subprocess, "run", run)
+    # Missing until the build, so `env --bootstrap` builds; OK after it.
+    monkeypatch.setattr(aide, "env_report", lambda root, config: (
+        ("ok", "stub") if venv.exists() else ("missing", "stub")))
+    return calls
+
+
+def test_a_bootstrap_command_runs_with_the_venv_active(tmp_path: Path, monkeypatch):
+    """A bare command is looked up with the venv's script directory first —
+    ahead of a same-named program already on PATH — and runs with that PATH,
+    VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT, so `poetry install` and `uv
+    sync` install into this venv, and with no PYTHONHOME. The record names
+    the program that ran."""
+    (tmp_path / "aide.toml").write_text(
+        '[python]\nvenv = ".venv"\nbootstrap = "faketool378 sync --frozen"\n',
+        encoding="utf-8")
+    elsewhere = tmp_path / "elsewhere"
+    _fake_program(elsewhere, "faketool378")
+    monkeypatch.setenv("PATH", str(elsewhere))
+    monkeypatch.setenv("PYTHONHOME", str(tmp_path / "some-other-python"))
+    venv = tmp_path / ".venv"
+    calls = _stub_bootstrap_runs(monkeypatch, venv, "faketool378")
+
+    assert aide.main(["--repo", str(tmp_path), "env", "--bootstrap"]) == 0
+    ((argv, env),) = calls
+    scripts = _scripts_dir(venv)
+    assert Path(argv[0]).parent == scripts
+    assert Path(argv[0]).name.lower().startswith("faketool378")
+    assert argv[1:] == ["sync", "--frozen"]
+    assert env["VIRTUAL_ENV"] == str(venv)
+    assert env["UV_PROJECT_ENVIRONMENT"] == str(venv)
+    assert "PYTHONHOME" not in env
+    assert env["PATH"].split(os.pathsep) == [str(scripts), str(elsewhere)]
+    record = aide._read_bootstrap_record(venv)
+    assert record["exit"] == 0 and record["command"] == argv
+    assert "unrun" not in record
+
+
+def test_a_bootstrap_python_reading_runs_with_the_environment_unchanged(
+        tmp_path: Path, monkeypatch):
+    (tmp_path / "aide.toml").write_text(
+        '[python]\nvenv = ".venv"\nbootstrap = "python -m pip install ."\n',
+        encoding="utf-8")
+    venv = tmp_path / ".venv"
+    calls = _stub_bootstrap_runs(monkeypatch, venv, None)
+    assert aide.main(["--repo", str(tmp_path), "env", "--bootstrap"]) == 0
+    ((argv, env),) = calls
+    vpy = _scripts_dir(venv) / ("python.exe" if os.name == "nt" else "python")
+    assert argv == [str(vpy), "-m", "pip", "install", "."]
+    assert env is None
+
+
+def test_an_empty_bootstrap_builds_the_venv_and_installs_nothing(
+        tmp_path: Path, monkeypatch):
+    """`bootstrap = ""` ran a bare `<venv python>`, an interactive Python
+    waiting on stdin. It builds the venv, runs nothing, and records a
+    finished bootstrap."""
+    (tmp_path / "aide.toml").write_text(
+        '[python]\nvenv = ".venv"\nbootstrap = ""\n', encoding="utf-8")
+    venv = tmp_path / ".venv"
+    calls = _stub_bootstrap_runs(monkeypatch, venv, None)
+    assert aide.main(["--repo", str(tmp_path), "env", "--bootstrap"]) == 0
+    assert calls == []
+    record = aide._read_bootstrap_record(venv)
+    assert record["exit"] == 0 and record["command"] == []
+    assert "unrun" not in record
+
+
+def test_a_bootstrap_command_found_nowhere_is_a_failed_bootstrap_that_names_it(
+        tmp_path: Path, monkeypatch, capsys):
+    (tmp_path / "aide.toml").write_text(
+        '[python]\nvenv = ".venv"\nbootstrap = "no-such-tool-378 sync"\n',
+        encoding="utf-8")
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+    venv = tmp_path / ".venv"
+    calls = _stub_bootstrap_runs(monkeypatch, venv, None)
+    capsys.readouterr()
+
+    assert aide.main(["--repo", str(tmp_path), "env", "--bootstrap"]) == 1
+    assert calls == []                                  # nothing was started
+    err = capsys.readouterr().err
+    assert "'no-such-tool-378'" in err and str(_scripts_dir(venv)) in err
+    assert "Traceback" not in err
+    record = aide._read_bootstrap_record(venv)
+    assert record["exit"] == 127 and "no-such-tool-378" in record["unrun"]
+
+
+def test_a_bootstrap_that_cannot_start_is_a_failed_bootstrap_not_a_traceback(
+        tmp_path: Path, monkeypatch, capsys):
+    (tmp_path / "aide.toml").write_text(
+        '[python]\nvenv = ".venv"\nbootstrap = "python -m pip install ."\n',
+        encoding="utf-8")
+    venv = tmp_path / ".venv"
+    calls = _stub_bootstrap_runs(monkeypatch, venv, None,
+                                 fail=OSError(8, "Exec format error"))
+    capsys.readouterr()
+
+    assert aide.main(["--repo", str(tmp_path), "env", "--bootstrap"]) == 1
+    assert len(calls) == 1
+    assert "Traceback" not in capsys.readouterr().err
+    record = aide._read_bootstrap_record(venv)
+    assert record["exit"] == 126 and "cannot be run" in record["unrun"]
+
+
+def test_an_unrun_bootstrap_record_makes_the_venv_stale(bare_venv: Path):
+    (bare_venv / "aide.toml").write_text(_env_toml("python -m unittest"), encoding="utf-8")
+    record = bare_venv / ".venv" / aide._BOOTSTRAP_RECORD
+    record.write_text('{"exit": 127, "unrun": "the [python] bootstrap program '
+                      '\'uv\' is neither in X nor on PATH"}', encoding="utf-8")
+    try:
+        status, detail = aide.env_report(bare_venv, aide.load_config(bare_venv))
+    finally:
+        record.unlink()
+    assert status == "stale" and "'uv'" in detail
+
+
 def test_a_merge_killed_mid_suite_puts_the_branch_and_its_base_back(
         tmp_path: Path, monkeypatch, capsys):
     """Issue #174, half 1 — the exit #167 could not see.
@@ -2743,7 +3038,9 @@ def test_claim_names_a_withdrawn_stage_as_the_reason(tmp_path: Path, capsys):
         text.replace("- 📋 Coverage.", "- ✅ Coverage.")
             .replace("- 📋 Shared, first half.", "- ✅ Shared, first half."),
         encoding="utf-8")
-    rc = aide.main(["--repo", str(root), "claim", "--dry-run"])
+    # Named explicitly, as the runner does: with 029 alone open the queue is
+    # no longer the default one (issue #389).
+    rc = aide.main(["--repo", str(root), "claim", "--queue", "3", "--dry-run"])
     out = capsys.readouterr().out
     assert rc == 0
     assert "none left — 1 item(s) still open" in out
@@ -2822,3 +3119,432 @@ def test_a_started_item_of_a_withdrawn_stage_is_not_stale_nor_collected(
     assert not any(w.startswith("stale claim branch") for w in warnings)
     assert aide.main(["--repo", str(root), "gc", "--abandon", "--yes"]) == 0
     assert "aide/029-extras" in _run(["git", "branch"], root).stdout
+
+
+# --------------------------------------------------------------------------- #
+# Withdrawn work and the queue's other readers — issue #389
+# --------------------------------------------------------------------------- #
+# 2.35.0 taught `claim` to skip a 📋 item of a withdrawn stage; the readers
+# beside it — the queue's open state, the queue-end hold, the gate-held
+# report and `merge` — still read it as live work. A 🚧 item of a withdrawn
+# stage stays live in every one of them, the line #388 drew for the stale
+# ground.
+def test_queue_is_open_counts_no_planned_item_of_a_withdrawn_stage():
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    status = aide._parse_item_status(lines)[2]
+    withdrawn = aide.withdrawn_stage_items(lines)
+    queue = "### Item 026: Core\n\n### Item 029: Extras\n"
+    assert not aide.queue_is_open(queue, status, withdrawn)
+    # Without the set the bullets alone are read, as before.
+    assert aide.queue_is_open(queue, status)
+    # 030 has a bullet in a stage still in scope, so it keeps the queue open.
+    assert aide.queue_is_open(queue + "\n### Item 030: Shared\n", status,
+                              withdrawn)
+    for icon in ("🚧", "🔍"):
+        lines = WITHDRAWN_PROGRESS.replace("- 📋 Extras.",
+                                           f"- {icon} Extras.").splitlines()
+        assert aide.queue_is_open(queue, aide._parse_item_status(lines)[2],
+                                  aide.withdrawn_stage_items(lines)), icon
+
+
+def _only_withdrawn_left(root: Path) -> None:
+    """Queue 003 left with 029 alone open: 026 ✅, 027 ❌, 028 ✅."""
+    ppath = root / "docs" / "aide" / "progress.md"
+    ppath.write_text(ppath.read_text(encoding="utf-8").replace(
+        "- 📋 Coverage.", "- ✅ Coverage."), encoding="utf-8")
+    _run(["git", "commit", "-am", "028 landed"], root)
+
+
+def test_claim_moves_past_a_queue_left_with_only_withdrawn_items(
+        tmp_path: Path, capsys):
+    root = _withdrawn_repo(tmp_path)
+    _only_withdrawn_left(root)
+    d = root / "docs" / "aide"
+    (d / "progress.md").write_text(
+        (d / "progress.md").read_text(encoding="utf-8").replace(
+            "- 📋 Shared, first half. *(Item 030)*\n",
+            "- 📋 Shared, first half. *(Item 030)*\n- 📋 Next. *(Item 031)*\n"),
+        encoding="utf-8")
+    (d / "queue" / "queue-004.md").write_text(
+        "# Demo — Work Queue 004\n\n### Item 031: Next\nNext.\n",
+        encoding="utf-8")
+    _run(["git", "add", "-A"], root)
+    _run(["git", "commit", "-m", "queue 004"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    assert capsys.readouterr().out.startswith("would claim item 031")
+
+
+def test_claim_names_withdrawn_items_when_no_queue_is_open(tmp_path: Path,
+                                                           capsys):
+    """The queue is not open, so `claim` exits 1 as on an exhausted one —
+    and names the undropped item, which no other report would."""
+    root = _withdrawn_repo(tmp_path)
+    _only_withdrawn_left(root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 1
+    err = capsys.readouterr().err
+    assert "no open queue" in err
+    assert "029 Extras — in withdrawn stage 2" in err
+    assert "'aide progress set 029 dropped --reason …'" in err
+    # Its own queue named explicitly is still reported item by item, exit 0.
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3",
+                      "--dry-run"]) == 0
+    assert "029 Extras — in withdrawn stage 2" in capsys.readouterr().out
+
+
+#: 028 is the queue's `Validate stage 1`; 029 sits in withdrawn stage 2.
+QUEUE_END_WITHDRAWN = """\
+# Demo — Work Queue 003
+
+### Item 026: Rule engine core
+Core.
+
+### Item 029: Extras
+Extras.
+
+### Item 028: Validate stage 1: Rules
+Validates the stage.
+"""
+
+
+def test_a_withdrawn_planned_queue_mate_does_not_hold_the_queue_end_item(
+        tmp_path: Path):
+    root = _withdrawn_repo(tmp_path)
+    (root / "docs" / "aide" / "queue" / "queue-003.md").write_text(
+        QUEUE_END_WITHDRAWN, encoding="utf-8")
+    cfg = aide.load_config(root)
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    status = aide._parse_item_status(lines)[2]
+    withdrawn = aide.withdrawn_stage_items(lines)
+    assert aide.queue_end_holds(root, cfg, QUEUE_END_WITHDRAWN, status,
+                                withdrawn) == {28: []}
+    assert aide.queue_end_holds(root, cfg, QUEUE_END_WITHDRAWN,
+                                status) == {28: [29]}
+    assert aide._pick_item(root, cfg, QUEUE_END_WITHDRAWN,
+                           claim_branches=[])[0] == 28
+    # A 🚧 item of the withdrawn stage is live work, and still holds it.
+    ppath = root / "docs" / "aide" / "progress.md"
+    ppath.write_text(WITHDRAWN_PROGRESS.replace("- 📋 Extras.", "- 🚧 Extras."),
+                     encoding="utf-8")
+    assert aide._pick_item(root, cfg, QUEUE_END_WITHDRAWN,
+                           claim_branches=[]) is None
+
+
+def test_gate_held_none_left_names_the_withdrawn_items(tmp_path: Path, capsys):
+    """No gate reaches a withdrawn stage's 📋 item, so the gate-held report
+    named the gate and left the item out."""
+    root = _withdrawn_repo(tmp_path)
+    ppath = root / "docs" / "aide" / "progress.md"
+    ppath.write_text(ppath.read_text(encoding="utf-8").replace(
+        "## Stage 1 — Rules",
+        "## Human gates\n\n"
+        "| Gate | Blocks | Status | Decision / evidence |\n"
+        "|------|--------|--------|---------------------|\n"
+        "| Coverage approved | 028 | ⏳ Awaiting | — |\n\n"
+        "## Stage 1 — Rules"), encoding="utf-8")
+    _run(["git", "commit", "-am", "gate 028"], root)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "none left — held by an unresolved human gate" in out
+    assert "holding 028" in out
+    assert "029 Extras — in withdrawn stage 2" in out
+
+
+def test_merge_refuses_a_planned_item_of_a_withdrawn_stage(tmp_path: Path,
+                                                           capsys):
+    """An item the claim branch never started, in a stage withdrawn on the
+    base, is refused before anything moves; once the branch records it 🚧 —
+    the builder's step — it is live work and merges (§2)."""
+    root = _withdrawn_repo(tmp_path)
+    _make_item_branch(root, "aide/029-extras", "extras.txt")
+    head = _run(["git", "rev-parse", "main"], root).stdout
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "merge", "29", "--no-test"]) == 1
+    err = capsys.readouterr().err
+    assert "item 029 is 📋 in withdrawn stage 2" in err
+    assert "(❌ summary row, the working tree and on main)" in err
+    assert "'aide progress set 029 dropped --reason …'" in err
+    assert not (root / "extras.txt").is_file()
+    assert _run(["git", "rev-parse", "main"], root).stdout == head
+    status = aide._parse_item_status(
+        (root / "docs" / "aide" / "progress.md").read_text(
+            encoding="utf-8").splitlines())[2]
+    assert status[29] == "planned"
+
+    _run(["git", "switch", "aide/029-extras"], root)
+    assert aide.main(["--repo", str(root), "progress", "set", "29",
+                      "in-progress"]) == 0
+    _run(["git", "switch", "main"], root)
+    assert aide.main(["--repo", str(root), "merge", "29", "--no-test"]) == 0
+    assert (root / "extras.txt").is_file()
+    status = aide._parse_item_status(
+        (root / "docs" / "aide" / "progress.md").read_text(
+            encoding="utf-8").splitlines())[2]
+    assert status[29] == "complete"
+
+
+# --------------------------------------------------------------------------- #
+# Withdrawn work and the remaining readers of "open" — issue #393
+# --------------------------------------------------------------------------- #
+# 2.35.1 gave `queue_is_open` the withdrawn set for `claim`; `status`,
+# `check`'s declared-status comparison and the record readers kept the
+# bullets alone, so the commands disagreed about the same tree.
+def _withdrawn_docs(tmp_path: Path, queue: str) -> Path:
+    """A docs dir with WITHDRAWN_PROGRESS, queue 003 as *queue*, and specs
+    for 029 (📋 in withdrawn stage 2) and 030 (a bullet still in scope)."""
+    ddir = tmp_path / "docs" / "aide"
+    (ddir / "queue").mkdir(parents=True)
+    (ddir / "items").mkdir()
+    (ddir / "progress.md").write_text(WITHDRAWN_PROGRESS, encoding="utf-8")
+    (ddir / "queue" / "queue-003.md").write_text(queue, encoding="utf-8")
+    for name in ("029-extras.md", "030-shared.md"):
+        (ddir / "items" / name).write_text(
+            "<!-- aide-template: item 1 -->\n# Item\n", encoding="utf-8")
+    return ddir
+
+
+def test_record_documents_settles_a_withdrawn_stages_planned_item(
+        tmp_path: Path):
+    """029's spec is a record as a ⏸️ one is, and a queue left with 026 ✅,
+    027 ❌ and 029 is one; 030 still has a bullet in scope, so neither."""
+    ddir = _withdrawn_docs(
+        tmp_path, "# Q\n\n### Item 026: A\n\n### Item 027: B\n\n"
+                  "### Item 029: C\n")
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    status = aide._parse_item_status(lines)[2]
+    withdrawn = aide.withdrawn_stage_items(lines)
+    assert aide.record_documents(ddir, status, withdrawn) == {
+        ddir / "queue" / "queue-003.md", ddir / "items" / "029-extras.md"}
+    # Without the set the bullets alone are read, as before.
+    assert aide.record_documents(ddir, status) == set()
+    assert aide._docs_records(ddir) == aide.record_documents(
+        ddir, status, withdrawn)
+    # A 🚧 029 is live work until its owner drops it (§2).
+    started = WITHDRAWN_PROGRESS.replace("- 📋 Extras.", "- 🚧 Extras.")
+    (ddir / "progress.md").write_text(started, encoding="utf-8")
+    assert aide._docs_records(ddir) == set()
+
+
+def test_template_drift_skips_a_queue_left_with_only_withdrawn_items(
+        tmp_path: Path):
+    ddir = _withdrawn_docs(
+        tmp_path, "<!-- aide-template: queue 1 -->\n# Q\n\n"
+                  "### Item 026: A\n\n### Item 029: C\n")
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    status = aide._parse_item_status(lines)[2]
+    installed = {"queue": 2, "item": 1}
+    assert any(w.startswith("queue/queue-003.md")
+               for w in aide.template_drift_warnings(ddir, status, installed))
+    assert not any(w.startswith("queue/queue-003.md")
+                   for w in aide.template_drift_warnings(
+                       ddir, status, installed,
+                       withdrawn=aide.withdrawn_stage_items(lines)))
+
+
+def test_check_passes_the_withdrawn_set_to_template_drift(tmp_path: Path,
+                                                          monkeypatch):
+    """`run_checks`' own call: queue 003, left with 029 alone, is not open, so
+    its stale marker is not reported."""
+    root = _withdrawn_repo(tmp_path)
+    _only_withdrawn_left(root)
+    q = root / "docs" / "aide" / "queue" / "queue-003.md"
+    q.write_text("<!-- aide-template: queue 1 -->\n"
+                 + q.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(aide, "installed_template_versions",
+                        lambda: {"queue": 2, "item": 1})
+    _, warnings = aide.run_checks(root, aide.load_config(root), branches=[])
+    assert not [w for w in warnings if w.startswith("queue/queue-003.md")]
+
+
+def test_stages_under_way_takes_no_stage_from_withdrawn_items(tmp_path: Path):
+    """A queue open only through 029, 📋 in withdrawn stage 2, puts no stage
+    under way; a 📋 item still in scope does."""
+    ddir = _withdrawn_docs(tmp_path, "# Q\n\n### Item 029: C\n")
+    lines = WITHDRAWN_PROGRESS.replace("- 📋 Coverage.",
+                                       "- ✅ Coverage.").replace(
+        "- 📋 Shared, first half.", "- ✅ Shared, first half.").splitlines()
+    assert aide._stages_under_way(ddir, lines) == set()
+    (ddir / "queue" / "queue-003.md").write_text(
+        "# Q\n\n### Item 029: C\n\n### Item 028: D\n", encoding="utf-8")
+    assert aide._stages_under_way(ddir, WITHDRAWN_PROGRESS.splitlines()) == {
+        "1"}
+
+
+def _completed_queue_of_withdrawn_items(tmp_path: Path) -> Path:
+    """Queue 003 stamped completed with 026 ✅, 027 ❌, 028 ✅ and 029 📋 in
+    withdrawn stage 2 — done as `claim` reads it."""
+    root = _withdrawn_repo(tmp_path)
+    _only_withdrawn_left(root)
+    assert aide.main(["--repo", str(root), "queue", "tidy", "3",
+                      "--date", "2026-10-03"]) == 0
+    return root
+
+
+def test_check_takes_a_completed_queue_of_withdrawn_items_as_done(
+        tmp_path: Path):
+    root = _completed_queue_of_withdrawn_items(tmp_path)
+    cfg = aide.load_config(root)
+    _, warnings = aide.run_checks(root, cfg, branches=[])
+    assert not any("still has open items" in w for w in warnings)
+    # Declared Live over the same tree, the warning says what is left.
+    qpath = root / "docs" / "aide" / "queue" / "queue-003.md"
+    qpath.write_text("\n".join(
+        "> **Status:** 🚧 Live" if line.startswith("> **Status:**") else line
+        for line in qpath.read_text(encoding="utf-8").splitlines()) + "\n",
+        encoding="utf-8")
+    _, warnings = aide.run_checks(root, cfg, branches=[])
+    assert any("declares 'Live' but every item is finished or 📋 in a "
+               "withdrawn stage" in w for w in warnings)
+
+
+def test_check_still_reads_a_started_withdrawn_item_as_open(tmp_path: Path):
+    root = _completed_queue_of_withdrawn_items(tmp_path)
+    ppath = root / "docs" / "aide" / "progress.md"
+    ppath.write_text(ppath.read_text(encoding="utf-8").replace(
+        "- 📋 Extras.", "- 🚧 Extras."), encoding="utf-8")
+    _, warnings = aide.run_checks(root, aide.load_config(root), branches=[])
+    assert any("queue-003.md: marked completed but still has open items"
+               in w for w in warnings)
+
+
+def test_status_moves_the_live_marker_past_withdrawn_items(tmp_path: Path,
+                                                            capsys):
+    root = _withdrawn_repo(tmp_path)
+    _only_withdrawn_left(root)
+    d = root / "docs" / "aide"
+    (d / "progress.md").write_text(
+        (d / "progress.md").read_text(encoding="utf-8").replace(
+            "- 📋 Shared, first half. *(Item 030)*\n",
+            "- 📋 Shared, first half. *(Item 030)*\n- 📋 Next. *(Item 031)*\n"),
+        encoding="utf-8")
+    (d / "queue" / "queue-004.md").write_text(
+        "# Demo — Work Queue 004\n\n### Item 031: Next\nNext.\n",
+        encoding="utf-8")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert ("queue-003.md: done — not offered, 📋 in a withdrawn stage: 029"
+            in out)
+    assert "queue-004.md: open (live) — 1/1 items open (031)" in out
+
+
+# A dependency on a withdrawn stage's 📋 item — issue #393. §1 → items.md:
+# it has left the queue's way as a ❌ item has; a 🚧 one still blocks.
+def _028_depends_on(root: Path, *deps: int) -> None:
+    (root / "docs" / "aide" / "items" / "028-coverage.md").write_text(
+        "# Item 028 — Coverage rules\n\n## Dependencies\n"
+        + "".join(f"- Item {d:03d} provides X.\n" for d in deps)
+        + "\n## End\n", encoding="utf-8")
+
+
+def test_a_withdrawn_planned_dependency_has_left_the_way(tmp_path: Path,
+                                                         capsys):
+    """028 depends on 029, 📋 in withdrawn stage 2: claim offers 028."""
+    root = _withdrawn_repo(tmp_path)
+    _028_depends_on(root, 29)
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    status = aide._parse_item_status(lines)[2]
+    assert not aide.still_blocks(29, status, aide.withdrawn_stage_items(lines))
+    assert aide.still_blocks(29, status)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--dry-run"]) == 0
+    assert capsys.readouterr().out.startswith("would claim item 028")
+
+
+def test_a_started_dependency_of_a_withdrawn_stage_still_blocks(
+        tmp_path: Path, capsys):
+    """A 🚧 029 is live work until its owner drops it (§2), so 028 waits."""
+    root = _withdrawn_repo(tmp_path)
+    _028_depends_on(root, 29)
+    ppath = root / "docs" / "aide" / "progress.md"
+    ppath.write_text(WITHDRAWN_PROGRESS.replace("- 📋 Extras.",
+                                                "- 🚧 Extras."),
+                     encoding="utf-8")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3",
+                      "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "none left" in out
+    assert "028 Coverage rules — waiting on 029 (in-progress)" in out
+
+
+def test_the_none_left_report_names_no_withdrawn_planned_blocker(
+        tmp_path: Path, capsys):
+    """028 waits on 029 (📋, withdrawn stage 2) and 030 (🚧): the report
+    names 030 alone, the dependency `_pick_item` is actually waiting on."""
+    root = _withdrawn_repo(tmp_path)
+    _028_depends_on(root, 29, 30)
+    (root / "docs" / "aide" / "progress.md").write_text(
+        WITHDRAWN_PROGRESS.replace("- 📋 Shared, first half.",
+                                   "- 🚧 Shared, first half."),
+        encoding="utf-8")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(root), "claim", "--queue", "3",
+                      "--dry-run"]) == 0
+    assert ("028 Coverage rules — waiting on 030 (in-progress)\n"
+            in capsys.readouterr().out)
+
+
+def test_early_ready_does_not_wait_on_a_withdrawn_planned_dependency(
+        tmp_path: Path):
+    """030 is gated; 028 waits on 030 and on 029, 📋 in withdrawn stage 2 —
+    so 028 waits only on what the gate holds, and the queue is ready."""
+    import types
+    root = _withdrawn_repo(tmp_path)
+    _028_depends_on(root, 30, 29)
+    lines = WITHDRAWN_PROGRESS.splitlines()
+    status = aide._parse_item_status(lines)[2]
+    withdrawn = aide.withdrawn_stage_items(lines)
+    gate = types.SimpleNamespace(kind="awaiting")
+    args = (root, aide.load_config(root), [28, 30], [(1, gate)], {30}, {},
+            status, [26, 27, 28, 29, 30], {})
+    assert aide._early_ready(*args, withdrawn).startswith("early ready: yes")
+    assert aide._early_ready(*args).startswith("early ready: no — 028")
+
+
+def test_check_queue_reads_a_withdrawn_planned_item_as_spent(tmp_path: Path):
+    """029 — 📋 in withdrawn stage 2 — orders nothing and blocks no claim, so
+    a dependency loop through it is no cycle, and a scope overlap with it is
+    never built."""
+    root = _withdrawn_repo(tmp_path)
+    idir = root / "docs" / "aide" / "items"
+    scope = ("## Authorised paths\n\n**May change**\n- `src/rules.py`\n\n"
+             "**Asserts against**\n\n")
+    (idir / "028-coverage.md").write_text(
+        "# Item 028 — Coverage rules\n\n## Dependencies\n- Item 029.\n\n"
+        + scope, encoding="utf-8")
+    (idir / "029-extras.md").write_text(
+        "# Item 029 — Extras\n\n## Dependencies\n- Item 028.\n\n" + scope,
+        encoding="utf-8")
+    findings, _ = aide.queue_spec_findings(root, aide.load_config(root), 3)
+    assert not [f for f in findings
+                if f.kind in ("dependency-cycle", "may-change-overlap")]
+    # A 🚧 029 is live work: the loop is a cycle again.
+    (root / "docs" / "aide" / "progress.md").write_text(
+        WITHDRAWN_PROGRESS.replace("- 📋 Extras.", "- 🚧 Extras."),
+        encoding="utf-8")
+    findings, _ = aide.queue_spec_findings(root, aide.load_config(root), 3)
+    assert any(f.kind == "dependency-cycle" for f in findings)
+
+
+def test_queue_end_findings_take_a_queue_of_withdrawn_items_as_spent(
+        tmp_path: Path):
+    """Queue 003 left with 029 and an idle `Validate stage 7`, both 📋 in
+    withdrawn stage 2: nothing is left to plan, so nothing is said — where a
+    🚧 one is live work, and is told it is idle."""
+    root = _withdrawn_repo(tmp_path)
+    (root / "docs" / "aide" / "queue" / "queue-003.md").write_text(
+        "# Demo — Work Queue 003\n\n### Item 029: Extras\nExtras.\n\n"
+        "### Item 031: Validate stage 7: Nothing\nValidates.\n",
+        encoding="utf-8")
+    ppath = root / "docs" / "aide" / "progress.md"
+    cfg = aide.load_config(root)
+    for icon, kinds in (("📋", []), ("🚧", ["queue-end-idle"])):
+        ppath.write_text(WITHDRAWN_PROGRESS.replace(
+            "- 📋 Extras. *(Item 029)*\n",
+            f"- 📋 Extras. *(Item 029)*\n- {icon} Check. *(Item 031)*\n"),
+            encoding="utf-8")
+        assert [f.kind for f in aide.queue_end_findings(root, cfg, 3)] == \
+            kinds, icon

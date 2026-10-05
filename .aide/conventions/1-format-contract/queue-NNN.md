@@ -7,7 +7,9 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
 
 - **Queue state is derived, not declared.** A queue is **open** iff any of its
   items is 📋/🚧 in `progress.md`, else **done**; the live queue is the
-  lowest-numbered open one (`aide claim`'s default). A `> **Status:**` line is
+  lowest-numbered open one (`aide claim`'s default). A 📋 item every bullet of
+  which sits in a withdrawn stage keeps no queue open, since `claim` never
+  offers it (§2); a 🚧 one there still does. A `> **Status:**` line is
   optional decoration for human readers — `aide queue tidy` stamps a completion
   note on superseded queues, and `aide check` warns only when a declared status
   contradicts the derived state. *(aide check, claim, queue tidy)*
@@ -38,9 +40,9 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
   in the suite, an independent validator — and it is the queue's final item.
   Wherever the file lists it, it runs last: `aide claim` holds it until every
   other item on its queue that is not a queue-end item has left the way, bar
-  one whose dependencies lead back to it, and `aide check --queue NNN` warns
-  when open work that does not depend on it is listed after it, so an item
-  added after planning goes above it. Stage validation is its only trigger
+  one whose dependencies lead back to it and a 📋 one of a withdrawn stage,
+  and `aide check --queue NNN` warns when open work that does not depend on
+  it is listed after it, so an item added after planning goes above it. Stage validation is its only trigger
   today, so it is planned only on a queue that closes a roadmap stage, and
   only when `aide check --queue NNN` warns that the stage still has work for
   one. The planner reads that warning and never works the need out itself; with no such warning, the queue ends
@@ -80,6 +82,14 @@ one, `aide check` and `aide queue tidy` keep its declared status honest, and
   spec that may not exist yet; queue-end items do not hold each other, or a
   queue ending on two would start neither. The file is still made to say
   so, because a person reads the queue in its listed order (#347).
+- **Why a withdrawn stage's 📋 item neither opens a queue nor holds its
+  end.** 2.35.0 taught `claim` to skip it, but the open-state reading and
+  the hold still counted it: a queue left with only such items stayed the
+  live one and `claim` reported them held instead of moving on, and a
+  queue-end item waited on an item nothing would ever offer, so an
+  unattended run stalled (#389). A 🚧 one there still counts for both, on
+  the line §2 draws for the stale ground: started work is live until its
+  owner drops it.
 - **Why the engine decides and not the planner.** The need is read from
   `progress.md`, the queue files and the specs, so the same tree always gives
   the same answer. At plan time no spec exists, so every unticked criterion is

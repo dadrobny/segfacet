@@ -69,9 +69,10 @@ happens only once it has merged, so no date is compared. Three shapes are
 not that signal: an Assumption recording a defensible default, or naming an
 engine version, is an audit entry and not an interface pin; an Assumption
 already carrying a re-check is not re-checked again; and a dependency that
-left the queue's way as ❌ or ⏸️ has no code to check against, so the
-re-check records the interface as absent, corrects the assumption, and the
-divergence is raised in the return rather than agreed to. A spec whose
+left the queue's way as ❌, ⏸️, or 📋 in a withdrawn stage (§1 → `items.md`)
+has no code to check against, so the re-check records the interface as
+absent, corrects the assumption, and the divergence is raised in the return
+rather than agreed to. A spec whose
 Assumptions pin no dependency is not re-checked. `aide claim` names the pins
 it finds as it claims (`aide claim -h`).
 

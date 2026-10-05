@@ -42,7 +42,9 @@ unless `[git] forge = "none"` declares no forge. A
 requirement the configuration needs and the machine lacks is a refusal that
 names the setting needing it and the two ways out: meet it, or change the
 setting. No verb and no role lowers the mode or rewrites `test_command` to
-fit the machine; a refusal goes to a person. `aide env` reports every
+fit the machine; a refusal goes to a person. A verb that would push refuses
+a missing `origin` before it creates, runs or writes anything, so the refusal
+leaves nothing to clean up. `aide env` reports every
 requirement. A plain `aide check` errors on the part decided offline, each
 error marked `this machine:`; `aide check --queue` judges documents only.
 `aide env -h` and `aide check -h` state each line.
@@ -129,11 +131,23 @@ measured against), `status` (what ahead/behind is reported from) and `scope`
 (what the diff is taken against). Resolution is always **`--base` > recorded >
 `main_branch`**. The record is local git config, not a committed file, so a
 different machine falls back to `main_branch` and passes `--base` explicitly.
+`queue start` and `queue restack` take `--base` too, naming the branch a queue
+is stacked on (below).
 
-**A base is always a local branch**, and a claim always *branches from* it — the
-branch's starting point and its recorded base are the same commit by
-construction, so an item can never merge back somewhere it did not come from. A
-tag, a raw commit or a remote-tracking ref (`origin/main`) is refused.
+**A base the loop writes to is always a local branch.** `claim` records it and
+*branches from* it, `merge` merges into it and pushes it, and `queue start` and
+`queue restack` stack a queue branch on it — only a branch moves forward, so
+those four refuse a tag, a raw commit or a remote-tracking ref (`origin/main`).
+A claim's starting point and its recorded base are the same commit by
+construction, so an item can never merge back somewhere it did not come from.
+A verb that only *measures* — `scope` (the diff) and `status` (where a 🔍
+claim's work has landed) — takes any commit-ish as `--base`, and a
+remote-tracking ref is often the right one there: a PR-context CI job on a
+detached checkout has no local base branch and passes `--base origin/<base>`.
+`gc --merged` measures and then deletes, so it fails safe on a non-local base:
+`origin/<main_branch>` counts as `main_branch`, a base named `origin/<branch>`
+is still that branch and never a target, and under any other base a queue
+branch is not collected.
 
 **At most `[loop] max_open_queues` queue branches are unmerged at once, and
 they form one stack.** At the default of 1 a queue starts only once the one
@@ -216,9 +230,14 @@ checks" just after a push as the answer: CI may not have started yet.
   then failed at the push on every retry. The installer scaffolded
   `auto-merge` into a target with no remote, or one that was no repository at
   all (issue #354); it now reports the offline part after it writes, and its
-  interactive prompt offers `local` on a target with no `origin`. Lowering the
-  mode to `local` instead would silently keep every item on one machine for
-  an owner who chose to publish — the failure an unknown mode already had.
+  interactive prompt offers `local` on a target with no `origin`. `merge`
+  itself still found out last until the verbs that push asked first (issue
+  #377): each pushes as its last step, so `claim` and `queue start` left a
+  branch with its base recorded, `queue restack` its merges, and `merge`
+  under `auto-merge` a ✅ origin never received, after a full suite run per
+  retry. Lowering the mode to `local` instead would silently keep every item
+  on one machine for an owner who chose to publish — the failure an unknown
+  mode already had.
 - **Why the check judges only part of the machine, and only when plain.** The
   offline part is git, the repository, `origin` and the test command. `gh`'s
   login is left out because asking needs the network, and the check runs
@@ -346,9 +365,18 @@ checks" just after a push as the answer: CI may not have started yet.
   checked-out branch would silently retarget a merge.
 - **Why the record is local.** The base is a fact about this checkout's
   branching, not about the project.
-- **Why a base must be a local branch.** `git switch` to a tag, a commit or a
-  remote-tracking ref would detach HEAD, and a merge into a detached HEAD
-  updates no branch while still reporting success.
+- **Why a base the loop writes to must be a local branch.** `git switch` to a
+  tag, a commit or a remote-tracking ref would detach HEAD, and a merge into a
+  detached HEAD updates no branch while still reporting success.
+- **Why a measuring verb takes any ref.** The rule once read "a base is always
+  a local branch", for every verb, while `scope`, `status` and `gc` passed
+  `--base` through verbatim (issue #407). A consumer's PR-context scope job
+  runs `aide scope NNN --base origin/<base>` on a detached `pull_request`
+  checkout with no local base branch — the case the CI paragraph above tells
+  such a job to handle itself. Refusing a non-local base everywhere was
+  rejected: it would turn every item PR red there to protect a diff that
+  writes nothing. `gc --merged` keeps its narrower reading because it deletes
+  on the answer (issue #403).
 - **Why a cap, and why one stack.** Stacked queues de-serialise *review*:
   the loop goes on building while earlier batches wait for a person. Parallel
   stacks off `main_branch` would bring back every contention point of

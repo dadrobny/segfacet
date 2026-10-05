@@ -110,7 +110,9 @@ entire loop, indefinitely.
   label. Traceability reads Acceptance Criteria, Testing Strategy and Review
   findings alike; a spec with no finding has no such section. A finding is
   recorded, never exempted: no test name is excused for looking like a
-  review's.
+  review's. A blocking finding fixed with no test, because it is about no
+  behaviour (§9), still gets its bullet, written by the role that fixed it
+  in the same commit as the fix and ending with why it has no test.
 - **An item's tests live in `test_NNN_<topic>.py` under `tests_dir`, NNN
   its item number, unless the project has a reason to diverge.** The file
   name is what says whose criteria a test covers once a later item edits the

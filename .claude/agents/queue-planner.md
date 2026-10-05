@@ -256,6 +256,14 @@ If queueing the next batch would require changing a **framework/process** file �
 `CLAUDE.md`, `.claude/**` — stop and hand back; those need a reviewed PR. Likewise
 if the roadmap is ambiguous about what comes next, say so rather than guessing.
 
+**A hand-back writes nothing.** Work out whether there is anything to queue —
+step 4's dependency rules included — before step 3's tidy. A hand-back tidies
+nothing, writes no queue file, makes no `progress.md` edit and commits nothing,
+not even an insight capture: name the insight in the hand-back instead. The
+branch is then exactly as `queue start` left it, which is what lets the
+orchestrator remove it, and your hand-back is the question its run stops on —
+say what you could not queue, why, and whose decision would unblock it.
+
 ## Out-of-scope insights (compound engineering)
 
 When you learn something true but OUT OF SCOPE for this task — a doc gap, a
@@ -274,6 +282,6 @@ because you work a queue and there may be no item to name yet.
 
 The insight-review pass triages the inbox at the queue boundary — which is why
 its open `defect`, `gap` and `automation` entries are an input to step 1 rather
-than a pile nobody reads. Capturing is cheap and always in scope; acting out of
-scope is forbidden. This capture, and the `insights tick` of step 7, are the
+than a pile nobody reads. Capturing is cheap and always in scope — except in a
+hand-back, which commits nothing (above); acting out of scope is forbidden. This capture, and the `insights tick` of step 7, are the
 only writes allowed outside your edit scope.
