@@ -42,6 +42,20 @@ generalised reference-delta are built only if the design shows the taxonomy
 cannot be stated without them; otherwise each known instance is answered
 "left as is, for this reason". Nothing is built for Stages 23 or 24.
 
+**Insights folded in (inbox read 2026-10-05, after queue 028 closed).** One
+entry is absorbed: `2026-10-05-c980` (stale `monotonic_consistency`
+descriptions in the report schema) rides on item 216, which rewrites those
+lines anyway. Three stay open and are design inputs to item 214, which builds
+nothing for them: `2026-10-02-3eba` and `2026-09-30-88a5` (both need a
+per-component scope) and `2026-09-22-c151` (adjacent-pair spacing is stored
+in two containers). Two knowledge entries bind the migration items' spec
+authors: `2026-10-05-da43` (a scratch-copy probe lists each failing test
+once, at its first failing assert) and `2026-10-05-dc87` (a probe run without
+`.git` reports git-gated tests as passing because they skip). Every other
+open entry is passed over as unrelated to the taxonomy; retiring the
+duplicate ordering checks (`2026-09-29-a832`) would change rule behaviour,
+which Stage 27 criterion 3 forbids.
+
 **Numbering.** Continues at the next free integer: **214–217**.
 
 ---
@@ -62,7 +76,16 @@ fields (`label` / `level_name`) are stored in four containers:
 `image_features.*` sit beside `per_label.{label}.*`. Image-axis-relative
 shape features (bbox and extent, `principal_axis`) await a vertebra
 coordinate system. The reference-delta is hardcoded to `physical_volume_mm3`.
-An answer may be "left as is, for this reason". The note carries a mapping
+An answer may be "left as is, for this reason". The note also answers two
+questions the open insight inbox raises. Where per-component features live:
+the record already holds `per_label.{label}.components.component_contacts[]`,
+the starting proposal's scope axis has no per-component level, and insights
+`2026-10-02-3eba` and `2026-09-30-88a5` both ask for each connected component
+to be assessed on its own. And which path owns adjacent-pair spacing:
+`relationships.neighbour_spacings_mm[]` and
+`stage3.spacing_consistency.spacings_mm[]` both store it (insight
+`2026-09-22-c151` names the second as the signal a future rule reads). The
+note carries a mapping
 table from every leaf path in `docs/aide/feature_catalogue.generated.md` to
 its new path, and names which migration item moves it. The item raises a
 human gate over the note (roadmap Stage 27 D1, criterion 1). *Testable:* the
@@ -91,7 +114,10 @@ Move the remaining fields — neighbour-pair relationships and overlaps,
 spline fit, spacing and monotonic consistency, and case-level intensity — to
 the places item 214's mapping table assigns them, re-pointing every reader
 in the same change. After this item, no top-level container exists only
-because one extractor module computed its contents. *Testable:* every leaf
+because one extractor module computed its contents. The report schema's
+`monotonic_consistency` descriptions are corrected in the same edit: they
+still say "spline parameter", and since item 210 the value is normalised arc
+length along a label-free path (insight `2026-10-05-c980`). *Testable:* every leaf
 path in the regenerated catalogue appears as a new path in item 214's mapping
 table (criterion 2's addressability half); the catalogue and its drift test
 agree; every corpus case's measured firing equals its expected set, unchanged
