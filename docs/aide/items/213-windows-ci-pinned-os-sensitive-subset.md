@@ -151,6 +151,16 @@ written.
   was retired by item 107, and `tests/test_114_documentation_corrections.py`,
   whose subprocess capture is gone. The code Windows caught no longer exists
   in either.
+
+  *Re-checked 2026-10-05 at claim, against `aide/queue-028` at 12d2603 (items
+  209–212 merged): agrees.* `tests/test_086_datasets.py` and
+  `tests/test_114_documentation_corrections.py` are unchanged since the spec
+  review (9809d22). Item 212 changed `tests/test_099_per_mode_metrics.py`. It
+  renamed `test_ac11_mode6_crop_at_border_is_one` to `..._is_three`, scored
+  each case against the clean control on its own grid through
+  `segfacet.synth.corpus.crop_to_grid`, and emptied `_DOMINANCE_EXCEPTIONS`.
+  None of that is path text, so `test_099` still carries no signal, and it
+  stays off the seed for the reason given above.
 - **A3 (list size, measured 2026-10-05 on `aide/queue-028`).** The five
   signals flag 87 of the 216 `tests/test_*.py` modules. The list adds
   `WINDOWS_EXTRA`'s one entry and the new module itself. That module flags
@@ -159,6 +169,29 @@ written.
   is 89 paths. The six-signal draft flagged 91 modules, for a 93-path list.
   The builder takes the real list from AC5's failure message, never from this
   count, since items 209–212 may change it (A5).
+
+  *Re-checked 2026-10-05 at claim, against `aide/queue-028` at 12d2603 (items
+  209–212 merged): agrees, with the module total corrected from 216 to 220.*
+  The same A1 classifier was run over both trees. At the spec review's tree
+  (9809d22) it reproduced 87 of 216. At the base it flags **87 of 220**, and
+  the flagged set is identical, path for path. The four new modules are
+  `tests/test_209_zero_comparison_scopes_and_defaults.py`,
+  `tests/test_210_label_free_monotonic_reference.py`,
+  `tests/test_211_fused_label_spacing_pair.py` and
+  `tests/test_212_crop_at_border_volume_crop.py`, and none carries a signal.
+  The new binary fixture `tests/corpus/fixtures/crop_at_border_scan.nii.gz`
+  is read through `nib.load` as decoded voxels, and `.gitattributes` marks it
+  `binary`. Item 210's retirements in `tests/test_020_neighbour_consistency.py`,
+  `tests/test_130_one_closest_point_search.py` and
+  `tests/test_132_monotonicity_against_traversal_order.py` removed test
+  functions, not modules. Item 212's renames of
+  `test_099`'s `..._is_one` → `..._is_three` and of
+  `tests/test_151_stage30_validation.py`'s `..._exceeds_threshold` →
+  `..._within_threshold` rename functions inside modules. The list is
+  module-granular, so none of these reaches it. No module was deleted or
+  renamed. The Windows list is still 89 paths: the 87 flagged, the one
+  `WINDOWS_EXTRA` entry, and the new test module itself. A4's size estimate
+  stands on this count.
 - **A6 (the modules that leave Windows when the float signal is dropped,
   reviewed 2026-10-05).** Of the 31 modules that import `segfacet.synth.golden`, 27
   carry another signal and stay on Windows. Four leave. Each was read for a
@@ -184,6 +217,20 @@ written.
 
   No defect was found among the four. `committed_artifact_guard.iter_violations`
   reports none across `tests/`, which test_127's AC15 already asserts.
+
+  *Re-checked 2026-10-05 at claim, against `aide/queue-028` at 12d2603 (items
+  209–212 merged): agrees.* There are still 31 modules importing
+  `segfacet.synth.golden`. 27 carry another signal, and the same four leave
+  Windows. None of the four test modules changed. Two things they read did
+  change:
+  - Item 212 added a `crop_at_border_scan.nii.gz|scan` entry to
+    `tests/corpus/094_pre_migration_snapshot.json` and re-recorded the seg
+    entry's hash and shape. The entries keep the same fields, read the same
+    way, so test_094's tolerance claim holds.
+  - Items 210 and 212 changed `test_098_stray_components._PRE_098_GOLDEN_VERDICT_AND_FINDINGS`.
+    The ordering findings were reworded and re-labelled, and two `border`
+    findings were added on labels 20 and 21. The new `border` entries carry
+    labels and a face name only, so test_089's AC16 still compares no float.
 - **A4 (GitHub Actions behaviour).** A `>-` folded scalar under job-level
   `env` reaches `${{ env.WINDOWS_TESTS }}` as one space-separated line. The
   expression is expanded before the shell runs: pwsh by default on
@@ -202,6 +249,15 @@ written.
   `.github/workflows/ci.yml` under its own **May change**. That friction is
   deliberate: it is how a new OS-sensitive module cannot silently miss
   Windows.
+
+  *Re-checked 2026-10-05 at claim, against `aide/queue-028` at 12d2603: agrees.*
+  Items 209–212 are all ✅ in `progress.md`. None of them touched
+  `.github/workflows/ci.yml`: there is no diff under `.github/` since 9809d22,
+  and the Test step still carries the `--ignore=.aide/scripts/tests` guard
+  that `tests/test_113_ci_numpy_matrix_scope.py` lines 399–400 pin. None of
+  them added a module the classifier flags (A3's re-check). So the dependency
+  order costs this item no list entry for 209–212's modules, and
+  Implementation Step 2's reconciliation of test_113 is unchanged.
 
 ## Implementation Steps
 
