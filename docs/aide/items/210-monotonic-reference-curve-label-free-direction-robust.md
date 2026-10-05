@@ -636,6 +636,13 @@ set, so its order relative to them is free.
 
 To be updated during implementation.
 
+- **2026-10-05, implementation.** Built as A1-A3 specify, in
+  `consistency.py::_path_positions` (Prim with a dense `numpy` distance
+  matrix, double sweep, polyline projection, fewer-inversions direction).
+  `traceability` and `golden_evidence` regenerate byte-identical to the
+  committed copies, and `rules.generated.md` moves on line 22 only.
+  The `L == 0` case returns all-zero `u` before the direction step.
+
 - **2026-10-05, queue-028 spec review (resolutions accepted by the
   maintainer).**
   - **Medium.** Spline wording survived in user-facing text after the

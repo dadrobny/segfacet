@@ -1880,12 +1880,13 @@ _MODE_9 = ModeSpec(
             expected_firing=("mislabel", "sequence"),
             reason=(
                 "pipeline-detected; measured live via segfacet.synth."
-                "regression.pipeline_findings (2026-09-29, item 198). The "
+                "regression.pipeline_findings (2026-10-05, item 210). The "
                 "tail vertebra is relabelled to T13, a single rank descent "
                 "read from per_label centroids and named as a sequence "
-                "shift; with the pairs judged in CANONICAL_ORDER order, "
-                "mislabel's ordering detector also fires on the lumbar "
-                "pairs (20, 21), (21, 22) and (22, 23). Why the edge's "
+                "shift; with the pairs judged in CANONICAL_ORDER order "
+                "against the label-free path through the centroids, "
+                "mislabel's ordering detector also fires once, on the "
+                "pair (T13, L1), labels 20 and 28. Why the edge's "
                 "rung sits below this measured detection is in the "
                 "mechanism sentence."
             ),

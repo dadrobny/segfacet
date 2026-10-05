@@ -38,7 +38,7 @@ Design decisions (recorded per item 033 spec):
   otherwise drop this rule's own ordering finding on that label, hiding a
   genuine segmentation defect behind an anatomy condition. The ordering
   signal is not spoiled by a displacement: it is judged against a reference
-  curve fitted in S-sorted label order, and a swapped label keeps its place
+  the centroids' label-free geometric order (item 210), and a swapped label keeps its place
   in that order unless it moves past a neighbour -- which is exactly what
   this rule reports.
 - Item 198 (2026-09-29): the pairs are judged in ``CANONICAL_ORDER`` order
@@ -139,8 +139,8 @@ class MislabelRule(Rule):
             reason=(
                 "a mislabelled vertebra can read as displaced "
                 "(spline_offset fires on it too), but the ordering is "
-                "judged against a reference curve fitted in S-sorted label "
-                "order, which a displacement does not spoil"
+                "judged against the centroids' label-free geometric order "
+                "(item 210), which a displacement does not spoil"
             ),
         ),
     )
@@ -200,8 +200,8 @@ class MislabelRule(Rule):
                 detector_id="ordering",
                 description=_MISLABEL_TAG,
                 question=(
-                    "Do two labels sit in the wrong order along the fitted "
-                    "spine curve?"
+                    "Do two labels sit in the wrong order along the "
+                    "label-free path through the vertebra centroids?"
                 ),
                 fires_when=(
                     "`flag_order_inconsistency` and "
@@ -298,7 +298,8 @@ class MislabelRule(Rule):
                     reason=(
                         f"{_MISLABEL_TAG} labels {la} ({level_a}) and "
                         f"{lb} ({level_b}) are out of expected order along "
-                        f"the spine (spline parameter does not advance)."
+                        f"the spine (position along the label-free path "
+                        f"through the centroids does not advance)."
                     ),
                     labels=frozenset(
                         {x for x in (la, lb) if x is not None}
