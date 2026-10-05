@@ -337,7 +337,8 @@ No dependency is added.
 - `tests/test_102_stage18_validation.py` — reconciliation (a): the case's findings snapshot.
 - `tests/test_105_golden_decision_table.py` — reconciliation (a): the fixture inventory count.
 - `tests/test_108_affine_faces.py` — reconciliation (a): the case's border labels.
-- `tests/test_120_leave_one_out_offset.py` — reconciliation (a): the case's border labels.
+- `tests/test_120_leave_one_out_offset.py` — reconciliation (a): the case's border labels and label 22's offset.
+- `tests/test_123_recalibrate_and_regenerate.py` — reconciliation (a): the crop margin literal quoted from `spline_offset.py`'s docstring.
 - `tests/test_129_coincident_centroids_and_held_out_floor.py` — reconciliation (a): the case's findings.
 - `tests/test_131_tangent_direction_normalisation.py` — reconciliation (a): the case's curve tables.
 - `tests/test_132_monotonicity_against_traversal_order.py` — reconciliation (a): the case's `u` values and findings.
@@ -366,12 +367,28 @@ keeps what it asserts.
 named under (c) in the Testing Strategy. Each asserts that the case
 displaces a centroid past the threshold, or that the case needs the
 displacement metric's dominance exception. This item withdraws that claim on
-purpose. The test keeps its name, gains a dated item-212 docstring line, and
-asserts the replacement claim stated there.
+purpose. The test gains a dated item-212 docstring line and asserts the
+replacement claim stated there. It keeps its name, except for the one rename
+allowed below.
 
-No test is retired, renamed, skipped, `xfail`-marked or loosened in
-tolerance. A red test in a file not listed here is a hand-back to
-spec-author, not an edit.
+No test is retired, skipped, `xfail`-marked or loosened in tolerance. No test
+is renamed, with exactly two exceptions, because each old name would state the
+opposite of what the test then asserts:
+
+- `tests/test_151_stage30_validation.py::test_ac11_crop_at_border_touches_anterior_and_offset_exceeds_threshold`
+  becomes `test_ac11_crop_at_border_touches_anterior_and_offset_within_threshold`;
+- `tests/test_099_per_mode_metrics.py::test_ac11_mode6_crop_at_border_is_one`
+  becomes `test_ac11_mode6_crop_at_border_is_three`.
+
+Each renamed test records its old name in a dated item-212 docstring line. A
+red test in a file not listed here is a hand-back to spec-author, not an
+edit.
+
+**Re-run each listed test after editing it.** The probe reports only the
+first failing assertion of each test, so a test can hold a second stale
+literal behind the first. Edit, re-run, and repeat until the test is green.
+A new failure in a listed test is reconciled under the same fence and
+recorded in Decisions.
 
 **Asserts against:**
 
@@ -469,7 +486,8 @@ failed.
    `_EXPECTED_ISOLATION_MATRIX` moves:
    `unanchored_foreground_fraction` 0.1429485129517109 → 0.0, and
    `fov_clipped_label_count` 1.0 → 3.0. Under (a) as well, `test_ac11_mode6_crop_at_border_is_one`
-   moves 1.0 → 3.0; its name is kept.
+   moves 1.0 → 3.0 and is renamed `test_ac11_mode6_crop_at_border_is_three`
+   (one of the fence's two allowed renames).
 3. **`tests/test_153_eval_harness_rekey.py` AC5, AC11 and AC19.**
    `_manifest_case_id(s)_for_perturbation("crop_at_border")` now finds no
    case.
@@ -492,7 +510,9 @@ failed.
    offset of those labels exceeds the offset threshold.
 5. `tests/test_151_stage30_validation.py::test_ac11_crop_at_border_touches_anterior_and_offset_exceeds_threshold`:
    keep the `touches_anterior` and `is_terminal False` checks, and invert the
-   last assertion to `offset_mm <= threshold`. `test_adv_ac11_*` stays as it
+   last assertion to `offset_mm <= threshold`. The test is renamed
+   `test_ac11_crop_at_border_touches_anterior_and_offset_within_threshold`
+   (one of the fence's two allowed renames). `test_adv_ac11_*` stays as it
    is.
 6. `tests/test_099_*::_DOMINANCE_EXCEPTIONS` is emptied, as item 177 R1's
    comment planned ("the exception then ends"), and
@@ -515,8 +535,15 @@ values; the builder re-measures each.
    - `tests/test_131_*::test_ac19_no_corpus_case_changes_findings`;
    - `tests/test_132_*::test_ac25_item_129_pre_findings_baseline_reconciled`;
    - `tests/test_143_*::test_ac9_no_rule_firing_set_moves[crop_at_border]`.
-8. Label sets: `tests/test_120_*::test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged`
-   moves {22} → {20, 21, 22}. Its name is kept.
+8. `tests/test_120_*::test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged`
+   carries two moved literals, both under (a):
+   - the `border` label union moves {22} → {20, 21, 22};
+   - `entry["offset_mm"] == pytest.approx(18.0256, abs=0.05)` for label 22
+     moves to the fresh reading, 0.2265 on the probe. Its tolerance stays
+     `abs=0.05`, and the comment above it gains an item-212 line.
+
+   This is (a) and not (c): the test pins the offset's value and makes no
+   claim that it exceeds the threshold. Its name is kept.
 9. Curve tables for the case's row:
    - `tests/test_131_*` AC5 (`tangent_angles_deg`), AC6 (net advance
      −131.974029 → −132.041569), AC7 (`inter_tangent_angles_deg`) and AC21
@@ -543,6 +570,14 @@ values; the builder re-measures each.
 12. *follows*: `tests/test_189_*::test_ac14_recorded_corpus_margins_are_live`
     after step 7's docstring. `tests/test_178_*::test_ac7_committed_sheet_is_current`
     follows after step 9's sheet.
+13. **After step 7**,
+    `tests/test_123_recalibrate_and_regenerate.py::test_ac16_docstring_records_the_margins_and_the_artifact_name`
+    goes red, because it requires `"18.025609"` in `spline_offset.py`'s
+    docstring. Under (a), the literal in its tuple moves to the six-decimal
+    value step 7 writes (`0.226480` on the probe). The sentence in its
+    docstring that calls this crop_at_border's "firing reading" becomes a
+    dated item-212 line naming it a non-firing interior reading. The probe
+    did not edit prose, so this test stayed green there.
 
 **Checked and green on the probe** (no edit): `test_040` (including the
 own-grid scan rule and byte-identical regeneration), `test_041`, `test_049`,
@@ -574,7 +609,11 @@ the shared cells.
 5. Run `.venv/bin/python -m pytest --collect-only -q` on this branch and on
    `aide/queue-028`. The branch's test-id set must equal the base's set plus
    this item's new tests plus the new `test_094` parametrised id for
-   `crop_at_border_scan`. Nothing is removed or renamed.
+   `crop_at_border_scan`, with exactly the fence's two renames applied:
+   `test_151`'s `..._offset_exceeds_threshold` →
+   `..._offset_within_threshold`, and `test_099`'s
+   `test_ac11_mode6_crop_at_border_is_one` → `..._is_three`. Nothing else is
+   removed or renamed.
 
 No `[validation]` profile is needed, so there is no ❓ Unverified downgrade
 path.
@@ -587,10 +626,7 @@ merged.
 
 **Downstream and siblings (not blockers):** queue-028's items 210 and 211
 re-measure corpus expected sets as well. The queue orders none of them, and
-whichever lands later re-measures the shared literals. Item 213 pins the
-Windows CI test subset. If it lands first and its pin classifies a module
-that reads committed fixture bytes as OS-sensitive, this item's new module
-must be entered in that list.
+whichever lands later re-measures the shared literals.
 
 ## Decisions & Trade-offs
 
@@ -606,3 +642,22 @@ To be updated during implementation.
   single label. On the lordotic base, L1–L3 share their anterior extent, so
   only a different base or a non-volume operator could clip L3 alone, and
   either one gives up the true crop this item exists for.
+- **D1: queue-028 spec review (2026-10-05).** The maintainer accepted four
+  resolutions to the review's findings on this spec.
+  1. **(High)** Step 7 moves `spline_offset.py`'s docstring off
+     `18.025609`, which
+     `tests/test_123_recalibrate_and_regenerate.py::test_ac16_docstring_records_the_margins_and_the_artifact_name`
+     requires. That file is added to May change as an (a) moved literal, and
+     to the reconciliation list as entry 13.
+  2. **(Medium)** `test_120` AC23's second literal, the label-22
+     `offset_mm ≈ 18.0256` pin, is named in entry 8 as an (a) moved literal,
+     not a fourth (c) test, because it pins a value and claims no threshold.
+     The fence now tells the builder to re-run each listed test after editing
+     it, since the probe reports only each test's first failing assertion.
+  3. **(Low)** The Downstream sentence about item 213 landing first is
+     removed: item 213 declares item 212 a blocker, so it cannot land first.
+  4. **(Nit)** The fence allows exactly two renames whose old names would
+     state the opposite of the new assertions. In `test_151`,
+     `..._offset_exceeds_threshold` becomes `..._offset_within_threshold`. In
+     `test_099`, `..._crop_at_border_is_one` becomes `..._is_three`. Validation
+     step 5's test-id check allows exactly these two.
