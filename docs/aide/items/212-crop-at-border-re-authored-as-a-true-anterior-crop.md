@@ -137,6 +137,12 @@ These criteria close no stage acceptance criterion.
     change cannot move the fixture.
 
   The builder re-measures every value.
+
+  **Re-checked 2026-10-05 (agrees).** Re-measured on `aide/queue-028` after
+  items 209, 210 and 211 merged: RAS (61, 86, 193), anterior axis 1 side
+  `"high"`; label 22 spans 42–69, first slices 155, 372, 589 of 19 437
+  (0.007974); `removed_fraction=0.005` removes 17 slices, output shape
+  (61, 69, 193). Every value above holds.
 - **A2 (measured: one cut, three labels on the face).** The lordotic base
   (item 173) puts L1, L2 and L3 at almost the same anterior extent: label 20
   spans axis-1 indices 42–69, label 21 46–70, label 22 42–69. So an anterior
@@ -159,6 +165,32 @@ These criteria close no stage acceptance criterion.
   The case therefore expects `border` on {20, 21, 22}, not on {22} alone.
   This is the cut's own geometry on this base, not an operator choice. The
   maintainer may prefer a single-label clip (Left open).
+
+  **Re-checked 2026-10-05 (corrects one bullet; the rest agrees).**
+  Re-measured on `aide/queue-028` after items 209, 210 and 211 merged, with
+  `CropFovPerturbation(target_label=22, face="anterior", removed_fraction=0.005)`
+  on `build_clean_spine().seg_img`:
+  - the face slice holds {20, 21, 22}; L1, L2, L3 lose 155, 1 550 and 155
+    voxels; each has `touches_anterior` and no other face flag;
+  - every registered rule's own `evaluate` returns exactly the three
+    `border.unexpected_clip` findings on [20], [21], [22]; `pipeline` gives
+    the same three, verdict `flagged-for-review`. Item 210's label-free
+    `mislabel` `ordering` detector and item 211's mean-spacing `fused_label`
+    do not fire: `monotonic_consistency` is monotonic, with no
+    non-monotonic pair and `u_values` [0.0, 0.244872173, 0.483901517,
+    0.730771541, 1.0];
+  - interior offsets 0.115125 (21), 0.226480 (22), 0.084664 (23) mm;
+  - against `crop_to_grid(clean_control, case)`, the per-mode metrics read
+    `unanchored_foreground_fraction` 0.0 and `fov_clipped_label_count` 3.0,
+    and the other six sit at the clean control's baseline
+    (`out_of_order_label_count` 0.0 included).
+
+  **Correction:** the last bullet does not reproduce. `bounds`' own
+  `evaluate` does not fire at three target slices. Swept one slice at a
+  time, it first fires, on label 21, at **five** target slices (output
+  shape (61, 65, 193)), and on {20, 21, 22} from nine. At one to four
+  slices it does not fire. The conclusion the bullet supported stands: at
+  the one-slice cut this case uses, `bounds` does not fire.
 - **A3 (defensible default: the face-aware `Expectation`).** In
   `CropFovPerturbation.apply`, for a `face` in the module's existing
   `_IN_PLANE_FACES`:
@@ -174,6 +206,20 @@ These criteria close no stage acceptance criterion.
   `crop_fov_si`'s manifest entry does not move. Without this change,
   `verify_case` (`tests/test_041_*`) and the ratchet would compare the case
   against an empty expectation while `border` fires.
+
+  **Re-checked 2026-10-05 (agrees).** Item 175's code on `aide/queue-028`:
+  `_IN_PLANE_FACES = frozenset({"left", "right", "anterior", "posterior"})`
+  is a module constant in `coverage_border_overlap.py`;
+  `CropFovPerturbation.apply` resolves `axis, side = resolve_face(...)`
+  first; its single `Expectation` uses `failure_mode=CLEAN_CONTROL_MODE`,
+  `FOV_TRUNCATION_CONDITION_NAME`, `FOV_TRUNCATION_CONDITION`, empty
+  rule ids and labels, and `"pass"`. Applied to the base, today's operator
+  still returns that empty expectation at the anterior face, so the branch
+  is still needed. The adversarial base
+  `as_reoriented([[0, 1], [1, -1], [2, 1]])` resolves anterior to axis 1
+  side `"low"` and its index-0 face holds {20, 21, 22}. The
+  `face="inferior"`, `target_label=24`, `removed_fraction=0.65` case still
+  expects nothing, verdict `pass`.
 - **A4 (defensible default: id and attribution kept).** The case keeps id
   `crop_at_border`, `condition="fov_truncation"`, manifest `failure_mode` 0
   and `kind` `"condition"`, and it stays the corpus's `border` fixture (item
@@ -182,6 +228,10 @@ These criteria close no stage acceptance criterion.
     longer does: it is named for what it shows, a crop at the border.
   - A rename would move every id pin as well as every content pin, with no
     change in what the case shows.
+
+  **Re-checked 2026-10-05 (agrees).** Item 175's Decisions D1 still records
+  the maintainer keeping a `border` case (2026-09-24), and the committed
+  case still carries id `crop_at_border` under `fov_truncation`.
 - **A5 (defensible default: the legacy operator stays, recorded unused).**
   - `CropAtBorderPerturbation` stays registered as `"crop_at_border"`.
     `SEVERITY_LADDERS["crop_at_border"]` keeps applying it: three cumulative
@@ -198,11 +248,25 @@ These criteria close no stage acceptance criterion.
     to `crop_fov` in item 212.
   - `traceability.operator_reason_conflicts()` stays `()`: the operator is
     registered and no `CASE_RECIPE` entry uses it.
+
+  **Re-checked 2026-10-05 (agrees).** On `aide/queue-028`,
+  `UNUSED_OPERATOR_REASONS` is `{}` and `operator_reason_conflicts()` is
+  `()`. The function reports only an unregistered key or a key a
+  `CASE_RECIPE` entry uses, and `perturbation_names()` still lists
+  `"crop_at_border"`. `_build_exercise` gives a recipe-less operator
+  `state="unused"` with `reason=UNUSED_OPERATOR_REASONS.get(name, "")`, which
+  is what AC8 reads. `SEVERITY_LADDERS["crop_at_border"]` still applies the
+  legacy operator at `crop_depth` 5 for labels 20, then +21, then +22.
 - **A6 (consequence: the ladder home is re-derived, not moved).**
   `_LADDER_HOMES["crop_at_border"]` stays `(None, "fov_truncation")`.
   `tests/test_153_*`'s rule (b) derives a home from the operator's manifest
   cases, and this operator now has none, so the test's derivation is
   re-derived (Testing Strategy, entry 10). The derived value does not change.
+
+  **Re-checked 2026-10-05 (agrees).** `_LADDER_HOMES["crop_at_border"]` reads
+  `(None, "fov_truncation")` on `aide/queue-028`. The parenthetical
+  "entry 10" is the Testing Strategy's entry 3 (`test_153` rule (b)); the
+  claim itself is unchanged.
 - **A7 (merged dependencies, read live on `aide/queue-028`).**
   - Item 175: `CropFovPerturbation`, `crop_to_grid`, and `write_corpus`'s
     own-grid scan rule (A6 of item 175). A non-base-grid case writes
@@ -210,6 +274,18 @@ These criteria close no stage acceptance criterion.
     `fixtures/crop_at_border_scan.nii.gz` with no writer change.
   - Item 191: the runner's condition gate.
   - Item 172: `operator_reason_conflicts()`.
+
+  **Re-checked 2026-10-05 (agrees).** On `aide/queue-028`:
+  - item 175: `crop_to_grid` is in `segfacet.synth.corpus`. The corpus
+    builder sets each case's `scan_img = crop_to_grid(clean.scan_img, result.labelmap)`,
+    and `write_corpus` writes `fixtures/<case_id>_scan.nii.gz` for any case
+    whose scan differs from the base scan in data or affine. So the case
+    gains its own scan with no writer change;
+  - item 191: `run_rules` drops a finding when any of its labels is in
+    `border_touching_labels(record)` and the producing rule does not opt in
+    to `fov_truncation`. It then runs the `displaced_vertebra` gate on the
+    survivors;
+  - item 172: as A5's re-check records.
 - **A8: no human gate, and no environment-gated capability.**
 
 ## Implementation Steps
@@ -590,6 +666,36 @@ on top of the first (queue-028 scope). Several of the files above, such as
 `test_131`, `test_132` and `test_143`, pin per-case tables that a
 monotonicity or fused-label change can also move. The later item re-measures
 the shared cells.
+
+**Re-check after items 209, 210 and 211 merged (2026-10-05).** Item 212 is
+the later item for every shared cell. Measured on `aide/queue-028` with the
+re-authored case built by the operator, not yet committed:
+
+- **`test_132` AC4.** Item 210 re-measured `_PRE_ITEM_U_VALUES` as normalised
+  arc length along the label-free path. The `crop_at_border` row is now
+  [0.0, 0.22390374, 0.469607133, 0.753728411, 1.0]. The re-authored case
+  reads [0.0, 0.244872173, 0.483901517, 0.730771541, 1.0]. Entry 9 still
+  applies, against 210's row.
+- **The case's findings pins are untouched by item 210.** These are
+  `test_098`'s golden entry, `test_129`'s `_PRE_129_FINDINGS` and
+  `test_120` AC23's `mislabel == []`. Item 210 edited only those files'
+  `sequence_break` rows. The re-authored case fires no `mislabel` and no
+  `fused_label` finding, so entries 7 and 8 stand as written.
+- **Entry 9's curve values hold.** They come from the spline, which items 210
+  and 211 did not touch. Net advance is −132.041569, `total_curvature_deg`
+  40.007575, `tangent_angles_deg` [5.0652, 0.3074, 7.2771, 18.6393,
+  34.9423], and `inter_tangent_angles_deg` [4.757852, 7.584527, 11.362139,
+  16.303057].
+- **Item 209's `test_155` scanner** walks every `*.py` under `src/segfacet`
+  and `tests`. It flags a manifest-case `x["failure_mode"]` /
+  `x.get("failure_mode")` access compared to `0` or to `CLEAN_CONTROL_MODE`
+  outside an `assert`. Entry 3's re-derived rule (b) therefore reads
+  `Expectation.failure_mode`, an attribute the scanner does not track. It
+  does not compare a manifest dict's `failure_mode` to that name.
+- **The feature catalogue prediction holds.** `catalogue.iter_driver_records`
+  builds its records from the operators and never reads `crop_at_border`.
+  Its manifest scan reads failure-kind cases only, and this case is a
+  condition case. So the catalogue stays off May change.
 
 ## Validation
 
