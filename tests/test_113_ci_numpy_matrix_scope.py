@@ -388,7 +388,7 @@ def test_ac6_test_job_install_and_test_commands_unchanged(ci_workflow):
     # diff-time claim (.aide/conventions.md §6) and blocked the 2026-10-03
     # Windows-leg change (an OS-conditional --ignore of the framework
     # engine's own tests, plus --durations), so the pin is now the prefix
-    # and the two leak checks.
+    # and the three negative checks.
     test_run = _normalize_run(ci_workflow["test_test_run"])
     assert test_run.startswith(EXPECTED_TEST_TEST_RUN + " ")
     assert "--deselect" not in test_run
