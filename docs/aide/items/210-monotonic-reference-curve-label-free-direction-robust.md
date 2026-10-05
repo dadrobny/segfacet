@@ -204,6 +204,15 @@ not edited. The builder re-measures each value on the real change.
   strictly fewer inversions; it then sets `uᵢ = 1 − sᵢ / L`. A tie keeps
   forward. This is item 192's rule for `sequence`
   (`heuristics/sequence.py::_head_to_tail`), applied to the geometric order.
+  *Re-checked 2026-10-05 against `aide/queue-028` at 4aa45e0 (item 192
+  merged): agrees.* `SequenceRule._head_to_tail` keeps its default order
+  (descending S) and takes the other (ascending S) only when `_inversions` is
+  strictly smaller, so a tie keeps the default, as above. Two differences are
+  this item's own choices for its own input, not a divergence: item 192 counts
+  inversions against `_RANK` of the level names and breaks a sort tie on the
+  label value, while A2 counts against the supplied index and breaks a tie on
+  it. The supplied order is the anatomical order (item 198), so for distinct
+  ranks the two inversion counts coincide.
 - **A3 (maintainer decision, 2026-10-05: no spline in the check).** This
   reverses this spec's 2026-10-03 A3, which kept the body unedited and kept
   the refit.
@@ -273,13 +282,38 @@ not edited. The builder re-measures each value on the real change.
     first-pair, last-pair, caudal, two-centroid and doubly-swapped fixtures.
     `tests/test_020_neighbour_consistency.py`'s swap fixtures. Item 198's
     controls and adversarial maps. `tests/test_191_condition_gate.py` AC13.
+    *Re-checked 2026-10-05 against `aide/queue-028` at 4aa45e0 (items 132
+    and 198 merged): agrees.* Every fixture named exists there. None of
+    `tests/test_132_monotonicity_against_traversal_order.py`,
+    `tests/test_020_neighbour_consistency.py`,
+    `tests/test_198_ordering_along_expected_sequence.py`,
+    `tests/test_191_condition_gate.py`, `consistency.py`, `sequence.py` or
+    `pipeline.py` has a commit after 2026-09-30, so the 2026-10-05 measurement
+    ran on the code now on the base. Item 132's straight-line fixtures (AC5,
+    AC6, first-pair, last-pair, caudal, two-centroid, doubly-swapped) were
+    re-derived by hand under A1 and A2: the path is the S axis, so `s` is S,
+    and the fewer-inversions direction gives each asserted result, including
+    AC6's `("L3", "L2")` forward and `("L2", "L3")` reversed. Their
+    fit-counter assertions are the separate `_patched_consistency_fit_counter`
+    reconciliation under Testing Strategy.
   - **Unit fixtures, changed result** (Testing Strategy reconciles each):
     - item 132's AC11 side-by-side fixture now yields `(("L2", "L3"),)`,
       because L2 and L3 project to the same `s` (`u` 1/3 each) and `>=`
-      flags them;
+      flags them; *re-checked 2026-10-05 against the committed fixture in
+      `test_ac11_exact_s_tie_no_refit_still_monotonic` (L2 at (0, 0, 10), L3
+      at (5, 0, 10)): agrees.* The tree is L1–L2, L2–L3, L2–L4, L4–L5; the
+      double sweep gives `e1` = L5 and `e2` = L1, so the path is the S axis,
+      30 mm long, and L3 projects onto L2's point at `s` = 10;
     - item 132's scoliotic adversarial yields `(("L3", "L4"), ("L4", "L5"))`,
       because its L5 is 56.6 mm from L1 but 80.6 mm from L4, so the tree joins
-      L5 to L1;
+      L5 to L1; *re-checked 2026-10-05 against the committed fixture in
+      `test_adv_scoliotic_shape_strictly_monotonic_s_no_refit`: agrees.*
+      |L5 − L1| = 56.57 mm and |L5 − L4| = 80.62 mm. Prim from L1 joins L2,
+      then L4 (20 mm from L2), then L3 (22.36 mm from L2 and from L4, an
+      exact tie), then L5 via L1. Whichever parent L3 takes, the path runs
+      from L5 through L1 and L2 to L3, with L4 at `s` between L2 and L3. Both
+      directions have 5 inversions, so the walk from L5 stands and the pairs
+      are `(("L3", "L4"), ("L4", "L5"))`;
     - `tests/test_020_neighbour_consistency.py`'s two full-reversal tests now
       read in order;
     - item 130's AC20 (monotonic `u` equals the spline `closest_u`) no longer
