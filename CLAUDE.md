@@ -509,7 +509,10 @@ validator holds the merge at PASS until the reviewer's findings are triaged, and
 the orchestrator runs `aide merge NNN` itself. From engine 2.38.0 (issue #357)
 it runs once per item, over the diff as first built, and on a first FAIL its
 in-scope findings go to the builder in the same fix round as the validator's
-failures; §9 says which read owns which question. It is the first read of every
+failures; §9 says which read owns which question. From engine 2.39.0 (issue
+#417) a blocking finding's fix also leaves a `## Review findings` bullet in the
+spec, naming the test traced to it or why it has none, and every later
+validator FAILs a fix without one. It is the first read of every
 item's diff; the table below is what to spend on a second one. From engine
 1.59.0 (issue #244) the orchestrator ranks each in-scope finding on §9's
 blocking / minor / nit scale and passes the counts and the validation-round
