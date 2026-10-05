@@ -36,6 +36,7 @@ loudly, not silently, until the manifest is regenerated with the field.
 from __future__ import annotations
 
 import ast
+import collections
 import copy
 import shutil
 from pathlib import Path
@@ -214,7 +215,11 @@ def _zero_comparisons(source: str, filename: str) -> list:
     access. Item 197 added two more: a tracked access in a truthiness test
     position (``if``/``while``/ternary test, ``and``/``or`` operand,
     comprehension ``if``) and the zero-vs-positive ordering comparisons
-    (``> 0``, ``>= 1`` and their mirrors)."""
+    (``> 0``, ``>= 1`` and their mirrors). Item 209: each scope (module or
+    one function body; a nested def is scanned once, as its own scope, with
+    the enclosing scope's tracked names) is walked once; also reports a walrus
+    test, a ``match`` guard and a float bound (``>= 1.0``), and exempts the
+    zero value default ``x or 0``."""
     tree = ast.parse(source, filename=filename)
 
     exempt_test_ids = set()
@@ -225,102 +230,117 @@ def _zero_comparisons(source: str, filename: str) -> list:
 
     violations = []
 
-    def scan_scope(stmts):
-        local_names = set()
-        for stmt in stmts:
-            for node in ast.walk(stmt):
-                if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
-                    if _is_failure_mode_access(node.value):
-                        targets = (
-                            node.targets if isinstance(node, ast.Assign) else [node.target]
-                        )
-                        for target in targets:
-                            if isinstance(target, ast.Name):
-                                local_names.add(target.id)
+    def walk_scope(stmts):
+        """Breadth-first like ast.walk, but a nested def is recorded, not entered."""
+        nodes, defs = [], []
+        queue = collections.deque(stmts)
+        while queue:
+            node = queue.popleft()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                defs.append(node)
+                continue
+            nodes.append(node)
+            queue.extend(ast.iter_child_nodes(node))
+        return nodes, defs
+
+    def scan_scope(stmts, inherited):
+        scope_nodes, nested = walk_scope(stmts)
+        local_names = set(inherited)
+        for node in scope_nodes:
+            if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
+                if _is_failure_mode_access(node.value):
+                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                    for target in targets:
+                        if isinstance(target, ast.Name):
+                            local_names.add(target.id)
 
         def is_tracked(node: ast.AST) -> bool:
+            if isinstance(node, ast.NamedExpr):  # item 209 A3
+                node = node.value
             return _is_failure_mode_access(node) or (
                 isinstance(node, ast.Name) and node.id in local_names
             )
 
-        for stmt in stmts:
-            for node in ast.walk(stmt):
-                if id(node) in exempt_test_ids:
-                    continue
-                # Item 197: a tracked access as a bare truthiness test (A1).
-                if isinstance(node, (ast.If, ast.While, ast.IfExp)):
-                    test_exprs = [node.test]
-                elif isinstance(node, ast.BoolOp):
-                    test_exprs = node.values
-                elif isinstance(node, ast.comprehension):
-                    test_exprs = node.ifs
-                else:
-                    test_exprs = []
-                for expr in test_exprs:
-                    if is_tracked(expr) and id(expr) not in exempt_test_ids:
-                        violations.append((filename, expr.lineno))
-                if isinstance(node, ast.Compare):
-                    operands = [node.left] + list(node.comparators)
-                    matched = False
-                    for i, op in enumerate(node.ops):
-                        left, right = operands[i], operands[i + 1]
-                        if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
-                            if (is_tracked(left) and _is_zero_sentinel(right)) or (
-                                is_tracked(right) and _is_zero_sentinel(left)
-                            ):
-                                matched = True
-                        elif isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
-                            # Item 197: ordering that splits 0 from the positive
-                            # mode ids (A2). Normalise to "tracked <op> bound".
-                            flip = {ast.Lt: ast.Gt, ast.LtE: ast.GtE, ast.Gt: ast.Lt, ast.GtE: ast.LtE}
-                            if is_tracked(left):
-                                kind, bound = type(op), right
-                            elif is_tracked(right):
-                                kind, bound = flip[type(op)], left
-                            else:
-                                continue
-                            is_one = (
-                                isinstance(bound, ast.Constant)
-                                and type(bound.value) is int
-                                and bound.value == 1
-                            )
-                            if (kind in (ast.Gt, ast.LtE) and _is_zero_sentinel(bound)) or (
-                                kind in (ast.GtE, ast.Lt) and is_one
-                            ):
-                                matched = True
-                        elif isinstance(op, (ast.In, ast.NotIn)):
-                            if is_tracked(left) and isinstance(
-                                right, (ast.Tuple, ast.Set, ast.List)
-                            ):
-                                if any(_is_zero_sentinel(elt) for elt in right.elts):
-                                    matched = True
-                    if matched:
-                        violations.append((filename, node.lineno))
-                elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-                    if is_tracked(node.operand):
-                        violations.append((filename, node.lineno))
-                elif isinstance(node, ast.Call):
-                    func = node.func
-                    if (
-                        isinstance(func, ast.Name)
-                        and func.id == "bool"
-                        and len(node.args) == 1
-                        and is_tracked(node.args[0])
-                    ):
-                        violations.append((filename, node.lineno))
-
-    module_level = [
-        stmt
-        for stmt in tree.body
-        if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-    ]
-    scan_scope(module_level)
-
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if filename == _EXEMPT_FILE and node.name == _EXEMPT_FUNCTION:
+        for node in scope_nodes:
+            if id(node) in exempt_test_ids:
                 continue
-            scan_scope(node.body)
+            # Item 197: a tracked access as a bare truthiness test (A1).
+            if isinstance(node, (ast.If, ast.While, ast.IfExp)):
+                test_exprs = [node.test]
+            elif isinstance(node, ast.match_case):  # item 209 A4
+                test_exprs = [] if node.guard is None else [node.guard]
+            elif isinstance(node, ast.BoolOp):
+                test_exprs = list(node.values)
+                # Item 209 A5: `x or <zero sentinel>` is a value default.
+                if (
+                    isinstance(node.op, ast.Or)
+                    and len(test_exprs) >= 2
+                    and _is_zero_sentinel(test_exprs[-1])
+                ):
+                    del test_exprs[-2]
+            elif isinstance(node, ast.comprehension):
+                test_exprs = node.ifs
+            else:
+                test_exprs = []
+            for expr in test_exprs:
+                if is_tracked(expr) and id(expr) not in exempt_test_ids:
+                    violations.append((filename, expr.lineno))
+            if isinstance(node, ast.Compare):
+                operands = [node.left] + list(node.comparators)
+                matched = False
+                for i, op in enumerate(node.ops):
+                    left, right = operands[i], operands[i + 1]
+                    if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+                        if (is_tracked(left) and _is_zero_sentinel(right)) or (
+                            is_tracked(right) and _is_zero_sentinel(left)
+                        ):
+                            matched = True
+                    elif isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+                        # Item 197: ordering that splits 0 from the positive
+                        # mode ids (A2). Normalise to "tracked <op> bound".
+                        flip = {ast.Lt: ast.Gt, ast.LtE: ast.GtE, ast.Gt: ast.Lt, ast.GtE: ast.LtE}
+                        if is_tracked(left):
+                            kind, bound = type(op), right
+                        elif is_tracked(right):
+                            kind, bound = flip[type(op)], left
+                        else:
+                            continue
+                        is_one = (
+                            isinstance(bound, ast.Constant)
+                            and type(bound.value) in (int, float)
+                            and bound.value == 1
+                        )
+                        if (kind in (ast.Gt, ast.LtE) and _is_zero_sentinel(bound)) or (
+                            kind in (ast.GtE, ast.Lt) and is_one
+                        ):
+                            matched = True
+                    elif isinstance(op, (ast.In, ast.NotIn)):
+                        if is_tracked(left) and isinstance(
+                            right, (ast.Tuple, ast.Set, ast.List)
+                        ):
+                            if any(_is_zero_sentinel(elt) for elt in right.elts):
+                                matched = True
+                if matched:
+                    violations.append((filename, node.lineno))
+            elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+                if is_tracked(node.operand):
+                    violations.append((filename, node.lineno))
+            elif isinstance(node, ast.Call):
+                func = node.func
+                if (
+                    isinstance(func, ast.Name)
+                    and func.id == "bool"
+                    and len(node.args) == 1
+                    and is_tracked(node.args[0])
+                ):
+                    violations.append((filename, node.lineno))
+
+        for d in nested:
+            if filename == _EXEMPT_FILE and d.name == _EXEMPT_FUNCTION:
+                continue
+            scan_scope(d.body, local_names)
+
+    scan_scope(tree.body, set())
 
     return violations
 

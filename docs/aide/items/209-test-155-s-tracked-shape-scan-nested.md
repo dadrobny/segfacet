@@ -267,7 +267,12 @@ None. Items 155, 184 and 197, which wrote and widened the scanner, are merged.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implemented as specced (2026-10-05).** `_zero_comparisons` gained a
+  `walk_scope` helper (deque plus `ast.iter_child_nodes`, recording nested
+  defs without entering them) and `scan_scope(stmts, inherited)`; the module is
+  scanned via `scan_scope(tree.body, set())`. Run directly (not via pytest):
+  AC1-AC5 and the six adversarial snippets give the stated lists, and the
+  live tree reports nothing (AC6).
 
 - **No `Asserts against` entry.** Item 197 listed `src/segfacet/**` for its
   live-tree AC. AC6 here is the existing tree-wide AC12, which every item's
