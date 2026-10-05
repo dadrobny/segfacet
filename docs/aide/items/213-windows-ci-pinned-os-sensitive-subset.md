@@ -426,6 +426,7 @@ To be updated during implementation.
     need contiguous AC numbers, and renumbering would silently change what
     "AC5" and "AC8" mean in the Implementation Steps, in A3 and in any review
     note that already cites them.
+- **2026-10-05, implementation:** `jobs.test.env.WINDOWS_TESTS` holds 89 sorted paths, taken from the classifier's live set joined with `WINDOWS_EXTRA` (the 87 flagged modules, `tests/test_086_datasets.py`, and the new test module itself). The Test step's `run` is AC1's string, and the old `--ignore=.aide/scripts/tests` guard is gone.
 - **Left open:** whether `WINDOWS_EXTRA` should also hold modules that once
   failed on Windows CI but no longer contain the code that failed (`test_099`,
   `test_114`). A2 leaves them off. The question waits for a Windows-only

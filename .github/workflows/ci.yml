@@ -97,6 +97,99 @@ jobs:
     runs-on: ${{ matrix.os }}
     # `draft` is absent on workflow_dispatch, so a manual run passes this.
     if: ${{ !github.event.pull_request.draft }}
+    env:
+      # The rule deciding this list, and each hand-added module's reason, live in
+      # tests/test_213_windows_ci_subset.py, which fails when the two disagree.
+      WINDOWS_TESTS: >-
+        tests/test_010_pipeline.py
+        tests/test_035_cli_e2e.py
+        tests/test_036_clean_gt.py
+        tests/test_040_synthetic_corpus.py
+        tests/test_042_golden_determinism.py
+        tests/test_045_reference_artifact.py
+        tests/test_049_reference_integration.py
+        tests/test_056_eval_report.py
+        tests/test_057_evaluate_cli.py
+        tests/test_058_intensity_fixtures.py
+        tests/test_063_reference_intensity.py
+        tests/test_065_cli_intensity.py
+        tests/test_066_dockerfile.py
+        tests/test_068_entrypoint.py
+        tests/test_069_container_smoke.py
+        tests/test_070_acceptance_stage9.py
+        tests/test_075_cli_backend.py
+        tests/test_081_reference_morphology.py
+        tests/test_082_verse_build_recipe.py
+        tests/test_083_refresh_reference.py
+        tests/test_084_stage12_acceptance.py
+        tests/test_086_datasets.py
+        tests/test_087_dataset_cli.py
+        tests/test_088_stage13_acceptance.py
+        tests/test_090_reference_derived_defaults.py
+        tests/test_092_eval_reference_wiring.py
+        tests/test_096_run_manifest.py
+        tests/test_097_stage17_validation.py
+        tests/test_098_stray_components.py
+        tests/test_100_severity_ladder.py
+        tests/test_101_compare_runs_cli.py
+        tests/test_101_per_mode_cohort.py
+        tests/test_102_stage18_validation.py
+        tests/test_103_feature_catalogue.py
+        tests/test_105_golden_decision_table.py
+        tests/test_106_stage19_validation.py
+        tests/test_107_item_scope_check.py
+        tests/test_108_affine_faces.py
+        tests/test_110_neighbourhood_wiring.py
+        tests/test_111_golden_guard.py
+        tests/test_113_ci_numpy_matrix_scope.py
+        tests/test_116_ras_native_corpus.py
+        tests/test_117_scope_verb_swap.py
+        tests/test_119_curve_formulation.py
+        tests/test_120_leave_one_out_offset.py
+        tests/test_122_signed_curvature.py
+        tests/test_123_recalibrate_and_regenerate.py
+        tests/test_124_observed_range.py
+        tests/test_126_golden_retirement.py
+        tests/test_127_committed_artifact_tolerance.py
+        tests/test_128_reference_verse_v1_integrity.py
+        tests/test_128_relocation_checks.py
+        tests/test_129_coincident_centroids_and_held_out_floor.py
+        tests/test_130_one_closest_point_search.py
+        tests/test_131_tangent_direction_normalisation.py
+        tests/test_132_monotonicity_against_traversal_order.py
+        tests/test_133_tptbox_pin_and_verse_retirement.py
+        tests/test_134_decision_table_evidence_companion.py
+        tests/test_135_stage29_validation.py
+        tests/test_136_rule_mode_declarations.py
+        tests/test_137_mode_less_rule_disposition.py
+        tests/test_138_traceability_matrix.py
+        tests/test_143_s_axis_correction.py
+        tests/test_144_failure_mode_specification.py
+        tests/test_145_eight_hypothesised_modes.py
+        tests/test_146_ninth_mode_and_first_proposed.py
+        tests/test_147_specification_is_the_record.py
+        tests/test_148_per_path_mode_attribution.py
+        tests/test_149_conformance_report.py
+        tests/test_150_maintainer_sign_off.py
+        tests/test_151_stage30_validation.py
+        tests/test_152_retire_vision_seed.py
+        tests/test_153_eval_harness_rekey.py
+        tests/test_154_ladder_remeasurement.py
+        tests/test_155_corpus_case_kind.py
+        tests/test_156_conformance_seams.py
+        tests/test_157_case_id_rename.py
+        tests/test_158_committed_artifact_guard_resolver.py
+        tests/test_159_prerequisite_test_and_import_defects.py
+        tests/test_161_stage31_validation.py
+        tests/test_162_corpus_exercise_report.py
+        tests/test_170_session_fixtures.py
+        tests/test_178_corpus_sheet.py
+        tests/test_180_evaluate_input_error.py
+        tests/test_202_rule_table.py
+        tests/test_213_windows_ci_subset.py
+        tests/test_aide_check_no_errors.py
+        tests/test_cli_run.py
+        tests/test_smoke.py
     strategy:
       fail-fast: false
       matrix:
@@ -158,15 +251,16 @@ jobs:
         # runner did not; what is slow is in docs/aide/insights.md that date.
         # Re-measured on run 37042666246 (2026-10-02): Windows Test step
         # 24.4 min against ubuntu's 15.9 min, the workflow's whole critical
-        # path. So the Windows leg skips `.aide/scripts/tests`: those are the
-        # framework engine's own tests, process-spawn heavy (the shape
-        # Windows runs 8-21x slower, per aide-loop's tests.yml), and the
-        # framework's own CI already runs the identical files on Windows.
-        # Ubuntu keeps the whole suite. `--durations=30` on both legs is the
-        # per-module data for the next step -- a pinned list of what Windows
-        # can actually refute (path, newline, subprocess, CLI) -- which is
-        # open in docs/aide/insights.md (2026-10-03).
-        run: python -m pytest -n 4 --durations=30 ${{ runner.os == 'Windows' && '--ignore=.aide/scripts/tests' || '' }}
+        # path. So the Windows leg runs only the pinned OS-sensitive list in
+        # WINDOWS_TESTS (job env above): the modules that spawn a subprocess,
+        # invoke the CLI, read bytes/newlines, handle path text or load the
+        # AIDE engine in-process, i.e. what Windows can actually refute. The
+        # rest is OS-neutral and Ubuntu already runs it. Given explicit file
+        # arguments pytest ignores testpaths, so .aide/scripts/tests (the
+        # framework engine's own tests, which its CI runs on Windows) stays
+        # off the Windows leg with no --ignore. Ubuntu keeps the whole suite.
+        # `--durations=30` on both legs is the per-module timing data.
+        run: python -m pytest -n 4 --durations=30 ${{ runner.os == 'Windows' && env.WINDOWS_TESTS || '' }}
 
   # Item 095: numpy-major agnosticism check. pyproject.toml declares a numpy
   # *range* (`numpy>=1.26,<3`), not a pin, specifically so the identical
