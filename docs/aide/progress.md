@@ -1327,7 +1327,7 @@ justified in writing.
   four containers; `stage3.*` / `image_features.*` parallel to `per_label.{label}.*`;
   image-axis-relative shape features (bbox/extent, `principal_axis`) awaiting a vertebra
   coordinate system; reference-delta hardcoded to `physical_volume_mm3`. *(Item 214)*
-- 🔍 **Maintenance** `test_155`'s tracked-shape scan: nested scopes reported once, walrus,
+- ✅ **Maintenance** `test_155`'s tracked-shape scan: nested scopes reported once, walrus,
   `match` and `>= 1.0` shapes covered, value defaults let through. *(Item 209)*
 - 📋 **Maintenance** The monotonicity check's reference curve made label-free and
   direction-robust. *(Item 210)*
