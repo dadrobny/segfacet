@@ -858,7 +858,7 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "sagittal_curvature_deg": 40.007575,
         "curvature_plane": "sagittal",
         "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
-        "sagittal_tangent_angles_deg": [-5.0652, -0.3074, 7.2771, 18.6393, 34.9423],
+        "sagittal_tangent_angles_deg": [-5.0652315, -0.3073795, 7.2771474, 18.6392868, 34.942344],
     },
     "sequence_break": {
         "total_curvature_deg": 41.165481,
