@@ -128,6 +128,13 @@ builder re-measures on the real change.
   `min` fires only on 1.5:1.5. With the pair sum at 2 × the baseline (a
   normal pair), split 2/3:4/3 and 4/3:2/3, the mean reads 1.0 and is silent.
   A `max` statistic would fire on both of those, so `max` was rejected.
+  *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50 (item 207
+  merged): agrees.* `FusedLabelRule.evaluate` still computes
+  `spacing_ratio = min(adj_sp) / base_med` and fires on
+  `size_ratio > size_thr and spacing_ratio > spacing_thr`, with
+  `DEFAULT_SIZE_RATIO = 1.5` and `DEFAULT_SPACING_RATIO = 1.25` read through
+  `config.rule_param`; `statistics` is imported. `fused_label.py` is
+  unchanged since this spec was written (687eb15).
 - **A2 (measured: what fires does not change).** Over both corpora the mean
   fires on exactly the labels `min` fires on: `fuse_adjacent` label 22 (size
   2.3248, spacing min 1.4782 → mean 1.5380 from `[33.49, 49.51, 53.52]`) and
@@ -152,12 +159,64 @@ builder re-measures on the real change.
     highest silent mean is 1.7915 (`relabel_swap` label 20, size 1.0000,
     end label, unchanged). This is the conjunction item 207 designed:
     neither signal decides alone.
+  - *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50 (items 207
+    and 210 merged): the firing claim agrees; the "Margin traded" list is
+    corrected.* Re-measured with `.venv/bin/python` over both corpora and
+    every rung of `SEVERITY_LADDERS` and `SUPPLEMENTARY_LADDERS`, reading
+    the record exactly as `FusedLabelRule.evaluate` does.
+    - **Agrees.** Every spacing list, size and ratio quoted above
+      re-measures to the same four decimals (fuse_adjacent 2.3248 /
+      1.4782 → 1.5380, fuse_separate 2.0016 / 1.4768 → 1.5371, the `fuse`
+      ladder's 1.3956 and 1.8026, the `split` and `split_own_label`
+      readings, and every "Margin traded" reading listed). The rule as
+      merged fires on exactly fuse_adjacent label 22, fuse_separate label
+      22 and `fuse` ladder rungs 1–2 label 20, and the mean fires on the
+      same set on every case and rung. Item 210 does not move this:
+      `fused_label` reads no `monotonic_consistency` field, and item 210's
+      diff to `features/consistency.py` touches only the monotonic half,
+      so `spacings_mm` and the volumes are unchanged. The registered-
+      operator sweep was not re-run, for the same reason: nothing it reads
+      has changed since 2026-10-03.
+    - **Correction 1: the traded list is incomplete.** Four more interior
+      labels at normal size pass the mean's spacing gate where `min` did
+      not, all on ladder rungs, and the size gate alone keeps them silent:
+      the `remove_level` ladder rung 1 label 22 (size 1.0000, mean 1.3555,
+      min 0.9194), the `relabel_swap` ladder rung 2 labels 21 (1.0032,
+      1.2755, min 0.6435) and 22 (0.9952, 1.2838, min 0.6531), and the
+      `split_own_label` ladder rung 2 label 20 (0.9968, 1.2969, min
+      1.2239). The smallest size margin among all traded labels is
+      therefore 0.4968 (`relabel_swap` rung 2 label 21, size 1.0032), not
+      the 0.50 at size 0.9984 that Decisions & Trade-offs quotes.
+    - **Correction 2: "the highest silent mean is 1.7915" holds over the
+      two corpora only.** On the ladders, end labels at normal size read
+      higher: 2.6952 (`remove_level` rung 2 label 20, size 1.0048), 2.0735
+      (`relabel_swap` rung 2 label 24, size 0.9952) and 1.8667
+      (`remove_level` rung 1 label 20, size 1.0000). An end label has one
+      adjacent spacing, so `min` and the mean read the same and nothing
+      fires differently. The highest silent **interior** mean anywhere
+      measured is 1.5549 (`split_own_label` rung 1 label 23). The
+      Decisions & Trade-offs bullet naming `relabel_swap` label 20 as "the
+      highest-spacing silent label at normal size" has the same corpus-only
+      scope.
+    - **Clarification.** "L4/22" names level L4: it is label 23 on
+      `remove_level` (no renumbering) and label 22 on
+      `remove_level_relabel`. `missing-vertebra-not-fused` reads
+      `remove_level_relabel` label 22, whose readings (spacings
+      `[33.49, 66.38, 36.84]`, size 0.9984, mean 1.5408) re-measure as
+      stated.
 - **A3 (decided: the malformed-key guard).** The `sorted(..., key=int)`
   call is wrapped so that `TypeError` or `ValueError` returns `[]`. A `None`
   key raises `TypeError` and a non-numeric string raises `ValueError`, and
   neither is judged. The guard sits where the sort is, after the existing
   `stage3` and spacing-count guards, so every record that returns `[]` today
   still returns `[]`.
+  *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50: agrees.*
+  `keys = sorted(per_label.keys(), key=int)` still follows the `stage3`,
+  `spacing_consistency`, numeric-spacings and `len(spacings) !=
+  len(per_label) - 1` guards. On the fuse_separate record the merged code
+  raises `ValueError` for key `"x"` and `TypeError` for key `None`, and
+  returns `[]` on the AC1 construction, so AC1, AC2 and
+  `none-key-not-judged` each fail before the change.
 - **A4 (decided: what the change touches in text).**
   - The finding's reason says the label's adjacent centroid spacings average
     the ratio over the case's other spacings, not "its smaller adjacent
@@ -186,6 +245,17 @@ builder re-measures on the real change.
     and its "about 1.48-1.57" becomes the new range, about 1.35-1.80. That
     range is the fused readings measured in A2 across the corpus, the ladders
     and the operators: 1.3546 to 1.8026.
+  - *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50: agrees.*
+    Every quoted text is present as described: the reason's "smaller
+    adjacent centroid spacing", the module docstring's A2 bullet and A7
+    measured block, the class docstring, `DEFAULT_SPACING_RATIO`'s
+    docstring, the `mode_declaration` evidence (1.4782 / 1.4768), the
+    unchanged `RuleDetector` strings, `_MODE_2`'s mechanism clause (with
+    "split reads size 1.53 at spacing 1.05"), both fuse cases' reasons
+    and `default_config.yaml`'s "about 1.48-1.57". Item 210 changed
+    `failure_modes.py` in `_MODE_9`'s `sequence_break` reason only, and
+    regenerated `failure_modes.generated.json` for it, so step 5
+    regenerates on top of that and `_MODE_2` is untouched.
 - **A5 (decided: mode 2's at-the-bar sign-off stands).** `gate-0133` signed
   mode 2 at the bar on 2026-10-02. `MODE_SIGN_OFFS[2].note` records this
   feedback as non-blocking. The firing set over both corpora is unchanged
@@ -194,6 +264,12 @@ builder re-measures on the real change.
   text exists to invalidate it. So no human gate is raised and
   `MODE_SIGN_OFFS` is not touched. This is returned to the human as
   question 3.
+  *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50: agrees.*
+  `MODE_SIGN_OFFS[2]` reads `outcome="at-the-bar"`, dated 2026-10-02, with
+  the note naming "fused_label's centroid-spacing judgement" as
+  non-blocking feedback. `traceability.bar_conditions(2)` reads all five
+  met live, and condition 4's subjects are
+  `("fused_label/fused_label", "neighbour_contact/stray_contact")`.
 - **A6 (decided: end labels).** An end label is judged on its one spacing,
   as today. A fused end label whose centroid falls on its inner body reads a
   normal inner spacing, because the extra distance lies beyond the end of
@@ -201,9 +277,22 @@ builder re-measures on the real change.
   Left open. Judging an end label on size alone was rejected: `split_own_label`
   label 24 (size 4.80) and the `split` ladder's label 24 (up to 2.45) are end
   labels at normal spacing and would fire.
+  *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50: agrees.* The
+  merged loop forms `adj_sp` from `(i - 1, i)` within range, so an end label
+  has one adjacent spacing, and a label with no non-adjacent spacing is
+  skipped (`fuse` ladder rung 3 reads no finding). `split_own_label` label
+  24 (4.8000) and the `split` ladder's label 24 (2.0072, 2.4475) re-measure
+  as stated.
 - **A7: no human gate, no environment-gated capability, and no interface a
   queue-028 sibling reads.** Items 210 and 212 re-measure both corpora's
   expected sets. This item moves none of them (A2), so either can land first.
+  *Re-checked 2026-10-05 against `aide/queue-028` at 7949f50 (item 210
+  merged): agrees.* Item 210 replaced the monotonicity reference with a
+  label-free path and re-measured `sequence_break`'s `mislabel` pairs (one
+  reason string in `_MODE_9`). It touched none of `fused_label.py`, the spacing half of
+  `features/consistency.py`, `_MODE_2`, `default_config.yaml` or the
+  traceability matrix. The `fused_label` firing set over both corpora is
+  unchanged on the merged base (A2's re-check). Item 212 is still to land.
 
 ## Implementation Steps
 
