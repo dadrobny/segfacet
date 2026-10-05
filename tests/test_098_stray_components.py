@@ -937,7 +937,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "reason": (
                     "Vertebra ordering inconsistent with label: labels 21 "
                     "(L2) and 22 (L3) are out of expected order along the "
-                    "spine (spline parameter does not advance)."
+                    "spine (position along the label-free path through the "
+                    "centroids does not advance)."
                 ),
             },
             {
@@ -999,6 +1000,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     # 2026-09-29 (item 198): mislabel's ordering detector judges the pairs in
     # CANONICAL_ORDER order, so the misplaced T13 now adds three ordering
     # findings before the sequence one. Verdict is unchanged.
+    # 2026-10-05 (item 210): the label-free order names the misplaced level, so
+    # the three lumbar ordering findings become one, on labels {20, 28}.
     "sequence_break": {
         "verdict": "flagged-for-review",
         "findings": [
@@ -1006,33 +1009,12 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                 "rule_id": "mislabel",
                 "detector_id": "ordering",
                 "severity": "flagged-for-review",
-                "labels": [20, 21],
+                "labels": [20, 28],
                 "reason": (
-                    "Vertebra ordering inconsistent with label: labels 20 (L1) "
-                    "and 21 (L2) are out of expected order along the spine "
-                    "(spline parameter does not advance)."
-                ),
-            },
-            {
-                "rule_id": "mislabel",
-                "detector_id": "ordering",
-                "severity": "flagged-for-review",
-                "labels": [21, 22],
-                "reason": (
-                    "Vertebra ordering inconsistent with label: labels 21 (L2) "
-                    "and 22 (L3) are out of expected order along the spine "
-                    "(spline parameter does not advance)."
-                ),
-            },
-            {
-                "rule_id": "mislabel",
-                "detector_id": "ordering",
-                "severity": "flagged-for-review",
-                "labels": [22, 23],
-                "reason": (
-                    "Vertebra ordering inconsistent with label: labels 22 (L3) "
-                    "and 23 (L4) are out of expected order along the spine "
-                    "(spline parameter does not advance)."
+                    "Vertebra ordering inconsistent with label: labels 28 (T13) "
+                    "and 20 (L1) are out of expected order along the spine "
+                    "(position along the label-free path through the centroids "
+                    "does not advance)."
                 ),
             },
             {

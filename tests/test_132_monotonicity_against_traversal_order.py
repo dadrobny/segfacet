@@ -129,20 +129,20 @@ def _run_qc_case(case_id: str):
 
 
 def _patched_consistency_fit_counter(monkeypatch):
-    """Patch ``segfacet.features.consistency.fit_centroid_spline`` with a
-    wrapper that records (args, kwargs) and delegates to the real function
-    -- item spec Testing Strategy's AC7/AC10 note. This is the module-level
-    import step 2 requires, so it is also the correct patch point."""
-    import segfacet.features.consistency as consistency_mod
+    """Patch ``segfacet.features.spline.fit_centroid_spline`` with a wrapper
+    that records (args, kwargs) and delegates to the real function.
+    2026-10-05 (item 210): the consistency module no longer imports it, so
+    the patch point is the spline module; the check counts zero calls."""
+    import segfacet.features.spline as spline_mod
 
     calls: List[Tuple[tuple, dict]] = []
-    real_fit = consistency_mod.fit_centroid_spline
+    real_fit = spline_mod.fit_centroid_spline
 
     def recording_fit(*args, **kwargs):
         calls.append((args, kwargs))
         return real_fit(*args, **kwargs)
 
-    monkeypatch.setattr(consistency_mod, "fit_centroid_spline", recording_fit)
+    monkeypatch.setattr(spline_mod, "fit_centroid_spline", recording_fit)
     return calls
 
 
@@ -186,19 +186,17 @@ def test_ac3_clean_control_stays_monotonic():
 
 # Re-measured 2026-09-23 on item 173's lordotic base; the box-base values
 # this table replaces are recorded in item 173's Decisions log.
+# 2026-10-05 (item 210): every row is now the normalised arc length along the
+# label-free path through the centroids (A4's table); was spline u.
 _PRE_ITEM_U_VALUES = {
-    "clean_control": [0.000000561, 0.245056802, 0.483088896, 0.730986720, 0.999999440],
-    # Item 177 (2026-09-24): displace re-authored mostly left-right; was
-    # [0.000000561, 0.222516283, 0.473947274, 0.754651307, 0.999999440].
-    "displace": [0.000000561, 0.229606218, 0.479875022, 0.747093991, 0.999999440],
-    "fragment": [0.000000561, 0.245054485, 0.483276334, 0.730988993, 0.999999440],
-    "inject_islands": [0.000000561, 0.245071604, 0.483117471, 0.730970397, 0.999999440],
-    "remove_level": [0.000000561, 0.244998545, 0.730526238, 0.999999440],
-    "crop_at_border": [0.000000561, 0.219880162, 0.469887999, 0.757448722, 0.999999440],
-    # 2026-09-29 (item 198): u_values are listed in CANONICAL_ORDER order
-    # (T13, L1-L4); was [0.000000561, 0.245056802, 0.483088896, 0.730986720,
-    # 0.999999440].
-    "sequence_break": [0.000000561, 0.999999440, 0.754943198, 0.516911104, 0.269013280],
+    "clean_control": [0.0, 0.244657315, 0.483480081, 0.730901566, 1.0],
+    "displace": [0.0, 0.232739104, 0.479861733, 0.744010399, 1.0],
+    "fragment": [0.0, 0.244656461, 0.483667275, 0.730902505, 1.0],
+    "inject_islands": [0.0, 0.244663354, 0.48350904, 0.730894924, 1.0],
+    "remove_level": [0.0, 0.244998552, 0.73052624, 1.0],
+    "crop_at_border": [0.0, 0.22390374, 0.469607133, 0.753728411, 1.0],
+    # u_values are listed in CANONICAL_ORDER order (T13, L1-L4).
+    "sequence_break": [1.0, 0.0, 0.244657315, 0.483480081, 0.730901566],
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
@@ -314,7 +312,8 @@ def test_ac7_out_of_order_sequence_exactly_one_refit(monkeypatch):
     swapped = _swap(_clean_ascending(), 1, 2)
     fit = fit_centroid_spline(swapped)
     compute_monotonic_consistency(swapped, fit)
-    assert len(calls) == 1
+    # 2026-10-05 (item 210): the check makes no fit at all.
+    assert len(calls) == 0
 
 
 # =========================================================================== #
@@ -330,30 +329,12 @@ def test_ac8_item_130_fit_call_counts_reproduced_unedited(monkeypatch):
     t130.test_ac18_three_level_map_fits_exactly_once(monkeypatch)
 
 
-def test_ac9_item_130_closest_u_agreement_reproduced_unedited():
-    import test_130_one_closest_point_search as t130
-
-    t130.test_ac20_monotonic_and_offset_closest_u_agree_clean()
-    t130.test_ac20_monotonic_and_offset_closest_u_agree_displaced()
+# 2026-10-05 (item 210): test_ac9_item_130_closest_u_agreement_reproduced_unedited
+# is retired -- it delegated to item 130's retired AC20 tests.
 
 
-# =========================================================================== #
-# AC10: the reference refit inherits the supplied fit's degree/smoothing
-# =========================================================================== #
-
-
-def test_ac10_refit_inherits_supplied_fit_degree_and_smoothing(monkeypatch):
-    calls = _patched_consistency_fit_counter(monkeypatch)
-    centroids = _clean_ascending()
-    fit = fit_centroid_spline(centroids, degree=2, smoothing=3.0)
-    swapped = _swap(centroids, 1, 2)
-
-    compute_monotonic_consistency(swapped, fit)
-
-    assert len(calls) == 1
-    _args, kwargs = calls[0]
-    assert kwargs.get("degree") == fit.degree == 2
-    assert kwargs.get("smoothing") == fit.smoothing == 3.0
+# 2026-10-05 (item 210): test_ac10_refit_inherits_supplied_fit_degree_and_smoothing
+# is retired -- the check no longer refits.
 
 
 # =========================================================================== #
@@ -374,9 +355,10 @@ def test_ac11_exact_s_tie_no_refit_still_monotonic(monkeypatch):
 
     result = compute_monotonic_consistency(centroids, fit)
 
-    assert len(calls) == 0, "an exact S tie (stable sort keeps input order) must not trigger a refit"
-    assert result.is_monotonic is True
-    assert result.non_monotonic_pairs == ()
+    assert len(calls) == 0
+    # 2026-10-05 (item 210): L2 and L3 project to the same path position and
+    # equal u counts as a break under >=.
+    assert result.non_monotonic_pairs == (("L2", "L3"),)
 
 
 # =========================================================================== #
@@ -712,11 +694,11 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     assert u_entry["observed"]["verdict"] == "varies"
     corpus_obs = u_entry["observed"]["corpus"]
     assert corpus_obs["count"] == 24
-    # The raw minimum is sub-floor residue (5.6e-07); emission_range clamps a
-    # sub-floor endpoint to 0.0 (PR #84's CI, 2026-09-24).
+    # 2026-10-05 (item 210): the minimum is now exactly 0.0 (path start), no
+    # longer sub-floor residue, and the maximum is exactly 1.0.
     assert corpus_obs["minimum"] == 0.0
-    assert corpus_obs["maximum"] == pytest.approx(0.999999, abs=1e-6)
-    assert corpus_obs["span"] == pytest.approx(0.999999, abs=1e-6)
+    assert corpus_obs["maximum"] == pytest.approx(1.0, abs=1e-12)
+    assert corpus_obs["span"] == pytest.approx(1.0, abs=1e-12)
 
 
 # =========================================================================== #
@@ -942,27 +924,9 @@ def test_adv_doubly_swapped_seven_level_names_both_pairs():
     assert result.non_monotonic_pairs == (("L2", "L1"), ("L6", "L5"))
 
 
-# =========================================================================== #
-# Adversarial: a scoliotic (large transverse excursion, strictly increasing
-# S) shape triggers no refit and stays monotonic
-# =========================================================================== #
-
-
-def test_adv_scoliotic_shape_strictly_monotonic_s_no_refit(monkeypatch):
-    calls = _patched_consistency_fit_counter(monkeypatch)
-    centroids = [
-        _centroid("L1", (0.0, 0.0, 0.0), label=1),
-        _centroid("L2", (40.0, 0.0, 10.0), label=2),
-        _centroid("L3", (60.0, 0.0, 20.0), label=3),
-        _centroid("L4", (40.0, 0.0, 30.0), label=4),
-        _centroid("L5", (-40.0, 0.0, 40.0), label=5),
-    ]
-    fit = fit_centroid_spline(centroids)
-
-    result = compute_monotonic_consistency(centroids, fit)
-
-    assert len(calls) == 0
-    assert result.is_monotonic is True
+# 2026-10-05 (item 210): test_adv_scoliotic_shape_strictly_monotonic_s_no_refit
+# is retired -- its subject, an S-monotone order needing no refit, no longer
+# exists, and its L5 is nearer L1 than L4 (Left open (b)'s class).
 
 
 # =========================================================================== #

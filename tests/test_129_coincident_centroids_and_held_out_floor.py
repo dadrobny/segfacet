@@ -732,12 +732,9 @@ _PRE_129_FINDINGS = {
     "crop_at_border": {("border", (22,))},
     # 2026-09-29 (item 198): mislabel's ordering detector now judges in
     # CANONICAL_ORDER order and fires on the lumbar pairs beside T13's shift.
-    "sequence_break": {
-        ("mislabel", (20, 21)),
-        ("mislabel", (21, 22)),
-        ("mislabel", (22, 23)),
-        ("sequence", (28,)),
-    },
+    # 2026-10-05 (item 210): the label-free order names the misplaced level,
+    # so the three lumbar findings become one, on (20, 28).
+    "sequence_break": {("mislabel", (20, 28)), ("sequence", (28,))},
     # "force_overlap" key dropped by item 195, 2026-09-28: the case was
     # removed.
 }

@@ -427,12 +427,10 @@ _ITEM_192_ADDED_SEQUENCE_PAIRS = {
 #: Item 198 (2026-09-29): mislabel's ordering detector judges the pairs in
 #: CANONICAL_ORDER order, so sequence_break's misplaced T13 adds three
 #: mislabel findings that the aeb2f55 golden does not carry.
+#: 2026-10-05 (item 210): the label-free order names the misplaced level, so
+#: the three lumbar findings become one, on (20, 28).
 _ITEM_198_ADDED_MISLABEL_PAIRS = {
-    "sequence_break": (
-        ("mislabel", (20, 21)),
-        ("mislabel", (21, 22)),
-        ("mislabel", (22, 23)),
-    ),
+    "sequence_break": (("mislabel", (20, 28)),),
 }
 
 
