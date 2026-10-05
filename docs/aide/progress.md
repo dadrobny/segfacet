@@ -55,7 +55,7 @@
 | 24    | *(placeholder)* Failure-Mode Discovery & Typed Reference Set          | G8              | 📋     |
 | 25    | *(placeholder)* Segmenter-Native Perturbations                        | G2              | 📋     |
 | 26    | Carried-Defect Remediation (pre-real-data)*(runs next)*               | G2, G7          | ✅     |
-| 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | 📋     |
+| 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | 🚧     |
 | 28    | Spinal Curve Model: Formulation, Offset & Orientation                   | G2, G7          | ✅     |
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
@@ -1306,7 +1306,7 @@ discovery.
 
 ---
 
-## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8) — 📋
+## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8) — 🚧
 
 **Goal.** Give the feature record a deliberately designed structure instead of the current
 grouping by *which extractor module happened to compute a field* — the single recurring
@@ -1327,7 +1327,7 @@ justified in writing.
   four containers; `stage3.*` / `image_features.*` parallel to `per_label.{label}.*`;
   image-axis-relative shape features (bbox/extent, `principal_axis`) awaiting a vertebra
   coordinate system; reference-delta hardcoded to `physical_volume_mm3`. *(Item 214)*
-- 📋 **Maintenance** `test_155`'s tracked-shape scan: nested scopes reported once, walrus,
+- 🚧 **Maintenance** `test_155`'s tracked-shape scan: nested scopes reported once, walrus,
   `match` and `>= 1.0` shapes covered, value defaults let through. *(Item 209)*
 - 📋 **Maintenance** The monotonicity check's reference curve made label-free and
   direction-robust. *(Item 210)*
