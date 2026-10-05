@@ -37,10 +37,10 @@ and runs only those there:
   absorbed by tolerance, not by running a test on Windows. A fresh-vs-committed
   comparison goes through `segfacet.synth.golden.assert_matches_committed_artifact`
   (numeric-tolerance leaves, item 078), and `tests/committed_artifact_guard.py`
-  (item 127) enforces that statically. This item adds a check that no module
-  off the Windows list has a guard violation (AC9). So a module that compares a
-  committed artifact exactly fails the suite instead of silently leaving
-  Windows.
+  (item 127) enforces that statically. The guard already runs over every
+  `tests/*.py`, in `tests/test_127_committed_artifact_tolerance.py::test_ac15_classifier_reports_zero_violations_on_tests_tree`.
+  So a module that compares a committed artifact exactly fails the suite
+  instead of silently leaving Windows, with no new check here.
 - **The workflow names the list.** The `test` job carries a job-level
   `env: WINDOWS_TESTS: >-` block that names those modules as paths. The Test
   step appends `env.WINDOWS_TESTS` behind a `runner.os == 'Windows'` guard.
@@ -73,11 +73,6 @@ and runs only those there:
 - [ ] **AC2: the list has one definition.** `WINDOWS_TESTS` is defined only
   as a key of the `test` job's own `env` mapping. It is not a key of the
   workflow-level `env`, of any other job's `env`, or of any step's `env`.
-- [ ] **AC3: the list holds paths only.** Every whitespace-separated token of
-  `jobs.test.env.WINDOWS_TESTS` matches `tests/test_*.py`, and none starts
-  with `-`.
-- [ ] **AC4: no path is listed twice.** The tokens of
-  `jobs.test.env.WINDOWS_TESTS` contain no duplicates.
 - [ ] **AC5: the list is exactly the OS-sensitive set.** The set of
   `jobs.test.env.WINDOWS_TESTS` tokens equals the set made of every
   `tests/test_*.py` module the classifier flags (computed live from each
@@ -93,14 +88,11 @@ and runs only those there:
 - [ ] **AC8: every hand-listed module exists.** Every key of `WINDOWS_EXTRA`
   is the repo-relative POSIX path of a file that exists, directly under
   `tests/`, whose name matches `test_*.py`.
-- [ ] **AC9: no module off the Windows list compares a committed artifact
-  exactly.** The test computes the off-Windows modules live: every
-  `tests/test_*.py` module whose repo-relative path is not a
-  `jobs.test.env.WINDOWS_TESTS` token. For each one,
-  `committed_artifact_guard.classify_module(source, path)` returns an empty
-  list. On failure the message is the guard's own `violation_message`, which
-  names the module, the line and the committed path. The fix is the tolerance
-  helper, or a `WINDOWS_EXTRA` entry with its reason.
+
+AC3, AC4 and AC9 were withdrawn by the queue-028 spec review on 2026-10-05,
+before any test was written (see Decisions & Trade-offs). The remaining
+criteria keep their numbers. Testing Strategy says why each one is not
+written.
 
 ## Assumptions
 
@@ -143,7 +135,9 @@ and runs only those there:
   dropped: a test absorbs a machine/OS float difference with a tolerance, and
   a fresh-vs-committed comparison already has one, through
   `assert_matches_committed_artifact`, enforced by
-  `tests/committed_artifact_guard.py`. AC9 keeps that guarantee for every
+  `tests/committed_artifact_guard.py`.
+  `tests/test_127_committed_artifact_tolerance.py::test_ac15_classifier_reports_zero_violations_on_tests_tree`
+  runs that guard over every `tests/*.py`, so the guarantee holds for every
   module off the Windows list.
 - **A2 (seed of `WINDOWS_EXTRA`).** The dict starts with one entry:
   `tests/test_086_datasets.py`. Its reason: it compares dataset-descriptor path
@@ -179,18 +173,17 @@ and runs only those there:
     `coverage`/`border` entries of that literal carry no number (labels and
     face/level names only), so no float is compared.
   - `tests/test_094_tptbox_image_layer.py` imports `build_report_for_case`.
-    AC3 reads the committed `tests/corpus/094_pre_migration_snapshot.json`,
+    Its own AC3 reads the committed `tests/corpus/094_pre_migration_snapshot.json`,
     which records each fixture's shape, dtype, voxel-data hash, spacing and
     affine. Spacing is checked with `pytest.approx` and the affine with
     `np.allclose`. The hash is over voxel data decoded from the committed
-    NIfTI, with no arithmetic on it. AC7 compares verdict strings only.
+    NIfTI, with no arithmetic on it. Its AC7 compares verdict strings only.
   - `tests/test_121_tangent_orientation.py` imports `build_report_for_case`.
     Every float check is against a hand-written literal under
     `pytest.approx`, and it reads no committed artifact.
 
   No defect was found among the four. `committed_artifact_guard.iter_violations`
-  reports none across `tests/`, which `tests/test_127_committed_artifact_tolerance.py`
-  already asserts.
+  reports none across `tests/`, which test_127's AC15 already asserts.
 - **A4 (GitHub Actions behaviour).** A `>-` folded scalar under job-level
   `env` reaches `${{ env.WINDOWS_TESTS }}` as one space-separated line. The
   expression is expanded before the shell runs: pwsh by default on
@@ -217,7 +210,7 @@ builder then changes only the workflow.
 
 1. **The test module (test-writer).** In `tests/test_213_windows_ci_subset.py`:
    - The module docstring states the rule: the five signals of A1, why
-     floating-point behaviour is not one (AC9 covers it instead), and that
+     floating-point behaviour is not one (test_127's AC15 covers it), and that
      `WINDOWS_EXTRA` is for an OS-sensitive module the signals cannot see,
      each entry with its reason.
    - `_signals(source: str) -> set[str]` walks `ast.parse(source)` for
@@ -230,12 +223,6 @@ builder then changes only the workflow.
    - One comparison helper reports both differences between the list and the
      expected set. The AC5 test and its adversarial counterpart both call
      this same helper.
-   - For AC9, call `committed_artifact_guard.classify_module` and
-     `violation_message` from `tests/committed_artifact_guard.py`, imported
-     the way `tests/test_127_committed_artifact_tolerance.py` imports it. Do
-     not re-implement the committed-path resolver. One helper takes a
-     `{path: source}` mapping and a workflow token set and returns the
-     violations. The AC9 test and its adversarial counterpart both call it.
    - Reuse `tests/test_113_ci_numpy_matrix_scope.py`'s whitespace
      normalisation idea for AC1. Copy the three-line `_normalize_run` rather
      than importing it from another test module.
@@ -304,15 +291,22 @@ with `read_text(encoding="utf-8")` and spawns nothing.
 - **aliased-import:** `import subprocess as sp` and
   `from segfacet.cli import main as cli_main` are each flagged. This guards a
   classifier that matches on the bound name instead of the module.
-- **exact-committed-off-windows:** take a synthetic module source with a
-  byte-exact `==` between `(_REPO_ROOT / "src/segfacet/reference/reference_default.json").read_text()`
-  and a fresh string, using a `_REPO_ROOT = Path(__file__).resolve().parent.parent`
-  root, the shape test_127's synthetic offender uses. `read_text` is not a
-  signal, so `_signals` flags nothing in it. The AC9 helper, given that
-  source under a path absent from the token set, still reports one violation
-  naming that committed path. This guards the hole the maintainer named:
-  dropping the float signal must not let an exact committed comparison leave
-  Windows unnoticed.
+
+**Not written because an existing test or tool already fails:**
+
+- **Withdrawn AC9 (no off-Windows module compares a committed artifact
+  exactly).** `tests/test_127_committed_artifact_tolerance.py::test_ac15_classifier_reports_zero_violations_on_tests_tree`
+  already requires `committed_artifact_guard.iter_violations(TESTS_DIR)` to
+  be empty over every `tests/*.py`, and that covers every off-Windows module.
+  Nothing could turn AC9 red without also turning test_127's AC15 red. That
+  test is how the maintainer's review caveat on the dropped float signal stays
+  met. A6 keeps the hand review of the four modules that leave Windows.
+- **Withdrawn AC3 (the list holds `tests/test_*.py` paths only).** A token
+  that is not a test module path is outside the expected set, so AC5's set
+  comparison already reports it under "listed but not OS-sensitive".
+- **Withdrawn AC4 (no path listed twice).** A duplicate breaks nothing.
+  pytest ignores a repeated file argument unless `--keep-duplicates` is
+  passed, so the module still runs once on Windows.
 
 **Existing tests to reconcile:**
 
@@ -360,15 +354,28 @@ To be updated during implementation.
     was rejected, so that every change to what Windows runs is a reviewable
     diff.
   - This item depends on items 209–212 and is built last (A5).
-  - The committed-float signal is dropped (A1, A6, AC9). The maintainer
-    attached a caveat: the tolerance-carrying fresh-vs-committed tests need a
-    review. That review is not this item's.
+  - The committed-float signal is dropped (A1, A6). The maintainer attached a
+    caveat: the tolerance-carrying fresh-vs-committed tests need a review.
+    That review is not this item's.
+- **2026-10-05, queue-028 spec review** (accepted by the maintainer):
+  - Three criteria duplicated something that already fails, so they are
+    withdrawn. AC9 duplicated test_127's AC15. AC3 is subsumed by AC5's set
+    comparison. AC4 guarded nothing, because pytest de-duplicates file
+    arguments. Testing Strategy, under "Not written because", gives each
+    reason.
+  - AC9's helper and its `exact-committed-off-windows` adversarial case go
+    with it.
+  - The remaining criteria keep their numbers (AC1, AC2, AC5–AC8), and the
+    withdrawn ones are marked under Acceptance Criteria. Item specs do not
+    need contiguous AC numbers, and renumbering would silently change what
+    "AC5" and "AC8" mean in the Implementation Steps, in A3 and in any review
+    note that already cites them.
 - **Left open:** whether `WINDOWS_EXTRA` should also hold modules that once
   failed on Windows CI but no longer contain the code that failed (`test_099`,
   `test_114`). A2 leaves them off. The question waits for a Windows-only
   failure that the classifier and the seed both miss, which would show the
   rule is too narrow.
-- **Left open:** whether AC9's guard should also catch an exact comparison of
+- **Left open:** whether `committed_artifact_guard` should also catch an exact comparison of
   a value *parsed* from a committed artifact, such as
   `json.loads(p.read_text())["x"] == fresh_x`. `committed_artifact_guard` is
   "precise, not exhaustive" by its own docstring: it resolves `==` operands
