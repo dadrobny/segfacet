@@ -49,7 +49,9 @@ review whose findings arrive after the merge gates nothing. Under
 `aide merge NNN` yourself once its findings are triaged. The reviewer reads
 the diff as first built, once; its findings are triaged at the first
 verdict, PASS or FAIL, and a fix round is followed by a fresh validator
-alone. Scope and vision fit are the validator's checks either way.
+alone, handed the blocking findings fixed on the branch to check each left a
+traced test or said why not — never to judge the fix. Scope and vision fit
+are the validator's checks either way.
 
 **Command hygiene.** Sub-agents (and you) emit git/CLI commands in the
 allow-list-friendly shape delivered by `.claude/rules/aide-command-hygiene.md`
@@ -76,7 +78,12 @@ and tests are already merged, so the steps run with four differences:
   > the spec's authorised paths.
 
   They come from the orchestrator's triage, or, in a fresh session, from the
-  item's `reopened:` reason.
+  item's `reopened:` reason. Carried like one, a CI finding is still not a
+  review finding: it asks for no traced test and no `## Review findings`
+  bullet, and adds nothing to step 5's blocking-findings paragraph, which
+  lists the item's earlier review findings as usual — the failing test or
+  step a CI finding names is its check, and the next CI run re-runs that
+  (§9).
 
 - **No `reviewer` is spawned**, whatever `loop.review` says: the item was
   reviewed when it was first built, and a CI fix is a fix round (§9). Under
@@ -221,6 +228,19 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
    > report PASS (merge held)** — do NOT run `aide merge`. The orchestrator
    > merges once the review findings are discharged.
 
+   **When a fix round on this branch has carried blocking review findings,
+   add to that brief** — every one fixed so far, not only the last round's,
+   so a trace a red suite kept a validator from reaching is still checked —
+   less any whose code a later round removed or rewrote, together with the
+   test that measured it: that finding stays counted, and is checked no
+   more. A session that resumes mid-cycle takes them from the spec's
+   `## Review findings` bullets ranked blocking; re-checking a trace costs a
+   read:
+   > This branch fixed blocking review findings: <each: its label in the
+   > spec's `## Review findings`, and the finding in one line>. Check each
+   > as your spec's check 7 says: its bullet is there, and names a test
+   > traced to it or why it has none. Do not judge the fixes themselves.
+
 6. **Build/test ↔ validate cycle (orchestrator).** A **round** is one build
    or test fix followed by a fresh `validator` — never a fresh `reviewer`: the
    item is reviewed once, as first built (§9). Read `loop.validation_rounds`
@@ -234,13 +254,20 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
      fix round** as the validator's failures, by owner of the file — builder
      for production code, `test-writer` for tests, one after the other on
      the one branch, never both at once: one fix pass for both reads, one
-     round. Then a fresh `validator`, merge still held, and no `reviewer`. The bullets below say which builder and which failure goes
-     where.
+     round. A blocking finding is dispatched as *Blocking, in scope* below
+     says, traced test included. Then a fresh `validator`, merge still
+     held, and no `reviewer`. The bullets below say which builder and which
+     failure goes where.
    - **FAIL — suite red (code bug)** → fresh builder on the same branch with the
      reproduce steps; then a fresh `validator`. Under `auto-merge` or `local`
      this is the merge refusing failures the item caused (§9): brief the
      builder with those tests, not the inherited ones listed beside them.
    - **FAIL — missing AC coverage** → fresh `test-writer`; then a fresh `validator`.
+   - **FAIL — a blocking finding left no trace (check 7)** → the dispatch
+     *Blocking, in scope* below names for it, with the finding again: a fresh
+     `test-writer` for one about behaviour, the role that fixed it for one
+     about no behaviour, to add the bullet and its reason. Then a fresh
+     `validator`. It is a round like any other.
    - **FAIL — out-of-scope / vision conflict** → fresh builder to revert/fix;
      then a fresh `validator`.
    - **Which builder — escalation is a judgement, not a round number.** A quick
@@ -305,7 +332,17 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
        (`builder-escalation` once escalated) for production code, or
        `test-writer` (tests) with the finding, then a fresh `validator`, merge
        still held, and no `reviewer`. These are validation rounds and count
-       against the cap.
+       against the cap. **Each one leaves a test traced to it, or says why
+       it has none** (§9): decide as you rank it whether it is about
+       behaviour. If it is, a fresh `test-writer` follows the builder in the
+       same round, briefed with the finding to write the test that answers
+       it and record its bullet; for a finding in a test, that `test-writer`
+       is the whole dispatch, and the test it fixes or adds is the one
+       traced to it. If it is not — a document or a name — brief the role that
+       fixes it to add the finding's `## Review findings` bullet, ending
+       with why it has no test, in the commit with the fix. Collect each
+       finding's label from the returns: the next validator's brief names
+       them (step 5).
      - **Minor, in scope** → your call: the same dispatch (a validation
        round, counted against the cap like any other), or one `insights.md`
        `defect` line instead of it. Say which you chose and why.

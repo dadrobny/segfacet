@@ -31,7 +31,8 @@ found nothing.
 **Why you run in the background.** The validator's full suite run is the long
 pole and your read fits inside it, so the review costs no wall-clock. The
 merge still waits for both. You are dispatched once, over the diff as first
-built: whatever your findings cause is measured by a fresh validator, and no
+built: whatever your findings cause is measured by a fresh validator — a
+blocking one through a test traced to it — and no
 second review follows a fix round, so report everything you find now. If you
 cannot finish, say so and return what you have — a partial review reported as
 partial is useful; findings that arrive after the item has merged gate

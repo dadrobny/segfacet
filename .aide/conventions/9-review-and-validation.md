@@ -95,10 +95,27 @@ validation's verdict whichever way it goes: on a FAIL, the triaging role waits
 for the review and sends every in-scope finding it is fixing in the same fix
 round as the validation failures — one round for both reads. After any fix
 round, a fresh validation runs and no second review; a fix made for a finding
-is measured by that validation like any other fix, and counts against the
-round cap the same way. A finding about code a fix round removed or rewrote
+is measured by that validation like any other fix — a blocking one through
+the test traced to it (below) — and counts against the round cap the same
+way. A finding about code a fix round removed or rewrote
 before it was fixed is dropped, and not counted: the code it describes no
 longer exists.
+
+**A blocking finding about behaviour is fixed together with a test traced to
+it, and every validation after a fix round checks the trace.** The validation
+is handed every blocking finding fixed on the branch so far whose code a later
+round has not removed, and fails the round where one has no bullet in the
+spec's `## Review findings`, or a bullet naming neither a test traced to it
+nor why it has none (§6) — a finding about a document or a name changes
+nothing a test could measure, and says so there. It checks an artifact, not
+the fix: that the bullet is there and that the test it names is in the suite
+the validation runs, which judges that test as it judges any other. Whether
+the code now answers the finding is review's question, and the validation does
+not ask it — it reads no diff for it, exactly as it re-asks nothing else
+review owns. A minor finding fixed on the branch and a nit carry no such
+requirement, though a test added for one still traces the way §6 says. A
+finding read from the queue's CI is not a review finding here: it names the
+failing test or step that is its check, and the next CI run re-runs that.
 
 **Neither read signs off its own work.** The role that wrote the code performs
 neither, and the reviewer writes no code, modifies no tests, does not merge,
@@ -176,6 +193,32 @@ output in place of a verdict.
   validation instead, as every other fix is. A finding about code that a fix
   has since removed describes nothing that will merge, so counting it would
   charge the item for code it no longer has.
+- **Why a blocking finding's fix brings its own test.** With one review per
+  item, the fresh validation after a fix round is the only check on a
+  finding's fix, and it measured that fix through the spec's tests alone —
+  written before the finding existed, so a fix with no test traced to it
+  passed on a suite that never exercised it (issue #417). Handing the
+  validator the findings to judge each fix was rejected: that is review's
+  question, asked by the read built not to ask it, and a second review is
+  ruled out above. A traced test turns the fix into something validation
+  already measures, and a bullet stating why there is none keeps a finding
+  that changes no behaviour from demanding a test nobody can write. Minor
+  findings and nits are left as they were: a minor one may go to the inbox
+  instead of the branch, and a nit changes no behaviour by definition. CI
+  findings stay out because each already names its check, and the round
+  that fixes them ends with CI running it again.
+- **Why every round runs the whole suite.** A round after the first could run
+  only the tests that failed and the ones its fix touched, but the merge takes
+  a recorded run only when it covered the whole tree, so a narrowed round
+  hands the full run to the merge instead of saving it: an item that takes two
+  rounds runs the suite twice either way, and only a third round saves one
+  run. In two consumers' ledgers (39 items with a suite time, about 2½ to 8½
+  minutes a run) four items reached a third round, a saving of under half an
+  hour in all, against a second kind of run the merge would have to tell
+  apart. Under `pr`, the narrowed last round would leave nothing in the loop
+  running the whole suite before the pull request (issue #417). A suite many
+  times slower, or items that routinely take three rounds or more, would
+  reopen the question; `aide ledger report` shows both.
 - **Why a rank at all, and why three.** The ledger records findings by rank
   (§1 → ledger.md) and the contract had no scale to record them on: this
   section asked only whether a finding was in scope, and a project's own review

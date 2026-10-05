@@ -73,10 +73,16 @@ project-agnostic; never assume a specific path or package name.
    decision once a role with standing has made it — not instead of handing
    back.
 4. **Record decisions** back into the item spec's "Decisions & Trade-offs"
-   section. Edit only that section, and append: a `**Left open:**` line the
+   section. Edit only that section, bar the one exception at the end of this step,
+   and append: a `**Left open:**` line the
    spec-author wrote there is a deferred decision the next item reads, so it
    stays. Do **not** add any status field to the item
-   header; implementation status lives solely in `progress.md`.
+   header; implementation status lives solely in `progress.md`. The one
+   other spec edit: when your brief sends a blocking review finding that
+   changes no behaviour, append its bullet under `## Review findings`
+   (creating the section after the Testing Strategy if it is absent) in the
+   commit with the fix, ending with why it has no test (§9) — and return
+   its label.
 5. **Set progress to in-progress** for this item via the CLI (it flips the row,
    pull-rebases, and commits):
    ```

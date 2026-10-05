@@ -116,10 +116,27 @@ validation's verdict whichever way it goes: on a FAIL, the triaging role waits
 for the review and sends every in-scope finding it is fixing in the same fix
 round as the validation failures — one round for both reads. After any fix
 round, a fresh validation runs and no second review; a fix made for a finding
-is measured by that validation like any other fix, and counts against the
-round cap the same way. A finding about code a fix round removed or rewrote
+is measured by that validation like any other fix — a blocking one through
+the test traced to it (below) — and counts against the round cap the same
+way. A finding about code a fix round removed or rewrote
 before it was fixed is dropped, and not counted: the code it describes no
 longer exists.
+
+**A blocking finding about behaviour is fixed together with a test traced to
+it, and every validation after a fix round checks the trace.** The validation
+is handed every blocking finding fixed on the branch so far whose code a later
+round has not removed, and fails the round where one has no bullet in the
+spec's `## Review findings`, or a bullet naming neither a test traced to it
+nor why it has none (§6) — a finding about a document or a name changes
+nothing a test could measure, and says so there. It checks an artifact, not
+the fix: that the bullet is there and that the test it names is in the suite
+the validation runs, which judges that test as it judges any other. Whether
+the code now answers the finding is review's question, and the validation does
+not ask it — it reads no diff for it, exactly as it re-asks nothing else
+review owns. A minor finding fixed on the branch and a nit carry no such
+requirement, though a test added for one still traces the way §6 says. A
+finding read from the queue's CI is not a review finding here: it names the
+failing test or step that is its check, and the next CI run re-runs that.
 
 **Neither read signs off its own work.** The role that wrote the code performs
 neither, and the reviewer writes no code, modifies no tests, does not merge,
