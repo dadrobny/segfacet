@@ -318,6 +318,44 @@ not edited. The builder re-measures each value on the real change.
       read in order;
     - item 130's AC20 (monotonic `u` equals the spline `closest_u`) no longer
       holds.
+  - **Correction (2026-10-05, validation round 1): one fixture A4 did not
+    measure.** A4 measured the corpus cases and the named unit fixtures only.
+    `tests/synthetic.py::labelled_blocks_case`, run through `segfacet run
+    --no-reference` by `tests/test_010_pipeline.py` and
+    `tests/test_cli_run.py`, now gains one finding. Measured on the
+    implementation at 16536ec:
+    - **Geometry.** Identity affine. Centroids (mm): label 1 (C1) at
+      (3.5, 3.5, 3.5), label 2 (C2) at (3.5, 11.5, 3.5), label 3 (C3) at
+      (11.5, 3.5, 11.5). The edge lengths are 1–2 = 8.0, 1–3 = 11.31 and
+      2–3 = 13.86 mm, with no tie, so the MST is 1–2 and 1–3 and the only
+      path is C2 → C1 → C3, 19.31 mm long. Every centroid lies on it.
+    - **Result.** Forward has 1 inversion and backward 2, so forward stands.
+      `u_values` is `[0.414213562, 0.0, 1.0]` (C1, C2, C3) and
+      `non_monotonic_pairs` is `[["C1", "C2"]]`. The CLI report holds the
+      twelve `bounds` `metric_out_of_range` findings as before, plus one
+      `mislabel` `ordering` finding, `flagged-for-review`, labels `[1, 2]`.
+      The verdict stays `flagged-for-review` and the exit code 0.
+    - **Reading: correct, not a false positive.** The fixture's blocks are
+      item 002's placeholders, not a spine. In 3-D, C1 sits between C2 and
+      C3: C2–C3 is the longest of the three distances. A label order
+      C1, C2, C3 therefore does not follow the geometry, and judging the
+      supplied order against the label-free geometric order is decision 4.
+      The old S sort saw C1 and C2 at equal S (3.5 mm) and did not fire.
+      Nothing about the path is degenerate: its length is non-zero, its
+      three `s` values are distinct, and the tree has no tied edge. So
+      neither a zero-length nor a tie guard applies. A minimum label count
+      (say, at least four) would hide this correct reading on every
+      three-label map, and it would not be grounded in the vision, the
+      roadmap or this item's decisions. No guard is added, and no AC moves.
+    - **Sweep.** `labelled_blocks` is the only fixture in
+      `tests/synthetic.py::CANONICAL_CASES` with three or more labels.
+      `empty` has no Stage 3 block. `anisotropic` has two labels, and two
+      centroids always read in order under A2's direction rule (measured:
+      `is_monotonic` true, `u_values` `[0.0, 1.0]`), so
+      `tests/test_cli_run.py::test_run_anisotropic_spacing_pass_verdict`'s all-`bounds`
+      assertion (line 428) holds. The validation round's suite otherwise
+      passed (11178 passed), so these two tests are the only pins of the
+      old result.
 - **A5 (maintainer accepted, 2026-10-05: the handler delegates).**
   `_recon_monotonic_true_spatial_order` becomes
   `MislabelRule().evaluate(extract_feature_record(loaded_seg_image(case), config), config)`.
@@ -421,6 +459,32 @@ not edited. The builder re-measures each value on the real change.
      advance)."
    - The `ordering` `RuleDetector.question` becomes "Do two labels sit in the
      wrong order along the label-free path through the vertebra centroids?"
+   - **Correction (2026-10-05, review finding, minor).** The phrase
+     prescribed above kept the claim that a displacement "does not spoil"
+     the ordering. Left open (b) measured that a displacement of about twice
+     the pitch does spoil it. The claim is narrowed to a moderate
+     displacement in three places. None is rendered in a generated file
+     (`rule_table.py` does not render `condition_opt_ins`) and no test pins
+     them (grep for "does not spoil" and "not spoiled", 2026-10-05).
+     - `ConditionOptIn.reason` becomes exactly: `"a mislabelled vertebra can
+       read as displaced (spline_offset fires on it too), but the ordering is
+       judged against the centroids' label-free geometric order (item 210),
+       which a moderate displacement does not spoil"`.
+     - In the module docstring's item-191 bullet, the two sentences from "The
+       ordering signal is not spoiled" to "which is exactly what this rule
+       reports." become: "The ordering signal is not spoiled by a moderate
+       displacement: it is judged against the centroids' label-free
+       geometric order (item 210), and a swapped label keeps its place in
+       that order unless it moves past a neighbour -- which is exactly what
+       this rule reports. A gross lateral displacement of about twice the
+       level spacing can bend that order and add false pairs on undisplaced
+       neighbours (item 210, Left open b)." This also removes the stray "a
+       reference" left before "the centroids'" on line 40.
+     - The class comment above `condition_opt_ins` says "the ordering signal
+       is not spoiled by a moderate displacement (see module docstring)".
+     - `src/segfacet/failure_modes.py`'s dated 2026-09-28 correction
+       paragraph, which says the same of the old spline reference, is
+       history and is not edited (step 5).
 7. **Regenerate.** Run each module's `main` twice into temp paths, byte-compare
    the two runs, then write the committed copy:
    - `segfacet.failure_modes` → `docs/aide/failure_modes.generated.{json,md}`;
@@ -460,6 +524,8 @@ No dependency is added.
 - `tests/test_129_coincident_centroids_and_held_out_floor.py` — `_PRE_129_FINDINGS["sequence_break"]`.
 - `tests/test_130_one_closest_point_search.py` — AC13's consistency check and the two AC20 tests.
 - `tests/test_132_monotonicity_against_traversal_order.py` — the fit counter, AC4's table, AC7, AC9, AC10, AC11, AC29 and the scoliotic adversarial.
+- `tests/test_010_pipeline.py` — added 2026-10-05 (validation round 1): `test_ac13_populated_fixture_json_verdict_is_pass`'s all-`bounds` assertion (A4 correction).
+- `tests/test_cli_run.py` — added 2026-10-05 (validation round 1): `test_run_json_inventory_matches_fixture`'s all-`bounds` assertion (A4 correction).
 
 **The reconciliation fence.** Each edit to an existing test either moves a
 literal or retires a test whose subject this item removes, exactly as Testing
@@ -563,6 +629,25 @@ Named adversarial cases, and no others:
     L5 is nearer L1 than L4, which is Left open (b)'s class.
   - Unchanged and holding: AC2, AC5, AC6, AC8, AC12, AC28 (once the catalogue
     is regenerated) and the other adversarial tests (A4).
+- **Added 2026-10-05 (validation round 1, A4 correction): the
+  `labelled_blocks` CLI runs.** The same edit is made in both tests:
+  - `tests/test_010_pipeline.py::test_ac13_populated_fixture_json_verdict_is_pass`
+    (line 272);
+  - `tests/test_cli_run.py::test_run_json_inventory_matches_fixture`
+    (line 143).
+
+  In each, `assert all(f["rule_id"] == "bounds" for f in data["findings"])`
+  is replaced by two assertions:
+  - `assert any(f["rule_id"] == "bounds" for f in data["findings"])`;
+  - `assert [(f["rule_id"], f["detector_id"], f["labels"]) for f in data["findings"] if f["rule_id"] != "bounds"] == [("mislabel", "ordering", [1, 2])]`.
+
+  The first keeps the `bounds` wiring pinned. The second pins the one new
+  finding exactly, so the edit moves a literal and loosens nothing. Each
+  docstring gains a dated item-210 sentence: on the placeholder blocks, C1
+  sits between C2 and C3 along the label-free path through the centroids,
+  so the label order C1, C2, C3 legitimately fires `mislabel` `ordering` on
+  (C1, C2). Every other assertion in both tests is unchanged, including the
+  `flagged-for-review` verdict and exit code 0.
 
 **Checked and unaffected** (read 2026-10-05):
 
@@ -642,6 +727,20 @@ To be updated during implementation.
   `traceability` and `golden_evidence` regenerate byte-identical to the
   committed copies, and `rules.generated.md` moves on line 22 only.
   The `L == 0` case returns all-zero `u` before the direction step.
+
+- **2026-10-05, validation round 1 (spec-author, `loop.clarify = "assume"`).**
+  - Two tests outside Authorised paths went red: they pinned that every
+    `labelled_blocks` finding is `bounds`. The new `mislabel` `ordering`
+    finding on (C1, C2) is a correct reading of the placeholder geometry,
+    not a false positive (A4 correction, measured). The two tests are
+    authorised and reconciled (Testing Strategy). No guard is added: a
+    minimum label count would hide a correct reading, and the path has no
+    degeneracy for a tie or zero-length guard to catch. The choice follows
+    from decision 4, so no human gate is raised.
+  - Review finding (minor): step 6's prescribed `ConditionOptIn.reason`
+    claimed a displacement never spoils the ordering, which Left open (b)
+    contradicts. The claim is narrowed to "a moderate displacement" (step 6
+    correction).
 
 - **2026-10-05, queue-028 spec review (resolutions accepted by the
   maintainer).**
