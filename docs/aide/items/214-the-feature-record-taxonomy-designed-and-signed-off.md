@@ -684,6 +684,29 @@ approved.
 
 To be updated during implementation.
 
+- **The structure (as written in `docs/feature-taxonomy.md`).** Scope first,
+  then kind: `per_label.{label}` (identity once, kinds `geometry`, `components`,
+  `centroid`, `curve`, `orientation`, `neighbourhood`, `intensity`), `pairs`
+  (`adjacent`, `overlaps[]`) and `case` (`sequence`, `curve`, `intensity`), with
+  `reference_delta` kept as an overlay keyed by `{label}`. The table has 80
+  `kept`, 73 `moved` and 12 `merged` rows; item 215 owns 126 and item 216 owns 39.
+- **No axis departure, so no re-cut of 215 and 216.** They stay cut along scope
+  (215: `per_label` and `reference_delta.{label}`; 216: `pairs`, `case`,
+  `features_version`, case-level `reference_delta`). Changing the axis, or moving
+  rows across the `per_label` / non-`per_label` line (for example folding
+  `reference_delta` into `per_label`), would trigger a re-cut at the gate.
+- **Spacing survivor is `relationships.neighbour_spacings_mm[]`**, moved to
+  `pairs.adjacent.spacings_mm[]`; `stage3.spacing_consistency.spacings_mm[]` is
+  the `merged` row. The per-element neighbourhood spacing copy is left as is
+  (unwired, and its `window_labels[]` are integer-ordered).
+- **`overlaps[].name_a` / `name_b` are `merged`** onto
+  `per_label.{label}.level_name`, a licensed identity copy. The new-path
+  placeholders stay `{label}`, `[]`, `{radiomic}`; reference-delta feature names
+  are literal in new paths, since a placeholder would collide the 20 report-only
+  rows with the five catalogued ones (AC2).
+- **Item 216 is told to store `pairs.adjacent.order[]`** (label order beside the
+  spacing array). It is a new field with no old path, so it has no table row.
+
 - **The mapping table lives in the note as Markdown, read by one shared
   test-side reader.** A JSON companion would make the maintainer read the
   mapping in one file and sign the prose in another, so the two could drift.
