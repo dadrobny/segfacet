@@ -301,3 +301,14 @@ None. Items 155, 184 and 197, which wrote and widened the scanner, are merged.
   pattern against a tracked subject) should be reported. It tests "is this a
   clean control" as directly as `== 0` does, but the queue and both insights
   name only the guard, and the live tree has no `match` on `failure_mode`.
+- **Zero-default exemption is value-position only (review fix, 2026-10-05).**
+  `x or 0` is exempt only when the `BoolOp` is a plain value. A `BoolOp` that
+  is an operand of a `Compare`, `not`, `bool(...)`, another `BoolOp`, or an
+  `if`/`while`/ternary/comprehension/`match`-guard test is reported, so
+  `(c.get('failure_mode') or 0) == 0` is caught once. This supersedes the
+  "test-position `or 0` is let through" decision above, which is now reported.
+- **A nested def's header belongs to the enclosing scope (review fix,
+  2026-10-05).** `walk_scope` still records the def and skips its body, but
+  first walks its decorators, argument defaults (incl. `kw_defaults`),
+  annotations and `returns` in the enclosing scope, where Python evaluates
+  them. Only the body is scanned as the nested scope.

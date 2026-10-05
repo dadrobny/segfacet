@@ -10,8 +10,10 @@ and
 -- this module does not duplicate them.
 
 AC12/AC13 pin one scanner, ``_zero_comparisons``, written once here per the
-spec's Testing Strategy pseudocode: it walks the module body and every
-function body of a parsed source file separately, flags any ``Eq``/``NotEq``/
+spec's Testing Strategy pseudocode: it walks each scope (the module body, then
+every function body; a nested def once, with the enclosing scope's tracked
+names, its decorators, defaults and annotations belonging to the enclosing
+scope) exactly once, flags any ``Eq``/``NotEq``/
 ``Is``/``IsNot`` comparison or ``not`` test whose operand is a manifest-case
 ``failure_mode`` access (``x["failure_mode"]``, ``x.get("failure_mode")``, or
 a local name bound from either in the same scope) against the literal ``0``
@@ -25,7 +27,11 @@ in``), a zero comparison inside a chained comparison
 tracked access. Item 197 added two more: a tracked access as a bare
 truthiness test (``if``/``while``/ternary test, ``and``/``or`` operand,
 comprehension ``if``) and an ordering against the 0 boundary (``> 0``,
-``>= 1`` and their mirrors).
+``>= 1`` and their mirrors). Item 209 added a walrus test
+(``(m := x["failure_mode"]) == 0``), a ``match`` guard and a float bound
+(``>= 1.0``), and exempts the zero value default ``x or 0`` only when that
+``or`` is a plain value (assignment, return, argument), never when it is an
+operand of a comparison, ``not``, ``bool(...)`` or a test position.
 
 AC14/AC15 build their probes from the *committed* clean-control geometric
 case, selected by ``kind == "clean_control"`` (never by ``case_id``, which
@@ -238,6 +244,11 @@ def _zero_comparisons(source: str, filename: str) -> list:
             node = queue.popleft()
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 defs.append(node)
+                # Decorators, defaults and annotations run in this scope.
+                queue.extend(node.decorator_list)
+                queue.append(node.args)
+                if node.returns is not None:
+                    queue.append(node.returns)
                 continue
             nodes.append(node)
             queue.extend(ast.iter_child_nodes(node))
@@ -255,11 +266,34 @@ def _zero_comparisons(source: str, filename: str) -> list:
                             local_names.add(target.id)
 
         def is_tracked(node: ast.AST) -> bool:
-            if isinstance(node, ast.NamedExpr):  # item 209 A3
+            while isinstance(node, ast.NamedExpr):  # item 209 A3
                 node = node.value
             return _is_failure_mode_access(node) or (
                 isinstance(node, ast.Name) and node.id in local_names
             )
+
+        # A BoolOp that is an operand of a Compare / `not` / bool() / a test
+        # position is not a value default, so `x or 0` there is not exempt.
+        non_value = set()
+        for node in scope_nodes:
+            if isinstance(node, ast.Compare):
+                kids = [node.left, *node.comparators]
+            elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+                kids = [node.operand]
+            elif isinstance(node, ast.Call):
+                is_bool = isinstance(node.func, ast.Name) and node.func.id == "bool"
+                kids = node.args if is_bool else []
+            elif isinstance(node, (ast.If, ast.While, ast.IfExp)):
+                kids = [node.test]
+            elif isinstance(node, ast.match_case):
+                kids = [] if node.guard is None else [node.guard]
+            elif isinstance(node, ast.comprehension):
+                kids = node.ifs
+            elif isinstance(node, ast.BoolOp):
+                kids = node.values
+            else:
+                kids = []
+            non_value.update(id(k) for k in kids)
 
         for node in scope_nodes:
             if id(node) in exempt_test_ids:
@@ -273,7 +307,8 @@ def _zero_comparisons(source: str, filename: str) -> list:
                 test_exprs = list(node.values)
                 # Item 209 A5: `x or <zero sentinel>` is a value default.
                 if (
-                    isinstance(node.op, ast.Or)
+                    id(node) not in non_value
+                    and isinstance(node.op, ast.Or)
                     and len(test_exprs) >= 2
                     and _is_zero_sentinel(test_exprs[-1])
                 ):
