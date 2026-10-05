@@ -423,6 +423,8 @@ No dependency is added.
 - `tests/test_145_eight_hypothesised_modes.py` — reconciliation (c): AC15's displacement claim.
 - `tests/test_151_stage30_validation.py` — reconciliation (c): AC11's offset half.
 - `tests/test_153_eval_harness_rekey.py` — reconciliation (b): rule (b) for an operator with no manifest case.
+- `tests/test_116_ras_native_corpus.py` — added 2026-10-05 after validation round 1: reconciliation (a), the case's two added `border` pairs (Testing Strategy entry 14).
+- `tests/committed_artifact_guard.py` — added 2026-10-05 after validation round 1: reconciliation (a), the snapshot's float-leaf count in its `ALLOWLIST` reason (Testing Strategy entry 15).
 
 **The reconciliation fence.** It applies to the listed `tests/test_*.py`
 files other than this item's own module. **The builder** does the
@@ -697,6 +699,62 @@ re-authored case built by the operator, not yet committed:
   Its manifest scan reads failure-kind cases only, and this case is a
   condition case. So the catalogue stays off May change.
 
+**Correction after validation round 1 (2026-10-05).** Two tests went red in
+files this spec neither authorised nor listed. Both are (a) moved literals.
+The fence applies to them as written, and to the one helper module in entry
+15, which is not a `tests/test_*.py` file. Measured on
+`aide/212-crop-at-border-re-authored` at `b09c600`, with the regenerated
+corpus and the re-captured snapshot committed.
+
+- **The "Checked and green on the probe" line above is wrong about
+  `test_116`.** Its AC7 parametrisation compares the case's
+  `(rule_id, labels)` pairs to the golden at `aeb2f55`, so it reads the
+  rule-firing set and moves with entry 7's snapshots. The probe's tree copy
+  had no `.git`, so this `skipif`-gated test skipped there. Entry 14
+  reconciles it.
+- **`test_196` was not red on the probe** because the probe did not run step
+  5. Its literal is not in `test_196` itself. The test reads the leading
+  integer of `tests/committed_artifact_guard.py`'s `ALLOWLIST` reason for the
+  snapshot. `tests/test_196_stale_prose.py` is not edited and is not on May
+  change.
+
+14. **`tests/test_116_ras_native_corpus.py::test_ac7_case_identity_preserved_vs_merge_base[crop_at_border]`.**
+    The fresh pairs are `[("border", (20,)), ("border", (21,)), ("border", (22,))]`.
+    The `aeb2f55` golden is `[("border", (22,))]`.
+    - Use the file's own mechanism for a deliberate later addition, the shape
+      of `_ITEM_198_ADDED_MISLABEL_PAIRS`. After it, add a dated constant:
+      `_ITEM_212_ADDED_BORDER_PAIRS = {"crop_at_border": (("border", (20,)), ("border", (21,))),}`.
+      Its `#:` comment says that item 212 (2026-10-05) re-authors the case as
+      a true anterior volume crop, and that the one-slice cut reaching label
+      22 also leaves labels 20 and 21 on the anterior face (A2). So `border`
+      adds one finding on each.
+    - In the test body, after the item-198 loop and before the final
+      assertion, add the same loop for this constant. For each pair, assert
+      it is in `fresh_pairs` ("expected item 212's deliberate border finding
+      ..."), then strip it.
+    - The `("border", (22,))` pin against the golden stays exact. The final
+      assertion and its message are unchanged.
+    - The docstring's "Except for ..." paragraph gains a dated item-212
+      sentence naming the two added `border` pairs.
+    - Nothing else in the file moves: AC8 and the other seven AC7 ids are
+      green on this branch.
+15. **`tests/committed_artifact_guard.py`, `ALLOWLIST` entry for
+    `tests/corpus/094_pre_migration_snapshot.json`.** The reason's leading
+    literal `"323 float leaves, ..."` becomes `"342 float leaves, ..."`.
+    - `test_196`'s own `_count_floats` gives 342 on the branch and 323 on
+      `aide/queue-028`.
+    - The +19 is the one added entry,
+      `corpus/fixtures/crop_at_border_scan.nii.gz|scan`: a 4x4 affine (16)
+      plus spacing (3). The re-dumped `crop_at_border_seg.nii.gz|seg` entry
+      still carries 19 float leaves. No other entry changed, and none was
+      removed.
+    - All 38 leaves of the two entries are 0.0 or 1.0, so the rest of the
+      reason ("all affine/spacing components that are exact binary values")
+      still holds. The `ground` stays `"exact-parameter-floats"`. The rest
+      of the reason string is unchanged.
+    - `test_127` and `test_158`, which also read the guard, are green on
+      this branch before the edit. Re-run them and `test_196` AC1 after it.
+
 ## Validation
 
 1. Run `python -m segfacet.synth.corpus --out <tmp>` and diff `<tmp>` against
@@ -777,3 +835,23 @@ whichever lands later re-measures the shared literals.
      `..._offset_exceeds_threshold` becomes `..._offset_within_threshold`. In
      `test_099`, `..._crop_at_border_is_one` becomes `..._is_three`. Validation
      step 5's test-id check allows exactly these two.
+- **D3: validation round 1 (2026-10-05).** FAIL on two red tests outside
+  Authorised paths:
+  - `tests/test_116_ras_native_corpus.py::test_ac7_case_identity_preserved_vs_merge_base[crop_at_border]`;
+  - `tests/test_196_stale_prose.py::test_ac1_allowlist_count_equals_live_float_count`
+    (323 != 342).
+
+  Both are moved literals, kind (a), and are fixed by an amendment, not by a
+  change to the item. `test_116` gets an item-212 added-pairs constant in
+  the shape the file already uses for items 120, 132, 192 and 198 (Testing
+  Strategy entry 14). The `aeb2f55` reference and the exact `(22,)` pin stay
+  as they are. Rewriting the golden comparison was rejected: the file's
+  convention records each deliberate later firing change next to the
+  unchanged pin, which keeps it checked.
+
+  The `test_196` literal lives in `tests/committed_artifact_guard.py`, which
+  moves 323 → 342 (entry 15). `test_196` itself is unedited. Both paths are
+  added to May change. The probe missed `test_116` because its tree copy had
+  no `.git`: AC7 is `skipif` on the `aeb2f55` commit being reachable, so it
+  skipped and was reported green. It missed the guard because the probe
+  skipped step 5.
