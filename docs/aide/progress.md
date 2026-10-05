@@ -1318,13 +1318,13 @@ justified in writing.
 
 **Deliverables.**
 
-- 📋 The taxonomy, written down with rationale, alternatives considered, and every deviation
+- 🚧 The taxonomy, written down with rationale, alternatives considered, and every deviation
   from the starting proposal justified — reviewed with the maintainer before migration (a
   human-checkpoint stage in the same sense Stage 19 was). *(Item 214)*
 - 📋 The migration applied, the feature catalogue
   (`docs/aide/feature_catalogue.generated.md`) regenerated, its drift test
   (`tests/test_104_feature_catalogue_drift.py`) as the safety net. *(Items 215, 216)*
-- 📋 Answers for the known instances: duplicated `label`/`level_name` identity fields across
+- 🚧 Answers for the known instances: duplicated `label`/`level_name` identity fields across
   four containers; `stage3.*` / `image_features.*` parallel to `per_label.{label}.*`;
   image-axis-relative shape features (bbox/extent, `principal_axis`) awaiting a vertebra
   coordinate system; reference-delta hardcoded to `physical_volume_mm3`. *(Item 214)*
