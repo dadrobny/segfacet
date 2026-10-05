@@ -756,3 +756,14 @@ To be updated during implementation.
   are each new work, and the entries stay open. The spacing collapse (A6)
   changes which path a future mode-6 rule would read. It builds no rule, so
   `2026-09-22-c151` is not ticked.
+- **Review fixes to the note (2026-10-05).** The prose of
+  `docs/feature-taxonomy.md` gained, with no change to the mapping table: an
+  open question for the gate on whether `image_features` is persisted into the
+  features record or only merged into the transient rule record (recommended
+  default: runtime merge only, report keeps its own `image_features` key in the
+  new layout); Deviations 10 and 11 recording the case-scope sequence fields,
+  `is_monotonic`'s placement, and `pairs.adjacent.order[]`; a per-array element
+  order table (mixed anatomical and integer orders left as is); the survivor
+  spacing array's value difference from `relationships.neighbour_spacings_mm[]`;
+  the top-level key count; and the name-to-path map a generalised
+  reference-delta would need. The gate remains unresolved.

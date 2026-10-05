@@ -14,8 +14,9 @@ Answer 4). Precedent for a design put to a gate:
 ## Structure
 
 A path is addressed by **scope** first (what entity the number describes), then
-**kind** (what is measured about it). Four top-level keys remain, three of them
-scopes.
+**kind** (what is measured about it). Five top-level keys remain: three
+are scopes (`per_label`, `pairs`, `case`), one is the record's schema stamp
+(`features_version`) and one is the `reference_delta` overlay.
 
 | Top-level key | Scope | Holds |
 |---|---|---|
@@ -46,13 +47,40 @@ feature names are written literally, as in the old paths, because collapsing the
 to a placeholder would give the five old `physical_volume_mm3` rows and the 20
 report-only rows colliding new paths.
 
-Two rules hold throughout:
+Four rules hold throughout:
 
 1. **Identity is stored once**, at `per_label.{label}.label` and
    `per_label.{label}.level_name`. Everything else that names a label carries
    either the integer key or nothing.
 2. **A field sits at the scope of the entity it measures.** A per-pair number
    (spacing, deviation) is at pair scope, a whole-spine summary at case scope.
+   Departures from this rule are Deviations 4, 5 and 10; none is silent.
+3. **Where a record's stored shape changes beyond a path move**, it is recorded
+   in Deviations (6 for the spacing collapse, 11 for the new
+   `pairs.adjacent.order[]`), not inferred from the table. The mapping table
+   lists old paths only, so a field with no old path has no row.
+4. **Element order is stated per array**, see "Element order of the curve and
+   pair arrays" below.
+
+### Element order of the curve and pair arrays
+
+The pipeline computes these arrays in two different orders today, and this
+design deliberately leaves the mixed orders as they are, apart from the one
+retune Deviation 6 authorises:
+
+| Array | Element order after migration |
+|---|---|
+| `pairs.adjacent.spacings_mm[]`, `deviations_mm[]`, `outlier_pairs[]`, and the `mean_spacing_mm` / `cv_spacing` statistics | anatomical order, unrecognised labels last (Deviation 6; today ascending-integer, `pipeline.py` `ordered_centroids`) |
+| `pairs.adjacent.order[]` | the label keys in that same anatomical order |
+| `pairs.adjacent.non_monotonic_pairs[]`, `case.curve.u_values[]`, `case.curve.is_monotonic` | anatomical order (item 198; computed over `anatomical_centroids`, unchanged) |
+| `case.curve.tangent_angles_deg[]`, `coronal_tangent_angles_deg[]`, `sagittal_tangent_angles_deg[]`, `inter_tangent_angles_deg[]`; `per_label.{label}.curve.*` (offsets) | ascending-integer label order (`ordered_centroids`, unchanged); one element per label, or per integer-adjacent pair for `inter_tangent_angles_deg[]` |
+
+So a consumer must not index `case.curve.u_values[]` and
+`case.curve.tangent_angles_deg[]` against each other: they agree only on
+records whose integer and anatomical order coincide. Making every curve array
+anatomical is a further retune (new fits, changed values, rule thresholds
+touched) and is not authorised here; it is left open for the maintainer to
+schedule, not decided by this note.
 
 The migration items are cut along the same axis: **item 215** owns the
 `per_label` scope and `reference_delta.{label}`, **item 216** owns the `pairs`
@@ -135,6 +163,26 @@ it in outline. Every point where it does not:
    `is_monotonic`. Reason: it is meaningful only as the whole sequence (the
    monotonicity check compares neighbours), and it is a different quantity from
    `curve.closest_u`, so it is not folded into `per_label`.
+10. **Further sequence fields at case scope, and `is_monotonic` apart from its
+    source.** `case.curve.tangent_angles_deg[]`,
+    `case.curve.coronal_tangent_angles_deg[]` and
+    `case.curve.sagittal_tangent_angles_deg[]` are per-label sequences, and
+    `case.curve.inter_tangent_angles_deg[]` is a per-pair sequence, all at case
+    scope. Reason: they are the inputs to the whole-spine curvature summaries
+    beside them (`total_`, `coronal_`, `sagittal_curvature_deg`), are consumed as
+    whole sequences, and are computed by one curve-wide fit rather than per
+    label, so a per-label copy would be a view of a case-level object, not a
+    measurement of that label. `case.curve.is_monotonic` sits at case scope
+    while its source list, `pairs.adjacent.non_monotonic_pairs[]`, sits at pair
+    scope. Reason: the boolean is the whole-spine verdict and the list is its
+    per-pair evidence. This is not the call Deviation 4 makes for `cv_spacing`,
+    which stays beside its pair array. The difference is weak: the only rule
+    reading this group (`heuristics/mislabel.py`) reads
+    `non_monotonic_pairs[]`, not `is_monotonic`, so nothing consumes the
+    boolean separately. The gate may therefore prefer to move `is_monotonic`
+    to `pairs.adjacent.is_monotonic`, beside its list; that would change one
+    new path, not the old-path set. Recommended default: keep it at
+    `case.curve` as a whole-spine verdict.
 6. **The adjacent-pair spacing collapse (maintainer decision, 2026-10-05).** Two
    stored arrays hold the same quantity: `relationships.neighbour_spacings_mm[]`
    and `stage3.spacing_consistency.spacings_mm[]`. They collapse into one,
@@ -144,6 +192,18 @@ it in outline. Every point where it does not:
    is 27) the surviving array's values, pairs and length differ from what
    `stage3.spacing_consistency.spacings_mm[]` held. It is the one retune this
    stage authorises, and item 216 carries it. Its consumers are in Answer 6.
+   The survivor also differs in value from
+   `relationships.neighbour_spacings_mm[]`, not only from the stage3 copy: that
+   array drops level names outside the canonical vocabulary, so on a record with
+   unrecognised labels the survivor is longer and its pairs differ (the label-set
+   difference in Answer 6). The table's "moved" status for that path therefore
+   names where the array lives, not that its values are unchanged.
+11. **`pairs.adjacent.order[]` is a new stored field.** It holds the label keys
+    in the anatomical order of `pairs.adjacent.spacings_mm[]`, so that each
+    spacing can be paired with its two labels from the record alone (Answer 6).
+    It has no old path, so it has no mapping-table row; this deviation is its
+    record. It is a record-shape addition owned by item 216, and it is a
+    stored field like any other for the catalogue and drift test.
 7. **The neighbour-pair identity `name_a` / `name_b` is merged.** The integers
    `label_a` / `label_b` stay as the pair's keys into `per_label`; the two names
    are copies of `per_label.{label}.level_name` and merge onto it. The values are
@@ -162,6 +222,36 @@ The cut of items 215 and 216 along the scope axis (per-label first, then pair an
 case) is unchanged by this design, so the gate need not re-cut them. What would:
 changing the axis itself, or moving rows across the line between `per_label` and
 the other scopes (for example folding `reference_delta` into `per_label`).
+
+## Open question for the gate: does `image_features` enter the persisted record?
+
+Today the intensity block is **not part of the features record**.
+`pipeline.run_qc_with_intensity` builds it and attaches it only to the
+transient rule-evaluation record (`rule_record = {**features_block,
+"image_features": image_features_block}`), and `report.py` embeds it under its
+own top-level `image_features` report key, beside `features`. The standing
+invariant is that transient keys are never persisted onto `features_block`.
+The mapping table's `image_features.*` rows (to `per_label.{label}.intensity.*`
+and `case.intensity.*`) say where the fields live in the new shape; they do not
+by themselves say which of two things happens:
+
+- **Option A, persisted:** the intensity kind becomes part of the features
+  record, so `per_label.{label}.intensity.*` and `case.intensity.*` are stored
+  in `features`, and the report's top-level `image_features` key is removed.
+  This changes the transient-key invariant and the report schema, and a report
+  made without a scan differs from one made with it inside `features`.
+- **Option B, runtime merge only:** the features record is unchanged. The
+  intensity block keeps its own report key, `image_features`, but its internal
+  layout follows the new shape (`per_label.{label}.intensity.*`,
+  `case.intensity.*`); the rule record deep-merges it at runtime so rules
+  address the new paths. No invariant changes and the key set of `features`
+  does not depend on whether a scan was supplied.
+
+**Recommended default: Option B.** It keeps the persisted-record invariant,
+touches the report schema least, and leaves `features` scan-independent, while
+every rule still reads the new paths. This is a decision for the maintainer at
+the gate, not one this note makes silently: items 215 and 216 must not start
+until it is answered, because item 215 owns the per-label intensity rows.
 
 ## Answers
 
@@ -189,7 +279,10 @@ Nothing in them is a new scope; each field already describes a label, a pair or 
 whole map, and only its container hid which. The mapping table gives every
 field's destination. `image_features` keeps one case-level block,
 `case.intensity`, for the availability and backend flags. The `intensity` kind
-stays optional: it exists only when a scan was supplied, as today.
+stays optional: it exists only when a scan was supplied, as today. Whether
+those paths are stored in the persisted features record or only merged into the
+transient rule record, and what becomes of the report's top-level
+`image_features` key, is the open question above, with a recommended default.
 
 ### Image-axis-relative shape features
 
@@ -217,7 +310,10 @@ and `spline_offset_mm`, each with `out_of_range`, `percentile_rank`, `robust_z`,
 `value`, `z_score`); they get rows in the table, with the literal feature name,
 owned by item 215. Because the record's per-label features now sit at addressable
 `per_label.{label}.<kind>.<name>` paths, a later generalisation could select by
-path; that is not required to state or migrate the taxonomy. The transient
+path, but only with a name-to-path map, since reference-delta feature names are
+not the destination leaf names (`spline_offset_mm` is `curve.offset_mm`,
+`component_count` is `components.component_count`, `intensity_*` is
+`intensity.first_order.*`); that is not required to state or migrate the taxonomy. The transient
 `intensity_reference_delta` block is attached to the rule-evaluation record only,
 sits beside `reference_delta` as the same kind of overlay, and is out of the
 table because no report writes it. The morphology delta has no caller in the
