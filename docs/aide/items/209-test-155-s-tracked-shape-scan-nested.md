@@ -91,6 +91,12 @@ before the change.
   `src/segfacet/synth/perturbation.py` is skipped where it is found, as today.
   Each node is visited by exactly one scope, so each violation is reported
   once.
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees.
+  `scan_scope(stmts)` still walks each statement with `ast.walk` in both
+  passes, the module body is still filtered of `FunctionDef`/`AsyncFunctionDef`/
+  `ClassDef`, and the final `ast.walk(tree)` loop still skips the
+  `_EXEMPT_FILE`/`_EXEMPT_FUNCTION` body. No commit since `39b7c9c` touches
+  `tests/test_155_corpus_case_kind.py`.*
 - **A2: A nested scope inherits the enclosing scope's tracked names.** A
   nested function's tracked local names are its own bindings plus every
   tracked name of the scope that encloses it. That keeps a closure covered:
@@ -100,11 +106,17 @@ before the change.
   making the module body a scope like any other. Module-level tracked names
   reach module functions, and module-level class-body statements are now
   scanned. Both find nothing in the live tree (A6).
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees. The
+  base scanner returns `[("synthetic.py", 4)]` for the `closure-name` snippet,
+  once.*
 - **A3: The walrus rule.** `is_tracked` also holds for an `ast.NamedExpr`
   whose `value` is tracked. So every branch that tests a tracked operand
   (test position, comparison, `not`, `bool(...)`) covers the walrus form, and
   `if (m := c['failure_mode']) == 0:` is reported once, by the comparison
   branch. The walrus target is not added to the scope's tracked names.
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees.
+  `is_tracked` is still `_is_failure_mode_access(node)` or an `ast.Name` in
+  `local_names`, and it is the one predicate every reporting branch calls.*
 - **A4: The `match` guard and the float bound.** `ast.match_case.guard`, when
   present, is one more test position next to `If.test`, `While.test`,
   `IfExp.test`, `BoolOp.values` and `comprehension.ifs` (item 197 A1). A guard
@@ -115,6 +127,11 @@ before the change.
   `float` constant equal to 1, still excluding `bool`. So `>= 1.0` and `< 1.0`
   join `>= 1` and `< 1`. The zero side already accepts `0.0` through
   `_is_zero_sentinel`.
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees. The
+  test-position branch covers exactly `If`/`While`/`IfExp`, `BoolOp.values`
+  and `comprehension.ifs`; `is_one` requires `type(bound.value) is int`;
+  `_is_zero_sentinel` accepts any non-`bool` constant equal to 0, so `0.0`;
+  `pyproject.toml` still says `requires-python = ">=3.11"`.*
 - **A5: What a value default is.** In an `or` (`ast.BoolOp` with `ast.Or`),
   the tracked operand that comes immediately before a **last operand that is a
   zero sentinel** (by the existing `_is_zero_sentinel`) is not reported.
@@ -125,6 +142,10 @@ before the change.
   test it; a tracked operand that is not the second-to-last, as in
   `x or other or 0`; and every operand of an `and`. Item 197's AC4 (an `and`)
   is unaffected.
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees. The
+  `BoolOp` case still reports every tracked value regardless of op, and
+  `_is_zero_sentinel` matches `0` and the names `CLEAN_CONTROL_MODE` and
+  `_CLEAN_MODE_ID` (bare or as an attribute).*
 - **A6: The live tree stays clean.** Measured 2026-10-03 on this branch's base
   (`aide/queue-028` at `39b7c9c`) with a scratch copy of the A1–A5 rules,
   reusing `test_155`'s `_is_failure_mode_access`, `_is_zero_sentinel`,
@@ -132,10 +153,21 @@ before the change.
   violation in `src/segfacet` or `tests`. The same scratch scanner gave the
   AC1–AC5 results on their snippets, and on the base each snippet gives the
   "before" result stated above the ACs. The builder hands back if AC6 fails.
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees. The
+  four reused helpers and `_iter_scanned_files` exist as named. Replaying the
+  base `_zero_comparisons` on the AC1–AC5 snippets gives two entries at line
+  3, `[]`, `[]`, `[]` and one entry at line 2, the "before" results stated
+  above the ACs. The live-tree scan was not re-run with the A1–A5 rules; AC6
+  stays the builder's check.*
 - **A7: No dependency pin.** Items 155, 184 and 197, which wrote and widened
   the scanner, are merged. This item reads the scanner as it stands on the
   base. No queue-028 sibling reads `_zero_comparisons`, so nothing here pins an
   interface for another item.
+  *Re-checked 2026-10-05 against `aide/queue-028` at `3f64294`: agrees. The
+  scanner is unchanged since `39b7c9c`, and `_zero_comparisons` is still read
+  only by `tests/test_155_corpus_case_kind.py`, `tests/test_184_zero_comparison_shapes.py`
+  and `tests/test_197_zero_comparison_truthiness_ordering.py`; no queue-028
+  sibling spec names it.*
 
 ## Implementation Steps
 
