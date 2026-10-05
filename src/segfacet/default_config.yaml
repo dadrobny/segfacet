@@ -255,8 +255,8 @@ rules:
   #     # over its larger adjacent label's volume (synthetic corpora: fused
   #     # labels read 2.0-2.3).
   #     size_ratio_threshold: 1.5
-  #     # The smaller spacing adjacent to the label over the median of the
-  #     # case's other spacings (fused labels read about 1.48-1.57).
+  #     # The mean of the spacings adjacent to the label over the median of
+  #     # the case's other spacings (fused labels read about 1.35-1.80).
   #     spacing_ratio_threshold: 1.25
   #     severity: flagged-for-review
 

@@ -450,7 +450,16 @@ This item moves none of them, so their order relative to this item is free.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implementation (2026-10-05): built as specified, no deviation. `spacing_ratio`
+is `statistics.mean(adj_sp) / base_med`, the `sorted(..., key=int)` call is
+guarded for `TypeError`/`ValueError`, and the reason, docstrings, evidence,
+mode 2's mechanism clause, both fuse reasons and the `default_config.yaml`
+comment (about 1.35-1.80) quote the mean. `failure_modes` and `traceability`
+were each run twice into scratch paths and byte-compared (identical) before
+the committed copies were written. `rule_table` and `golden_evidence` renders
+left the tree unchanged. Note for readers: the "Margin traded" figures below
+are corrected by the A2 re-check (smallest size margin 0.4968, highest silent
+interior mean 1.5549).
 
 Recorded at spec time (maintainer answers, 2026-10-05). The three open
 questions, the pair statistic, end labels and the sign-off, were answered

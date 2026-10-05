@@ -1173,9 +1173,9 @@ _MODE_2 = ModeSpec(
         "neighbour_contact is silent; fused_label (item 207) decides it from "
         "two signals together: per_label.{label}.geometry.physical_volume_mm3 "
         "(the label's volume over its larger adjacent label's, about 2x) and "
-        "stage3.spacing_consistency.spacings_mm[] (the smaller spacing "
-        "adjacent to the label over the median of the other spacings, about "
-        "1.5x, because the fused centroid falls between its two bodies), "
+        "stage3.spacing_consistency.spacings_mm[] (the mean of the "
+        "label's adjacent spacings over the median of the other spacings, "
+        "about 1.5x, whichever side the fused centroid falls on), "
         "firing only when both strictly exceed their thresholds "
         "(DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither "
         "signal decides alone: split reads size 1.53 at spacing 1.05. The "
@@ -1258,8 +1258,9 @@ _MODE_2 = ModeSpec(
                 "sequence, and carries this mode's own fused_label finding "
                 "alone: volume 45043 mm^3 against 19375 (label 21) and 19344 "
                 "(label 23), size 2.3248; spacings [33.49, 49.51, 53.52], "
-                "spacing 49.51 / 33.49 = 1.4782; against thresholds 1.5 and "
-                "1.25, strictly above both. No other rule fires."
+                "mean adjacent spacing (49.51 + 53.52) / 2 / 33.49 = 1.5380 "
+                "(re-measured 2026-10-05, item 211); against thresholds 1.5 "
+                "and 1.25, strictly above both. No other rule fires."
             ),
         ),
         CorpusCaseExpectation(
@@ -1305,8 +1306,10 @@ _MODE_2 = ModeSpec(
                 "own signal is fused_label's (item 207): label 22's volume "
                 "(38781 mm^3) reads 2.0016x its larger neighbour, and the "
                 "spacings around it (stage3.spacing_consistency.spacings_mm "
-                "[33.49, 49.46, 53.50]) read 1.4768x, strictly above 1.5 and "
-                "1.25 respectively; fragmentation stays a co-detection."
+                "[33.49, 49.46, 53.50], mean adjacent spacing over the baseline) "
+                "read 1.5371x (re-measured 2026-10-05, item 211), strictly "
+                "above 1.5 and 1.25 respectively; fragmentation stays a "
+                "co-detection."
             ),
         ),
     ),
