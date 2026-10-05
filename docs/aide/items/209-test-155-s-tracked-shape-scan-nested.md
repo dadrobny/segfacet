@@ -261,6 +261,19 @@ their exact results hold. The `case_kind` exemption test uses a module-level
 `def`, which step 2's exemption check still skips. A grep made 2026-10-03
 found no other caller of `_zero_comparisons`.
 
+## Review findings
+
+- `review_zero_default_in_operand_position` (blocking): the zero value default
+  exemption held wherever `x or 0` sat, so `(c.get('failure_mode') or 0) == 0`,
+  `... > 0`, `not (c['failure_mode'] or 0)` and `bool(c['failure_mode'] or 0)`
+  returned `[]` although the BoolOp is an operand, not a stored value. Each is
+  reported once at line 2; the exemption stays for a direct value (AC5). Fix:
+  the exemption applies only to a BoolOp used directly as a value.
+- `review_nested_def_header` (blocking): inside a function, a nested def's
+  decorators, argument defaults and annotations (evaluated in the enclosing
+  scope) were no longer scanned. A zero comparison in each is reported once at
+  line 2. Fix: scan the header expressions in the enclosing scope.
+
 ## Dependencies
 
 None. Items 155, 184 and 197, which wrote and widened the scanner, are merged.

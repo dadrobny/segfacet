@@ -87,3 +87,49 @@ def test_ac5_zero_value_default_is_not_reported():
 )
 def test_adversarial_cases(snippet, expected):
     assert t155._zero_comparisons(snippet, "synthetic.py") == expected
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        pytest.param(
+            "def f(c):\n    if (c.get('failure_mode') or 0) == 0:\n        pass\n",
+            id="eq-operand",
+        ),
+        pytest.param(
+            "def f(c):\n    if (c.get('failure_mode') or 0) > 0:\n        pass\n",
+            id="gt-operand",
+        ),
+        pytest.param(
+            "def f(c):\n    if not (c['failure_mode'] or 0):\n        pass\n",
+            id="not-operand",
+        ),
+        pytest.param(
+            "def f(c):\n    if bool(c['failure_mode'] or 0):\n        pass\n",
+            id="bool-operand",
+        ),
+    ],
+)
+def test_review_zero_default_in_operand_position_is_reported(snippet):
+    assert t155._zero_comparisons(snippet, "synthetic.py") == [("synthetic.py", 2)]
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        pytest.param(
+            "def f(c):\n    def g(x=(c['failure_mode'] == 0)): pass\n",
+            id="argument-default",
+        ),
+        pytest.param(
+            "def f(c):\n    @deco(c['failure_mode'] == 0)\n    def g(): pass\n",
+            id="decorator",
+        ),
+        pytest.param(
+            "def f(c):\n    def g(x: c['failure_mode'] == 0 = 1): pass\n",
+            id="annotation",
+        ),
+    ],
+)
+def test_review_nested_def_header_is_scanned(snippet):
+    assert t155._zero_comparisons(snippet, "synthetic.py") == [("synthetic.py", 2)]
