@@ -194,7 +194,9 @@ _PRE_ITEM_U_VALUES = {
     "fragment": [0.0, 0.244656461, 0.483667275, 0.730902505, 1.0],
     "inject_islands": [0.0, 0.244663354, 0.48350904, 0.730894924, 1.0],
     "remove_level": [0.0, 0.244998552, 0.73052624, 1.0],
-    "crop_at_border": [0.0, 0.22390374, 0.469607133, 0.753728411, 1.0],
+    # 2026-10-05 (item 212): the case is a true anterior crop; was
+    # [0.0, 0.22390374, 0.469607133, 0.753728411, 1.0].
+    "crop_at_border": [0.0, 0.244872173, 0.483901517, 0.730771541, 1.0],
     # u_values are listed in CANONICAL_ORDER order (T13, L1-L4).
     "sequence_break": [1.0, 0.0, 0.244657315, 0.483480081, 0.730901566],
     # "force_overlap" key dropped by item 195, 2026-09-28.

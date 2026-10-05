@@ -573,6 +573,8 @@ _INVENTORY_ADDED_AFTER_126 = {
     "tests/corpus/fixtures/crop_fov_si_scan.nii.gz",
     # Item 206 (2026-09-30): mode 2's separate-bodies fuse case.
     "tests/corpus/fixtures/fuse_separate_seg.nii.gz",
+    # Item 212 (2026-10-05): the re-authored anterior crop's own scan.
+    "tests/corpus/fixtures/crop_at_border_scan.nii.gz",
 }
 
 #: Removed by item 195 (2026-09-28): the force_overlap case (and its

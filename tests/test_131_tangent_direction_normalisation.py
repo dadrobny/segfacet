@@ -352,7 +352,9 @@ _PRE_ITEM_TANGENT_ANGLES_DEG = {
     "inject_islands": [7.5527, 0.2444, 8.3384, 19.2305, 33.5758],
     "relabel_swap": [2.4934, 174.7774, 176.1799, 13.5824, 68.7966],
     "remove_level": [7.9542, 0.3797, 19.3691, 33.9343],
-    "crop_at_border": [26.3425, 28.4101, 3.3337, 44.8979, 3.7078],
+    # Item 212 (2026-10-05): the case is a true anterior crop, not a
+    # translation; was [26.3425, 28.4101, 3.3337, 44.8979, 3.7078].
+    "crop_at_border": [5.0652, 0.3074, 7.2771, 18.6393, 34.9423],
     "sequence_break": [7.5755, 0.2549, 8.338, 19.241, 33.59],
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
@@ -369,7 +371,8 @@ _PRE_ITEM_NET_ADVANCE_S_MM = {
     "inject_islands": -131.97402926021348,
     "relabel_swap": -131.97402926021348,
     "remove_level": -131.97402926021348,
-    "crop_at_border": -131.97402926021348,
+    # Item 212 (2026-10-05): was -131.97402926021348.
+    "crop_at_border": -132.041569,
     "sequence_break": -131.97402926021348,
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
@@ -419,7 +422,8 @@ _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
     "inject_islands": [7.308494, 8.582631, 10.892096, 14.345307],
     "relabel_swap": [177.270834, 1.402466, 170.23772, 55.214185],
     "remove_level": [7.574565, 19.748784, 14.565142],
-    "crop_at_border": [54.752541, 31.743766, 41.564217, 48.605677],
+    # Item 212 (2026-10-05): was [54.752541, 31.743766, 41.564217, 48.605677].
+    "crop_at_border": [4.757852, 7.584527, 11.362139, 16.303057],
     "sequence_break": [7.320601, 8.592928, 10.902949, 14.349002],
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
@@ -845,13 +849,16 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0],
         "sagittal_tangent_angles_deg": [-7.954219, -0.379654, 19.36913, 33.934272],
     },
+    # Item 212 (2026-10-05): the case is a true anterior crop. Was total and
+    # sagittal 73.307982, sagittal angles [26.34248, -28.410061, 3.333705,
+    # 44.897922, -3.707755].
     "crop_at_border": {
-        "total_curvature_deg": 73.307982,
+        "total_curvature_deg": 40.007575,
         "coronal_curvature_deg": 0.0,
-        "sagittal_curvature_deg": 73.307982,
+        "sagittal_curvature_deg": 40.007575,
         "curvature_plane": "sagittal",
         "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
-        "sagittal_tangent_angles_deg": [26.34248, -28.410061, 3.333705, 44.897922, -3.707755],
+        "sagittal_tangent_angles_deg": [-5.0652, -0.3074, 7.2771, 18.6393, 34.9423],
     },
     "sequence_break": {
         "total_curvature_deg": 41.165481,

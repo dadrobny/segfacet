@@ -327,7 +327,9 @@ _PRE_ITEM_NET_ADVANCE_S_MM_MAGNITUDE = {
     "inject_islands": 131.97402926021348,
     "relabel_swap": 131.97402926021348,
     "remove_level": 131.97402926021348,
-    "crop_at_border": 131.97402926021348,
+    # Item 212 (2026-10-05): the case is a true anterior crop; was
+    # 131.97402926021348.
+    "crop_at_border": 132.041569,
     "sequence_break": 131.97402926021348,
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
@@ -854,7 +856,9 @@ def test_ac19_snapshot_covers_all_15_entries_across_both_corpora():
     # crop_fov_si_seg.nii.gz and crop_fov_si_scan.nii.gz.
     # Item 195 (2026-09-28): 18 -> 17, the snapshot loses
     # force_overlap_seg.nii.gz (the fixture was removed).
-    assert len(snapshot) == 17
+    # Item 212 (2026-10-05): 17 -> 18, the snapshot gains
+    # crop_at_border_scan.nii.gz.
+    assert len(snapshot) == 18
     assert any("intensity/fixtures" in entry["path"] for entry in snapshot.values())
     assert any(
         "intensity" not in entry["path"] and "corpus/fixtures" in entry["path"]

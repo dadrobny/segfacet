@@ -33,7 +33,9 @@ import pytest
 
 import segfacet.failure_modes as fm
 from segfacet.io import FacetInputError
+from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.corpus import load_manifest
+from segfacet.synth.perturbation import CLEAN_CONTROL_MODE, get_perturbation
 from segfacet.synth.regression import loaded_seg_image
 from segfacet.config import bundled_default_config
 from segfacet.pipeline import extract_feature_record
@@ -90,13 +92,6 @@ _RECORDED_REHOMING = {
 # =========================================================================== #
 
 
-def _manifest_case_id_for_perturbation(perturbation: str) -> str:
-    cases = load_manifest()["cases"]
-    matches = [c["case_id"] for c in cases if c.get("perturbation") == perturbation]
-    assert len(matches) == 1, (perturbation, matches)
-    return matches[0]
-
-
 def _rule_a_home(metric_name: str, specification) -> Optional[int]:
     """The mode *m* whose ``candidate_features`` cites exactly
     ``eval.per_mode.<metric_name>``, or ``None`` if no mode cites it.
@@ -116,11 +111,32 @@ def _rule_a_home(metric_name: str, specification) -> Optional[int]:
 
 def _manifest_case_ids_for_perturbation(perturbation: str) -> list:
     """Every manifest case id whose ``perturbation`` is the operator (item 206,
-    2026-09-30: ``fuse`` now has two, ``fuse_adjacent`` and ``fuse_separate``)."""
+    2026-09-30: ``fuse`` now has two, ``fuse_adjacent`` and ``fuse_separate``).
+
+    Item 212 (2026-10-05): empty for an operator no manifest case uses --
+    ``crop_at_border`` is a ladder operator only, since the corpus case of
+    that id is re-authored on ``crop_fov``."""
     cases = load_manifest()["cases"]
-    matches = [c["case_id"] for c in cases if c.get("perturbation") == perturbation]
-    assert matches, perturbation
-    return matches
+    return [c["case_id"] for c in cases if c.get("perturbation") == perturbation]
+
+
+def _operator_expectation_home(operator: str):
+    """``(mode_id_or_None, condition_id_or_None)`` read from the operator's
+    own ``Expectation`` (item 212, 2026-10-05, reconciliation (b)): the
+    ladder's first non-identity rung step is applied to the default base with
+    ``LADDER_SEED``. ``CLEAN_CONTROL_MODE`` maps to ``None`` and the condition
+    is read as it stands."""
+    ladders = {s.operator: s for s in severity_ladder.SEVERITY_LADDERS.values()}
+    ladders.update({s.operator: s for s in severity_ladder.SUPPLEMENTARY_LADDERS})
+    rung = next(r for r in ladders[operator].rungs if r.steps)
+    name, kwargs = rung.steps[0]
+    expectation = (
+        get_perturbation(name)(**dict(kwargs))
+        .apply(build_clean_spine().seg_img, severity_ladder.LADDER_SEED)
+        .expectation
+    )
+    mode = None if expectation.failure_mode == CLEAN_CONTROL_MODE else expectation.failure_mode
+    return mode, (expectation.condition or None)
 
 
 def _rule_b_home(operator: str, specification, conditions):
@@ -133,6 +149,8 @@ def _rule_b_home(operator: str, specification, conditions):
     different modes still fails.
     """
     case_ids = _manifest_case_ids_for_perturbation(operator)
+    if not case_ids:
+        return _operator_expectation_home(operator)
     mode_hits = {
         m
         for m, mode in specification.items()
@@ -324,7 +342,10 @@ def test_ac10_the_disposition_follows_the_home():
 
 
 def test_ac11_the_condition_is_recorded():
-    case_id = _manifest_case_id_for_perturbation("crop_at_border")
+    # Item 212 (2026-10-05): the crop case is found by its id, not by its
+    # perturbation -- ``crop_fov`` now has two cases.
+    case_id = "crop_at_border"
+    assert case_id in {c["case_id"] for c in load_manifest()["cases"]}
     expected = [
         c for c, cond in fm.CONDITIONS.items() if any(cc.case_id == case_id for cc in cond.corpus_cases)
     ]

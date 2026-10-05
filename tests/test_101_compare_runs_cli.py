@@ -27,9 +27,10 @@ import shutil
 from pathlib import Path
 
 import jsonschema
+import nibabel as nib
 import pytest
 
-from segfacet.synth.corpus import CORPUS_DIR
+from segfacet.synth.corpus import CORPUS_DIR, crop_to_grid
 from segfacet.synth.perturbation import FAILURE_MODE_NAMES
 
 
@@ -42,6 +43,17 @@ def _copy_corpus_fixtures(tmp_path):
     dst = tmp_path / "fixtures"
     if not dst.exists():
         shutil.copytree(CORPUS_DIR / "fixtures", dst)
+        # Item 212 (2026-10-05), reconciliation (b): crop_at_border is a true
+        # volume crop on its own grid, so its ground truth is the clean
+        # control seen through the same field of view (as item 175 paired
+        # crop_fov_si), written beside the copied fixtures.
+        nib.save(
+            crop_to_grid(
+                nib.load(str(CORPUS_DIR / "fixtures" / "clean_control_seg.nii.gz")),
+                nib.load(str(CORPUS_DIR / "fixtures" / "crop_at_border_seg.nii.gz")),
+            ),
+            str(dst / "crop_at_border_gt_seg.nii.gz"),
+        )
     return dst
 
 
@@ -62,12 +74,12 @@ _COHORT_CASES = [
     },
     {
         "case_id": "cropped",
-        "gt": "fixtures/clean_control_seg.nii.gz",
+        "gt": "fixtures/crop_at_border_gt_seg.nii.gz",
         "candidate": "fixtures/crop_at_border_seg.nii.gz",
         "expected": {
             "expected_verdict": "flagged-for-review",
             "expected_rule_ids": ["border"],
-            "expected_labels": [22],
+            "expected_labels": [20, 21, 22],  # item 212 (2026-10-05): the cut face's labels
             "failure_mode": 6,
             "failure_mode_name": FAILURE_MODE_NAMES[6],
         },

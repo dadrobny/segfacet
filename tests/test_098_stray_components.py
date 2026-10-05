@@ -981,8 +981,31 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
         # the touching label -- it does not opt in to fov_truncation -- so
         # it no longer survives, leaving border alone; the verdict is
         # unchanged.
+        # Item 212 (2026-10-05): the case is a true anterior volume crop, and
+        # the one-slice cut also reaches labels 20 and 21 on the lordotic
+        # base, so border fires on all three labels on the cut face.
         "verdict": "flagged-for-review",
         "findings": [
+            {
+                "rule_id": "border",
+                "detector_id": "unexpected_clip",
+                "severity": "flagged-for-review",
+                "labels": [20],
+                "reason": (
+                    "Partial vertebra clipped by FOV: label 20 (L1) touches "
+                    "image face(s): anterior."
+                ),
+            },
+            {
+                "rule_id": "border",
+                "detector_id": "unexpected_clip",
+                "severity": "flagged-for-review",
+                "labels": [21],
+                "reason": (
+                    "Partial vertebra clipped by FOV: label 21 (L2) touches "
+                    "image face(s): anterior."
+                ),
+            },
             {
                 "rule_id": "border",
                 "detector_id": "unexpected_clip",
