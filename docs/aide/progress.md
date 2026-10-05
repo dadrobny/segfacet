@@ -1333,7 +1333,7 @@ justified in writing.
   direction-robust. *(Item 210)*
 - ✅ **Maintenance** `fused_label` judges the pair of adjacent spacings together.
   *(Item 211)*
-- 📋 **Maintenance** `crop_at_border` re-authored as a true anterior crop. *(Item 212)*
+- 🚧 **Maintenance** `crop_at_border` re-authored as a true anterior crop. *(Item 212)*
 - 📋 **Maintenance** The Windows CI leg runs a pinned OS-sensitive subset. *(Item 213)*
 - 📋 Stage validation from a clean clone. *(Item 217)*
 
