@@ -32,6 +32,7 @@ import jsonschema
 import pytest
 
 import segfacet.failure_modes as fm
+import segfacet.traceability as traceability
 from segfacet.io import FacetInputError
 from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.corpus import load_manifest
@@ -150,6 +151,9 @@ def _rule_b_home(operator: str, specification, conditions):
     """
     case_ids = _manifest_case_ids_for_perturbation(operator)
     if not case_ids:
+        assert operator in traceability.UNUSED_OPERATOR_REASONS, (
+            f"{operator} has no manifest case and is not recorded as unused"
+        )
         return _operator_expectation_home(operator)
     mode_hits = {
         m

@@ -941,8 +941,9 @@ def test_ac14_fov_truncation_case_expects_border_and_mislabel_with_reason():
     assert "crop" in lowered or "border" in lowered, case.reason
     assert "centroid" in lowered, case.reason
     assert "curve" in lowered or "spline" in lowered, case.reason
-    # `spline_offset` reads the crop-displaced centroid but does not opt in
-    # to the condition, so its finding on the touching label is gated.
+    assert "is_terminal" in condition.mechanism, condition.mechanism
+    # `spline_offset` skips terminal entries, so it does not opt in to the
+    # condition and its finding on the touching label is gated.
     assert "spline_offset" not in condition.recording_rules
     assert "spline_offset" not in condition.opting_in_rules
 
@@ -981,19 +982,10 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
 def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     """Re-targeted at the ``fov_truncation`` condition.
 
-    The authored reason used to quote a displacement in millimetres, and
-    this test recomputed that number and compared it. The sign-off's reason
-    states the *causal* claim instead ("the crop displaces the centroid off
-    the fitted spinal curve") and quotes no figure, so there is no number
-    left to compare -- and asserting on a number the record no longer
-    carries would be asserting on nothing.
-
-    What is checked instead is the claim itself, end to end and entirely
-    from live measurement: the single label ``border`` names is the same
-    label that carries a non-terminal, strictly positive spline offset, and
-    that same label is the one ``spline_offset``'s co-detection names. If the
-    crop stopped displacing the centroid, or displaced a different label's,
-    this fails.
+    Historically (before item 212) the condition claimed that the crop
+    displaces the centroid off the fitted spinal curve, and this test
+    checked that claim from live measurement. That claim is withdrawn; see
+    the item 212 note below for what is asserted now.
 
     Item 189 (2026-09-28): the offset detector that co-fires here moved from
     ``mislabel`` to its own ``spline_offset`` rule.

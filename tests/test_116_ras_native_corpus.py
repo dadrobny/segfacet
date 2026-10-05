@@ -433,6 +433,14 @@ _ITEM_198_ADDED_MISLABEL_PAIRS = {
     "sequence_break": (("mislabel", (20, 28)),),
 }
 
+#: Item 212 (2026-10-05) re-authors crop_at_border as a true anterior volume
+#: crop. The one-slice cut reaching label 22 also leaves labels 20 and 21 on
+#: the anterior face (A2), so ``border`` adds one finding on each; the
+#: ("border", (22,)) pin against the aeb2f55 golden stays exact.
+_ITEM_212_ADDED_BORDER_PAIRS = {
+    "crop_at_border": (("border", (20,)), ("border", (21,))),
+}
+
 
 @pytest.mark.skipif(
     _REFERENCE_SHA is None,
@@ -455,7 +463,9 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
     ``remove_level``, where item 192 (2026-09-28) deliberately adds a
     ``sequence`` finding: those added pairs are stripped
     from the fresh side before comparing so the rest of each case's
-    rule/label identity is still pinned exactly."""
+    rule/label identity is still pinned exactly. Item 212 (2026-10-05)
+    re-authors ``crop_at_border`` as an anterior volume crop, which adds
+    ``border`` findings on labels (20,) and (21,)."""
     fresh = build_report_for_case(case)
     historical_case_id = _OLD_CASE_ID_AT_REFERENCE_SHA.get(
         case["case_id"], case["case_id"]
@@ -485,6 +495,12 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
         assert added_pair in fresh_pairs, (
             f"case {case['case_id']!r}: expected item 198's deliberate "
             f"mislabel finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    for added_pair in _ITEM_212_ADDED_BORDER_PAIRS.get(case["case_id"], ()):
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 212's deliberate "
+            f"border finding {added_pair!r}, but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (
