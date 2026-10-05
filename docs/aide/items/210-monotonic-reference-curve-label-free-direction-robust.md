@@ -59,6 +59,15 @@ comes from item 132's `_traversal_order`.
    consistency. It evaluates `MislabelRule` on the record that
    `pipeline.extract_feature_record` builds, so the two paths cannot disagree
    (A5).
+6. **Wording.** User-facing text that still describes a spline is reworded to
+   describe position along the label-free path through the centroids:
+   - the `ordering` finding's reason tail "(spline parameter does not
+     advance)";
+   - the `ordering` detector's question "…along the fitted spine curve?",
+     which is rendered in `docs/aide/rules.generated.md`.
+
+   The reason's leading tag, `"Vertebra ordering inconsistent with label:"`,
+   is unchanged (queue-028 spec review, 2026-10-05).
 
 **What moves** (A4, measured 2026-10-05).
 
@@ -76,8 +85,9 @@ comes from item 132's `_traversal_order`.
 
 - `pipeline.py`. Its anatomical order (item 198) and the fit it passes are
   unchanged. That fit is now unused by the check (Left open).
-- The `MislabelRule` logic and its declaration. Only one stale prose phrase
-  ("S-sorted label order") changes.
+- The `MislabelRule` logic, its consumed paths and its detector ids. Only
+  prose changes there: the reason tail, the detector question, and the stale
+  phrase "S-sorted label order".
 - `docs/spinal-curve-model.md`, a dated design record of item 119's spline
   choice.
 - `tests/corpus/manifest.json`, every corpus fixture, the severity ladders,
@@ -217,7 +227,10 @@ not edited. The builder re-measures each value on the real change.
     detection path, only `sequence_break`'s findings change. They become, in
     report order:
     - `mislabel`, `ordering`, `flagged-for-review`, labels [20, 28], reason
-      `"Vertebra ordering inconsistent with label: labels 28 (T13) and 20 (L1) are out of expected order along the spine (spline parameter does not advance)."`;
+      `"Vertebra ordering inconsistent with label: labels 28 (T13) and 20 (L1) are out of expected order along the spine (position along the label-free path through the centroids does not advance)."`.
+      That is the measured reason with step 6's new tail; the measured
+      firing ended in "(spline parameter does not advance)." before the
+      rewording;
     - `sequence`, `shift`, `flagged-for-review`, labels [28], unchanged.
 
     The verdict stays `flagged-for-review`. `relabel_swap` keeps `ordering`
@@ -245,10 +258,15 @@ not edited. The builder re-measures each value on the real change.
       `count` 24). The three texts change once step 4 lands.
       `observed_summary` and the leaf count of 145 are unchanged.
     - `docs/aide/golden_evidence.generated.json`,
-      `docs/aide/traceability_matrix.generated.{json,md}`,
-      `docs/aide/rules.generated.md` and
+      `docs/aide/traceability_matrix.generated.{json,md}` and
       `docs/aide/failure_modes.generated.{json,md}` are byte-identical. The
       last two move only once step 5 rewrites the reason.
+    - `docs/aide/rules.generated.md` moves on exactly one line, line 22, the
+      `mislabel` `ordering` row's Question cell, once step 6 rewords the
+      question. This was measured on 2026-10-05 by regenerating with the
+      question replaced in-process; nothing else in the file moves. The
+      question text is rendered in no other generated file (grep,
+      2026-10-05).
     - `segfacet.eval.severity_ladder.run_severity_harness()` is unchanged
       (compared by `repr`).
   - **Unit fixtures, unchanged result.** Item 132's AC5, AC6 and its
@@ -289,9 +307,21 @@ not edited. The builder re-measures each value on the real change.
   - Item 211 also edits `src/segfacet/failure_modes.py` and
     `docs/aide/failure_modes.generated.*`, with different case reasons. Both
     specs list them under May change.
-  - The new test module carries none of item 213's A1 signal shapes: no
-    `subprocess`, CLI, `read_bytes`, `newline=`, `.gitattributes`, `as_posix`
-    or `segfacet.synth.golden`.
+  - The new test module carries none of the five signal shapes in item 213's
+    A1 (`docs/aide/items/213-windows-ci-pinned-os-sensitive-subset.md`):
+    - subprocess: `subprocess`, `run_process`, `sys.executable`;
+    - CLI: `segfacet.cli` imports, or a string constant starting
+      `segfacet.cli`;
+    - bytes or newlines: `.read_bytes`, a `newline` keyword, a
+      `.gitattributes` string, or a `regenerated_failure_modes` /
+      `regenerated_traceability` fixture parameter;
+    - path text: `.as_posix`, `os.sep` / `os.path.sep`, `PureWindowsPath` /
+      `PurePosixPath`;
+    - AIDE engine in-process: an `aide_check_result` fixture parameter.
+
+    So item 213's pinned Windows list needs no entry for it. Its monkeypatch
+    target is an object attribute, not a `segfacet.cli` string. The existing
+    test files this item edits gain none of these shapes.
 - **A7:** no human gate is needed, and no environment-gated capability is
   involved.
 
@@ -332,6 +362,9 @@ not edited. The builder re-measures each value on the real change.
      `.u_values[]` describe `u` as the normalised arc-length position on the
      label-free traversal path (item 210). They no longer describe a
      closest-spline-parameter.
+   - This covers both `measures` and `computation`, including
+     `.non_monotonic_pairs[]`'s `measures`, "Level-name pairs whose spline
+     parameter does not advance."
    - Each `computation` keeps the word "traversal"
      (`test_132` AC28). No anchor or `MODE_ANCHOR_PATHS` entry changes.
 5. **`src/segfacet/failure_modes.py`.**
@@ -343,17 +376,27 @@ not edited. The builder re-measures each value on the real change.
      (`tests/test_145_eight_hypothesised_modes.py` AC10b).
    - `expected_firing`, the mechanism and the module docstring's dated
      2026-09-28 paragraph (history) are unchanged.
-6. **`src/segfacet/heuristics/mislabel.py`**, prose only. In the
-   `ConditionOptIn.reason` string and the module docstring's item-191 bullet,
-   "a reference curve fitted in S-sorted label order" becomes "the centroids'
-   label-free geometric order (item 210)".
+6. **`src/segfacet/heuristics/mislabel.py`**, prose only. The logic,
+   `consumed_paths`, `detector_id`, `description` and `_MISLABEL_TAG` are
+   unchanged.
+   - In the `ConditionOptIn.reason` string and the module docstring's item-191
+     bullet, "a reference curve fitted in S-sorted label order" becomes "the
+     centroids' label-free geometric order (item 210)".
+   - The finding's reason tail "(spline parameter does not advance)." becomes
+     "(position along the label-free path through the centroids does not
+     advance)."
+   - The `ordering` `RuleDetector.question` becomes "Do two labels sit in the
+     wrong order along the label-free path through the vertebra centroids?"
 7. **Regenerate.** Run each module's `main` twice into temp paths, byte-compare
    the two runs, then write the committed copy:
    - `segfacet.failure_modes` → `docs/aide/failure_modes.generated.{json,md}`;
-   - `segfacet.catalogue` → `docs/aide/feature_catalogue.generated.{json,md}`.
+   - `segfacet.catalogue` → `docs/aide/feature_catalogue.generated.{json,md}`;
+   - `segfacet.rule_table` → `docs/aide/rules.generated.md`. Only line 22's
+     Question cell may differ from the committed copy (A4); any other moved
+     line is a hand-back.
 
-   Then regenerate `segfacet.traceability`, `segfacet.golden_evidence` and
-   `segfacet.rule_table` into temp paths only. Each must equal its committed
+   Then regenerate `segfacet.traceability` and `segfacet.golden_evidence`
+   into temp paths only. Each must equal its committed
    file (A4); if one does not, hand back.
 8. **Reconcile** the tests listed under Testing Strategy. Each edit carries a
    dated item-210 comment.
@@ -370,14 +413,15 @@ No dependency is added.
 - `src/segfacet/synth/regression.py` — the mode-4 handler delegates to the pipeline record; unused imports dropped (step 3).
 - `src/segfacet/feature_docs.py` — three `monotonic_consistency` texts (step 4).
 - `src/segfacet/failure_modes.py` — `sequence_break`'s reason (step 5).
-- `src/segfacet/heuristics/mislabel.py` — one stale prose phrase (step 6).
+- `src/segfacet/heuristics/mislabel.py` — the reason tail, the detector question and one stale phrase (step 6).
 - `docs/aide/failure_modes.generated.json` — regenerated (step 7).
 - `docs/aide/failure_modes.generated.md` — regenerated (step 7).
 - `docs/aide/feature_catalogue.generated.json` — regenerated (step 7).
 - `docs/aide/feature_catalogue.generated.md` — regenerated (step 7).
+- `docs/aide/rules.generated.md` — regenerated; the `ordering` question cell (step 7).
 - `tests/test_210_label_free_monotonic_reference.py` — **new**: this item's test module.
 - `tests/test_020_neighbour_consistency.py` — the two full-reversal tests.
-- `tests/test_098_stray_components.py` — `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS["sequence_break"]`.
+- `tests/test_098_stray_components.py` — `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`, its `sequence_break` and `relabel_swap` entries.
 - `tests/test_116_ras_native_corpus.py` — `_ITEM_198_ADDED_MISLABEL_PAIRS["sequence_break"]`.
 - `tests/test_129_coincident_centroids_and_held_out_floor.py` — `_PRE_129_FINDINGS["sequence_break"]`.
 - `tests/test_130_one_closest_point_search.py` — AC13's consistency check and the two AC20 tests.
@@ -428,6 +472,10 @@ Named adversarial cases, and no others:
     `detector_id` `"ordering"`, `severity` `"flagged-for-review"`, `labels`
     `[20, 28]`, `reason` A4's exact string. It stays before the unchanged
     `sequence` dict, and the verdict stays `flagged-for-review`.
+  - The `relabel_swap` entry (around line 938) keeps its labels [21, 22]. Its
+    reason's tail "(spline parameter does not advance)." becomes step 6's
+    "(position along the label-free path through the centroids does not
+    advance)."
   - The modules that import this constant read it unedited: `test_089`,
     `test_090`, `test_094`, `test_102`, `test_108`, `test_123`, `test_132`,
     `test_143`.
@@ -497,6 +545,32 @@ Named adversarial cases, and no others:
   `tests/test_154_ladder_remeasurement.py`.
 - `test_130` AC22 and `test_129` AC20 compare a regenerated catalogue with the
   committed one. They hold once step 7 commits the regenerated copy.
+- **Pins of the reworded texts**, searched 2026-10-05 across `src/`, `tests/`
+  and `docs/` for "spline parameter does not advance", "along the fitted
+  spine curve", "spline parameter" and the reason tag:
+  - Must move:
+    - `test_098` (the two entries above);
+    - `docs/aide/rules.generated.md` line 22 (regenerated);
+    - `src/segfacet/feature_docs.py` line 1587 and its rendering in
+      `docs/aide/feature_catalogue.generated.{json,md}` (step 4,
+      regenerated).
+  - Read only through the unchanged tag `"Vertebra ordering inconsistent
+    with label:"`, so they hold:
+    - `tests/test_033_mislabel.py`, `tests/test_035_failure_modes.py`,
+      `tests/test_039_identity_ordering_alignment_perturbations.py`,
+      `tests/test_132_monotonicity_against_traversal_order.py` AC13, and
+      `tests/test_145_eight_hypothesised_modes.py`.
+  - `tests/test_202_rule_table.py` compares each Question cell with the live
+    `det.question`, so it follows step 6.
+  - Not edited:
+    - `tests/test_132_monotonicity_against_traversal_order.py`'s
+      `_PRE_ITEM_STATUS_OVERRIDES` quotes the signed maintainer text in
+      `STATUS_OVERRIDES` ("…verify order along the spline parameter…"). It is
+      a review verdict, not a description of the computation, and AC30 pins
+      it byte-identical.
+    - `docs/aide/status/index.html` is a generated status snapshot.
+    - `docs/aide/insights.md` and the earlier item specs (033, 135, 198) are
+      history.
 
 ## Validation
 
@@ -528,6 +602,24 @@ set, so its order relative to them is free.
 
 To be updated during implementation.
 
+- **2026-10-05, queue-028 spec review (resolutions accepted by the
+  maintainer).**
+  - **Medium.** Spline wording survived in user-facing text after the
+    no-spline decision: the `ordering` finding's reason ended "(spline
+    parameter does not advance)", and the detector's question asked
+    "…along the fitted spine curve?". The item widens to reword both,
+    describing position along the label-free path through the centroids
+    (Description fix 6, step 6).
+    - `docs/aide/rules.generated.md` joins May change. It regenerates, and
+      only its `ordering` Question cell moves (A4, measured).
+    - `test_098`'s `relabel_swap` entry, which quotes the same reason, is
+      reconciled beside `sequence_break`'s. The search for other pins is
+      listed under Testing Strategy.
+  - **Nit.** A6's list of item 213's signal shapes came from an earlier 213
+    draft: it named `segfacet.synth.golden`, which 213 dropped, and missed
+    `sys.executable`, `run_process`, `os.sep`, `PureWindowsPath` /
+    `PurePosixPath` and the `regenerated_*` / `aide_check_result` fixture
+    parameters. It is refreshed from the committed 213 A1.
 - **Rejected (maintainer, 2026-10-05): an order-free principal-curve fit.**
   This is an alternating project-and-refit fit, with degrees of freedom from
   the level count and robust weights. Measured 2026-10-05, it converges to
