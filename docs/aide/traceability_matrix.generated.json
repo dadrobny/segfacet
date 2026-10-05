@@ -275,15 +275,14 @@
   "exercise": {
     "operators": {
       "crop_at_border": {
-        "cases": [
-          "crop_at_border"
-        ],
+        "cases": [],
         "name": "crop_at_border",
-        "reason": "",
-        "state": "used"
+        "reason": "Item 212 (2026-10-05): the operator now drives only the fov_truncation severity ladder. It is a translation clip, kept because the ladder's axis needs one grid, and the corpus case crop_at_border moved to the crop_fov volume-crop operator.",
+        "state": "unused"
       },
       "crop_fov": {
         "cases": [
+          "crop_at_border",
           "crop_fov_si"
         ],
         "name": "crop_fov",

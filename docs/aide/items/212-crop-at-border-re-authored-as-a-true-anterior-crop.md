@@ -736,8 +736,18 @@ whichever lands later re-measures the shared literals.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
-
+- **D2: implementation (2026-10-05).** Steps 1-10 landed. The geometric
+  corpus regenerated twice into scratch with identical bytes, and differs
+  from the committed tree only in `manifest.json`,
+  `fixtures/crop_at_border_seg.nii.gz` and the new
+  `fixtures/crop_at_border_scan.nii.gz`. `golden_evidence` regenerates
+  byte-identical. The fresh case reads shape (61, 69, 193); label 22's
+  interior offset 0.226480 mm; `tangent_angles_deg` [5.0652315, 0.3073795,
+  7.2771474, 18.6392868, 34.942344]; net advance -132.04156876;
+  `total_curvature_deg` 40.0075755; `u_values` [0.0, 0.2448721729,
+  0.4839015166, 0.7307715411, 1.0]. The test reconciliation (step 11) was
+  done by the test-writer before this step (commit 80c7bd1), so the builder
+  edited no test.
 - **Left open:** re-keying the `fov_truncation` severity ladder onto
   `crop_fov` and then deleting `CropAtBorderPerturbation`. A volume-crop
   ladder needs a severity axis an anterior cut can step on this base, where

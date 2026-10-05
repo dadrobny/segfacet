@@ -83,6 +83,48 @@
       1.0
     ]
   },
+  "corpus/fixtures/crop_at_border_scan.nii.gz|scan": {
+    "affine": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "data_sha256": "67c4fd98cb0ff7da7156e2f195189b25572697ee2b2b9a6d2ba2114380cdd9cc",
+    "dtype": "float64",
+    "integer_labels": false,
+    "path": "corpus/fixtures/crop_at_border_scan.nii.gz",
+    "shape": [
+      61,
+      69,
+      193
+    ],
+    "spacing": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "corpus/fixtures/crop_at_border_seg.nii.gz|seg": {
     "affine": [
       [
@@ -110,13 +152,13 @@
         1.0
       ]
     ],
-    "data_sha256": "fe013848a19142add7db10bdb996b4b8eef9f8b301ba1652c265d3528520afdf",
+    "data_sha256": "f5918b61e287ebc904b7dbcc91110a4a43faa4028c8e78c677f47199a6159e36",
     "dtype": "int64",
     "integer_labels": true,
     "path": "corpus/fixtures/crop_at_border_seg.nii.gz",
     "shape": [
       61,
-      86,
+      69,
       193
     ],
     "spacing": [

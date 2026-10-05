@@ -77,7 +77,8 @@ the strongest :data:`segfacet.failure_modes.EVIDENCE_RUNGS` entry among the
 perturbation operator (:func:`segfacet.synth.perturbation.perturbation_names`),
 whether it is used by >=1 :data:`segfacet.synth.corpus.CASE_RECIPE` entry, or
 recorded unused with an authored reason
-(:data:`UNUSED_OPERATOR_REASONS`, empty on this tree; item 172's
+(:data:`UNUSED_OPERATOR_REASONS`, holding only ``crop_at_border`` on this
+tree since item 212, item 172's
 :func:`operator_reason_conflicts` validates each entry against the live
 registry and ``CASE_RECIPE`` -- an unregistered name or a now-used operator
 is reported as a conflict, not silently read as `""`). Both directions score
@@ -216,7 +217,14 @@ OPERATOR_STATES: Tuple[str, ...] = ("used", "unused")
 #: :func:`operator_reason_conflicts` (item 172): a key absent from
 #: ``perturbation_names()`` or naming an operator ``CASE_RECIPE`` actually
 #: uses is reported as a conflict.
-UNUSED_OPERATOR_REASONS: Dict[str, str] = {}
+UNUSED_OPERATOR_REASONS: Dict[str, str] = {
+    "crop_at_border": (
+        "Item 212 (2026-10-05): the operator now drives only the "
+        "fov_truncation severity ladder. It is a translation clip, kept "
+        "because the ladder's axis needs one grid, and the corpus case "
+        "crop_at_border moved to the crop_fov volume-crop operator."
+    ),
+}
 
 #: An authored reason for a registered rule that carries no specification
 #: edge and so cannot derive an unexercised reason from one (item 193,

@@ -248,9 +248,11 @@
       },
       "case_id": "crop_at_border",
       "condition": "fov_truncation",
-      "detail": "crop_at_border: translated label 22 toward the 'anterior' face by 5 voxel(s) beyond touching, clipping the overhang. Exhibits the FOV-truncation CONDITION (item 150: retired failure mode 6), not a failure mode; the border rule records it.",
+      "detail": "crop_fov: cropped the volume at the 'anterior' face, removing 17 whole slice(s) to take at least 0.005 of target label 22 (155 of 19437 voxels removed); output shape (61, 69, 193). Exhibits the FOV-truncation CONDITION, not a failure mode.",
       "detection": "pipeline",
       "expected_labels": [
+        20,
+        21,
         22
       ],
       "expected_rule_ids": [
@@ -260,13 +262,14 @@
       "failure_mode": 0,
       "failure_mode_name": "FOV truncation (condition, not a failure mode)",
       "kind": "condition",
-      "perturbation": "crop_at_border",
+      "perturbation": "crop_fov",
       "perturbation_params": {
         "face": "anterior",
+        "removed_fraction": 0.005,
         "target_label": 22
       },
       "reconstruction": null,
-      "scan_fixture": "fixtures/base_scan.nii.gz",
+      "scan_fixture": "fixtures/crop_at_border_scan.nii.gz",
       "seed": 0,
       "seg_fixture": "fixtures/crop_at_border_seg.nii.gz"
     },

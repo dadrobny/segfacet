@@ -21,13 +21,14 @@ for a condition) and the offending label(s):
   :class:`~segfacet.heuristics.border.BorderRule` (item 031) fires a
   label-attributed ``"Partial vertebra clipped by FOV:"`` finding (the
   FOV-truncation condition, not a failure mode). It is an in-plane clip
-  made by translation, not a crop of the volume, and is kept because it is
-  the corpus's only ``border`` firing (item 175).
+  made by translation, not a crop of the volume. No corpus case uses it any
+  more (item 212): it drives the ``fov_truncation`` severity ladder only.
 * :class:`CropFovPerturbation` (``"crop_fov"``, item 175) -- crops the whole
   volume at a named face (resolved from the affine) with the smallest
   whole-slice cut removing at least a given fraction of a target label; the
   output is a smaller grid with a translated affine, so every kept voxel
-  stays at its world position (the FOV-truncation condition).
+  stays at its world position (the FOV-truncation condition). One corpus
+  case crops at the inferior face and one at the anterior face (item 212).
 
 Implemented strictly against the unchanged item-036 contract (``Perturbation``,
 ``Expectation``, ``PerturbationResult``, ``register_perturbation``,
@@ -421,10 +422,14 @@ class CropFovPerturbation(Perturbation):
     Rejects ``removed_fraction`` outside (0, 1), an input with no labels, an
     absent target, and a cut that would remove every slice of the target.
 
-    Expects nothing to fire (item 191, 2026-09-28): the cut target touches
-    the expected FOV end, which ``border`` suppresses, and the runner's
-    ``fov_truncation`` condition gate drops ``bounds``'s own volume/extent
-    finding on the same label, because ``bounds`` does not opt in.
+    At a cranio-caudal face it expects nothing to fire (item 191,
+    2026-09-28): the cut target touches the expected FOV end, which
+    ``border`` suppresses, and the runner's ``fov_truncation`` condition gate
+    drops ``bounds``'s own volume/extent finding on the same label, because
+    ``bounds`` does not opt in. At an in-plane face (item 212) it expects
+    ``border`` on every label the cut leaves on that face, verdict
+    ``flagged-for-review``, because ``border`` records an in-plane clip as
+    unexpected.
     """
 
     name = "crop_fov"
@@ -486,7 +491,15 @@ class CropFovPerturbation(Perturbation):
             np.array(cropped.affine, copy=True),
         )
 
-        removed = n - int(np.count_nonzero(np.asanyarray(out_img.dataobj) == target))
+        out_data = np.asanyarray(out_img.dataobj)
+        removed = n - int(np.count_nonzero(out_data == target))
+        if self._face in _IN_PLANE_FACES:
+            face_slice = np.take(out_data, 0 if side == "low" else -1, axis=axis)
+            rule_ids = frozenset({"border"})
+            exp_labels = frozenset(int(v) for v in np.unique(face_slice) if v != 0)
+            verdict = "flagged-for-review"
+        else:
+            rule_ids, exp_labels, verdict = frozenset(), frozenset(), "pass"
         expectation = Expectation(
             failure_mode=CLEAN_CONTROL_MODE,
             failure_mode_name=FOV_TRUNCATION_CONDITION_NAME,
@@ -496,9 +509,11 @@ class CropFovPerturbation(Perturbation):
             # fov_truncation, so the runner's condition gate (item 191,
             # 2026-09-28) drops it -- and border suppresses the expected
             # FOV-end touch itself, so nothing fires and the verdict is pass.
-            expected_rule_ids=frozenset(),
-            expected_labels=frozenset(),
-            expected_verdict="pass",
+            # At an in-plane face (item 212) border records the clip as
+            # unexpected on every label the cut leaves on the face.
+            expected_rule_ids=rule_ids,
+            expected_labels=exp_labels,
+            expected_verdict=verdict,
             detail=(
                 f"crop_fov: cropped the volume at the {self._face!r} face, "
                 f"removing {n_cut} whole slice(s) to take at least "

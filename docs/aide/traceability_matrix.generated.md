@@ -122,8 +122,8 @@ Direction complete: True. Holes: none.
 
 | Operator | State | Cases | Reason |
 |---|---|---|---|
-| crop_at_border | used | crop_at_border | (none) |
-| crop_fov | used | crop_fov_si | (none) |
+| crop_at_border | unused | (none) | Item 212 (2026-10-05): the operator now drives only the fov_truncation severity ladder. It is a translation clip, kept because the ladder's axis needs one grid, and the corpus case crop_at_border moved to the crop_fov volume-crop operator. |
+| crop_fov | used | crop_at_border, crop_fov_si | (none) |
 | displace | used | displace | (none) |
 | fragment | used | fragment | (none) |
 | fuse | used | fuse_adjacent, fuse_separate | (none) |
