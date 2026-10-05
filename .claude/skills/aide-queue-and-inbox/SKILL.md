@@ -21,10 +21,12 @@ from.
 
 **Queue state is derived, not declared.** A queue is **open** iff any of its
 items is 📋/🚧 in `progress.md`, else **done**; the live queue is the
-lowest-numbered open one. A `> **Status:**` line is optional decoration for
-human readers — `aide queue tidy` stamps a completion note on superseded
-queues, and `aide check` warns only when a declared status contradicts the
-derived state. Never type the stamp by hand; run the verb.
+lowest-numbered open one. A 📋 item every bullet of which sits in a withdrawn
+stage keeps no queue open; a 🚧 one there still does. A `> **Status:**` line
+is optional decoration for human readers — `aide queue tidy` stamps a
+completion note on superseded queues, and `aide check` warns only when a
+declared status contradicts the derived state. Never type the stamp by hand;
+run the verb.
 
 **Work items as `### Item NNN: Short Title` + a description paragraph.** Item
 numbers are **globally sequential across all queues** — never restart.
@@ -49,7 +51,8 @@ reads that warning and never works the need out itself** — with no such
 warning, the queue ends with its last deliverable. **The same check warns on
 a planned queue-end item with nothing to do.** **Wherever the file lists it,
 it runs last**: `aide claim` holds it until the rest of its queue has left
-the way, bar an item whose dependencies lead back to it, and `aide check
+the way, bar an item whose dependencies lead back to it or a 📋 one of a
+withdrawn stage, and `aide check
 --queue NNN` warns when open work that does not depend on it is listed after
 it, so an item added after planning goes above it. **The stage variant is
 titled `Validate stage N: <stage title>`**; `/aide-create-queue` says when to run the

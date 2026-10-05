@@ -14,7 +14,8 @@ The rules:
   branch is `aide queue start NNN [--specs]`; merging a stack of queue
   branches forward is `aide queue restack`; opening a queue's own PR and
   marking it ready are `aide queue pr` and `aide queue ready`; landing is
-  `aide merge`; branch clean-up is `aide gc`; checking a branch's changed
+  `aide merge`; branch clean-up is `aide gc`, and discarding an empty queue
+  branch is `aide queue discard NNN`; checking a branch's changed
   files against its item's authorised paths is `aide scope`. Do not
   improvise the equivalent `git fetch`/`git status`/`git switch -c`/`git diff
   --name-only` sequences, and do not run `gh pr create` or `gh pr ready`:
@@ -61,6 +62,11 @@ python <sibling>/.aide/scripts/aide.py --repo <sibling> <cmd>
   single canonical statement of the rules and their rationale.
 - **Why the verbs.** They exist so every run does these steps identically and
   no step is forgotten.
+- **Why `aide queue discard`, not `aide gc`.** A planner that hands back
+  leaves the queue branch `queue start` made open and empty. `gc --merged`
+  against a queue-branch base reads every queue branch below it as merged,
+  and the raw form spread the one safety check — no commit beyond the base —
+  across prose copies, so the verb owns it (issue #383).
 - **Why no raw `gh pr create` / `gh pr ready`.** Either can touch any pull
   request, so each stays behind a person's approval, and a runner that typed
   one stalled an unattended run on the prompt at every queue's start and end.

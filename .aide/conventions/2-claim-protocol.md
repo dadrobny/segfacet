@@ -38,13 +38,15 @@ branch, the remote and git's own words, never a traceback — and leaves the loc
 branch for you to push or delete. Off `local` mode a claim branch origin has
 never seen is reported as an **unpublished claim** by `claim`, `status` and
 `check`, never counted as work in flight. `queue start` and `merge`'s `pr`-mode
-push fail the same way.
+push fail the same way. With no remote named `origin` at all there is nothing
+to publish to, and each of them refuses before it changes anything (§4).
 
 **A branch origin deleted is not one origin never saw.** A branch whose
 upstream `origin/<branch>` is gone was published, and is never advised a push
 — that would recreate a branch deleted on purpose. The same three verbs name it
 as **stale** when everything on it is already in its base or `main_branch`
-(`aide gc --merged` deletes it), and otherwise as work **not found** there.
+(`aide gc --merged` deletes it, a queue branch only against `main_branch`),
+and otherwise as work **not found** there.
 Not found is what was measured, not that the work never landed: a squash
 merge the base has since changed over the same lines, or any squash merge
 under git older than 2.38, reads the same way. So check whether its work merged
@@ -64,15 +66,17 @@ One person (or one loop) owns an item at a time. Abandoning an item means
 deleting its remote branch so the item returns to the pool; `aide check` flags a
 claim branch whose item is already ✅ or ❌ (stale claim, the ❌ ground below),
 and `aide gc` deletes such branches — local and remote — deterministically (dry-run by default, `--yes` to
-act; `--merged` also collects branches already merged into main).
+act; `--merged` also collects branches already merged into the base, and a
+queue branch only when that base is `main_branch`).
 
 **A ❌ item's claim is spent as a ✅ one is.** An item dropped by its own
 bullets, or a 📋 one whose every bullet sits in a withdrawn stage, will never
-be merged, so its claim branch is stale on the same ground: `check` and
-`status` name it, and `gc` collects it. A 🚧 or ⏸️ item in a withdrawn stage is
-live or owner-held work, not stale until its owner drops it (`aide progress set
-NNN dropped`). A 🔍 item's branch is never stale, however its stage is marked —
-it is an open PR's head.
+be merged — `aide merge` refuses both — so its claim branch is stale on the
+same ground: `check` and `status` name it, and `gc` collects it. A 🚧 or ⏸️
+item in a withdrawn stage is live or owner-held work, not stale until its
+owner drops it (`aide progress set NNN dropped`), and `merge` takes it. A 🔍
+item's branch is never stale, however its stage is marked — it is an open
+PR's head.
 
 **`gc` asks git, not the document.** A ✅ or ❌ item whose branch still carries
 unlanded content is **skipped** with the base named; `--abandon` deletes it
@@ -115,6 +119,15 @@ acts on** (`gc -h` says what it asks git, and what it refuses).
   and which also strengthens `--merged`. `merge-tree --write-tree` needs
   git ≥ 2.38, and on older git the ✅ ground refuses rather than falling back
   to a weaker test — old git is always *more* conservative, never less.
+- **Why a queue branch needs `main_branch` as the base.** On a stack of
+  queue branches each one below the base is an ancestor of it, so git calls
+  every one merged into it — into its successor, not into `main_branch`.
+  Collected on that answer, `gc --merged --base <queue branch> --yes` deleted
+  them on origin, and deleting a PR's head branch closes the PR, unreviewed
+  (issue #403). A claim branch merged into a queue base is not that shape: it
+  landed where it was meant to, and the queue branch's PR carries its work. An
+  open-PR check was the rejected alternative: it needs a forge, and `local`
+  mode and `forge = "none"` have none.
 - **Why ❌ is a stale ground, and not only ✅.** 2.34.0 gave ❌ two routes —
   `aide progress set NNN dropped` for an item, a ❌ summary row for a stage —
   and `merge` began refusing a ❌ item, but the stale ground stayed ✅ alone:
@@ -131,6 +144,15 @@ acts on** (`gc -h` says what it asks git, and what it refuses).
   its item 📋 there, so `check` names its branch stale; that is accepted,
   because `gc` asks git first and takes the branch only once its work has
   landed.
+- **Why `merge` refuses only the 📋 item of a withdrawn stage.** Issue #389:
+  `merge` read no summary row, so an item `claim` would no longer offer
+  could still be ticked ✅, undoing the withdrawal. The refusal takes the
+  stale ground's line, not the stage's: a 🚧 item there is work someone is
+  doing, and refusing it would discard a build its owner has not dropped.
+  The builder records 🚧 on its claim branch and the base never sees it
+  until the merge, so `merge` reads the branch's copy for the item's status
+  beside the working tree's and the base's, and refuses only when none of
+  them shows it started.
 - **Why the preview is exact.** A dry run a human is asked to approve must not
   overstate, so every skip — checked out, unlanded, git too old — is decided
   before anything is printed and shown on both paths.

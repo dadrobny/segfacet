@@ -91,13 +91,14 @@ that just ran `list`, and nowhere else.
   the ID to write — for a position, the entry it named in the commit that last
   wrote the citing line, read from git history, and today's only for a line
   not yet committed or where there is no history (the warning says which).
-  The inbox and its archives are not swept, and a **record**
-  is not read for positions: the spec of an item `progress.md` shows ✅, ❌ or
-  ⏸️, and a queue naming items none of which is still open. An ID in a record
-  that resolves to nothing is still an error. A position is never
-  zero-padded — `037` is an item number, not a citation. `insights
-  archive` lists the positional citations it is about to renumber, each with
-  the ID its position holds before the move — rewrite them from that list.
+  The inbox and its archives are not swept, and a **record** is not read for
+  positions: the spec of an item `progress.md` shows ✅, ❌ or ⏸️, or 📋 in a
+  withdrawn stage (summary row ❌), and a queue naming items none of which is
+  still open. An ID in a record that resolves to nothing is still an error. A
+  position is never zero-padded — `037` is an item number, not a citation.
+  `insights archive` lists the positional citations it is about to renumber,
+  each with the ID its position holds before the move — rewrite them from
+  that list.
 - **Human gates have IDs of their own.** A gate is cited by the `gate-<hex>`
   ID `aide gate list` prints, under the same resolvability check (§1 → human
   gates).

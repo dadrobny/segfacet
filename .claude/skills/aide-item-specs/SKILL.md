@@ -30,12 +30,13 @@ agree with a later engine.
 
 **`## Dependencies` blocks `aide claim`**: every item number named there is
 read as something this item is blocked on until that item is merged (✅), or
-leaves the queue's way as ❌ excluded or ⏸️ deferred — 🚧 and 🔍 both still
-block. Text at or after a literal `**Downstream` marker is excluded from that
-scan, so put such asides after the marker, never before it. The rest of any
-line from a backticked or bold `Blocks:` label on is excluded too, so quoting a
-gate row's reach adds no edges; keep a reach quote on one line — the exclusion
-does not extend past it.
+leaves the queue's way as ❌ excluded, ⏸️ deferred, or 📋 in a withdrawn stage
+(summary row ❌) — 🚧 and 🔍 both still block, in a withdrawn stage too. Text
+at or after a literal `**Downstream` marker is excluded from that scan, so put
+such asides after the marker, never before it. The rest of any line from a
+backticked or bold `Blocks:` label on is excluded too, so quoting a gate row's
+reach adds no edges; keep a reach quote on one line — the exclusion does not
+extend past it.
 
 **An acceptance criterion is an invariant over the resulting content** — never
 a bound on the diff that produced it, and never a premise about a sibling
@@ -215,11 +216,11 @@ assumption, one that does not corrects it, dated, with the original standing.
 before it was built, and a claim happens only once it has merged. Three shapes
 are not that signal: **an Assumption recording a defensible default, or naming
 an engine version, is an audit entry and not an interface pin**; **an
-Assumption already carrying a re-check is not re-checked again**; and a
-dependency that left the queue's way as ❌ or ⏸️ has no code to check
-against, so **the re-check records the interface as absent, corrects the
-assumption, and the divergence is raised in the return rather than agreed
-to**.
+Assumption already carrying a re-check is not re-checked again**; and **a
+dependency that left the queue's way as ❌, ⏸️, or 📋 in a withdrawn stage
+has no code to check against**, so **the re-check records the interface as
+absent, corrects the assumption, and the divergence is raised in the return
+rather than agreed to**.
 
 **Root documents are authored through their loop entry point, interactively —
 whatever `loop.clarify` says** (`.aide/conventions.md` §5); here that entry point

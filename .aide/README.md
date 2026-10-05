@@ -81,10 +81,11 @@ spawns a sub-agent per leaf task and gates approvals.
   test-writer → builder → validator+merge, with a bounded build↔validate cycle
   (`loop.validation_rounds`) in which the builder steps up a tier when a failure
   survives a round or is serious from the first FAIL. Under
-  `loop.review = "background"` a reviewer runs concurrently with the validator
-  and the merge waits for both. A builder that
-  finds the spec and the tests in contradiction hands the item back to
-  spec-author rather than picking a side (§5).
+  `loop.review = "background"` a reviewer runs once, concurrently with the
+  first validation, and the merge waits for both; its findings join the first
+  fix round, and every round after is checked by a fresh validator alone. A
+  builder that finds the spec and the tests in contradiction hands the item
+  back to spec-author rather than picking a side (§5).
 - **`/aide-run-queue [NNN]`** — claims each item (`aide claim`) then runs it via
   `/aide-run-item`, until the queue empties. Does **not** create the next queue.
 - **`/aide-run-roadmap`** — loops over queues: generate a queue → run it → generate
@@ -249,7 +250,7 @@ tier to its own runtime's models (as high as necessary, as low as adequate). Det
 | `test-writer` | **T2** | writes one test per acceptance criterion, plus the cases the spec names |
 | `builder` | **T2** | implements the source dir to satisfy every AC; re-dispatched on T3 when a failure survives a round or is serious |
 | `validator` | **T2** | quality gate: tests, AC coverage, scope, vision fit; reconciles + merges |
-| `reviewer` | **T2** | *optional, `loop.review`* — adversarial read of the item's diff, concurrent with the validator; produces findings, merges nothing |
+| `reviewer` | **T2** | *optional, `loop.review`* — adversarial read of the item's diff as first built, concurrent with the first validation; produces findings, merges nothing |
 
 No agent signs off its own work; every role gets a fresh instance per item.
 
@@ -257,7 +258,8 @@ No agent signs off its own work; every role gets a fresh instance per item.
 Validation is spec-relative and gates the merge; review is adversarial and
 produces findings, each ranked blocking / minor / nit as it is triaged. A
 green validator is not a review, and a clean review does not discharge
-validation. The reviewer is off unless `aide.toml` sets
+validation. Scope and vision fit are validation's alone; review reads the
+code. The reviewer is off unless `aide.toml` sets
 `loop.review = "background"`, and where it runs, the merge waits for both.
 
 **Deterministic work is scripted, not delegated** — recon/claim, progress

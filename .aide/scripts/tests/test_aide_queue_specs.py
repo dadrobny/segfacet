@@ -269,6 +269,25 @@ def test_a_chain_through_a_deferred_link_earns_no_exemption(tmp_path: Path):
                for f in findings)
 
 
+def test_a_chain_through_a_withdrawn_link_earns_no_exemption(tmp_path: Path):
+    """The same chain with 028 📋 in a stage whose summary row is ❌: it has
+    left the queue's way as a ❌ item has (issue #393), so 029 is claimable
+    before 027 lands and the pair is judged."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["src/cli.py"]),
+        28: _spec_text(28, may=["src/b.py"], deps="Item 027 lands first."),
+        29: _spec_text(29, asserts=["src/cli.py"], deps="Item 028 lands first."),
+    }, queue_items=(27, 28, 29),
+       progress=PROGRESS
+       .replace("| 1 | Rules | G1 | 🚧 |",
+                "| 1 | Rules | G1 | 🚧 |\n| 2 | Later | G1 | ❌ |")
+       .replace("- 📋 B. *(Item 028)*\n", "")
+       + "\n## Stage 2 — Later\n\n**Deliverables.**\n- 📋 B. *(Item 028)*\n")
+    findings, _ = _findings(repo)
+    assert any(f.kind == "changes-pinned-state" and f.items == (27, 29)
+               for f in findings)
+
+
 def test_an_in_progress_dependency_still_exempts_the_pair(tmp_path: Path):
     """🚧 and 🔍 hold a dependent back exactly as 📋 does — the item is not in
     the base a dependent would branch from — so the ordering stands and the
@@ -862,6 +881,24 @@ def test_a_settled_record_never_puts_a_queue_end_item_out_of_place(tmp_path: Pat
                         queue_items=(27, 29, 28),
                         titles={29: "Validate stage 1: Rules"}, progress=progress)
         assert _qe(repo, "queue-end-not-last") == [], icon
+
+
+def test_a_withdrawn_stages_planned_item_never_puts_a_queue_end_item_out_of_place(
+        tmp_path: Path):
+    """Issue #389: 040 sits in stage 2, withdrawn whole (❌ summary row).
+    Claim never offers it 📋 and it holds nothing, so listing it after
+    `Validate stage 1` is not out of place; started 🚧 there, it is live work
+    and still is."""
+    withdrawn = _PROGRESS_QE_29.replace("| 2 | Later | G1 | 📋 |",
+                                        "| 2 | Later | G1 | ❌ |")
+    repo = _qe_repo(tmp_path / "planned", queue_items=(27, 28, 29, 40),
+                    titles={29: "Validate stage 1: Rules"}, progress=withdrawn)
+    assert _qe(repo, "queue-end-not-last") == []
+    started = withdrawn.replace("- 📋 D. *(Item 040)*", "- 🚧 D. *(Item 040)*")
+    repo = _qe_repo(tmp_path / "started", queue_items=(27, 28, 29, 40),
+                    titles={29: "Validate stage 1: Rules"}, progress=started)
+    hits = _qe(repo, "queue-end-not-last")
+    assert len(hits) == 1 and hits[0].items == (29, 40)
 
 
 def test_two_trailing_queue_end_items_are_in_place(tmp_path: Path):

@@ -14,6 +14,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "aide.py"
 _spec = importlib.util.spec_from_file_location("aide_cli_base", _MODULE_PATH)
 aide = importlib.util.module_from_spec(_spec)
@@ -275,10 +277,15 @@ def test_claim_branches_from_the_base_not_from_head(tmp_path: Path):
         "claim recorded main as the base, so it must branch from main")
 
 
-def test_claim_refuses_a_base_that_is_not_a_local_branch(tmp_path: Path, capsys):
+@pytest.mark.parametrize("base", ["v1", "origin/main"])
+def test_claim_refuses_a_base_that_is_not_a_local_branch(tmp_path: Path, capsys,
+                                                         base: str):
+    """A tag and a remote-tracking ref alike: claim writes to its base (§4,
+    issue #407), and only a local branch moves forward."""
     repo = _init_repo(tmp_path / "repo")
     _run(["git", "tag", "v1"], repo)
-    rc = aide.main(["--repo", str(repo), "claim", "--base", "v1"])
+    _run(["git", "update-ref", "refs/remotes/origin/main", "main"], repo)
+    rc = aide.main(["--repo", str(repo), "claim", "--base", base])
     assert rc == 1
     assert "not a local branch" in capsys.readouterr().err
     assert "aide/027-bounds-rules" not in _branches(repo)
@@ -293,6 +300,30 @@ def test_scope_uses_an_explicit_base_verbatim(tmp_path: Path, capsys):
 
     assert aide.main(["--repo", str(repo), "scope", "--base", "main"]) == 0
     assert "vs main" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("form", ["origin", "commit"])
+def test_a_measuring_verb_takes_a_base_that_is_not_a_local_branch(
+        tmp_path: Path, capsys, form: str):
+    """§4, issue #407: scope and status only measure, so a remote-tracking ref
+    or a raw commit is a base they take — the one a PR-context CI job on a
+    detached checkout has to pass. Neither refuses it the way claim does."""
+    repo = _init_repo(tmp_path / "repo")
+    _run(["git", "update-ref", "refs/remotes/origin/main", "main"], repo)
+    base = ("origin/main" if form == "origin" else
+            _run(["git", "rev-parse", "main"], repo).stdout.strip())
+    _run(["git", "switch", "-c", "aide/027-bounds-rules"], repo)
+    _commit(repo, "src/demo/bounds.py", "x = 2\n", "work")
+
+    assert aide.main(["--repo", str(repo), "scope", "--base", base]) == 0
+    assert f"vs {base}" in capsys.readouterr().out
+    _commit(repo, "stray.md", "x\n", "stray")
+    assert aide.main(["--repo", str(repo), "scope", "--base", base]) == 1
+    assert "stray.md" in capsys.readouterr().out
+
+    assert aide.main(["--repo", str(repo), "status", "--no-fetch",
+                      "--base", base]) == 0
+    assert "not a local branch" not in capsys.readouterr().err
 
 
 def test_a_derived_base_prefers_its_origin_counterpart(tmp_path: Path):
@@ -371,6 +402,106 @@ def test_gc_merged_is_measured_against_the_base(tmp_path: Path, capsys):
 
     assert aide.main(["--repo", str(repo), "gc", "--merged", "--base", "main"]) == 0
     assert "aide/027-bounds-rules" not in capsys.readouterr().out
+
+
+def _queue_stack(repo: Path) -> None:
+    """main -> aide/queue-001 -> aide/queue-002, each with a commit of its own,
+    and main checked out: queue 001 is an ancestor of queue 002 and not of main."""
+    _run(["git", "switch", "-c", "aide/queue-001"], repo)
+    _commit(repo, "q1.txt", "1\n", "queue 1 work")
+    _run(["git", "switch", "-c", "aide/queue-002"], repo)
+    _commit(repo, "q2.txt", "2\n", "queue 2 work")
+    _run(["git", "switch", "main"], repo)
+
+
+def _local_branches(repo: Path) -> list:
+    out = subprocess.run(["git", "branch", "--format=%(refname:short)"], cwd=repo,
+                         capture_output=True, text=True, check=True).stdout
+    return out.split()
+
+
+def test_gc_merged_keeps_a_queue_branch_below_a_queue_base(tmp_path: Path, capsys):
+    """Issue #403: under a queue base, the queue branch below it on the stack
+    is merged into its successor, not into main, and its PR is its route
+    there — skipped and said so, and neither it nor the base is deleted. A
+    claim merged into that base is still collected."""
+    repo = _init_repo(tmp_path / "repo")
+    _queue_stack(repo)
+    _run(["git", "switch", "-c", "aide/027-bounds-rules", "aide/queue-002"], repo)
+    _commit(repo, "src/demo/bounds.py", "x = 2\n", "work")
+    _run(["git", "switch", "aide/queue-002"], repo)
+    _run(["git", "merge", "--no-edit", "aide/027-bounds-rules"], repo)
+    _run(["git", "switch", "main"], repo)
+
+    assert aide.main(["--repo", str(repo), "gc", "--merged",
+                      "--base", "aide/queue-002"]) == 0
+    out = capsys.readouterr().out
+    assert "skipping aide/queue-001 (local)" in out
+    assert "would delete aide/queue-001" not in out
+    assert "aide/queue-002 (" not in out
+    assert "would delete aide/027-bounds-rules" in out
+
+    assert aide.main(["--repo", str(repo), "gc", "--merged", "--yes",
+                      "--base", "aide/queue-002"]) == 0
+    branches = _local_branches(repo)
+    assert "aide/queue-001" in branches and "aide/queue-002" in branches
+    assert "aide/027-bounds-rules" not in branches
+
+
+def test_gc_merged_takes_a_queue_branch_merged_into_main(tmp_path: Path, capsys):
+    """The main-base ground is unchanged: once main holds queue 001, it goes."""
+    repo = _init_repo(tmp_path / "repo")
+    _queue_stack(repo)
+    _run(["git", "merge", "--ff-only", "aide/queue-001"], repo)
+
+    assert aide.main(["--repo", str(repo), "gc", "--merged", "--yes",
+                      "--base", "main"]) == 0
+    branches = _local_branches(repo)
+    assert "aide/queue-001" not in branches
+    assert "aide/queue-002" in branches
+
+
+@pytest.mark.parametrize("base_form", ["origin", "sha"])
+def test_gc_merged_queue_base_by_another_name(tmp_path: Path, capsys,
+                                              base_form):
+    """The queue base given as its remote-tracking ref or as a raw commit:
+    the queue and specs-queue branches below it are still skipped, and the
+    base named as ``origin/<branch>`` is still the base — neither a target
+    nor a skip line."""
+    repo = _init_repo(tmp_path / "repo")
+    _run(["git", "switch", "-c", "aide/specs-queue-001"], repo)
+    _commit(repo, "s1.txt", "s\n", "specs work")
+    _queue_stack(repo)
+    _run(["git", "update-ref", "refs/remotes/origin/aide/queue-002",
+          "aide/queue-002"], repo)
+    base = ("origin/aide/queue-002" if base_form == "origin" else
+            _run(["git", "rev-parse", "aide/queue-002"], repo).stdout.strip())
+
+    assert aide.main(["--repo", str(repo), "gc", "--merged", "--yes",
+                      "--base", base]) == 0
+    out = capsys.readouterr().out
+    assert "skipping aide/queue-001 (local)" in out
+    assert "skipping aide/specs-queue-001 (local)" in out
+    if base_form == "origin":
+        assert "aide/queue-002 (" not in out
+    branches = _local_branches(repo)
+    assert {"aide/specs-queue-001", "aide/queue-001",
+            "aide/queue-002"} <= set(branches)
+
+
+def test_gc_merged_takes_a_queue_branch_under_origin_main(tmp_path: Path,
+                                                         capsys):
+    """``origin/<main_branch>`` is main_branch for the queue rule."""
+    repo = _init_repo(tmp_path / "repo")
+    _queue_stack(repo)
+    _run(["git", "merge", "--ff-only", "aide/queue-001"], repo)
+    _run(["git", "update-ref", "refs/remotes/origin/main", "main"], repo)
+
+    assert aide.main(["--repo", str(repo), "gc", "--merged", "--yes",
+                      "--base", "origin/main"]) == 0
+    branches = _local_branches(repo)
+    assert "aide/queue-001" not in branches
+    assert "aide/queue-002" in branches
 
 
 def test_status_accepts_a_base_and_still_reports(tmp_path: Path, capsys):

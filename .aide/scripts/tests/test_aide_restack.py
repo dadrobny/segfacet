@@ -670,6 +670,24 @@ def test_a_failed_push_exits_one_with_the_merge_kept_local(tmp_path: Path):
     assert _sha(origin, Q2) == on_origin
 
 
+@pytest.mark.parametrize("extra", [(), ("--dry-run",)])
+def test_no_origin_off_local_mode_is_refused_before_anything_changes(
+        tmp_path: Path, capsys, extra: tuple):
+    """Issue #377: with no origin, a restack off local mode merged forward
+    and then failed every push. It is now refused first: no branch moves."""
+    _origin, repo, _other = _with_origin(tmp_path)
+    _git(["remote", "remove", "origin"], repo)
+    _move_lower(repo)
+    tips = (_sha(repo, Q1), _sha(repo, Q2))
+    capsys.readouterr()
+
+    assert _restack(repo, *extra) == 1
+    assert ('aide queue restack: [git] mode = "pr" in aide.toml needs a '
+            'remote named origin') in capsys.readouterr().err
+    assert (_sha(repo, Q1), _sha(repo, Q2)) == tips
+    assert not _contains(repo, Q1, Q2)
+
+
 @pytest.mark.parametrize("old_git", [False, True], ids=["merge-tree", "in-tree"])
 def test_a_detached_head_start_is_restored(tmp_path: Path, monkeypatch, old_git):
     repo = _init(tmp_path / "r")

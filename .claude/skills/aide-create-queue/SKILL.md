@@ -150,8 +150,9 @@ as the reason.
    Brief description of the scope and deliverables for this item.
    ```
 7. **No status field** — queue state (open/done) is **derived** from
-   `progress.md` (a queue is open while any of its items is 📋/🚧), and
-   `aide claim` picks the lowest-numbered open queue by default. Do not write a
+   `progress.md` (a queue is open while any of its items is 📋/🚧, bar a 📋
+   one of a withdrawn stage), and `aide claim` picks the lowest-numbered open
+   queue by default. Do not write a
    `> **Status:** Live` line; the only decorative status note is the completion
    stamp `aide queue tidy` adds to superseded queues.
 8. **Wire every item into `progress.md`** — this is where item numbers are born,

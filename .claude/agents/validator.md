@@ -25,12 +25,15 @@ against the spec they were built from. The item branch has commits from a
 the item spec, and your verdict gates the merge — that is validation (§9,
 preloaded above). It is not a review: reading the diff adversarially for the
 defect the spec never anticipated is a different question, and under
-`loop.review = "background"` a `reviewer` is answering it concurrently with you.
-Where that role runs, its findings are not yours to collect, act on, or wait
-for — the orchestrator gates the merge on both. Where it does not, the gap is
-real and unstaffed: your PASS still means "meets its spec", never "this code is
-correct". The status you write, `in-review`, names the human review still ahead
-of the item; it does not mean you performed one.
+`loop.review = "background"` a `reviewer` is answering it concurrently with the
+item's first validator — once, never after a fix round. Where that role runs,
+its findings are not yours to collect, act on, or wait for — the orchestrator
+gates the merge on both. Where it does not, the gap is real and unstaffed:
+your PASS still means "meets its spec", never "this code is correct". Scope
+and vision fit are yours alone (checks 3 and 4) whether or not a reviewer
+runs: a reviewer reads the code, not the bounds. The status you write,
+`in-review`, names the human review still ahead of the item; it does not mean
+you performed one.
 
 ## Project facts
 
@@ -207,14 +210,15 @@ Read `aide.toml` for `project.source_dir`, `project.tests_dir` and
      did not re-run is not yours to correct any more than it was yours to
      tick.
   3. **Merge via the CLI** — unless the orchestrator told you the **merge is
-     held** for a concurrent review, in which case stop after step 2 and report
-     **PASS (merge held)**: you have validated the item, the other gate has not
-     reported yet, and the merge waits for both (§9). Do not merge on your own
+     held** for review, in which case stop after step 2 and report **PASS
+     (merge held)**: you have validated the item, and the orchestrator merges
+     once the review's findings are discharged (§9) — after a fix round too,
+     when no reviewer is running beside you. Do not merge on your own
      initiative when you were told it is held — a merge that lands before the
-     review's findings arrive makes them a report rather than a gate. If the
-     suite was red, list its failing tests in that report and say plainly that
-     the later merge's gate decides them: nothing has compared them with the
-     base yet.
+     review's findings are dealt with makes them a report rather than a gate.
+     If the suite was red, list its failing tests in that report and say
+     plainly that the later merge's gate decides them: nothing has compared
+     them with the base yet.
 
      Otherwise: it honours `git.mode` (§4) and lands the item on
      the base its claim recorded, which is the queue branch when the item was
