@@ -21,9 +21,10 @@ each manifest entry's
 and ``condition`` by ``segfacet.synth.perturbation.case_kind`` -- using
 the merged Stage 5 generators (items 036-039): :func:`build_clean_spine`
 (item 036) as the shared base, and the registered operators from item 037
-(``fragment``), item 038 (``remove_level``, ``crop_at_border``), and item
+(``fragment``), item 038 (``remove_level``), and item
 039 (``displace``, ``relabel_swap``, ``sequence_break``), plus ``crop_fov``
-(item 175).
+(item 175; it replaced ``crop_at_border`` as the border case's operator in
+item 212).
 
 Two public surfaces:
 
@@ -254,10 +255,10 @@ CASE_RECIPE: List[_RecipeEntry] = [
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
-    # Item 166 (2026-09-20): mode 3's first corpus case, converse of
-    # fuse_adjacent above. Item 174 (2026-09-23) re-authored it as mode 2
-    # (an over-split): a caudal cap of label 23 (L4) holding 20 % of its voxels
-    # is relabelled 24 (L5). The fraction is written explicitly so a later
+    # Live mode 2 (fused vertebra segments): a caudal cap of label 23 (L4)
+    # holding 20 % of its voxels is relabelled 24 (L5), so label 24 covers all
+    # of L5 plus part of L4. (Item 166, 2026-09-20, first authored it as mode 3;
+    # item 174, 2026-09-23, superseded that.) The fraction is written explicitly so a later
     # change of the operator's default cannot move the committed fixture.
     _RecipeEntry(
         case_id="split",

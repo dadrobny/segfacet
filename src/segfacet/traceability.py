@@ -78,7 +78,7 @@ perturbation operator (:func:`segfacet.synth.perturbation.perturbation_names`),
 whether it is used by >=1 :data:`segfacet.synth.corpus.CASE_RECIPE` entry, or
 recorded unused with an authored reason
 (:data:`UNUSED_OPERATOR_REASONS`, holding only ``crop_at_border`` on this
-tree since item 212, item 172's
+tree since item 212; item 172's
 :func:`operator_reason_conflicts` validates each entry against the live
 registry and ``CASE_RECIPE`` -- an unregistered name or a now-used operator
 is reported as a conflict, not silently read as `""`). Both directions score
@@ -93,7 +93,8 @@ threshold, extractor, verdict, report schema, or CLI behaviour, and
 regenerates neither of item 103's catalogue artifacts. It adds no corpus
 case, attaches no reference to any harness path, edits no ``ModeSpec``, and
 authors no reason a rule's specification edges do not already carry (the
-authored strings are an unused operator's reason, which ships empty, and
+authored strings are an unused operator's reason (one entry, ``crop_at_border``, since item
+212), and
 :data:`UNEXERCISED_RULE_REASONS` (item 193, 2026-09-28), a map of two
 mode-less rules to the reason neither can derive one from an edge it no
 longer carries). The
@@ -211,9 +212,9 @@ EXERCISE_STATES: Tuple[str, ...] = ("exercised", "unexercised")
 OPERATOR_STATES: Tuple[str, ...] = ("used", "unused")
 
 #: The sole authored string in the exercise feature (A4): a deliberately
-#: unused operator's reason. Empty on this tree -- all registered operators
-#: are used, measured 2026-09-18 -- so the recorded branch is reachable and
-#: tested only adversarially. Entries are validated by
+#: unused operator's reason. Holds ``crop_at_border`` since item 212
+#: (2026-10-05), the one registered operator no ``CASE_RECIPE`` entry uses
+#: (it was empty before, all operators used, measured 2026-09-18). Entries are validated by
 #: :func:`operator_reason_conflicts` (item 172): a key absent from
 #: ``perturbation_names()`` or naming an operator ``CASE_RECIPE`` actually
 #: uses is reported as a conflict.
