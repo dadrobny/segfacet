@@ -37,10 +37,12 @@ Design decisions (recorded per item 033 spec):
   (``spline_offset`` fires on it too), and the runner's condition gate would
   otherwise drop this rule's own ordering finding on that label, hiding a
   genuine segmentation defect behind an anatomy condition. The ordering
-  signal is not spoiled by a displacement: it is judged against a reference
-  the centroids' label-free geometric order (item 210), and a swapped label keeps its place
-  in that order unless it moves past a neighbour -- which is exactly what
-  this rule reports.
+  signal is not spoiled by a moderate displacement: it is judged against the
+  centroids' label-free geometric order (item 210), and a swapped label keeps
+  its place in that order unless it moves past a neighbour -- which is exactly
+  what this rule reports. A gross lateral displacement of about twice the
+  level spacing can bend that order and add false pairs on undisplaced
+  neighbours (item 210, Left open b).
 - Item 198 (2026-09-29): the pairs are judged in ``CANONICAL_ORDER`` order
   (the pipeline hands ``compute_monotonic_consistency`` the centroids in
   anatomical order), so a correctly placed T13 or ``Cocc`` no longer reads
@@ -131,7 +133,7 @@ class MislabelRule(Rule):
 
     # This rule opts in to displaced_vertebra (item 191): a mislabelled
     # vertebra can itself read as displaced, and the ordering signal is not
-    # spoiled by the displacement (see module docstring).
+    # spoiled by a moderate displacement (see module docstring).
     condition_opt_ins = (
         ConditionOptIn(
             condition="displaced_vertebra",
@@ -140,7 +142,7 @@ class MislabelRule(Rule):
                 "a mislabelled vertebra can read as displaced "
                 "(spline_offset fires on it too), but the ordering is "
                 "judged against the centroids' label-free geometric order "
-                "(item 210), which a displacement does not spoil"
+                "(item 210), which a moderate displacement does not spoil"
             ),
         ),
     )

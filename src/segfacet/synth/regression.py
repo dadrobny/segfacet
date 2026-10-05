@@ -16,9 +16,8 @@ predicates that dispatch on the case's ``detection`` discriminator (item 040):
   same for the mode-9 relabel-swap case, and item 195 removed the
   ``force_overlap`` case (mode 15) outright, since a single-channel label
   map cannot express it. The path is kept for a future reconstructed case,
-  asserting via the technique item 039 used in its own tests, which since
-  item 210 is the pipeline's own monotonicity check, feeding a reconstructed feature record directly to the designated
-  rule (:class:`~segfacet.heuristics.mislabel.MislabelRule`).
+  asserting by feeding a reconstructed feature record directly to the
+  designated rule (:class:`~segfacet.heuristics.mislabel.MislabelRule`).
 
 This module is a small, importable verification library -- **not** a pytest
 module itself -- so the parametrised suite and any future drift/meta-tests

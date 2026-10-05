@@ -304,9 +304,11 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
             "on the committed corpus; it is not a vertebral coordinate system."
         ),
         "Spacing & Monotonic Consistency": (
-            "Inter-vertebra centroid spacing regularity and whether each "
-            "vertebra's closest-spline-parameter u increases along the "
-            "anatomical order, both derived from the same fitted spline."
+            "Inter-vertebra centroid spacing regularity (from the centroids "
+            "alone) and whether each vertebra's normalised arc-length "
+            "position u on the label-free traversal path through the "
+            "centroids increases along the anatomical order (item 210; no "
+            "spline is read)."
         ),
         "Local Neighbourhood Comparison": (
             "Sliding-window leave-one-out comparison of each vertebra against "

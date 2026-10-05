@@ -742,6 +742,8 @@ To be updated during implementation.
     contradicts. The claim is narrowed to "a moderate displacement" (step 6
     correction).
 
+- **2026-10-05, review finding (minor).** `feature_docs.py`'s "Spacing & Monotonic Consistency" section intro still said `u` came from the fitted spline; reworded (spacing is centroid-only, monotonicity is the label-free path), and `feature_catalogue.generated.json` regenerated (only that file moved; the `.md` does not render the intro).
+
 - **2026-10-05, queue-028 spec review (resolutions accepted by the
   maintainer).**
   - **Medium.** Spline wording survived in user-facing text after the
