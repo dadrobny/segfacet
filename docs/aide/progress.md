@@ -1331,7 +1331,7 @@ justified in writing.
   `match` and `>= 1.0` shapes covered, value defaults let through. *(Item 209)*
 - ✅ **Maintenance** The monotonicity check's reference curve made label-free and
   direction-robust. *(Item 210)*
-- 🚧 **Maintenance** `fused_label` judges the pair of adjacent spacings together.
+- 🔍 **Maintenance** `fused_label` judges the pair of adjacent spacings together.
   *(Item 211)*
 - 📋 **Maintenance** `crop_at_border` re-authored as a true anterior crop. *(Item 212)*
 - 📋 **Maintenance** The Windows CI leg runs a pinned OS-sensitive subset. *(Item 213)*
