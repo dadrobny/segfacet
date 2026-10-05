@@ -5,16 +5,17 @@ Two families of metrics are computed:
 A. **Spacing regularity** — mean inter-centroid spacing, coefficient of
    variation (CV), per-pair signed deviations, and outlier-pair flags.
 
-B. **Monotonic progression** — whether the spline parameter *u* increases
-   (non-decreasingly) at every consecutive pair in anatomical order; the
-   non-monotonic pairs are listed by level name. *u* is measured against a
-   curve fitted through the centroids in their **geometric traversal
-   order** — S coordinate (``centroid_mm[2]``), in the supplied sequence's
-   own net-advance direction (item 132) — not against the curve fitted
-   through the ordering under test, so a pure ordering defect (two adjacent
-   levels swapped) cannot hide behind a curve that simply doubles back to
-   follow it. When the traversal order already is the supplied order, the
-   caller's own fit is reused and no second fit is made.
+B. **Monotonic progression** -- whether the position *u* of each centroid
+   along the spine increases (strictly) at every consecutive pair in the
+   supplied anatomical order; the non-monotonic pairs are listed by level
+   name. Since item 210 (2026-10-05) *u* is the normalised arc length along a
+   **label-free path** through the centroids -- the longest path of their
+   minimum spanning tree, every centroid projected onto its polyline -- walked
+   in whichever direction has fewer rank inversions against the supplied
+   order. The supplied order is the expectation being judged, never an input
+   to the geometry, so a swap cannot hide behind a reference that follows it
+   (item 132's concern) and a curved spine whose S reverses still reads in
+   order. No spline is fitted or searched; ``fit`` is accepted but not read.
 
 Public API
 ----------
@@ -24,20 +25,20 @@ Public API
     Frozen dataclass with monotonic-progression metrics.
 ``compute_spacing_consistency(centroids, outlier_threshold_high=2.0, outlier_threshold_low=0.3) -> SpacingConsistency``
     Compute spacing metrics for an ordered centroid sequence.
-``compute_monotonic_consistency(centroids, fit) -> MonotonicConsistency``
-    Assess monotonicity of anatomical order against the fitted spline.
+``compute_monotonic_consistency(centroids, fit=None) -> MonotonicConsistency``
+    Assess monotonicity of the supplied order against the label-free path.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
 from segfacet.features.centroids import LabelCentroid
-from segfacet.features.spline import SplineFit, find_closest_point, fit_centroid_spline
+from segfacet.features.spline import SplineFit
 
 __all__ = [
     "SpacingConsistency",
@@ -86,23 +87,21 @@ class SpacingConsistency:
 
 @dataclass(frozen=True)
 class MonotonicConsistency:
-    """Monotonic-progression metrics for the spline parameter sequence.
+    """Monotonic-progression metrics for the label-free path position.
 
     Attributes
     ----------
     is_monotonic : bool
-        True iff u values increase (non-decreasingly) along the anatomical
-        order.  ``u[i] >= u[i+1]`` is considered non-monotonic (equal values
-        are also flagged — two vertebrae at the same spline parameter indicate
-        a stacking or near-coincident issue). u is measured against a curve
-        fitted through the centroids in their geometric traversal order
-        (item 132), not against the ordering under test.
+        True iff u increases strictly along the supplied order.
+        ``u[i] >= u[i+1]`` is non-monotonic (equal values are flagged too --
+        two vertebrae at the same path position indicate a stacking or
+        near-coincident issue).
     non_monotonic_pairs : tuple[tuple[str, str], ...]
-        (level_a, level_b) pairs where ``u[a] >= u[b]`` (spline parameter did
-        not advance) on the traversal-ordered reference curve.
+        (level_a, level_b) pairs where ``u[a] >= u[b]`` (position along the
+        label-free path did not advance).
     u_values : tuple[float, ...]
-        Per-centroid spline parameter values, each the closest_u on the
-        traversal-ordered reference curve (length == n_centroids).
+        Per-centroid normalised arc length in ``[0, 1]`` along the MST longest
+        path (item 210), length == n_centroids.
     """
 
     is_monotonic: bool
@@ -122,25 +121,97 @@ def _euclidean_mm(a: LabelCentroid, b: LabelCentroid) -> float:
     return math.sqrt((bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2)
 
 
-def _traversal_order(centroids: Sequence[LabelCentroid]) -> List[int]:
-    """Return the index permutation that sorts ``centroids`` by their S
-    coordinate (``centroid_mm[2]``) in the sequence's own net-advance
-    direction (item 132).
+def _tree_walk(adj: List[List[Tuple[int, float]]], src: int):
+    """Return (distance-from-src, parent) over the tree ``adj``."""
+    n = len(adj)
+    dist = [0.0] * n
+    parent = [-1] * n
+    seen = [False] * n
+    seen[src] = True
+    stack = [src]
+    while stack:
+        v = stack.pop()
+        for w, d in adj[v]:
+            if not seen[w]:
+                seen[w] = True
+                dist[w] = dist[v] + d
+                parent[w] = v
+                stack.append(w)
+    return dist, parent
 
-    Direction follows the same convention item 122's ``orientation.py``
-    already uses to decide a sequence's net travel: the sort descends when
-    ``centroids[-1].centroid_mm[2] - centroids[0].centroid_mm[2] < 0``
-    (strictly caudal net advance) and ascends otherwise, including an exact
-    zero net advance. ``sorted`` is stable, so centroids sharing an identical
-    S coordinate keep their input order (AC11).
+
+def _inversions(order: List[int]) -> int:
+    n = len(order)
+    return sum(1 for a in range(n) for b in range(a + 1, n) if order[a] > order[b])
+
+
+def _path_positions(centroids: Sequence[LabelCentroid]) -> List[float]:
+    """Per-centroid ``u`` in [0, 1] along the label-free path (item 210).
+
+    MST by Prim on the dense distance matrix (start at index 0, lowest index
+    on ties; not scipy's csgraph, which reads a zero distance as no edge),
+    longest path by double sweep, each centroid projected onto the path's
+    polyline, ``u = s / L``, direction chosen by fewer rank inversions against
+    the supplied order (a tie keeps forward). Reads only ``centroid_mm``.
+
+    ponytail: gross lateral displacement of about twice the level pitch can
+    make the longest path run along the displaced spur (item 210 Left open b).
+    Candidate fix: drop centroids flagged ``displaced_vertebra`` before
+    building the tree.
     """
     n = len(centroids)
-    net_advance_s = float(centroids[-1].centroid_mm[2]) - float(centroids[0].centroid_mm[2])
-    return sorted(
-        range(n),
-        key=lambda i: float(centroids[i].centroid_mm[2]),
-        reverse=(net_advance_s < 0.0),
-    )
+    pts = np.array([[float(v) for v in c.centroid_mm[:3]] for c in centroids])
+    dmat = np.linalg.norm(pts[:, None, :] - pts[None, :, :], axis=2)
+
+    key = dmat[0].copy()
+    parent_of = [0] * n
+    in_tree = np.zeros(n, dtype=bool)
+    in_tree[0] = True
+    adj: List[List[Tuple[int, float]]] = [[] for _ in range(n)]
+    for _ in range(n - 1):
+        masked = np.where(in_tree, np.inf, key)
+        v = int(np.argmin(masked))
+        p = parent_of[v]
+        adj[v].append((p, float(dmat[v, p])))
+        adj[p].append((v, float(dmat[v, p])))
+        in_tree[v] = True
+        closer = (~in_tree) & (dmat[v] < key)
+        for w in np.nonzero(closer)[0]:
+            key[w] = dmat[v, w]
+            parent_of[int(w)] = v
+
+    d0, _ = _tree_walk(adj, 0)
+    e1 = int(np.argmax(d0))
+    d1, par = _tree_walk(adj, e1)
+    e2 = int(np.argmax(d1))
+    path = [e2]
+    while path[-1] != e1:
+        path.append(par[path[-1]])
+
+    seg_len = [float(dmat[path[k], path[k + 1]]) for k in range(len(path) - 1)]
+    total = float(sum(seg_len))
+    if total == 0.0:
+        return [0.0] * n
+    cum = [0.0]
+    for sl in seg_len:
+        cum.append(cum[-1] + sl)
+
+    s: List[float] = []
+    for i in range(n):
+        best_d, best_s = math.inf, 0.0
+        for k, sl in enumerate(seg_len):
+            a, b = pts[path[k]], pts[path[k + 1]]
+            t = 0.0 if sl == 0.0 else min(1.0, max(0.0, float(np.dot(pts[i] - a, b - a)) / (sl * sl)))
+            d = float(np.linalg.norm(pts[i] - (a + t * (b - a))))
+            if d < best_d:
+                best_d, best_s = d, cum[k] + t * sl
+        s.append(best_s)
+
+    fwd = sorted(range(n), key=lambda i: (s[i], i))
+    bwd = sorted(range(n), key=lambda i: (-s[i], i))
+    if _inversions(bwd) < _inversions(fwd):
+        return [1.0 - v / total for v in s]
+    return [v / total for v in s]
 
 
 # --------------------------------------------------------------------------- #
@@ -219,29 +290,18 @@ def compute_spacing_consistency(
 
 def compute_monotonic_consistency(
     centroids: Sequence[LabelCentroid],
-    fit: SplineFit,
+    fit: Optional[SplineFit] = None,
 ) -> MonotonicConsistency:
-    """Assess whether the anatomical order is consistent with monotonically
-    increasing spline parameter values.
+    """Assess whether the supplied order advances along the label-free path.
 
-    *u* is measured against a **reference curve** fitted through the
-    centroids in their geometric traversal order (item 132) — sorted by S
-    coordinate in the supplied sequence's own net-advance direction, see
-    :func:`_traversal_order` — rather than against the curve fitted through
-    the ordering under test. Judging against the in-sample curve alone is
-    self-referential: ``splprep``'s chord-length parameterisation advances
-    along whatever order it is given, so a curve fitted through a swapped
-    ordering simply doubles back and follows the swap, and *u* still
-    increases. When the traversal order already is the supplied order (every
-    clean case), the caller's own ``fit`` is used unchanged and no second fit
-    is made; when it differs, one reference curve is fit from the reordered
-    centroids, inheriting ``fit``'s own ``degree`` and ``smoothing``.
-
-    For each centroid, finds its closest point on the reference curve via
-    :func:`segfacet.features.spline.find_closest_point` (item 130's shared
-    coarse-scan-then-refine search) and records the spline parameter *u*.
-    The anatomical order is consistent with the spline when
-    ``u[i] < u[i+1]`` for every consecutive pair.
+    Since item 210 (2026-10-05) *u* is the normalised arc length along the
+    longest path of the centroids' minimum spanning tree (see
+    :func:`_path_positions`), directed to have fewer rank inversions against
+    the supplied order. The supplied (anatomical) order is judged directly
+    against *u*: ``u[i] < u[i+1]`` must hold for every consecutive pair. No
+    spline is fitted or searched. (Item 132 had judged against a
+    traversal-ordered spline; item 130's closest-point search is no longer
+    used here.)
 
     Parameters
     ----------
@@ -249,7 +309,7 @@ def compute_monotonic_consistency(
         Ordered (head-to-tail anatomical order) sequence of LabelCentroid
         objects.  Must have >= 2 entries; raises ValueError for 0 or 1 centroid.
     fit:
-        SplineFit produced by fit_centroid_spline (item 017).
+        Accepted for call-site compatibility; never read (item 210).
 
     Returns
     -------
@@ -268,30 +328,7 @@ def compute_monotonic_consistency(
             f"Supply at least 2 LabelCentroid objects."
         )
 
-    # Pick the reference curve: the supplied fit when the traversal order
-    # already is the supplied order (no second fit), otherwise a fresh fit
-    # over the reordered centroids inheriting the supplied fit's degree and
-    # smoothing (item 132).
-    order = _traversal_order(centroids)
-    if order == list(range(n)):
-        reference_fit = fit
-    else:
-        reference_fit = fit_centroid_spline(
-            [centroids[i] for i in order],
-            degree=fit.degree,
-            smoothing=fit.smoothing,
-        )
-
-    # Find the closest spline parameter u* for each centroid on the
-    # reference curve.
-    u_values: List[float] = []
-    for c in centroids:
-        pt = np.array(
-            [float(c.centroid_mm[0]), float(c.centroid_mm[1]), float(c.centroid_mm[2])],
-            dtype=np.float64,
-        )
-        u_star = find_closest_point(pt, reference_fit).closest_u
-        u_values.append(u_star)
+    u_values: List[float] = _path_positions(centroids)
 
     # Identify non-monotonic consecutive pairs: u[i] >= u[i+1].
     non_monotonic_pairs: List[Tuple[str, str]] = []

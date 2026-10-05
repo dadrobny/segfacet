@@ -16,9 +16,8 @@ predicates that dispatch on the case's ``detection`` discriminator (item 040):
   same for the mode-9 relabel-swap case, and item 195 removed the
   ``force_overlap`` case (mode 15) outright, since a single-channel label
   map cannot express it. The path is kept for a future reconstructed case,
-  asserting via the same reconstruction technique item 039 used in its own
-  tests, feeding a reconstructed feature record directly to the designated
-  rule (:class:`~segfacet.heuristics.mislabel.MislabelRule`).
+  asserting by feeding a reconstructed feature record directly to the
+  designated rule (:class:`~segfacet.heuristics.mislabel.MislabelRule`).
 
 This module is a small, importable verification library -- **not** a pytest
 module itself -- so the parametrised suite and any future drift/meta-tests
@@ -46,16 +45,11 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import nibabel as nib
-import numpy as np
 
 from segfacet.config import bundled_default_config
-from segfacet.features.centroids import compute_centroid
-from segfacet.features.consistency import compute_monotonic_consistency
-from segfacet.features.spline import fit_centroid_spline
 from segfacet.heuristics.mislabel import MislabelRule
 from segfacet.io import load_case
 from segfacet.pipeline import extract_feature_record, run_qc, run_qc_with_intensity
-from segfacet.synth.axes import si_axis
 from segfacet.synth.corpus import CORPUS_DIR
 from segfacet.synth.intensity import INTENSITY_CORPUS_DIR
 from segfacet.synth.perturbation import CASE_KIND_CLEAN_CONTROL, corpus_case_kind
@@ -193,31 +187,12 @@ def intensity_pipeline_findings(
 
 
 def _recon_monotonic_true_spatial_order(case: dict, config) -> List:
-    """Mode 4 (``relabel_swap``): fit the spline through the perturbed
-    centroids ordered by TRUE spatial (stacking-axis voxel) position, assess
-    the ascending-label centroid sequence's monotonicity against that fit,
-    overwrite the record's ``monotonic_consistency`` accordingly, and feed
-    the record to :class:`MislabelRule`. The stacking axis is resolved from
-    the volume's own affine (item 116, via
-    :func:`segfacet.synth.axes.si_axis`), not a hardcoded index."""
-    seg_img = loaded_seg_image(case)
-
-    data = np.asanyarray(seg_img.dataobj)
-    present = sorted(int(v) for v in np.unique(data) if v != 0)
-    ascending_centroids = [compute_centroid(seg_img, label) for label in present]
-    stacking_axis = si_axis(seg_img.affine)
-    spatial_centroids = sorted(
-        ascending_centroids, key=lambda c: c.centroid_voxel[stacking_axis]
-    )
-    fit = fit_centroid_spline(spatial_centroids)
-    mono = compute_monotonic_consistency(ascending_centroids, fit)
-
-    record = extract_feature_record(seg_img, config)
-    record["stage3"]["monotonic_consistency"]["non_monotonic_pairs"] = [
-        list(pair) for pair in mono.non_monotonic_pairs
-    ]
-    record["stage3"]["monotonic_consistency"]["is_monotonic"] = False
-
+    """Mode 4 (``relabel_swap``): evaluate :class:`MislabelRule` on the record
+    :func:`segfacet.pipeline.extract_feature_record` builds (item 210,
+    2026-10-05). The monotonicity check is itself label-free now, so the
+    technique once reconstructed here is the pipeline's own and the two
+    paths cannot disagree."""
+    record = extract_feature_record(loaded_seg_image(case), config)
     return MislabelRule().evaluate(record, config)
 
 

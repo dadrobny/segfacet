@@ -434,7 +434,11 @@ def test_ac10_no_specification_mode_carries_the_case():
         assert "crop_at_border" not in {c.case_id for c in mode.corpus_cases}, mode.id
 
 
-def test_ac11_crop_at_border_touches_anterior_and_offset_exceeds_threshold():
+def test_ac11_crop_at_border_touches_anterior_and_offset_within_threshold():
+    """Item 212 (2026-10-05): was
+    ``test_ac11_crop_at_border_touches_anterior_and_offset_exceeds_threshold``.
+    The case is a true anterior crop, not a translation, so label 22's
+    interior offset is within the threshold."""
     record = _record("crop_at_border")
     assert record["per_label"]["22"]["geometry"]["touches_anterior"] is True
 
@@ -442,7 +446,7 @@ def test_ac11_crop_at_border_touches_anterior_and_offset_exceeds_threshold():
     assert offset_entry["is_terminal"] is False
 
     threshold = _max_offset_mm()
-    assert offset_entry["offset_mm"] > threshold, (offset_entry["offset_mm"], threshold)
+    assert offset_entry["offset_mm"] <= threshold, (offset_entry["offset_mm"], threshold)
 
 
 def test_ac11_clean_control_does_not_touch_anterior():

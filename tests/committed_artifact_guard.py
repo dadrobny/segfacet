@@ -180,7 +180,7 @@ ALLOWLIST: Tuple[AllowlistEntry, ...] = (
     AllowlistEntry(
         path="tests/corpus/094_pre_migration_snapshot.json",
         ground="exact-parameter-floats",
-        reason="323 float leaves, all affine/spacing components that are "
+        reason="342 float leaves, all affine/spacing components that are "
         "exact binary values; the array payloads are carried as digests, "
         "not floats.",
     ),

@@ -729,15 +729,14 @@ _PRE_129_FINDINGS = {
     # spline_offset.
     # Item 191 (2026-09-28): the runner gates spline_offset's finding on the
     # touching label -- it does not opt in to fov_truncation.
-    "crop_at_border": {("border", (22,))},
+    # Item 212 (2026-10-05): the case is a true anterior crop whose one-slice
+    # cut reaches labels 20, 21 and 22, so border fires on all three.
+    "crop_at_border": {("border", (20,)), ("border", (21,)), ("border", (22,))},
     # 2026-09-29 (item 198): mislabel's ordering detector now judges in
     # CANONICAL_ORDER order and fires on the lumbar pairs beside T13's shift.
-    "sequence_break": {
-        ("mislabel", (20, 21)),
-        ("mislabel", (21, 22)),
-        ("mislabel", (22, 23)),
-        ("sequence", (28,)),
-    },
+    # 2026-10-05 (item 210): the label-free order names the misplaced level,
+    # so the three lumbar findings become one, on (20, 28).
+    "sequence_break": {("mislabel", (20, 28)), ("sequence", (28,))},
     # "force_overlap" key dropped by item 195, 2026-09-28: the case was
     # removed.
 }

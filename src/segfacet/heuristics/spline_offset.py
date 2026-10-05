@@ -82,13 +82,12 @@ a freshly built `extract_feature_record`, all on **interior** entries only,
 re-measured 2026-09-28 against the lordotic base fixture, item 189):
 - `relabel_swap`'s largest interior reading (label 23 / L4) is
   `5.624555` mm and must **not** fire -- the non-firing ceiling.
-- `crop_at_border`'s label-22 reading is `18.025609` mm, and this rule's own
-  `evaluate` **fires** on it -- so ``_DEFAULT_MAX_OFFSET_MM`` sits in
-  `(5.624555, 18.025609]` (`13.0` qualifies). The runner's `fov_truncation`
-  gate (item 191) then drops that finding end-to-end, because label 22 also
-  touches the image border and this rule does not opt in to that condition;
-  the margin itself is a property of `evaluate`, not of the gate, so it is
-  still measured against the rule's own output.
+- `crop_at_border`'s label-22 reading is `0.226480` mm, a non-firing interior
+  reading (item 212, 2026-10-05: the case is now a true anterior volume crop,
+  not the translation whose `18.025609` mm reading used to fire here). It no
+  longer bounds the threshold, so ``_DEFAULT_MAX_OFFSET_MM``'s upper bound
+  rests on `displace`'s reading alone. The non-firing ceiling above does not
+  move.
 - `displace`'s label-22 reading is `14.615923` mm and **must** fire --
   1.62 mm above the threshold (item 177's lateral form lowered it from item
   173's 17.615126).

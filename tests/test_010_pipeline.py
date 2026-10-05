@@ -255,6 +255,10 @@ def test_ac13_populated_fixture_json_verdict_is_pass(labelled_blocks_files, tmp_
     ``reference_delta`` findings against the real verse-v1 bands, so
     ``--no-reference`` is passed to keep this test isolated to the
     ``bounds``/``border`` wiring it is actually validating.
+
+    Item 210 (2026-10-05): C1 sits between C2 and C3 along the label-free path
+    through the placeholder centroids, so ``mislabel`` ``ordering`` correctly
+    fires on (C1, C2) alongside the ``bounds`` findings.
     """
     scan_path, seg_path = labelled_blocks_files
     out_dir = tmp_path / "out"
@@ -269,7 +273,8 @@ def test_ac13_populated_fixture_json_verdict_is_pass(labelled_blocks_files, tmp_
         f"placeholder cubes), got {data['verdict']!r}"
     )
     assert data["findings"], "Expected non-empty findings for the out-of-bounds fixture"
-    assert all(f["rule_id"] == "bounds" for f in data["findings"])
+    assert any(f["rule_id"] == "bounds" for f in data["findings"])
+    assert [(f["rule_id"], f["detector_id"], f["labels"]) for f in data["findings"] if f["rule_id"] != "bounds"] == [("mislabel", "ordering", [1, 2])]
 
 
 def test_ac13_populated_fixture_exits_zero(labelled_blocks_files, tmp_path, capsys):

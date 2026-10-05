@@ -835,13 +835,17 @@ def test_ac16_docstring_records_the_margins_and_the_artifact_name():
     ``segfacet.heuristics.spline_offset``. The margins are re-measured on
     the current corpus (spec A6): relabel_swap's non-firing ceiling is now
     5.624555 mm, crop_at_border's firing reading is 18.025609 mm, and
-    displace's firing reading is 14.615923 mm."""
+    displace's firing reading is 14.615923 mm.
+
+    Item 212 (2026-10-05): crop_at_border is a true anterior crop, so its
+    18.025609 mm reading is gone; the docstring records label 22's
+    non-firing interior reading, 0.226480 mm, instead."""
     import segfacet.heuristics.spline_offset as spline_offset_mod
     from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     doc = spline_offset_mod.__doc__ or ""
     assert "reference_verse_v1.json" in doc
-    for literal in ("5.624555", "18.025609", "14.615923"):
+    for literal in ("5.624555", "0.226480", "14.615923"):
         assert literal in doc, f"expected margin {literal!r} recorded in the module docstring"
     assert f"{_DEFAULT_MAX_OFFSET_MM}" in doc or f"{_DEFAULT_MAX_OFFSET_MM:.1f}" in doc
 

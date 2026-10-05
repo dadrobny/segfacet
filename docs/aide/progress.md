@@ -55,7 +55,7 @@
 | 24    | *(placeholder)* Failure-Mode Discovery & Typed Reference Set          | G8              | 📋     |
 | 25    | *(placeholder)* Segmenter-Native Perturbations                        | G2              | 📋     |
 | 26    | Carried-Defect Remediation (pre-real-data)*(runs next)*               | G2, G7          | ✅     |
-| 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | 📋     |
+| 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | 🚧     |
 | 28    | Spinal Curve Model: Formulation, Offset & Orientation                   | G2, G7          | ✅     |
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
@@ -1306,7 +1306,7 @@ discovery.
 
 ---
 
-## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8) — 📋
+## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8) — 🚧
 
 **Goal.** Give the feature record a deliberately designed structure instead of the current
 grouping by *which extractor module happened to compute a field* — the single recurring
@@ -1319,14 +1319,23 @@ justified in writing.
 
 - 📋 The taxonomy, written down with rationale, alternatives considered, and every deviation
   from the starting proposal justified — reviewed with the maintainer before migration (a
-  human-checkpoint stage in the same sense Stage 19 was).
+  human-checkpoint stage in the same sense Stage 19 was). *(Item 214)*
 - 📋 The migration applied, the feature catalogue
   (`docs/aide/feature_catalogue.generated.md`) regenerated, its drift test
-  (`tests/test_104_feature_catalogue_drift.py`) as the safety net.
+  (`tests/test_104_feature_catalogue_drift.py`) as the safety net. *(Items 215, 216)*
 - 📋 Answers for the known instances: duplicated `label`/`level_name` identity fields across
   four containers; `stage3.*` / `image_features.*` parallel to `per_label.{label}.*`;
   image-axis-relative shape features (bbox/extent, `principal_axis`) awaiting a vertebra
-  coordinate system; reference-delta hardcoded to `physical_volume_mm3`.
+  coordinate system; reference-delta hardcoded to `physical_volume_mm3`. *(Item 214)*
+- ✅ **Maintenance** `test_155`'s tracked-shape scan: nested scopes reported once, walrus,
+  `match` and `>= 1.0` shapes covered, value defaults let through. *(Item 209)*
+- ✅ **Maintenance** The monotonicity check's reference curve made label-free and
+  direction-robust. *(Item 210)*
+- ✅ **Maintenance** `fused_label` judges the pair of adjacent spacings together.
+  *(Item 211)*
+- ✅ **Maintenance** `crop_at_border` re-authored as a true anterior crop. *(Item 212)*
+- ✅ **Maintenance** The Windows CI leg runs a pinned OS-sensitive subset. *(Item 213)*
+- 📋 Stage validation from a clean clone. *(Item 217)*
 
 **Acceptance.**
 

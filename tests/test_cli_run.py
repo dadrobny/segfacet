@@ -126,6 +126,10 @@ def test_run_json_inventory_matches_fixture(labelled_blocks_files, tmp_path, cap
     ``reference_delta`` findings against the real verse-v1 bands, so
     ``--no-reference`` keeps this test isolated to the inventory/bounds
     wiring it actually validates.
+
+    Item 210 (2026-10-05): C1 sits between C2 and C3 along the label-free path
+    through the placeholder centroids, so ``mislabel`` ``ordering`` correctly
+    fires on (C1, C2) alongside the ``bounds`` findings.
     """
     scan_path, seg_path = labelled_blocks_files
     out_dir = tmp_path / "out"
@@ -140,7 +144,8 @@ def test_run_json_inventory_matches_fixture(labelled_blocks_files, tmp_path, cap
     # tiny placeholder cubes fall outside the anatomical bounds -> flagged
     assert data["verdict"] == "flagged-for-review"
     assert data["findings"]
-    assert all(f["rule_id"] == "bounds" for f in data["findings"])
+    assert any(f["rule_id"] == "bounds" for f in data["findings"])
+    assert [(f["rule_id"], f["detector_id"], f["labels"]) for f in data["findings"] if f["rule_id"] != "bounds"] == [("mislabel", "ordering", [1, 2])]
     # case_id is derived from the scan filename 'scan.nii.gz' -> 'scan'
     assert data["case_id"] == "scan"
     # per_label is a dict (may be empty at Stage 1; what matters is the type)

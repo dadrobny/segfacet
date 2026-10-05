@@ -1,5 +1,6 @@
 <!-- aide-template: queue 1 -->
 # FACET — Work Queue 027
+> **Status:** ✅ Completed — superseded by queue-028 (2026-10-03).
 
 > **Created:** 2026-09-29
 > Step 4 of the AIDE loop · derived from [`../vision.md`](../vision.md),

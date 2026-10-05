@@ -21,8 +21,10 @@ each manifest entry's
 and ``condition`` by ``segfacet.synth.perturbation.case_kind`` -- using
 the merged Stage 5 generators (items 036-039): :func:`build_clean_spine`
 (item 036) as the shared base, and the registered operators from item 037
-(``fragment``), item 038 (``remove_level``, ``crop_at_border``), and item
-039 (``displace``, ``relabel_swap``, ``sequence_break``).
+(``fragment``), item 038 (``remove_level``), and item
+039 (``displace``, ``relabel_swap``, ``sequence_break``), plus ``crop_fov``
+(item 175; it replaced ``crop_at_border`` as the border case's operator in
+item 212).
 
 Two public surfaces:
 
@@ -135,8 +137,9 @@ RENAMED_CASE_IDS: Dict[str, str] = {
 #: Name of the shared base-scan fixture (every case derives from the same
 #: default clean spine; a case on the base grid shares this scan -- see the
 #: item 040 spec's "all nine canonical cases share one base scan"
-#: Assumption). A case on a different grid (item 175's ``crop_fov_si``, a
-#: volume crop) carries its own ``<case_id>_scan.nii.gz``: the base scan cut
+#: Assumption). A case on a different grid (item 175's ``crop_fov_si`` and
+#: item 212's ``crop_at_border``, both volume crops) carries its own
+#: ``<case_id>_scan.nii.gz``: the base scan cut
 #: to its grid by :func:`crop_to_grid`.
 _BASE_SCAN_FIXTURE_NAME: str = "base_scan.nii.gz"
 
@@ -210,21 +213,20 @@ CASE_RECIPE: List[_RecipeEntry] = [
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
-    # A translation, not a crop (item 175 D2 kept it so): label 22 is moved
-    # margin + 5 voxels toward the anterior face and the overhang clipped, so
-    # its interior spline offset reads 18.0 mm (over the 13.0 mm threshold)
-    # and `spline_offset` fires on the raw record. The runner's condition
-    # gate (item 191) drops that finding because label 22 touches a face
-    # (`fov_truncation`) and `spline_offset` opts in to no condition -- a
-    # truncated label's centroid is displaced by the cut, so it is never also
-    # judged displaced. That is why the manifest expects `border` alone.
-    # Measured 2026-10-03. The maintainer's 2026-10-03 direction is to
-    # re-author this case as a true anterior volume crop (`crop_fov`,
-    # cut deep enough to reach the body); open in insights.md that date.
+    # Item 212 (2026-10-05): a true anterior volume crop (`crop_fov`) at the
+    # shallowest whole-slice depth that reaches label 22 (one slice of it).
+    # On the lordotic base the cut also reaches labels 20 and 21, so `border`
+    # fires on all three. The case is on its own grid, with its own scan.
+    # `removed_fraction` is written explicitly so a later default change
+    # cannot move the fixture.
     _RecipeEntry(
         case_id="crop_at_border",
-        perturbation="crop_at_border",
-        perturbation_params={"target_label": 22, "face": "anterior"},
+        perturbation="crop_fov",
+        perturbation_params={
+            "target_label": 22,
+            "face": "anterior",
+            "removed_fraction": 0.005,
+        },
         detection="pipeline",
     ),
     _RecipeEntry(
@@ -253,10 +255,10 @@ CASE_RECIPE: List[_RecipeEntry] = [
         perturbation_params={"target_label": 22},
         detection="pipeline",
     ),
-    # Item 166 (2026-09-20): mode 3's first corpus case, converse of
-    # fuse_adjacent above. Item 174 (2026-09-23) re-authored it as mode 3
-    # sub-type (a): a caudal cap of label 23 (L4) holding 20 % of its voxels
-    # is relabelled 24 (L5). The fraction is written explicitly so a later
+    # Live mode 2 (fused vertebra segments): a caudal cap of label 23 (L4)
+    # holding 20 % of its voxels is relabelled 24 (L5), so label 24 covers all
+    # of L5 plus part of L4. (Item 166, 2026-09-20, first authored it as mode 3;
+    # item 174, 2026-09-23, superseded that.) The fraction is written explicitly so a later
     # change of the operator's default cannot move the committed fixture.
     _RecipeEntry(
         case_id="split",
@@ -268,7 +270,7 @@ CASE_RECIPE: List[_RecipeEntry] = [
         },
         detection="pipeline",
     ),
-    # Item 174 (2026-09-23): mode 3 sub-type (b) -- the same cap under a
+    # Item 174 (2026-09-23): mode 3 -- the same cap under a
     # label of its own (23), with every cranial label shifted up one level.
     _RecipeEntry(
         case_id="split_own_label",

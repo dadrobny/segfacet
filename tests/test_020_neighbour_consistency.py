@@ -384,22 +384,14 @@ def test_ac4_non_monotonic_pairs_contain_string_tuples():
         assert isinstance(pair[1], str), f"Expected str, got {type(pair[1])}"
 
 
-def test_ac4_reversed_sequence_all_non_monotonic():
-    """AC4: A fully-reversed centroid sequence results in is_monotonic False."""
+def test_ac4_full_reversal_reads_in_order():
+    """AC4: item 210 (2026-10-05) -- the check takes the direction with fewer
+    inversions, so a fully-reversed sequence reads in order."""
     centroids = _uniform_spine(5, spacing_mm=10.0)
     reversed_centroids = list(reversed(centroids))
     fit = _fit(centroids)
     result = compute_monotonic_consistency(reversed_centroids, fit)
-    assert result.is_monotonic is False
-
-
-def test_ac4_reversed_sequence_has_non_monotonic_pairs():
-    """AC4: A fully-reversed sequence has multiple non-monotonic pairs."""
-    centroids = _uniform_spine(5, spacing_mm=10.0)
-    reversed_centroids = list(reversed(centroids))
-    fit = _fit(centroids)
-    result = compute_monotonic_consistency(reversed_centroids, fit)
-    assert len(result.non_monotonic_pairs) >= 1
+    assert result.non_monotonic_pairs == ()
 
 
 def test_ac4_swapped_middle_pair_curved_spine():

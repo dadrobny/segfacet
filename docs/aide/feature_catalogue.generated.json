@@ -4871,14 +4871,14 @@
     {
       "entries": [
         {
-          "computation": "False as soon as u[i] >= u[i+1] anywhere in the ordered sequence, measured against a curve fitted through the centroids in traversal order (item 132).",
+          "computation": "False as soon as u[i] >= u[i+1] anywhere in the ordered sequence, where u is the normalised arc length along the label-free traversal path through the centroids (item 210).",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [
             8
           ],
-          "measures": "Whether every vertebra's closest-spline-parameter u increases along the anatomical order.",
+          "measures": "Whether every vertebra's normalised arc-length position u along the label-free path through the centroids increases along the anatomical order.",
           "mode_evidence": [
             "per_mode_metric"
           ],
@@ -4923,7 +4923,7 @@
           "units": ""
         },
         {
-          "computation": "Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the traversal-ordered reference curve (item 132); equal u values count as a violation too.",
+          "computation": "Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the label-free traversal path through the centroids (item 210); equal u values count as a violation too.",
           "consumers": [],
           "consuming_rules": [
             "mislabel"
@@ -4932,7 +4932,7 @@
           "failure_modes": [
             9
           ],
-          "measures": "Level-name pairs whose spline parameter does not advance.",
+          "measures": "Level-name pairs whose position along the label-free path does not advance.",
           "mode_evidence": [
             "rule_mode_map",
             "rule_declaration"
@@ -4992,12 +4992,12 @@
           "units": ""
         },
         {
-          "computation": "The closest_u value computed for every vertebra against a curve fitted through the centroids in traversal order (item 132), not the order under test.",
+          "computation": "The arc length of every vertebra's closest point on the longest path of the centroids' minimum spanning tree (the traversal path), divided by the path length and directed to have fewer inversions against the supplied order (item 210); not the order under test.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Each vertebra's closest-spline-parameter u, in CANONICAL_ORDER order.",
+          "measures": "Each vertebra's normalised arc-length position u along the label-free path through the centroids, in CANONICAL_ORDER order.",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {
@@ -5005,8 +5005,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.999999,
-              "maximum": 0.999999,
+              "magnitude": 1.0,
+              "maximum": 1.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5016,7 +5016,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.999999
+              "span": 1.0
             },
             "numeric": true,
             "reference": {
@@ -5301,7 +5301,7 @@
           "units": "mm"
         }
       ],
-      "intro": "Inter-vertebra centroid spacing regularity and whether each vertebra's closest-spline-parameter u increases along the anatomical order, both derived from the same fitted spline.",
+      "intro": "Inter-vertebra centroid spacing regularity (from the centroids alone) and whether each vertebra's normalised arc-length position u on the label-free traversal path through the centroids increases along the anatomical order (item 210; no spline is read).",
       "module": "segfacet.features.consistency",
       "stage": "Stage 3 · item 020",
       "title": "Spacing & Monotonic Consistency"

@@ -16,8 +16,12 @@ Design decisions (item 207 spec, A1-A6):
   is computed in (``spacings_mm[i]`` lies between the i-th and (i+1)-th
   label). The larger neighbour, not the mean, so a label beside an
   undersized cap does not read large.
-- **spacing_ratio (A2)**: the *smaller* of the spacings adjacent to the
-  label, divided by the median of the case's spacings not adjacent to it.
+- **spacing_ratio (A2, item 211)**: the *mean* of the spacings adjacent to
+  the label, divided by the median of the case's spacings not adjacent to
+  it. The pair is judged together because a fused label adds about one
+  pitch to the pair's sum however its centroid splits it between the two
+  sides (``min`` missed a centroid on one body). An end label has one
+  spacing, so its reading is unchanged.
 - **End labels (A3)** are judged on their one neighbour and one spacing. A
   label with no non-adjacent spacing to form a baseline is not judged.
 - **Sacral and coccygeal labels (A4)** are never candidates (they still
@@ -26,14 +30,18 @@ Design decisions (item 207 spec, A1-A6):
   corpora only (Stage 21 re-calibrates on real data). No active
   ``rules.fused_label`` section in ``default_config.yaml``: it would move
   ``config_hash`` in every report.
-- **Measured (A7, 2026-09-30)**: fires on ``fuse_adjacent`` label 22 (size
-  2.3248, spacing 1.4782) and ``fuse_separate`` label 22 (2.0016, 1.4768)
-  only. Highest silent readings: size 4.8000 (``split_own_label`` label 24,
-  spacing 0.8885), 1.5263 (``split``, spacing 1.0512); spacing 1.7915
-  (``relabel_swap`` label 20, size 1.0).
+- **Measured (A7, 2026-09-30; spacing re-measured as the mean, item 211,
+  2026-10-05)**: fires on ``fuse_adjacent`` label 22 (size 2.3248, spacing
+  1.5380) and ``fuse_separate`` label 22 (2.0016, 1.5371) only. Highest
+  silent readings: size 4.8000 (``split_own_label`` label 24, spacing
+  0.8885), 1.5263 (``split``, spacing 1.0512); spacing 1.7915
+  (``relabel_swap`` label 20, size 1.0). Interior labels beside a missed
+  level now pass the spacing gate (``remove_level_relabel`` label 22, mean
+  1.5408) and only the size gate (0.9984) keeps them silent.
 - Absence-tolerant: a record without ``stage3.spacing_consistency.
   spacings_mm``, with a spacing count other than ``len(per_label) - 1``, or
-  with a label lacking a numeric volume is not judged (returns ``[]``).
+  with a label lacking a numeric volume, or with a non-integer ``per_label``
+  key (item 211) is not judged (returns ``[]``).
 - Unrecognised severity raises ``ValueError`` before any work. The record is
   never mutated.
 
@@ -70,7 +78,8 @@ which is why the spacing gate is also needed. Synthetic corpora only."""
 DEFAULT_SPACING_RATIO: float = 1.25
 """Fire when spacing_ratio strictly exceeds this value (item 207). The
 midpoint between normal spacing (1.0) and a fused label's reading (1.5).
-Measured 2026-09-30: fires at 1.4782 and 1.4768; the highest silent reading
+Measured 2026-10-05 (mean of the adjacent spacings, item 211): fires at
+1.5380 and 1.5371; the highest silent reading
 beside a spacing-only label is 1.7915 (relabel_swap label 20, size 1.0).
 Synthetic corpora only."""
 
@@ -103,7 +112,7 @@ class FusedLabelRule(Rule):
     """Fused-label rule (item 207), serving mode 2 (fused vertebra segments).
 
     Emits one ``Finding`` per label whose volume exceeds its larger adjacent
-    label's by more than ``size_ratio_threshold`` and whose smaller adjacent
+    label's by more than ``size_ratio_threshold`` and whose mean adjacent
     spacing exceeds the median non-adjacent spacing by more than
     ``spacing_ratio_threshold``.
     """
@@ -117,7 +126,7 @@ class FusedLabelRule(Rule):
             "tests/corpus/manifest.json's fuse_adjacent and fuse_separate "
             "designate this rule for mode 2 (fused vertebra segments); item "
             "207 (2026-09-30). Measured: label 22 reads size 2.3248 / "
-            "spacing 1.4782 on fuse_adjacent and 2.0016 / 1.4768 on "
+            "spacing 1.5380 on fuse_adjacent and 2.0016 / 1.5371 on "
             "fuse_separate, against thresholds 1.5 / 1.25; every other "
             "case in both corpora is silent.",
         ),
@@ -200,7 +209,10 @@ class FusedLabelRule(Rule):
         per_label = record.get("per_label", {})
         if not isinstance(per_label, dict) or len(spacings) != len(per_label) - 1:
             return []
-        keys = sorted(per_label.keys(), key=int)
+        try:
+            keys = sorted(per_label.keys(), key=int)
+        except (TypeError, ValueError):
+            return []  # item 211 A3: a non-integer key is not judged
         volumes = []
         for k in keys:
             entry = per_label[k]
@@ -227,7 +239,7 @@ class FusedLabelRule(Rule):
             if base_med <= 0:
                 continue
             size_ratio = volumes[i] / volumes[big]
-            spacing_ratio = min(adj_sp) / base_med
+            spacing_ratio = statistics.mean(adj_sp) / base_med
             if size_ratio > size_thr and spacing_ratio > spacing_thr:
                 label_int = int(k)
                 findings.append(
@@ -239,7 +251,7 @@ class FusedLabelRule(Rule):
                             f"reads {size_ratio:.4g}x the volume of its "
                             f"larger neighbour (label {int(keys[big])}), "
                             f"strictly above {size_thr:.6g}, and its "
-                            f"smaller adjacent centroid spacing reads "
+                            f"adjacent centroid spacings average "
                             f"{spacing_ratio:.4g}x the case's other "
                             f"spacings, strictly above {spacing_thr:.6g}: "
                             f"it may cover two vertebrae."

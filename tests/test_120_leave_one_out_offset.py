@@ -723,7 +723,9 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     border_union = set()
     for f in border_findings:
         border_union |= set(f.labels)
-    assert border_union == {22}
+    # Item 212 (2026-10-05): the case is a true anterior volume crop whose
+    # one-slice cut also reaches labels 20 and 21.
+    assert border_union == {20, 21, 22}
 
     manifest = load_manifest()
     border_case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
@@ -731,8 +733,9 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     offsets = report["features"]["stage3"]["per_label_offsets"]
     entry = next(o for o in offsets if o["label"] == 22)
     # 17.507 on the box base; re-measured 18.0256 on item 173's lordotic base
-    # (2026-09-23).
-    assert entry["offset_mm"] == pytest.approx(18.0256, abs=0.05)
+    # (2026-09-23). Item 212 (2026-10-05): the case is a crop, not a
+    # translation, so label 22's interior offset re-measures at 0.2265.
+    assert entry["offset_mm"] == pytest.approx(0.2265, abs=0.05)
 
 
 # =========================================================================== #

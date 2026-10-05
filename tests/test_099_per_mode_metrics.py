@@ -90,7 +90,7 @@ from segfacet.heuristics.border import BorderRule
 from segfacet.heuristics.fov import derive_fov_coverage
 from segfacet.io import FacetInputError
 from segfacet.pipeline import extract_feature_record
-from segfacet.synth.corpus import load_manifest
+from segfacet.synth.corpus import crop_to_grid, load_manifest
 from segfacet.synth.perturbation import FAILURE_MODE_NAMES
 from segfacet.synth.regression import loaded_seg_image
 
@@ -123,6 +123,14 @@ _RECORDS = {
     for cid, case in _CASES.items()
 }
 _GT_ARRAY = _ARRAYS["clean_control"]
+
+
+def _own_grid_gt(cid: str) -> np.ndarray:
+    """Item 212 (2026-10-05), reconciliation (b): the clean control seen on
+    case *cid*'s own grid -- the clean control itself for every base-grid
+    case, its sub-block for the volume-crop cases."""
+    clean_img = loaded_seg_image(_CASES["clean_control"])
+    return np.asanyarray(crop_to_grid(clean_img, loaded_seg_image(_CASES[cid])).dataobj)
 
 
 def _value(result, failure_mode: int):
@@ -722,10 +730,12 @@ def test_ac10_mode5_clean_control_is_zero():
 # =========================================================================== #
 
 
-def test_ac11_mode6_crop_at_border_is_one():
+def test_ac11_mode6_crop_at_border_is_three():
+    """Item 212 (2026-10-05): was ``test_ac11_mode6_crop_at_border_is_one``;
+    the re-authored anterior crop clips three labels (20, 21, 22), not one."""
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(_RECORDS["crop_at_border"])
-    assert _value(result, 6) == 1.0
+    assert _value(result, 6) == 3.0
 
 
 @pytest.mark.parametrize(
@@ -878,7 +888,11 @@ _OWN_CASE = {
 # re-authored, mostly-left-right ``displace`` (0.11493). Until when: D3
 # re-homes ``displace`` and D4 re-measures; the exception then ends, and
 # ``test_ac15_dominance_exception_is_exact_and_still_needed`` goes red to say so.
-_DOMINANCE_EXCEPTIONS = {"unanchored_foreground_fraction": frozenset({"crop_at_border"})}
+#
+# Item 212 (2026-10-05): the exception ends. ``crop_at_border`` is now a true
+# volume crop, scored against the clean control on its own grid, so it reads
+# 0.0 on the displacement metric and nothing needs the exception.
+_DOMINANCE_EXCEPTIONS = {}
 
 # Frozen literal table -- one row per metric (item 153: keyed by metric
 # name, not the retired legacy mode id), one column per corpus case. Values
@@ -895,7 +909,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "inject_islands": 0.000278531417312275,
         "relabel_swap": 0.0,
         "remove_level": 0.0,
-        "crop_at_border": 0.1429485129517109,
+        "crop_at_border": 0.0,  # item 212 (2026-10-05): was 0.1429485129517109
         "sequence_break": 0.0,
     },
     "min_dominant_component_fraction": {
@@ -945,7 +959,7 @@ _EXPECTED_ISOLATION_MATRIX = {
         "inject_islands": 0.0,
         "relabel_swap": 0.0,
         "remove_level": 0.0,
-        "crop_at_border": 1.0,
+        "crop_at_border": 3.0,  # item 212 (2026-10-05): was 1.0
         "sequence_break": 0.0,
     },
     "out_of_order_label_count": {
@@ -996,7 +1010,7 @@ def _build_actual_matrix(pm, island_size_ratio: float = 0.10):
         result = pm.compute_per_mode_metrics(
             _record_for(cid),
             candidate=_ARRAYS[cid],
-            gt=_GT_ARRAY,
+            gt=_own_grid_gt(cid),
             island_size_ratio=island_size_ratio,
         )
         for entry in result.per_mode:
@@ -1036,15 +1050,15 @@ def test_ac15_negative_control_swapping_mode3_row_into_mode2_breaks_dominance():
 
 
 def test_ac15_dominance_exception_is_exact_and_still_needed():
-    """Item 177 (Decisions R1): the exception names exactly one (metric,
-    case) pair, and on the live matrix the excepted cell still out-reads the
-    own cell -- so a widened exception fails, and so does a stale one after
-    D3/D4."""
-    assert _DOMINANCE_EXCEPTIONS == {
-        "unanchored_foreground_fraction": frozenset({"crop_at_border"})
-    }
+    """Item 177 (Decisions R1): the exception named one (metric, case) pair.
+
+    Item 212 (2026-10-05): the exception is gone because nothing needs it --
+    the table is empty, and on the live matrix ``displace`` out-reads
+    ``crop_at_border`` on the displacement metric.
+    """
+    assert _DOMINANCE_EXCEPTIONS == {}
     row = _build_actual_matrix(_per_mode())["unanchored_foreground_fraction"]
-    assert row["crop_at_border"] > row["displace"]
+    assert row["displace"] > row["crop_at_border"]
 
 
 # =========================================================================== #

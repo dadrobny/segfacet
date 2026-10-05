@@ -453,7 +453,8 @@ def test_ac13_consistency_no_longer_defines_search():
     assert not hasattr(consistency_mod, "_find_closest_u")
     source = Path(consistency_mod.__file__).read_text(encoding="utf-8")
     assert "linspace" not in source
-    assert "find_closest_point" in source
+    # 2026-10-05 (item 210): the check no longer searches a spline at all, so
+    # its former "find_closest_point" in source assertion is dropped.
 
 
 # =========================================================================== #
@@ -692,31 +693,9 @@ def test_ac19_pipeline_binds_one_fit_and_reuses_it(monkeypatch):
     assert received["monotonic"] is received["curvature"]
 
 
-# =========================================================================== #
-# AC20: the two in-sample searches agree exactly
-# =========================================================================== #
-
-
-def test_ac20_monotonic_and_offset_closest_u_agree_clean():
-    centroids = _five_level_clean_spine()
-    fit = fit_centroid_spline(centroids)
-
-    mono = compute_monotonic_consistency(centroids, fit)
-    offsets = compute_spline_offsets(centroids, fit)
-
-    assert list(mono.u_values) == [o.closest_u for o in offsets]
-
-
-def test_ac20_monotonic_and_offset_closest_u_agree_displaced():
-    centroids = _five_level_clean_spine()
-    displaced = list(centroids)
-    displaced[2] = _displace_index(centroids, 2, 18.0, axis=0)
-    fit = fit_centroid_spline(displaced)
-
-    mono = compute_monotonic_consistency(displaced, fit)
-    offsets = compute_spline_offsets(displaced, fit)
-
-    assert list(mono.u_values) == [o.closest_u for o in offsets]
+# 2026-10-05 (item 210): AC20's two tests (monotonic `u` equals the offset
+# search's `closest_u`) are retired -- monotonic `u` is now normalised path arc
+# length, not a spline `closest_u`, so the two searches no longer both exist.
 
 
 # =========================================================================== #

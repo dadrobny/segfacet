@@ -941,8 +941,9 @@ def test_ac14_fov_truncation_case_expects_border_and_mislabel_with_reason():
     assert "crop" in lowered or "border" in lowered, case.reason
     assert "centroid" in lowered, case.reason
     assert "curve" in lowered or "spline" in lowered, case.reason
-    # `spline_offset` reads the crop-displaced centroid but does not opt in
-    # to the condition, so its finding on the touching label is gated.
+    assert "is_terminal" in condition.mechanism, condition.mechanism
+    # `spline_offset` skips terminal entries, so it does not opt in to the
+    # condition and its finding on the touching label is gated.
     assert "spline_offset" not in condition.recording_rules
     assert "spline_offset" not in condition.opting_in_rules
 
@@ -981,19 +982,10 @@ def test_ac14_condition_case_is_carried_by_the_manifest_as_a_condition():
 def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     """Re-targeted at the ``fov_truncation`` condition.
 
-    The authored reason used to quote a displacement in millimetres, and
-    this test recomputed that number and compared it. The sign-off's reason
-    states the *causal* claim instead ("the crop displaces the centroid off
-    the fitted spinal curve") and quotes no figure, so there is no number
-    left to compare -- and asserting on a number the record no longer
-    carries would be asserting on nothing.
-
-    What is checked instead is the claim itself, end to end and entirely
-    from live measurement: the single label ``border`` names is the same
-    label that carries a non-terminal, strictly positive spline offset, and
-    that same label is the one ``spline_offset``'s co-detection names. If the
-    crop stopped displacing the centroid, or displaced a different label's,
-    this fails.
+    Historically (before item 212) the condition claimed that the crop
+    displaces the centroid off the fitted spinal curve, and this test
+    checked that claim from live measurement. That claim is withdrawn; see
+    the item 212 note below for what is asserted now.
 
     Item 189 (2026-09-28): the offset detector that co-fires here moved from
     ``mislabel`` to its own ``spline_offset`` rule.
@@ -1002,6 +994,12 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     condition unless its rule opts in; ``spline_offset`` does not opt in to
     ``fov_truncation``, so its finding on this label is dropped and the
     expectation narrows to ``border`` alone.
+
+    Item 212 (2026-10-05): the displacement claim is withdrawn on purpose.
+    ``crop_at_border`` is now a true anterior volume crop, so no centroid is
+    displaced. The test asserts the replacement claim: ``border``'s label set
+    equals the non-zero labels on the case's anterior face slice, and no
+    interior offset of those labels exceeds the offset threshold.
     """
     import segfacet.failure_modes as fm
 
@@ -1009,44 +1007,45 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
     case = _case(condition, "crop_at_border")
     assert set(case.expected_firing) == {"border"}
 
+    import nibabel as nib
+    import numpy as np
+
+    from segfacet.config import bundled_default_config
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
+    from segfacet.synth.axes import resolve_face
+    from segfacet.synth.corpus import CORPUS_DIR
+
     _detection, findings, record = corpus("crop_at_border")
     border_findings = [f for f in findings if f.rule_id == "border"]
     assert border_findings, "expected >=1 border finding on crop_at_border"
     labels = set()
     for finding in border_findings:
         labels |= set(finding.labels)
-    assert len(labels) == 1, labels
-    label = next(iter(labels))
 
-    stage3 = record.get("stage3")
-    assert stage3, "expected a non-empty stage3 block on a multi-label fixture"
-    offsets = stage3.get("per_label_offsets")
-    assert offsets, "expected a non-empty stage3.per_label_offsets[] block"
-    matching = [o for o in offsets if o["label"] == label and not o.get("is_terminal")]
-    assert matching, (label, offsets)
-    measured_offset = matching[0]["offset_mm"]
-    assert measured_offset > 0.0, (label, measured_offset)
+    # The labels on the case's anterior face slice, read from the array.
+    seg_img = nib.load(str(CORPUS_DIR / _manifest_case("crop_at_border")["seg_fixture"]))
+    data = np.asanyarray(seg_img.dataobj)
+    axis, side = resolve_face(seg_img.affine, "anterior")
+    face = np.take(data, 0 if side == "low" else data.shape[axis] - 1, axis=axis)
+    face_labels = {int(v) for v in np.unique(face) if v != 0}
+    assert face_labels
+    assert labels == face_labels, (labels, face_labels)
 
-    # The other label offsets on the same case are all smaller: the crop is
-    # what displaced this one, not a property of the fixture's whole spline.
-    others = [
-        entry["offset_mm"]
-        for entry in offsets
-        if entry["label"] != label and not entry.get("is_terminal")
-    ]
-    assert others, offsets
-    assert measured_offset > max(others), (measured_offset, others)
-
-    # Item 191 (2026-09-28): spline_offset does not opt in to fov_truncation,
-    # so no surviving finding of its names the touching label.
-    spline_offset_findings = [f for f in findings if f.rule_id == "spline_offset"]
-    assert not any(label in set(f.labels) for f in spline_offset_findings), (
-        label,
-        [f.labels for f in spline_offset_findings],
+    threshold = float(
+        bundled_default_config().rule_param(
+            "spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
+        )
     )
+    offsets = record["stage3"]["per_label_offsets"]
+    interior = [o for o in offsets if o["label"] in face_labels and not o["is_terminal"]]
+    assert interior, offsets
+    assert all(o["offset_mm"] <= threshold for o in interior), (threshold, interior)
 
-    # The condition's own mechanism names the exempting seam this rests on.
-    assert "is_terminal" in condition.mechanism, condition.mechanism
+    # No spline_offset finding names a label on the cut face.
+    spline_offset_findings = [f for f in findings if f.rule_id == "spline_offset"]
+    assert not any(set(f.labels) & face_labels for f in spline_offset_findings), (
+        [f.labels for f in spline_offset_findings]
+    )
 
 
 # =========================================================================== #

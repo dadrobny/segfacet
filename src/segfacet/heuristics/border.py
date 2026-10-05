@@ -152,7 +152,7 @@ class BorderRule(Rule):
         ),
     )
 
-    # No failure mode (item 150): CropAtBorderPerturbation
+    # No failure mode (item 150): CropFovPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) is the fixture of the
     # FOV-truncation condition, not of a mode in failure_modes.SPECIFICATION.
     mode_declaration = RuleModeDeclaration(

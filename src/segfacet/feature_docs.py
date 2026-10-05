@@ -304,9 +304,11 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
             "on the committed corpus; it is not a vertebral coordinate system."
         ),
         "Spacing & Monotonic Consistency": (
-            "Inter-vertebra centroid spacing regularity and whether each "
-            "vertebra's closest-spline-parameter u increases along the "
-            "anatomical order, both derived from the same fitted spline."
+            "Inter-vertebra centroid spacing regularity (from the centroids "
+            "alone) and whether each vertebra's normalised arc-length "
+            "position u on the label-free traversal path through the "
+            "centroids increases along the anatomical order (item 210; no "
+            "spline is read)."
         ),
         "Local Neighbourhood Comparison": (
             "Sliding-window leave-one-out comparison of each vertebra against "
@@ -1578,20 +1580,20 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             scale_sensitivity='categorical',
         ),
         'stage3.monotonic_consistency.is_monotonic': FeatureDoc(
-            measures="Whether every vertebra's closest-spline-parameter u increases along the anatomical order.",
-            computation='False as soon as u[i] >= u[i+1] anywhere in the ordered sequence, measured against a curve fitted through the centroids in traversal order (item 132).',
+            measures="Whether every vertebra's normalised arc-length position u along the label-free path through the centroids increases along the anatomical order.",
+            computation='False as soon as u[i] >= u[i+1] anywhere in the ordered sequence, where u is the normalised arc length along the label-free traversal path through the centroids (item 210).',
             units='',
             scale_sensitivity='boolean',
         ),
         'stage3.monotonic_consistency.non_monotonic_pairs[]': FeatureDoc(
-            measures='Level-name pairs whose spline parameter does not advance.',
-            computation='Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the traversal-ordered reference curve (item 132); equal u values count as a violation too.',
+            measures='Level-name pairs whose position along the label-free path does not advance.',
+            computation='Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the label-free traversal path through the centroids (item 210); equal u values count as a violation too.',
             units='',
             scale_sensitivity='dimensionless',
         ),
         'stage3.monotonic_consistency.u_values[]': FeatureDoc(
-            measures="Each vertebra's closest-spline-parameter u, in CANONICAL_ORDER order.",
-            computation='The closest_u value computed for every vertebra against a curve fitted through the centroids in traversal order (item 132), not the order under test.',
+            measures="Each vertebra's normalised arc-length position u along the label-free path through the centroids, in CANONICAL_ORDER order.",
+            computation='The arc length of every vertebra\'s closest point on the longest path of the centroids\' minimum spanning tree (the traversal path), divided by the path length and directed to have fewer inversions against the supplied order (item 210); not the order under test.',
             units='',
             scale_sensitivity='dimensionless',
         ),
