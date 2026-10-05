@@ -56,6 +56,29 @@ open entry is passed over as unrelated to the taxonomy; retiring the
 duplicate ordering checks (`2026-09-29-a832`) would change rule behaviour,
 which Stage 27 criterion 3 forbids.
 
+**Corrected while the items were specced (2026-10-05).** The item texts
+below were written on 2026-10-03, and measuring the record for the specs
+changed five things. Where a spec and an item text disagree, the spec holds.
+
+- Identity is stored in **five** containers, not four:
+  `stage3.per_label_neighbourhood[]` is the fifth, and item 215 moves it.
+- The reference-delta scores every feature the reference tracks. Only the
+  catalogue's view of it is limited to `physical_volume_mm3`, and a report
+  built against the bundled reference carries 20 reference-delta leaf paths
+  the catalogue does not list. Criterion 2 is read over every leaf of a real
+  report, so item 214's mapping table covers those paths too.
+- The two stored adjacent-pair spacing arrays are **collapsed into one**, in
+  anatomical order over every label, present on every record that has
+  `relationships.neighbour_spacings_mm` today. The maintainer's reason:
+  integer-label order is anatomically meaningless. Item 216 carries it. It is
+  the one authorised change to a measured value in this stage, and the
+  retune item 217's criterion 3 names. It moves values on `sequence_break`
+  only, and no corpus case's firing changes.
+- No catalogue path is dropped: the paths marked `retire` each keep a row.
+- The report's `schema_version` stays "0.1". The block version
+  discriminators are bumped instead, once per stage. `synth/regression`
+  reads no moved path, and "spline fit" in item 216 is `stage3.curvature`.
+
 **Numbering.** Continues at the next free integer: **214–217**.
 
 ---
