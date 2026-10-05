@@ -393,11 +393,10 @@ def test_ac6_test_job_install_and_test_commands_unchanged(ci_workflow):
     assert test_run.startswith(EXPECTED_TEST_TEST_RUN + " ")
     assert "--deselect" not in test_run
     assert "--ignore=tests/" not in test_run
-    # The one --ignore the test job carries is the Windows leg's, and it must
-    # stay behind the runner.os guard: an unguarded ignore would silently drop
-    # the engine tests from the ubuntu leg, which is the leg that runs everything.
-    assert "${{ runner.os == 'Windows' && '--ignore=.aide/scripts/tests' || '' }}" in test_run
-    assert test_run.count("--ignore") == 1
+    # The Windows leg's selection (a named list behind a runner.os guard) is
+    # pinned by tests/test_213_windows_ci_subset.py; the test job carries no
+    # --ignore at all, so the ubuntu leg keeps running the whole suite.
+    assert "--ignore" not in test_run
 
 
 def test_ac6_test_job_matrix_still_covers_both_platforms(ci_workflow):
