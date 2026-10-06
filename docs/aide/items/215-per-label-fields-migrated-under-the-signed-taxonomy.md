@@ -504,6 +504,13 @@ not here. A1–A3 pin item 214's unbuilt output and are re-checked at claim
    - `docs/aide/golden_evidence.generated.json` holds no moved path. It is
      predicted to regenerate byte-identical, and a difference is a
      hand-back.
+     *Corrected (2026-10-06, builder hand-back):* the prediction was wrong.
+     The file holds no path, but it counts each case record's leaf paths,
+     and six of them are merged identity copies. It regenerates with
+     `total_leaf_paths` 101 → 95 and `unwired_leaf_paths` 30 → 28 for every
+     case, and nothing else. It is now on May change, with
+     `tests/test_126_golden_retirement.py` (fence (b)). The arithmetic is in
+     the correction under Authorised paths.
 7. **Reconcile the existing tests** under the fence below. Record every
    edited test in Decisions by node id, old → new.
 8. **Run `python .aide/scripts/aide.py scope 215 --base aide/queue-029`** and
@@ -645,6 +652,61 @@ Deviation-5 rows** (A2's re-check):
 - `tests/test_212_crop_at_border_volume_crop.py` — fence (a): AC4's live offsets read (search 1).
 - `tests/test_122_signed_curvature.py` — fence (a): the per-plane tangent arrays' paths and serialised reads (fifth pass, added at claim 2026-10-06).
 - `tests/test_143_s_axis_correction.py` — fence (a): live `tangent_angles_deg` reads (fifth pass, added at claim 2026-10-06).
+- `src/segfacet/heuristics/border.py` — one bookkeeping `ConsumedPath` for `per_label.{label}.label` (added 2026-10-06, builder hand-back; see the correction below).
+- `src/segfacet/heuristics/coverage.py` — one bookkeeping `ConsumedPath` for `per_label.{label}.level_name` (added 2026-10-06, builder hand-back; see the correction below).
+- `docs/aide/golden_evidence.generated.json` — regenerated (step 6): each case's leaf-path counts drop with the merged copies (added 2026-10-06, builder hand-back; see the correction below).
+- `tests/test_126_golden_retirement.py` — fence (b): the literal `(30, 101)` companion pin (added 2026-10-06, found while verifying the hand-back; see the correction below).
+
+*Corrected after the builder's scope hand-back (2026-10-06, branch head
+`54b1553`, base `aide/queue-029`).* The four bullets above were appended to
+May change. Each was verified against the branch, and each follows from the
+signed migration without changing rule behaviour:
+
+**`border.py` and `coverage.py`.** `catalogue.build_catalogue`'s
+mechanism B (static AST scan) attributes a rule module's string key to a
+catalogue path only when exactly one leaf path ends in that segment. On
+the base, `label` ended six catalogue paths and `level_name` five, so
+both were ambiguous and attributed nothing. After the merge (A3) each
+ends exactly one path, `per_label.{label}.label` and
+`per_label.{label}.level_name`. So the scan now attributes them to every
+rule module naming the bare key, and `path_classification_conflicts()`
+reports any such pair left undeclared. Both attributions are true reads:
+`border.py` reads `entry.get("label", …)` from `per_label` entries in
+`_sort_key` and in `evaluate`, and `coverage.py`'s
+`_find_entry_by_level_name` matches `per_label` entries on `level_name`.
+The diff adds one `role="bookkeeping"` declaration to each and changes no
+`evaluate` code. A bookkeeping role contributes no failure mode, so no
+finding, threshold or firing set moves. The fence grep could not predict
+this, because it searched for the old paths and these two modules name
+none of them.
+
+**`docs/aide/golden_evidence.generated.json`.** Step 6's prediction that
+it regenerates byte-identical was wrong. The companion counts the case
+record's leaf paths (`golden_evidence.py`, via
+`catalogue.iter_leaf_paths`), and the six `stage3` identity copies the
+migration merges are among them. So every case's `total_leaf_paths` goes
+101 → 95, matching item 103's reconciled count. Of the six, the base
+catalogue marks the two `stage3.per_label_neighbourhood[]` copies
+`unwired` and the four offsets/orientations copies `retune`. So
+`unwired_leaf_paths` goes 30 → 28. That arithmetic closes, and no other
+line of the file changes.
+
+**`tests/test_126_golden_retirement.py`.** Not in the builder's
+hand-back. `test_ac22_documented_2694_evidence_still_verifies_unchanged`
+(parametrised over every case) pins the companion's entry to the
+literal `(30, 101)`, so it fails against the regenerated companion. The
+fourth (count) pass's patterns match `len(...) == N` and
+`leaf_count`-style names, not a tuple literal, so they missed it. The
+edit allowed is fence (b): `(30, 101)` → `(28, 95)`, with a dated item-215
+line in its docstring trail giving the arithmetic above (−6 merged copies
+from `m`, of which the two neighbourhood copies were `unwired`, −2 from
+`n`). No other assertion in the file changes. This edit is the
+builder's, and it is not on the branch yet.
+
+**Companion readers that need no edit.** `tests/test_105_golden_decision_table.py`
+and `tests/test_134_decision_table_evidence_companion.py` read the
+companion but compare it with a live measurement and pin no count, so
+they need no edit.
 
 **The reconciliation fence** applies to the listed `tests/test_*.py` files
 other than this item's own module. The builder reconciles after
@@ -721,6 +783,10 @@ and fused-label rules are item 216's. Both corpus manifests stay off so that
 firing cannot be re-expected, and the specificity ratchet must pass
 unedited. The synthetic default reference and the golden-evidence companion
 are predicted unchanged.
+*Corrected (2026-10-06):* the golden-evidence companion does change, and it
+is now on May change, as are `heuristics/border.py` and
+`heuristics/coverage.py` (declarations only). See the correction under May
+change. The synthetic default reference is still predicted unchanged.
 
 ## Testing Strategy
 
