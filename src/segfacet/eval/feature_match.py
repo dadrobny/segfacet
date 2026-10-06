@@ -235,7 +235,7 @@ def _offset_map(block: Mapping[str, Any]) -> Dict[int, float]:
     return {
         int(entry["label"]): float(entry["curve"]["offset_mm"])
         for entry in block["per_label"].values()
-        if entry.get("curve") is not None
+        if "offset_mm" in (entry.get("curve") or {})
     }
 
 

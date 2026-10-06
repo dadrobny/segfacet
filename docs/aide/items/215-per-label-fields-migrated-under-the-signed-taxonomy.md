@@ -1281,7 +1281,7 @@ To be updated during implementation.
   - **Length checks.** `feature_report.build_features_block` raises
     `ValueError` naming the argument when a curvature tangent array or
     `u_values` does not have one element per label, instead of truncating.
-  - **`path_u`-only `curve`.** `eval/feature_match._offset_map` skips a
+  - **`path_u`-only `curve`.** `eval/feature_match._offset_map` now skips a (applied in a second commit; the first attempt was a no-op)
     `curve` with no `offset_mm`, as `reference/ingest.py` and
     `reference/delta.py` do. `stage3OffsetEntry` no longer lists the six
     offset fields as `required`: a draft-07 `dependencies` clause makes any
