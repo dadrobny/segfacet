@@ -854,17 +854,30 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     Reconciled again (item 208, 2026-09-30): ``per_label.{label}.components.
     label_contact_fraction`` leaves the ``()`` bucket because the new
     ``split_fragment`` rule consumes it: ``stayed_empty`` moves 90 -> 89.
-    ``stayed_rule_unmapped`` stays 0."""
+    ``stayed_rule_unmapped`` stays 0.
+
+    Reconciled again (item 215, 2026-10-06): the catalogue moves 145 -> 156.
+    Nine identity copies merge away (-9) and the 20 report-only
+    ``reference_delta.{label}.features.<f>.<s>`` rows are catalogued (+20).
+    ``stayed_empty`` moves 89 -> 103: the four unconsumed orientations and
+    neighbourhood identity copies merge away (-4), sixteen of the twenty new
+    rows are consumed by no rule (+16), and ``physical_volume_mm3``'s
+    ``percentile_rank`` and ``value`` lose their consuming rules to the
+    static scan's ambiguity once five features share each last segment (+2:
+    survivors that changed evidence bucket). ``stayed_rule_unmapped`` stays 0
+    (re-measured against the regenerated committed catalogue, not assumed)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 145
+    assert len(entries) == 156  # item 215 (2026-10-06): 145 -> 156
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
 
     assert stayed_rule_unmapped == 0
-    assert stayed_empty == 89  # item 207 (2026-09-30): 91 -> 90; item 208 (2026-09-30): 90 -> 89
+    # item 207 (2026-09-30): 91 -> 90; item 208 (2026-09-30): 90 -> 89;
+    # item 215 (2026-10-06): 89 -> 103 (-4 merged, +16 new, +2 survivors).
+    assert stayed_empty == 103
 
 
 # =========================================================================== #

@@ -433,7 +433,10 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     import nibabel as nib
 
     from segfacet.config import bundled_default_config
-    from segfacet.feature_report import build_image_features_block
+    from segfacet.feature_report import (
+        build_image_features_block,
+        build_intensity_entries,
+    )
     from segfacet.features.intensity import LabelIntensity
     from segfacet.features.overlap import detect_overlaps
     from segfacet.pipeline import extract_feature_record
@@ -443,6 +446,7 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
         ReferenceDelta,
         reference_delta_to_dict,
     )
+    from segfacet.reference.ingest import INGESTED_FEATURES
     from segfacet.synth.clean_gt import build_clean_spine
     from segfacet.synth.perturbation import get_perturbation
 
@@ -517,27 +521,39 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
         entropy=3.5,
     )
     image_features_block = build_image_features_block(
-        intensity={label_a: placeholder_intensity},
-        extended={label_a: {"original_firstorder_Mean": 480.0}},
         backend="builtin",
         radiomics_available=False,
     )
-    yield "image_features", {"image_features": image_features_block}
+    intensity_entries = build_intensity_entries(
+        {label_a: placeholder_intensity},
+        extended={label_a: {"original_firstorder_Mean": 480.0}},
+    )
+    yield "image_features", {
+        "per_label": {str(label_a): {"intensity": intensity_entries[str(label_a)]}},
+        "image_features": image_features_block,
+    }
 
-    placeholder_feature_delta = FeatureDelta(
-        feature="physical_volume_mm3",
-        value=18750.0,
-        z_score=0.1,
-        robust_z=0.2,
-        percentile_rank=55.0,
-        out_of_range=False,
+    # One placeholder per feature name ``compute_reference_delta`` scores from a
+    # record (``INGESTED_FEATURES``), so the catalogue lists every
+    # ``reference_delta.{label}.features.<f>.<s>`` path a real report carries
+    # (item 215, D8) -- not only ``physical_volume_mm3``'s.
+    placeholder_feature_deltas = tuple(
+        FeatureDelta(
+            feature=name,
+            value=18750.0,
+            z_score=0.1,
+            robust_z=0.2,
+            percentile_rank=55.0,
+            out_of_range=False,
+        )
+        for name in INGESTED_FEATURES
     )
     placeholder_label_delta = LabelDelta(
         label=label_a,
         level_name="L1",
         stratum="all",
         available=True,
-        features=(placeholder_feature_delta,),
+        features=placeholder_feature_deltas,
         distribution_distance=0.2,
         out_of_range_features=(),
     )

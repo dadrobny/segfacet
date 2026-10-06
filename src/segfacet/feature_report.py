@@ -51,9 +51,22 @@ Design decisions (item 022)
    are Python tuples in the dataclasses; converters emit lists for JSON compat.
 5. **``outlier_pairs`` / ``non_monotonic_pairs``** become list-of-two-element-lists
    ``[[level_a, level_b], ...]`` for compact JSON representation.
-6. **Sorting within Stage 3 lists.** ``per_label_offsets`` and
-   ``per_label_orientations`` are sorted ascending by ``label`` (integer),
-   matching the ``per_label`` ordering convention from item 016.
+6. **Per-label ordering.** The Stage 3 per-label values are stored under
+   ``per_label.{label}`` (item 215), in ascending integer-label order like
+   every other ``per_label`` entry (item 016).
+
+Design decisions (item 215)
+----------------------------
+1. **Identity is stored once**, on the ``per_label`` entry itself. The
+   Stage 3 per-label values (offsets, orientations, neighbourhood, and the
+   per-label elements of the curvature and monotonic arrays) sit in the
+   ``curve`` / ``orientation`` / ``neighbourhood`` kind blocks of that entry.
+   The ``*_to_dict`` converters still emit their full legacy shape;
+   ``build_features_block`` distributes it.
+2. **Intensity is a kind too**: ``per_label.{label}.intensity``, built by
+   :func:`build_intensity_entries` and attached with
+   :func:`add_intensity_kind`; ``image_features`` keeps the case-level
+   fields only.
 """
 
 from __future__ import annotations
@@ -93,19 +106,29 @@ __all__ = [
     "FEATURES_VERSION_STAGE3",
     "IMAGE_FEATURES_VERSION",
     "label_intensity_to_dict",
+    "build_intensity_entries",
+    "add_intensity_kind",
     "build_image_features_block",
 ]
 
 # Version discriminator for the features block, independent of the top-level
 # report ``schema_version``.
-FEATURES_VERSION = "0.1"
+#
+# Item 215 bumped it ``"0.1"`` -> ``"0.2"``: the per-label intensity kind
+# enters ``per_label.{label}.intensity`` (so a block without Stage 3 changes
+# shape when a scan is supplied). The value equals the pre-215 Stage 3 one;
+# no in-repo reader branches on it.
+FEATURES_VERSION = "0.2"
 
-# Bumped version when Stage 3 deviation features are included.
-FEATURES_VERSION_STAGE3 = "0.2"
+# Bumped version when Stage 3 deviation features are included. Item 215:
+# ``"0.2"`` -> ``"0.3"`` (the per-label Stage 3 fields moved under
+# ``per_label.{label}``).
+FEATURES_VERSION_STAGE3 = "0.3"
 
 # Version discriminator for the image_features block (item 061), independent
-# of both FEATURES_VERSION and the top-level report schema_version.
-IMAGE_FEATURES_VERSION = "1.0"
+# of both FEATURES_VERSION and the top-level report schema_version. Item 215:
+# ``"1.0"`` -> ``"1.1"`` (``per_label`` left the block).
+IMAGE_FEATURES_VERSION = "1.1"
 
 
 # --------------------------------------------------------------------------- #
@@ -380,6 +403,20 @@ def neighbourhood_to_dict(nb: "VertebralNeighbourhood") -> dict:
 # Assembler
 # --------------------------------------------------------------------------- #
 
+# (destination key on ``per_label.{label}.orientation``, source key of
+# ``curvature_to_dict``) for the three per-label tangent-angle arrays.
+_CURVATURE_PER_LABEL_FIELDS = (
+    ("tangent_angle_deg", "tangent_angles_deg"),
+    ("tangent_coronal_unwrapped_deg", "coronal_tangent_angles_deg"),
+    ("tangent_sagittal_unwrapped_deg", "sagittal_tangent_angles_deg"),
+)
+
+
+def _without_identity(d: dict) -> dict:
+    """*d* minus the ``label`` / ``level_name`` copies (item 215): identity is
+    stored once, on the ``per_label`` entry itself."""
+    return {k: v for k, v in d.items() if k not in ("label", "level_name")}
+
 
 def build_features_block(
     *,
@@ -426,25 +463,33 @@ def build_features_block(
     spline_offsets:
         Optional sequence of
         :class:`~segfacet.features.spline_offset.VertebralSplineOffset` (item 018).
-        When non-``None``, serialised as ``stage3.per_label_offsets`` sorted by
-        label.
+        When non-``None``, each entry's fields land in its label's
+        ``per_label.{label}.curve`` block (item 215), without the identity
+        copy.
     orientations:
         Optional sequence of
         :class:`~segfacet.features.orientation.VertebralOrientation` (item 019).
-        When non-``None``, serialised as ``stage3.per_label_orientations`` sorted
-        by label.
+        When non-``None``, each entry's fields land in its label's
+        ``per_label.{label}.orientation`` block (item 215), without the
+        identity copy.
     tangent_orientations:
         Optional sequence of
         :class:`~segfacet.features.orientation.VertebralTangentOrientation`
-        (item 121). When non-``None``, merged into ``stage3.per_label_orientations``
-        entries **by label** (not by index): every ``orientations`` label must
-        have a matching ``tangent_orientations`` entry and vice versa, or
-        ``ValueError`` is raised naming the offending label(s). When ``None``
-        (the default), the ``per_label_orientations`` entries carry exactly
-        their original four keys -- backward-compatible.
+        (item 121). When non-``None``, merged into each label's
+        ``per_label.{label}.orientation`` block **by label** (not by index):
+        every ``orientations`` label must have a matching
+        ``tangent_orientations`` entry and vice versa, or ``ValueError`` is
+        raised naming the offending label(s). When ``None`` (the default),
+        the orientation blocks carry only ``principal_axis`` and
+        ``eigenvalue_ratio``.
     curvature:
         Optional :class:`~segfacet.features.orientation.SpineCurvature` (item 019).
-        When non-``None``, serialised as ``stage3.curvature``.
+        When non-``None``, serialised as ``stage3.curvature`` -- except its
+        three per-label tangent-angle arrays, distributed one scalar per
+        label (ascending integer-label order) into
+        ``per_label.{label}.orientation`` as ``tangent_angle_deg``,
+        ``tangent_coronal_unwrapped_deg`` and
+        ``tangent_sagittal_unwrapped_deg`` (item 215).
     spacing_consistency:
         Optional :class:`~segfacet.features.consistency.SpacingConsistency`
         (item 020). When non-``None``, serialised as
@@ -452,13 +497,15 @@ def build_features_block(
     monotonic_consistency:
         Optional :class:`~segfacet.features.consistency.MonotonicConsistency`
         (item 020). When non-``None``, serialised as
-        ``stage3.monotonic_consistency``.
+        ``stage3.monotonic_consistency`` -- except ``u_values``, whose
+        elements (anatomical order, item 198) become
+        ``per_label.{label}.curve.path_u`` (item 215).
     neighbourhood:
         Optional sequence of
         :class:`~segfacet.features.neighbourhood.VertebralNeighbourhood`
-        (item 110). When non-``None``, serialised as
-        ``stage3.per_label_neighbourhood`` sorted by label. Unwired: no rule
-        consumes this block yet.
+        (item 110). When non-``None``, each entry's fields land in its
+        label's ``per_label.{label}.neighbourhood`` block (item 215), without
+        the identity copy. Unwired: no rule consumes this block yet.
     features_version:
         Version discriminator embedded in the block; defaults to
         :data:`FEATURES_VERSION`. Overridden to :data:`FEATURES_VERSION_STAGE3`
@@ -486,20 +533,48 @@ def build_features_block(
         corresponding ``centroids`` entry (the centroid supplies ``label`` and
         ``level_name``, so the three per-label maps must share their keys).
     """
-    # Union of labels across the three per-label maps, assembled in ascending
-    # integer-label order for deterministic output.
-    all_labels = set(geometry) | set(components) | set(centroids)
+    # Union of labels across the three per-label maps (plus any label a Stage 3
+    # argument names), assembled in ascending integer-label order for
+    # deterministic output.
+    stage3_dataclasses = [
+        *(spline_offsets or ()),
+        *(orientations or ()),
+        *(tangent_orientations or ()),
+        *(neighbourhood or ()),
+    ]
+    all_labels = (
+        set(geometry)
+        | set(components)
+        | set(centroids)
+        | {d.label for d in stage3_dataclasses}
+    )
 
+    # Item 215: every per-label value lives at ``per_label.{label}.<kind>``,
+    # the identity (label, level_name) stored once on the entry itself. The
+    # Stage 3 dataclasses carry an identity too, but it is never emitted a
+    # second time -- it only names an entry no Stage 2 map covers.
     per_label: dict = {}
     for label in sorted(all_labels):
-        centroid_rec = centroids[label]  # source of label + level_name
-        per_label[str(label)] = {
-            "label": centroid_rec.label,
-            "level_name": centroid_rec.level_name,
-            "geometry": geometry_to_dict(geometry[label]),
-            "components": components_to_dict(components[label]),
-            "centroid": centroid_to_dict(centroid_rec),
-        }
+        if label in centroids:
+            per_label[str(label)] = {
+                "label": centroids[label].label,
+                "level_name": centroids[label].level_name,
+            }
+        else:
+            owner = next((d for d in stage3_dataclasses if d.label == label), None)
+            if owner is None:
+                centroids[label]  # raises KeyError: no source of the identity
+            per_label[str(label)] = {
+                "label": owner.label,
+                "level_name": owner.level_name,
+            }
+        entry = per_label[str(label)]
+        if label in geometry:
+            entry["geometry"] = geometry_to_dict(geometry[label])
+        if label in components:
+            entry["components"] = components_to_dict(components[label])
+        if label in centroids:
+            entry["centroid"] = centroid_to_dict(centroids[label])
 
     # Defensive re-sort: item 015 already sorts, but the assembler must not rely
     # on the caller's ordering for a stable golden snapshot.
@@ -513,8 +588,8 @@ def build_features_block(
                     spacing_consistency, monotonic_consistency, neighbourhood)
     )
 
-    # Promote features_version to "0.2" when Stage 3 data is present, unless
-    # the caller explicitly overrode the version.
+    # Promote features_version to the Stage 3 value when Stage 3 data is
+    # present, unless the caller explicitly overrode the version.
     effective_version = features_version
     if has_stage3 and features_version == FEATURES_VERSION:
         effective_version = FEATURES_VERSION_STAGE3
@@ -529,11 +604,14 @@ def build_features_block(
     if has_stage3:
         stage3: dict = {}
 
+        def _kind(label: int, kind: str) -> dict:
+            return per_label[str(label)].setdefault(kind, {})
+
         if spline_offsets is not None:
-            stage3["per_label_offsets"] = [
-                spline_offset_to_dict(o)
-                for o in sorted(spline_offsets, key=lambda o: o.label)
-            ]
+            for o in sorted(spline_offsets, key=lambda o: o.label):
+                _kind(o.label, "curve").update(
+                    _without_identity(spline_offset_to_dict(o))
+                )
 
         if orientations is not None:
             if tangent_orientations is not None:
@@ -549,18 +627,28 @@ def build_features_block(
                         f"tangent_orientations: {extra!r}."
                     )
                 tangent_by_label = {t.label: t for t in tangent_orientations}
-                stage3["per_label_orientations"] = [
-                    orientation_to_dict(o, tangent=tangent_by_label[o.label])
-                    for o in sorted(orientations, key=lambda o: o.label)
-                ]
+                for o in sorted(orientations, key=lambda o: o.label):
+                    _kind(o.label, "orientation").update(
+                        _without_identity(
+                            orientation_to_dict(o, tangent=tangent_by_label[o.label])
+                        )
+                    )
             else:
-                stage3["per_label_orientations"] = [
-                    orientation_to_dict(o)
-                    for o in sorted(orientations, key=lambda o: o.label)
-                ]
+                for o in sorted(orientations, key=lambda o: o.label):
+                    _kind(o.label, "orientation").update(
+                        _without_identity(orientation_to_dict(o))
+                    )
 
         if curvature is not None:
-            stage3["curvature"] = curvature_to_dict(curvature)
+            curvature_dict = curvature_to_dict(curvature)
+            # The three per-label tangent-angle arrays are one scalar per
+            # label: they were computed over the ascending-integer-label
+            # sequence, so each element is stored on its own label's
+            # orientation kind (item 215; no value changes).
+            for dest, source in _CURVATURE_PER_LABEL_FIELDS:
+                for label, value in zip(sorted(all_labels), curvature_dict.pop(source)):
+                    _kind(label, "orientation")[dest] = value
+            stage3["curvature"] = curvature_dict
 
         if spacing_consistency is not None:
             stage3["spacing_consistency"] = spacing_consistency_to_dict(
@@ -568,15 +656,30 @@ def build_features_block(
             )
 
         if monotonic_consistency is not None:
-            stage3["monotonic_consistency"] = monotonic_consistency_to_dict(
-                monotonic_consistency
+            monotonic_dict = monotonic_consistency_to_dict(monotonic_consistency)
+            # ``u_values`` is the one array computed in anatomical order
+            # (item 198): CANONICAL_ORDER rank, unrecognised names last, ties
+            # by label. Each element is stored on its own label's curve kind
+            # as ``path_u`` (item 215; no value changes).
+            from segfacet.labels import CANONICAL_ORDER
+
+            rank = {name: i for i, name in enumerate(CANONICAL_ORDER)}
+            anatomical = sorted(
+                all_labels,
+                key=lambda lab: (
+                    rank.get(per_label[str(lab)]["level_name"], len(rank)),
+                    lab,
+                ),
             )
+            for label, value in zip(anatomical, monotonic_dict.pop("u_values")):
+                _kind(label, "curve")["path_u"] = value
+            stage3["monotonic_consistency"] = monotonic_dict
 
         if neighbourhood is not None:
-            stage3["per_label_neighbourhood"] = [
-                neighbourhood_to_dict(nb)
-                for nb in sorted(neighbourhood, key=lambda nb: nb.label)
-            ]
+            for nb in sorted(neighbourhood, key=lambda nb: nb.label):
+                _kind(nb.label, "neighbourhood").update(
+                    _without_identity(neighbourhood_to_dict(nb))
+                )
 
         block["stage3"] = stage3
 
@@ -617,36 +720,67 @@ def label_intensity_to_dict(li: "LabelIntensity") -> dict:
     return {name: getattr(li, name) for name in _INTENSITY_FIELD_ORDER}
 
 
-def build_image_features_block(
+def build_intensity_entries(
     intensity: "Mapping[int, LabelIntensity]",
     *,
     extended: "Optional[Mapping[int, Mapping[str, float]]]" = None,
+) -> dict:
+    """Assemble the per-label ``intensity`` kind blocks (items 061, 215).
+
+    Returns ``{str(label): {"first_order": {...}, "extended": {...}}}`` in
+    ascending integer-label order, the value each label's
+    ``per_label.{label}.intensity`` holds. Pure: ``intensity`` and
+    ``extended`` are never mutated and the per-label ``extended`` mapping is
+    shallow-copied, so the result never aliases a caller's dict.
+
+    A label present in ``intensity`` but absent from ``extended`` (or when
+    ``extended`` is ``None``) gets an empty ``extended`` dict. Labels present
+    only in ``extended`` are ignored.
+    """
+    return {
+        str(label): {
+            "first_order": label_intensity_to_dict(intensity[label]),
+            "extended": dict(extended.get(label, {})) if extended else {},
+        }
+        for label in sorted(intensity)
+    }
+
+
+def add_intensity_kind(features_block: Mapping, entries: Mapping[str, dict]) -> dict:
+    """A copy of *features_block* whose ``per_label`` entries carry their
+    ``intensity`` kind block (item 215).
+
+    *entries* is :func:`build_intensity_entries`' result. A key with no
+    ``per_label`` entry in the block is ignored; an entry with no key in
+    *entries* is left without an ``intensity`` block. ``features_block`` is
+    never mutated.
+    """
+    per_label = {
+        key: (
+            {**entry, "intensity": entries[key]} if key in entries else dict(entry)
+        )
+        for key, entry in features_block["per_label"].items()
+    }
+    return {**features_block, "per_label": per_label}
+
+
+def build_image_features_block(
+    *,
     backend: str = "builtin",
     radiomics_available: bool = False,
     available: bool = True,
     image_features_version: str = IMAGE_FEATURES_VERSION,
 ) -> dict:
-    """Assemble the ``image_features`` block from pre-computed intensity
-    (and optional radiomics ``extended``) results (item 061).
+    """Assemble the case-level ``image_features`` block (item 061, reshaped by
+    item 215).
 
-    This is a pure serialisation/assembly layer, mirroring
-    :func:`build_features_block`: it does not compute intensity or radiomics
-    statistics itself, it folds already-computed per-label results into a
-    JSON-ready block.
+    Since item 215 the per-label intensity statistics live on the features
+    record (``per_label.{label}.intensity``, see
+    :func:`build_intensity_entries` / :func:`add_intensity_kind`); this block
+    keeps only the four case-level fields.
 
     Parameters
     ----------
-    intensity:
-        Mapping ``label -> LabelIntensity`` (item 059's per-label first-order
-        results).
-    extended:
-        Optional mapping ``label -> {feature_name: value}`` (item 060's
-        radiomics ``extended`` features per label). A label present in
-        ``intensity`` but absent from ``extended`` (or when ``extended`` is
-        ``None``) gets an empty ``extended`` dict. Labels present only in
-        ``extended`` (not in ``intensity``) are ignored. The per-label
-        mapping is shallow-copied so the block never aliases the caller's
-        dict.
     backend:
         Block-level provenance marker: ``"builtin"`` (first-order only) or
         ``"pyradiomics"``. Echoed verbatim.
@@ -655,8 +789,7 @@ def build_image_features_block(
         Echoed verbatim (coerced to ``bool``).
     available:
         When ``False``, intensity was attempted but unavailable (no scan /
-        no backend); the block is the explicit unavailable sentinel with
-        ``per_label == {}``. Defaults to ``True``.
+        no backend). Defaults to ``True``.
     image_features_version:
         Version discriminator embedded in the block; defaults to
         :data:`IMAGE_FEATURES_VERSION`.
@@ -664,35 +797,12 @@ def build_image_features_block(
     Returns
     -------
     dict
-        A fresh, JSON-ready ``image_features`` block. ``per_label`` is keyed
-        by ``str(label)`` in ascending integer-label order. Inputs
-        (``intensity``, ``extended``) are never mutated. No file I/O, no
-        wall clock, no NumPy/NiBabel import.
+        A fresh, JSON-ready ``image_features`` block. No file I/O, no wall
+        clock, no NumPy/NiBabel import.
     """
-    if not available:
-        return {
-            "image_features_version": image_features_version,
-            "available": False,
-            "radiomics_available": bool(radiomics_available),
-            "backend": backend,
-            "per_label": {},
-        }
-
-    per_label: dict = {}
-    for label in sorted(intensity):
-        label_extended = (
-            dict(extended.get(label, {})) if extended else {}
-        )
-        per_label[str(label)] = {
-            "label": int(label),
-            "first_order": label_intensity_to_dict(intensity[label]),
-            "extended": label_extended,
-        }
-
     return {
         "image_features_version": image_features_version,
-        "available": True,
+        "available": bool(available),
         "radiomics_available": bool(radiomics_available),
         "backend": backend,
-        "per_label": per_label,
     }

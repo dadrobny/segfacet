@@ -145,17 +145,35 @@ def _mode1_displace_case_and_centroids():
 
 def _mislabel_record(offsets: list, pairs: list = ()) -> dict:
     """A minimal build_features_block-shaped record (mirrors
-    test_033_mislabel.py's ``_make_record``)."""
+    test_033_mislabel.py's ``_make_record``): each offset is its label's
+    ``curve`` block, the identity stored once on the per_label entry
+    (item 215)."""
     return {
+        "per_label": {
+            str(o["label"]): {
+                "label": o["label"],
+                "level_name": o["level_name"],
+                "curve": {k: v for k, v in o.items() if k not in ("label", "level_name")},
+            }
+            for o in offsets
+        },
         "stage3": {
-            "per_label_offsets": list(offsets),
             "monotonic_consistency": {
                 "is_monotonic": len(pairs) == 0,
                 "non_monotonic_pairs": [list(p) for p in pairs],
-                "u_values": [],
             },
         },
     }
+
+
+def _curve_entries(features):
+    """Each label's ``curve`` block with its identity read from the surviving
+    ``per_label`` entry (item 215), ascending label order."""
+    return [
+        {"label": e["label"], "level_name": e["level_name"], **e["curve"]}
+        for e in features["per_label"].values()
+        if "curve" in e
+    ]
 
 
 def _mislabel_findings(findings):
@@ -426,8 +444,8 @@ def test_ac11_extract_feature_record_offsets_match_leave_one_out_values():
     spacing = tuple(float(z) for z in clean.seg_img.header.get_zooms()[:3])
     expected = compute_leave_one_out_spline_offsets(centroids, spacing_mm=spacing)
 
-    got = record["stage3"]["per_label_offsets"]
-    assert got, "extract_feature_record produced no per_label_offsets"
+    got = _curve_entries(record)
+    assert got, "extract_feature_record produced no per-label curve blocks"
     assert len(got) == len(expected)
     for entry, exp in zip(got, expected):
         assert entry["label"] == exp.label
@@ -458,14 +476,15 @@ def test_ac12_catalogue_leaf_path_set_unchanged_from_pre_119(tmp_path):
 def test_ac12_per_label_offsets_entry_field_set_exact():
     """Nine keys, not eight: item 123 (docs/aide/items/123-recalibrate-and-
     regenerate-downstream-artifacts.md, AC50) adds ``is_terminal`` as the
-    ninth field."""
+    ninth field. Item 215 (2026-10-06): the entry is the label's ``curve``
+    block -- the ``label`` / ``level_name`` copies merged onto the per_label
+    entry (-2) and ``path_u``, the former ``u_values`` element, joined (+1)."""
     clean = build_clean_spine()
     record = extract_feature_record(clean.seg_img, bundled_default_config())
-    entries = record["stage3"]["per_label_offsets"]
-    assert entries, "expected at least one per_label_offsets entry"
+    entries = [e["curve"] for e in record["per_label"].values() if "curve" in e]
+    assert entries, "expected at least one per-label curve block"
     expected_fields = {
-        "label",
-        "level_name",
+        "path_u",
         "closest_u",
         "offset_mm",
         "offset_voxel",
@@ -602,14 +621,14 @@ def test_ac17_threshold_margins_hold_on_corpus():
         if case["case_id"] in firing_cases:
             continue
         report = build_report_for_case(case)
-        offsets = report.get("features", {}).get("stage3", {}).get("per_label_offsets", [])
+        offsets = _curve_entries(report["features"]) if "features" in report else []
         for o in offsets:
             ceiling = max(ceiling, o["offset_mm"])
     assert ceiling < 15.0, f"non-firing ceiling {ceiling} mm reaches the threshold"
 
     mode1_case = next(c for c in manifest["cases"] if c["case_id"] == "displace")
     mode1_report = build_report_for_case(mode1_case)
-    mode1_offsets = mode1_report["features"]["stage3"]["per_label_offsets"]
+    mode1_offsets = _curve_entries(mode1_report["features"])
     displaced = next(o for o in mode1_offsets if o["label"] == 22)
     # Item 177 (2026-09-24), re-derived premise: "15.0 is the firing
     # threshold" has been false since item 123 (13.0), and the re-authored
@@ -730,7 +749,7 @@ def test_ac23_border_crop_case_gains_mislabel_finding_border_unchanged():
     manifest = load_manifest()
     border_case = next(c for c in manifest["cases"] if c["case_id"] == "crop_at_border")
     report = build_report_for_case(border_case)
-    offsets = report["features"]["stage3"]["per_label_offsets"]
+    offsets = _curve_entries(report["features"])
     entry = next(o for o in offsets if o["label"] == 22)
     # 17.507 on the box base; re-measured 18.0256 on item 173's lordotic base
     # (2026-09-23). Item 212 (2026-10-05): the case is a crop, not a

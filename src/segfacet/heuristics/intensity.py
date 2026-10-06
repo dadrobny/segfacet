@@ -1,8 +1,9 @@
 """Implausible-intensity rule family (item 062).
 
 A Stage 4 rule that thresholds item 059's/061's already-computed **first-order
-intensity statistics**, read from ``record["image_features"]`` (the
-``segfacet.feature_report.build_image_features_block`` shape). It fires a
+intensity statistics**, read from each label's ``intensity`` block under
+``record["per_label"]`` (item 215; ``record["image_features"]`` keeps only the
+case-level availability gate). It fires a
 ``Finding`` when a labelled region's median/std HU statistics are implausible
 for a vertebra, realising the vision's §5.2 image-based feature family feeding
 an explainable rule (the Stage 8 "implausible-intensity flag" deliverable).
@@ -128,8 +129,9 @@ def _severity_from_param(label: str) -> Severity:
 class IntensityRule(Rule):
     """Implausible-intensity rule (item 062).
 
-    Reads ``record["image_features"]`` (item 061's
-    ``build_image_features_block`` shape) and emits a ``Finding`` per fired
+    Reads the case-level ``record["image_features"]`` availability gate and
+    each label's ``record["per_label"][key]["intensity"]["first_order"]``
+    (items 061, 215) and emits a ``Finding`` per fired
     condition. Returns ``[]`` when the block is absent/non-mapping,
     ``available`` is falsy, ``per_label`` is empty, or every label is
     intensity-plausible.
@@ -169,29 +171,29 @@ class IntensityRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="image_features.per_label.{label}.first_order.median",
-                role="signal",
-            ),
-            ConsumedPath(
-                path="image_features.per_label.{label}.first_order.std",
-                role="signal",
-            ),
-            ConsumedPath(
-                path="image_features.per_label.{label}.label",
-                role="bookkeeping",
-                reason=(
-                    "identity: the label id carried into the finding's "
-                    "labels set"
-                ),
-            ),
-            ConsumedPath(
                 path="per_label",
                 role="not-read",
                 reason=(
                     "mechanism B attributes it by last-path-segment name "
-                    "match only: this rule reads "
-                    "record['image_features']['per_label'], never the "
-                    "top-level record['per_label']"
+                    "match only: the container is not itself a feature -- "
+                    "this rule reads the intensity entries beneath "
+                    "record['per_label'] (item 215)"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.intensity.first_order.median",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.intensity.first_order.std",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="per_label.{label}.label",
+                role="bookkeeping",
+                reason=(
+                    "identity: the label id carried into the finding's "
+                    "labels set"
                 ),
             ),
         ),
@@ -212,7 +214,7 @@ class IntensityRule(Rule):
                     ("max_degenerate_std", DEFAULT_MAX_DEGENERATE_STD),
                 ),
                 signal_paths=(
-                    "image_features.per_label.{label}.first_order.std",
+                    "per_label.{label}.intensity.first_order.std",
                 ),
             ),
             RuleDetector(
@@ -231,7 +233,7 @@ class IntensityRule(Rule):
                     ("max_plausible_hu", DEFAULT_MAX_PLAUSIBLE_HU),
                 ),
                 signal_paths=(
-                    "image_features.per_label.{label}.first_order.median",
+                    "per_label.{label}.intensity.first_order.median",
                 ),
             ),
             RuleDetector(
@@ -250,7 +252,7 @@ class IntensityRule(Rule):
                     ("min_plausible_hu", DEFAULT_MIN_PLAUSIBLE_HU),
                 ),
                 signal_paths=(
-                    "image_features.per_label.{label}.first_order.median",
+                    "per_label.{label}.intensity.first_order.median",
                 ),
             ),
         ),
@@ -313,7 +315,7 @@ class IntensityRule(Rule):
         if not isinstance(block, dict) or not block.get("available"):
             return []
 
-        per_label = block.get("per_label")
+        per_label = record.get("per_label")
         if not isinstance(per_label, dict):
             return []
 
@@ -325,7 +327,10 @@ class IntensityRule(Rule):
                 label = int(entry.get("label", key))
             except (TypeError, ValueError):
                 continue
-            first_order = entry.get("first_order")
+            intensity = entry.get("intensity")
+            first_order = (
+                intensity.get("first_order") if isinstance(intensity, dict) else None
+            )
             if not isinstance(first_order, dict):
                 continue
             normalised.append((label, first_order))

@@ -225,6 +225,14 @@ class BorderRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="per_label.{label}.label",
+                role="bookkeeping",
+                reason=(
+                    "identity: the label id carried into the finding's "
+                    "labels set"
+                ),
+            ),
+            ConsumedPath(
                 path="per_label.{label}.level_name",
                 role="bookkeeping",
                 reason=(

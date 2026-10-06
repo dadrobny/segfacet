@@ -265,6 +265,14 @@ def test_ac3_doubling_back_fixture_reversal_equivariant_looser_tolerance():
 # =========================================================================== #
 
 
+def _per_label_series(record, kind, key):
+    """One per-label scalar per label, in ascending integer-label order -- the
+    order the former case-level array (``stage3.curvature.*_angles_deg[]``)
+    was computed in (item 215 stores each element on its own label)."""
+    per_label = record["per_label"]
+    return [per_label[k][kind][key] for k in sorted(per_label, key=int)]
+
+
 def _per_element_fold(angles) -> List[float]:
     """The rejected alternative reading of 'normalise': fold each angle into
     [0, 90] rather than applying one global sign decision."""
@@ -276,7 +284,7 @@ def test_ac4_mode4_relabel_swap_matches_global_decision_not_per_element_fold():
     case = next(c for c in manifest["cases"] if c["case_id"] == "relabel_swap")
     seg_img = loaded_seg_image(case)
     record = extract_feature_record(seg_img, bundled_default_config())
-    actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
+    actual = _per_label_series(record, "orientation", "tangent_angle_deg")
 
     # Re-measured 2026-09-23 on item 173's lordotic base (box base:
     # [3.2953, 177.6490, 175.2184, 1.4658, 22.0118], fold
@@ -383,7 +391,7 @@ def test_ac5_no_corpus_case_tangent_angles_deg_moves():
     for case in _cases_covered_by(_PRE_ITEM_TANGENT_ANGLES_DEG, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
-        actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
+        actual = _per_label_series(record, "orientation", "tangent_angle_deg")
         expected = _PRE_ITEM_TANGENT_ANGLES_DEG[case["case_id"]]
         assert actual == pytest.approx(expected, abs=1e-3), (
             f"{case['case_id']}: tangent_angles_deg moved -- {actual} != {expected}"
@@ -552,7 +560,7 @@ def test_ac9_docstring_states_convention_for_both_unsigned_arrays():
 @pytest.mark.parametrize(
     "path",
     [
-        "stage3.curvature.tangent_angles_deg[]",
+        "per_label.{label}.orientation.tangent_angle_deg",
         "stage3.curvature.inter_tangent_angles_deg[]",
     ],
 )
@@ -572,11 +580,15 @@ def test_ac10_feature_docs_state_convention(path):
 
 
 @pytest.mark.parametrize(
-    "key",
-    ["tangent_angles_deg", "inter_tangent_angles_deg"],
+    "definition, key",
+    [
+        # Item 215: the per-label tangent angle moved onto the orientation kind.
+        ("stage3OrientationEntry", "tangent_angle_deg"),
+        ("stage3Curvature", "inter_tangent_angles_deg"),
+    ],
 )
-def test_ac11_schema_descriptions_state_convention(key):
-    curvature_def = _SCHEMA["definitions"]["stage3Curvature"]
+def test_ac11_schema_descriptions_state_convention(definition, key):
+    curvature_def = _SCHEMA["definitions"][definition]
     description = curvature_def["properties"][key]["description"]
     assert _CANONICAL_KEY_PHRASE in description, (
         f"schema description for {key!r} does not contain the canonical key "
@@ -629,8 +641,8 @@ def test_ac14_item_122_plane_and_ras_test_still_passes():
     import test_122_signed_curvature as t122
 
     for path, plane in (
-        ("stage3.curvature.coronal_tangent_angles_deg[]", "coronal"),
-        ("stage3.curvature.sagittal_tangent_angles_deg[]", "sagittal"),
+        ("per_label.{label}.orientation.tangent_coronal_unwrapped_deg", "coronal"),
+        ("per_label.{label}.orientation.tangent_sagittal_unwrapped_deg", "sagittal"),
         ("stage3.curvature.coronal_curvature_deg", "coronal"),
         ("stage3.curvature.sagittal_curvature_deg", "sagittal"),
     ):
@@ -661,14 +673,15 @@ def test_ac15_catalogue_regenerates_byte_identically(tmp_path):
     catalogue.build_catalogue(strict=True)
 
 
+# Item 215 (2026-10-06): the three per-label tangent-angle arrays
+# (`tangent_angles_deg[]`, `coronal_tangent_angles_deg[]`,
+# `sagittal_tangent_angles_deg[]`) leave `stage3.curvature.*` for
+# `per_label.{label}.orientation.*`, so five paths remain here.
 _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
     "stage3.curvature.coronal_curvature_deg",
-    "stage3.curvature.coronal_tangent_angles_deg[]",
     "stage3.curvature.curvature_plane",
     "stage3.curvature.inter_tangent_angles_deg[]",
     "stage3.curvature.sagittal_curvature_deg",
-    "stage3.curvature.sagittal_tangent_angles_deg[]",
-    "stage3.curvature.tangent_angles_deg[]",
     "stage3.curvature.total_curvature_deg",
 )
 # Item 167 (2026-09-20): two new `components` leaf paths
@@ -677,7 +690,10 @@ _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
 # (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
 # `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`),
 # 140 -> 145. The two item-167 paths stay (A4).
-_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 145
+# Item 215 (2026-10-06): 145 -> 156. Nine merged identity copies (-9), every
+# other 215 row a 1:1 move (the three arrays above included), and the 20
+# report-only reference_delta.{label}.features.<f>.<s> rows catalogued (+20).
+_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 156
 
 
 def test_ac16_catalogue_leaf_path_set_unchanged():
@@ -716,7 +732,7 @@ def test_ac17_observed_range_cells_unchanged(tmp_path):
         e["path"]: e for g in fresh["groups"] for e in g["entries"]
     }
 
-    tangent = entries_by_path["stage3.curvature.tangent_angles_deg[]"]
+    tangent = entries_by_path["per_label.{label}.orientation.tangent_angle_deg"]
     # Re-measured 2026-09-23 on item 173's lordotic base (box base: 0.0,
     # 8.1652; inter 3.83716, 7.59031).
     assert tangent["observed"]["corpus"]["minimum"] == pytest.approx(0.254105, abs=1e-6)
@@ -887,7 +903,17 @@ def test_ac21_other_curvature_fields_unmoved():
     for case in _cases_covered_by(_PRE_ITEM_OTHER_CURVATURE_FIELDS, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
-        curv = record["stage3"]["curvature"]
+        # Item 215: the two per-plane arrays are each label's unwrapped
+        # tangent angle, read in the ascending-label order they were computed in.
+        curv = {
+            **record["stage3"]["curvature"],
+            "coronal_tangent_angles_deg": _per_label_series(
+                record, "orientation", "tangent_coronal_unwrapped_deg"
+            ),
+            "sagittal_tangent_angles_deg": _per_label_series(
+                record, "orientation", "tangent_sagittal_unwrapped_deg"
+            ),
+        }
         expected = _PRE_ITEM_OTHER_CURVATURE_FIELDS[case["case_id"]]
         is_relabel_swap = case["case_id"] == "relabel_swap"
 
@@ -938,7 +964,7 @@ def test_ac22_item_121_part_c_signed_angles_still_pass():
 # =========================================================================== #
 
 _PRE_ITEM_STATUS_OVERRIDES = {
-    "stage3.curvature.tangent_angles_deg[]": (
+    "per_label.{label}.orientation.tangent_angle_deg": (
         "retune",
         "Should be decomposed into three per-axis components -- the tangent "
         "vector's angle projected along each scan dimension -- rather than "

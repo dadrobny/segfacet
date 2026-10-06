@@ -434,10 +434,11 @@ def run_qc_with_intensity(
 
     An intensity-aware sibling of :func:`run_qc` / :func:`run_qc_with_reference`:
     composes :func:`extract_feature_record` with item 059/060's per-label
-    intensity/radiomics extraction and item 061's ``image_features`` block
-    assembly, attaching ``image_features`` to the record fed to the rule
-    engine (under ``"image_features"``) so item 062's ``IntensityRule`` can
-    act on it. When a *reference* is supplied, also computes the geometric
+    intensity/radiomics extraction, stored on the features record as each
+    label's ``intensity`` kind (``per_label.{label}.intensity``, item 215),
+    and item 061's case-level ``image_features`` block, attached to the
+    record fed to the rule engine (under ``"image_features"``) so item 062's
+    ``IntensityRule`` can act on both. When a *reference* is supplied, also computes the geometric
     reference delta (item 046) and the intensity reference delta (item 064),
     attaching ``"reference"``, ``"reference_delta"``, and
     ``"intensity_reference_delta"`` to the record so item 047's
@@ -482,12 +483,12 @@ def run_qc_with_intensity(
     -------
     tuple[CaseResult, dict, dict, dict | None, dict | None]
         ``(case_result, features_block, image_features_block, reference_delta,
-        intensity_reference_delta)``. ``features_block`` carries no
-        ``image_features``/``reference``/``reference_delta``/
-        ``intensity_reference_delta`` keys -- those live only on the
-        transient rule-evaluation record. ``image_features_block`` is
-        always populated (``available == True``) when this function
-        succeeds. ``reference_delta``/``intensity_reference_delta`` are
+        intensity_reference_delta)``. ``features_block`` carries the
+        per-label ``intensity`` kind but no ``image_features``/``reference``/
+        ``reference_delta``/``intensity_reference_delta`` keys -- those live
+        only on the transient rule-evaluation record. ``image_features_block``
+        holds the case-level fields only and is always populated
+        (``available == True``) when this function succeeds. ``reference_delta``/``intensity_reference_delta`` are
         ``None`` unless *reference* is given. Deterministic and
         non-mutating: repeated calls on the same inputs return equal
         results, and none of ``seg_img``, ``scan_img``, ``config``, nor
@@ -501,7 +502,11 @@ def run_qc_with_intensity(
         ``_check_alignment`` guard.
     """
     from segfacet.aggregate import build_case_result
-    from segfacet.feature_report import build_image_features_block
+    from segfacet.feature_report import (
+        add_intensity_kind,
+        build_image_features_block,
+        build_intensity_entries,
+    )
     from segfacet.features.radiomics import compute_radiomics_features
     from segfacet.heuristics import run_rules
     from segfacet.reference import (
@@ -515,9 +520,17 @@ def run_qc_with_intensity(
     radiomics = compute_radiomics_features(
         scan_img, seg_img, enable_pyradiomics=enable_pyradiomics
     )
+    # Item 215 (maintainer decision, Option A): the per-label intensity kind is
+    # part of the persisted features record; ``image_features`` keeps only the
+    # case-level fields.
+    features_block = add_intensity_kind(
+        features_block,
+        build_intensity_entries(
+            {label: r.first_order for label, r in radiomics.items()},
+            extended={label: r.extended for label, r in radiomics.items()},
+        ),
+    )
     image_features_block = build_image_features_block(
-        intensity={label: r.first_order for label, r in radiomics.items()},
-        extended={label: r.extended for label, r in radiomics.items()},
         backend=(
             "pyradiomics"
             if any(r.radiomics_available for r in radiomics.values())

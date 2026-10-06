@@ -1697,7 +1697,7 @@ _MODE_7 = ModeSpec(
     mechanism=(
         "No rule and no corpus case: listed as proposed. The hypothesised "
         "label-map signals are a centroid off the fitted spinal curve "
-        "(stage3.per_label_offsets[].offset_mm, whose shipped detector "
+        "(per_label.{label}.curve.offset_mm, whose shipped detector "
         "serves no mode), a halved inter-centroid spacing where the extra "
         "segment sits (stage3.spacing_consistency.spacings_mm[]), a "
         "volume out of range for the level it is named "
@@ -1708,7 +1708,7 @@ _MODE_7 = ModeSpec(
     observability="single-channel-observable",
     candidate_features=(
         CandidateFeature(
-            path="stage3.per_label_offsets[].offset_mm",
+            path="per_label.{label}.curve.offset_mm",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -2372,7 +2372,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "exemption the condition still grants today, unmoved by the gate "
         "because it is rule logic rather than a case-level exclusion: "
         "spline_offset's detector skips terminal entries "
-        "(stage3.per_label_offsets[].is_terminal); coverage's border-aware "
+        "(per_label.{label}.curve.is_terminal); coverage's border-aware "
         "span check resolves the covered span through the FOV-end labels, "
         "which the gate cannot do because coverage's findings are "
         "case-level and carry no labels for the gate to match."
@@ -2384,7 +2384,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "per_label.{label}.geometry.touches_right",
         "per_label.{label}.geometry.touches_superior",
         "per_label.{label}.geometry.touches_inferior",
-        "stage3.per_label_offsets[].is_terminal",
+        "per_label.{label}.curve.is_terminal",
         "fraction_of_expected_volume_present",
     ),
     scope="vertebra",
@@ -2449,7 +2449,7 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
     mechanism=(
         "spline_offset records the condition end-to-end on displace, which "
         "rigidly translates label 22 (L3) off the fitted spinal curve: its "
-        "held-out offset_mm (stage3.per_label_offsets[].offset_mm, item "
+        "held-out offset_mm (per_label.{label}.curve.offset_mm, item "
         "120) exceeds the 13.0 mm threshold, measured live via "
         "segfacet.synth.regression.pipeline_findings (2026-09-28). A label "
         "that touches a face is a fov_truncation member, and the runner's "
@@ -2474,11 +2474,11 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "finding on that label must survive the gate too."
     ),
     candidate_features=(
-        "stage3.per_label_offsets[].offset_mm",
-        "stage3.per_label_offsets[].dx_mm",
-        "stage3.per_label_offsets[].dy_mm",
-        "stage3.per_label_offsets[].dz_mm",
-        "stage3.per_label_offsets[].is_terminal",
+        "per_label.{label}.curve.offset_mm",
+        "per_label.{label}.curve.dx_mm",
+        "per_label.{label}.curve.dy_mm",
+        "per_label.{label}.curve.dz_mm",
+        "per_label.{label}.curve.is_terminal",
     ),
     scope="vertebra",
     recording_rules=("spline_offset",),

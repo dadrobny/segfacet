@@ -314,7 +314,7 @@ def test_opt_in_is_per_condition():
     cfg = bundled_default_config()
     displaced_opt_in = ConditionOptIn(
         condition="displaced_vertebra",
-        paths=("stage3.per_label_offsets[].offset_mm",),
+        paths=("per_label.{label}.curve.offset_mm",),
         reason="planted",
     )
     rule = _PlantedRule(labels={24}, condition_opt_ins=(displaced_opt_in,))

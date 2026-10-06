@@ -230,12 +230,12 @@ Corpus cases:
 
 Candidate features:
 
-- `hypothesised` candidate path: `stage3.per_label_offsets[].offset_mm`
+- `hypothesised` candidate path: `per_label.{label}.curve.offset_mm`
 - `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
 - `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
 - `hypothesised` candidate path: `relationships.present_levels[]`
 
-Mechanism: No rule and no corpus case: listed as proposed. The hypothesised label-map signals are a centroid off the fitted spinal curve (stage3.per_label_offsets[].offset_mm, whose shipped detector serves no mode), a halved inter-centroid spacing where the extra segment sits (stage3.spacing_consistency.spacings_mm[]), a volume out of range for the level it is named (per_label.{label}.geometry.physical_volume_mm3), and a present level count above the expected count -- coverage's count check tests only a shortfall.
+Mechanism: No rule and no corpus case: listed as proposed. The hypothesised label-map signals are a centroid off the fitted spinal curve (per_label.{label}.curve.offset_mm, whose shipped detector serves no mode), a halved inter-centroid spacing where the extra segment sits (stage3.spacing_consistency.spacings_mm[]), a volume out of range for the level it is named (per_label.{label}.geometry.physical_volume_mm3), and a present level count above the expected count -- coverage's count check tests only a shortfall.
 
 Intended rules:
 
@@ -534,13 +534,13 @@ Corpus cases:
 
 Candidate features:
 
-- `hypothesised` candidate path: `stage3.per_label_offsets[].offset_mm`
-- `hypothesised` candidate path: `stage3.per_label_offsets[].dx_mm`
-- `hypothesised` candidate path: `stage3.per_label_offsets[].dy_mm`
-- `hypothesised` candidate path: `stage3.per_label_offsets[].dz_mm`
-- `hypothesised` candidate path: `stage3.per_label_offsets[].is_terminal`
+- `hypothesised` candidate path: `per_label.{label}.curve.offset_mm`
+- `hypothesised` candidate path: `per_label.{label}.curve.dx_mm`
+- `hypothesised` candidate path: `per_label.{label}.curve.dy_mm`
+- `hypothesised` candidate path: `per_label.{label}.curve.dz_mm`
+- `hypothesised` candidate path: `per_label.{label}.curve.is_terminal`
 
-Mechanism: spline_offset records the condition end-to-end on displace, which rigidly translates label 22 (L3) off the fitted spinal curve: its held-out offset_mm (stage3.per_label_offsets[].offset_mm, item 120) exceeds the 13.0 mm threshold, measured live via segfacet.synth.regression.pipeline_findings (2026-09-28). A label that touches a face is a fov_truncation member, and the runner's condition gate (item 191) drops a spline_offset finding on it, because spline_offset does not opt in to that condition: the missing region has already spoiled the measured centroid. The offset itself is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement): mislabel's ordering detector, which decides specification mode 9, reads a different signal entirely (stage3.monotonic_consistency.non_monotonic_pairs[]) and never fires on a displaced-only case. mislabel opts in to this condition too (item 191, 2026-09-28): a label swap can put a centroid off the curve fitted in label order, so a genuine mislabel can also read as displaced, and mislabel's own ordering finding on that label must survive the runner's condition gate rather than be dropped behind the anatomy condition. sequence opts in as well (item 192, 2026-09-28): the same swap reads as displaced under spline_offset, but sequence's own head-to-tail order is judged by rank, which survives a displacement that does not pass a neighbour -- exactly what a swap creates -- so its swap/shift finding on that label must survive the gate too.
+Mechanism: spline_offset records the condition end-to-end on displace, which rigidly translates label 22 (L3) off the fitted spinal curve: its held-out offset_mm (per_label.{label}.curve.offset_mm, item 120) exceeds the 13.0 mm threshold, measured live via segfacet.synth.regression.pipeline_findings (2026-09-28). A label that touches a face is a fov_truncation member, and the runner's condition gate (item 191) drops a spline_offset finding on it, because spline_offset does not opt in to that condition: the missing region has already spoiled the measured centroid. The offset itself is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement): mislabel's ordering detector, which decides specification mode 9, reads a different signal entirely (stage3.monotonic_consistency.non_monotonic_pairs[]) and never fires on a displaced-only case. mislabel opts in to this condition too (item 191, 2026-09-28): a label swap can put a centroid off the curve fitted in label order, so a genuine mislabel can also read as displaced, and mislabel's own ordering finding on that label must survive the runner's condition gate rather than be dropped behind the anatomy condition. sequence opts in as well (item 192, 2026-09-28): the same swap reads as displaced under spline_offset, but sequence's own head-to-tail order is judged by rank, which survives a displacement that does not pass a neighbour -- exactly what a swap creates -- so its swap/shift finding on that label must survive the gate too.
 
 Corpus cases:
 
@@ -562,10 +562,10 @@ Candidate features:
 - `hypothesised` candidate path: `per_label.{label}.geometry.touches_right`
 - `hypothesised` candidate path: `per_label.{label}.geometry.touches_superior`
 - `hypothesised` candidate path: `per_label.{label}.geometry.touches_inferior`
-- `hypothesised` candidate path: `stage3.per_label_offsets[].is_terminal`
+- `hypothesised` candidate path: `per_label.{label}.curve.is_terminal`
 - `hypothesised` candidate path: `fraction_of_expected_volume_present`
 
-Mechanism: Two fixtures express the condition's two forms. The unexpected in-plane form: the border rule records the condition end-to-end on crop_at_border, a true anterior volume crop (item 212) at the shallowest whole-slice cut that reaches label 22. On the lordotic base that cut leaves labels 20, 21 and 22 on the anterior face (per_label.{label}.geometry.touches_anterior), and border classifies each an unexpected clip. The expected cranio-caudal form: crop_fov_si crops the volume at the inferior face through label 24 (per_label.{label}.geometry.touches_inferior); the border rule suppresses that expected FOV-end touch, and bounds's own evaluate fires on the truncated remnant's volume and extent, but bounds does not opt in either, so the gate drops both findings and nothing fires on crop_fov_si at all. Border's own finding always survives the gate (it opts in to the condition it records). The exemption the condition still grants today, unmoved by the gate because it is rule logic rather than a case-level exclusion: spline_offset's detector skips terminal entries (stage3.per_label_offsets[].is_terminal); coverage's border-aware span check resolves the covered span through the FOV-end labels, which the gate cannot do because coverage's findings are case-level and carry no labels for the gate to match.
+Mechanism: Two fixtures express the condition's two forms. The unexpected in-plane form: the border rule records the condition end-to-end on crop_at_border, a true anterior volume crop (item 212) at the shallowest whole-slice cut that reaches label 22. On the lordotic base that cut leaves labels 20, 21 and 22 on the anterior face (per_label.{label}.geometry.touches_anterior), and border classifies each an unexpected clip. The expected cranio-caudal form: crop_fov_si crops the volume at the inferior face through label 24 (per_label.{label}.geometry.touches_inferior); the border rule suppresses that expected FOV-end touch, and bounds's own evaluate fires on the truncated remnant's volume and extent, but bounds does not opt in either, so the gate drops both findings and nothing fires on crop_fov_si at all. Border's own finding always survives the gate (it opts in to the condition it records). The exemption the condition still grants today, unmoved by the gate because it is rule logic rather than a case-level exclusion: spline_offset's detector skips terminal entries (per_label.{label}.curve.is_terminal); coverage's border-aware span check resolves the covered span through the FOV-end labels, which the gate cannot do because coverage's findings are case-level and carry no labels for the gate to match.
 
 Corpus cases:
 

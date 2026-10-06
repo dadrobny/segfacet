@@ -204,7 +204,7 @@ def test_ac1_image_features_block_is_available_with_first_order_per_label():
     seg_img, scan_img = _clean_hu_images()
     cfg = bundled_default_config()
 
-    _case_result, _features_block, image_features_block, _rd, _ird = (
+    _case_result, features_block, image_features_block, _rd, _ird = (
         run_qc_with_intensity(seg_img, scan_img, cfg)
     )
     assert image_features_block["available"] is True
@@ -215,10 +215,12 @@ def test_ac1_image_features_block_is_available_with_first_order_per_label():
     present_labels = sorted(int(v) for v in np.unique(seg_data) if v != 0)
     assert present_labels  # sanity: the clean_hu corpus fixture is non-empty
 
-    per_label = image_features_block["per_label"]
+    # Item 215: each label's first_order dict is its intensity kind on the
+    # features record, not a per_label entry of the image_features block.
+    per_label = features_block["per_label"]
     for label in present_labels:
         entry = per_label[str(label)]
-        assert isinstance(entry["first_order"], dict)
+        assert isinstance(entry["intensity"]["first_order"], dict)
 
 
 # =========================================================================== #

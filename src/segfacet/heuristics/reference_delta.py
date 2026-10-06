@@ -147,9 +147,18 @@ class ReferenceDeltaRule(Rule):
                 path="per_label",
                 role="not-read",
                 reason=(
-                    "mechanism B last-path-segment match only: this rule "
-                    "reads record['reference_delta']['per_label'], never "
-                    "the top-level record['per_label']"
+                    "mechanism B last-path-segment match only: the container "
+                    "is not itself a feature -- this rule reads the "
+                    "identity of record['per_label'][key] and the "
+                    "per-label entries of record['reference_delta']"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "identity and message interpolation: names the level "
+                    "in the finding"
                 ),
             ),
             ConsumedPath(
@@ -187,12 +196,30 @@ class ReferenceDeltaRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
+                path="reference_delta.{label}.features.extent_x_mm.robust_z",
                 role="bookkeeping",
                 reason=(
-                    "message interpolation: printed alongside the "
-                    "out-of-range feature; the firing decision is "
-                    "out_of_range_features[]'s membership"
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.extent_y_mm.robust_z",
+                role="bookkeeping",
+                reason=(
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.extent_z_mm.robust_z",
+                role="bookkeeping",
+                reason=(
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
                 ),
             ),
             ConsumedPath(
@@ -205,27 +232,12 @@ class ReferenceDeltaRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="reference_delta.{label}.features.physical_volume_mm3.value",
+                path="reference_delta.{label}.features.spline_offset_mm.robust_z",
                 role="bookkeeping",
                 reason=(
-                    "message interpolation: the raw measured value printed "
-                    "beside the deviation"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.label",
-                role="bookkeeping",
-                reason=(
-                    "identity: the label id carried into the finding's "
-                    "labels set"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.level_name",
-                role="bookkeeping",
-                reason=(
-                    "identity and message interpolation: names the level "
-                    "in the finding"
+                    "this mode-less rule's own firing value (item 193, "
+                    "2026-09-28): a signal path needs a mode, and this "
+                    "rule declares none"
                 ),
             ),
             ConsumedPath(
@@ -312,7 +324,8 @@ class ReferenceDeltaRule(Rule):
         ----------
         record:
             Per-case feature dict (read-only). Reads
-            ``record["reference_delta"]``.
+            ``record["reference_delta"]`` and each label's ``level_name``
+            from ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads ``rules.reference_delta.params``.
 
@@ -372,6 +385,13 @@ class ReferenceDeltaRule(Rule):
         if not isinstance(per_label, dict):
             return []
 
+        # Identity is stored once, on the record's own per-label entry
+        # (item 215): the delta entry is keyed by the label and carries no
+        # copy of the label or its level name.
+        identity = record.get("per_label")
+        if not isinstance(identity, dict):
+            identity = {}
+
         normalised = []
         for key, entry in per_label.items():
             if not isinstance(entry, dict):
@@ -379,15 +399,20 @@ class ReferenceDeltaRule(Rule):
             if not entry.get("available"):
                 continue
             try:
-                label = int(entry.get("label", key))
+                label = int(key)
             except (TypeError, ValueError):
                 continue
-            normalised.append((label, entry))
+            normalised.append((label, key, entry))
         normalised.sort(key=lambda t: t[0])
 
         findings: List[Finding] = []
-        for label, entry in normalised:
-            level_name = entry.get("level_name")
+        for label, key, entry in normalised:
+            label_entry = identity.get(key)
+            level_name = (
+                label_entry.get("level_name")
+                if isinstance(label_entry, dict)
+                else None
+            )
             features = entry.get("features")
             if not isinstance(features, dict):
                 features = {}

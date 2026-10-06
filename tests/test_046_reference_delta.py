@@ -165,9 +165,12 @@ def _features_block(entries, stage3_offsets=None):
         }
     block = {"per_label": per_label}
     if stage3_offsets is not None:
-        block["stage3"] = {
-            "per_label_offsets": [dict(o) for o in stage3_offsets]
-        }
+        # Item 215: an offset is its label's ``curve`` block, the identity
+        # stored once on the per_label entry.
+        for o in stage3_offsets:
+            per_label[str(o["label"])]["curve"] = {
+                k: v for k, v in o.items() if k != "label"
+            }
     return block
 
 

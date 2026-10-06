@@ -807,8 +807,8 @@ def test_ac11_all_drift_directions_and_strict_mechanism_are_clean():
 )
 @pytest.mark.parametrize("label", [3, 17])
 def test_ac12_normalise_leaf_path_collapses_extended_regardless_of_backend(label, name):
-    raw = f"image_features.per_label.{label}.extended.{name}"
-    assert normalise_leaf_path(raw) == "image_features.per_label.{label}.extended.{radiomic}"
+    raw = f"per_label.{label}.intensity.extended.{name}"
+    assert normalise_leaf_path(raw) == "per_label.{label}.intensity.extended.{radiomic}"
 
 
 # =========================================================================== #

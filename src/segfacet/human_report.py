@@ -221,7 +221,7 @@ def render_human_report(
     # pre-item report.
     # ------------------------------------------------------------------ #
     if image_features is not None:
-        lines.extend(_render_image_features_section(image_features))
+        lines.extend(_render_image_features_section(image_features, features))
 
     return "\n".join(lines)
 
@@ -246,10 +246,17 @@ def _fmt_or_na(value) -> str:
     return _fmt_num(value)
 
 
-def _render_image_features_section(image_features: dict) -> "list[str]":
+def _render_image_features_section(
+    image_features: dict, features: "dict | None" = None
+) -> "list[str]":
     """Build the 'Intensity features' section lines for ``render_feature_table``.
 
-    Renders one row per ``per_label`` entry (ascending integer-label order)
+    The case-level *image_features* block says whether intensity is available;
+    the statistics themselves are each label's ``intensity`` kind block in
+    *features* (item 215).
+
+    Renders one row per ``per_label`` entry carrying one (ascending
+    integer-label order)
     showing label and mean/median/std/min/max/entropy, formatted via
     ``_fmt_or_na`` so ``None`` statistics render as ``(n/a)`` rather than raw
     Python ``None``/``nan`` text. When the block is unavailable (``available``
@@ -257,7 +264,11 @@ def _render_image_features_section(image_features: dict) -> "list[str]":
     rendered instead.
     """
     lines: list[str] = ["Intensity features:"]
-    per_label = image_features.get("per_label") or {}
+    per_label = {
+        key: entry
+        for key, entry in ((features or {}).get("per_label") or {}).items()
+        if isinstance(entry.get("intensity"), dict)
+    }
     if not image_features.get("available", False) or not per_label:
         lines.append("  (unavailable)")
         lines.append("")
@@ -271,7 +282,7 @@ def _render_image_features_section(image_features: dict) -> "list[str]":
     lines.append("  " + "-" * (len(header) - 2))
     for key in sorted(per_label, key=lambda k: int(k)):
         entry = per_label[key]
-        first_order = entry.get("first_order", {})
+        first_order = entry["intensity"].get("first_order", {})
         lines.append(
             f"  {entry.get('label', key):>6}  "
             f"{_fmt_or_na(first_order.get('mean')):>10}  "
@@ -415,6 +426,6 @@ def render_feature_table(
     # pre-item render.
     # ------------------------------------------------------------------ #
     if image_features is not None:
-        lines.extend(_render_image_features_section(image_features))
+        lines.extend(_render_image_features_section(image_features, features_block))
 
     return "\n".join(lines)

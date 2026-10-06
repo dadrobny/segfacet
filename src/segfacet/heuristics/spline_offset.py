@@ -160,7 +160,7 @@ class SplineOffsetRule(Rule):
     Records the ``displaced_vertebra`` CONDITION
     (``failure_modes.CONDITIONS``): a vertebra whose centroid is a large
     outlier from the fitted spinal curve, via the per-vertebra perpendicular
-    spline offset (``stage3.per_label_offsets[*].offset_mm``, item 018).
+    spline offset (``per_label.{label}.curve.offset_mm``, item 018).
     Moved unchanged from ``mislabel.py``'s former Detector A.
     """
 
@@ -173,10 +173,10 @@ class SplineOffsetRule(Rule):
         ConditionOptIn(
             condition="displaced_vertebra",
             paths=(
-                "stage3.per_label_offsets[].dx_mm",
-                "stage3.per_label_offsets[].dy_mm",
-                "stage3.per_label_offsets[].dz_mm",
-                "stage3.per_label_offsets[].offset_mm",
+                "per_label.{label}.curve.dx_mm",
+                "per_label.{label}.curve.dy_mm",
+                "per_label.{label}.curve.dz_mm",
+                "per_label.{label}.curve.offset_mm",
             ),
             reason=(
                 "the offset and its axis components are the "
@@ -203,7 +203,16 @@ class SplineOffsetRule(Rule):
         ),
         consumed_paths=(
             ConsumedPath(
-                path="stage3.per_label_offsets[].dx_mm",
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: the rule iterates the per-label entries to "
+                    "reach each label's curve block; the container is not "
+                    "itself a feature"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.curve.dx_mm",
                 role="bookkeeping",
                 reason=(
                     "message interpolation only (the ', predominantly "
@@ -211,7 +220,7 @@ class SplineOffsetRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="stage3.per_label_offsets[].dy_mm",
+                path="per_label.{label}.curve.dy_mm",
                 role="bookkeeping",
                 reason=(
                     "message interpolation only (the ', predominantly "
@@ -219,7 +228,7 @@ class SplineOffsetRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="stage3.per_label_offsets[].dz_mm",
+                path="per_label.{label}.curve.dz_mm",
                 role="bookkeeping",
                 reason=(
                     "message interpolation only (the ', predominantly "
@@ -227,7 +236,7 @@ class SplineOffsetRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="stage3.per_label_offsets[].is_terminal",
+                path="per_label.{label}.curve.is_terminal",
                 role="bookkeeping",
                 reason=(
                     "gate: the terminal exemption, which suppresses a "
@@ -235,7 +244,15 @@ class SplineOffsetRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="stage3.per_label_offsets[].label",
+                path="per_label.{label}.curve.offset_mm",
+                role="condition-signal",
+                reason=(
+                    "evidence of the displaced_vertebra CONDITION this rule "
+                    "records (item 150/189), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.label",
                 role="bookkeeping",
                 reason=(
                     "identity: the label id carried into the finding's "
@@ -243,19 +260,11 @@ class SplineOffsetRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="stage3.per_label_offsets[].level_name",
+                path="per_label.{label}.level_name",
                 role="bookkeeping",
                 reason=(
                     "identity and message interpolation: names the level "
                     "in the finding"
-                ),
-            ),
-            ConsumedPath(
-                path="stage3.per_label_offsets[].offset_mm",
-                role="condition-signal",
-                reason=(
-                    "evidence of the displaced_vertebra CONDITION this rule "
-                    "records (item 150/189), which is not a failure mode"
                 ),
             ),
         ),
@@ -288,8 +297,9 @@ class SplineOffsetRule(Rule):
         Parameters
         ----------
         record:
-            Per-case feature dict (read-only). Reads
-            ``record["stage3"]["per_label_offsets"]``.
+            Per-case feature dict (read-only). Reads each
+            ``record["per_label"][key]["curve"]`` entry, and its entry's
+            ``label`` / ``level_name`` (item 215).
         config:
             HeuristicConfig instance. Reads ``rules.spline_offset.params``.
 
@@ -317,11 +327,11 @@ class SplineOffsetRule(Rule):
             )
         )
 
-        stage3 = record.get("stage3")
-        if not isinstance(stage3, dict):
-            stage3 = {}
+        per_label = record.get("per_label")
+        if not isinstance(per_label, dict):
+            per_label = {}
 
-        return self._detect_offset_outliers(stage3, severity, max_offset)
+        return self._detect_offset_outliers(per_label, severity, max_offset)
 
     @staticmethod
     def _dominant_direction(entry: dict) -> Optional[str]:
@@ -357,16 +367,17 @@ class SplineOffsetRule(Rule):
 
     @staticmethod
     def _detect_offset_outliers(
-        stage3: dict, severity: Severity, max_offset: float
+        per_label: dict, severity: Severity, max_offset: float
     ) -> List[Finding]:
         """Spline-offset outliers (displaced-vertebra condition)."""
-        offsets = stage3.get("per_label_offsets")
-        if not isinstance(offsets, list):
-            return []
-
         normalised = []
-        for entry in offsets:
-            if not isinstance(entry, dict) or "label" not in entry:
+        for label_entry in per_label.values():
+            if not isinstance(label_entry, dict) or "label" not in label_entry:
+                continue
+            # The offset fields live in the label's ``curve`` kind block; the
+            # identity (label, level_name) is the entry's own, stored once.
+            entry = label_entry.get("curve")
+            if not isinstance(entry, dict):
                 continue
             if entry.get("is_terminal"):
                 # A terminal (sequence-first/last) entry's held-out offset
@@ -376,11 +387,11 @@ class SplineOffsetRule(Rule):
                 # is falsy and therefore interior, unchanged from before.
                 continue
             try:
-                label = int(entry["label"])
+                label = int(label_entry["label"])
             except (TypeError, ValueError):
                 continue
             offset = float(entry.get("offset_mm", 0.0) or 0.0)
-            name = entry.get("level_name")
+            name = label_entry.get("level_name")
             direction = SplineOffsetRule._dominant_direction(entry)
             normalised.append((label, name, offset, direction))
 

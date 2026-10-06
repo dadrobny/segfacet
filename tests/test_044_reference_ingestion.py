@@ -9,7 +9,7 @@ Covers Acceptance Criteria AC1-AC14:
   values for the same image (byte/float-equal), confirming the driver reads
   the real feature engine.
 - AC3: ``spline_offset_mm`` is populated for a >=2-level subject and equals
-  ``stage3.per_label_offsets[*].offset_mm``.
+  ``per_label.{label}.curve.offset_mm``.
 - AC4: every record's ``level_name`` is a member of ``CANONICAL_ORDER``.
 - AC5: a subject missing an interior level ingests without error and
   contributes no record for that level.
@@ -188,7 +188,7 @@ def test_ac3_spline_offset_populated_for_multi_level_subject(tmp_path):
 
     block = extract_feature_record(spine.seg_img, config)
     offset_entries_by_label = {
-        entry["label"]: entry for entry in block["stage3"]["per_label_offsets"]
+        entry["label"]: entry["curve"] for entry in block["per_label"].values()
     }
     level_name_by_label = {
         int(k): v["level_name"] for k, v in block["per_label"].items()

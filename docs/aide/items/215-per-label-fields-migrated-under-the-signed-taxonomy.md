@@ -974,6 +974,147 @@ To be updated during implementation.
   - **`catalogue.normalise_leaf_path`** needs no placeholder extension,
     because the note introduces none. Rule (d) is unchanged, because
     `reference_delta` stays keyed by `{label}`.
+- **D11 (implementation record, 2026-10-06).** What was built, and the
+  calls the spec did not pin.
+  - **Where the migration happens.** `feature_report.build_features_block`
+    distributes the extractors' unchanged converters' output: each Stage 3
+    per-label dataclass lands in its label's `curve` / `orientation` /
+    `neighbourhood` block with the `label` / `level_name` copies stripped
+    (`_without_identity`). The `*_to_dict` converters themselves keep their
+    legacy shape (D4), so their direct tests need no edit. A Stage 3
+    dataclass whose label has no Stage 2 map still gets a `per_label` entry,
+    its identity taken from the dataclass; only a label in neither source
+    raises `KeyError`, as before.
+  - **The four Deviation-5 arrays.** The three tangent arrays are zipped with
+    `sorted(all_labels)` (ascending integer label, the order they were
+    computed in). `u_values` is zipped with the labels sorted by
+    `(CANONICAL_ORDER rank, label)`, derived in the serialiser from each
+    entry's `level_name` -- the same key `pipeline.py` sorts
+    `anatomical_centroids` by, so the two cannot disagree. The
+    `path-u-mapped-in-anatomical-order` case passes with label 28 first.
+  - **Intensity (Option A).** `feature_report.build_intensity_entries`
+    builds `{key: {first_order, extended}}`; `add_intensity_kind` returns a
+    copy of a features block with them attached; `pipeline.run_qc_with_intensity`
+    attaches them to the block it returns. `build_image_features_block` now
+    takes only the four case-level fields (`backend`, `radiomics_available`,
+    `available`, `image_features_version`); its former `intensity` and
+    `extended` parameters are gone. `reference.delta.compute_intensity_reference_delta`
+    keeps its signature: `image_features` is now only the `available` gate,
+    and the statistics are read from the block's `per_label[*].intensity`.
+  - **Report schema.** `labelFeatures` requires only `label` and
+    `level_name`; every kind block is optional because each has its own
+    source (the Stage 3 kinds and a stage3-only hand-built block would
+    otherwise be unrepresentable). `stage3OffsetEntry` (now the `curve`
+    kind) keeps the six offset fields required and gains optional `path_u`;
+    `stage3OrientationEntry` keeps no required key and gains the three
+    `tangent_*` scalars. The definition names are kept so the tests that
+    read them (test_121, test_123, test_131) re-point only their assertions.
+    `stage3Curvature` loses the three arrays from `required` and
+    `properties`, `stage3MonotonicConsistency` loses `u_values`,
+    `referenceLabelDelta` loses `label` / `level_name`, and `imageFeatures`
+    loses `per_label`.
+  - **Rule declarations the grep could not predict.** Once the identity keys
+    are unique last segments, the catalogue's static scan attributes
+    `per_label.{label}.label` and `per_label.{label}.level_name` to every
+    rule module that names `"label"` / `"level_name"`, and
+    `path_classification_conflicts()` reports each undeclared pair. So
+    `heuristics/border.py` (adds `per_label.{label}.label`, bookkeeping) and
+    `heuristics/coverage.py` (adds `per_label.{label}.level_name`,
+    bookkeeping) had to be edited, and **neither is on May change**: see
+    "Hand-backs" below. The same ambiguity runs the other way for the 20
+    report-only rows: five features now share `percentile_rank`, `value` and
+    `robust_z` as last segments, so `physical_volume_mm3`'s `percentile_rank`
+    and `value` lose their static attribution (`reference_delta` and
+    `intensity_reference_delta` drop those declarations) and `robust_z` is
+    declared for all five features (`reference_delta`, observed).
+  - **Docs rows.** `FEATURE_DOCS` and `STATUS_OVERRIDES` keys were renamed
+    mechanically from the table: a moved row keeps its prose and its
+    `(status, rationale)` verbatim; a merged row's entries were deleted; the
+    20 report-only rows copy their `physical_volume_mm3` counterpart's
+    entries (key only changed). `features_version`'s doc row still reads
+    `"0.1"` / `"0.2"`: that row is item 216's (Moved by 216), and the code
+    value is bumped here per D10.
+  - **Observed in the generated artifacts.** Validation 3's row-by-row
+    comparison holds for `status` and `observed` over every kept and moved
+    row; only `computation` prose naming a moved path changed (six rows).
+    The human report is byte-identical to the claim base on `clean_control`
+    and `displace` (compared from a tree extracted at the base commit). The
+    findings of every corpus case, geometric and intensity, with the default
+    and production references, are identical to the base.
+  - **Counts.** The catalogue goes 145 -> 156 (-9 merged, +20 report-only);
+    `clean_control`'s record 101 -> 95 (-6 merged, no other change);
+    `observed_summary` `placeholder` 12 -> 26 and `varies` 84 -> 81;
+    `mode_evidence` buckets as item 137's table records. The path-set digest
+    is `64bde66b...4fd4620`.
+  - **Hand-backs (not authorised by this spec).**
+    1. `src/segfacet/heuristics/border.py` and
+       `src/segfacet/heuristics/coverage.py` (one `ConsumedPath` each, see
+       above). `aide scope 215` exits 1 on exactly these two.
+    2. `docs/aide/golden_evidence.generated.json`: Authorised paths predicted
+       it byte-identical, and step 6 makes a difference a hand-back. It is
+       not: every case's `total_leaf_paths` goes 101 -> 95 and
+       `unwired_leaf_paths` 30 -> 28 (it counts record leaf paths, which the
+       six merged copies leave). `tests/test_134_decision_table_evidence_companion.py`
+       AC4 compares it to a fresh build. It is regenerated on this branch so
+       the tree is consistent, and needs authorising.
+  - **Tests reconciled, by node id, old -> new** (fence (a), (b), (c);
+    no assertion's expected value, tolerance, name or skip state changed;
+    pytest was not run by the builder):
+    - 022: every `block["stage3"]["per_label_offsets" | "per_label_orientations"]`
+      read -> `_kind_entries(block, "curve" | "orientation")` (a helper that
+      reads identity from the `per_label` entry); `test_ac2_all_stage3_subkeys_present`,
+      `test_ac2_curvature_has_required_keys`, `test_ac2_monotonic_consistency_has_required_keys`
+      now check the per-label kinds for the moved keys; `test_ac2_u_values_length_in_monotonic_consistency`
+      and `test_adv_all_u_values_in_unit_interval` read `curve.path_u`;
+      `test_adv_only_spline_offsets_supplied` and `test_adv_schema_rejects_missing_offset_mm`
+      re-pointed; `test_ac9_stage3_key_order_and_key_set_explicit` drops the
+      two lists from the stage3 key set; `test_ac9_features_version_is_02_when_stage3_present`
+      `"0.2"` -> `"0.3"`, `test_ac9_features_version_is_01_when_stage3_absent`
+      `"0.1"` -> `"0.2"`, `test_ac9_features_version_in_serialised_report`
+      `"0.2"` -> `"0.3"`.
+    - 033, 035, 120, 123: hand-built records place each offset at
+      `per_label.{label}.curve` (`_make_record`, `_mode1_record`,
+      `_gt_pass_record`, `_mislabel_record`, `_offset_record`); the
+      `per_label_offsets` None / `{}` placeholders of
+      `test_ac18_per_label_offsets_none_no_raise` and
+      `test_ac18_per_label_offsets_non_list_no_raise` become a `curve`
+      of `None` / `[]`; the `u_values` key is removed from hand-built
+      monotonic blocks. 039, 044, 125, 129, 130, 145, 151, 189, 212: live
+      offset reads -> `per_label[*].curve`. 123's `_well_formed_offset_entry_instance`
+      drops `label` / `level_name`; its `per_label_offsets[].is_terminal`
+      path strings are re-pointed.
+    - 046, 047, 064 (rule), 064 (compute), 081, 062, 061, 065 (three
+      files): hand-built delta entries lose `label` / `level_name`
+      (`_block`, `_record`, `_features_block`), identity moves to the
+      record's `per_label`; per-label intensity moves to `per_label[*].intensity`
+      (`_scored`, `_record`, `_corpus_record`, `_with_intensity`); 061's
+      `build_image_features_block({...})` calls are re-pointed to
+      `build_intensity_entries` / the case-level call.
+    - 051: `_block` places offsets at `curve`; version literals `"0.2"`/`"0.1"`
+      -> `"0.3"`/`"0.2"`.
+    - 110, 115: `_neighbourhood_entries` helper; the five/four expected new
+      leaf paths drop the two merged identity copies and move under
+      `per_label.{label}.neighbourhood`.
+    - 121, 122, 131, 132, 143: the per-label arrays are read as
+      `per_label[*].orientation.tangent_*` (ascending label) and
+      `per_label[*].curve.path_u` (anatomical order); `test_ac11_schema_descriptions_state_convention`
+      now parametrised by (definition, key); `test_ac16_schema_defines_all_five_new_keys`
+      checks the two arrays on `stage3OrientationEntry`.
+    - 103, 124, 131, 132, 136, 137, 148: count and digest pins moved, each
+      with a dated comment whose arithmetic closes: 103 `101 -> 95`
+      (`test_ac4_clean_control_leaf_paths`); 124 / 131 / 132 / 136 / 137 / 148
+      `145 -> 156`; 136 `stayed_empty` `89 -> 103`; 137's `mode_evidence`
+      table `()` `89 -> 103`, `("rule_bookkeeping",)` `10 -> 8`,
+      `("rule_mode_less", "rule_bookkeeping")` `9 -> 11`,
+      `("rule_mode_less", "rule_bookkeeping", "rule_not_read")` `8 -> 5`;
+      132's `_PRE_ITEM_OBSERVED_SUMMARY` `placeholder` `12 -> 26`, `varies`
+      `84 -> 81`. `test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows`
+      (148) re-points `reference_delta.{label}.label` to its survivor and
+      `.level_name` to `reference_delta.{label}.available` (the level name's
+      survivor carries `sequence`'s signal modes).
+    - 104, 106, 119, 138, 149, 154, 191: path strings re-pointed.
+    - `tests/report_format_fixture.py` and `tests/golden/report_format_contract.json`,
+      `tests/corpus/119_pre_119_digests.json`: regenerated per steps 6.
 - **Left open:** whether `per_label.{label}.*` rows move. A7 assumes not.
   *Settled at claim (2026-10-06):* none moves (A7's re-check).
   If the signed table moves any, step 0 widens the fence, rather than this

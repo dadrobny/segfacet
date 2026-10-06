@@ -172,6 +172,15 @@ class CoverageRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "gate: matches the FOV span's end levels to the "
+                    "per_label entries that carry them; never mode-6 "
+                    "evidence itself"
+                ),
+            ),
+            ConsumedPath(
                 path="relationships",
                 role="bookkeeping",
                 reason=(

@@ -68,9 +68,9 @@ def format_contract_inputs() -> dict:
 
     Returns a dict with keys ``verdict``, ``case_id``, ``config``,
     ``features`` and ``findings`` -- every value a literal. The ``features``
-    block carries one ``per_label`` entry (geometry/components/centroid),
-    one overlap pair, a ``relationships`` block, and a full ``stage3``
-    sub-block (one offset entry, one orientation entry, curvature,
+    block carries one ``per_label`` entry (geometry/components/centroid and,
+    since item 215, the curve and orientation kinds), one overlap pair, a
+    ``relationships`` block, and a ``stage3`` sub-block (curvature,
     spacing_consistency, monotonic_consistency) so it exercises both
     ``test_016`` (Stage 2 shape) and ``test_022`` (Stage 3 shape).
     """
@@ -149,7 +149,7 @@ def format_contract_inputs() -> dict:
     }
 
     features = {
-        "features_version": "0.2",
+        "features_version": "0.3",
         "per_label": {
             "7": {
                 "label": 7,
@@ -157,6 +157,24 @@ def format_contract_inputs() -> dict:
                 "geometry": geometry,
                 "components": components,
                 "centroid": centroid,
+                # Item 215: the per-label Stage 3 fields live under the
+                # label's own entry (the identity above is stored once).
+                "curve": {
+                    "closest_u": 0.5,
+                    "offset_mm": _SECOND_DECIMAL_FLOAT,  # offset_mm is schema-constrained to >= 0
+                    "offset_voxel": _INTEGRAL_FLOAT,
+                    "dx_mm": _NEGATIVE_FLOAT,
+                    "dy_mm": _NEAR_ZERO_FLOAT,
+                    "dz_mm": _LONG_DECIMAL_FLOAT,
+                    "path_u": 0.5,
+                },
+                "orientation": {
+                    "principal_axis": [0.0, 0.0, _INTEGRAL_FLOAT],
+                    "eigenvalue_ratio": _LONG_DECIMAL_FLOAT,
+                    "tangent_angle_deg": _NEAR_ZERO_FLOAT,
+                    "tangent_coronal_unwrapped_deg": _NEGATIVE_FLOAT,
+                    "tangent_sagittal_unwrapped_deg": _LONG_DECIMAL_FLOAT,
+                },
             },
         },
         "overlaps": [
@@ -176,32 +194,9 @@ def format_contract_inputs() -> dict:
             "out_of_order_labels": [],
         },
         "stage3": {
-            "per_label_offsets": [
-                {
-                    "label": 7,
-                    "level_name": "L3",
-                    "closest_u": 0.5,
-                    "offset_mm": _SECOND_DECIMAL_FLOAT,  # offset_mm is schema-constrained to >= 0
-                    "offset_voxel": _INTEGRAL_FLOAT,
-                    "dx_mm": _NEGATIVE_FLOAT,
-                    "dy_mm": _NEAR_ZERO_FLOAT,
-                    "dz_mm": _LONG_DECIMAL_FLOAT,
-                },
-            ],
-            "per_label_orientations": [
-                {
-                    "label": 7,
-                    "level_name": "L3",
-                    "principal_axis": [0.0, 0.0, _INTEGRAL_FLOAT],
-                    "eigenvalue_ratio": _LONG_DECIMAL_FLOAT,
-                },
-            ],
             "curvature": {
-                "tangent_angles_deg": [_NEAR_ZERO_FLOAT],
                 "inter_tangent_angles_deg": [],
                 "total_curvature_deg": _INTEGRAL_FLOAT,
-                "coronal_tangent_angles_deg": [_NEGATIVE_FLOAT],
-                "sagittal_tangent_angles_deg": [_LONG_DECIMAL_FLOAT],
                 "coronal_curvature_deg": _INTEGRAL_FLOAT,
                 "sagittal_curvature_deg": 0.0,
                 "curvature_plane": "coronal",
@@ -216,7 +211,6 @@ def format_contract_inputs() -> dict:
             "monotonic_consistency": {
                 "is_monotonic": True,
                 "non_monotonic_pairs": [],
-                "u_values": [0.0, 0.5, _INTEGRAL_FLOAT],
             },
         },
     }

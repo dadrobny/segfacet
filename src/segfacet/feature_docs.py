@@ -35,7 +35,7 @@ Contents
     ``{vocabulary_name: leaf_path}`` for mechanism D's declared-vocabulary
     matching, only where the vocabulary name is not itself the leaf path's
     last segment (``spline_offset_mm`` is tracked under the record field name
-    ``offset_mm``, nested under ``stage3.per_label_offsets[]``).
+    ``offset_mm``, nested under ``per_label.{label}.curve``).
 ``MODE_ANCHOR_PATHS``
     ``{mode_id: (leaf_path, ...)}``, keyed by ``failure_modes.SPECIFICATION``
     mode ids -- the record leaf path(s) item 099's per-mode metrics read (or,
@@ -173,13 +173,13 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.features.overlap",
     ),
     (
-        "stage3.per_label_offsets",
+        "per_label.{label}.curve",
         "Spline Offset",
         "Stage 3 · item 018",
         "segfacet.features.spline_offset",
     ),
     (
-        "stage3.per_label_orientations",
+        "per_label.{label}.orientation",
         "Orientation & Curvature",
         "Stage 3 · item 019",
         "segfacet.features.orientation",
@@ -203,19 +203,19 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.features.consistency",
     ),
     (
-        "stage3.per_label_neighbourhood",
+        "per_label.{label}.neighbourhood",
         "Local Neighbourhood Comparison",
         "Stage 3 · items 024, 110",
         "segfacet.features.neighbourhood",
     ),
     (
-        "image_features.per_label.{label}.first_order",
+        "per_label.{label}.intensity.first_order",
         "Intensity — First-Order",
         "Stage 8 · item 059",
         "segfacet.features.intensity",
     ),
     (
-        "image_features.per_label.{label}.extended",
+        "per_label.{label}.intensity.extended",
         "Intensity — Extended Radiomics",
         "Stage 8 · item 060",
         "segfacet.features.radiomics",
@@ -260,8 +260,8 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
         ),
         "Centroid & Identity": (
             "Centre of mass of each label's voxel mask, plus the integer "
-            "label/anatomical level_name identity pair every other per-label "
-            "block below re-carries."
+            "label/anatomical level_name identity pair, stored once here "
+            "(item 215): no other block carries a copy."
         ),
         "Case-Level Relationships": (
             "Computed once per case from the full ordered set of centroids "
@@ -348,7 +348,7 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
 
 PATH_ALIASES: Mapping[str, str] = MappingProxyType(
     {
-        "spline_offset_mm": "stage3.per_label_offsets[].offset_mm",
+        "spline_offset_mm": "per_label.{label}.curve.offset_mm",
     }
 )
 
@@ -375,7 +375,8 @@ PATH_ALIASES: Mapping[str, str] = MappingProxyType(
 # ``heuristics.fragmentation`` consumes as ``signal``, one of mode 1's
 # intended rules. ``unanchored_foreground_fraction`` is computed
 # candidate-vs-GT and reads no record path, so it has no anchor here. The
-# spline-offset path (``stage3.per_label_offsets[].offset_mm``) is dropped:
+# spline-offset path (``per_label.{label}.curve.offset_mm``, then at
+# ``stage3.per_label_offsets[].offset_mm``) is dropped:
 # its only consumer, ``mislabel``, was classified at the item-150 sign-off
 # as serving no failure mode (mislabel itself declared that path
 # ``bookkeeping``, not ``signal``), so mode 1's anchor and mode 1's
@@ -581,7 +582,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "needed again; not worth carrying as a stored duplicate of "
             "centroid_mm."
         ),
-        "stage3.per_label_offsets[].closest_u": (
+        "per_label.{label}.curve.closest_u": (
             "retune",
             "Should be nested under the existing per_label.{label}.* "
             "structure rather than living in a separate "
@@ -589,7 +590,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "duplicate the identity fields already carried at the top level "
             "of per_label."
         ),
-        "stage3.per_label_offsets[].dx_mm": (
+        "per_label.{label}.curve.dx_mm": (
             "retune",
             "Should be nested under the existing per_label.{label}.* "
             "structure rather than living in a separate "
@@ -597,7 +598,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "duplicate the identity fields already carried at the top level "
             "of per_label."
         ),
-        "stage3.per_label_offsets[].dy_mm": (
+        "per_label.{label}.curve.dy_mm": (
             "retune",
             "Should be nested under the existing per_label.{label}.* "
             "structure rather than living in a separate "
@@ -605,7 +606,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "duplicate the identity fields already carried at the top level "
             "of per_label."
         ),
-        "stage3.per_label_offsets[].dz_mm": (
+        "per_label.{label}.curve.dz_mm": (
             "retune",
             "Should be nested under the existing per_label.{label}.* "
             "structure rather than living in a separate "
@@ -613,7 +614,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "duplicate the identity fields already carried at the top level "
             "of per_label."
         ),
-        "stage3.per_label_offsets[].label": (
+        "per_label.{label}.curve.offset_mm": (
             "retune",
             "Should be nested under the existing per_label.{label}.* "
             "structure rather than living in a separate "
@@ -621,23 +622,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "duplicate the identity fields already carried at the top level "
             "of per_label."
         ),
-        "stage3.per_label_offsets[].level_name": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
-        "stage3.per_label_offsets[].offset_mm": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
-        "stage3.per_label_offsets[].offset_voxel": (
+        "per_label.{label}.curve.offset_voxel": (
             "retire",
             "An anisotropic-voxel-unit duplicate of offset_mm with no "
             "demonstrated need; irrelevant unless a concrete use case proves "
@@ -648,7 +633,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "Should likewise be decomposed into three per-axis components per "
             "neighbouring vertebra pair, rather than one scalar angle."
         ),
-        "stage3.curvature.tangent_angles_deg[]": (
+        "per_label.{label}.orientation.tangent_angle_deg": (
             "retune",
             "Should be decomposed into three per-axis components -- the "
             "tangent vector's angle projected along each scan dimension -- "
@@ -661,19 +646,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "than as one aggregate scalar, consistent with the tangent-angle "
             "decomposition."
         ),
-        "stage3.per_label_orientations[].label": (
-            "retune",
-            "Should be nested under per_label.{label}.* rather than a "
-            "separate stage3.per_label_orientations[] array; duplicates "
-            "identity fields already carried at the top level of per_label."
-        ),
-        "stage3.per_label_orientations[].level_name": (
-            "retune",
-            "Should be nested under per_label.{label}.* rather than a "
-            "separate stage3.per_label_orientations[] array; duplicates "
-            "identity fields already carried at the top level of per_label."
-        ),
-        "stage3.per_label_orientations[].principal_axis[]": (
+        "per_label.{label}.orientation.principal_axis[]": (
             "retune",
             "Current PCA-eigenvector computation is accurate as documented "
             "(captures the vertebra's AP axis) and should remain described "
@@ -686,7 +659,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "sequence-related checks should typically verify order along the "
             "spline parameter, not only label order."
         ),
-        "stage3.monotonic_consistency.u_values[]": (
+        "per_label.{label}.curve.path_u": (
             "retune",
             "Suspected to already be computed internally to produce "
             "non_monotonic_pairs[]; should be exposed and reused as the "
@@ -722,7 +695,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "detects irregular inter-vertebra spacing, which does not "
             "currently exist."
         ),
-        "image_features.per_label.{label}.first_order.entropy": (
+        "per_label.{label}.intensity.first_order.entropy": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -730,7 +703,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.iqr": (
+        "per_label.{label}.intensity.first_order.iqr": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -738,7 +711,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.max": (
+        "per_label.{label}.intensity.first_order.max": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -746,7 +719,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.mean": (
+        "per_label.{label}.intensity.first_order.mean": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -754,7 +727,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.median": (
+        "per_label.{label}.intensity.first_order.median": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -762,7 +735,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.min": (
+        "per_label.{label}.intensity.first_order.min": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -770,7 +743,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.n_nonfinite_excluded": (
+        "per_label.{label}.intensity.first_order.n_nonfinite_excluded": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -778,7 +751,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.p05": (
+        "per_label.{label}.intensity.first_order.p05": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -786,7 +759,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.p25": (
+        "per_label.{label}.intensity.first_order.p25": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -794,7 +767,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.p50": (
+        "per_label.{label}.intensity.first_order.p50": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -802,7 +775,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.p75": (
+        "per_label.{label}.intensity.first_order.p75": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -810,7 +783,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.p95": (
+        "per_label.{label}.intensity.first_order.p95": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -818,7 +791,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.range": (
+        "per_label.{label}.intensity.first_order.range": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -826,7 +799,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.std": (
+        "per_label.{label}.intensity.first_order.std": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -834,7 +807,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.per_label.{label}.first_order.voxel_count": (
+        "per_label.{label}.intensity.first_order.voxel_count": (
             "retune",
             "Should be restructured to nest under the main "
             "per_label.{label}.* pattern rather than a separate "
@@ -854,12 +827,6 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "provenance -- actual package versions are already tracked by "
             "item 096's run-manifest provenance block; this field is "
             "redundant with that mechanism."
-        ),
-        "image_features.per_label.{label}.label": (
-            "retune",
-            "Should be nested under the main per_label.{label}.* structure "
-            "rather than a separate image_features.per_label container; "
-            "duplicates identity fields already carried elsewhere."
         ),
         "image_features.radiomics_available": (
             "retune",
@@ -931,17 +898,165 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "alone, so per-feature out-of-distribution behaviour can be "
             "investigated for any tracked feature."
         ),
-        "reference_delta.{label}.label": (
+        "reference_delta.{label}.features.extent_x_mm.out_of_range": (
             "retune",
-            "Should be nested under the main per_label.{label}.* structure; "
-            "duplicates identity fields carried elsewhere across multiple "
-            "blocks."
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
         ),
-        "reference_delta.{label}.level_name": (
+        "reference_delta.{label}.features.extent_x_mm.percentile_rank": (
             "retune",
-            "Should be nested under the main per_label.{label}.* structure; "
-            "duplicates identity fields carried elsewhere across multiple "
-            "blocks."
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_x_mm.robust_z": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_x_mm.value": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_x_mm.z_score": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_y_mm.out_of_range": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_y_mm.percentile_rank": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_y_mm.robust_z": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_y_mm.value": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_y_mm.z_score": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_z_mm.out_of_range": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_z_mm.percentile_rank": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_z_mm.robust_z": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_z_mm.value": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.extent_z_mm.z_score": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.spline_offset_mm.out_of_range": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.spline_offset_mm.percentile_rank": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.spline_offset_mm.robust_z": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.spline_offset_mm.value": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
+        ),
+        "reference_delta.{label}.features.spline_offset_mm.z_score": (
+            "retune",
+            "The delta-comparison machinery should be generalised into "
+            "general-purpose per-feature machinery, computed for any "
+            "requested feature rather than hardcoded to physical_volume_mm3 "
+            "alone, so per-feature out-of-distribution behaviour can be "
+            "investigated for any tracked feature."
         ),
         "reference_delta.{label}.out_of_range_features[]": (
             "retune",
@@ -985,107 +1100,101 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='categorical',
         ),
-        'image_features.per_label.{label}.extended.{radiomic}': FeatureDoc(
+        'per_label.{label}.intensity.extended.{radiomic}': FeatureDoc(
             measures="PyRadiomics' own GLCM texture and shape feature families.",
             computation="binWidth fixed at 25.0, no resampling; keyed under PyRadiomics' own dotted names (e.g. original_glcm_Contrast).",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.entropy': FeatureDoc(
+        'per_label.{label}.intensity.first_order.entropy': FeatureDoc(
             measures='Shannon entropy of the intensity distribution.',
             computation='Fixed 32-bin histogram spanning [min, max], base-2 (bits); a uniform/constant region is defined as entropy 0.0.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.iqr': FeatureDoc(
+        'per_label.{label}.intensity.first_order.iqr': FeatureDoc(
             measures='Spread summary: interquartile range.',
             computation='p75 - p25 of the finite voxel values.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.max': FeatureDoc(
+        'per_label.{label}.intensity.first_order.max': FeatureDoc(
             measures='Maximum scan intensity under the label mask.',
             computation='Maximum of the finite voxel values.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.mean': FeatureDoc(
+        'per_label.{label}.intensity.first_order.mean': FeatureDoc(
             measures='Mean scan intensity under the label mask.',
             computation='Arithmetic mean over the finite voxel values.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.median': FeatureDoc(
+        'per_label.{label}.intensity.first_order.median': FeatureDoc(
             measures='Median scan intensity under the label mask.',
             computation='50th percentile of the finite voxel values; equals p50 exactly.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.min': FeatureDoc(
+        'per_label.{label}.intensity.first_order.min': FeatureDoc(
             measures='Minimum scan intensity under the label mask.',
             computation='Minimum of the finite voxel values.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.n_nonfinite_excluded': FeatureDoc(
+        'per_label.{label}.intensity.first_order.n_nonfinite_excluded': FeatureDoc(
             measures='Count of masked voxels dropped for being NaN/+-inf.',
             computation='Bookkeeping only -- excluded voxels never enter any statistic.',
             units='voxels',
             scale_sensitivity='voxel count',
         ),
-        'image_features.per_label.{label}.first_order.p05': FeatureDoc(
+        'per_label.{label}.intensity.first_order.p05': FeatureDoc(
             measures='5th percentile of scan intensity under the label mask.',
             computation="NumPy's default linear interpolation.",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.p25': FeatureDoc(
+        'per_label.{label}.intensity.first_order.p25': FeatureDoc(
             measures='25th percentile of scan intensity under the label mask.',
             computation="NumPy's default linear interpolation.",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.p50': FeatureDoc(
+        'per_label.{label}.intensity.first_order.p50': FeatureDoc(
             measures='50th percentile of scan intensity under the label mask.',
             computation="NumPy's default linear interpolation; equals median exactly.",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.p75': FeatureDoc(
+        'per_label.{label}.intensity.first_order.p75': FeatureDoc(
             measures='75th percentile of scan intensity under the label mask.',
             computation="NumPy's default linear interpolation.",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.p95': FeatureDoc(
+        'per_label.{label}.intensity.first_order.p95': FeatureDoc(
             measures='95th percentile of scan intensity under the label mask.',
             computation="NumPy's default linear interpolation.",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.range': FeatureDoc(
+        'per_label.{label}.intensity.first_order.range': FeatureDoc(
             measures='Spread summary: max - min.',
             computation='max - min of the finite voxel values.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.std': FeatureDoc(
+        'per_label.{label}.intensity.first_order.std': FeatureDoc(
             measures='Spread of scan intensity under the label mask.',
             computation='Population (ddof=0) standard deviation of the finite voxel values.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'image_features.per_label.{label}.first_order.voxel_count': FeatureDoc(
+        'per_label.{label}.intensity.first_order.voxel_count': FeatureDoc(
             measures='Number of finite scan voxels sampled under the label mask.',
             computation='Count after excluding NaN/inf scan voxels.',
             units='voxels',
             scale_sensitivity='voxel count',
-        ),
-        'image_features.per_label.{label}.label': FeatureDoc(
-            measures='The integer label this image_features entry describes.',
-            computation="Copied verbatim from the intensity extraction's label key.",
-            units='',
-            scale_sensitivity='identifier',
         ),
         'image_features.radiomics_available': FeatureDoc(
             measures='Whether the PyRadiomics backend produced any extended features.',
@@ -1477,17 +1586,125 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'reference_delta.{label}.label': FeatureDoc(
-            measures='The integer label this reference-delta entry describes.',
-            computation='Copied from the source LabelDelta dataclass.',
+        'reference_delta.{label}.features.extent_x_mm.out_of_range': FeatureDoc(
+            measures='Whether the value falls outside the configured percentile band.',
+            computation='value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].',
             units='',
-            scale_sensitivity='identifier',
+            scale_sensitivity='boolean',
         ),
-        'reference_delta.{label}.level_name': FeatureDoc(
-            measures='Anatomical vertebra name for this reference-delta entry.',
-            computation='Copied from the source LabelDelta dataclass.',
+        'reference_delta.{label}.features.extent_x_mm.percentile_rank': FeatureDoc(
+            measures="Where the case's value falls in the reference's percentile grid.",
+            computation="Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
             units='',
-            scale_sensitivity='categorical',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_x_mm.robust_z': FeatureDoc(
+            measures='Outlier-resistant z-score against the reference.',
+            computation='(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_x_mm.value': FeatureDoc(
+            measures="The case's own value for this tracked feature.",
+            computation="Read directly from the case's features_block for this label.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_x_mm.z_score': FeatureDoc(
+            measures='Standard z-score against the reference.',
+            computation='(value - mean) / std; None when the reference std is 0 for this feature/level.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_y_mm.out_of_range': FeatureDoc(
+            measures='Whether the value falls outside the configured percentile band.',
+            computation='value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].',
+            units='',
+            scale_sensitivity='boolean',
+        ),
+        'reference_delta.{label}.features.extent_y_mm.percentile_rank': FeatureDoc(
+            measures="Where the case's value falls in the reference's percentile grid.",
+            computation="Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_y_mm.robust_z': FeatureDoc(
+            measures='Outlier-resistant z-score against the reference.',
+            computation='(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_y_mm.value': FeatureDoc(
+            measures="The case's own value for this tracked feature.",
+            computation="Read directly from the case's features_block for this label.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_y_mm.z_score': FeatureDoc(
+            measures='Standard z-score against the reference.',
+            computation='(value - mean) / std; None when the reference std is 0 for this feature/level.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_z_mm.out_of_range': FeatureDoc(
+            measures='Whether the value falls outside the configured percentile band.',
+            computation='value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].',
+            units='',
+            scale_sensitivity='boolean',
+        ),
+        'reference_delta.{label}.features.extent_z_mm.percentile_rank': FeatureDoc(
+            measures="Where the case's value falls in the reference's percentile grid.",
+            computation="Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_z_mm.robust_z': FeatureDoc(
+            measures='Outlier-resistant z-score against the reference.',
+            computation='(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_z_mm.value': FeatureDoc(
+            measures="The case's own value for this tracked feature.",
+            computation="Read directly from the case's features_block for this label.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.extent_z_mm.z_score': FeatureDoc(
+            measures='Standard z-score against the reference.',
+            computation='(value - mean) / std; None when the reference std is 0 for this feature/level.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.spline_offset_mm.out_of_range': FeatureDoc(
+            measures='Whether the value falls outside the configured percentile band.',
+            computation='value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].',
+            units='',
+            scale_sensitivity='boolean',
+        ),
+        'reference_delta.{label}.features.spline_offset_mm.percentile_rank': FeatureDoc(
+            measures="Where the case's value falls in the reference's percentile grid.",
+            computation="Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.spline_offset_mm.robust_z': FeatureDoc(
+            measures='Outlier-resistant z-score against the reference.',
+            computation='(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.',
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.spline_offset_mm.value': FeatureDoc(
+            measures="The case's own value for this tracked feature.",
+            computation="Read directly from the case's features_block for this label.",
+            units='',
+            scale_sensitivity='dimensionless',
+        ),
+        'reference_delta.{label}.features.spline_offset_mm.z_score': FeatureDoc(
+            measures='Standard z-score against the reference.',
+            computation='(value - mean) / std; None when the reference std is 0 for this feature/level.',
+            units='',
+            scale_sensitivity='dimensionless',
         ),
         'reference_delta.{label}.out_of_range_features[]': FeatureDoc(
             measures="Feature names whose case value falls outside the reference's percentile band.",
@@ -1537,7 +1754,7 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.tangent_angles_deg[]': FeatureDoc(
+        'per_label.{label}.orientation.tangent_angle_deg': FeatureDoc(
             measures="Angle between the spline's local tangent and the superior-inferior axis, per vertebra.",
             computation="Evaluated at each vertebra's stored u via the spline's first derivative (evaluate_spline_derivative, nu=1), from tangents normalised so the sequence advances superiorly (item 131), invariant to whether the caller supplied centroids cranial-first or caudal-first.",
             units='degrees',
@@ -1549,13 +1766,13 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.coronal_tangent_angles_deg[]': FeatureDoc(
+        'per_label.{label}.orientation.tangent_coronal_unwrapped_deg': FeatureDoc(
             measures="Signed tangent angle in the coronal (R-S) plane at each centroid; positive tilts toward the patient's right as the spine advances cranially.",
             computation='degrees(atan2(t_R, t_S)) per centroid, unwrapped along the ordered sequence, computed from tangents normalised so the sequence advances superiorly. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.',
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.sagittal_tangent_angles_deg[]': FeatureDoc(
+        'per_label.{label}.orientation.tangent_sagittal_unwrapped_deg': FeatureDoc(
             measures='Signed tangent angle in the sagittal (A-S) plane at each centroid; positive tilts anterior.',
             computation='degrees(atan2(t_A, t_S)) per centroid, unwrapped along the ordered sequence, computed from tangents normalised so the sequence advances superiorly. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.',
             units='degrees',
@@ -1563,13 +1780,13 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
         ),
         'stage3.curvature.coronal_curvature_deg': FeatureDoc(
             measures='Coronal-plane (R-S) curvature sweep.',
-            computation='max - min of coronal_tangent_angles_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.',
+            computation="max - min of the labels' tangent_coronal_unwrapped_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
         'stage3.curvature.sagittal_curvature_deg': FeatureDoc(
             measures='Sagittal-plane (A-S) curvature sweep.',
-            computation='max - min of sagittal_tangent_angles_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.',
+            computation="max - min of the labels' tangent_sagittal_unwrapped_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
@@ -1591,163 +1808,139 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.monotonic_consistency.u_values[]': FeatureDoc(
+        'per_label.{label}.curve.path_u': FeatureDoc(
             measures="Each vertebra's normalised arc-length position u along the label-free path through the centroids, in CANONICAL_ORDER order.",
             computation='The arc length of every vertebra\'s closest point on the longest path of the centroids\' minimum spanning tree (the traversal path), divided by the path length and directed to have fewer inversions against the supplied order (item 210); not the order under test.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_neighbourhood[].deviation_score': FeatureDoc(
+        'per_label.{label}.neighbourhood.deviation_score': FeatureDoc(
             measures="How anomalous the focal vertebra's scored features are relative to its sliding-window neighbours.",
             computation='max() of the leave-one-out z-scores (per scored feature) of the focal vertebra against the other window members.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_neighbourhood[].is_outlier': FeatureDoc(
+        'per_label.{label}.neighbourhood.is_outlier': FeatureDoc(
             measures='Whether the focal vertebra is flagged as a local neighbourhood outlier.',
             computation='deviation_score >= the configured outlier_threshold (default 2.0).',
             units='',
             scale_sensitivity='boolean',
         ),
-        'stage3.per_label_neighbourhood[].label': FeatureDoc(
-            measures='Integer label of the focal vertebra in this neighbourhood entry.',
-            computation='Copied verbatim from the focal centroid.',
-            units='',
-            scale_sensitivity='identifier',
-        ),
-        'stage3.per_label_neighbourhood[].level_name': FeatureDoc(
-            measures='Anatomical level name of the focal vertebra in this neighbourhood entry.',
-            computation='Copied verbatim from the focal centroid.',
-            units='',
-            scale_sensitivity='identifier',
-        ),
-        'stage3.per_label_neighbourhood[].stats.offset_mm.mean': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.offset_mm.mean': FeatureDoc(
             measures='Mean spline offset (mm) over the sliding window (including the focal vertebra).',
-            computation='Mean of per_label_offsets[].offset_mm over the window indices.',
+            computation='Mean of per_label.{label}.curve.offset_mm over the window indices.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.offset_mm.median': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.offset_mm.median': FeatureDoc(
             measures='Median spline offset (mm) over the sliding window (including the focal vertebra).',
-            computation='Median of per_label_offsets[].offset_mm over the window indices.',
+            computation='Median of per_label.{label}.curve.offset_mm over the window indices.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.offset_mm.std': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.offset_mm.std': FeatureDoc(
             measures='Standard deviation of spline offset (mm) over the sliding window (including the focal vertebra).',
-            computation='Population std (ddof=0) of per_label_offsets[].offset_mm over the window indices.',
+            computation='Population std (ddof=0) of per_label.{label}.curve.offset_mm over the window indices.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.offset_mm.z_score': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.offset_mm.z_score': FeatureDoc(
             measures="The focal vertebra's spline offset expressed as a leave-one-out z-score against its window neighbours.",
             computation='abs(focal offset_mm - mean of neighbour offset_mm) / max(std of neighbour offset_mm, _MIN_STD).',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_neighbourhood[].stats.spacing_mm.mean': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.spacing_mm.mean': FeatureDoc(
             measures='Mean per-element inter-centroid spacing (mm) over the sliding window (including the focal vertebra).',
             computation='Mean, over the window, of a caller-supplied per-element spacing value: the distance to the next vertebra in the ordered sequence (the last vertebra reuses the distance to its previous neighbour).',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.spacing_mm.median': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.spacing_mm.median': FeatureDoc(
             measures='Median per-element inter-centroid spacing (mm) over the sliding window (including the focal vertebra).',
             computation='Median, over the window, of the same per-element spacing value used for the mean.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.spacing_mm.std': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.spacing_mm.std': FeatureDoc(
             measures='Standard deviation of per-element inter-centroid spacing (mm) over the sliding window (including the focal vertebra).',
             computation='Population std (ddof=0), over the window, of the same per-element spacing value used for the mean.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.spacing_mm.z_score': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.spacing_mm.z_score': FeatureDoc(
             measures="The focal vertebra's per-element spacing expressed as a leave-one-out z-score against its window neighbours. Reported but deliberately unscored by default -- see UNSCORED_RATIONALE in segfacet.features.neighbourhood.",
             computation='abs(focal spacing_mm - mean of neighbour spacing_mm) / max(std of neighbour spacing_mm, _MIN_STD).',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_neighbourhood[].stats.volume_mm3.mean': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.volume_mm3.mean': FeatureDoc(
             measures='Mean per-label physical volume (mm3) over the sliding window (including the focal vertebra).',
             computation='Mean of per_label.{label}.geometry.physical_volume_mm3 over the window indices.',
             units='mm3',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.volume_mm3.median': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.volume_mm3.median': FeatureDoc(
             measures='Median per-label physical volume (mm3) over the sliding window (including the focal vertebra).',
             computation='Median of per_label.{label}.geometry.physical_volume_mm3 over the window indices.',
             units='mm3',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.volume_mm3.std': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.volume_mm3.std': FeatureDoc(
             measures='Standard deviation of per-label physical volume (mm3) over the sliding window (including the focal vertebra).',
             computation='Population std (ddof=0) of per_label.{label}.geometry.physical_volume_mm3 over the window indices.',
             units='mm3',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_neighbourhood[].stats.volume_mm3.z_score': FeatureDoc(
+        'per_label.{label}.neighbourhood.stats.volume_mm3.z_score': FeatureDoc(
             measures="The focal vertebra's physical volume expressed as a leave-one-out z-score against its window neighbours.",
             computation='abs(focal volume_mm3 - mean of neighbour volume_mm3) / max(std of neighbour volume_mm3, _MIN_STD).',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_neighbourhood[].window_labels[]': FeatureDoc(
+        'per_label.{label}.neighbourhood.window_labels[]': FeatureDoc(
             measures='Integer labels of every vertebra in the focal vertebra\'s sliding window (including itself).',
             computation='Labels of the elements at window indices max(0, i - window_n//2) .. min(n-1, i + window_n//2).',
             units='',
             scale_sensitivity='identifier',
         ),
-        'stage3.per_label_offsets[].closest_u': FeatureDoc(
+        'per_label.{label}.curve.closest_u': FeatureDoc(
             measures="Spline parameter (0-1) of the point on the curve nearest this vertebra's centroid.",
             computation='Coarse 500-point scan over u, refined with a bounded scipy.optimize.minimize_scalar (xatol 1e-6).',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_offsets[].dx_mm': FeatureDoc(
+        'per_label.{label}.curve.dx_mm': FeatureDoc(
             measures='Signed x-axis displacement from the fitted spline.',
             computation='centroid_mm - closest spline point, x component.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_offsets[].dy_mm': FeatureDoc(
+        'per_label.{label}.curve.dy_mm': FeatureDoc(
             measures='Signed y-axis displacement from the fitted spline.',
             computation='centroid_mm - closest spline point, y component.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_offsets[].dz_mm': FeatureDoc(
+        'per_label.{label}.curve.dz_mm': FeatureDoc(
             measures='Signed z-axis displacement from the fitted spline.',
             computation='centroid_mm - closest spline point, z component.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_offsets[].label': FeatureDoc(
-            measures='The integer label this spline-offset entry describes.',
-            computation='Copied from the source VertebralSplineOffset dataclass.',
-            units='',
-            scale_sensitivity='identifier',
-        ),
-        'stage3.per_label_offsets[].level_name': FeatureDoc(
-            measures='Anatomical vertebra name for this spline-offset entry.',
-            computation='Copied from the source VertebralSplineOffset dataclass.',
-            units='',
-            scale_sensitivity='categorical',
-        ),
-        'stage3.per_label_offsets[].offset_mm': FeatureDoc(
+        'per_label.{label}.curve.offset_mm': FeatureDoc(
             measures="Perpendicular distance from the vertebra's centroid to the fitted spline.",
             computation='Euclidean distance (mm) to the closest spline point at closest_u.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.per_label_offsets[].offset_voxel': FeatureDoc(
+        'per_label.{label}.curve.offset_voxel': FeatureDoc(
             measures='Anisotropic-aware perpendicular offset.',
             computation='Same as offset_mm but with each axis scaled by 1/spacing before taking the norm.',
             units='voxels',
             scale_sensitivity='voxel count',
         ),
-        'stage3.per_label_offsets[].is_terminal': FeatureDoc(
+        'per_label.{label}.curve.is_terminal': FeatureDoc(
             measures=(
                 'Whether this entry is the first or last vertebra of the ordered '
                 'centroid sequence it was measured in (item 123) -- true for a '
@@ -1765,31 +1958,19 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='boolean',
         ),
-        'stage3.per_label_orientations[].eigenvalue_ratio': FeatureDoc(
+        'per_label.{label}.orientation.eigenvalue_ratio': FeatureDoc(
             measures='Anisotropy of the per-vertebra voxel cloud.',
             computation='lambda_max / lambda_second of the PCA covariance; infinite for a degenerate flat cloud, 0 for a single-voxel label.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_orientations[].label': FeatureDoc(
-            measures='The integer label this orientation entry describes.',
-            computation='Copied from the source VertebralOrientation dataclass.',
-            units='',
-            scale_sensitivity='identifier',
-        ),
-        'stage3.per_label_orientations[].level_name': FeatureDoc(
-            measures='Anatomical vertebra name for this orientation entry.',
-            computation='Copied from the source VertebralOrientation dataclass.',
-            units='',
-            scale_sensitivity='categorical',
-        ),
-        'stage3.per_label_orientations[].principal_axis[]': FeatureDoc(
+        'per_label.{label}.orientation.principal_axis[]': FeatureDoc(
             measures='Per-vertebra orientation via PCA of its voxel cloud.',
             computation=(
                 'Eigenvector of the largest eigenvalue of the 3x3 covariance of the '
                 'mean-centred, spacing-scaled voxel coordinates. Demoted (item 121): '
                 'measured across all nine committed corpus goldens (2026-08-29), every '
-                'per_label_orientations entry satisfies abs(dot(principal_axis, (1,0,0))) '
+                'per-label orientation block satisfies abs(dot(principal_axis, (1,0,0))) '
                 '>= 0.996, and on seven of the nine cases it is exactly [1.0, 0.0, 0.0] '
                 "on every vertebra -- the fixture body's widest side, which never "
                 'discriminates between vertebrae. Prefer spline_tangent_coronal_deg / '
@@ -1798,21 +1979,21 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_orientations[].spline_closest_u': FeatureDoc(
+        'per_label.{label}.orientation.spline_closest_u': FeatureDoc(
             measures=(
                 "Spline parameter (0-1) of the point on the fitted curve nearest this "
                 "vertebra's centroid, evaluated against the shared in-sample fit (item 121)."
             ),
             computation=(
                 'compute_spline_offsets(centroids, fit).closest_u for this label -- the '
-                'same coarse-scan-plus-refinement estimator stage3.per_label_offsets[].'
+                'same coarse-scan-plus-refinement estimator per_label.{label}.curve.'
                 'closest_u uses, but against the in-sample fit rather than a held-out '
                 'refit (the two are distinguished by the spline_ prefix on this key).'
             ),
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_orientations[].spline_tangent[]': FeatureDoc(
+        'per_label.{label}.orientation.spline_tangent[]': FeatureDoc(
             measures=(
                 "Unit-normalised tangent of the fitted spinal curve at this vertebra's "
                 "own closest point on it (item 121) -- an orientation proxy, not a "
@@ -1828,7 +2009,7 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_orientations[].spline_tangent_coronal_deg': FeatureDoc(
+        'per_label.{label}.orientation.spline_tangent_coronal_deg': FeatureDoc(
             measures=(
                 "Signed coronal (R-S plane) tilt of the fitted spinal curve at this "
                 "vertebra's own closest point on it -- an orientation proxy, not a "
@@ -1837,8 +2018,8 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             ),
             computation=(
                 'degrees(atan2(t_R, t_S)) of spline_tangent, wrapped to (-180, 180] and '
-                'deliberately not unwrapped (unlike stage3.curvature.'
-                'coronal_tangent_angles_deg, this is a single per-vertebra reading, not a '
+                'deliberately not unwrapped (unlike per_label.{label}.orientation.'
+                'tangent_coronal_unwrapped_deg, this is a single per-vertebra reading, not a '
                 'sequence to accumulate a sweep over). Positive means the curve tilts '
                 "toward the patient's right as it advances cranially. Requires RAS-ordered "
                 'mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by '
@@ -1847,7 +2028,7 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.per_label_orientations[].spline_tangent_sagittal_deg': FeatureDoc(
+        'per_label.{label}.orientation.spline_tangent_sagittal_deg': FeatureDoc(
             measures=(
                 "Signed sagittal (A-S plane) tilt of the fitted spinal curve at this "
                 "vertebra's own closest point on it -- an orientation proxy, not a "

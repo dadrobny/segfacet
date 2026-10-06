@@ -117,7 +117,7 @@ _SENTINEL_PATHS = (
     "per_label.{label}.geometry.touches_superior",
     "per_label.{label}.components.fragmentation_index",
     "relationships.out_of_order_labels[]",
-    "stage3.per_label_offsets[].offset_mm",
+    "per_label.{label}.curve.offset_mm",
     "overlaps[].overlap_voxels",
 )
 

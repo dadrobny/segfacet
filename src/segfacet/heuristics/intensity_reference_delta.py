@@ -156,9 +156,19 @@ class IntensityReferenceDeltaRule(Rule):
                 path="per_label",
                 role="not-read",
                 reason=(
-                    "mechanism B last-path-segment match only: this rule "
-                    "reads record['intensity_reference_delta'], never the "
-                    "top-level record['per_label']"
+                    "mechanism B last-path-segment match only: the container "
+                    "is not itself a feature -- this rule reads "
+                    "record['intensity_reference_delta'] and takes each "
+                    "label's level_name from record['per_label'] "
+                    "(item 215)"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "identity and message interpolation: names the level "
+                    "in the finding"
                 ),
             ),
             ConsumedPath(
@@ -189,33 +199,6 @@ class IntensityReferenceDeltaRule(Rule):
                     "mechanism B last-path-segment match only: read from "
                     "the intensity_reference_delta block, not from "
                     "reference_delta"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: "
-                    "'percentile_rank' is read under the "
-                    "intensity_reference_delta block's own per-feature "
-                    "entries"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.features.physical_volume_mm3.robust_z",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: 'robust_z' "
-                    "is read under the intensity_reference_delta block, "
-                    "never under reference_delta"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.features.physical_volume_mm3.value",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: 'value' is "
-                    "read under the intensity_reference_delta block"
                 ),
             ),
             ConsumedPath(
@@ -303,7 +286,8 @@ class IntensityReferenceDeltaRule(Rule):
         ----------
         record:
             Per-case feature dict (read-only). Reads
-            ``record["intensity_reference_delta"]``.
+            ``record["intensity_reference_delta"]`` and each label's
+            ``level_name`` from ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads
             ``rules.intensity_reference_delta.params``.
@@ -364,6 +348,13 @@ class IntensityReferenceDeltaRule(Rule):
         if not isinstance(per_label, dict):
             return []
 
+        # Identity is stored once, on the record's own per-label entry
+        # (item 215): the delta entry is keyed by the label and carries no
+        # copy of the label or its level name.
+        identity = record.get("per_label")
+        if not isinstance(identity, dict):
+            identity = {}
+
         normalised = []
         for key, entry in per_label.items():
             if not isinstance(entry, dict):
@@ -371,15 +362,20 @@ class IntensityReferenceDeltaRule(Rule):
             if not entry.get("available"):
                 continue
             try:
-                label = int(entry.get("label", key))
+                label = int(key)
             except (TypeError, ValueError):
                 continue
-            normalised.append((label, entry))
+            normalised.append((label, key, entry))
         normalised.sort(key=lambda t: t[0])
 
         findings: List[Finding] = []
-        for label, entry in normalised:
-            level_name = entry.get("level_name")
+        for label, key, entry in normalised:
+            label_entry = identity.get(key)
+            level_name = (
+                label_entry.get("level_name")
+                if isinstance(label_entry, dict)
+                else None
+            )
             features = entry.get("features")
             if not isinstance(features, dict):
                 features = {}

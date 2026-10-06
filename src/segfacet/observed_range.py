@@ -308,7 +308,7 @@ def resolve_reference_features(leaf_paths: Set[str]) -> Dict[str, str]:
     1. The inverse of ``feature_docs.PATH_ALIASES``.
     2. A name in ``reference.ingest.INGESTED_INTENSITY_FEATURES``, whose
        ``intensity_`` prefix stripped gives the last segment of a path under
-       ``image_features.per_label.{label}.first_order``.
+       ``per_label.{label}.intensity.first_order``.
     3. Otherwise, the unique leaf path whose last segment equals the name --
        an ambiguous last-segment match (more than one candidate) resolves to
        none of them (AC23), mirroring item 110's AC11b discipline.
@@ -329,7 +329,7 @@ def resolve_reference_features(leaf_paths: Set[str]) -> Dict[str, str]:
         if name in resolved or not name.startswith("intensity_"):
             continue
         segment = name[len("intensity_") :]
-        target = f"image_features.per_label.{{label}}.first_order.{segment}"
+        target = f"per_label.{{label}}.intensity.first_order.{segment}"
         if target in leaf_set:
             resolved[name] = target
 

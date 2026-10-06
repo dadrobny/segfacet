@@ -208,7 +208,6 @@ def _morphology_features_block(entries):
     eigenvalue_ratio_or_None)``. Builds a minimal ``features_block`` carrying
     only what ``compute_morphology_reference_delta`` reads."""
     per_label = {}
-    orientations = []
     for label, level_name, components, eigenvalue_ratio in entries:
         per_label[str(label)] = {
             "label": label,
@@ -217,13 +216,9 @@ def _morphology_features_block(entries):
             "components": dict(components),
         }
         if eigenvalue_ratio is not None:
-            orientations.append(
-                {"label": label, "level_name": level_name, "eigenvalue_ratio": eigenvalue_ratio}
-            )
-    block = {"per_label": per_label}
-    if orientations:
-        block["stage3"] = {"per_label_orientations": orientations}
-    return block
+            # Item 215: the orientation kind sits on the label's own entry.
+            per_label[str(label)]["orientation"] = {"eigenvalue_ratio": eigenvalue_ratio}
+    return {"per_label": per_label}
 
 
 # =========================================================================== #
@@ -300,8 +295,9 @@ def test_ac5_with_morphology_true_matches_extractor_per_label(tmp_path):
 
     block = _extract(spine.seg_img)
     orientations_by_label = {
-        int(e["label"]): e["eigenvalue_ratio"]
-        for e in block.get("stage3", {}).get("per_label_orientations", [])
+        int(e["label"]): e["orientation"]["eigenvalue_ratio"]
+        for e in block["per_label"].values()
+        if "orientation" in e
     }
 
     for record in result.records:
@@ -541,7 +537,7 @@ def test_ac13_morphology_delta_scores_via_its_own_read_path():
     assert set(delta.per_label.keys()) == present_labels
 
     orientations_by_label = {
-        int(e["label"]) for e in block.get("stage3", {}).get("per_label_orientations", [])
+        int(e["label"]) for e in block["per_label"].values() if "orientation" in e
     }
     for label, label_delta in delta.per_label.items():
         entry = block["per_label"][str(label)]
@@ -604,7 +600,11 @@ def test_ac15_geometry_delta_stays_inert_on_morphology():
 
 
 def test_ac16_intensity_delta_stays_inert_on_morphology():
-    from segfacet.feature_report import build_image_features_block
+    from segfacet.feature_report import (
+        add_intensity_kind,
+        build_image_features_block,
+        build_intensity_entries,
+    )
     from segfacet.features.intensity import compute_intensity_features
     from segfacet.synth.intensity import paint_clean_scan
 
@@ -615,7 +615,8 @@ def test_ac16_intensity_delta_stays_inert_on_morphology():
 
     block = extract_feature_record(spine.seg_img, config)
     intensity_by_label = compute_intensity_features(scan_img, spine.seg_img)
-    image_features = build_image_features_block(intensity_by_label)
+    block = add_intensity_kind(block, build_intensity_entries(intensity_by_label))
+    image_features = build_image_features_block()
 
     delta = compute_intensity_reference_delta(block, image_features, bundled)
 

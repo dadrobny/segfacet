@@ -46,13 +46,12 @@ def _rule_ids(findings):
 
 def _mode1_record() -> dict:
     return {
-        "per_label": {_L1: {"label": _L1, "level_name": "L1"}},
+        "per_label": {
+            _L1: {"label": _L1, "level_name": "L1", "curve": {"offset_mm": 15.0}}
+        },
         "relationships": {},
         "overlaps": [],
         "stage3": {
-            "per_label_offsets": [
-                {"label": _L1, "level_name": "L1", "offset_mm": 15.0}
-            ],
             "monotonic_consistency": {"non_monotonic_pairs": []},
         },
     }
@@ -152,7 +151,6 @@ def _mode4_record() -> dict:
         "relationships": {},
         "overlaps": [],
         "stage3": {
-            "per_label_offsets": [],
             "monotonic_consistency": {"non_monotonic_pairs": [["L2", "L1"]]},
         },
     }
@@ -388,6 +386,7 @@ def _gt_pass_record() -> dict:
                 "fragmentation_index": 1.0,
                 "small_fragments": [],
             },
+            "curve": {"offset_mm": 5.0},
         }
     return {
         "per_label": per_label,
@@ -399,11 +398,6 @@ def _gt_pass_record() -> dict:
         },
         "overlaps": [],
         "stage3": {
-            "per_label_offsets": [
-                {"label": _T12, "level_name": "T12", "offset_mm": 5.0},
-                {"label": _L1, "level_name": "L1", "offset_mm": 5.0},
-                {"label": _L2, "level_name": "L2", "offset_mm": 5.0},
-            ],
             "monotonic_consistency": {"non_monotonic_pairs": []},
         },
     }

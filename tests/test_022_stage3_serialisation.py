@@ -180,6 +180,18 @@ def _mask_stack(seg_img, labels):
     return stack, np.asarray(labels, dtype=np.int64)
 
 
+def _kind_entries(block, kind):
+    """Each label's ``kind`` block (``curve`` / ``orientation``), with its
+    identity read from the surviving ``per_label`` entry (item 215: the
+    identity is stored once there, not in the kind block), ascending label.
+    """
+    return [
+        {"label": e["label"], "level_name": e["level_name"], **e[kind]}
+        for e in block["per_label"].values()
+        if kind in e
+    ]
+
+
 def _stage2_for_case(case, config=None):
     """Build the Stage 2 feature maps for a SyntheticCase."""
     if config is None:
@@ -257,25 +269,27 @@ def test_ac1_stage3_top_level_features_key_present():
 
 
 def test_ac2_all_stage3_subkeys_present():
-    """AC2: 'stage3' contains all five expected sub-keys."""
+    """AC2: 'stage3' contains the three case-level sub-keys, and every label
+    carries the curve and orientation kinds (item 215: the per-label offsets
+    and orientations moved under ``per_label.{label}``)."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     stage3 = block["stage3"]
     for key in (
-        "per_label_offsets",
-        "per_label_orientations",
         "curvature",
         "spacing_consistency",
         "monotonic_consistency",
     ):
         assert key in stage3, f"Expected 'stage3.{key}' to be present"
+    for kind in ("curve", "orientation"):
+        assert all(kind in e for e in block["per_label"].values()), kind
 
 
 def test_ac2_per_label_offsets_has_required_keys():
     """AC2: Each entry in per_label_offsets has all required offset fields."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         for key in ("label", "level_name", "closest_u", "offset_mm",
                     "offset_voxel", "dx_mm", "dy_mm", "dz_mm"):
             assert key in entry, f"per_label_offsets entry missing key: {key!r}"
@@ -286,7 +300,7 @@ def test_ac2_per_label_orientations_has_required_keys():
     eigenvalue_ratio."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_orientations"]:
+    for entry in _kind_entries(block, "orientation"):
         for key in ("label", "level_name", "principal_axis", "eigenvalue_ratio"):
             assert key in entry, f"per_label_orientations entry missing key: {key!r}"
 
@@ -295,7 +309,7 @@ def test_ac2_per_label_orientations_principal_axis_is_3_element_list():
     """AC2: principal_axis is a 3-element list of numbers."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_orientations"]:
+    for entry in _kind_entries(block, "orientation"):
         axis = entry["principal_axis"]
         assert isinstance(axis, list), f"principal_axis should be a list, got {type(axis)}"
         assert len(axis) == 3, f"principal_axis should have 3 elements, got {len(axis)}"
@@ -304,13 +318,18 @@ def test_ac2_per_label_orientations_principal_axis_is_3_element_list():
 
 
 def test_ac2_curvature_has_required_keys():
-    """AC2: curvature object has tangent_angles_deg, inter_tangent_angles_deg,
-    total_curvature_deg."""
+    """AC2: curvature object has inter_tangent_angles_deg, total_curvature_deg;
+    the per-label tangent angle (formerly ``tangent_angles_deg``) is each
+    label's ``orientation.tangent_angle_deg`` (item 215)."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     curv = block["stage3"]["curvature"]
-    for key in ("tangent_angles_deg", "inter_tangent_angles_deg", "total_curvature_deg"):
+    for key in ("inter_tangent_angles_deg", "total_curvature_deg"):
         assert key in curv, f"curvature missing key: {key!r}"
+    assert "tangent_angles_deg" not in curv
+    assert all(
+        "tangent_angle_deg" in e["orientation"] for e in block["per_label"].values()
+    )
 
 
 def test_ac2_curvature_inter_tangent_length_is_n_minus_1():
@@ -334,12 +353,16 @@ def test_ac2_spacing_consistency_has_required_keys():
 
 
 def test_ac2_monotonic_consistency_has_required_keys():
-    """AC2: monotonic_consistency has is_monotonic, non_monotonic_pairs, u_values."""
+    """AC2: monotonic_consistency has is_monotonic, non_monotonic_pairs; the
+    per-label path position (formerly ``u_values``) is each label's
+    ``curve.path_u`` (item 215)."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     mc = block["stage3"]["monotonic_consistency"]
-    for key in ("is_monotonic", "non_monotonic_pairs", "u_values"):
+    for key in ("is_monotonic", "non_monotonic_pairs"):
         assert key in mc, f"monotonic_consistency missing key: {key!r}"
+    assert "u_values" not in mc
+    assert all("path_u" in e["curve"] for e in block["per_label"].values())
 
 
 def test_ac2_per_label_offsets_count_matches_centroids():
@@ -347,7 +370,7 @@ def test_ac2_per_label_offsets_count_matches_centroids():
     n = 6
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["per_label_offsets"]) == n
+    assert len(_kind_entries(block, "curve")) == n
 
 
 def test_ac2_per_label_orientations_count_matches_centroids():
@@ -355,7 +378,7 @@ def test_ac2_per_label_orientations_count_matches_centroids():
     n = 6
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["per_label_orientations"]) == n
+    assert len(_kind_entries(block, "orientation")) == n
 
 
 def test_ac2_u_values_length_in_monotonic_consistency():
@@ -363,7 +386,7 @@ def test_ac2_u_values_length_in_monotonic_consistency():
     n = 5
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["monotonic_consistency"]["u_values"]) == n
+    assert len([e["curve"]["path_u"] for e in block["per_label"].values()]) == n
 
 
 def test_ac2_spacings_mm_length_in_spacing_consistency():
@@ -383,7 +406,7 @@ def test_ac3_gt_all_offsets_near_zero():
     """AC3: For GT centroids lying on the spline, all serialised offset_mm < 1.0 mm."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         assert entry["offset_mm"] < 1.0, (
             f"Level {entry['level_name']}: serialised offset_mm="
             f"{entry['offset_mm']:.4f} >= 1.0 mm"
@@ -394,7 +417,7 @@ def test_ac3_gt_curved_spine_offsets_near_zero():
     """AC3: GT curved-spine centroids have serialised offset_mm < 1.0 mm."""
     centroids = _curved_spine()
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         assert entry["offset_mm"] < 1.0, (
             f"Level {entry['level_name']}: offset_mm={entry['offset_mm']:.4f}"
         )
@@ -473,7 +496,7 @@ def test_ac4_displaced_centroid_has_large_serialised_offset():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    displaced_entry = block["stage3"]["per_label_offsets"][3]
+    displaced_entry = _kind_entries(block, "curve")[3]
     assert displaced_entry["offset_mm"] >= 8.0, (
         f"Displaced centroid offset_mm={displaced_entry['offset_mm']:.4f} < 8.0"
     )
@@ -512,7 +535,7 @@ def test_ac4_displaced_centroid_others_remain_small():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    for i, entry in enumerate(block["stage3"]["per_label_offsets"]):
+    for i, entry in enumerate(_kind_entries(block, "curve")):
         if i == 3:
             continue
         assert entry["offset_mm"] < 2.0, (
@@ -756,7 +779,7 @@ def test_ac8_per_label_offsets_ascending_label_order():
     """AC8: per_label_offsets is in ascending integer-label order."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    labels_in_block = [e["label"] for e in block["stage3"]["per_label_offsets"]]
+    labels_in_block = [e["label"] for e in _kind_entries(block, "curve")]
     assert labels_in_block == sorted(labels_in_block)
 
 
@@ -764,7 +787,7 @@ def test_ac8_per_label_orientations_ascending_label_order():
     """AC8: per_label_orientations is in ascending integer-label order."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    labels_in_block = [e["label"] for e in block["stage3"]["per_label_orientations"]]
+    labels_in_block = [e["label"] for e in _kind_entries(block, "orientation")]
     assert labels_in_block == sorted(labels_in_block)
 
 
@@ -776,8 +799,8 @@ def test_ac8_json_text_round_trip_preserves_offset_values():
     text = json.dumps(report, ensure_ascii=False, sort_keys=True)
     parsed = json.loads(text)
     for orig, parsed_entry in zip(
-        block["stage3"]["per_label_offsets"],
-        parsed["features"]["stage3"]["per_label_offsets"],
+        _kind_entries(block, "curve"),
+        _kind_entries(parsed["features"], "curve"),
     ):
         assert math.isclose(orig["offset_mm"], parsed_entry["offset_mm"], rel_tol=1e-9)
 
@@ -824,8 +847,6 @@ def test_ac9_stage3_key_order_and_key_set_explicit():
 
     stage3_keys = set(produced["features"]["stage3"].keys())
     assert stage3_keys == {
-        "per_label_offsets",
-        "per_label_orientations",
         "curvature",
         "spacing_consistency",
         "monotonic_consistency",
@@ -838,16 +859,18 @@ def test_ac9_stage3_key_order_and_key_set_explicit():
 
 
 def test_ac9_features_version_is_02_when_stage3_present():
-    """AC9: features_version is '0.2' when Stage 3 data is supplied."""
+    """AC9: features_version is the Stage 3 value when Stage 3 data is supplied."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    assert block["features_version"] == "0.2", (
-        f"Expected features_version='0.2', got {block['features_version']!r}"
+    # Item 215 (2026-10-06): the per-label Stage 3 fields moved under
+    # per_label.{label}, so the Stage 3 discriminator "0.2" -> "0.3".
+    assert block["features_version"] == "0.3", (
+        f"Expected features_version='0.3', got {block['features_version']!r}"
     )
 
 
 def test_ac9_features_version_is_01_when_stage3_absent():
-    """AC9: features_version remains '0.1' for a Stage-2-only block."""
+    """AC9: features_version stays at the base value for a Stage-2-only block."""
     case = labelled_blocks_case()
     geometry, components, centroids_map, centroid_seq, relationships, overlaps = \
         _stage2_for_case(case)
@@ -858,8 +881,10 @@ def test_ac9_features_version_is_01_when_stage3_absent():
         relationships=relationships,
         overlaps=overlaps,
     )
-    assert block["features_version"] == "0.1", (
-        f"Expected features_version='0.1' for Stage-2-only block, "
+    # Item 215 (2026-10-06): the base discriminator "0.1" -> "0.2" (the
+    # per-label intensity kind changes a no-Stage-3 block's shape).
+    assert block["features_version"] == "0.2", (
+        f"Expected features_version='0.2' for Stage-2-only block, "
         f"got {block['features_version']!r}"
     )
 
@@ -869,7 +894,7 @@ def test_ac9_features_version_in_serialised_report():
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     report = serialize_report(_empty_verdict(), "c", _config(), features=block)
-    assert report["features"]["features_version"] == "0.2"
+    assert report["features"]["features_version"] == "0.3"  # item 215, see above
 
 
 # =========================================================================== #
@@ -1048,7 +1073,8 @@ def test_adv_only_spline_offsets_supplied():
         spline_offsets=offsets,
     )
     assert "stage3" in block
-    assert "per_label_offsets" in block["stage3"]
+    assert block["per_label"]
+    assert all("curve" in e for e in block["per_label"].values())
 
 
 def test_adv_only_curvature_supplied():
@@ -1085,7 +1111,7 @@ def test_adv_two_centroid_spine_full_pipeline():
     centroids = _straight_spine(2, spacing_mm=10.0)
     block = _full_block_for_spine(centroids)
     assert "stage3" in block
-    assert len(block["stage3"]["per_label_offsets"]) == 2
+    assert len(_kind_entries(block, "curve")) == 2
     assert block["stage3"]["monotonic_consistency"]["is_monotonic"] is True
 
 
@@ -1097,7 +1123,7 @@ def test_adv_schema_rejects_missing_offset_mm():
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     bad = json.loads(json.dumps(block))
-    del bad["stage3"]["per_label_offsets"][0]["offset_mm"]
+    del next(iter(bad["per_label"].values()))["curve"]["offset_mm"]
 
     report = serialize_report(_empty_verdict(), "c", _config())
     report["features"] = bad
@@ -1130,7 +1156,7 @@ def test_adv_all_serialised_offsets_non_negative():
     """All serialised offset_mm and offset_voxel values are non-negative."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         assert entry["offset_mm"] >= 0.0
         assert entry["offset_voxel"] >= 0.0
 
@@ -1139,7 +1165,7 @@ def test_adv_all_u_values_in_unit_interval():
     """All serialised u_values in monotonic_consistency are in [0.0, 1.0]."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for u in block["stage3"]["monotonic_consistency"]["u_values"]:
+    for u in [e["curve"]["path_u"] for e in block["per_label"].values()]:
         assert 0.0 <= float(u) <= 1.0, f"u value {u} out of [0, 1]"
 
 
@@ -1168,7 +1194,7 @@ def test_adv_vector_components_consistent_in_serialised_block():
     """sqrt(dx_mm² + dy_mm² + dz_mm²) ≈ offset_mm in the serialised block (abs_tol=0.1)."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         reconstructed = math.sqrt(
             entry["dx_mm"] ** 2 + entry["dy_mm"] ** 2 + entry["dz_mm"] ** 2
         )

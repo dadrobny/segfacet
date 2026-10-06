@@ -90,9 +90,11 @@ def test_ac3_clean_hu_yields_no_intensity_finding():
 
 
 def test_ac3_clean_hu_image_features_available():
-    _case_result, _features, image_features, _rd, _ird = _run("clean_hu")
+    _case_result, features, image_features, _rd, _ird = _run("clean_hu")
     assert image_features["available"] is True
-    assert image_features["per_label"]  # at least one label present
+    # Item 215: the per-label statistics are each label's intensity kind on
+    # the features record.
+    assert any("intensity" in entry for entry in features["per_label"].values())
 
 
 # =========================================================================== #

@@ -380,6 +380,14 @@ def test_ac6_single_case_caudal_assertion_would_fail_pre_correction():
 _MODE4_CASE_ID = "relabel_swap"
 
 
+def _tangent_angle_series(record):
+    """Each label's ``orientation.tangent_angle_deg`` in ascending integer-label
+    order -- the order the former ``stage3.curvature.tangent_angles_deg[]``
+    array was computed in (item 215 stores each element on its own label)."""
+    per_label = record["per_label"]
+    return [per_label[k]["orientation"]["tangent_angle_deg"] for k in sorted(per_label, key=int)]
+
+
 def test_ac7_tangent_angles_deg_unmoved_on_the_non_doubling_back_cases():
     manifest = load_manifest()
     for case in _cases_covered_by(
@@ -387,7 +395,7 @@ def test_ac7_tangent_angles_deg_unmoved_on_the_non_doubling_back_cases():
     ):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
-        actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
+        actual = _tangent_angle_series(record)
         expected = _PRE_ITEM_TANGENT_ANGLES_DEG[case["case_id"]]
         assert actual == pytest.approx(expected, abs=1e-3), (
             f"{case['case_id']}: tangent_angles_deg moved under the corrected "
@@ -400,7 +408,7 @@ def test_ac8_mode4_relabel_swap_tangent_angles_within_loosened_fit_asymmetry_tol
     case = next(c for c in manifest["cases"] if c["case_id"] == _MODE4_CASE_ID)
     seg_img = loaded_seg_image(case)
     record = extract_feature_record(seg_img, bundled_default_config())
-    actual = list(record["stage3"]["curvature"]["tangent_angles_deg"])
+    actual = _tangent_angle_series(record)
     expected = _PRE_ITEM_TANGENT_ANGLES_DEG[_MODE4_CASE_ID]
     assert actual == pytest.approx(expected, abs=1e-2), (
         f"relabel_swap: tangent_angles_deg {actual} moved by more than "

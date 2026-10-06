@@ -153,8 +153,9 @@ def _max_offset_mm() -> float:
 
 
 def _per_label_offset(record: dict, label: int) -> dict:
-    entries = [e for e in record["stage3"]["per_label_offsets"] if e["label"] == label]
-    assert entries, f"no stage3.per_label_offsets entry for label {label}"
+    # Item 215: the offset is the label's ``curve`` block on its per_label entry.
+    entries = [e["curve"] for e in record["per_label"].values() if e["label"] == label]
+    assert entries, f"no per_label.{{label}}.curve block for label {label}"
     assert len(entries) == 1, entries
     return entries[0]
 

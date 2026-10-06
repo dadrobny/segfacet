@@ -531,8 +531,9 @@ def _multi_label_record():
 def test_ac7_neighbourhood_reachable_from_extract_feature_record():
     block = _multi_label_record()
     assert "stage3" in block
-    assert "per_label_neighbourhood" in block["stage3"]
-    assert block["stage3"]["per_label_neighbourhood"], "expected a non-empty list"
+    # Item 215: the neighbourhood block is stored on each label's own entry.
+    neighbourhood = [e["neighbourhood"] for e in block["per_label"].values() if "neighbourhood" in e]
+    assert neighbourhood, "expected a non-empty list"
 
 
 def test_ac7_catalogue_lists_neighbourhood_entries_as_unwired():
@@ -540,9 +541,9 @@ def test_ac7_catalogue_lists_neighbourhood_entries_as_unwired():
 
     full_catalogue = catalogue.build_catalogue()
     neighbourhood_entries = [
-        e for e in full_catalogue.entries if e.path.startswith("stage3.per_label_neighbourhood")
+        e for e in full_catalogue.entries if e.path.startswith("per_label.{label}.neighbourhood")
     ]
-    assert neighbourhood_entries, "no per_label_neighbourhood entries in the catalogue"
+    assert neighbourhood_entries, "no per_label neighbourhood entries in the catalogue"
     for entry in neighbourhood_entries:
         assert entry.status == "unwired", (entry.path, entry.status)
         assert not entry.consuming_rules, (entry.path, entry.consuming_rules)

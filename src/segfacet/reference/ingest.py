@@ -138,8 +138,8 @@ INGESTED_INTENSITY_FEATURES: Tuple[str, ...] = (
 # a deliberately SEPARATE, companion constant, never routed through the
 # geometry path (``INGESTED_FEATURES`` / ``entry["geometry"]``) nor the
 # intensity path (the ``intensity_`` prefix). Drawn straight from the
-# per-label ``components`` block (item 012) and the Stage 3
-# ``per_label_orientations`` block (item 019). Deliberately excludes
+# per-label ``components`` block (item 012) and the per-label
+# ``orientation`` block (items 019, 215). Deliberately excludes
 # ``fragmentation_index`` (an exact alias of ``largest_component_fraction``
 # that would double-weight the same signal) and ``principal_axis`` (a
 # unit-vector, not a per-level scalar).
@@ -306,23 +306,6 @@ def ingest_subject(
 
     block = extract_feature_record(seg_img, config)
 
-    offsets_by_label = {}
-    orientations_by_label = {}
-    stage3 = block.get("stage3")
-    if stage3 is not None:
-        for entry in stage3.get("per_label_offsets", []):
-            if entry.get("is_terminal"):
-                # A terminal (sequence-first/last) offset is the held-out
-                # estimator's extrapolation artefact, not a measurement of
-                # interior anatomy -- item 123. Excluded here so
-                # spline_offset_mm describes interior vertebrae alone;
-                # heuristics/spline_offset.py (item 189) and reference/delta.py
-                # exclude it symmetrically.
-                continue
-            offsets_by_label[int(entry["label"])] = entry["offset_mm"]
-        for entry in stage3.get("per_label_orientations", []):
-            orientations_by_label[int(entry["label"])] = entry["eigenvalue_ratio"]
-
     intensity_by_label = {}
     if with_intensity and scan_path is not None:
         from segfacet.features.intensity import compute_intensity_features
@@ -349,8 +332,14 @@ def ingest_subject(
             "extent_y_mm": float(geometry["extent_y_mm"]),
             "extent_z_mm": float(geometry["extent_z_mm"]),
         }
-        if label_value in offsets_by_label:
-            features["spline_offset_mm"] = float(offsets_by_label[label_value])
+        curve = entry.get("curve")
+        # A terminal (sequence-first/last) offset is the held-out estimator's
+        # extrapolation artefact, not a measurement of interior anatomy --
+        # item 123. Excluded here so spline_offset_mm describes interior
+        # vertebrae alone; heuristics/spline_offset.py (item 189) and
+        # reference/delta.py exclude it symmetrically.
+        if curve is not None and "offset_mm" in curve and not curve.get("is_terminal"):
+            features["spline_offset_mm"] = float(curve["offset_mm"])
 
         if label_value in intensity_by_label:
             features.update(_intensity_features_dict(intensity_by_label[label_value]))
@@ -361,9 +350,10 @@ def ingest_subject(
                 components["largest_component_fraction"]
             )
             features["component_count"] = float(components["component_count"])
-            if label_value in orientations_by_label:
+            orientation = entry.get("orientation")
+            if orientation is not None and "eigenvalue_ratio" in orientation:
                 features["eigenvalue_ratio"] = float(
-                    orientations_by_label[label_value]
+                    orientation["eigenvalue_ratio"]
                 )
 
         collected.append((level_name, features))

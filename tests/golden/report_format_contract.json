@@ -22,7 +22,7 @@
     ]
   },
   "features": {
-    "features_version": "0.2",
+    "features_version": "0.3",
     "per_label": {
       "7": {
         "label": 7,
@@ -94,6 +94,26 @@
             27.31460592837104,
             1e-12
           ]
+        },
+        "curve": {
+          "closest_u": 0.5,
+          "offset_mm": 53.47129068415773,
+          "offset_voxel": 1.0,
+          "dx_mm": -84.62037195428361,
+          "dy_mm": 1e-12,
+          "dz_mm": 106.9841827768014,
+          "path_u": 0.5
+        },
+        "orientation": {
+          "principal_axis": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "eigenvalue_ratio": 106.9841827768014,
+          "tangent_angle_deg": 1e-12,
+          "tangent_coronal_unwrapped_deg": -84.62037195428361,
+          "tangent_sagittal_unwrapped_deg": 106.9841827768014
         }
       }
     },
@@ -119,42 +139,9 @@
       "out_of_order_labels": []
     },
     "stage3": {
-      "per_label_offsets": [
-        {
-          "label": 7,
-          "level_name": "L3",
-          "closest_u": 0.5,
-          "offset_mm": 53.47129068415773,
-          "offset_voxel": 1.0,
-          "dx_mm": -84.62037195428361,
-          "dy_mm": 1e-12,
-          "dz_mm": 106.9841827768014
-        }
-      ],
-      "per_label_orientations": [
-        {
-          "label": 7,
-          "level_name": "L3",
-          "principal_axis": [
-            0.0,
-            0.0,
-            1.0
-          ],
-          "eigenvalue_ratio": 106.9841827768014
-        }
-      ],
       "curvature": {
-        "tangent_angles_deg": [
-          1e-12
-        ],
         "inter_tangent_angles_deg": [],
         "total_curvature_deg": 1.0,
-        "coronal_tangent_angles_deg": [
-          -84.62037195428361
-        ],
-        "sagittal_tangent_angles_deg": [
-          106.9841827768014
-        ],
         "coronal_curvature_deg": 1.0,
         "sagittal_curvature_deg": 0.0,
         "curvature_plane": "coronal"
@@ -172,12 +159,7 @@
       },
       "monotonic_consistency": {
         "is_monotonic": true,
-        "non_monotonic_pairs": [],
-        "u_values": [
-          0.0,
-          0.5,
-          1.0
-        ]
+        "non_monotonic_pairs": []
       }
     }
   },

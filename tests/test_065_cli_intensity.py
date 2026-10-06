@@ -104,9 +104,11 @@ def test_ac8_cli_intensity_flag_writes_image_features_on_clean_run(tmp_path):
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
     image_features = report["image_features"]
     assert image_features["available"] is True
-    assert image_features["per_label"]
-    for entry in image_features["per_label"].values():
-        assert isinstance(entry["first_order"], dict)
+    # Item 215: the per-label first_order dicts are each label's intensity
+    # kind in the report's ``features`` block.
+    assert report["features"]["per_label"]
+    for entry in report["features"]["per_label"].values():
+        assert isinstance(entry["intensity"]["first_order"], dict)
 
     findings = report.get("findings", [])
     assert not any(f["rule_id"] == "intensity" for f in findings)

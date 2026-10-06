@@ -503,24 +503,34 @@ def _multi_label_block():
     return extract_feature_record(case.seg_img, default_config()), case
 
 
+def _neighbourhood_entries(block):
+    """Each label's ``neighbourhood`` block with its identity read from the
+    surviving ``per_label`` entry (item 215: stored once there), ascending
+    label order."""
+    return [
+        {"label": e["label"], "level_name": e["level_name"], **e["neighbourhood"]}
+        for e in block["per_label"].values()
+        if "neighbourhood" in e
+    ]
+
+
 def test_ac8_multi_label_case_has_per_label_neighbourhood():
     block, case = _multi_label_block()
     assert "stage3" in block
-    assert "per_label_neighbourhood" in block["stage3"]
-    entries = block["stage3"]["per_label_neighbourhood"]
+    entries = _neighbourhood_entries(block)
     assert len(entries) == len(case.expected_labels)
 
 
 def test_ac8_per_label_neighbourhood_sorted_ascending_by_label():
     block, _case = _multi_label_block()
-    entries = block["stage3"]["per_label_neighbourhood"]
+    entries = _neighbourhood_entries(block)
     labels = [e["label"] for e in entries]
     assert labels == sorted(labels)
 
 
 def test_ac8_per_label_neighbourhood_entries_carry_expected_keys():
     block, _case = _multi_label_block()
-    entries = block["stage3"]["per_label_neighbourhood"]
+    entries = _neighbourhood_entries(block)
     for entry in entries:
         assert set(entry.keys()) >= {
             "label", "level_name", "window_labels", "stats",
@@ -533,7 +543,7 @@ def test_ac8_per_label_neighbourhood_entries_carry_expected_keys():
 
 def test_ac8_serialises_json_compatible_values():
     block, _case = _multi_label_block()
-    entries = block["stage3"]["per_label_neighbourhood"]
+    entries = _neighbourhood_entries(block)
     json.dumps(entries)  # raises TypeError on non-JSON-serialisable content
 
 
@@ -603,7 +613,7 @@ def test_ac9b_multi_label_report_validates_against_schema():
     ref = importlib.resources.files(_segfacet_pkg).joinpath("report_schema_v0.json")
     schema = json.loads(ref.read_text(encoding="utf-8"))
     jsonschema.validate(report, schema)  # must not raise
-    assert "per_label_neighbourhood" in report["features"]["stage3"]
+    assert all("neighbourhood" in e for e in report["features"]["per_label"].values())
 
 
 # =========================================================================== #
@@ -614,16 +624,17 @@ _STAT_KEYS = ("mean", "median", "std", "z_score")
 
 
 def _expected_new_leaf_paths() -> "set[str]":
+    # Item 215 (2026-10-06): the block moved under per_label.{label}; its
+    # `label` / `level_name` copies merged onto the entry's own identity, so
+    # they are no longer paths of their own.
     paths = {
-        "stage3.per_label_neighbourhood[].label",
-        "stage3.per_label_neighbourhood[].level_name",
-        "stage3.per_label_neighbourhood[].window_labels[]",
-        "stage3.per_label_neighbourhood[].deviation_score",
-        "stage3.per_label_neighbourhood[].is_outlier",
+        "per_label.{label}.neighbourhood.window_labels[]",
+        "per_label.{label}.neighbourhood.deviation_score",
+        "per_label.{label}.neighbourhood.is_outlier",
     }
     for name in DEFAULT_FEATURES:
         for stat in _STAT_KEYS:
-            paths.add(f"stage3.per_label_neighbourhood[].stats.{name}.{stat}")
+            paths.add(f"per_label.{{label}}.neighbourhood.stats.{name}.{stat}")
     return paths
 
 

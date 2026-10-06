@@ -136,7 +136,8 @@ def _run_qc(case_id: str):
 
 
 def _max_offset_mm(block: dict) -> float:
-    offsets = block["stage3"]["per_label_offsets"]
+    # Item 215: each offset is its label's ``curve`` block.
+    offsets = [e["curve"] for e in block["per_label"].values() if "curve" in e]
     assert offsets, "expected at least one per-label offset entry"
     values = [o["offset_mm"] for o in offsets]
     assert values, "expected at least one offset_mm value"

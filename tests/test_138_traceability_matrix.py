@@ -2345,7 +2345,7 @@ def test_ac32_mode1_rule_list_contains_every_feature_derived_required_rule(matri
     feature_record_path = {
         name: "per_label.{label}.geometry." + name for name in tracked if name != "spline_offset_mm"
     }
-    feature_record_path["spline_offset_mm"] = "stage3.per_label_offsets[].offset_mm"
+    feature_record_path["spline_offset_mm"] = "per_label.{label}.curve.offset_mm"
     assert set(feature_record_path) == set(tracked)
 
     anchor_modes_by_path: dict = {}

@@ -552,7 +552,7 @@ def test_adv_ac20_dropped_offset_path_is_not_a_mode1_signal():
     assert "mislabel" not in intended_rule_ids
     assert "spline_offset" not in intended_rule_ids
 
-    offset_path = "stage3.per_label_offsets[].offset_mm"
+    offset_path = "per_label.{label}.curve.offset_mm"
     mislabel_declaration = declarations["mislabel"]
     assert not [cp for cp in mislabel_declaration.consumed_paths if cp.path == offset_path]
 

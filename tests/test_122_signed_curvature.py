@@ -61,9 +61,11 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 _CATALOGUE_JSON = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.json"
 _CATALOGUE_MD = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.md"
 
+# Item 215 (2026-10-06): the two per-plane arrays moved from
+# stage3.curvature.* to one scalar per label under per_label.{label}.orientation.
 _NEW_LEAF_PATHS = (
-    "stage3.curvature.coronal_tangent_angles_deg[]",
-    "stage3.curvature.sagittal_tangent_angles_deg[]",
+    "per_label.{label}.orientation.tangent_coronal_unwrapped_deg",
+    "per_label.{label}.orientation.tangent_sagittal_unwrapped_deg",
     "stage3.curvature.coronal_curvature_deg",
     "stage3.curvature.sagittal_curvature_deg",
     "stage3.curvature.curvature_plane",
@@ -488,14 +490,16 @@ def _full_stage3_block(centroids: List[LabelCentroid]):
 def test_ac16_schema_defines_all_five_new_keys():
     curvature_def = _SCHEMA["definitions"]["stage3Curvature"]
     for key in (
-        "coronal_tangent_angles_deg",
-        "sagittal_tangent_angles_deg",
         "coronal_curvature_deg",
         "sagittal_curvature_deg",
         "curvature_plane",
     ):
         assert key in curvature_def["properties"], f"schema missing property {key!r}"
         assert key in curvature_def["required"], f"schema does not require {key!r}"
+    # Item 215: the two per-plane arrays are per-label orientation scalars.
+    orientation_def = _SCHEMA["definitions"]["stage3OrientationEntry"]
+    for key in ("tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"):
+        assert key in orientation_def["properties"], f"schema missing property {key!r}"
 
 
 def test_ac16_full_report_with_new_keys_validates():
@@ -506,7 +510,11 @@ def test_ac16_full_report_with_new_keys_validates():
     curv = report["features"]["stage3"]["curvature"]
     for key in _NEW_LEAF_PATHS:
         bare = key.rsplit(".", 1)[-1].rstrip("[]")
-        assert bare in curv
+        if key.startswith("stage3.curvature."):
+            assert bare in curv
+        else:
+            for entry in report["features"]["per_label"].values():
+                assert bare in entry["orientation"]
 
 
 def test_ac16_missing_required_key_fails_validation():
@@ -529,8 +537,8 @@ _RAS_MARKERS = ("ras", "r, a, s", "load_volume", "right, anterior, superior")
 @pytest.mark.parametrize(
     "path,plane",
     [
-        ("stage3.curvature.coronal_tangent_angles_deg[]", "coronal"),
-        ("stage3.curvature.sagittal_tangent_angles_deg[]", "sagittal"),
+        ("per_label.{label}.orientation.tangent_coronal_unwrapped_deg", "coronal"),
+        ("per_label.{label}.orientation.tangent_sagittal_unwrapped_deg", "sagittal"),
         ("stage3.curvature.coronal_curvature_deg", "coronal"),
         ("stage3.curvature.sagittal_curvature_deg", "sagittal"),
     ],
@@ -633,13 +641,17 @@ def test_ac20_new_curvature_keys_present_in_every_committed_golden():
         data = build_report_for_case(case)
         curv = data["features"]["stage3"]["curvature"]
         for key in (
-            "coronal_tangent_angles_deg",
-            "sagittal_tangent_angles_deg",
             "coronal_curvature_deg",
             "sagittal_curvature_deg",
             "curvature_plane",
         ):
             assert key in curv, f"{case['case_id']!r} fresh report missing {key!r}"
+        # Item 215: the two per-plane arrays are each label's orientation scalars.
+        for entry in data["features"]["per_label"].values():
+            for key in ("tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"):
+                assert key in entry["orientation"], (
+                    f"{case['case_id']!r} fresh report missing {key!r}"
+                )
 
 
 # =========================================================================== #

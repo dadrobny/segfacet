@@ -324,7 +324,7 @@ def test_ac3_normalise_leaf_path_collapses(catalogue_module, raw, expected):
     [
         "per_label.{label}.geometry.touches_superior",
         "relationships.out_of_order_labels[]",
-        "stage3.per_label_offsets[].offset_mm",
+        "per_label.{label}.curve.offset_mm",
         "features_version",
         "extended.{radiomic}",
         "overlaps[].overlap_voxels",
@@ -364,7 +364,7 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
         "per_label.{label}.geometry.touches_superior",
         "per_label.{label}.components.fragmentation_index",
         "relationships.out_of_order_labels[]",
-        "stage3.per_label_offsets[].offset_mm",
+        "per_label.{label}.curve.offset_mm",
         "features_version",
     ):
         assert expected in paths, expected
@@ -386,7 +386,13 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # per_label.{label}.components.label_contact_fraction; clean_control's
     # single-component label still emits a one-entry component_contacts[],
     # so all five appear.
-    assert len(paths) == 101
+    # 101 -> 95: item 215 (2026-10-06) merges six identity copies out of this
+    # record -- `label` and `level_name` of stage3.per_label_offsets[],
+    # stage3.per_label_orientations[] and stage3.per_label_neighbourhood[]
+    # (-6). Every other 215 row it carries is a 1:1 move (the four per-label
+    # arrays become scalars at new paths), and the record carries no
+    # image_features or reference_delta row.
+    assert len(paths) == 95
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):
@@ -544,7 +550,7 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.centroid.centroid_mm[]", "sequence"),
         ("relationships.missing_levels[]", "coverage"),
         # Item 189 (2026-09-28): the offset detector moved to spline_offset.
-        ("stage3.per_label_offsets[].offset_mm", "spline_offset"),
+        ("per_label.{label}.curve.offset_mm", "spline_offset"),
         ("per_label.{label}.geometry.physical_volume_mm3", "bounds"),
     ],
 )
@@ -843,8 +849,7 @@ def test_ac15_intensity_rule_only_entries_are_honest_by_role(
     mode-less: an entry either ``intensity`` rule reaches only ``"signal"``
     (the two ``first_order`` paths) carries their declared mode with
     ``("rule_declaration",)``; an entry either reaches only ``"bookkeeping"``
-    (e.g. ``image_features.available``,
-    ``image_features.per_label.{label}.label``) is honestly ``()`` with
+    (e.g. ``image_features.available``) is honestly ``()`` with
     ``("rule_bookkeeping",)``. Both restatements are checked, split by role
     rather than lumped together. The declared mode is read live -- item 150's
     sign-off renumbered "implausible tissue under a label" from 9 to 10, and

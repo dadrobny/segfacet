@@ -1043,7 +1043,12 @@ _THRESHOLD_CARRYING_CASES = frozenset({"displace", "crop_at_border"})
 
 
 def _all_offset_entries(golden: dict) -> list:
-    return golden.get("features", {}).get("stage3", {}).get("per_label_offsets", [])
+    # Item 215: each offset is its label's ``curve`` block, ascending label.
+    return [
+        e["curve"]
+        for e in golden.get("features", {}).get("per_label", {}).values()
+        if "curve" in e
+    ]
 
 
 # (item 126: test_ac25_seven_non_mislabel_goldens_gain_only_is_terminal and
@@ -1241,10 +1246,19 @@ def _offset_entry(label, level_name, offset_mm, is_terminal=None):
 
 
 def _offset_record(entries):
+    # Item 215: each offset entry is its label's ``curve`` block, the identity
+    # stored once on the per_label entry.
     return {
+        "per_label": {
+            str(e["label"]): {
+                "label": e["label"],
+                "level_name": e["level_name"],
+                "curve": {k: v for k, v in e.items() if k not in ("label", "level_name")},
+            }
+            for e in entries
+        },
         "stage3": {
-            "per_label_offsets": list(entries),
-            "monotonic_consistency": {"is_monotonic": True, "non_monotonic_pairs": [], "u_values": []},
+            "monotonic_consistency": {"is_monotonic": True, "non_monotonic_pairs": []},
         },
     }
 
@@ -1427,8 +1441,12 @@ def test_ac42_delta_excludes_terminal_labels_symmetrically():
     config = bundled_default_config()
     block = extract_feature_record(spine.seg_img, config)
 
-    # Identify the terminal labels from the block's own per_label_offsets.
-    offsets = block["stage3"]["per_label_offsets"]
+    # Identify the terminal labels from the block's own per-label curve blocks.
+    offsets = [
+        {"label": e["label"], **e["curve"]}
+        for e in block["per_label"].values()
+        if "curve" in e
+    ]
     terminal_labels = {o["label"] for o in offsets if o.get("is_terminal")}
     interior_labels = {o["label"] for o in offsets if not o.get("is_terminal")}
     assert terminal_labels, "expected at least one terminal label"
@@ -1528,7 +1546,7 @@ def test_ac46_feature_docs_entry_exists_with_rationale():
     detector's exclusion logic moved with it)."""
     from segfacet.feature_docs import FEATURE_DOCS
 
-    key = "stage3.per_label_offsets[].is_terminal"
+    key = "per_label.{label}.curve.is_terminal"
     assert key in FEATURE_DOCS
     doc = FEATURE_DOCS[key]
     text = " ".join(str(v) for v in vars(doc).values()).lower()
@@ -1554,7 +1572,7 @@ def test_ac47_catalogue_regenerates_byte_identical_and_contains_new_path(tmp_pat
 
     record = json.loads(json_dest.read_text(encoding="utf-8"))
     paths = {entry["path"] for group in record["groups"] for entry in group["entries"]}
-    assert "stage3.per_label_offsets[].is_terminal" in paths
+    assert "per_label.{label}.curve.is_terminal" in paths
 
 
 # --- AC48: the leaf-count constants match the regenerated catalogue ------ #
@@ -1602,8 +1620,9 @@ def _stage3_offset_entry_schema():
 
 
 def _well_formed_offset_entry_instance() -> dict:
+    # Item 215: the curve block carries no label / level_name copy.
     return {
-        "label": 20, "level_name": "L1", "closest_u": 0.5,
+        "closest_u": 0.5,
         "offset_mm": 1.0, "offset_voxel": 1.0, "dx_mm": 1.0, "dy_mm": 0.0, "dz_mm": 0.0,
     }
 
