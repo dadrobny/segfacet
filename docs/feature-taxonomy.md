@@ -3,7 +3,11 @@
 **Status: proposed, pending the Stage 27 sign-off gate.** This note (item 214) is
 the design the maintainer reads at the `Stage 27 feature-record taxonomy sign-off`
 row of the Human gates table in [`aide/progress.md`](aide/progress.md). Until a
-person resolves that gate it is a proposal. Nothing in `src/segfacet/`, the
+person resolves that gate it is a proposal. The maintainer's review of
+2026-10-06 settled three points the first draft left open, each recorded where
+it applies: one anatomical element order for the whole record ("Element
+order"), per-label storage for every per-label value whatever computed it
+(Deviation 5), and the intensity kind entering the persisted record (Option A). Nothing in `src/segfacet/`, the
 catalogue or the report schema has changed. Items 215 and 216 migrate the record
 to this shape and item 217 attests the stage. The table at the end covers the
 **165** leaf paths a real report carries before the migration: the feature
@@ -22,8 +26,8 @@ are scopes (`per_label`, `pairs`, `case`), one is the record's schema stamp
 |---|---|---|
 | `features_version` | record | schema stamp (unchanged) |
 | `per_label.{label}` | one vertebra label | `label`, `level_name` (the only copy), then kind blocks: `geometry`, `components`, `centroid`, `curve`, `orientation`, `neighbourhood`, `intensity` |
-| `pairs` | two labels | `pairs.adjacent` (the anatomically adjacent pairs: spacings, their deviations, summary statistics, pair lists) and `pairs.overlaps[]` (labels whose masks share voxels) |
-| `case` | the whole label map | `case.sequence` (level inventory and order, from today's `relationships`), `case.curve` (curvature, monotonicity), `case.intensity` (availability and backend of the intensity features) |
+| `pairs` | two labels | `pairs.adjacent` (the anatomically adjacent pairs: spacings, inter-tangent angles, their deviations, summary statistics, pair lists) and `pairs.overlaps[]` (labels whose masks share voxels) |
+| `case` | the whole label map | `case.sequence` (level inventory and the one stored element order, `order[]`, from today's `relationships`), `case.curve` (whole-spine scalars only: curvature sweeps, `is_monotonic`), `case.intensity` (availability and backend of the intensity features) |
 | `reference_delta` | overlay, keyed by `{label}` | the comparison of a case to a reference distribution (see Deviations) |
 
 Kinds, by what the field measures and not by which module computes it:
@@ -33,11 +37,16 @@ Kinds, by what the field measures and not by which module computes it:
 - `components`: connected-piece topology, including per-component arrays.
 - `centroid`: where the label is.
 - `curve`: where the label sits relative to the fitted spinal curve (offset,
-  closest parameter, whether it is a terminal level).
+  closest parameter, cumulative path position, whether it is a terminal level).
 - `orientation`: which way the vertebral body points (principal axis, spline
-  tangent).
+  tangent, the tangent's unwrapped per-plane angles).
 - `neighbourhood`: how the label compares with the labels around it.
 - `intensity`: scan-intensity statistics. Present only when a scan was supplied.
+
+Every kind declares its **source**: the six above are computed from the
+segmentation alone; `intensity` needs the paired scan. The source is a property
+of the kind, not a second axis of the record (maintainer decision, 2026-10-06,
+see "Does `image_features` enter the persisted record?").
 
 Placeholders in the table's new paths: `{label}` (a key of `per_label`), `[]` (a
 list element) and `{radiomic}` (the PyRadiomics family), exactly as
@@ -52,35 +61,48 @@ Four rules hold throughout:
 1. **Identity is stored once**, at `per_label.{label}.label` and
    `per_label.{label}.level_name`. Everything else that names a label carries
    either the integer key or nothing.
-2. **A field sits at the scope of the entity it measures.** A per-pair number
-   (spacing, deviation) is at pair scope, a whole-spine summary at case scope.
-   Departures from this rule are Deviations 4, 5 and 10; none is silent.
+2. **A field sits at the scope of the entity it measures, whatever computed
+   it.** A value with one element per label is a per-label field and lives at
+   `per_label.{label}.<kind>`, even when a case-wide fit produced it; a
+   per-pair number (spacing, deviation, inter-tangent angle) is at pair scope;
+   case scope holds whole-spine scalars only. The one departure is Deviation 4
+   (pair statistics beside their pair array); it is not silent.
 3. **Where a record's stored shape changes beyond a path move**, it is recorded
-   in Deviations (6 for the spacing collapse, 11 for the new
-   `pairs.adjacent.order[]`), not inferred from the table. The mapping table
-   lists old paths only, so a field with no old path has no row.
-4. **Element order is stated per array**, see "Element order of the curve and
-   pair arrays" below.
+   in Deviations (5 for the per-label sequences, 6 for the spacing collapse,
+   11 for the new `case.sequence.order[]`), not inferred from the table. The
+   mapping table lists old paths only, so a field with no old path has no row.
+4. **There is one element order**, see "Element order" below.
 
-### Element order of the curve and pair arrays
+### Element order
 
-The pipeline computes these arrays in two different orders today, and this
-design deliberately leaves the mixed orders as they are, apart from the one
-retune Deviation 6 authorises:
+Every array in the record, and the sequence every Stage 3 extractor is fed, is
+in **anatomical order**: `CANONICAL_ORDER` rank, unrecognised level names last,
+ties by integer label. The order is stored once, as `case.sequence.order[]`
+(the label keys), and is the only thing a reader needs to pair any pair-array
+element with its two labels or to rebuild a sequence from `per_label`.
 
-| Array | Element order after migration |
-|---|---|
-| `pairs.adjacent.spacings_mm[]`, `deviations_mm[]`, `outlier_pairs[]`, and the `mean_spacing_mm` / `cv_spacing` statistics | anatomical order, unrecognised labels last (Deviation 6; today ascending-integer, `pipeline.py` `ordered_centroids`) |
-| `pairs.adjacent.order[]` | the label keys in that same anatomical order |
-| `pairs.adjacent.non_monotonic_pairs[]`, `case.curve.u_values[]`, `case.curve.is_monotonic` | anatomical order (item 198; computed over `anatomical_centroids`, unchanged) |
-| `case.curve.tangent_angles_deg[]`, `coronal_tangent_angles_deg[]`, `sagittal_tangent_angles_deg[]`, `inter_tangent_angles_deg[]`; `per_label.{label}.curve.*` (offsets) | ascending-integer label order (`ordered_centroids`, unchanged); one element per label, or per integer-adjacent pair for `inter_tangent_angles_deg[]` |
+Today the pipeline builds this order only for monotonic consistency (item 198,
+`anatomical_centroids`, [`pipeline.py`](../src/segfacet/pipeline.py)) and feeds
+every other extractor the ascending-integer `ordered_centroids`. The migration
+makes the anatomical sort the first step and the only sequence: the in-sample
+fit, the held-out offsets, tangents, curvature, spacing consistency and the
+neighbourhood windows all read it, and the separate `anatomical_spline` refit
+disappears. This is a **retune** wherever the two orders disagree (TPTBox `T13`
+is 28 and follows `L1`–`L6`; `Cocc` is 27 and precedes `S2`–`S6`; any
+unrecognised label): new fit, changed per-label and pair values, and any rule
+threshold calibrated on the old order (`mislabel`, `fused_label`,
+`sequence`) re-checked. The maintainer authorised it on 2026-10-06 (*"use
+anatomical order, flag where and why deviations are"*), extending the spacing
+collapse of Deviation 6 to the whole record. Where the orders coincide, as on
+every label set drawn from the first 24 levels, no value changes. The drift
+test and the regenerated catalogue are the safety net; item 216 owns the sort
+and `order[]`.
 
-So a consumer must not index `case.curve.u_values[]` and
-`case.curve.tangent_angles_deg[]` against each other: they agree only on
-records whose integer and anatomical order coincide. Making every curve array
-anatomical is a further retune (new fits, changed values, rule thresholds
-touched) and is not authorised here; it is left open for the maintainer to
-schedule, not decided by this note.
+"Flag the deviations": the integer-versus-anatomical disagreement is a property
+of the label set, not of a field, so no per-field marker is stored. A reader
+compares `case.sequence.order[]` to the sorted keys of `per_label`; the two
+differ exactly where the old record's arrays would have been in a different
+order from the new one.
 
 The migration items are cut along the same axis: **item 215** owns the
 `per_label` scope and `reference_delta.{label}`, **item 216** owns the `pairs`
@@ -105,7 +127,9 @@ cause. Scope-first addressing fixes that at its source:
 Cost, stated once: paths move wholesale, so every reader of `stage3.*`,
 `image_features.*`, `relationships.*` and `overlaps[]` is re-pointed by items 215
 and 216. The existing drift test and the regenerated catalogue are the safety
-net; no rule's behaviour changes except the spacing collapse in Deviations.
+net. Values change in exactly one circumstance, the anatomical reorder of
+"Element order" on a label set whose integer and anatomical orders differ;
+every other change is a path move.
 
 ## Alternatives considered
 
@@ -158,31 +182,40 @@ it in outline. Every point where it does not:
    `pairs.adjacent` beside the spacings they are computed from, although a
    statistic over pairs is case-shaped. Reason: they are meaningless apart from
    the pair array and are read with it.
-5. **`case.curve.u_values[]` is a per-label sequence stored at case scope.** It
-   holds the cumulative path position of each centroid, as evidence for
-   `is_monotonic`. Reason: it is meaningful only as the whole sequence (the
-   monotonicity check compares neighbours), and it is a different quantity from
-   `curve.closest_u`, so it is not folded into `per_label`.
-10. **Further sequence fields at case scope, and `is_monotonic` apart from its
-    source.** `case.curve.tangent_angles_deg[]`,
-    `case.curve.coronal_tangent_angles_deg[]` and
-    `case.curve.sagittal_tangent_angles_deg[]` are per-label sequences, and
-    `case.curve.inter_tangent_angles_deg[]` is a per-pair sequence, all at case
-    scope. Reason: they are the inputs to the whole-spine curvature summaries
-    beside them (`total_`, `coronal_`, `sagittal_curvature_deg`), are consumed as
-    whole sequences, and are computed by one curve-wide fit rather than per
-    label, so a per-label copy would be a view of a case-level object, not a
-    measurement of that label. `case.curve.is_monotonic` sits at case scope
-    while its source list, `pairs.adjacent.non_monotonic_pairs[]`, sits at pair
+5. **Per-label sequences computed by a case-wide fit are stored per label
+   (maintainer decision, 2026-10-06).** An earlier draft kept
+   `stage3.monotonic_consistency.u_values[]` and the three
+   `stage3.curvature.*tangent_angles_deg[]` arrays at case scope because one
+   curve-wide fit produces them and the whole-spine summaries beside them
+   (`total_`, `coronal_`, `sagittal_curvature_deg`) consume them as sequences.
+   The maintainer ruled that where a value is stored is decided by what it
+   describes, not by how or where it is computed, so each becomes a scalar
+   field of the label it describes: `u_values[]` → `per_label.{label}.curve.path_u`
+   (cumulative path position; a different quantity from `curve.closest_u`, so
+   a new leaf name), `tangent_angles_deg[]` →
+   `per_label.{label}.orientation.tangent_angle_deg`,
+   `coronal_tangent_angles_deg[]` → `orientation.tangent_coronal_unwrapped_deg`,
+   `sagittal_tangent_angles_deg[]` → `orientation.tangent_sagittal_unwrapped_deg`.
+   The per-pair `inter_tangent_angles_deg[]` goes to
+   `pairs.adjacent.inter_tangent_angles_deg[]`. This is a record-shape change
+   (array → per-label scalars), not only a path move, and it exposes a near
+   duplicate: the unwrapped per-plane angles are the same tangent as the
+   existing per-label `orientation.spline_tangent_coronal_deg` /
+   `spline_tangent_sagittal_deg`, read unwrapped for the sweep instead of
+   wrapped to `(-180, 180]` ([`orientation.py`](../src/segfacet/features/orientation.py),
+   `VertebralTangentOrientation`). Both are kept: the roadmap forbids deleting
+   a field in this stage (Deviation 9), and the leaf names say which convention
+   each holds. Collapsing them is new work. Nothing is lost by the move: the
+   whole sequence is `per_label` read in `case.sequence.order[]`. Since the
+   rows are per-label, item 215 owns them; `inter_tangent_angles_deg[]` stays
+   with 216.
+10. **`is_monotonic` sits apart from its source list.** `case.curve.is_monotonic`
+    is at case scope while `pairs.adjacent.non_monotonic_pairs[]` is at pair
     scope. Reason: the boolean is the whole-spine verdict and the list is its
     per-pair evidence. This is not the call Deviation 4 makes for `cv_spacing`,
-    which stays beside its pair array. The difference is weak: the only rule
-    reading this group (`heuristics/mislabel.py`) reads
-    `non_monotonic_pairs[]`, not `is_monotonic`, so nothing consumes the
-    boolean separately. The gate may therefore prefer to move `is_monotonic`
-    to `pairs.adjacent.is_monotonic`, beside its list; that would change one
-    new path, not the old-path set. Recommended default: keep it at
-    `case.curve` as a whole-spine verdict.
+    which stays beside its pair array; the difference is weak, and the only
+    rule reading the group (`heuristics/mislabel.py`) reads the list, not the
+    boolean. Kept at `case.curve` as a whole-spine scalar.
 6. **The adjacent-pair spacing collapse (maintainer decision, 2026-10-05).** Two
    stored arrays hold the same quantity: `relationships.neighbour_spacings_mm[]`
    and `stage3.spacing_consistency.spacings_mm[]`. They collapse into one,
@@ -190,20 +223,25 @@ it in outline. Every point where it does not:
    *"the integer-label order is anatomically meaningless"*. This is not a copy:
    wherever integer and anatomical order disagree (TPTBox `T13` is 28 and `Cocc`
    is 27) the surviving array's values, pairs and length differ from what
-   `stage3.spacing_consistency.spacings_mm[]` held. It is the one retune this
-   stage authorises, and item 216 carries it. Its consumers are in Answer 6.
+   `stage3.spacing_consistency.spacings_mm[]` held. On 2026-10-06 the same
+   reasoning was extended to every array and every extractor ("Element
+   order"), so this collapse is now one instance of the record-wide reorder
+   rather than the sole retune. Its consumers are in Answer 6.
    The survivor also differs in value from
    `relationships.neighbour_spacings_mm[]`, not only from the stage3 copy: that
    array drops level names outside the canonical vocabulary, so on a record with
    unrecognised labels the survivor is longer and its pairs differ (the label-set
    difference in Answer 6). The table's "moved" status for that path therefore
    names where the array lives, not that its values are unchanged.
-11. **`pairs.adjacent.order[]` is a new stored field.** It holds the label keys
-    in the anatomical order of `pairs.adjacent.spacings_mm[]`, so that each
-    spacing can be paired with its two labels from the record alone (Answer 6).
-    It has no old path, so it has no mapping-table row; this deviation is its
-    record. It is a record-shape addition owned by item 216, and it is a
-    stored field like any other for the catalogue and drift test.
+11. **`case.sequence.order[]` is a new stored field.** It holds the label keys
+    in the record's one anatomical order ("Element order"), so that each
+    pair-array element can be paired with its two labels, and each per-label
+    sequence rebuilt, from the record alone. An earlier draft placed it at
+    `pairs.adjacent.order[]`; it moved to `case.sequence` on 2026-10-06 because
+    it now governs every array, not the spacings alone. It has no old path, so
+    it has no mapping-table row; this deviation is its record. It is a
+    record-shape addition owned by item 216, and a stored field like any other
+    for the catalogue and drift test.
 7. **The neighbour-pair identity `name_a` / `name_b` is merged.** The integers
    `label_a` / `label_b` stay as the pair's keys into `per_label`; the two names
    are copies of `per_label.{label}.level_name` and merge onto it. The values are
@@ -223,7 +261,23 @@ case) is unchanged by this design, so the gate need not re-cut them. What would:
 changing the axis itself, or moving rows across the line between `per_label` and
 the other scopes (for example folding `reference_delta` into `per_label`).
 
-## Open question for the gate: does `image_features` enter the persisted record?
+## Decided at the gate: `image_features` enters the persisted record (Option A)
+
+**Maintainer decision, 2026-10-06: Option A.** The intensity kind is part of the
+features record, and the report's top-level `image_features` key is removed.
+The reason is the inconsistency in Option B: `features` was argued to be
+scan-independent, but `per_label.{label}.intensity.extended.{radiomic}` and
+`case.intensity.*` already need the scan, so B only moved the dependence to a
+second report key with its own layout. With A there is one record and one
+organisation scheme for segmentation-derived and scan-derived features alike;
+each kind declares its source (Structure), and a report made without a scan
+carries `case.intensity.available = false` and no `per_label.{label}.intensity`
+blocks. What changes: the transient-key invariant (the intensity block is now
+built into `features_block`, not merged onto a transient rule record), the
+report schema (one top-level key fewer), and the `features` key set depends on
+whether a scan was supplied. Item 215 owns the per-label intensity rows, item
+216 the `case.intensity` rows and the report-key removal. The two options as
+they were put to the gate follow, for the record.
 
 Today the intensity block is **not part of the features record**.
 `pipeline.run_qc_with_intensity` builds it and attaches it only to the
@@ -247,11 +301,9 @@ by themselves say which of two things happens:
   address the new paths. No invariant changes and the key set of `features`
   does not depend on whether a scan was supplied.
 
-**Recommended default: Option B.** It keeps the persisted-record invariant,
-touches the report schema least, and leaves `features` scan-independent, while
-every rule still reads the new paths. This is a decision for the maintainer at
-the gate, not one this note makes silently: items 215 and 216 must not start
-until it is answered, because item 215 owns the per-label intensity rows.
+The note's original recommendation was Option B, for keeping the persisted-record
+invariant and touching the report schema least; the maintainer chose A for the
+reason stated above.
 
 ## Answers
 
@@ -279,10 +331,9 @@ Nothing in them is a new scope; each field already describes a label, a pair or 
 whole map, and only its container hid which. The mapping table gives every
 field's destination. `image_features` keeps one case-level block,
 `case.intensity`, for the availability and backend flags. The `intensity` kind
-stays optional: it exists only when a scan was supplied, as today. Whether
-those paths are stored in the persisted features record or only merged into the
-transient rule record, and what becomes of the report's top-level
-`image_features` key, is the open question above, with a recommended default.
+stays optional: it exists only when a scan was supplied, as today. Its paths
+are stored in the persisted features record and the report's top-level
+`image_features` key goes away (Option A, decided above).
 
 ### Image-axis-relative shape features
 
@@ -332,6 +383,16 @@ its current location for a per-component assessment (insights `2026-10-02-3eba`,
 is possible later and changes no path ordering decision; it is not done here, and
 no insight is acted on.
 
+The maintainer's review (2026-10-06) framed the fuller design: a feature
+definition kept separate from the region it is applied to (scan, label,
+connected component within a label, pair), with a mapping saying which
+combinations are computed. The cheapest route to the component region, when it
+is wanted, is a temporary sub-segmentation that relabels components as
+sub-labels (`1.1`, `1.2`, `2`, `3.1`, ...) so the per-label scope and every
+existing extractor absorb them unchanged. Both are deferred as a larger rework;
+the sub-label route is captured as a `gap` insight (2026-10-06) so it is not
+lost.
+
 ### Which path owns adjacent-pair spacing
 
 **Answer:** `pairs.adjacent.spacings_mm[]` owns it, in anatomical order over every label with unrecognised labels last; `stage3.spacing_consistency.spacings_mm[]` merges onto it and `relationships.neighbour_spacings_mm[]` moves to it.
@@ -350,7 +411,7 @@ Per the maintainer's 2026-10-05 decision (Deviations, point 6):
 - **What the consumers read afterwards.** `heuristics/fused_label.py` reads
   `pairs.adjacent.spacings_mm[]` and must pair each spacing with the
   anatomically adjacent labels, not the integer-adjacent ones (item 216 stores
-  the label order beside the array, as `pairs.adjacent.order[]`, so the pairing is
+  the label order once, as `case.sequence.order[]`, so the pairing is
   stated in the record). The four statistics derived from the same array
   (`mean_spacing_mm`, `cv_spacing`, `deviations_mm[]`, `outlier_pairs[]`) read it
   too and change value wherever the pairs change. `failure_modes.py`,
@@ -359,14 +420,15 @@ Per the maintainer's 2026-10-05 decision (Deviations, point 6):
   re-pointed. The single `src/` reader of the `relationships` array,
   `human_report.render_feature_table`, is re-pointed too. A future mode-6 rule
   (insight `2026-09-22-c151`) reads the survivor; none is built here.
-- **The per-element copy is left as is.** The pipeline computes a third spacing
-  copy, per element, feeding `per_label.{label}.neighbourhood.stats.spacing_mm.*`,
-  in ascending-integer order. It is not re-derived from the survivor. Reason: all
-  four fields are unwired, and the neighbourhood's `window_labels[]` are
-  themselves taken in integer order, so re-deriving the spacing alone would make
-  those statistics disagree with their own window. Re-ordering the whole
-  neighbourhood container anatomically is new work, left open. Its paths move
-  with the container (item 215) and its values do not change.
+- **The per-element copy follows the one order.** The pipeline computes a third
+  spacing copy, per element, feeding
+  `per_label.{label}.neighbourhood.stats.spacing_mm.*`, together with the
+  neighbourhood's `window_labels[]`. Under "Element order" the whole
+  neighbourhood container is computed over the anatomical sequence, so the
+  per-element spacing and the window it is judged in agree with each other and
+  with the survivor. All four `spacing_mm` fields are unwired, so no rule
+  changes; the values do, wherever the orders differ. The paths move with the
+  container (item 215); the reorder is item 216's.
 
 ## Mapping table
 
@@ -438,12 +500,12 @@ Per the maintainer's 2026-10-05 decision (Deviations, point 6):
 | `stage3.per_label_offsets[].offset_mm` | `per_label.{label}.curve.offset_mm` | moved | 215 |
 | `stage3.per_label_offsets[].offset_voxel` | `per_label.{label}.curve.offset_voxel` | moved | 215 |
 | `stage3.curvature.coronal_curvature_deg` | `case.curve.coronal_curvature_deg` | moved | 216 |
-| `stage3.curvature.coronal_tangent_angles_deg[]` | `case.curve.coronal_tangent_angles_deg[]` | moved | 216 |
+| `stage3.curvature.coronal_tangent_angles_deg[]` | `per_label.{label}.orientation.tangent_coronal_unwrapped_deg` | moved | 215 |
 | `stage3.curvature.curvature_plane` | `case.curve.curvature_plane` | moved | 216 |
-| `stage3.curvature.inter_tangent_angles_deg[]` | `case.curve.inter_tangent_angles_deg[]` | moved | 216 |
+| `stage3.curvature.inter_tangent_angles_deg[]` | `pairs.adjacent.inter_tangent_angles_deg[]` | moved | 216 |
 | `stage3.curvature.sagittal_curvature_deg` | `case.curve.sagittal_curvature_deg` | moved | 216 |
-| `stage3.curvature.sagittal_tangent_angles_deg[]` | `case.curve.sagittal_tangent_angles_deg[]` | moved | 216 |
-| `stage3.curvature.tangent_angles_deg[]` | `case.curve.tangent_angles_deg[]` | moved | 216 |
+| `stage3.curvature.sagittal_tangent_angles_deg[]` | `per_label.{label}.orientation.tangent_sagittal_unwrapped_deg` | moved | 215 |
+| `stage3.curvature.tangent_angles_deg[]` | `per_label.{label}.orientation.tangent_angle_deg` | moved | 215 |
 | `stage3.curvature.total_curvature_deg` | `case.curve.total_curvature_deg` | moved | 216 |
 | `stage3.per_label_orientations[].eigenvalue_ratio` | `per_label.{label}.orientation.eigenvalue_ratio` | moved | 215 |
 | `stage3.per_label_orientations[].label` | `per_label.{label}.label` | merged | 215 |
@@ -455,7 +517,7 @@ Per the maintainer's 2026-10-05 decision (Deviations, point 6):
 | `stage3.per_label_orientations[].spline_tangent_sagittal_deg` | `per_label.{label}.orientation.spline_tangent_sagittal_deg` | moved | 215 |
 | `stage3.monotonic_consistency.is_monotonic` | `case.curve.is_monotonic` | moved | 216 |
 | `stage3.monotonic_consistency.non_monotonic_pairs[]` | `pairs.adjacent.non_monotonic_pairs[]` | moved | 216 |
-| `stage3.monotonic_consistency.u_values[]` | `case.curve.u_values[]` | moved | 216 |
+| `stage3.monotonic_consistency.u_values[]` | `per_label.{label}.curve.path_u` | moved | 215 |
 | `stage3.spacing_consistency.cv_spacing` | `pairs.adjacent.cv_spacing` | moved | 216 |
 | `stage3.spacing_consistency.deviations_mm[]` | `pairs.adjacent.deviations_mm[]` | moved | 216 |
 | `stage3.spacing_consistency.mean_spacing_mm` | `pairs.adjacent.mean_spacing_mm` | moved | 216 |
