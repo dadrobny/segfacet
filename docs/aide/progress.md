@@ -1341,8 +1341,8 @@ justified in writing.
 
 **Acceptance.**
 
-- [ ] The taxonomy is documented with its rationale and every deviation justified, and is
-  signed off by the maintainer before migration (**G8**).
+- [x] The taxonomy is documented with its rationale and every deviation justified, and is
+  signed off by the maintainer before migration (**G8**). *(Attested from the clean-clone replay of item 217, clone commit 18609089bf27bda29ba16112ca1997859bc39fb2 (fresh clone, own venv, CPython 3.11.15). AC6: gate list prints exactly one gate containing 'Stage 27 feature-record taxonomy sign-off', gate-0080, status Approved (2026-10-06) per progress.md, Decision cell 'Signed 2026-10-06 after review: one anatomical element order stored as case.sequence.order[] ... docs/feature-taxonomy.md @ 2364df4'. AC7: approval commit 00fe6f57259d8a642366d0dcb6c87725c00003f9 'docs: human gate-0080 approved' (2026-10-06T15:19:25+01:00) is an ancestor (git merge-base --is-ancestor exit 0) of the earliest feat(215) commit c09b07dc573c4b518c2cd3af10a3351ed1460697 (2026-10-06T16:08:55+01:00); the migration's first claim, the item 215 in-progress commit 54b1553, is dated 2026-10-06 as well, so the date alone cannot order them and the ancestry check does.)*
 - [ ] Every feature is addressable under it; no identity field is stored more than once.
 - [ ] The regenerated catalogue and the drift test agree; no rule's behaviour changes on the
   corpus except where a retune is explicitly authorised.
