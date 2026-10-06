@@ -96,6 +96,62 @@ the measured value wins and Decisions records the difference.
   - its findings are `mislabel/ordering` on {20, 28} and `sequence/shift` on
     {28}. Neither reason renders a spacing value.
 
+*Corrected at claim (2026-10-06, base `aide/queue-029` at `8a5ebed`: items
+214–216 merged, gate-0080 ✅ Approved).* Item 216 was amended at its own claim
+and built differently from what this Description assumed in four ways. The
+three paragraphs above stand as the record of what this spec was written
+against. Where they disagree with this correction, the correction holds.
+
+- **The authorised retune is wider than the spacing collapse.** At gate-0080
+  the maintainer also signed one anatomical element order for the whole
+  record, stored as `case.sequence.order[]` (the note's "Element order" and
+  Deviation 11; item 216's D11). Item 216 attests it as the same explicitly
+  authorised exception as D1. So wherever the integer and anatomical orders
+  disagree, every Stage 3 value changes, not only the spacing family. On the
+  corpora that is still `sequence_break` alone. There, 37 table rows resolve
+  differently, and the spacing family's four statistics are 4 of them (A4's
+  and A5's re-checks).
+- **Findings without a reference do not move.** Measured at claim: every one
+  of the 18 cases gives the same `Finding.to_dict()` list on B and on the tip,
+  reasons included (A10's re-check).
+- **The reference-backed report on `sequence_break` does move.** With the
+  bundled real-VerSe19 reference, its `reference_delta` findings change. The
+  distribution distances of labels 20–23 move, and the `spline_offset_mm`
+  out-of-range finding passes from label 21 to label 20. That reference was
+  built from integer-order fits, so it is stale for exactly this T13 shape
+  (insight `2026-10-06-f318`). So AC16 is predicted not to hold on
+  `sequence_break`. Whether the authorisation covers this is the maintainer's
+  to rule, not this item's (AC16's correction, and the new **Left open**).
+- **The record has one stored path with no table row,
+  `case.sequence.order[]`,** and the report's top-level `image_features` key
+  is gone (item 216's A14 and AC1 correction). AC10 and AC11 are corrected to
+  count that path.
+
+**Live state on 2026-10-06**, re-measured at claim on `8a5ebed` with
+`.venv/bin/python`. B was measured from a `git worktree` on `PYTHONPATH`, with
+`segfacet.__file__` printed under it (insight `2026-10-05-ec3b`'s shortcut).
+That shortcut is not the replay's rig. These are starting points, and the
+clone re-measures each one:
+
+- The catalogue holds 154 paths. The table has 165 rows: 80 `kept`, 73
+  `moved` and 12 `merged`, with 130 Moved by 215 and 35 by 216. The
+  `kept`/`moved` new paths number 153, and the catalogue holds those 153 plus
+  `case.sequence.order[]`.
+- The `clean_control` case report has 149 leaf paths. 148 of them are table
+  new paths, and the one that is not is `case.sequence.order[]`. The last
+  segment `label` ends exactly one path, `per_label.{label}.label`, and
+  `level_name` ends exactly one, `per_label.{label}.level_name`. All 20
+  report-only rows' new paths are among the 149.
+- On `sequence_break` the spacing family is, on B:
+  `[33.4940, 32.6952, 33.8724, 36.8400]`, mean 34.2254, cv 0.0458, deviations
+  `[-0.7314, -1.5302, -0.3530, 2.6146]` and `outlier_pairs` `[]`. On the tip it
+  is `[134.1605, 33.4940, 32.6952, 33.8724]`, mean 58.5555, cv 0.7455,
+  deviations `[75.6050, -25.0615, -25.8603, -24.6831]` and `outlier_pairs`
+  `[["T13", "L1"]]`.
+- `segfacet_report.txt` is byte-identical across B and the tip for
+  `clean_control` (462 lines) and `displace` (378 lines). It differs for
+  `sequence_break` (379 lines in both).
+
 **In scope:**
 
 - the clean-clone replay, the base-tree comparison, and their recorded
@@ -167,6 +223,11 @@ criterion. A criterion with no annotation closes none.
     resolves under the clone.
 
   A resolution outside the clone invalidates every clone result below.
+  *Correction at claim (2026-10-06):* the wording stands. Also record the
+  clone venv's `sys.version`. Insight `2026-10-06-934c` records that path
+  positions can differ in the last bit on Python 3.12 and later, so every
+  byte comparison below holds for the interpreter it ran on. CI's single leg
+  is 3.11, and the working venv was 3.11.15 at claim.
 - [ ] **AC2: the base tree holds commit B, and its code is its own.**
   Find B as A6 defines it. Create the base tree with `git worktree add
   --detach <scratch>/base217 <B>`, run from the working checkout. Bootstrap
@@ -226,11 +287,30 @@ criterion. A criterion with no annotation closes none.
   ID is gate-0080 (A2), and its status is `✅` with an approval date. Record
   the ID, the date and the Decision / evidence cell as `progress.md` holds it.
   *(closes Stage 27 criterion 1)*
+  *Correction at claim (2026-10-06):* the wording stands, and the date has a
+  named source. `gate list` (engine 2.39.0) prints `✅ gate-0080 …` with no
+  date. So the approval date is read from the row's Status cell in the
+  clone's `progress.md`, which reads `✅ Approved (2026-10-06)` at claim (A2's
+  re-check).
 - [ ] **AC7: the approval precedes the migration.** The approval date from
   AC6 is on or before the committer date, read as an ISO date, of the
   `aide/queue-029` commit whose subject is `progress(aide): item 215 ->
   in-progress`. Record both dates.
   *(closes Stage 27 criterion 1)*
+  *Correction at claim (2026-10-06):* the date comparison stands, and one
+  ordering check is added. Both dates are 2026-10-06, and a date cannot order
+  two events on one day. Also, that `in-progress` commit (`54b1553`, 16:08:58)
+  landed after item 215's first code commit (`c09b07d`, 16:08:55), so it is
+  not a lower bound on the migration. So AC7 also checks the following, in
+  the working checkout:
+  - the commit whose subject is exactly `docs: human gate-0080 approved`;
+  - the earliest `aide/queue-029` commit whose subject starts `feat(215)`;
+  - that `git merge-base --is-ancestor <gate commit> <feat commit>` exits
+    `0`.
+
+  Each `git log --grep` must print exactly one SHA. Record both SHAs, their
+  committer timestamps and the exit code. Measured at claim: `00fe6f5`
+  (15:19:25) is an ancestor of `c09b07d` (16:08:55), with exit code `0`.
 
 ### The stage's own item checks
 
@@ -254,6 +334,13 @@ criterion. A criterion with no annotation closes none.
   rows (both owners, all 165 rows) whose change is `kept` or `moved`. Record
   the size of each set, and the count of `kept`, `moved` and `merged` rows.
   *(closes Stage 27 criterion 2)*
+  *Corrected at claim (2026-10-06):* the set the catalogue is compared with
+  is those new paths **plus `case.sequence.order[]`**. That is the one stored
+  path with no table row: the signed note's Deviation 11, carried by item
+  216's AC1 correction. As written, AC10 would fail on that path alone.
+  Record it as the one addition. Measured at claim: 153 new paths plus 1
+  gives 154, equal to the catalogue's 154 (80 `kept`, 73 `moved`, 12
+  `merged`).
 - [ ] **AC11: every leaf of a real pipeline record is a stored new path in
   the table.** The case report's leaf paths minus the set of new paths of the
   table's `kept`/`moved` rows is empty. The case report is AC9's
@@ -272,6 +359,12 @@ criterion. A criterion with no annotation closes none.
   new paths, and the difference set, which must be empty. This is direct
   evidence on a real record, not inferred from the catalogue (A9).
   *(closes Stage 27 criterion 2)*
+  *Corrected at claim (2026-10-06):* the leaf paths are compared with the
+  `kept`/`moved` new paths **plus `case.sequence.order[]`** (AC10's
+  correction), and the difference must still be empty. The recognisability
+  facts stand. Measured at claim: 149 leaf paths, 148 among the new paths,
+  and a difference of exactly `{case.sequence.order[]}` against the table
+  alone. That difference is empty once the path is added.
 
 ### Stage 27 criterion 3: catalogue, drift test, and rule behaviour
 
@@ -324,6 +417,32 @@ criterion. A criterion with no annotation closes none.
     full. This is the authorised retune's measured footprint on the corpora.
 
   *(closes Stage 27 criterion 3)*
+  *Corrected at claim (2026-10-06):* the spacing-family equality stands. It
+  is now the retune's spacing part, not its whole footprint, because item
+  216's D11 widened the authorised change to every Stage 3 value wherever the
+  two orders disagree (A4's re-check). The whole footprint gets one more
+  measured equality, read from the same two records per case:
+  - **What is compared.** Every table row whose change is `kept` or `moved`,
+    except the row whose old path is `features_version`. Item 215 bumped that
+    value on every Stage-3 record, from `"0.2"` to `"0.3"`, by the batch rule
+    (A3's re-check).
+  - **How.** Resolve the row's old path in the base tree's record and its new
+    path in the clone's. A row is skipped for a case when any value it
+    resolves to, in either tree, is a mapping. Such a value is a container
+    (`relationships`, `per_label`) whose shape the migration changed by
+    design.
+  - **The equality.** The set of cases where any compared row resolves
+    differently equals the set of touched cases. Values are compared to
+    `abs=1e-9`, and lists elementwise with equal length.
+  - **What is recorded.** For each touched case, the old paths of the rows
+    that differ. On a touched case a row can differ by element order alone,
+    because per-label values resolve in `per_label` key order. At claim
+    `stage3.monotonic_consistency.u_values[]` was the one such row, with the
+    same value per label.
+
+  Measured at claim: the case set is `{sequence_break}`, with 37 differing
+  rows (A5's re-check). This record is what AC18's criterion-3 text cites as
+  the retune's footprint.
 - [ ] **AC16: the reference-backed human report does not move.** For `<case>`
   in `clean_control`, `displace` and `sequence_break`, run
   `<tree>/.venv/bin/segfacet run --scan
@@ -336,6 +455,38 @@ criterion. A criterion with no annotation closes none.
   216's Validation step 5 (`clean_control`, `sequence_break`) together (A3,
   A4). Record each file's line count and finding count.
   *(closes Stage 27 criterion 3)*
+  *Correction at claim (2026-10-06):* the wording stands, and so does its
+  byte-identical bar for all three cases. **It is predicted not to hold on
+  `sequence_break`.** Item 216's corrected Validation step 5 measured this,
+  and it was re-measured at claim from B and the tip:
+  - **The distribution distances move.** Labels 20–23 go from 3.70, 3.90,
+    4.07 and 3.96 to 3.47, 3.89, 4.06 and 4.40.
+  - **One out-of-range finding changes label.** The `reference_delta`
+    finding on `spline_offset_mm` is on label 21 (value 0.1513) in B, and on
+    label 20 (value 0.0038) on the tip.
+  - **Unchanged.** `clean_control` and `displace` are byte-identical.
+
+  The cause is the record-wide anatomical order (item 216's D11), read
+  against a reference built from integer-order fits (insight
+  `2026-10-06-f318`).
+
+  This spec does not widen AC16 to item 216's bounded comparison. That
+  comparison asked only that the `(rule_id, labels)` set stay the same, and
+  that reasons differ only within a measured list. The maintainer authorised
+  measured values to change (D1, D11) and decided that no corpus firing
+  changes (A10). Neither decision says whether a reference-backed finding on
+  a corpus case may change. That is the maintainer's to rule (**Left
+  open**), so on this outcome criterion 3 stays unticked under AC18.
+
+  For `sequence_break`, the replay still records:
+  - the verbatim diff of the two `.txt` files;
+  - both trees' `(rule_id, sorted labels)` finding lists, read from each
+    `segfacet_report.json`;
+  - whether every differing line renders a `reference_delta` finding (its
+    reason, or its `Labels:` line) on a label in {20, 21, 22, 23}.
+
+  Those records inform the ruling and close nothing. A ruling made before the
+  replay is recorded here by spec-author as a further dated correction.
 
 ### Environment, bookkeeping, suite
 
@@ -384,6 +535,32 @@ criterion. A criterion with no annotation closes none.
     reason>)*` to the end of its last line;
   - capture one `gap` line with `aide insights add`, naming the stage, the
     criterion and the reason.
+
+  *Corrected at claim (2026-10-06):* the verbs, the order and the
+  unticked-box rule stand. What each evidence text must state changes as
+  follows.
+  - **Criterion 1** also names the gate-approval commit, the first
+    `feat(215)` commit, and the ancestry exit code (AC7's correction).
+  - **Criterion 2** gives AC10's sizes as the table's `kept`/`moved` new
+    paths plus `case.sequence.order[]`, against the catalogue (154 at claim).
+    It says that `case.sequence.order[]` is the one stored path with no row,
+    by the signed note's Deviation 11. The A11 measurement adds one list
+    beside the pair-identity paths: the leaf paths that store label
+    references rather than an entity's own identity. At claim these were
+    `case.sequence.order[]`,
+    `per_label.{label}.components.component_contacts[].neighbour_label` and
+    `per_label.{label}.neighbourhood.window_labels[]`. They are listed, not
+    counted (A11's re-check).
+  - **Criterion 3** describes the authorised retune as item 216's D1 widened
+    by its D11. D11 is the record-wide anatomical element order the
+    maintainer signed at gate-0080 on 2026-10-06 ("one anatomical element
+    order stored as case.sequence.order[]"). The text names AC15's corrected
+    footprint record: the touched cases, each one's spacing family in both
+    trees, and its differing rows. It states AC16's outcome per case. If
+    `sequence_break` differs and the maintainer has not ruled (AC16's
+    correction), criterion 3 is not attested. The annotation's reason names
+    the reference-backed `reference_delta` change on `sequence_break` and
+    insight `2026-10-06-f318`.
 - [ ] **AC19: the full configured suite is green in a fresh clone of the final
   commit.** Once every commit of this item has landed, take these steps:
   1. Bring AC1's clone up to the branch tip with `python
@@ -424,7 +601,25 @@ the level this item reads them. They are re-checked at claim
     with the frozen literal `(165, <SHA-256 of the sorted pre-migration
     set>)`, so it stays true through the stage, and item 214 lists nothing
     under Asserts against. AC8 runs it unchanged.
-- **A2 (pin, item 214; engine 2.35.0): the sign-off gate.** It is gate-0080,
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`): agrees.* The module
+    exposes `NOTE_PATH`, `read_mapping(text=None)` and `answer_lines`, and
+    this item uses only `read_mapping`. Measured:
+    - **Rows.** 165 rows: 80 `kept`, 73 `moved`, 12 `merged`. By owner, 130
+      are Moved by 215 (item 215's A2 re-check: its 126 plus the four
+      Deviation-5 rows) and 35 by 216. The 20 report-only rows are item
+      215's.
+    - **The spacing rows.** Both map to `pairs.adjacent.spacings_mm[]`.
+      `relationships.neighbour_spacings_mm[]` is `moved` and
+      `stage3.spacing_consistency.spacings_mm[]` is `merged`.
+    - **The design test.** `git diff 3be6c38 aide/queue-029` is empty for
+      both `tests/test_214_feature_taxonomy_design.py` and the reader module.
+      Neither migration item edited them. The note itself changed after B,
+      at `2364df4` (the maintainer's review decisions). The frozen literal
+      pins old paths only, so the change does not reach it.
+
+    One stored path has no row: `case.sequence.order[]` (A4's re-check). That
+    is why AC10 and AC11 are corrected.
+- **A2 (pin, item 214; engine 2.35.0, re-checked 2.39.0): the sign-off gate.** It is gate-0080,
   the `progress.md` `## Human gates` row whose Gate cell contains `Stage 27
   feature-record taxonomy sign-off`. It reads `⏳ Awaiting` on 2026-10-05, and
   its reach is `Blocks: 215, 216, 217`. A person resolves it with `aide gate
@@ -432,6 +627,27 @@ the level this item reads them. They are re-checked at claim
   `aide claim` holds this item until then, so a claim implies the approval. AC6
   still records it from live state. Rewording the Gate cell would change the
   ID, so AC6 also selects the row by its substring.
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`, engine 2.39.0):
+    corrected on two reads, agrees on the rest.*
+    - **Agrees.** The row's Status cell reads `✅ Approved (2026-10-06)`, its
+      reach is `215, 216, 217`, and it is the only gate whose text contains
+      the substring. Its Decision / evidence cell reads "Signed 2026-10-06
+      after review: one anatomical element order stored as
+      case.sequence.order[]; per-label values stored per label whatever
+      computed them; intensity enters the persisted record (Option A). Scope
+      axis unchanged, items 215/216 not re-cut. docs/feature-taxonomy.md @
+      2364df4."
+    - **Corrected: where the date comes from.** `aide gate list` prints
+      `✅ gate-0080 …` and no date, so AC6 reads the date from the
+      `progress.md` Status cell (AC6's correction).
+    - **Corrected: what the dates can order.** The approval commit,
+      `docs: human gate-0080 approved`, is `00fe6f5`, committed at
+      2026-10-06T15:19:25+01:00. Item 215's `in-progress` commit, `54b1553`,
+      was committed at 16:08:58 on the same day, three seconds after item
+      215's code commit `c09b07d`. So a date comparison cannot show that
+      approval preceded migration. AC7 adds an ancestry check (AC7's
+      correction). Measured at claim: `00fe6f5` is an ancestor of
+      `c09b07d`.
 - **A3 (pin, item 215): the identity count and the human-report comparison.**
   - **The case report** is the `segfacet_report.json` that `segfacet run
     --scan <scan> --seg <seg> --intensity --out <dir>` writes for the
@@ -462,6 +678,42 @@ the level this item reads them. They are re-checked at claim
   - **The catalogue driver (item 215, step 5).** Item 215 extends the
     catalogue's reference-delta driver, so the regenerated catalogue lists
     the 20 report-only paths at their new paths. AC10 and AC12 rely on that.
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`): agrees on the
+    definitions, corrected on the versions and on one report.*
+    - **The definitions stand.** The `clean_control` report's top-level keys
+      are `schema_version`, `config_version`, `case_id`, `verdict`,
+      `reasons`, `per_label`, `features`, `findings` and `reference_delta`.
+      The report-level `image_features` key is gone (item 216's A14). So
+      A3's exclusion list leaves `features` and `reference_delta`, as
+      intended. The report has 149 leaf paths.
+    - **Identity counts.** Item 215's AC1 holds after item 216: one leaf
+      path ends `label` and one ends `level_name`.
+    - **The catalogue driver.** It lists all 20 report-only paths, and all 20
+      are in the report.
+    - **Versions (corrected).** Item 215 made every bump (its D10), and item
+      216 bumped none:
+      - `FEATURES_VERSION_STAGE3` went `"0.2"` → `"0.3"`;
+      - the base `FEATURES_VERSION` went `"0.1"` → `"0.2"`;
+      - `IMAGE_FEATURES_VERSION` and `REFERENCE_DELTA_VERSION` went `"1.0"` →
+        `"1.1"`;
+      - the report's `schema_version` stays `"0.1"`.
+
+      So every Stage-3 record's `features_version` reads `"0.2"` on B and
+      `"0.3"` on the tip. That is why AC15's footprint record excludes that
+      row.
+    - **The `.txt` report.** It still renders no `features_version` and no
+      spacing value. A grep for `features_version` and `spacing` finds
+      neither in the `clean_control` or `sequence_break` reports. It is
+      byte-identical to B for `clean_control` and `displace`. **It differs
+      for `sequence_break`** (corrected). The difference is a
+      reference-backed change, not a version or spacing value (AC16's
+      correction).
+    - **Rule-read attribution.** Insight `2026-10-06-1935` records that the
+      catalogue's static scan understates rule reads ("Read by >=1 rule"
+      51), because several features share last segments. AC12's drift
+      agreement compares the committed catalogue with a fresh build, so the
+      understatement does not affect it. No evidence text claims that the
+      reader attribution is complete.
 - **A4 (pin, item 216, as specified 2026-10-05): addressability, the collapse
   and firing.** Read against item 216's A1–A4 and its D1, D5 and D8.
   - **The module.** It is
@@ -508,6 +760,57 @@ the level this item reads them. They are re-checked at claim
     covers both.
   - **Its replay request.** It asks this item to replay its Validation steps
     2 and 5 from a clean clone. AC3 and AC16 do so.
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`; item 216 as merged, its
+    claim corrections, D11–D18 and `## Review findings` read): corrected on
+    five points, agrees on the rest.*
+    - **The module (corrected).** Item 216's AC1 compares the catalogue with
+      the 153 `kept`/`moved` new paths plus `case.sequence.order[]`. The
+      catalogue lists 154 paths. AC10 and AC11 now count that path.
+    - **The survivor (agrees).** It is `pairs.adjacent.spacings_mm[]` (item
+      216's D11), in item-198 order over every label. `fused_label` gates on
+      `pairs.adjacent.mean_spacing_mm` and pairs in that same order (its A12
+      re-check, D15).
+    - **What is measured (corrected).** D11 adds the record-wide anatomical
+      order. The fit, the held-out offsets, the tangents, the curvature,
+      both consistency extractors and the neighbourhood all take the
+      anatomical sequence. `relationships` keeps integer input, so
+      `out_of_order_labels[]` is unchanged. The authorised change therefore
+      reaches every Stage 3 value wherever the orders disagree. Measured at
+      claim, from B and the tip, over every `kept`/`moved` row except
+      `features_version` and the container rows: only `sequence_break`
+      resolves differently, in 37 rows. These are 25 per-label `curve`,
+      `orientation` and `neighbourhood` rows, the curvature scalars and
+      arrays, and the four spacing statistics. `u_values[]` differs by
+      element order only. AC15's correction measures this whole footprint.
+    - **Why AC15 holds (agrees).** Every committed case has at least two
+      labels, no coincident centroids and no unrecognised label. Re-measured:
+      on all 17 other cases `case.sequence.order[]` equals ascending integer
+      order.
+    - **Firing (agrees without a reference, corrected with one).** Without a
+      reference, all 18 cases give identical `Finding.to_dict()` lists on B
+      and the tip (A10's re-check). With the bundled VerSe19 reference,
+      `sequence_break`'s `reference_delta` findings move (item 216's A5
+      re-check and corrected Validation step 5, re-measured at claim). AC16
+      is predicted not to hold there (its correction).
+    - **The value footprint (corrected).** It is `sequence_break` only, and
+      wider than the spacing family. The spacing family's values are in the
+      Description's correction.
+    - **The unwired neighbourhood statistics (settled).** They are
+      re-derived over the anatomical sequence (item 216's A3 re-check), as
+      part of D11. They now sit at item 215's paths
+      `per_label.{label}.neighbourhood.stats.*`. They are among the 37 rows,
+      and AC15's correction counts them.
+    - **Versions (agrees).** Item 216 bumped none (its D11 and D15).
+    - **Regeneration (agrees, with one addition).** Item 216 regenerated the
+      eight `docs/aide/*.generated.*` files, `golden_evidence.generated.json`
+      included at `(29, 95)` per case, plus the digest file and the format
+      contract. AC3 already lists all of them. It also added one
+      `WINDOWS_TESTS` entry to `.github/workflows/ci.yml`. That file is not
+      generated, and no criterion here reads it.
+    - **`path_u` (noted).** Its schema bounds were removed (item 216's
+      `## Review findings`, D18) because Python 3.12 and later can yield
+      `1.0000000000000002` (insight `2026-10-06-934c`). AC1's correction
+      records the interpreter.
 - **A5 (measured): what the collapse can move on the committed corpora.**
   - **Geometric label sets.** Every geometric case's label set lies in
     {19, …, 24} except `sequence_break`, whose set is {20, 21, 22, 23, 28}.
@@ -532,7 +835,36 @@ the level this item reads them. They are re-checked at claim
 
   So the authorised retune is expected to move values on `sequence_break`
   and no finding anywhere. AC14 and AC15 measure both.
-- **A6 (measured; engine 2.35.0): B, the pre-migration commit.** B is the
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`; Implementation Steps
+    step 0): corrected on the readers and on "no finding anywhere", agrees
+    on the label sets and the reasons.*
+    - **Label sets (agrees).** Measured from each case's `per_label` keys:
+      - every geometric case lies in {19, …, 24}, except `sequence_break`
+        {20, 21, 22, 23, 28};
+      - `split_own_label` carries 19 (T12), which sits in order before 20;
+      - every intensity case is {20, …, 24}.
+
+      The tip's `case.sequence.order[]` equals ascending integer order on
+      every case but `sequence_break`, where it is `[28, 20, 21, 22, 23]`.
+    - **Readers (corrected).** Under `src/segfacet/heuristics/`, only
+      `fused_label.py` names the spacing family. It reads
+      `pairs.adjacent.spacings_mm[]`, and it now also names
+      `pairs.adjacent.mean_spacing_mm`, as its Stage-3 gate (a bookkeeping
+      declaration, item 216's D15). No rule names `cv_spacing`,
+      `deviations_mm` or `outlier_pairs`. `human_report.py` reads
+      `pairs.adjacent.spacings_mm` in `render_feature_table`, which the
+      `.txt` report does not render.
+    - **Reasons (agrees).** Without a reference, `sequence_break`'s findings
+      on B and the tip are the same two, with identical `to_dict()`. So
+      AC14's exact comparison needs no exception.
+    - **"No finding anywhere" (corrected).** That holds on AC14's path, which
+      runs without a reference. It does not hold on AC16's path, which runs
+      against the bundled VerSe19 reference. There, D11 moves
+      `sequence_break`'s per-label `curve.offset_mm` values (item 216's A5
+      re-check). Label 20 goes 0.0595 → 0.0038, and label 21 goes 0.1513 →
+      0.2576. So `reference_delta`'s `spline_offset_mm` out-of-range finding
+      passes from label 21 to label 20 (AC16's correction).
+- **A6 (measured; engine 2.35.0, re-checked 2.39.0): B, the pre-migration commit.** B is the
   `aide/queue-029` commit whose subject is exactly `progress(aide): item 214
   -> done`. It is found in the working checkout with `git log --format=%H
   --grep="^progress(aide): item 214 -> done$" aide/queue-029`, which must
@@ -549,6 +881,16 @@ the level this item reads them. They are re-checked at claim
     git metadata, so insight `2026-10-05-dc87` holds.
 
   Nothing is run under pytest in the base tree.
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`): agrees.*
+    - **B is found.** The `git log` prints exactly one SHA,
+      `3be6c381e8c986754703d80a32e56cb7e68102d5`, committed 2026-10-05.
+    - **B's code is pre-migration.** Item 214 changed nothing under `src/`
+      (`git diff 2cbb24e 3be6c38 -- src/` is empty).
+    - **Every later `src/` change is 215's or 216's.** Five commits touch
+      `src/` after B, all `feat(215)`, `fix(215)`, `feat(216)` or
+      `fix(216)`.
+    - **The rig works.** A worktree at B, created and removed with bare
+      commands, resolved its own `segfacet` at claim.
 - **A7: "every generated artifact" is AC3–AC5's list.**
   - **Byte for byte (AC3).** Every committed file a module in the repo
     regenerates without a gated capability is compared byte for byte. That
@@ -597,6 +939,14 @@ the level this item reads them. They are re-checked at claim
     catalogue's path set. Under that default, the 20 report-only paths were
     only recorded. The maintainer chose the wider reading, so that default
     was dropped.
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`): agrees on the
+    coverage, with one addition.* Item 215 owns the 20 rows. Its extended
+    driver lists them, and the catalogue and the `clean_control` report
+    carry all 20 at their new paths. The addition: the report also carries
+    `case.sequence.order[]`, a stored leaf with no table row (A4's
+    re-check). AC11 compares against the table's new paths plus that path,
+    so "every leaf of a real report" stays the reading. That path is named
+    in the evidence, not dropped.
 - **A10 (maintainer decision, 2026-10-05): the authorised retune covers
   measured values, and no corpus firing changes.** This is item 216's D8,
   now a decision. AC14 therefore holds
@@ -608,6 +958,19 @@ the level this item reads them. They are re-checked at claim
     not asserted. Item 216's spec, which landed the same day, measured that
     no such change occurs and made firing-unchanged its own D8. So the
     exception was dropped.
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`, item 216 merged):
+    agrees on AC14's path, and leaves AC16's path open.*
+    - **AC14's path.** Run without a reference, all 18 cases give identical
+      `Finding.to_dict()` lists on B and the tip, reasons included. Item
+      216's D8 held through its D11.
+    - **What the decision covers.** The decision, and item 216's D8, are
+      about the committed corpora's firing, and the ratchet measures that
+      without a reference.
+    - **AC16's path.** With the bundled VerSe19 reference, `sequence_break`'s
+      `reference_delta` findings change: one out-of-range finding changes
+      label, and four distances move (AC16's correction). Neither this
+      decision nor D11 says whether that is authorised. It is recorded as
+      **Left open**, and AC16 holds its bar.
 - **A11 (default, seen by the maintainer 2026-10-05 and kept): "identity
   field" means the per-label `label` and `level_name`.** That is the known
   instance the roadmap names, and item 215's AC1 definition. Neighbour-pair
@@ -615,12 +978,34 @@ the level this item reads them. They are re-checked at claim
   keys item 216 introduces) is not counted by AC9. AC18's criterion-2
   evidence lists the pair-identity leaf paths the case report carries, as a
   measurement.
-- **A12 (engine 2.35.0): bookkeeping verbs.** None of Stage 27's three boxes
+  - *Re-checked at claim (2026-10-06, base `8a5ebed`): agrees, with one
+    addition to what is listed.*
+    - **Pair identity.** Item 216 merged `overlaps[].name_a` and `.name_b`
+      onto `per_label.{label}.level_name`. It kept `label_a` and `label_b`
+      under `pairs.overlaps[]` and introduced no other pair key.
+      `clean_control` has no overlaps, so its report carries only the
+      container leaf `pairs.overlaps[]`.
+    - **Label references.** `case.sequence.order[]` (item 216's A15) stores
+      the labels again, as a list of integers. So do the existing
+      `neighbourhood.window_labels[]` and
+      `component_contacts[].neighbour_label`. These are references to labels,
+      not an entity's own identity field. AC9's last-segment count does not
+      see them.
+    - **The addition.** AC18's criterion-2 text lists them beside the
+      pair-identity paths, so a reader of the attestation sees them
+      (AC18's correction).
+- **A12 (engine 2.35.0, re-checked 2.39.0): bookkeeping verbs.** None of Stage 27's three boxes
   is ticked on 2026-10-05, so each takes `accept`. No verb writes an
   unticked-box annotation. The hand-written ` *(not attested …)*` suffix is
   the shape §1 allows beside an unticked box, and Stage 32's criterion 1
   carries one. `aide merge 217` flips this item's own deliverable bullet. No
   bullet is hand-edited.
+  - *Re-checked at claim (2026-10-06, engine 2.39.0): agrees.* All three
+    Stage 27 boxes are still unticked. §1 → progress.md still allows an
+    annotation beside an unticked box ("say why in an annotation beside
+    it"). The ` *(not attested …)*` shape is still carried in `progress.md`,
+    by item 161 and item 169 among others. Item 217's bullet is still the
+    one 📋 deliverable of Stage 27.
 - **A13: no new human gate, no environment-gated capability, no new test.**
   Gate-0080 is the only decision this item needs. Under posture `prototype`
   no scaffolding is added beyond what the attestations need:
@@ -634,6 +1019,12 @@ the level this item reads them. They are re-checked at claim
 
 0. **At claim (spec-author, before anything runs).** Items 214, 215 and 216
    have merged, and gate-0080 reads approved.
+   *Done (2026-10-06, base `8a5ebed`).* Re-checks are appended to A1–A6 and
+   A9–A11. Corrections are appended to the Description and to AC1, AC6, AC7,
+   AC10, AC11, AC15, AC16 and AC18, with a new **Left open**. The claim-time
+   measurements used a worktree at B on `PYTHONPATH` and the working venv.
+   They are starting points only, and steps 2–10 re-measure everything on the
+   clone rig.
    - Re-check A1–A4 against the merged specs and code, and append a dated
      re-check to each. That includes any amendment item 216's spec received
      at its own claim, such as Answer 6's settlements or a D8 hand-back.
@@ -815,3 +1206,16 @@ To be updated during implementation.
   "no identity field is stored more than once". The maintainer kept the
   per-label reading for Stage 27 (A11), so this item records pair identity
   and does not count it.
+- **Left open (added at claim, 2026-10-06):** whether the maintainer's
+  authorisation covers a changed reference-backed finding on a corpus case.
+  The authorisation is item 216's D1 widened by D11, the record-wide
+  anatomical order signed at gate-0080. The change in question is on
+  `sequence_break` under the bundled VerSe19 reference: four
+  distribution-distance values move, and the `spline_offset_mm` out-of-range
+  finding passes from label 21 to label 20. That reference was built from
+  integer-order fits and is stale for this T13 shape until a rebuild (insight
+  `2026-10-06-f318`). D1 and D11 authorise measured values. A10 and item
+  216's D8 decide firing on the committed corpora without a reference. None
+  of them answers this question. It is the maintainer's to rule, so AC16
+  keeps its byte-identical bar. Unless a ruling is recorded first, criterion
+  3 stays unticked with that reason (AC16's and AC18's corrections).
