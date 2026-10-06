@@ -589,7 +589,8 @@ def test_ac10_feature_docs_state_convention(path):
     [
         # Item 215: the per-label tangent angle moved onto the orientation kind.
         ("stage3OrientationEntry", "tangent_angle_deg"),
-        ("stage3Curvature", "inter_tangent_angles_deg"),
+        # Item 216 (D18): inter_tangent_angles_deg moved to pairs.adjacent.
+        ("stage3SpacingConsistency", "inter_tangent_angles_deg"),
     ],
 )
 def test_ac11_schema_descriptions_state_convention(definition, key):

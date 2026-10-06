@@ -2921,10 +2921,6 @@
             [
               "coverage",
               "observed"
-            ],
-            [
-              "coverage",
-              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -3386,10 +3382,6 @@
             [
               "overlap",
               "observed"
-            ],
-            [
-              "overlap",
-              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",

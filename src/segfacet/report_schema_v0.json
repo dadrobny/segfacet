@@ -133,6 +133,22 @@
       "description": "Consolidated features for a case: per-label kind blocks (geometry, components, centroid and, when computed, curve, orientation, neighbourhood and intensity), the case-level 'case' container (level sequence and, when computed, curve and intensity) and the 'pairs' container (overlap pairs and adjacent-pair values).",
       "additionalProperties": false,
       "required": ["features_version", "per_label", "case", "pairs"],
+      "if": {
+        "properties": {
+          "pairs": {
+            "properties": {"adjacent": {"required": ["non_monotonic_pairs"]}},
+            "required": ["adjacent"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "case": {
+            "properties": {"curve": {"required": ["is_monotonic"]}},
+            "required": ["curve"]
+          }
+        }
+      },
       "properties": {
         "features_version": {
           "type": "string",
@@ -500,7 +516,7 @@
         "dy_mm": {"type": "number", "description": "y-component of the displacement vector (mm)."},
         "dz_mm": {"type": "number", "description": "z-component of the displacement vector (mm)."},
         "is_terminal": {"type": "boolean", "description": "True for the first/last entry of the ordered centroid sequence it was measured in (item 123). Optional -- an entry omitting it is treated as interior (False) by every consumer."},
-        "path_u": {"type": "number", "minimum": 0, "maximum": 1, "description": "This label's u: its normalised arc length in [0, 1] along the label-free minimum-spanning-tree longest path through the vertebra centroids (item 210), directed to have the fewest inversions against the anatomical order; a different quantity from closest_u, the position on the fitted spline. One element of the former stage3.monotonic_consistency.u_values array."}
+        "path_u": {"type": "number", "description": "This label's u: its normalised arc length in [0, 1] along the label-free minimum-spanning-tree longest path through the vertebra centroids (item 210), directed to have the fewest inversions against the anatomical order; a different quantity from closest_u, the position on the fitted spline. One element of the former stage3.monotonic_consistency.u_values array."}
       }
     },
     "stage3OrientationEntry": {
@@ -539,13 +555,12 @@
       "type": "object",
       "description": "Global spinal curve descriptors (features.case.curve): the four curvature scalars and whether the anatomical order advances along the label-free path. The three per-label tangent-angle arrays are stored one scalar per label under per_label.{label}.orientation since item 215; the adjacent-pair arrays under pairs.adjacent since item 216.",
       "additionalProperties": false,
-      "required": [
-        "total_curvature_deg",
-        "coronal_curvature_deg",
-        "sagittal_curvature_deg",
-        "curvature_plane",
-        "is_monotonic"
-      ],
+      "dependencies": {
+        "total_curvature_deg": ["coronal_curvature_deg", "sagittal_curvature_deg", "curvature_plane"],
+        "coronal_curvature_deg": ["total_curvature_deg", "sagittal_curvature_deg", "curvature_plane"],
+        "sagittal_curvature_deg": ["total_curvature_deg", "coronal_curvature_deg", "curvature_plane"],
+        "curvature_plane": ["total_curvature_deg", "coronal_curvature_deg", "sagittal_curvature_deg"]
+      },
       "properties": {
         "total_curvature_deg": {
           "type": "number",
@@ -574,7 +589,12 @@
       "type": "object",
       "description": "Values of each pair of adjacent labels in the anatomical sequence (features.pairs.adjacent). Only spacings_mm exists on every record with at least one label; the statistics and the two pair arrays are Stage 3 values derived from that same sequence.",
       "additionalProperties": false,
-      "required": ["spacings_mm"],
+      "dependencies": {
+        "mean_spacing_mm": ["spacings_mm"],
+        "cv_spacing": ["spacings_mm"],
+        "deviations_mm": ["spacings_mm"],
+        "outlier_pairs": ["spacings_mm"]
+      },
       "properties": {
         "spacings_mm": {
           "type": "array",

@@ -868,8 +868,15 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
                 attributions[path][rule.rule_id].add("observed")
 
     # Mechanism B: static AST scan of each rule's own module file.
+    # A path that is the dotted prefix of another leaf (an empty container
+    # in one driver record, e.g. ``case.sequence`` on ``zero_label``) is a
+    # container, not a field: a bare key literal must not attribute to it
+    # (item 216, D18).
+    containers = {p.rsplit(".", 1)[0] for p in leaf_union if "." in p}
     by_last_segment: Dict[str, List[str]] = defaultdict(list)
     for path in leaf_union:
+        if path in containers:
+            continue
         by_last_segment[_last_segment(path)].append(path)
 
     for rule in rules:

@@ -1593,7 +1593,7 @@ _MODE_6 = ModeSpec(
         "detectors) is a recorded co-detection, not this mode's own evidence. "
         "remove_level_relabel fires nothing: it deletes L3 and renumbers "
         "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
-        "inter-centroid spacing (pairs.adjacent.spacings_mm[]) that no mode-6 rule reads; fused_label "
+        "inter-centroid spacing (the spacings_mm array of the pairs.adjacent block) that no mode-6 rule reads; fused_label "
         "reads spacing only beside a doubled size, so it is silent there. "
         "That doubled spacing is this mode's own "
         "label-map signal -- it would also catch remove_level -- and its "
@@ -1936,7 +1936,7 @@ _MODE_10 = ModeSpec(
         "needs-real-data: a skip-relabel fixture (renumber the labels "
         "caudal to a level down by one without deleting a vertebra) is not "
         "authored. The separating signal is an ordinary inter-centroid "
-        "spacing across the label gap (pairs.adjacent.spacings_mm[]); as for mode 6, no mode-10 rule reads it "
+        "spacing across the label gap (the spacings_mm array of the pairs.adjacent block); as for mode 6, no mode-10 rule reads it "
         "-- fused_label reads spacing only beside a doubled size."
     ),
     observability="single-channel-observable",

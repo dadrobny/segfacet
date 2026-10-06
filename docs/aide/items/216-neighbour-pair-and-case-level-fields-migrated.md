@@ -1865,3 +1865,36 @@ To be updated during implementation.
   until a rebuild. A rebuild needs the VerSe data, and no reference is
   rebuilt in this stage. So the reference stays as it is, and the
   divergence is captured as insight `2026-10-06-f318`.
+- **D18 (fix round after validation round 1 and review, 2026-10-06).**
+  - *Static attribution skips containers.* In `catalogue.py` mechanism B, a
+    leaf path that is the dotted prefix of another leaf (`case.sequence`, an
+    empty container on the `zero_label` driver) is no longer a
+    last-segment candidate. Before, the migration made `sequence` a unique
+    last segment, so any rule module containing that literal (a test module
+    defining a zero-read rule included) was credited with the container. The
+    test is correct and unedited. Two `static` evidence tuples (`coverage`,
+    `overlap`) on container leaves disappear from the regenerated catalogue;
+    their `observed` evidence stays. The three generated artifact families
+    were regenerated.
+  - *Mode 6 and mode 10 mechanism text.* Each named `pairs.adjacent.spacings_mm[]`, which
+    only `fused_label` reads, and `fused_label` is not a mode-6 declared or
+    co-detecting rule. On the base the old path was read by nobody, so the
+    sentence was never checked. The text now says "the spacings_mm array of
+    the pairs.adjacent block"; the `hypothesised` candidate path is unchanged.
+    No `ConsumedPath` was added: `coverage` and `sequence` do not read it.
+  - *test_131 AC11.* The `inter_tangent_angles_deg` case reads
+    `stage3SpacingConsistency` (fence rule 1), assertion unchanged.
+  - *`path_u` bounds removed.* `stage3OffsetEntry.path_u` keeps the rewritten
+    description only. The spec's rider is description text, and on Python 3.12
+    and later `_path_positions` can yield `1.0000000000000002` or `-2.2e-16`,
+    which a `minimum`/`maximum` would make `serialize_report` reject.
+  - *Partial Stage-3 arguments validate.* `stage3Curvature` and
+    `stage3SpacingConsistency` no longer list `required`. The four curvature
+    scalars are a `dependencies` group, and the spacing statistics require
+    `spacings_mm`. `is_monotonic` is required by an `if`/`then` on `features`:
+    when `pairs.adjacent.non_monotonic_pairs` is present (both come from
+    `monotonic_consistency`), `case.curve.is_monotonic` must be too, which
+    keeps test_022's missing-`is_monotonic` rejection. A scratch script
+    checked `curvature` only, `monotonic_consistency` only,
+    `spacing_consistency` only, curvature with monotonic, and the full set,
+    each with and without `relationships`: all validate.
