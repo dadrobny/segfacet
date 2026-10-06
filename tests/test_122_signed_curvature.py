@@ -24,6 +24,7 @@ load-bearing.
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import os
@@ -451,6 +452,89 @@ def _empty_verdict() -> Verdict:
     return Verdict.build(reasons=[], per_label={})
 
 
+# Item 215 review: the report schema requires geometry/components/centroid on
+# every per_label entry, so a hand-built Stage-3-only block that is validated
+# carries one real label's Stage 2 kinds (measured from the 4-voxel cube of
+# ``synthetic.labelled_blocks_case``).
+_STAGE2_STUB = {
+    "geometry": {
+        "voxel_count": 64,
+        "physical_volume_mm3": 64.0,
+        "extent_x_mm": 4.0,
+        "extent_y_mm": 4.0,
+        "extent_z_mm": 4.0,
+        "bbox_voxel": {
+            "x_min": 2,
+            "x_max": 5,
+            "y_min": 2,
+            "y_max": 5,
+            "z_min": 2,
+            "z_max": 5
+        },
+        "bbox_physical": {
+            "x_min": 2.0,
+            "x_max": 5.0,
+            "y_min": 2.0,
+            "y_max": 5.0,
+            "z_min": 2.0,
+            "z_max": 5.0
+        },
+        "touches_inferior": False,
+        "touches_superior": False,
+        "touches_left": False,
+        "touches_right": False,
+        "touches_anterior": False,
+        "touches_posterior": False
+    },
+    "components": {
+        "component_count": 1,
+        "component_sizes": [
+            64
+        ],
+        "component_volumes_mm3": [
+            64.0
+        ],
+        "largest_component_fraction": 1.0,
+        "small_fragments": [],
+        "fragmentation_index": 1.0,
+        "stray_component_count": 0,
+        "stray_component_sizes": [],
+        "stray_volume_mm3": 0.0,
+        "stray_volume_fraction": 0.0,
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
+        "component_contacts": [
+            {
+                "neighbour_label": 0,
+                "contact_area_mm2": 0.0,
+                "surface_area_mm2": 96.0,
+                "contact_fraction": 0.0
+            }
+        ],
+        "label_contact_fraction": 0.0
+    },
+    "centroid": {
+        "centroid_voxel": [
+            3.5,
+            3.5,
+            3.5
+        ],
+        "centroid_mm": [
+            3.5,
+            3.5,
+            3.5
+        ]
+    }
+}
+
+
+def _with_stage2_stubs(block):
+    for entry in block["per_label"].values():
+        for kind, value in _STAGE2_STUB.items():
+            entry[kind] = copy.deepcopy(value)
+    return block
+
+
 def _full_stage3_block(centroids: List[LabelCentroid]):
     from segfacet.features.consistency import (
         compute_monotonic_consistency,
@@ -473,7 +557,7 @@ def _full_stage3_block(centroids: List[LabelCentroid]):
         )
         for c in centroids
     ]
-    return build_features_block(
+    block = build_features_block(
         geometry={},
         components={},
         centroids={},
@@ -485,6 +569,7 @@ def _full_stage3_block(centroids: List[LabelCentroid]):
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
+    return _with_stage2_stubs(block)
 
 
 def test_ac16_schema_defines_all_five_new_keys():

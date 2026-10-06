@@ -1266,6 +1266,63 @@ To be updated during implementation.
     - 126: `test_ac22_documented_2694_evidence_still_verifies_unchanged` pin `(30, 101)` -> `(28, 95)` (assert, message, dated docstring line).
     - `tests/report_format_fixture.py` and `tests/golden/report_format_contract.json`,
       `tests/corpus/119_pre_119_digests.json`: regenerated per steps 6.
+- **D12 (validation round 1 and review fixes, 2026-10-06).** What the fix
+  round changed, and one finding it did not apply. Pytest was not run by the
+  builder.
+  - **Fence (e), applied.** `tests/test_106_stage19_validation.py::test_ac25_steering_review_heading_present_and_honest`
+    translates each `STATUS_OVERRIDES` key through `read_mapping()` (a
+    `kept`/`moved` row's `old`, else the key itself), takes the 20 report-only
+    keys through their `physical_volume_mm3` counterpart (asserting equal
+    overrides first), and asserts the pre-migration key is in the section,
+    naming both keys. The slice and the empty-map branch are unchanged.
+  - **`.github/workflows/ci.yml`.** One line,
+    `tests/test_215_per_label_migration.py`, in `WINDOWS_TESTS` between
+    `tests/test_213_windows_ci_subset.py` and `tests/test_aide_check_no_errors.py`.
+  - **Length checks.** `feature_report.build_features_block` raises
+    `ValueError` naming the argument when a curvature tangent array or
+    `u_values` does not have one element per label, instead of truncating.
+  - **`path_u`-only `curve`.** `eval/feature_match._offset_map` skips a
+    `curve` with no `offset_mm`, as `reference/ingest.py` and
+    `reference/delta.py` do. `stage3OffsetEntry` no longer lists the six
+    offset fields as `required`: a draft-07 `dependencies` clause makes any
+    one of them require the other five, so a partial offset still fails and
+    a `path_u`-only curve validates.
+  - **Schema requirements restored.** `labelFeatures` again requires
+    `geometry`, `components` and `centroid` (the pipeline always emits them).
+    `stage3OrientationEntry` requires an `anyOf`: the PCA pair
+    (`principal_axis`, `eigenvalue_ratio`), or the three unwrapped tangent
+    angles, which is the orientation the curvature serialiser alone can
+    produce. An identity-only or empty orientation fails. The hand-built
+    blocks that are validated now carry the required kinds: `_full_block_for_spine`
+    in 022 (a real label's Stage 2 kinds copied onto each stub entry), and a
+    `_STAGE2_STUB` constant with `_with_stage2_stubs` in 121 (two validating
+    tests) and 122 (`_full_stage3_block`), measured from
+    `synthetic.labelled_blocks_case`.
+  - **Human report.** `image_features.available` true with no per-label
+    intensity kind now renders `(no per-label intensity in the features
+    record)`, not `(unavailable)`. Raising was rejected: this is a rendering
+    path, and the CLI output is meant to stay unchanged. The text for
+    `available` false, and for every populated run, is byte-identical.
+  - **`percentile_rank` / `value` declarations: not restored, deliberately.**
+    The two `physical_volume_mm3` `ConsumedPath` entries were dropped
+    because the catalogue's mechanism B attributes a string key to a path
+    only when exactly one leaf path ends in that segment. With five features
+    sharing `percentile_rank` and `value` it attributes none, so declaring
+    them (tried for all five features, in both rules) makes
+    `path_classification_conflicts()` report 24 conflicts and turns
+    conformance False. `robust_z` stays declared because the mode-less
+    rule's firing value is attributed through its detector. So `Read by >=1
+    rule` 54 -> 51 is accounted for by the table: -5 merged identity copies
+    that rules read (offsets `label`, `level_name`; `reference_delta` `label`,
+    `level_name`; the `image_features` `label`), -2 `physical_volume_mm3`
+    `percentile_rank` and `value`, +4 `robust_z` paths of the other four
+    features; every moved row keeps its read one for one (`offset_mm`,
+    `dx/dy/dz_mm`, `is_terminal`, `first_order.median`, `std`). Restoring the
+    two needs a catalogue attribution change, not a declaration. The
+    generated artifacts were regenerated and are unchanged.
+  - **Nits.** `catalogue.iter_driver_records`' placeholder uses
+    `REFERENCE_DELTA_VERSION`; the hand-built `"1.0"` literals in 047, 064
+    (rule) and 124 are `"1.1"`; the `pipeline.py` docstring says `"0.2"`.
 - **Left open:** whether `per_label.{label}.*` rows move. A7 assumes not.
   *Settled at claim (2026-10-06):* none moves (A7's re-check).
   If the signed table moves any, step 0 widens the fence, rather than this

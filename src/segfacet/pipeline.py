@@ -45,7 +45,7 @@ Design decisions (item 035)
    feature, the >= 2-label branch pre-checks with
    ``features.spline.find_coincident_centroid_pair`` before attempting the
    fit: on a coincidence, ``stage3_kwargs`` stays empty (so no ``stage3`` key
-   is emitted and ``features_version`` stays ``"0.1"``) and the cause is
+   is emitted and ``features_version`` stays ``"0.2"``) and the cause is
    recorded as a ``stage3_unavailable`` mapping instead. Pre-checking rather
    than catching the broad ``ValueError`` means only this named cause
    degrades gracefully; any other fit failure still propagates.

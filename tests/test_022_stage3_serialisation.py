@@ -51,6 +51,7 @@ paths, no external services).
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 import math
@@ -217,7 +218,7 @@ def _full_block_for_spine(centroids: List[LabelCentroid]):
     serialisation behaviour without needing a full label map.
     """
     offsets, orientations, curvature, spacing, monotonic = _build_stage3(centroids)
-    return build_features_block(
+    block = build_features_block(
         geometry={},
         components={},
         centroids={},
@@ -229,6 +230,22 @@ def _full_block_for_spine(centroids: List[LabelCentroid]):
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
+    # The schema requires geometry/components/centroid on every per_label entry
+    # (item 215 review); give each stub entry one real label's Stage 2 kinds.
+    case = labelled_blocks_case()
+    geometry, components, centroids_map, *_ = _stage2_for_case(case)
+    lab = sorted(case.expected_labels)[0]
+    template = build_features_block(
+        geometry={lab: geometry[lab]},
+        components={lab: components[lab]},
+        centroids={lab: centroids_map[lab]},
+        relationships=None,
+        overlaps=[],
+    )["per_label"][str(lab)]
+    for entry in block["per_label"].values():
+        for kind in ("geometry", "components", "centroid"):
+            entry[kind] = copy.deepcopy(template[kind])
+    return block
 
 
 # =========================================================================== #

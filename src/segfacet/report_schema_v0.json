@@ -213,9 +213,9 @@
     },
     "labelFeatures": {
       "type": "object",
-      "description": "All features for a single integer label. The identity (label, level_name) is stored once, here; every other copy was merged onto it (item 215). Every kind block is optional in the schema because each comes from an independent source: geometry, components and centroid from the label map, curve, orientation and neighbourhood when Stage 3 ran, intensity when a scan was supplied. The pipeline always emits the first three.",
+      "description": "All features for a single integer label. The identity (label, level_name) is stored once, here; every other copy was merged onto it (item 215). Geometry, components and centroid come from the label map and are required. Curve, orientation and neighbourhood are present when Stage 3 ran, and intensity when a scan was supplied.",
       "additionalProperties": false,
-      "required": ["label", "level_name"],
+      "required": ["label", "level_name", "geometry", "components", "centroid"],
       "properties": {
         "label": {
           "type": "integer",
@@ -477,9 +477,16 @@
     },
     "stage3OffsetEntry": {
       "type": "object",
-      "description": "A label's position relative to the fitted spinal curve (per_label.{label}.curve): its perpendicular offset from the spline (item 018) and its cumulative path position (item 198). No identity copy; the entry's own label and level_name name it (item 215). The offset fields are required (the pipeline always emits them with the path position); path_u is optional.",
+      "description": "A label's position relative to the fitted spinal curve (per_label.{label}.curve): its perpendicular offset from the spline (item 018) and its cumulative path position (item 198). No identity copy; the entry's own label and level_name name it (item 215). The six offset fields come together (any one requires the rest), and path_u may stand alone: the pipeline emits a path_u-only curve when a monotonic-consistency result is supplied without spline offsets.",
       "additionalProperties": false,
-      "required": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+      "dependencies": {
+        "closest_u": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "offset_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "offset_voxel": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "dx_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "dy_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "dz_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"]
+      },
       "properties": {
         "closest_u": {"type": "number", "description": "Spline parameter value (0..1) of the closest point on the curve."},
         "offset_mm": {"type": "number", "minimum": 0, "description": "Euclidean distance (mm) to the closest spline point."},
@@ -493,8 +500,12 @@
     },
     "stage3OrientationEntry": {
       "type": "object",
-      "description": "Which way a label's vertebral body points (per_label.{label}.orientation): the PCA principal axis (item 019), the spline tangent (item 121) and the tangent's unwrapped per-plane angles (item 131, 122). No identity copy (item 215). No key is required because the PCA, tangent and curvature fields come from independent optional sources.",
+      "description": "Which way a label's vertebral body points (per_label.{label}.orientation): the PCA principal axis (item 019), the spline tangent (item 121) and the tangent's unwrapped per-plane angles (item 131, 122). No identity copy (item 215). Either the PCA pair (principal_axis, eigenvalue_ratio) or the three unwrapped tangent angles must be present: the PCA and the curvature fields come from independent optional sources.",
       "additionalProperties": false,
+      "anyOf": [
+        {"required": ["principal_axis", "eigenvalue_ratio"]},
+        {"required": ["tangent_angle_deg", "tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"]}
+      ],
       "properties": {
         "principal_axis": {
           "type": "array",

@@ -260,8 +260,8 @@ def _render_image_features_section(
     showing label and mean/median/std/min/max/entropy, formatted via
     ``_fmt_or_na`` so ``None`` statistics render as ``(n/a)`` rather than raw
     Python ``None``/``nan`` text. When the block is unavailable (``available``
-    is falsy) or ``per_label`` is empty, a single explicit placeholder line is
-    rendered instead.
+    is falsy) a single ``(unavailable)`` line is rendered; when it is available
+    but no label carries an ``intensity`` kind, a distinct explicit line says so.
     """
     lines: list[str] = ["Intensity features:"]
     per_label = {
@@ -269,8 +269,14 @@ def _render_image_features_section(
         for key, entry in ((features or {}).get("per_label") or {}).items()
         if isinstance(entry.get("intensity"), dict)
     }
-    if not image_features.get("available", False) or not per_label:
+    if not image_features.get("available", False):
         lines.append("  (unavailable)")
+        lines.append("")
+        return lines
+    if not per_label:
+        # Available but nothing to show: the statistics live in *features*
+        # (item 215), so say so instead of calling the block unavailable.
+        lines.append("  (no per-label intensity in the features record)")
         lines.append("")
         return lines
 

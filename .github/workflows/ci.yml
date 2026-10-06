@@ -187,6 +187,7 @@ jobs:
         tests/test_180_evaluate_input_error.py
         tests/test_202_rule_table.py
         tests/test_213_windows_ci_subset.py
+        tests/test_215_per_label_migration.py
         tests/test_aide_check_no_errors.py
         tests/test_cli_run.py
         tests/test_smoke.py

@@ -1182,8 +1182,27 @@ def test_ac25_steering_review_heading_present_and_honest():
 
     overrides = feature_docs_module.STATUS_OVERRIDES
     if overrides:
+        # Item 215 fence (e): the 106 record predates the taxonomy migration, so
+        # each key is looked up as its pre-migration path, translated back
+        # through the signed table.
+        from feature_taxonomy_mapping import read_mapping
+
+        new_to_old = {new: old for old, new, change, _by in read_mapping() if change in ("kept", "moved")}
+        report_only = re.compile(
+            r"^reference_delta\.\{label\}\.features\."
+            r"(?:extent_x_mm|extent_y_mm|extent_z_mm|spline_offset_mm)\.[a-z_]+$"
+        )
         for key in overrides:
-            assert key in section, f"override key {key!r} not transcribed in the steering-review section"
+            p = new_to_old.get(key, key)
+            if report_only.match(p):
+                counterpart = re.sub(r"\.features\.[a-z_0-9]+\.", ".features.physical_volume_mm3.", key, count=1)
+                assert overrides[key] == overrides[counterpart], (
+                    f"override {key!r} differs from its physical_volume_mm3 counterpart {counterpart!r}"
+                )
+                p = new_to_old.get(counterpart, counterpart)
+            assert p in section, (
+                f"override key {key!r} (pre-migration {p!r}) not transcribed in the steering-review section"
+            )
     else:
         assert "no override recorded" in section
 

@@ -106,7 +106,7 @@ def _block(entries, lower_pct=1, upper_pct=99, stratum="all"):
         for e in entries
     }
     return {
-        "reference_delta_version": "1.0",
+        "reference_delta_version": "1.1",
         "stratum": stratum,
         "lower_pct": lower_pct,
         "upper_pct": upper_pct,

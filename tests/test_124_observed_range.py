@@ -755,7 +755,7 @@ def test_adv_verdict_order_placeholder_beats_varies(observed_range_module):
         out_of_range_features=(),
     )
     large_reference_delta = ReferenceDelta(
-        reference_delta_version="1.0",
+        reference_delta_version="1.1",
         reference_schema_version="1.0",
         reference_source="synthetic-placeholder",
         stratum="all",

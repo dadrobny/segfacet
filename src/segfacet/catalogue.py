@@ -441,6 +441,7 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     from segfacet.features.overlap import detect_overlaps
     from segfacet.pipeline import extract_feature_record
     from segfacet.reference.delta import (
+        REFERENCE_DELTA_VERSION,
         FeatureDelta,
         LabelDelta,
         ReferenceDelta,
@@ -558,7 +559,7 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
         out_of_range_features=(),
     )
     placeholder_reference_delta = ReferenceDelta(
-        reference_delta_version="1.0",
+        reference_delta_version=REFERENCE_DELTA_VERSION,
         reference_schema_version="1.0",
         reference_source="synthetic-placeholder",
         stratum="all",

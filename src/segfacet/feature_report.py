@@ -646,7 +646,13 @@ def build_features_block(
             # sequence, so each element is stored on its own label's
             # orientation kind (item 215; no value changes).
             for dest, source in _CURVATURE_PER_LABEL_FIELDS:
-                for label, value in zip(sorted(all_labels), curvature_dict.pop(source)):
+                values = curvature_dict.pop(source)
+                if len(values) != len(all_labels):
+                    raise ValueError(
+                        f"build_features_block: curvature.{source} has "
+                        f"{len(values)} elements for {len(all_labels)} labels."
+                    )
+                for label, value in zip(sorted(all_labels), values):
                     _kind(label, "orientation")[dest] = value
             stage3["curvature"] = curvature_dict
 
@@ -671,7 +677,13 @@ def build_features_block(
                     lab,
                 ),
             )
-            for label, value in zip(anatomical, monotonic_dict.pop("u_values")):
+            u_values = monotonic_dict.pop("u_values")
+            if len(u_values) != len(anatomical):
+                raise ValueError(
+                    f"build_features_block: monotonic_consistency.u_values has "
+                    f"{len(u_values)} elements for {len(anatomical)} labels."
+                )
+            for label, value in zip(anatomical, u_values):
                 _kind(label, "curve")["path_u"] = value
             stage3["monotonic_consistency"] = monotonic_dict
 
