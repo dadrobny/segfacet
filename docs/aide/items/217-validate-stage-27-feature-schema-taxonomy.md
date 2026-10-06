@@ -341,6 +341,9 @@ criterion. A criterion with no annotation closes none.
   Record it as the one addition. Measured at claim: 153 new paths plus 1
   gives 154, equal to the catalogue's 154 (80 `kept`, 73 `moved`, 12
   `merged`).
+  *Settled (2026-10-06; source: maintainer ruling, 2026-10-06, in the
+  item-217 claim session):* the maintainer confirmed that
+  `case.sequence.order[]` is counted, here and in AC11.
 - [ ] **AC11: every leaf of a real pipeline record is a stored new path in
   the table.** The case report's leaf paths minus the set of new paths of the
   table's `kept`/`moved` rows is empty. The case report is AC9's
@@ -487,6 +490,70 @@ criterion. A criterion with no annotation closes none.
 
   Those records inform the ruling and close nothing. A ruling made before the
   replay is recorded here by spec-author as a further dated correction.
+  *Corrected after the maintainer's ruling (2026-10-06; source: maintainer
+  ruling, 2026-10-06, in the item-217 claim session).* **The ruling.** The
+  reference-backed change on `sequence_break` is covered by the gate-0080
+  sign-off, within the authorised retune: item 216's D1, widened by its D11.
+  The **Left open** on this question is settled. AC16's bar is now exactly
+  this, and it replaces the byte-identical bar for `sequence_break` only:
+  - **`clean_control` and `displace`.** Each `segfacet_report.txt` is
+    byte-identical across the two trees, as before.
+  - **`sequence_break`: what may differ.** Compute the line diff of the two
+    trees' `segfacet_report.txt` with `difflib.ndiff` over `splitlines()`,
+    keeping the lines prefixed `- ` (base tree only) and `+ ` (clone only),
+    each with its two-character prefix removed. The base-only list must
+    equal the 11 lines of the **base only** block below, and the
+    clone-only list must equal the 11 lines of the **clone only**
+    block, each in order and compared exactly. Read each block line with
+    its first two spaces removed, which are the block's own indent. Every
+    remaining leading space is part of the line.
+  - **`sequence_break`: everything else.** No other line differs. Any
+    difference beyond the listed lines, or a listed line that does not
+    differ, fails AC16.
+  - **Recorded, not asserted.** Both trees' `(rule_id, sorted labels)`
+    finding lists, read from each `segfacet_report.json`.
+
+  The listed lines are the diff measured at claim, from B and the tip, on
+  `.venv/bin/python` 3.11.15. Each change appears once in the verdict's
+  reasons and once in the findings section, where a finding also carries its
+  `Labels:` line. There are three kinds of change:
+  - the four distribution distances for labels 20–23, which go 3.70 → 3.47,
+    3.90 → 3.89, 4.07 → 4.06 and 3.96 → 4.40;
+  - the `spline_offset_mm` out-of-range finding, which leaves label 21
+    (value 0.1513);
+  - the same finding, which appears on label 20 (value 0.0038).
+
+  Base only (11 lines):
+
+  ```
+      [flagged-for-review] Reference distribution-distance outlier: label 20 (L1) distribution distance 3.70 exceeds threshold 3.00.
+      [flagged-for-review] Reference distribution-distance outlier: label 21 (L2) distribution distance 3.90 exceeds threshold 3.00.
+      [flagged-for-review] Reference out-of-range: label 21 (L2) feature 'spline_offset_mm' value 0.15134108416356312 falls outside the reference range (percentile_rank=0.3493569870181564, band=(1, 99)).
+      [flagged-for-review] Reference distribution-distance outlier: label 22 (L3) distribution distance 4.07 exceeds threshold 3.00.
+      [flagged-for-review] Reference distribution-distance outlier: label 23 (L4) distribution distance 3.96 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 20 (L1) distribution distance 3.70 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 21 (L2) distribution distance 3.90 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference out-of-range: label 21 (L2) feature 'spline_offset_mm' value 0.15134108416356312 falls outside the reference range (percentile_rank=0.3493569870181564, band=(1, 99)).
+      Labels: 21
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 22 (L3) distribution distance 4.07 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 23 (L4) distribution distance 3.96 exceeds threshold 3.00.
+  ```
+
+  Clone only (11 lines):
+
+  ```
+      [flagged-for-review] Reference distribution-distance outlier: label 20 (L1) distribution distance 3.47 exceeds threshold 3.00.
+      [flagged-for-review] Reference out-of-range: label 20 (L1) feature 'spline_offset_mm' value 0.0037851190125903753 falls outside the reference range (percentile_rank=0.0, band=(1, 99)).
+      [flagged-for-review] Reference distribution-distance outlier: label 21 (L2) distribution distance 3.89 exceeds threshold 3.00.
+      [flagged-for-review] Reference distribution-distance outlier: label 22 (L3) distribution distance 4.06 exceeds threshold 3.00.
+      [flagged-for-review] Reference distribution-distance outlier: label 23 (L4) distribution distance 4.40 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 20 (L1) distribution distance 3.47 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference out-of-range: label 20 (L1) feature 'spline_offset_mm' value 0.0037851190125903753 falls outside the reference range (percentile_rank=0.0, band=(1, 99)).
+      Labels: 20
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 21 (L2) distribution distance 3.89 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 22 (L3) distribution distance 4.06 exceeds threshold 3.00.
+    [flagged-for-review] (reference_delta) Reference distribution-distance outlier: label 23 (L4) distribution distance 4.40 exceeds threshold 3.00.
+  ```
 
 ### Environment, bookkeeping, suite
 
@@ -561,6 +628,27 @@ criterion. A criterion with no annotation closes none.
     correction), criterion 3 is not attested. The annotation's reason names
     the reference-backed `reference_delta` change on `sequence_break` and
     insight `2026-10-06-f318`.
+
+  *Corrected after the maintainer's ruling (2026-10-06; source: maintainer
+  ruling, 2026-10-06, in the item-217 claim session).* The criterion-3 text
+  now states four things:
+  - **The ruling.** The maintainer ruled that the reference-backed change on
+    `sequence_break` is covered by the gate-0080 sign-off, within D1 widened
+    by D11.
+  - **AC16's outcome against the corrected bar.** `clean_control` and
+    `displace` are byte-identical. `sequence_break` differs in exactly the
+    listed 11 base-only and 11 clone-only lines: the `spline_offset_mm`
+    out-of-range finding moves from label 21 to label 20, and the distances
+    go 3.70/3.90/4.07/3.96 → 3.47/3.89/4.06/4.40.
+  - **Both trees' recorded `(rule_id, labels)` lists for `sequence_break`.**
+  - **Insight `2026-10-06-f318`,** as the reason the bundled reference sits
+    out of step with the new order until it is rebuilt.
+
+  The criterion is unattested only if an AC fails, AC16's corrected bar
+  included. The earlier "maintainer has not ruled" branch no longer applies.
+  - **Criterion 2.** Counting `case.sequence.order[]` (AC10, AC11) is now
+    the maintainer's settled reading (maintainer ruling, 2026-10-06, in the
+    item-217 claim session). The text says so.
 - [ ] **AC19: the full configured suite is green in a fresh clone of the final
   commit.** Once every commit of this item has landed, take these steps:
   1. Bring AC1's clone up to the branch tip with `python
@@ -1219,3 +1307,14 @@ To be updated during implementation.
   of them answers this question. It is the maintainer's to rule, so AC16
   keeps its byte-identical bar. Unless a ruling is recorded first, criterion
   3 stays unticked with that reason (AC16's and AC18's corrections).
+  *Settled (2026-10-06; source: maintainer ruling, 2026-10-06, in the
+  item-217 claim session):* yes, it is covered. The reference-backed change
+  on `sequence_break` falls within the gate-0080 sign-off, as part of the
+  authorised retune (D1 widened by D11). AC16's second correction pins the
+  allowed difference exactly, line by line as measured at claim. Any other
+  difference still fails it.
+- **Settled (2026-10-06; source: maintainer ruling, 2026-10-06, in the
+  item-217 claim session): `case.sequence.order[]` is counted** in AC10's
+  and AC11's comparison set. It is a stored path that the signed note's
+  Deviation 11 places in the structure. It has no table row only because it
+  has no old path. This confirms the claim-time reading (A9's re-check).
