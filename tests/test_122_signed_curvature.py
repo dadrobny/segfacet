@@ -580,7 +580,12 @@ def test_ac16_schema_defines_all_five_new_keys():
         "curvature_plane",
     ):
         assert key in curvature_def["properties"], f"schema missing property {key!r}"
-        assert key in curvature_def["required"], f"schema does not require {key!r}"
+        # Item 216: no `required`; the scalars are tied by a dependencies group.
+        assert key in curvature_def["dependencies"], f"schema does not tie {key!r}"
+        assert set(curvature_def["dependencies"][key]) == (
+            set(curvature_def["dependencies"]) - {key}
+        ), f"{key!r} is not tied to the other curvature scalars"
+    assert "required" not in curvature_def
     # Item 215: the two per-plane arrays are per-label orientation scalars.
     orientation_def = _SCHEMA["definitions"]["stage3OrientationEntry"]
     for key in ("tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"):
