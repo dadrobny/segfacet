@@ -1321,7 +1321,7 @@ justified in writing.
 - ✅ The taxonomy, written down with rationale, alternatives considered, and every deviation
   from the starting proposal justified — reviewed with the maintainer before migration (a
   human-checkpoint stage in the same sense Stage 19 was). *(Item 214)*
-- 🔍 The per-label migration applied: every identity copy merged onto `per_label.{label}.label` / `.level_name`, the per-label fields of `stage3`, `image_features` and `reference_delta` moved under `per_label.{label}.*`, the feature catalogue (`docs/aide/feature_catalogue.generated.md`) regenerated, its drift test (`tests/test_104_feature_catalogue_drift.py`) as the safety net. *(Item 215)*
+- ✅ The per-label migration applied: every identity copy merged onto `per_label.{label}.label` / `.level_name`, the per-label fields of `stage3`, `image_features` and `reference_delta` moved under `per_label.{label}.*`, the feature catalogue (`docs/aide/feature_catalogue.generated.md`) regenerated, its drift test (`tests/test_104_feature_catalogue_drift.py`) as the safety net. *(Item 215)*
 - 📋 The migration applied, the feature catalogue
   (`docs/aide/feature_catalogue.generated.md`) regenerated, its drift test
   (`tests/test_104_feature_catalogue_drift.py`) as the safety net. *(Item 216)*
