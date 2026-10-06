@@ -1448,8 +1448,37 @@ session scratchpad only. Interpreter for every byte comparison: CPython 3.11.15.
   'cupy'`). Recorded only; the table is not edited.
 - **AC18.** The three criteria were attested with `aide progress accept 27
   --criterion N`, N = 1, 2, 3 in order (the evidence is in `progress.md`).
-- **AC19 and the check at step 9.** Recorded in the entry that follows, after the
-  suite run.
+- **AC18, as run.** Criteria 1, 2 and 3 were each accepted with `aide progress
+  accept 27 --criterion N` in order, and each printed `accepted`. Every
+  criterion's text names the clone commit (and B for criterion 3), the ACs
+  behind it, the measured values and the items AC18's corrections require,
+  `case.sequence.order[]` and the maintainer's two 2026-10-06 rulings included.
+  No box was left unticked, so no `not attested` annotation and no `gap` line
+  were written. Stage-criterion attestation was this item's own step 8, not the
+  validator's.
+- **Step 9 (`aide check`).** After the accepts and the `in-progress` flip it
+  prints `OK (7 warning(s))`, the same seven warnings as step 1's baseline. No
+  new error and no new warning.
+- **AC19.** The clone was brought to `33a7dd7973775c07a5a5b96c6f12f66f5423c3d4`
+  (the branch tip once every verb-written commit had landed) with `aide sync
+  --item 217`, and `segfacet.__file__` re-printed under the clone. The
+  configured suite (`testpaths = ["tests", ".aide/scripts/tests"]`) ran in the
+  foreground with `-n auto -rs -P`: **11459 passed, 73 skipped, 0 failed**, exit
+  0, in 436.93 s. The 73 skips, none counted as verification:
+  - 22 Docker CLI/daemon not available (`test_066` 9, `test_069` 11, `test_070`
+    2);
+  - 33 CuPy/GPU not available (`test_073` 30, `test_075` 1, `test_072` 1,
+    `test_074` 1);
+  - 6 real VerSe GT / VerSe19 cohort not mounted (`test_084`, `test_088`,
+    `test_091`, `test_118`, `test_125` x2);
+  - 1 no real SPINEPS-output fixture (`test_097`);
+  - 5 PyRadiomics not installed (`test_features_radiomics`);
+  - 6 `test_108` cases with no pinned pre-098 shape (`fuse_adjacent`,
+    `remove_level_relabel`, `split`, `split_own_label`, `crop_fov_si`,
+    `fuse_separate`).
+
+  The one commit after that tip is this record's own, which changes only this
+  spec's Decisions text.
 
 - **Left open:** whether a later stage counts neighbour-pair identity under
   "no identity field is stored more than once". The maintainer kept the
