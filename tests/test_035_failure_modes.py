@@ -49,11 +49,8 @@ def _mode1_record() -> dict:
         "per_label": {
             _L1: {"label": _L1, "level_name": "L1", "curve": {"offset_mm": 15.0}}
         },
-        "relationships": {},
-        "overlaps": [],
-        "stage3": {
-            "monotonic_consistency": {"non_monotonic_pairs": []},
-        },
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": [], "adjacent": {"non_monotonic_pairs": []}},
     }
 
 
@@ -88,8 +85,8 @@ def _mode2_record() -> dict:
                 },
             }
         },
-        "relationships": {},
-        "overlaps": [],
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": []},
     }
 
 
@@ -122,8 +119,8 @@ def _mode3_record() -> dict:
                 },
             }
         },
-        "relationships": {},
-        "overlaps": [],
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": []},
     }
 
 
@@ -148,11 +145,8 @@ def _mode4_record() -> dict:
             _L1: {"label": _L1, "level_name": "L1"},
             _L2: {"label": _L2, "level_name": "L2"},
         },
-        "relationships": {},
-        "overlaps": [],
-        "stage3": {
-            "monotonic_consistency": {"non_monotonic_pairs": [["L2", "L1"]]},
-        },
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": [], "adjacent": {"non_monotonic_pairs": [["L2", "L1"]]}},
     }
 
 
@@ -178,13 +172,13 @@ def _mode5_record() -> dict:
             _L1: {"label": _L1, "level_name": "L1", "geometry": {}},
             _L2: {"label": _L2, "level_name": "L2", "geometry": {}},
         },
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["L1", "L2"],
             "missing_levels": ["T12"],
             "is_continuous": True,
             "out_of_order_labels": [],
-        },
-        "overlaps": [],
+        }},
+        "pairs": {"overlaps": []},
     }
 
 
@@ -218,8 +212,8 @@ def _mode6_record() -> dict:
                 },
             }
         },
-        "relationships": {"present_levels": ["L1"]},
-        "overlaps": [],
+        "case": {"sequence": {"present_levels": ["L1"]}},
+        "pairs": {"overlaps": []},
     }
 
 
@@ -249,13 +243,13 @@ def _mode7_record() -> dict:
             _T12: {"label": _T12, "level_name": "T12", "centroid": {"centroid_mm": [0.0, 0.0, 2.0]}},
             _L2: {"label": _L2, "level_name": "L2", "centroid": {"centroid_mm": [0.0, 0.0, 1.0]}},
         },
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["T12", "L1"],
             "missing_levels": [],
             "is_continuous": False,
             "out_of_order_labels": ["L1", "T12"],
-        },
-        "overlaps": [],
+        }},
+        "pairs": {"overlaps": []},
     }
 
 
@@ -275,17 +269,22 @@ def test_ac25_mode7_non_continuous_sequence_fires_sequence():
 
 def _mode8_record() -> dict:
     return {
-        "per_label": {},
-        "relationships": {},
-        "overlaps": [
-            {
-                "label_a": _L1,
-                "label_b": _L2,
-                "name_a": "L1",
-                "name_b": "L2",
-                "overlap_voxels": 40,
-            }
-        ],
+        # Item 216: the level names live on per_label (overlaps[].name_a/name_b
+        # were merged onto per_label.{label}.level_name).
+        "per_label": {
+            _L1: {"label": _L1, "level_name": "L1"},
+            _L2: {"label": _L2, "level_name": "L2"},
+        },
+        "case": {"sequence": {}},
+        "pairs": {
+            "overlaps": [
+                {
+                    "label_a": _L1,
+                    "label_b": _L2,
+                    "overlap_voxels": 40,
+                }
+            ]
+        },
     }
 
 
@@ -390,16 +389,13 @@ def _gt_pass_record() -> dict:
         }
     return {
         "per_label": per_label,
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["T12", "L1", "L2"],
             "missing_levels": [],
             "is_continuous": True,
             "out_of_order_labels": [],
-        },
-        "overlaps": [],
-        "stage3": {
-            "monotonic_consistency": {"non_monotonic_pairs": []},
-        },
+        }},
+        "pairs": {"overlaps": [], "adjacent": {"non_monotonic_pairs": []}},
     }
 
 

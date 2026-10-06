@@ -2652,6 +2652,7 @@
             "intensity_reference_delta",
             "mislabel",
             "neighbour_contact",
+            "overlap",
             "reference_delta",
             "sequence",
             "spline_offset",
@@ -2701,6 +2702,10 @@
             ],
             [
               "neighbour_contact",
+              "bookkeeping"
+            ],
+            [
+              "overlap",
               "bookkeeping"
             ],
             [
@@ -2813,6 +2818,14 @@
               "static"
             ],
             [
+              "overlap",
+              "observed"
+            ],
+            [
+              "overlap",
+              "static"
+            ],
+            [
               "reference_delta",
               "static"
             ],
@@ -2854,7 +2867,7 @@
     {
       "entries": [
         {
-          "computation": "None when no labels are present; otherwise a nested object (see the individual relationships.* fields).",
+          "computation": "None when no labels are present; otherwise a nested object (see the individual case.sequence.* fields).",
           "consumers": [
             "compute_per_mode_metrics",
             "render_feature_table"
@@ -2903,7 +2916,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships",
+          "path": "case.sequence",
           "rule_evidence": [
             [
               "coverage",
@@ -2967,7 +2980,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.is_continuous",
+          "path": "case.sequence.is_continuous",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "keep",
@@ -3031,7 +3044,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.missing_levels[]",
+          "path": "case.sequence.missing_levels[]",
           "rule_evidence": [
             [
               "coverage",
@@ -3047,24 +3060,22 @@
           "units": ""
         },
         {
-          "computation": "Euclidean distance (mm) between each consecutive pair in canonical order.",
-          "consumers": [
-            "render_feature_table"
-          ],
+          "computation": "pipeline.extract_feature_record sorts every label by the CANONICAL_ORDER rank of its level name (names outside it last), then by integer label (segfacet.labels.anatomical_order, item 216), and feeds that sequence to the spline fit, every Stage 3 extractor and the neighbourhood; relationships alone is fed ascending integer order. A reader compares it with the sorted keys of per_label to see where the two orders differ.",
+          "consumers": [],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Centroid-to-centroid distance between anatomically adjacent levels.",
+          "measures": "The record's one element order: every integer label, in the item-198 anatomical order.",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {
             "corpus": {
-              "count": 19,
+              "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 134.161,
-              "maximum": 134.161,
-              "minimum": 32.6952,
+              "magnitude": 28.0,
+              "maximum": 28.0,
+              "minimum": 20.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3074,7 +3085,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 101.465
+              "span": 8.0
             },
             "numeric": true,
             "reference": {
@@ -3091,11 +3102,11 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "relationships.neighbour_spacings_mm[]",
+          "path": "case.sequence.order[]",
           "rule_evidence": [],
-          "scale_sensitivity": "scales with spacing",
-          "status": "keep",
-          "units": "mm"
+          "scale_sensitivity": "identifier",
+          "status": "unwired",
+          "units": ""
         },
         {
           "computation": "Every level, in input order, whose canonical rank is lower than the running maximum.",
@@ -3143,7 +3154,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.out_of_order_labels[]",
+          "path": "case.sequence.out_of_order_labels[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "keep",
@@ -3216,7 +3227,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.present_levels[]",
+          "path": "case.sequence.present_levels[]",
           "rule_evidence": [
             [
               "border",
@@ -3234,6 +3245,78 @@
           "scale_sensitivity": "dimensionless",
           "status": "keep",
           "units": ""
+        },
+        {
+          "computation": "Euclidean distance (mm) between the centroids of each consecutive pair of case.sequence.order -- every label in the item-198 anatomical order, unrecognised labels last (item 216; the integer-label order is anatomically meaningless). Present on every record with at least one label, [] below two labels.",
+          "consumers": [
+            "render_feature_table"
+          ],
+          "consuming_rules": [
+            "fused_label"
+          ],
+          "documented": true,
+          "failure_modes": [
+            2
+          ],
+          "measures": "Centroid-to-centroid distance between anatomically adjacent labels (the two former arrays relationships.neighbour_spacings_mm[] and stage3.spacing_consistency.spacings_mm[], merged by item 216).",
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fused_label",
+              "signal"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 19,
+              "covered": true,
+              "informative": true,
+              "magnitude": 134.161,
+              "maximum": 134.161,
+              "minimum": 32.6952,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break",
+                "single_label"
+              ],
+              "span": 101.465
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.spacings_mm[]",
+          "rule_evidence": [
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "scales with spacing",
+          "status": "retune",
+          "units": "mm"
         }
       ],
       "intro": "Computed once per case from the full ordered set of centroids (ascending integer-label order).",
@@ -3298,7 +3381,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "overlaps[]",
+          "path": "pairs.overlaps[]",
           "rule_evidence": [
             [
               "overlap",
@@ -3362,7 +3445,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "overlaps[].label_a",
+          "path": "pairs.overlaps[].label_a",
           "rule_evidence": [
             [
               "overlap",
@@ -3426,7 +3509,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "overlaps[].label_b",
+          "path": "pairs.overlaps[].label_b",
           "rule_evidence": [
             [
               "overlap",
@@ -3438,134 +3521,6 @@
             ]
           ],
           "scale_sensitivity": "dimensionless",
-          "status": "keep",
-          "units": ""
-        },
-        {
-          "computation": "Looked up via the active LabelConvention; \"unknown\" for an unmapped integer.",
-          "consumers": [
-            "render_feature_table"
-          ],
-          "consuming_rules": [
-            "overlap"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for label_a.",
-          "mode_evidence": [
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "overlap",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "overlaps"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "overlaps[].name_a",
-          "rule_evidence": [
-            [
-              "overlap",
-              "observed"
-            ],
-            [
-              "overlap",
-              "static"
-            ]
-          ],
-          "scale_sensitivity": "categorical",
-          "status": "keep",
-          "units": ""
-        },
-        {
-          "computation": "Looked up via the active LabelConvention; \"unknown\" for an unmapped integer.",
-          "consumers": [
-            "render_feature_table"
-          ],
-          "consuming_rules": [
-            "overlap"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for label_b.",
-          "mode_evidence": [
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "overlap",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "overlaps"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "overlaps[].name_b",
-          "rule_evidence": [
-            [
-              "overlap",
-              "observed"
-            ],
-            [
-              "overlap",
-              "static"
-            ]
-          ],
-          "scale_sensitivity": "categorical",
           "status": "keep",
           "units": ""
         },
@@ -3622,7 +3577,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "overlaps[].overlap_voxels",
+          "path": "pairs.overlaps[].overlap_voxels",
           "rule_evidence": [
             [
               "overlap",
@@ -3780,9 +3735,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.339971,
-              "maximum": 0.151338,
-              "minimum": -0.339971,
+              "magnitude": 0.966346,
+              "maximum": 0.257646,
+              "minimum": -0.966346,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3791,7 +3746,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.491309
+              "span": 1.22399
             },
             "numeric": true,
             "reference": {
@@ -3843,9 +3798,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.0531917,
-              "maximum": 0.0497259,
-              "minimum": -0.0531917,
+              "magnitude": 0.898946,
+              "maximum": 0.113217,
+              "minimum": -0.898946,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3854,7 +3809,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.102918
+              "span": 1.01216
             },
             "numeric": true,
             "reference": {
@@ -3975,8 +3930,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.343588,
-              "maximum": 0.343588,
+              "magnitude": 0.972955,
+              "maximum": 0.972955,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -3986,7 +3941,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.343588
+              "span": 0.972955
             },
             "numeric": true,
             "reference": {
@@ -4034,8 +3989,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.343588,
-              "maximum": 0.343588,
+              "magnitude": 0.972955,
+              "maximum": 0.972955,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -4045,7 +4000,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.343588
+              "span": 0.972955
             },
             "numeric": true,
             "reference": {
@@ -4124,6 +4079,246 @@
     },
     {
       "entries": [
+        {
+          "computation": "max - min of the labels' tangent_coronal_unwrapped_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Coronal-plane (R-S) curvature sweep.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 180.0,
+              "maximum": 180.0,
+              "minimum": 0.0,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 180.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "case.curve.coronal_curvature_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "unwired",
+          "units": "degrees"
+        },
+        {
+          "computation": "\"coronal\" when coronal_curvature_deg >= sagittal_curvature_deg, else \"sagittal\". An exact tie, including a straight spine's 0.0/0.0, resolves to \"coronal\".",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Which anatomical plane (coronal or sagittal) total_curvature_deg came from.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
+          "path": "case.curve.curvature_plane",
+          "rule_evidence": [],
+          "scale_sensitivity": "categorical",
+          "status": "unwired",
+          "units": ""
+        },
+        {
+          "computation": "max - min of the labels' tangent_sagittal_unwrapped_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Sagittal-plane (A-S) curvature sweep.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 202.023,
+              "maximum": 202.023,
+              "minimum": 41.1436,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 160.88
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "case.curve.sagittal_curvature_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "unwired",
+          "units": "degrees"
+        },
+        {
+          "computation": "max(coronal_curvature_deg, sagittal_curvature_deg); 0 for a perfectly straight column. curvature_plane names which plane it came from.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Global curvature magnitude: the larger of the coronal and sagittal per-plane sweeps.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 202.023,
+              "maximum": 202.023,
+              "minimum": 41.1436,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 160.88
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "case.curve.total_curvature_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": "degrees"
+        },
+        {
+          "computation": "Angle between each pair of adjacent unit tangent vectors along the spine, read as if the tangents were normalised so the sequence advances superiorly (item 122); already invariant to traversal direction so no negation is needed to produce that reading.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Angle between consecutive vertebrae's tangent vectors.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 19,
+              "covered": true,
+              "informative": true,
+              "magnitude": 169.167,
+              "maximum": 169.167,
+              "minimum": 7.3206,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 161.846
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.inter_tangent_angles_deg[]",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": "degrees"
+        },
         {
           "computation": "lambda_max / lambda_second of the PCA covariance; infinite for a degenerate flat cloud, 0 for a single-voxel label.",
           "consumers": [
@@ -4286,9 +4481,9 @@
               "count": 72,
               "covered": true,
               "informative": true,
-              "magnitude": 0.999991,
+              "magnitude": 1.0,
               "maximum": 0.999991,
-              "minimum": -0.138382,
+              "minimum": -1.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4297,7 +4492,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 1.13837
+              "span": 1.99999
             },
             "numeric": true,
             "reference": {
@@ -4333,10 +4528,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
+              "informative": true,
+              "magnitude": 180.0,
+              "maximum": 180.0,
+              "minimum": -180.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4345,7 +4540,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 360.0
             },
             "numeric": true,
             "reference": {
@@ -4359,7 +4554,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
           "path": "per_label.{label}.orientation.spline_tangent_coronal_deg",
@@ -4382,9 +4577,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 33.9342,
-              "maximum": 33.9342,
-              "minimum": -7.9542,
+              "magnitude": 179.967,
+              "maximum": 179.967,
+              "minimum": -172.766,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4393,7 +4588,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 41.8884
+              "span": 352.733
             },
             "numeric": true,
             "reference": {
@@ -4430,8 +4625,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 33.9343,
-              "maximum": 33.9343,
+              "magnitude": 179.666,
+              "maximum": 179.666,
               "minimum": 0.254105,
               "population": "corpus",
               "source": [
@@ -4441,7 +4636,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 33.6802
+              "span": 179.412
             },
             "numeric": true,
             "reference": {
@@ -4477,10 +4672,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
+              "informative": true,
+              "magnitude": 180.0,
               "maximum": 0.0,
-              "minimum": 0.0,
+              "minimum": -180.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4489,7 +4684,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 180.0
             },
             "numeric": true,
             "reference": {
@@ -4503,7 +4698,7 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
           "path": "per_label.{label}.orientation.tangent_coronal_unwrapped_deg",
@@ -4526,8 +4721,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 33.9343,
-              "maximum": 33.9343,
+              "magnitude": 204.197,
+              "maximum": 204.197,
               "minimum": -7.95422,
               "population": "corpus",
               "source": [
@@ -4537,7 +4732,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 41.8885
+              "span": 212.152
             },
             "numeric": true,
             "reference": {
@@ -4558,246 +4753,6 @@
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "max - min of the labels' tangent_coronal_unwrapped_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Coronal-plane (R-S) curvature sweep.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 0.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "constant-synthetic"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.coronal_curvature_deg",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "\"coronal\" when coronal_curvature_deg >= sagittal_curvature_deg, else \"sagittal\". An exact tie, including a straight spine's 0.0/0.0, resolves to \"coronal\".",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Which anatomical plane (coronal or sagittal) total_curvature_deg came from.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.curvature_plane",
-          "rule_evidence": [],
-          "scale_sensitivity": "categorical",
-          "status": "unwired",
-          "units": ""
-        },
-        {
-          "computation": "Angle between each pair of adjacent unit tangent vectors along the spine, read as if the tangents were normalised so the sequence advances superiorly (item 122); already invariant to traversal direction so no negation is needed to produce that reading.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Angle between consecutive vertebrae's tangent vectors.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 19,
-              "covered": true,
-              "informative": true,
-              "magnitude": 19.7488,
-              "maximum": 19.7488,
-              "minimum": 7.3206,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 12.4282
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.inter_tangent_angles_deg[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
-          "units": "degrees"
-        },
-        {
-          "computation": "max - min of the labels' tangent_sagittal_unwrapped_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Sagittal-plane (A-S) curvature sweep.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": true,
-              "magnitude": 41.8885,
-              "maximum": 41.8885,
-              "minimum": 41.1436,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 0.744932
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.sagittal_curvature_deg",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "max(coronal_curvature_deg, sagittal_curvature_deg); 0 for a perfectly straight column. curvature_plane names which plane it came from.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Global curvature magnitude: the larger of the coronal and sagittal per-plane sweeps.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": true,
-              "magnitude": 41.8885,
-              "maximum": 41.8885,
-              "minimum": 41.1436,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 0.744932
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.total_curvature_deg",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
           "units": "degrees"
         }
       ],
@@ -4854,11 +4809,173 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.monotonic_consistency.is_monotonic",
+          "path": "case.curve.is_monotonic",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "retune",
           "units": ""
+        },
+        {
+          "computation": "population-std(spacings) / mean(spacings); 0.0 when there is only one spacing.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Regularity of inter-vertebra spacing.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.745491,
+              "maximum": 0.745491,
+              "minimum": 0.0454739,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 0.700017
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.cv_spacing",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "spacings_mm[i] - mean_spacing_mm.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Per-pair spacing's signed deviation from the mean.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 19,
+              "covered": true,
+              "informative": true,
+              "magnitude": 75.605,
+              "maximum": 75.605,
+              "minimum": -25.8603,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 101.465
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.deviations_mm[]",
+          "rule_evidence": [],
+          "scale_sensitivity": "scales with spacing",
+          "status": "retune",
+          "units": "mm"
+        },
+        {
+          "computation": "Arithmetic mean of the neighbour-to-neighbour centroid distances.",
+          "consumers": [],
+          "consuming_rules": [
+            "fused_label"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Mean inter-vertebra centroid spacing.",
+          "mode_evidence": [
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "fused_label",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 58.5555,
+              "maximum": 58.5555,
+              "minimum": 34.2181,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 24.3374
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.mean_spacing_mm",
+          "rule_evidence": [
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "scales with spacing",
+          "status": "retune",
+          "units": "mm"
         },
         {
           "computation": "Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the label-free traversal path through the centroids (item 210); equal u values count as a violation too.",
@@ -4914,7 +5031,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.monotonic_consistency.non_monotonic_pairs[]",
+          "path": "pairs.adjacent.non_monotonic_pairs[]",
           "rule_evidence": [
             [
               "mislabel",
@@ -4928,150 +5045,6 @@
           "scale_sensitivity": "dimensionless",
           "status": "keep",
           "units": ""
-        },
-        {
-          "computation": "population-std(spacings) / mean(spacings); 0.0 when there is only one spacing.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Regularity of inter-vertebra spacing.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": true,
-              "magnitude": 0.324242,
-              "maximum": 0.324242,
-              "minimum": 0.0454739,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 0.278768
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.cv_spacing",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "spacings_mm[i] - mean_spacing_mm.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Per-pair spacing's signed deviation from the mean.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 19,
-              "covered": true,
-              "informative": true,
-              "magnitude": 20.8066,
-              "maximum": 20.8066,
-              "minimum": -12.0763,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 32.883
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.deviations_mm[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "scales with spacing",
-          "status": "retune",
-          "units": "mm"
-        },
-        {
-          "computation": "Arithmetic mean of the neighbour-to-neighbour centroid distances.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Mean inter-vertebra centroid spacing.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": true,
-              "magnitude": 45.5703,
-              "maximum": 45.5703,
-              "minimum": 34.2181,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 11.3522
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.mean_spacing_mm",
-          "rule_evidence": [],
-          "scale_sensitivity": "scales with spacing",
-          "status": "retune",
-          "units": "mm"
         },
         {
           "computation": "A pair is an outlier when its spacing is >= 2.0x or <= 0.3x the mean spacing (both thresholds configurable).",
@@ -5115,80 +5088,11 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.spacing_consistency.outlier_pairs[]",
+          "path": "pairs.adjacent.outlier_pairs[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
-        },
-        {
-          "computation": "Euclidean centroid-to-centroid distance for each adjacent pair, in input order.",
-          "consumers": [],
-          "consuming_rules": [
-            "fused_label"
-          ],
-          "documented": true,
-          "failure_modes": [
-            2
-          ],
-          "measures": "Per-pair inter-vertebra centroid spacing.",
-          "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
-          ],
-          "mode_roles": [
-            [
-              "fused_label",
-              "signal"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": 19,
-              "covered": true,
-              "informative": true,
-              "magnitude": 66.3769,
-              "maximum": 66.3769,
-              "minimum": 32.6952,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 33.6817
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.spacings_mm[]",
-          "rule_evidence": [
-            [
-              "fused_label",
-              "observed"
-            ],
-            [
-              "fused_label",
-              "static"
-            ]
-          ],
-          "scale_sensitivity": "scales with spacing",
-          "status": "retune",
-          "units": "mm"
         }
       ],
       "intro": "Inter-vertebra centroid spacing regularity (from the centroids alone) and whether each vertebra's normalised arc-length position u on the label-free traversal path through the centroids increases along the anatomical order (item 210; no spline is read).",
@@ -5308,8 +5212,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.218387,
-              "maximum": 0.218387,
+              "magnitude": 0.941318,
+              "maximum": 0.941318,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5319,7 +5223,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.218387
+              "span": 0.941318
             },
             "numeric": true,
             "reference": {
@@ -5356,8 +5260,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.160233,
-              "maximum": 0.160233,
+              "magnitude": 0.941318,
+              "maximum": 0.941318,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5367,7 +5271,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.160233
+              "span": 0.941318
             },
             "numeric": true,
             "reference": {
@@ -5404,8 +5308,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.121301,
-              "maximum": 0.121301,
+              "magnitude": 0.410339,
+              "maximum": 0.410339,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5415,7 +5319,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.121301
+              "span": 0.410339
             },
             "numeric": true,
             "reference": {
@@ -5500,8 +5404,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 49.9355,
-              "maximum": 49.9355,
+              "magnitude": 83.8272,
+              "maximum": 83.8272,
               "minimum": 33.0946,
               "population": "corpus",
               "source": [
@@ -5511,7 +5415,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.8409
+              "span": 50.7326
             },
             "numeric": true,
             "reference": {
@@ -5548,8 +5452,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 49.9355,
-              "maximum": 49.9355,
+              "magnitude": 83.8272,
+              "maximum": 83.8272,
               "minimum": 33.0946,
               "population": "corpus",
               "source": [
@@ -5559,7 +5463,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.8409
+              "span": 50.7326
             },
             "numeric": true,
             "reference": {
@@ -5596,8 +5500,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 16.4415,
-              "maximum": 16.4415,
+              "magnitude": 50.3333,
+              "maximum": 50.3333,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5607,7 +5511,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.4415
+              "span": 50.3333
             },
             "numeric": true,
             "reference": {
@@ -5644,8 +5548,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 32883000.0,
-              "maximum": 32883000.0,
+              "magnitude": 100667000.0,
+              "maximum": 100667000.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5655,7 +5559,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 32883000.0
+              "span": 100667000.0
             },
             "numeric": true,
             "reference": {
@@ -5928,7 +5832,9 @@
       "entries": [
         {
           "computation": "Fixed 32-bin histogram spanning [min, max], base-2 (bits); a uniform/constant region is defined as entropy 0.0.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6020,7 +5926,9 @@
         },
         {
           "computation": "Maximum of the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6066,7 +5974,9 @@
         },
         {
           "computation": "Arithmetic mean over the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6112,7 +6022,9 @@
         },
         {
           "computation": "50th percentile of the finite voxel values; equals p50 exactly.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [
             "intensity"
           ],
@@ -6174,7 +6086,9 @@
         },
         {
           "computation": "Minimum of the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6540,7 +6454,9 @@
         },
         {
           "computation": "Population (ddof=0) standard deviation of the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [
             "intensity"
           ],
@@ -6705,8 +6621,10 @@
     {
       "entries": [
         {
-          "computation": "False only when intensity extraction could not run at all (no scan / no backend); per_label is empty in that case.",
-          "consumers": [],
+          "computation": "False only when intensity extraction could not run at all (no scan / no backend); the block still carries its four fields (the per-label statistics are per_label.{label}.intensity, item 215).",
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [
             "intensity"
           ],
@@ -6751,7 +6669,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.available",
+          "path": "case.intensity.available",
           "rule_evidence": [
             [
               "intensity",
@@ -6800,19 +6718,19 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.backend",
+          "path": "case.intensity.backend",
           "rule_evidence": [],
           "scale_sensitivity": "categorical",
           "status": "unwired",
           "units": ""
         },
         {
-          "computation": "Literal \"1.0\" (item 061), independent of features_version.",
+          "computation": "Literal \"1.1\" (item 061, bumped by item 215), independent of features_version.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Schema-version discriminator for the image_features block.",
+          "measures": "Schema-version discriminator for the case.intensity block (formerly the report's image_features block).",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {
@@ -6844,7 +6762,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.image_features_version",
+          "path": "case.intensity.image_features_version",
           "rule_evidence": [],
           "scale_sensitivity": "categorical",
           "status": "retire",
@@ -6888,7 +6806,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.radiomics_available",
+          "path": "case.intensity.radiomics_available",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "retune",
@@ -6976,7 +6894,7 @@
           "units": ""
         },
         {
-          "computation": "Literal \"1.0\" (item 046), independent of the reference artifact's own schema_version.",
+          "computation": "Literal \"1.1\" (item 046, bumped by item 215), independent of the reference artifact's own schema_version.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -8613,7 +8531,7 @@
     {
       "entries": [
         {
-          "computation": "Literal \"0.1\" (Stage-2-only) or \"0.2\" (Stage 3 present), stamped by build_features_block.",
+          "computation": "Literal \"0.2\" (no Stage 3 present) or \"0.3\" (Stage 3 present), stamped by build_features_block (items 215, 216).",
           "consumers": [
             "render_feature_table"
           ],
@@ -8677,6 +8595,7 @@
             "intensity_reference_delta",
             "mislabel",
             "neighbour_contact",
+            "overlap",
             "reference_delta",
             "sequence",
             "spline_offset",
@@ -8725,6 +8644,10 @@
             ],
             [
               "neighbour_contact",
+              "bookkeeping"
+            ],
+            [
+              "overlap",
               "bookkeeping"
             ],
             [
@@ -8812,6 +8735,10 @@
               "static"
             ],
             [
+              "overlap",
+              "static"
+            ],
+            [
               "reference_delta",
               "static"
             ],
@@ -8841,12 +8768,12 @@
   ],
   "note": "Generated by `python -m segfacet.catalogue` (item 103). Do not hand-edit this document -- edit `src/segfacet/feature_docs.py` (prose / owners / mode anchors / status overrides) and regenerate. `record[\"reference\"]` is deliberately excluded: the `bounds` and `fragmentation` rules read it, but it is a `ReferenceDistribution` object handle, not serialised feature data with a leaf path. Item 124's `observed` block reports each numeric path's observed range across two independent populations -- the in-package synthetic driver corpus (never flags a feature dead) and the committed real-GT reference distribution (the only population that can produce the `\"degenerate\"` verdict) -- but only the 21 of 99 numeric paths the reference vocabulary covers can ever read `\"degenerate\"`; the rest get their numbers reported and no verdict stronger than `\"constant-synthetic\"`.",
   "observed_summary": {
-    "constant-synthetic": 10,
+    "constant-synthetic": 7,
     "degenerate": 0,
-    "non-numeric": 39,
+    "non-numeric": 37,
     "placeholder": 26,
     "unobserved": 0,
-    "varies": 81
+    "varies": 84
   },
   "schema_version": "1.2"
 }

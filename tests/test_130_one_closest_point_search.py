@@ -708,7 +708,8 @@ def test_ac21_coincident_centroids_precheck_preserved():
 
     record = extract_feature_record(seg_img, bundled_default_config())
 
-    assert "stage3" not in record
+    assert "curve" not in record["case"]
+    assert "mean_spacing_mm" not in record["pairs"]["adjacent"]
     info = record["stage3_unavailable"]
     assert info["reason"] == "coincident_centroids"
     assert set(info["levels"]) == {"L2", "L3"}
@@ -989,4 +990,8 @@ def test_adversarial_extract_feature_record_determinism():
     assert [e.get("curve") for e in r1["per_label"].values()] == [
         e.get("curve") for e in r2["per_label"].values()
     ]
-    assert r1["stage3"]["monotonic_consistency"] == r2["stage3"]["monotonic_consistency"]
+    assert r1["case"]["curve"]["is_monotonic"] == r2["case"]["curve"]["is_monotonic"]
+    assert (
+        r1["pairs"]["adjacent"]["non_monotonic_pairs"]
+        == r2["pairs"]["adjacent"]["non_monotonic_pairs"]
+    )

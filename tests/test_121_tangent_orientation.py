@@ -806,8 +806,9 @@ def test_ac19_every_corpus_case_carries_all_four_keys_on_every_entry():
     assert cases
     for case in cases:
         report = build_report_for_case(case)
-        stage3 = report["features"].get("stage3")
-        if not stage3:
+        # Item 216: the container that carries the Stage-3-only fields is
+        # case.curve (there is no 'stage3' key any more).
+        if "curve" not in report["features"]["case"]:
             continue
         entries = _orientation_entries(report["features"])
         assert entries, f"{case['case_id']!r} has no per_label_orientations entries"

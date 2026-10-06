@@ -1676,6 +1676,171 @@ To be updated during implementation.
   - **Not a re-cut.** The row cut and the scope axis are unchanged. The
     additions are assigned to this item by name in the signed note.
   - **Versions:** none bumped (A4's re-check, D5).
+- **D12 (build record, 2026-10-06): container shapes.**
+  - **Always present:** `features.case` (an object) and `features.pairs`
+    (carrying `overlaps`, `[]` when none). Both are `required` on the
+    `features` definition, with `features_version` and `per_label`.
+  - **Absent or null by degeneracy:**
+    - `case.sequence` is `null` when the map has no label (the old
+      `relationships: null`), otherwise an object with the four former
+      fields plus `order[]` (A15).
+    - `pairs.adjacent` exists whenever `case.sequence` is an object. It
+      holds the survivor `spacings_mm[]` alone below the Stage 3 branch,
+      and the four statistics, `inter_tangent_angles_deg[]` and
+      `non_monotonic_pairs[]` beside it with Stage 3.
+    - `case.curve` (four scalars plus `is_monotonic`) exists only with
+      Stage 3. `case.intensity` exists only on an intensity run (A14).
+  - **Schema definitions.** `stage3Curvature` is `case.curve`'s and now
+    requires `is_monotonic` beside the four scalars. That keeps the old
+    "a block missing `is_monotonic` is rejected" guarantee.
+    `stage3SpacingConsistency` is `pairs.adjacent`'s and requires only
+    `spacings_mm`. `relationships` and `imageFeatures` keep their
+    definition keys (D6) and are `case.sequence`'s and `case.intensity`'s.
+    `stage3` and `stage3MonotonicConsistency` are removed, since each now
+    describes no object. `caseFeatures` and `pairFeatures` are new.
+    `overlapPair` loses `name_a` / `name_b`.
+  - **The rider (AC6).** The `path_u` description, the
+    `stage3OffsetEntry` description and the new `is_monotonic` /
+    `non_monotonic_pairs` descriptions state the label-free MST arc length
+    of item 210. `closest_u` and `spline_closest_u` stay as they were.
+- **D13 (build record, 2026-10-06): serialiser and pipeline.**
+  - `build_features_block` keeps its parameters. It calls
+    `segfacet.labels.anatomical_order` (new, D7) over the `per_label`
+    level names, and zips the three tangent arrays and `u_values` with that
+    sequence. Item 215's length checks stay.
+  - **One extra tolerance.** A call that passes `spacing_consistency` but
+    no `relationships` still emits `pairs.adjacent.spacings_mm`, taken from
+    the statistics object. The pipeline never takes that branch. Item 022's
+    hand-built blocks do.
+  - `extract_feature_record` builds the sequence once from the centroids,
+    feeds `relationships` ascending integer order (so `out_of_order_labels`
+    still fires), and feeds the fit, the held-out offsets, the tangent
+    orientations, the curvature, both consistency extractors and the
+    neighbourhood the anatomical sequence. The survivor is written into the
+    relationships value with `dataclasses.replace`. The separate
+    `anatomical_spline` refit and `ordered_centroids` fit input are gone,
+    and one `fit = fit_centroid_spline(` binding remains.
+  - `add_case_intensity` (new) attaches the four case-level fields as
+    `case.intensity`. `run_qc_with_intensity` keeps its 5-tuple and its
+    four-field second-to-third element.
+- **D14 (build record, 2026-10-06): the report writers lose their
+  `image_features` parameter** (Option A). That covers
+  `report.serialize_report` and `serialize_report_json`,
+  `human_report.render_human_report` and `render_feature_table`.
+  `render_*` read availability from `features.case.intensity`, and
+  `cli.py` stops passing the argument. `eval/harness.py` and
+  `synth/regression.py` needed no edit.
+- **D15 (build record, 2026-10-06): readers and the catalogue.**
+  - **`overlap`** reads each side's level name from
+    `per_label.{label}.level_name`, trying the string key and then the
+    integer key, and falling back to the label number when absent. It
+    declares `per_label` and `per_label.{label}.level_name` as bookkeeping
+    paths.
+  - **`fused_label`** declares `pairs.adjacent.mean_spacing_mm`, its A12
+    gate, as a bookkeeping path. The traceability generator's static scan
+    attributes the string to the rule, and a path it attributes must be
+    classified.
+  - **`consumed_paths` order.** Every rule's `consumed_paths` is
+    re-sorted ascending, as `RuleModeDeclaration` requires.
+  - **What the regenerated catalogue shows (154 paths).**
+    - The survivor takes the merged row's `retune` status and
+      `fused_label` consumer.
+    - `pairs.adjacent.mean_spacing_mm` gains the `fused_label` consumer.
+    - `per_label` and `per_label.{label}.level_name` gain `overlap`.
+    - Three paths flip from "constant-synthetic" to "varies" on
+      `sequence_break`'s changed coronal tangents:
+      `case.curve.coronal_curvature_deg`,
+      `per_label.{label}.orientation.spline_tangent_coronal_deg` and
+      `per_label.{label}.orientation.tangent_coronal_unwrapped_deg`.
+    - The observed summary moves to constant-synthetic 7, non-numeric 37,
+      placeholder 26, varies 84.
+    - The empty evidence bucket is 102, and `("rule_bookkeeping",)` is 7.
+    - `golden_evidence.generated.json` reads `(29, 95)` for every case.
+    - The path-set digest is `2539cea9...b15c467`.
+    - No failure-mode count moves, no rule's measured firing changes
+      (`conformant: true`, 18 of 18 agree), and no `*_VERSION*` constant
+      is edited.
+- **D16 (build record, 2026-10-06): feature docs.** The
+  `features_version`, `image_features_version` and
+  `reference_delta_version` rows state `"0.2"` / `"0.3"`, `"1.1"` and
+  `"1.1"`, and the unavailable-block prose names the four-field shape
+  (insight `2026-10-06-163d`). `case.sequence.order[]` has a row. The
+  survivor `pairs.adjacent.spacings_mm[]` carries the merged row's
+  `STATUS_OVERRIDES` entry. `BLOCK_OWNERS` keeps each moved row in its old
+  group through longest-prefix rows. `catalogue.normalise_leaf_path` needed
+  no extension.
+- **D17 (build record, 2026-10-06): reconciled tests, by file.** Fence rule
+  1 unless stated.
+  - **Rule 5 (D11) was used, in `tests/test_131_tangent_direction_normalisation.py`
+    only.** A10 found no test that pins a `sequence_break` Stage 3 value, but
+    this module pins four, and the record-wide order moves them. Each is
+    moved to the re-measured value with a dated item-216 comment:
+    - `test_ac5_no_corpus_case_tangent_angles_deg_moves`:
+      `sequence_break` [7.5755, 0.2549, 8.338, 19.241, 33.59] ->
+      [171.3409, 179.6656, 172.4210, 155.8026, 2.1740];
+    - `test_ac7_no_corpus_case_inter_tangent_angles_deg_moves`:
+      [7.320601, 8.592928, 10.902949, 14.349002] ->
+      [169.166833, 8.324736, 7.913377, 16.618433];
+    - `test_ac17_observed_range_cells_unchanged`:
+      `per_label.{label}.orientation.tangent_angle_deg` maximum 33.9343 ->
+      179.666 and `pairs.adjacent.inter_tangent_angles_deg[]` maximum
+      19.74878 -> 169.167;
+    - `test_ac21_other_curvature_fields_unmoved`: `sequence_break` total
+      and sagittal curvature 41.165481 -> 202.023378, coronal curvature
+      0.0 -> 180.0, the sagittal angles
+      [-7.575496, -0.254895, 8.338034, 19.240983, 33.589985] ->
+      [171.34087, 179.665606, 187.578982, 204.197415, 2.174037] and the
+      coronal angles all 0.0 -> [-180.0, -180.0, -180.0, -180.0, 0.0].
+      In anatomical order the first four coronal angles sit exactly on
+      atan2's +-180 branch cut, so `sequence_break` joins `relabel_swap`
+      in that test's existing circle comparison (total and coronal
+      curvature and the plane are not asserted for it). That widens the
+      test's own cross-platform exemption by one case; it is recorded here
+      because a branch-cut residue cannot be pinned portably.
+  - **Hand-built records**, with `relationships`, `overlaps`, `stage3`
+    and `image_features` re-pointed to `case.sequence`, `pairs.overlaps`,
+    `case.curve` / `pairs.adjacent` and `case.intensity`: test_026, 027,
+    028, 029, 030, 031, 032 (`_make_overlap_entry` loses its name
+    parameters, since the names left the entry), 033 (the AC18 degenerate
+    placeholders and AC19/AC20, now over `pairs`), 035_default_config,
+    035_failure_modes (mode 8's record carries per_label names), 062, 089,
+    090, 098, 099 (`_hand_record`, the AC13/AC14/AC22 nodes),
+    heuristics_bounds_source, 120, 123, 147, 148 (the planted overlap
+    record), 167, 187, 192, 211.
+  - **Real-record reads:** test_016 (AC2, AC5, AC7 nodes), 022 (the AC1,
+    AC2, AC3, AC5, AC6, AC7, AC9 and adversarial nodes, and
+    `test_ac9_stage3_key_order_and_key_set_explicit`), 035_pipeline (AC6,
+    AC7 nodes and `test_adv_run_qc_on_single_label_case_no_crash`), 038,
+    039, 110, 115, 121 (AC19's guard), 122, 125, 129, 130, 131, 132, 135,
+    151, 186, 198, 215 (the one `is_monotonic` read).
+  - **Item 061's module (rule 1, with the `image_features` parameter
+    gone):** AC6, AC8, AC9, AC10, AC11, AC12, AC13 and the back-compat
+    adversarial node now build the block with `add_case_intensity` and read
+    it from `features.case.intensity`. The module-level hand-built features
+    blocks gain `case` and `pairs`.
+  - **test_065_cli_intensity:** the AC8, AC10 and AC11 presence and absence
+    assertions read `features.case.intensity`.
+  - **Path strings and anchors:** test_103 (AC3 normaliser cases, AC4, AC5
+    driver-set and the zero-label case), 104 (the sentinel paths and stub
+    names), 124, 131 (AC10, AC14, AC16, AC17, AC23), 132 (AC28, AC29,
+    AC30), 138 and 149 (the mode-9 anchor), 106 (AC25's key translation
+    now also accepts the old path of a merged row).
+  - **Counts (rule 2, each with a dated comment beside the literal):**
+    - catalogue total 156 -> 154: test_124, 131, 132, 136, 137, 148;
+    - one record's leaf count stays 95 (test_103: merged spacing array
+      -1, `case.sequence.order[]` +1);
+    - `(28, 95)` -> `(29, 95)`: test_126;
+    - test_132's observed summary: constant-synthetic 10 -> 7,
+      non-numeric 39 -> 37, varies 81 -> 84;
+    - test_136's empty bucket and test_137's `()` entry 103 -> 102, and
+      its `("rule_bookkeeping",)` entry 8 -> 7.
+  - **Generated and regenerated:** `tests/report_format_fixture.py` and
+    `tests/golden/report_format_contract.json`,
+    `tests/corpus/119_pre_119_digests.json`, and the eight
+    `docs/aide/*.generated.*` files (including
+    `golden_evidence.generated.json`).
+  - **`.github/workflows/ci.yml`:** the one `WINDOWS_TESTS` entry for this
+    item's module.
 - **Left open:** whether the per-element spacing copy behind
   `stage3.per_label_neighbourhood[].stats.spacing_mm.*` is re-derived from
   the survivor. Item 214's Answer 6 decides it. Step 0 amends this spec if it

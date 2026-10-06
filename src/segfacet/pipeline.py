@@ -27,13 +27,17 @@ Design decisions (item 035)
 2. **Stage 3 guarded on >= 2 centroids.** ``fit_centroid_spline`` (item 017)
    raises for < 2 points, so Stage 3 is only attempted when at least two
    labels are present; 0/1-label maps still produce a valid Stage-2-only
-   block (no ``stage3`` key), matching ``mislabel``'s tolerant handling of an
-   absent ``stage3`` sub-block.
-3. **Ascending integer-label order is the "ordered centroid sequence".** The
-   per-label ordering already used by ``build_features_block`` (ascending
-   integer label) is reused as the single consistent order fed to
-   ``compute_spine_relationships``, the spline fit, and every Stage 3
-   extractor -- deterministic and requires no extra bookkeeping.
+   block (no ``case.curve`` and no Stage-3-only ``pairs.adjacent``
+   statistics), matching ``mislabel``'s tolerant handling of their absence.
+3. **The anatomical order is the "ordered centroid sequence" (item 216,
+   superseding ascending integer label).** ``segfacet.labels.anatomical_order``
+   (item 198's key: ``CANONICAL_ORDER`` rank, unrecognised names last, then
+   the integer label) is built once from the centroids and is the one order
+   fed to the spline fit, every Stage 3 extractor, the neighbourhood and the
+   adjacent-pair spacing array. ``compute_spine_relationships`` alone keeps
+   ascending integer order, because its ``out_of_order_labels`` is computed
+   from the order it is given. The record stores the order as
+   ``case.sequence.order[]``.
 4. **Heavy imports (NumPy, SciPy, the ``segfacet.features``/``segfacet.heuristics``
    submodules) are deferred inside the functions**, consistent with the CLI's
    existing deferred-import style, so ``import segfacet.pipeline`` alone stays
@@ -44,8 +48,8 @@ Design decisions (item 035)
    that propagate out of ``extract_feature_record`` and lose every Stage 1/2
    feature, the >= 2-label branch pre-checks with
    ``features.spline.find_coincident_centroid_pair`` before attempting the
-   fit: on a coincidence, ``stage3_kwargs`` stays empty (so no ``stage3`` key
-   is emitted and ``features_version`` stays ``"0.2"``) and the cause is
+   fit: on a coincidence, ``stage3_kwargs`` stays empty (so no Stage 3 field
+   is emitted and ``features_version`` stays unpromoted) and the cause is
    recorded as a ``stage3_unavailable`` mapping instead. Pre-checking rather
    than catching the broad ``ValueError`` means only this named cause
    degrades gracefully; any other fit failure still propagates.
@@ -99,10 +103,14 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
     -------
     dict
         A schema-valid ``features`` block: always carries
-        ``features_version``, ``per_label``, ``relationships``, ``overlaps``;
-        additionally carries ``stage3`` when >= 2 labels are present. Robust
+        ``features_version``, ``per_label``, ``case`` and ``pairs``;
+        additionally carries the Stage 3 fields (``case.curve``,
+        ``pairs.adjacent``'s statistics) when >= 2 labels are present. Robust
         to 0- and 1-label maps -- never raises.
     """
+    import dataclasses
+    import math
+
     import numpy as np
 
     from segfacet.feature_report import build_features_block
@@ -111,6 +119,7 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
     from segfacet.features.geometry import compute_label_geometry
     from segfacet.features.overlap import detect_overlaps
     from segfacet.features.relationships import compute_spine_relationships
+    from segfacet.labels import anatomical_order
 
     data = np.asanyarray(seg_img.dataobj)
     labels = sorted(int(v) for v in np.unique(data) if v != 0)
@@ -121,14 +130,33 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
     }
     centroids = {label: compute_centroid(seg_img, label) for label in labels}
 
-    # Ascending-label order is the single consistent "ordered centroid
-    # sequence" fed to relationships and every Stage 3 extractor below,
-    # except monotonic consistency, which uses the anatomical (CANONICAL_ORDER)
-    # sequence instead (item 198).
+    # Ascending-label order feeds ``compute_spine_relationships`` only: its
+    # ``out_of_order_labels`` is computed from the order it is given.
     ordered_centroids = [centroids[label] for label in labels]
+
+    # Item 216 (D1, D7, D9, D11): the one element order of the record is the
+    # item-198 anatomical order over *every* label (unrecognised names last).
+    # Every Stage 3 extractor, the neighbourhood and the adjacent-pair spacing
+    # array are fed this sequence.
+    sequence = anatomical_order({label: centroids[label].level_name for label in labels})
+    sequence_centroids = [centroids[label] for label in sequence]
 
     if labels:
         relationships = compute_spine_relationships(ordered_centroids)
+        # The survivor of the two adjacent-pair spacing arrays (D1, D10): the
+        # distances between consecutive centroids of the anatomical sequence,
+        # present wherever ``relationships`` is (``[]`` below two labels).
+        relationships = dataclasses.replace(
+            relationships,
+            neighbour_spacings_mm=[
+                float(
+                    math.sqrt(
+                        sum((b - a) ** 2 for a, b in zip(p.centroid_mm, q.centroid_mm))
+                    )
+                )
+                for p, q in zip(sequence_centroids, sequence_centroids[1:])
+            ],
+        )
     else:
         relationships = None
 
@@ -167,8 +195,6 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
             "coordinate_mm": list(coincident.coordinate_mm),
         }
     elif len(labels) >= 2:
-        import math
-
         from segfacet.features.consistency import (
             compute_monotonic_consistency,
             compute_spacing_consistency,
@@ -197,41 +223,27 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
         # offset_mm is its closest-approach distance to a curve that level
         # did not shape, so a displacement separates at roughly its true
         # magnitude instead of being absorbed by the in-sample fit.
-        fit = fit_centroid_spline(ordered_centroids)
-
-        # item 198 (2026-09-29): monotonic consistency is the one Stage 3
-        # feature judged in anatomical (CANONICAL_ORDER) order rather than
-        # ascending-integer order, because TPTBox integers are not anatomical
-        # (T13 = 28 follows L1-L6; Cocc = 27 precedes S2-S6). Names outside
-        # CANONICAL_ORDER sort last, then by label. The in-sample fit is
-        # reused only when both orders agree (A4); otherwise the curve is
-        # refitted through the anatomical order, inheriting degree/smoothing.
-        from segfacet.labels import CANONICAL_ORDER
-
-        _rank = {name: i for i, name in enumerate(CANONICAL_ORDER)}
-        anatomical_centroids = sorted(
-            ordered_centroids,
-            key=lambda c: (_rank.get(c.level_name, len(_rank)), c.label),
-        )
-        if [c.label for c in anatomical_centroids] == labels:
-            anatomical_spline = fit
-        else:
-            anatomical_spline = fit_centroid_spline(
-                anatomical_centroids, degree=fit.degree, smoothing=fit.smoothing
-            )
+        #
+        # Item 216 (D11): fitted through the anatomical sequence (TPTBox
+        # integers are not anatomical: T13 = 28 follows L1-L6), so a record
+        # whose integer and anatomical orders disagree is judged in the
+        # anatomical one everywhere.
+        fit = fit_centroid_spline(sequence_centroids)
 
         spline_offsets = compute_leave_one_out_spline_offsets(
-            ordered_centroids, spacing_mm=spacing_mm, fit=fit
+            sequence_centroids, spacing_mm=spacing_mm, fit=fit
         )
 
         stage3_kwargs = {
             "spline_offsets": spline_offsets,
             "orientations": compute_vertebra_orientations(seg_img, labels),
-            "tangent_orientations": compute_vertebra_tangent_orientations(fit, ordered_centroids),
-            "curvature": compute_spine_curvature(fit, ordered_centroids),
-            "spacing_consistency": compute_spacing_consistency(ordered_centroids),
+            "tangent_orientations": compute_vertebra_tangent_orientations(
+                fit, sequence_centroids
+            ),
+            "curvature": compute_spine_curvature(fit, sequence_centroids),
+            "spacing_consistency": compute_spacing_consistency(sequence_centroids),
             "monotonic_consistency": compute_monotonic_consistency(
-                anatomical_centroids, anatomical_spline
+                sequence_centroids, fit
             ),
         }
 
@@ -240,36 +252,25 @@ def extract_feature_record(seg_img: "nib.Nifti1Image", config: "HeuristicConfig"
         # spacing_mm is a per-*element* value here (one per centroid), not
         # the per-*pair* sequence relationships/spacing_consistency compute.
         # Convention: element i's spacing_mm is the Euclidean distance (mm)
-        # to its *next* neighbour in the ordered sequence; the last element
-        # (which has no next neighbour) reuses the distance to its
-        # *previous* neighbour instead. This gives every element a
+        # to its *next* neighbour in the (anatomical, item 216) sequence; the
+        # last element (which has no next neighbour) reuses the distance to
+        # its *previous* neighbour instead. This gives every element a
         # well-defined value with no synthetic sentinel, using the same
         # inter-centroid distance metric relationships.py already computes.
-        pairwise_spacings_mm = [
-            math.sqrt(
-                sum(
-                    (a - b) ** 2
-                    for a, b in zip(
-                        ordered_centroids[j].centroid_mm,
-                        ordered_centroids[j + 1].centroid_mm,
-                    )
-                )
-            )
-            for j in range(len(ordered_centroids) - 1)
-        ]
+        pairwise_spacings_mm = list(relationships.neighbour_spacings_mm)
         per_element_spacing_mm = [
             pairwise_spacings_mm[idx] if idx < len(pairwise_spacings_mm) else pairwise_spacings_mm[-1]
-            for idx in range(len(ordered_centroids))
+            for idx in range(len(sequence_centroids))
         ]
 
         offset_by_label = {o.label: o.offset_mm for o in spline_offsets}
         neighbourhood_features = {
             "spacing_mm": per_element_spacing_mm,
-            "offset_mm": [offset_by_label[label] for label in labels],
-            "volume_mm3": [geometry[label].physical_volume_mm3 for label in labels],
+            "offset_mm": [offset_by_label[label] for label in sequence],
+            "volume_mm3": [geometry[label].physical_volume_mm3 for label in sequence],
         }
         stage3_kwargs["neighbourhood"] = compute_neighbourhood_features(
-            ordered_centroids,
+            sequence_centroids,
             neighbourhood_features,
             scored=DEFAULT_SCORED,
         )
@@ -436,9 +437,9 @@ def run_qc_with_intensity(
     composes :func:`extract_feature_record` with item 059/060's per-label
     intensity/radiomics extraction, stored on the features record as each
     label's ``intensity`` kind (``per_label.{label}.intensity``, item 215),
-    and item 061's case-level ``image_features`` block, attached to the
-    record fed to the rule engine (under ``"image_features"``) so item 062's
-    ``IntensityRule`` can act on both. When a *reference* is supplied, also computes the geometric
+    and item 061's case-level block, stored on the features record as
+    ``case.intensity`` (item 216; the report no longer carries a top-level
+    ``image_features`` key) so item 062's ``IntensityRule`` can act on both. When a *reference* is supplied, also computes the geometric
     reference delta (item 046) and the intensity reference delta (item 064),
     attaching ``"reference"``, ``"reference_delta"``, and
     ``"intensity_reference_delta"`` to the record so item 047's
@@ -484,10 +485,11 @@ def run_qc_with_intensity(
     tuple[CaseResult, dict, dict, dict | None, dict | None]
         ``(case_result, features_block, image_features_block, reference_delta,
         intensity_reference_delta)``. ``features_block`` carries the
-        per-label ``intensity`` kind but no ``image_features``/``reference``/
-        ``reference_delta``/``intensity_reference_delta`` keys -- those live
-        only on the transient rule-evaluation record. ``image_features_block``
-        holds the case-level fields only and is always populated
+        per-label ``intensity`` kind and the case-level ``case.intensity``
+        block but no ``reference``/``reference_delta``/
+        ``intensity_reference_delta`` keys -- those live only on the
+        transient rule-evaluation record. ``image_features_block`` is that
+        same case-level four-field mapping and is always populated
         (``available == True``) when this function succeeds. ``reference_delta``/``intensity_reference_delta`` are
         ``None`` unless *reference* is given. Deterministic and
         non-mutating: repeated calls on the same inputs return equal
@@ -503,6 +505,7 @@ def run_qc_with_intensity(
     """
     from segfacet.aggregate import build_case_result
     from segfacet.feature_report import (
+        add_case_intensity,
         add_intensity_kind,
         build_image_features_block,
         build_intensity_entries,
@@ -521,8 +524,8 @@ def run_qc_with_intensity(
         scan_img, seg_img, enable_pyradiomics=enable_pyradiomics
     )
     # Item 215 (maintainer decision, Option A): the per-label intensity kind is
-    # part of the persisted features record; ``image_features`` keeps only the
-    # case-level fields.
+    # part of the persisted features record; item 216 stores the four
+    # case-level fields there too, as ``case.intensity``.
     features_block = add_intensity_kind(
         features_block,
         build_intensity_entries(
@@ -541,7 +544,9 @@ def run_qc_with_intensity(
         ),
     )
 
-    rule_record = {**features_block, "image_features": image_features_block}
+    features_block = add_case_intensity(features_block, image_features_block)
+
+    rule_record = dict(features_block)
 
     reference_delta: Optional[dict] = None
     intensity_reference_delta: Optional[dict] = None

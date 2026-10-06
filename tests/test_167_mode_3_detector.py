@@ -526,8 +526,8 @@ def test_absence_tolerant_detector():
                 },
             },
         },
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     findings = NeighbourContactRule().evaluate(record, config)
     assert isinstance(findings, list)

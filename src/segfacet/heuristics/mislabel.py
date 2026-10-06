@@ -8,7 +8,7 @@ Implements a **mislabel rule** with one detector, serving one mode of
   Detector B flags a vertebra whose physical position is inconsistent with
   its anatomical label's expected ordering relative to neighbours, via the
   monotonic-progression metric
-  (``stage3.monotonic_consistency.non_monotonic_pairs``, item 020).
+  (``pairs.adjacent.non_monotonic_pairs``, items 020, 216).
 
 Item 033's Detector A (spline-offset misalignment) moved to
 ``heuristics/spline_offset.py`` at item 189: it served no failure mode since
@@ -19,7 +19,7 @@ alongside ``fov_truncation``) -- see that module for its docstring,
 threshold-calibration history and corpus margins.
 
 It consumes two already-serialised sub-blocks of the per-case feature
-record — ``stage3.monotonic_consistency`` (item 020) and ``per_label``
+record — ``pairs.adjacent.non_monotonic_pairs`` (items 020, 216) and ``per_label``
 (item 016) — and never recomputes any geometry, spline, or ordering itself.
 
 Design decisions (recorded per item 033 spec):
@@ -137,7 +137,7 @@ class MislabelRule(Rule):
     condition_opt_ins = (
         ConditionOptIn(
             condition="displaced_vertebra",
-            paths=("stage3.monotonic_consistency.non_monotonic_pairs[]",),
+            paths=("pairs.adjacent.non_monotonic_pairs[]",),
             reason=(
                 "a mislabelled vertebra can read as displaced "
                 "(spline_offset fires on it too), but the ordering is "
@@ -167,6 +167,10 @@ class MislabelRule(Rule):
         ),
         consumed_paths=(
             ConsumedPath(
+                path="pairs.adjacent.non_monotonic_pairs[]",
+                role="signal",
+            ),
+            ConsumedPath(
                 path="per_label",
                 role="bookkeeping",
                 reason=(
@@ -192,10 +196,6 @@ class MislabelRule(Rule):
                     "_label_for_level"
                 ),
             ),
-            ConsumedPath(
-                path="stage3.monotonic_consistency.non_monotonic_pairs[]",
-                role="signal",
-            ),
         ),
         detectors=(
             RuleDetector(
@@ -207,12 +207,12 @@ class MislabelRule(Rule):
                 ),
                 fires_when=(
                     "`flag_order_inconsistency` and "
-                    "`stage3.monotonic_consistency.non_monotonic_pairs` lists "
+                    "`pairs.adjacent.non_monotonic_pairs` lists "
                     "a level pair; one finding per pair"
                 ),
                 params=(("flag_order_inconsistency", True),),
                 signal_paths=(
-                    "stage3.monotonic_consistency.non_monotonic_pairs[]",
+                    "pairs.adjacent.non_monotonic_pairs[]",
                 ),
             ),
         ),
@@ -225,7 +225,7 @@ class MislabelRule(Rule):
         ----------
         record:
             Per-case feature dict (read-only). Reads
-            ``record["stage3"]["monotonic_consistency"]`` and
+            ``record["pairs"]["adjacent"]["non_monotonic_pairs"]`` and
             ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads ``rules.mislabel.params``.
@@ -253,26 +253,23 @@ class MislabelRule(Rule):
             )
         )
 
-        stage3 = record.get("stage3")
-        if not isinstance(stage3, dict):
-            stage3 = {}
+        pairs = record.get("pairs")
+        adjacent = pairs.get("adjacent") if isinstance(pairs, dict) else None
+        if not isinstance(adjacent, dict):
+            adjacent = {}
 
         if not flag_order:
             return []
 
-        return self._detect_order_inconsistency(stage3, record, severity)
+        return self._detect_order_inconsistency(adjacent, record, severity)
 
     @staticmethod
     def _detect_order_inconsistency(
-        stage3: dict, record: dict, severity: Severity
+        adjacent: dict, record: dict, severity: Severity
     ) -> List[Finding]:
         """Detector B: monotonic-progression inconsistency (mislabelling,
         specification mode 9)."""
-        mono = stage3.get("monotonic_consistency")
-        if not isinstance(mono, dict):
-            mono = {}
-
-        pairs = mono.get("non_monotonic_pairs")
+        pairs = adjacent.get("non_monotonic_pairs")
         if not isinstance(pairs, list):
             return []
 

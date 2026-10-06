@@ -249,7 +249,7 @@ def test_ac7_remove_level_unspecified_target_removes_interior_level():
     assert removed_label not in (20, 24)
     assert result.expectation.expected_labels == frozenset()
     case_result, block = run_qc(result.labelmap, bundled_default_config())
-    relationships = block.get("relationships")
+    relationships = block["case"].get("sequence")
     assert relationships is not None
     assert len(relationships.get("missing_levels") or []) > 0
     assert any(f.rule_id == "coverage" for f in case_result.findings)
@@ -327,7 +327,7 @@ def test_remove_level_relabel_leaves_no_missing_level_for_coverage_to_see():
         clean.seg_img, seed=0
     )
     _case_result, block = run_qc(result.labelmap, bundled_default_config())
-    relationships = block.get("relationships")
+    relationships = block["case"].get("sequence")
     assert relationships is not None
     assert not (relationships.get("missing_levels") or [])
 
@@ -335,7 +335,7 @@ def test_remove_level_relabel_leaves_no_missing_level_for_coverage_to_see():
     # the feature simply never being populated.
     gapped = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     _gapped_result, gapped_block = run_qc(gapped.labelmap, bundled_default_config())
-    assert (gapped_block["relationships"].get("missing_levels") or [])
+    assert (gapped_block["case"]["sequence"].get("missing_levels") or [])
 
 
 def test_remove_level_relabel_expectation_well_formed_and_pipeline_agrees():

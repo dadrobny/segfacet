@@ -157,7 +157,7 @@ def test_path_u_mapped_in_anatomical_order():
 
     record = extract_feature_record(img, bundled_default_config())
 
-    assert record["stage3"]["monotonic_consistency"]["is_monotonic"] is True
+    assert record["case"]["curve"]["is_monotonic"] is True
     per_label = {int(k): v for k, v in record["per_label"].items()}
     assert sorted(per_label) == [20, 21, 22, 23, 28]
     path_u = [per_label[label]["curve"]["path_u"] for label in (28, 20, 21, 22, 23)]

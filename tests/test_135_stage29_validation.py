@@ -139,6 +139,16 @@ def _manifest_case(case_id: str) -> dict:
     raise AssertionError(f"case_id {case_id!r} not found in the committed manifest")
 
 
+def _mono(features: dict) -> dict:
+    """The former ``stage3.monotonic_consistency`` mapping, read from where
+    item 216 stores its two fields (``case.curve.is_monotonic`` and
+    ``pairs.adjacent.non_monotonic_pairs``)."""
+    return {
+        "is_monotonic": features["case"]["curve"]["is_monotonic"],
+        "non_monotonic_pairs": features["pairs"]["adjacent"]["non_monotonic_pairs"],
+    }
+
+
 def _record(case_id: str) -> dict:
     seg_img = loaded_seg_image(_manifest_case(case_id))
     return extract_feature_record(seg_img, bundled_default_config())
@@ -392,19 +402,19 @@ def test_adv_reference_default_stays_off_the_allowlist():
 
 def test_ac8_mode4_relabel_swap_is_non_monotonic_through_extract_feature_record():
     record = _record("relabel_swap")
-    mono = record["stage3"]["monotonic_consistency"]
+    mono = _mono(record)
     assert mono["is_monotonic"] is False
 
 
 def test_ac9_mode4_relabel_swap_non_monotonic_pairs_names_l2_l3():
     record = _record("relabel_swap")
-    mono = record["stage3"]["monotonic_consistency"]
+    mono = _mono(record)
     assert mono["non_monotonic_pairs"] == [["L2", "L3"]]
 
 
 def test_ac8_mode4_relabel_swap_is_non_monotonic_through_cli(tmp_path):
     report = _cli_no_reference_report("relabel_swap", tmp_path)
-    mono = report["features"]["stage3"]["monotonic_consistency"]
+    mono = _mono(report["features"])
     assert mono["is_monotonic"] is False
     assert mono["non_monotonic_pairs"] == [["L2", "L3"]]
 
@@ -413,8 +423,8 @@ def test_adv_mode4_extract_feature_record_is_deterministic_across_two_calls():
     record1 = _record("relabel_swap")
     record2 = _record("relabel_swap")
     assert (
-        record1["stage3"]["monotonic_consistency"]
-        == record2["stage3"]["monotonic_consistency"]
+        _mono(record1)
+        == _mono(record2)
     )
 
 
@@ -426,14 +436,14 @@ def test_adv_mode4_extract_feature_record_is_deterministic_across_two_calls():
 
 def test_ac11_clean_control_is_monotonic_through_extract_feature_record():
     record = _record("clean_control")
-    mono = record["stage3"]["monotonic_consistency"]
+    mono = _mono(record)
     assert mono["is_monotonic"] is True
     assert mono["non_monotonic_pairs"] == []
 
 
 def test_ac11_clean_control_is_monotonic_and_fires_nothing_through_cli(tmp_path):
     report = _cli_no_reference_report("clean_control", tmp_path)
-    mono = report["features"]["stage3"]["monotonic_consistency"]
+    mono = _mono(report["features"])
     assert mono["is_monotonic"] is True
     assert mono["non_monotonic_pairs"] == []
     assert report["findings"] == []

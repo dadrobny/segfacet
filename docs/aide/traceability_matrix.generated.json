@@ -575,7 +575,7 @@
       "bounds": 6,
       "coverage": 5,
       "fragmentation": 7,
-      "fused_label": 4,
+      "fused_label": 5,
       "intensity": 5,
       "intensity_reference_delta": 6,
       "mislabel": 4,
@@ -587,13 +587,13 @@
       "split_fragment": 4
     },
     "read_by_no_rule": {
-      "count": 105,
+      "count": 104,
       "qualifier": "a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.",
       "required": false
     },
-    "read_by_rule": 51,
-    "total_paths": 156,
-    "unwired": 32
+    "read_by_rule": 50,
+    "total_paths": 154,
+    "unwired": 33
   },
   "modes": {
     "1": {
@@ -661,14 +661,14 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (the spacings_mm list of the stage 3 spacing_consistency block); as for mode 6, no mode-10 rule reads it -- fused_label reads spacing only beside a doubled size.",
+      "mechanism": "coverage's interior-gap detector fires on the label gap in case.sequence.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (pairs.adjacent.spacings_mm[]); as for mode 6, no mode-10 rule reads it -- fused_label reads spacing only beside a doubled size.",
       "mode": 10,
       "pipeline_detected": false,
       "read_paths": [
+        "case.sequence.missing_levels[]",
+        "case.sequence.present_levels[]",
         "per_label.{label}.centroid.centroid_mm[]",
-        "per_label.{label}.level_name",
-        "relationships.missing_levels[]",
-        "relationships.present_levels[]"
+        "per_label.{label}.level_name"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
@@ -721,7 +721,7 @@
       "cases": [],
       "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "No shipped rule, no candidate feature in the record, no corpus case: listed as proposed. The one hypothesised input is a vertebra-level classifier's output (spine section and counting reference), compared against relationships.present_levels[].",
+      "mechanism": "No shipped rule, no candidate feature in the record, no corpus case: listed as proposed. The one hypothesised input is a vertebra-level classifier's output (spine section and counting reference), compared against case.sequence.present_levels[].",
       "mode": 12,
       "pipeline_detected": false,
       "read_paths": [],
@@ -738,7 +738,7 @@
       "cases": [],
       "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "No rule exists for this mode yet, which is what proposed means. The candidate inputs are the minimum inter-label centroid distance relative to the expected spacing (stage3.spacing_consistency.spacings_mm[]) and the stage3_unavailable.reason field the degenerate case populates (item 129), which no rule reads.",
+      "mechanism": "No rule exists for this mode yet, which is what proposed means. The candidate inputs are the minimum inter-label centroid distance relative to the expected spacing (pairs.adjacent.spacings_mm[]) and the stage3_unavailable.reason field the degenerate case populates (item 129), which no rule reads.",
       "mode": 13,
       "pipeline_detected": false,
       "read_paths": [],
@@ -768,7 +768,7 @@
     },
     "15": {
       "anchor_paths": [
-        "overlaps[].overlap_voxels"
+        "pairs.overlaps[].overlap_voxels"
       ],
       "authored_status": "specified",
       "cases": [],
@@ -782,11 +782,11 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "A single-channel integer label map holds exactly one label per voxel, so overlaps[].overlap_voxels can be non-zero only on a multi-channel input, which no FACET input path supplies: the pipeline builds its mask stack from the one label map. The overlap rule reads that path, is correct and fully wired, and is declared to need multi-channel input. No committed corpus case expresses this mode, because a single-channel fixture cannot hold an overlap (item 195, 2026-09-28).",
+      "mechanism": "A single-channel integer label map holds exactly one label per voxel, so pairs.overlaps[].overlap_voxels can be non-zero only on a multi-channel input, which no FACET input path supplies: the pipeline builds its mask stack from the one label map. The overlap rule reads that path, is correct and fully wired, and is declared to need multi-channel input. No committed corpus case expresses this mode, because a single-channel fixture cannot hold an overlap (item 195, 2026-09-28).",
       "mode": 15,
       "pipeline_detected": false,
       "read_paths": [
-        "overlaps[].overlap_voxels"
+        "pairs.overlaps[].overlap_voxels"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
@@ -887,16 +887,16 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous. Its label is a single component with no stray component to measure, so neighbour_contact is silent; fused_label (item 207) decides it from two signals together: per_label.{label}.geometry.physical_volume_mm3 (the label's volume over its larger adjacent label's, about 2x) and stage3.spacing_consistency.spacings_mm[] (the mean of the label's adjacent spacings over the median of the other spacings, about 1.5x, whichever side the fused centroid falls on), firing only when both strictly exceed their thresholds (DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither signal decides alone: split reads size 1.53 at spacing 1.05. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and fused_label fires on the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).",
+      "mechanism": "Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous. Its label is a single component with no stray component to measure, so neighbour_contact is silent; fused_label (item 207) decides it from two signals together: per_label.{label}.geometry.physical_volume_mm3 (the label's volume over its larger adjacent label's, about 2x) and pairs.adjacent.spacings_mm[] (the mean of the label's adjacent spacings over the median of the other spacings, about 1.5x, whichever side the fused centroid falls on), firing only when both strictly exceed their thresholds (DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither signal decides alone: split reads size 1.53 at spacing 1.05. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and fused_label fires on the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).",
       "mode": 2,
       "pipeline_detected": true,
       "read_paths": [
+        "pairs.adjacent.spacings_mm[]",
         "per_label.{label}.components.component_contacts[].contact_fraction",
         "per_label.{label}.geometry.extent_x_mm",
         "per_label.{label}.geometry.extent_y_mm",
         "per_label.{label}.geometry.extent_z_mm",
-        "per_label.{label}.geometry.physical_volume_mm3",
-        "stage3.spacing_consistency.spacings_mm[]"
+        "per_label.{label}.geometry.physical_volume_mm3"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
@@ -1036,7 +1036,7 @@
     },
     "6": {
       "anchor_paths": [
-        "relationships.present_levels[]"
+        "case.sequence.present_levels[]"
       ],
       "authored_status": "specified",
       "cases": [
@@ -1051,7 +1051,7 @@
       ],
       "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (the spacings_mm list of the stage 3 spacing_consistency block) that no mode-6 rule reads; fused_label reads spacing only beside a doubled size, so it is silent there. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
+      "mechanism": "Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in case.sequence.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (pairs.adjacent.spacings_mm[]) that no mode-6 rule reads; fused_label reads spacing only beside a doubled size, so it is silent there. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.",
       "mode": 6,
       "pipeline_detected": true,
       "read_paths": [],
@@ -1068,7 +1068,7 @@
       "cases": [],
       "edge_rungs": [],
       "granularity": "signal",
-      "mechanism": "No rule and no corpus case: listed as proposed. The hypothesised label-map signals are a centroid off the fitted spinal curve (per_label.{label}.curve.offset_mm, whose shipped detector serves no mode), a halved inter-centroid spacing where the extra segment sits (stage3.spacing_consistency.spacings_mm[]), a volume out of range for the level it is named (per_label.{label}.geometry.physical_volume_mm3), and a present level count above the expected count -- coverage's count check tests only a shortfall.",
+      "mechanism": "No rule and no corpus case: listed as proposed. The hypothesised label-map signals are a centroid off the fitted spinal curve (per_label.{label}.curve.offset_mm, whose shipped detector serves no mode), a halved inter-centroid spacing where the extra segment sits (pairs.adjacent.spacings_mm[]), a volume out of range for the level it is named (per_label.{label}.geometry.physical_volume_mm3), and a present level count above the expected count -- coverage's count check tests only a shortfall.",
       "mode": 7,
       "pipeline_detected": false,
       "read_paths": [],
@@ -1081,7 +1081,7 @@
     },
     "8": {
       "anchor_paths": [
-        "stage3.monotonic_consistency.is_monotonic"
+        "case.curve.is_monotonic"
       ],
       "authored_status": "specified",
       "cases": [],
@@ -1100,7 +1100,7 @@
     },
     "9": {
       "anchor_paths": [
-        "relationships.is_continuous"
+        "case.sequence.is_continuous"
       ],
       "authored_status": "specified",
       "cases": [
@@ -1131,13 +1131,13 @@
         ]
       ],
       "granularity": "signal",
-      "mechanism": "Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) those pairs are judged in CANONICAL_ORDER order, so a correctly placed T13 or Cocc no longer fires, and sequence_break fires ordering beside shift. A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
+      "mechanism": "Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on pairs.adjacent.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) those pairs are judged in CANONICAL_ORDER order, so a correctly placed T13 or Cocc no longer fires, and sequence_break fires ordering beside shift. A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.",
       "mode": 9,
       "pipeline_detected": true,
       "read_paths": [
+        "pairs.adjacent.non_monotonic_pairs[]",
         "per_label.{label}.centroid.centroid_mm[]",
-        "per_label.{label}.level_name",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]"
+        "per_label.{label}.level_name"
       ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
       "rule_attribution": {
@@ -1161,6 +1161,7 @@
       "evidence": [],
       "feature_path_count": 10,
       "feature_paths": [
+        "case.sequence.present_levels[]",
         "per_label",
         "per_label.{label}.geometry.touches_anterior",
         "per_label.{label}.geometry.touches_inferior",
@@ -1169,8 +1170,7 @@
         "per_label.{label}.geometry.touches_right",
         "per_label.{label}.geometry.touches_superior",
         "per_label.{label}.label",
-        "per_label.{label}.level_name",
-        "relationships.present_levels[]"
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "records the FOV-truncation CONDITION, not a failure mode: the item-150 sign-off (2026-09-14) retired 'partial vertebra at the image border' from the failure catalogue into segfacet.failure_modes.CONDITIONS['fov_truncation'], because a truncated vertebra is a property of the scan that gates other rules, not a defect of the segmentation. tests/corpus/manifest.json's crop_at_border is that condition's fixture.",
       "modes": [],
@@ -1203,15 +1203,15 @@
       "declaration_state": "declared",
       "evidence": [
         "analytic",
-        "the always-active missing_interior detector reads the label gap in relationships.missing_levels[] -- what a skipped level label (mode 10) leaves -- but the rule cannot see whether the vertebra behind the gap is actually present, so it cannot distinguish a skipped label from a missed vertebra (mode 6). remove_level (mode 6, tests/corpus/manifest.json) therefore fires this detector as a recorded co-detection, not a validation of mode 10: no committed case expresses mode 10 itself (item 188, 2026-09-28). The two opt-in checks (expected span, expected count) over relationships.present_levels[] moved with the rule and serve the same mode, needs-real-data."
+        "the always-active missing_interior detector reads the label gap in case.sequence.missing_levels[] -- what a skipped level label (mode 10) leaves -- but the rule cannot see whether the vertebra behind the gap is actually present, so it cannot distinguish a skipped label from a missed vertebra (mode 6). remove_level (mode 6, tests/corpus/manifest.json) therefore fires this detector as a recorded co-detection, not a validation of mode 10: no committed case expresses mode 10 itself (item 188, 2026-09-28). The two opt-in checks (expected span, expected count) over case.sequence.present_levels[] moved with the rule and serve the same mode, needs-real-data."
       ],
       "feature_path_count": 5,
       "feature_paths": [
+        "case.sequence",
+        "case.sequence.missing_levels[]",
+        "case.sequence.present_levels[]",
         "per_label",
-        "per_label.{label}.level_name",
-        "relationships",
-        "relationships.missing_levels[]",
-        "relationships.present_levels[]"
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [
@@ -1248,12 +1248,13 @@
         "corpus-manifest",
         "tests/corpus/manifest.json's fuse_adjacent and fuse_separate designate this rule for mode 2 (fused vertebra segments); item 207 (2026-09-30). Measured: label 22 reads size 2.3248 / spacing 1.5380 on fuse_adjacent and 2.0016 / 1.5371 on fuse_separate, against thresholds 1.5 / 1.25; every other case in both corpora is silent."
       ],
-      "feature_path_count": 4,
+      "feature_path_count": 5,
       "feature_paths": [
+        "pairs.adjacent.mean_spacing_mm",
+        "pairs.adjacent.spacings_mm[]",
         "per_label",
         "per_label.{label}.geometry.physical_volume_mm3",
-        "per_label.{label}.level_name",
-        "stage3.spacing_consistency.spacings_mm[]"
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [
@@ -1269,7 +1270,7 @@
       ],
       "feature_path_count": 5,
       "feature_paths": [
-        "image_features.available",
+        "case.intensity.available",
         "per_label",
         "per_label.{label}.intensity.first_order.median",
         "per_label.{label}.intensity.first_order.std",
@@ -1305,10 +1306,10 @@
       ],
       "feature_path_count": 4,
       "feature_paths": [
+        "pairs.adjacent.non_monotonic_pairs[]",
         "per_label",
         "per_label.{label}.label",
-        "per_label.{label}.level_name",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]"
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [
@@ -1340,16 +1341,16 @@
       "declaration_state": "declared",
       "evidence": [
         "analytic",
-        "needs multi-channel input: overlaps[] is non-empty only when two labels claim one voxel, which a single-channel integer label map cannot express, so the pipeline's one-hot mask stack yields no overlap on any input FACET accepts today. Mode 15 (overlapping segments) of the catalogue signed off at item 150; the per-edge rung in segfacet.failure_modes.SPECIFICATION[15] is structurally-unobservable, and no committed corpus case designates this rule (item 195, 2026-09-28)."
+        "needs multi-channel input: pairs.overlaps[] is non-empty only when two labels claim one voxel, which a single-channel integer label map cannot express, so the pipeline's one-hot mask stack yields no overlap on any input FACET accepts today. Mode 15 (overlapping segments) of the catalogue signed off at item 150; the per-edge rung in segfacet.failure_modes.SPECIFICATION[15] is structurally-unobservable, and no committed corpus case designates this rule (item 195, 2026-09-28)."
       ],
       "feature_path_count": 6,
       "feature_paths": [
-        "overlaps[]",
-        "overlaps[].label_a",
-        "overlaps[].label_b",
-        "overlaps[].name_a",
-        "overlaps[].name_b",
-        "overlaps[].overlap_voxels"
+        "pairs.overlaps[]",
+        "pairs.overlaps[].label_a",
+        "pairs.overlaps[].label_b",
+        "pairs.overlaps[].overlap_voxels",
+        "per_label",
+        "per_label.{label}.level_name"
       ],
       "mode_less_reason": "",
       "modes": [

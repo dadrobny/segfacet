@@ -1257,9 +1257,10 @@ def _offset_record(entries):
             }
             for e in entries
         },
-        "stage3": {
-            "monotonic_consistency": {"is_monotonic": True, "non_monotonic_pairs": []},
-        },
+        # Item 216: monotonic_consistency -> case.curve.is_monotonic and
+        # pairs.adjacent.non_monotonic_pairs.
+        "case": {"curve": {"is_monotonic": True}},
+        "pairs": {"adjacent": {"non_monotonic_pairs": []}},
     }
 
 

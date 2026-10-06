@@ -81,7 +81,7 @@ def test_ac3_relabel_swap_still_fires():
 
 def test_ac4_record_reports_the_two_controls_as_monotonic():
     assert [
-        rec(m)["stage3"]["monotonic_consistency"]["non_monotonic_pairs"]
+        rec(m)["pairs"]["adjacent"]["non_monotonic_pairs"]
         for m in (_T13_MAP, _COCC_MAP)
     ] == [[], []]
 

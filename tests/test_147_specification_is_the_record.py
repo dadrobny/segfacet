@@ -640,14 +640,14 @@ def _sequence_record(levels):
             "centroid": {"centroid_mm": [0.0, 0.0, float(n - i)]},
         }
     return {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": list(levels),
             "missing_levels": [],
             "is_continuous": True,
             "out_of_order_labels": [],
-        },
+        }},
         "per_label": per_label,
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
 
 

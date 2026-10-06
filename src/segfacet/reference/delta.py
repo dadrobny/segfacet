@@ -415,8 +415,8 @@ def compute_intensity_reference_delta(
     looks up its level's ``FeatureStats`` in ``reference`` (for ``stratum``)
     and scores the case's intensity values -- drawn from
     ``features_block["per_label"][str(label)]["intensity"]["first_order"]``
-    (items 061, 215; ``image_features`` is only the case-level availability
-    gate) -- against the ``intensity_``-prefixed subset of
+    (items 061, 215; ``image_features`` -- the ``case.intensity`` block since
+    item 216 -- is only the case-level availability gate) -- against the ``intensity_``-prefixed subset of
     ``reference.features``. Reuses :func:`_feature_delta` (and hence the
     same z / robust-z / percentile-rank / out-of-range / distribution-distance
     mechanics item 046 uses for geometry).

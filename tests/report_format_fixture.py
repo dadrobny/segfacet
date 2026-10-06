@@ -17,7 +17,8 @@ key order, key set, or float rendering actually changes.
 
 ``format_contract_inputs()`` returns a hand-written verdict, case_id,
 config and Stage-2+3 features block (schema-valid against
-``report_schema_v0.json``'s ``features``/``stage3`` definitions) plus a
+``report_schema_v0.json``'s ``features``/``caseFeatures``/``pairFeatures``
+definitions) plus a
 findings list, exercising both ``test_016_features_json.py`` and
 ``test_022_stage3_serialisation.py``'s surface with one shared fixture.
 ``format_contract_text()`` serialises those inputs the same way
@@ -69,9 +70,9 @@ def format_contract_inputs() -> dict:
     Returns a dict with keys ``verdict``, ``case_id``, ``config``,
     ``features`` and ``findings`` -- every value a literal. The ``features``
     block carries one ``per_label`` entry (geometry/components/centroid and,
-    since item 215, the curve and orientation kinds), one overlap pair, a
-    ``relationships`` block, and a ``stage3`` sub-block (curvature,
-    spacing_consistency, monotonic_consistency) so it exercises both
+    since item 215, the curve and orientation kinds), a ``case`` container
+    (sequence, curve, intensity) and a ``pairs`` container (one overlap pair
+    and the adjacent-pair values; item 216) so it exercises both
     ``test_016`` (Stage 2 shape) and ``test_022`` (Stage 3 shape).
     """
     verdict = Verdict.build(
@@ -177,39 +178,45 @@ def format_contract_inputs() -> dict:
                 },
             },
         },
-        "overlaps": [
-            {
-                "label_a": 6,
-                "label_b": 7,
-                "name_a": "L4",
-                "name_b": "L3",
-                "overlap_voxels": 3,
+        # Item 216: the case-wide values live under ``case`` and the values
+        # of a pair of labels under ``pairs``.
+        "case": {
+            "sequence": {
+                "present_levels": ["L4", "L3"],
+                "missing_levels": [],
+                "is_continuous": True,
+                "out_of_order_labels": [],
+                "order": [6, 7],
             },
-        ],
-        "relationships": {
-            "present_levels": ["L4", "L3"],
-            "missing_levels": [],
-            "neighbour_spacings_mm": [_LONG_DECIMAL_FLOAT],
-            "is_continuous": True,
-            "out_of_order_labels": [],
-        },
-        "stage3": {
-            "curvature": {
-                "inter_tangent_angles_deg": [],
+            "curve": {
                 "total_curvature_deg": _INTEGRAL_FLOAT,
                 "coronal_curvature_deg": _INTEGRAL_FLOAT,
                 "sagittal_curvature_deg": 0.0,
                 "curvature_plane": "coronal",
+                "is_monotonic": True,
             },
-            "spacing_consistency": {
+            "intensity": {
+                "image_features_version": "1.1",
+                "available": True,
+                "radiomics_available": False,
+                "backend": "builtin",
+            },
+        },
+        "pairs": {
+            "overlaps": [
+                {
+                    "label_a": 6,
+                    "label_b": 7,
+                    "overlap_voxels": 3,
+                },
+            ],
+            "adjacent": {
+                "spacings_mm": [_LONG_DECIMAL_FLOAT],
+                "inter_tangent_angles_deg": [],
                 "mean_spacing_mm": _LONG_DECIMAL_FLOAT,
                 "cv_spacing": 0.0,
-                "spacings_mm": [_LONG_DECIMAL_FLOAT],
                 "deviations_mm": [_NEGATIVE_FLOAT],
                 "outlier_pairs": [],
-            },
-            "monotonic_consistency": {
-                "is_monotonic": True,
                 "non_monotonic_pairs": [],
             },
         },

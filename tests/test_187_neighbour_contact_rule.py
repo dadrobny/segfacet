@@ -413,8 +413,8 @@ def test_largest_component_not_read():
                 },
             },
         },
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     findings = NeighbourContactRule().evaluate(record, bundled_default_config())
     assert findings == []
@@ -444,8 +444,8 @@ def test_label_scope_not_read():
                 },
             },
         },
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     findings = NeighbourContactRule().evaluate(record, bundled_default_config())
     assert findings == []
@@ -495,8 +495,8 @@ def test_absence_tolerant():
                 },
             },
         },
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     findings = NeighbourContactRule().evaluate(record, bundled_default_config())
     assert findings == []

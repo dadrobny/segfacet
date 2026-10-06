@@ -172,8 +172,8 @@ def _make_098_components(
 def _make_record(label: int, level_name: str, components: dict) -> dict:
     return {
         "per_label": {label: {"label": label, "level_name": level_name, "components": components}},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -781,8 +781,8 @@ def test_ac13_reference_derived_excess_finding_matches_frozen_snapshot():
     }
     record = {
         "per_label": {22: {"label": 22, "level_name": "L3", "components": comp}},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
         "reference": reference,
     }
     findings = _frag_findings(run_rules(record, default_config()))

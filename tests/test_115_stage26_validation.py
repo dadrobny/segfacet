@@ -530,7 +530,7 @@ def _multi_label_record():
 
 def test_ac7_neighbourhood_reachable_from_extract_feature_record():
     block = _multi_label_record()
-    assert "stage3" in block
+    assert "curve" in block["case"]
     # Item 215: the neighbourhood block is stored on each label's own entry.
     neighbourhood = [e["neighbourhood"] for e in block["per_label"].values() if "neighbourhood" in e]
     assert neighbourhood, "expected a non-empty list"

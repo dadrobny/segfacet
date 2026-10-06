@@ -157,12 +157,10 @@ def _mislabel_record(offsets: list, pairs: list = ()) -> dict:
             }
             for o in offsets
         },
-        "stage3": {
-            "monotonic_consistency": {
-                "is_monotonic": len(pairs) == 0,
-                "non_monotonic_pairs": [list(p) for p in pairs],
-            },
-        },
+        # Item 216: monotonic_consistency -> case.curve.is_monotonic and
+        # pairs.adjacent.non_monotonic_pairs.
+        "case": {"curve": {"is_monotonic": len(pairs) == 0}},
+        "pairs": {"adjacent": {"non_monotonic_pairs": [list(p) for p in pairs]}},
     }
 
 

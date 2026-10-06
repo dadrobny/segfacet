@@ -1188,6 +1188,14 @@ def test_ac25_steering_review_heading_present_and_honest():
         from feature_taxonomy_mapping import read_mapping
 
         new_to_old = {new: old for old, new, change, _by in read_mapping() if change in ("kept", "moved")}
+        # Item 216: a survivor also stands for the row merged onto it, and the
+        # 106 record transcribed the merged row's override (the survivor
+        # pairs.adjacent.spacings_mm[] takes stage3.spacing_consistency.
+        # spacings_mm[]'s), so that old path is accepted too.
+        merged_old: dict = {}
+        for old, new, change, _by in read_mapping():
+            if change == "merged":
+                merged_old.setdefault(new, []).append(old)
         report_only = re.compile(
             r"^reference_delta\.\{label\}\.features\."
             r"(?:extent_x_mm|extent_y_mm|extent_z_mm|spline_offset_mm)\.[a-z_]+$"
@@ -1200,7 +1208,7 @@ def test_ac25_steering_review_heading_present_and_honest():
                     f"override {key!r} differs from its physical_volume_mm3 counterpart {counterpart!r}"
                 )
                 p = new_to_old.get(counterpart, counterpart)
-            assert p in section, (
+            assert any(c in section for c in [p, *merged_old.get(key, [])]), (
                 f"override key {key!r} (pre-migration {p!r}) not transcribed in the steering-review section"
             )
     else:

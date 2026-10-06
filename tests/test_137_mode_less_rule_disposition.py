@@ -221,7 +221,6 @@ def _firing_record():
     )
     record = {
         **features_block,
-        "image_features": image_features,
         "reference": reference,
         "reference_delta": delta,
         "intensity_reference_delta": intensity_delta,
@@ -984,7 +983,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 156  # item 215 (2026-10-06): 145 -> 156
+    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
 
     # The two analytic rules' own declared modes ...
     # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
@@ -1011,11 +1010,18 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
         # Item 207 (2026-09-30): 91 -> 90 (spacings_mm[] is now consumed).
         # Item 215 (2026-10-06): 89 -> 103 (-4 merged, +16 new, +2 survivors).
-        (): 103,
+        # Item 216 (2026-10-06): 103 -> 102 (the survivor
+        # pairs.adjacent.spacings_mm[] leaves for the fused_label consumer,
+        # -1; pairs.adjacent.mean_spacing_mm leaves for the fused_label gate
+        # it is declared bookkeeping for, -1; case.sequence.order[] joins, +1).
+        (): 102,
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
-        ("rule_bookkeeping",): 8,  # item 215 (2026-10-06): 10 -> 8
+        # item 215 (2026-10-06): 10 -> 8; item 216 (2026-10-06): 8 -> 7
+        # (overlaps[].name_a and .name_b merge onto per_label.{label}.level_name,
+        # -2; pairs.adjacent.mean_spacing_mm joins from the empty bucket, +1).
+        ("rule_bookkeeping",): 7,
         # Item 193 (2026-09-28): entries consumed only by reference_delta
         # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
@@ -1062,7 +1068,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 156  # item 215 (2026-10-06): 145 -> 156
+    assert sum(distribution.values()) == 154  # item 216 (2026-10-06): 156 -> 154
 
 
 # =========================================================================== #

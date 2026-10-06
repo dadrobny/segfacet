@@ -61,13 +61,13 @@ Candidate features:
 - `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
 - `hypothesised` candidate path: `per_label.{label}.components.stray_contact_area_mm2`
 - `hypothesised` candidate path: `per_label.{label}.components.component_contacts[].contact_fraction`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
+- `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 - `hypothesised` candidate path: `spline_leave_one_out_shape_change`
 - `hypothesised` candidate path: `surface_topology`
 - `hypothesised` candidate path: `metric_change_under_split_candidate`
 - `hypothesised` candidate path: `disc_labels_inside_sacrum_label`
 
-Mechanism: Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous. Its label is a single component with no stray component to measure, so neighbour_contact is silent; fused_label (item 207) decides it from two signals together: per_label.{label}.geometry.physical_volume_mm3 (the label's volume over its larger adjacent label's, about 2x) and stage3.spacing_consistency.spacings_mm[] (the mean of the label's adjacent spacings over the median of the other spacings, about 1.5x, whichever side the fused centroid falls on), firing only when both strictly exceed their thresholds (DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither signal decides alone: split reads size 1.53 at spacing 1.05. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and fused_label fires on the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).
+Mechanism: Expressed two ways. The paired case (split): neighbour_contact's stray_contact detector fires on per_label.{label}.components.component_contacts[].contact_fraction -- a stray (non-largest) component's 6-neighbour face-contact area with its single most-contacted other non-zero label, as a fraction of that component's own surface area -- strictly above DEFAULT_CONTACT_FRACTION (0.1). On the split case label 24 covers all of L5 plus L4's caudal cap and its stray component reads 0.3317 against label 23 (806.0 mm^2 over 2430.0 mm^2 of surface; re-measured 2026-09-30, item 205), 3.3x the threshold. The absorbed case (fuse_adjacent, item 176) fuses label 23 (L4) into 22 (L3) bridged -- one connected label over two bodies, with L5 renumbered 23 so the sequence stays continuous. Its label is a single component with no stray component to measure, so neighbour_contact is silent; fused_label (item 207) decides it from two signals together: per_label.{label}.geometry.physical_volume_mm3 (the label's volume over its larger adjacent label's, about 2x) and pairs.adjacent.spacings_mm[] (the mean of the label's adjacent spacings over the median of the other spacings, about 1.5x, whichever side the fused centroid falls on), firing only when both strictly exceed their thresholds (DEFAULT_SIZE_RATIO 1.5 and DEFAULT_SPACING_RATIO 1.25). Neither signal decides alone: split reads size 1.53 at spacing 1.05. The separate-bodies case (fuse_separate, item 206) puts L3 and L4 under label 22 with the disc gap unlabelled: two whole bodies, so the second is a stray component with no contact and neighbour_contact is silent; fragmentation fires on per_label.{label}.components.fragmentation_index as a co-detection, and fused_label fires on the label's doubled size and the widened spacings around it. A secondary, needs-real-data proxy: a fused segment reads over its level's volume/extent range (bounds, per_label.{label}.geometry.physical_volume_mm3).
 
 Intended rules:
 
@@ -79,7 +79,7 @@ Corpus cases:
 
 - `fuse_adjacent` (geometric): expected firing = [fused_label]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 207): the bridged, renumbered map (item 176) is one connected label 22 over two bodies with a continuous label sequence, and carries this mode's own fused_label finding alone: volume 45043 mm^3 against 19375 (label 21) and 19344 (label 23), size 2.3248; spacings [33.49, 49.51, 53.52], mean adjacent spacing (49.51 + 53.52) / 2 / 33.49 = 1.5380 (re-measured 2026-10-05, item 211); against thresholds 1.5 and 1.25, strictly above both. No other rule fires.
 - `split` (geometric): expected firing = [neighbour_contact]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, item 205): mode 2's paired case -- the caudal cap of label 23 (L4) holding 20% of its voxels (4030 of 19344, slices 49-57) is given to label 24 (L5), so label 24 covers all of L5 plus part of L4. Label 24 carries this mode's own Neighbour contact: finding alone (detector id stray_contact, item 187): contact_fraction=0.3317 (806.0 mm^2 over 2430.0 mm^2 of surface) against label 23, +0.2317 above the 0.1 threshold. Mode 1's Fragmentation: detector (detector id components) is separately silent: label 24's fragmentation_index is 0.8276, above its 0.75 threshold. The needs-real-data intended rule (bounds) does not fire without a reference: the donor keeps 15314 mm^3 and extents 31 / 31 / 23 mm, inside the lumbar bounds. Label 23, left covering only the remainder of L4, has no mode yet (gate-51da).
-- `fuse_separate` (geometric): expected firing = [fragmentation, fused_label]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, items 206 and 207): mode 2's separate-bodies case -- L3 and L4 under label 22, the 8 mm disc gap left unlabelled, L5 renumbered 23. Label 22 has two components (sizes 19437 and 19344) and carries one Fragmentation: finding (detector id components), fragmentation_index=0.5012 below the 0.75 threshold. That is a co-detection: mode 1's detector, not mode 2's own, and the two parts are two whole vertebrae, so the case is not a mode-1 case. neighbour_contact is silent because the second body touches nothing (stray_contact_area_mm2 0.0). Mode 2's own signal is fused_label's (item 207): label 22's volume (38781 mm^3) reads 2.0016x its larger neighbour, and the spacings around it (stage3.spacing_consistency.spacings_mm [33.49, 49.46, 53.50], mean adjacent spacing over the baseline) read 1.5371x (re-measured 2026-10-05, item 211), strictly above 1.5 and 1.25 respectively; fragmentation stays a co-detection.
+- `fuse_separate` (geometric): expected firing = [fragmentation, fused_label]; agrees with live measurement: True. pipeline-detected, measured live via segfacet.synth.regression.pipeline_findings (2026-09-30, items 206 and 207): mode 2's separate-bodies case -- L3 and L4 under label 22, the 8 mm disc gap left unlabelled, L5 renumbered 23. Label 22 has two components (sizes 19437 and 19344) and carries one Fragmentation: finding (detector id components), fragmentation_index=0.5012 below the 0.75 threshold. That is a co-detection: mode 1's detector, not mode 2's own, and the two parts are two whole vertebrae, so the case is not a mode-1 case. neighbour_contact is silent because the second body touches nothing (stray_contact_area_mm2 0.0). Mode 2's own signal is fused_label's (item 207): label 22's volume (38781 mm^3) reads 2.0016x its larger neighbour, and the spacings around it (pairs.adjacent.spacings_mm [33.49, 49.46, 53.50], mean adjacent spacing over the baseline) read 1.5371x (re-measured 2026-10-05, item 211), strictly above 1.5 and 1.25 respectively; fragmentation stays a co-detection.
 
 ## Mode 3 (1.2, sub-mode of 1): Split vertebra segment
 
@@ -195,14 +195,14 @@ Corpus cases:
 
 Candidate features:
 
-- Stage-18 metric anchor path (`stage18-metric-anchor`): `relationships.present_levels[]`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
-- `hypothesised` candidate path: `relationships.missing_levels[]`
+- Stage-18 metric anchor path (`stage18-metric-anchor`): `case.sequence.present_levels[]`
+- `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
+- `hypothesised` candidate path: `case.sequence.missing_levels[]`
 - `hypothesised` candidate path: `eval.per_mode.missing_level_count`
 - `hypothesised` candidate path: `extrapolated_centroid_gap_to_image_face_mm`
 - `hypothesised` candidate path: `scan_boundary_without_terminal_label`
 
-Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (the spacings_mm list of the stage 3 spacing_consistency block) that no mode-6 rule reads; fused_label reads spacing only beside a doubled size, so it is silent there. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.
+Mechanism: Defined against ground truth (the Stage-18 metric counts GT levels with no candidate voxels). No registered rule decides this mode since item 188 (2026-09-28): coverage's interior-gap detector fires on the label gap in case.sequence.missing_levels[] that remove_level leaves -- the vertebra is deleted without renumbering and the remaining labels are kept -- but that detector serves mode 10 (skipped level label), because it cannot tell a missed vertebra from a skipped label on a segmented one; so remove_level's firing (coverage and, since item 192, sequence's skip detector, both mode-10 detectors) is a recorded co-detection, not this mode's own evidence. remove_level_relabel fires nothing: it deletes L3 and renumbers L4/L5 to L3/L4, leaving a continuous label sequence with a doubled inter-centroid spacing (pairs.adjacent.spacings_mm[]) that no mode-6 rule reads; fused_label reads spacing only beside a doubled size, so it is silent there. That doubled spacing is this mode's own label-map signal -- it would also catch remove_level -- and its rule is decided in a later per-mode queue (roadmap Stage 33 scope decisions). Two further hypothesised signals cover a missing vertebra at the FOV end: extrapolating the centroid sequence toward the image face, and checking that no label touches a scan boundary that lacks a terminal label.
 
 Intended rules:
 
@@ -231,11 +231,11 @@ Corpus cases:
 Candidate features:
 
 - `hypothesised` candidate path: `per_label.{label}.curve.offset_mm`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
+- `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 - `hypothesised` candidate path: `per_label.{label}.geometry.physical_volume_mm3`
-- `hypothesised` candidate path: `relationships.present_levels[]`
+- `hypothesised` candidate path: `case.sequence.present_levels[]`
 
-Mechanism: No rule and no corpus case: listed as proposed. The hypothesised label-map signals are a centroid off the fitted spinal curve (per_label.{label}.curve.offset_mm, whose shipped detector serves no mode), a halved inter-centroid spacing where the extra segment sits (stage3.spacing_consistency.spacings_mm[]), a volume out of range for the level it is named (per_label.{label}.geometry.physical_volume_mm3), and a present level count above the expected count -- coverage's count check tests only a shortfall.
+Mechanism: No rule and no corpus case: listed as proposed. The hypothesised label-map signals are a centroid off the fitted spinal curve (per_label.{label}.curve.offset_mm, whose shipped detector serves no mode), a halved inter-centroid spacing where the extra segment sits (pairs.adjacent.spacings_mm[]), a volume out of range for the level it is named (per_label.{label}.geometry.physical_volume_mm3), and a present level count above the expected count -- coverage's count check tests only a shortfall.
 
 Intended rules:
 
@@ -262,7 +262,7 @@ Corpus cases:
 
 Candidate features:
 
-- Stage-18 metric anchor path (`stage18-metric-anchor`): `stage3.monotonic_consistency.is_monotonic`
+- Stage-18 metric anchor path (`stage18-metric-anchor`): `case.curve.is_monotonic`
 - `hypothesised` candidate path: `reference_delta.{label}.features.physical_volume_mm3.robust_z`
 - `hypothesised` candidate path: `eval.per_mode.mislabelled_volume_fraction`
 - `hypothesised` candidate path: `vertebra_level_classifier_output`
@@ -294,11 +294,11 @@ Corpus cases:
 
 Candidate features:
 
-- Stage-18 metric anchor path (`stage18-metric-anchor`): `relationships.is_continuous`
-- `hypothesised` candidate path: `relationships.out_of_order_labels[]`
-- `hypothesised` candidate path: `stage3.monotonic_consistency.non_monotonic_pairs[]`
+- Stage-18 metric anchor path (`stage18-metric-anchor`): `case.sequence.is_continuous`
+- `hypothesised` candidate path: `case.sequence.out_of_order_labels[]`
+- `hypothesised` candidate path: `pairs.adjacent.non_monotonic_pairs[]`
 
-Mechanism: Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on stage3.monotonic_consistency.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) those pairs are judged in CANONICAL_ORDER order, so a correctly placed T13 or Cocc no longer fires, and sequence_break fires ordering beside shift. A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.
+Mechanism: Two rules serve this mode (item 192, 2026-09-28): sequence's swap and shift detectors order per_label.{label}.centroid.centroid_mm[] head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER (which puts T13 between T12 and L1); relabel_swap exchanges L2 and L3 and fires swap beside mislabel's ordering, and sequence_break's tail T13 is one rank descent and fires shift. mislabel's ordering detector fires on pairs.adjacent.non_monotonic_pairs[] (relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) those pairs are judged in CANONICAL_ORDER order, so a correctly placed T13 or Cocc no longer fires, and sequence_break fires ordering beside shift. A multi-relabel scramble is not expressible by the fixture generator, which is why the sequence edge stays needs-real-data although its case is pipeline-detected.
 
 Intended rules:
 
@@ -307,7 +307,7 @@ Intended rules:
 
 Corpus cases:
 
-- `relabel_swap` (geometric): expected firing = [mislabel, sequence]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-28, item 192): mislabel's ordering detector fires (labels 21/L2 and 22/L3 are out of expected order along the spline), and sequence's swap detector now fires beside it on the same pair (labels 21, 22), reading per_label centroids instead of relationships.out_of_order_labels[]. A swap is the order-breaking form of mislabelling.
+- `relabel_swap` (geometric): expected firing = [mislabel, sequence]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-09-28, item 192): mislabel's ordering detector fires (labels 21/L2 and 22/L3 are out of expected order along the spline), and sequence's swap detector now fires beside it on the same pair (labels 21, 22), reading per_label centroids instead of case.sequence.out_of_order_labels[]. A swap is the order-breaking form of mislabelling.
 - `sequence_break` (geometric): expected firing = [mislabel, sequence]; agrees with live measurement: True. pipeline-detected; measured live via segfacet.synth.regression.pipeline_findings (2026-10-05, item 210). The tail vertebra is relabelled to T13, a single rank descent read from per_label centroids and named as a sequence shift; with the pairs judged in CANONICAL_ORDER order against the label-free path through the centroids, mislabel's ordering detector also fires once, on the pair (T13, L1), labels 20 and 28. Why the edge's rung sits below this measured detection is in the mechanism sentence.
 
 ## Mode 10 (8.2, sub-mode of 8): Skipped level label
@@ -327,10 +327,10 @@ Corpus cases:
 
 Candidate features:
 
-- `hypothesised` candidate path: `relationships.missing_levels[]`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
+- `hypothesised` candidate path: `case.sequence.missing_levels[]`
+- `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 
-Mechanism: coverage's interior-gap detector fires on the label gap in relationships.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (the spacings_mm list of the stage 3 spacing_consistency block); as for mode 6, no mode-10 rule reads it -- fused_label reads spacing only beside a doubled size.
+Mechanism: coverage's interior-gap detector fires on the label gap in case.sequence.missing_levels[] (item 188, 2026-09-28). The detector cannot tell that gap from a missed vertebra, so on remove_level (mode 6) it is a co-detection, not a validation of this mode. sequence's skip detector reads the same gap from per_label.{label}.level_name (item 192, 2026-09-28): it orders the kept levels head-to-tail and names any level of the expected sequence absent between two present ones, and it also co-detects on remove_level, like coverage. No committed case expresses this mode itself (only the mode-6 co-detection), so the edge is needs-real-data: a skip-relabel fixture (renumber the labels caudal to a level down by one without deleting a vertebra) is not authored. The separating signal is an ordinary inter-centroid spacing across the label gap (pairs.adjacent.spacings_mm[]); as for mode 6, no mode-10 rule reads it -- fused_label reads spacing only beside a doubled size.
 
 Intended rules:
 
@@ -388,9 +388,9 @@ Corpus cases:
 Candidate features:
 
 - `hypothesised` candidate path: `vertebra_level_classifier_output`
-- `hypothesised` candidate path: `relationships.present_levels[]`
+- `hypothesised` candidate path: `case.sequence.present_levels[]`
 
-Mechanism: No shipped rule, no candidate feature in the record, no corpus case: listed as proposed. The one hypothesised input is a vertebra-level classifier's output (spine section and counting reference), compared against relationships.present_levels[].
+Mechanism: No shipped rule, no candidate feature in the record, no corpus case: listed as proposed. The one hypothesised input is a vertebra-level classifier's output (spine section and counting reference), compared against case.sequence.present_levels[].
 
 Intended rules:
 
@@ -418,9 +418,9 @@ Corpus cases:
 Candidate features:
 
 - `hypothesised` candidate path: `stage3_unavailable.reason`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
+- `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 
-Mechanism: No rule exists for this mode yet, which is what proposed means. The candidate inputs are the minimum inter-label centroid distance relative to the expected spacing (stage3.spacing_consistency.spacings_mm[]) and the stage3_unavailable.reason field the degenerate case populates (item 129), which no rule reads.
+Mechanism: No rule exists for this mode yet, which is what proposed means. The candidate inputs are the minimum inter-label centroid distance relative to the expected spacing (pairs.adjacent.spacings_mm[]) and the stage3_unavailable.reason field the degenerate case populates (item 129), which no rule reads.
 
 Intended rules:
 
@@ -449,7 +449,7 @@ Candidate features:
 
 - `hypothesised` candidate path: `per_component_centroids`
 - `hypothesised` candidate path: `per_label.{label}.components.fragmentation_index`
-- `hypothesised` candidate path: `stage3.spacing_consistency.spacings_mm[]`
+- `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 
 Mechanism: No rule exists for this mode yet, which is what proposed means. The candidate inputs are per-component centroids and volumes (not extracted today): two components under one label, each of vertebral-body size and separated by more than an inter-vertebral spacing. fragmentation's Fragmentation: detector (mode 1's) would co-detect on two comparably-sized components (per_label.{label}.components.fragmentation_index).
 
@@ -478,10 +478,10 @@ Corpus cases:
 
 Candidate features:
 
-- Stage-18 metric anchor path (`stage18-metric-anchor`): `overlaps[].overlap_voxels`
+- Stage-18 metric anchor path (`stage18-metric-anchor`): `pairs.overlaps[].overlap_voxels`
 - `hypothesised` candidate path: `eval.per_mode.overlapping_voxel_count`
 
-Mechanism: A single-channel integer label map holds exactly one label per voxel, so overlaps[].overlap_voxels can be non-zero only on a multi-channel input, which no FACET input path supplies: the pipeline builds its mask stack from the one label map. The overlap rule reads that path, is correct and fully wired, and is declared to need multi-channel input. No committed corpus case expresses this mode, because a single-channel fixture cannot hold an overlap (item 195, 2026-09-28).
+Mechanism: A single-channel integer label map holds exactly one label per voxel, so pairs.overlaps[].overlap_voxels can be non-zero only on a multi-channel input, which no FACET input path supplies: the pipeline builds its mask stack from the one label map. The overlap rule reads that path, is correct and fully wired, and is declared to need multi-channel input. No committed corpus case expresses this mode, because a single-channel fixture cannot hold an overlap (item 195, 2026-09-28).
 
 Intended rules:
 
@@ -540,7 +540,7 @@ Candidate features:
 - `hypothesised` candidate path: `per_label.{label}.curve.dz_mm`
 - `hypothesised` candidate path: `per_label.{label}.curve.is_terminal`
 
-Mechanism: spline_offset records the condition end-to-end on displace, which rigidly translates label 22 (L3) off the fitted spinal curve: its held-out offset_mm (per_label.{label}.curve.offset_mm, item 120) exceeds the 13.0 mm threshold, measured live via segfacet.synth.regression.pipeline_findings (2026-09-28). A label that touches a face is a fov_truncation member, and the runner's condition gate (item 191) drops a spline_offset finding on it, because spline_offset does not opt in to that condition: the missing region has already spoiled the measured centroid. The offset itself is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement): mislabel's ordering detector, which decides specification mode 9, reads a different signal entirely (stage3.monotonic_consistency.non_monotonic_pairs[]) and never fires on a displaced-only case. mislabel opts in to this condition too (item 191, 2026-09-28): a label swap can put a centroid off the curve fitted in label order, so a genuine mislabel can also read as displaced, and mislabel's own ordering finding on that label must survive the runner's condition gate rather than be dropped behind the anatomy condition. sequence opts in as well (item 192, 2026-09-28): the same swap reads as displaced under spline_offset, but sequence's own head-to-tail order is judged by rank, which survives a displacement that does not pass a neighbour -- exactly what a swap creates -- so its swap/shift finding on that label must survive the gate too.
+Mechanism: spline_offset records the condition end-to-end on displace, which rigidly translates label 22 (L3) off the fitted spinal curve: its held-out offset_mm (per_label.{label}.curve.offset_mm, item 120) exceeds the 13.0 mm threshold, measured live via segfacet.synth.regression.pipeline_findings (2026-09-28). A label that touches a face is a fov_truncation member, and the runner's condition gate (item 191) drops a spline_offset finding on it, because spline_offset does not opt in to that condition: the missing region has already spoiled the measured centroid. The offset itself is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement): mislabel's ordering detector, which decides specification mode 9, reads a different signal entirely (pairs.adjacent.non_monotonic_pairs[]) and never fires on a displaced-only case. mislabel opts in to this condition too (item 191, 2026-09-28): a label swap can put a centroid off the curve fitted in label order, so a genuine mislabel can also read as displaced, and mislabel's own ordering finding on that label must survive the runner's condition gate rather than be dropped behind the anatomy condition. sequence opts in as well (item 192, 2026-09-28): the same swap reads as displaced under spline_offset, but sequence's own head-to-tail order is judged by rank, which survives a displacement that does not pass a neighbour -- exactly what a swap creates -- so its swap/shift finding on that label must survive the gate too.
 
 Corpus cases:
 

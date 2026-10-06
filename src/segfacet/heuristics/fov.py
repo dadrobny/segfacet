@@ -9,7 +9,7 @@ missing level, and the topmost/bottommost segmented vertebra abutting the FOV
 boundary is not a border defect.
 
 The covered span is ``[present_levels[0] .. present_levels[-1]]``
-(``relationships.present_levels``, item 014, canonical head-to-tail order —
+(``case.sequence.present_levels``, item 014, canonical head-to-tail order —
 item 004's :data:`segfacet.labels.CANONICAL_ORDER`). A span end is **truncated**
 when its extremal segmented vertebra's geometry touches the corresponding
 cranio-caudal image face (``touches_superior`` / ``touches_inferior``, item
@@ -70,10 +70,10 @@ class FovCoverage:
     Attributes
     ----------
     superior_end_level:
-        ``relationships.present_levels[0]`` (most-superior present level), or
+        ``case.sequence.present_levels[0]`` (most-superior present level), or
         ``None`` if no span is determinable (:attr:`has_span` is ``False``).
     inferior_end_level:
-        ``relationships.present_levels[-1]`` (most-inferior present level), or
+        ``case.sequence.present_levels[-1]`` (most-inferior present level), or
         ``None`` if no span is determinable.
     superior_truncated:
         ``True`` iff the superior end's geometry touches the superior
@@ -178,7 +178,7 @@ def derive_fov_coverage(record: dict) -> FovCoverage:
     ----------
     record:
         Per-case feature dict (read-only, never mutated). Reads
-        ``record["relationships"]["present_levels"]`` (item 014) and
+        ``record["case"]["sequence"]["present_levels"]`` (item 014) and
         ``record["per_label"]`` (item 016) to locate each span end's
         ``geometry.touches_superior`` / ``touches_inferior`` (item 011).
 
@@ -186,12 +186,13 @@ def derive_fov_coverage(record: dict) -> FovCoverage:
     -------
     FovCoverage
         The covered-span descriptor. Conservative and never raising on a
-        degenerate record: absent/``None``/non-mapping ``relationships``, an
+        degenerate record: absent/``None``/non-mapping ``case.sequence``, an
         empty ``present_levels``, or a missing span-end ``per_label`` entry
         all yield ``has_span == False`` (or, for a missing entry only, that
         end's ``*_truncated == False``) rather than raising.
     """
-    rel = record.get("relationships")
+    case = record.get("case")
+    rel = case.get("sequence") if isinstance(case, dict) else None
     if not isinstance(rel, dict):
         return _NOT_DETERMINABLE
 

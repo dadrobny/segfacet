@@ -67,9 +67,9 @@ _CATALOGUE_MD = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.md"
 _NEW_LEAF_PATHS = (
     "per_label.{label}.orientation.tangent_coronal_unwrapped_deg",
     "per_label.{label}.orientation.tangent_sagittal_unwrapped_deg",
-    "stage3.curvature.coronal_curvature_deg",
-    "stage3.curvature.sagittal_curvature_deg",
-    "stage3.curvature.curvature_plane",
+    "case.curve.coronal_curvature_deg",
+    "case.curve.sagittal_curvature_deg",
+    "case.curve.curvature_plane",
 )
 
 # =========================================================================== #
@@ -592,10 +592,10 @@ def test_ac16_full_report_with_new_keys_validates():
     block = _full_stage3_block(centroids)
     report = serialize_report(_empty_verdict(), "case-122", _config(), features=block)
     jsonschema.validate(report, _SCHEMA)
-    curv = report["features"]["stage3"]["curvature"]
+    curv = report["features"]["case"]["curve"]
     for key in _NEW_LEAF_PATHS:
         bare = key.rsplit(".", 1)[-1].rstrip("[]")
-        if key.startswith("stage3.curvature."):
+        if key.startswith("case.curve."):
             assert bare in curv
         else:
             for entry in report["features"]["per_label"].values():
@@ -606,7 +606,7 @@ def test_ac16_missing_required_key_fails_validation():
     """Proves 'required' is load-bearing: dropping one new key fails validation."""
     centroids = _balanced_s_curve()
     block = _full_stage3_block(centroids)
-    del block["stage3"]["curvature"]["curvature_plane"]
+    del block["case"]["curve"]["curvature_plane"]
     with pytest.raises(jsonschema.ValidationError):
         serialize_report(_empty_verdict(), "case-122", _config(), features=block)
 
@@ -624,8 +624,8 @@ _RAS_MARKERS = ("ras", "r, a, s", "load_volume", "right, anterior, superior")
     [
         ("per_label.{label}.orientation.tangent_coronal_unwrapped_deg", "coronal"),
         ("per_label.{label}.orientation.tangent_sagittal_unwrapped_deg", "sagittal"),
-        ("stage3.curvature.coronal_curvature_deg", "coronal"),
-        ("stage3.curvature.sagittal_curvature_deg", "sagittal"),
+        ("case.curve.coronal_curvature_deg", "coronal"),
+        ("case.curve.sagittal_curvature_deg", "sagittal"),
     ],
 )
 def test_ac17_new_leaf_docs_name_their_plane_and_ras_precondition(path, plane):
@@ -639,7 +639,7 @@ def test_ac17_new_leaf_docs_name_their_plane_and_ras_precondition(path, plane):
 
 
 def test_ac17_curvature_plane_key_documented():
-    assert "stage3.curvature.curvature_plane" in FEATURE_DOCS
+    assert "case.curve.curvature_plane" in FEATURE_DOCS
 
 
 # =========================================================================== #
@@ -648,7 +648,7 @@ def test_ac17_curvature_plane_key_documented():
 
 
 def test_ac18_total_curvature_doc_drops_retired_formula():
-    doc = FEATURE_DOCS["stage3.curvature.total_curvature_deg"]
+    doc = FEATURE_DOCS["case.curve.total_curvature_deg"]
     combined = doc.measures + " " + doc.computation
     assert "max(tangent_angles_deg)" not in combined
     assert "min(tangent_angles_deg)" not in combined
@@ -724,7 +724,7 @@ def test_ac20_new_curvature_keys_present_in_every_committed_golden():
     assert cases
     for case in cases:
         data = build_report_for_case(case)
-        curv = data["features"]["stage3"]["curvature"]
+        curv = data["features"]["case"]["curve"]
         for key in (
             "coronal_curvature_deg",
             "sagittal_curvature_deg",

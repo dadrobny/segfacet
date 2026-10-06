@@ -329,7 +329,12 @@ def test_ac7_mode4_relabel_swap_is_monotonic_pinned_true():
     132 this read ``True`` with zero non-monotonic pairs; now it reads
     ``False`` with the swapped pair named."""
     _case_result, block = _run_qc("relabel_swap")
-    mono = block["stage3"]["monotonic_consistency"]
+    # Item 216: monotonic_consistency -> case.curve.is_monotonic and
+    # pairs.adjacent.non_monotonic_pairs.
+    mono = {
+        "is_monotonic": block["case"]["curve"]["is_monotonic"],
+        "non_monotonic_pairs": block["pairs"]["adjacent"]["non_monotonic_pairs"],
+    }
     assert mono["is_monotonic"] is False
     # non_monotonic_pairs is serialised as a list of two-element lists
     # (feature_report.monotonic_consistency_to_dict), not a tuple.
@@ -350,7 +355,11 @@ def test_ac7_mode4_run_qc_is_deterministic_across_two_calls():
     equal offsets and equal monotonicity."""
     _cr1, block1 = _run_qc("relabel_swap")
     _cr2, block2 = _run_qc("relabel_swap")
-    assert block1["stage3"]["monotonic_consistency"] == block2["stage3"]["monotonic_consistency"]
+    assert block1["case"]["curve"]["is_monotonic"] == block2["case"]["curve"]["is_monotonic"]
+    assert (
+        block1["pairs"]["adjacent"]["non_monotonic_pairs"]
+        == block2["pairs"]["adjacent"]["non_monotonic_pairs"]
+    )
     assert _max_offset_mm(block1) == pytest.approx(_max_offset_mm(block2))
 
 

@@ -152,7 +152,7 @@ class RemoveLevelPerturbation(Perturbation):
     Registered under ``"remove_level"``. Zeroes every voxel of the target
     label, leaving a level-sequence gap that
     :class:`~segfacet.heuristics.coverage.CoverageRule` detects via
-    ``relationships.missing_levels`` as a case-level
+    ``case.sequence.missing_levels`` as a case-level
     ``"Missing interior level(s):"`` finding (specification mode 6, vertebra
     not segmented). Rejects a span with
     fewer than 3 present labels (no interior level exists) or an explicit
@@ -229,9 +229,9 @@ class RemoveLevelRelabelPerturbation(Perturbation):
     with target 22 becomes ``[20, 21, 22, 23]``: old 23 -> 22, old 24 ->
     23). This is mode 4 (vertebra not segmented) in the form a real
     segmenter produces when it misses a vertebra and miscounts the rest:
-    ``relationships.missing_levels[]`` stays empty and the only signature
+    ``case.sequence.missing_levels[]`` stays empty and the only signature
     is a doubled inter-centroid spacing at the gap
-    (``stage3.spacing_consistency.spacings_mm[]``), which no rule
+    (``pairs.adjacent.spacings_mm[]``), which no rule
     reads for this mode (``fused_label`` reads it only beside a doubled
     size, so it is silent here) -- so the expectation designates no rule and a ``"pass"``
     verdict, honestly recording "not detected today". Rejects a span with

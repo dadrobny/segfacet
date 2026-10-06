@@ -247,13 +247,13 @@ def _gt_record() -> dict:
                 },
             },
         },
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["L1"],
             "missing_levels": [],
             "is_continuous": True,
             "out_of_order_labels": [],
-        },
-        "overlaps": [],
+        }},
+        "pairs": {"overlaps": []},
     }
 
 

@@ -52,7 +52,7 @@ the geometric corpus base"):
 
 The default level span is lumbar L1-L5 (labels 20-24): a canonically-
 contiguous run with no interior transitional vertebra, so
-``relationships.missing_levels`` stays empty and ``coverage`` stays silent
+``case.sequence.missing_levels`` stays empty and ``coverage`` stays silent
 (see the "transitional-vertebra trap" in the item spec). Any configured
 ``levels`` must likewise be a contiguous run within a single anatomical group
 -- crossing the T12->L1 or L5->S junction interleaves the transitional

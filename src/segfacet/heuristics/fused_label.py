@@ -12,10 +12,12 @@ at normal spacing (1.05), and ``relabel_swap``'s label 20 is widely spaced
 Design decisions (item 207 spec, A1-A6):
 - **size_ratio (A1)**: the label's ``physical_volume_mm3`` divided by the
   *larger* ``physical_volume_mm3`` of its adjacent labels. Adjacency is the
-  ascending-integer label order ``stage3.spacing_consistency.spacings_mm[]``
-  is computed in (``spacings_mm[i]`` lies between the i-th and (i+1)-th
-  label). The larger neighbour, not the mean, so a label beside an
-  undersized cap does not read large.
+  item-198 anatomical label order (``segfacet.labels.anatomical_order``, item
+  216, D1/D7) that ``pairs.adjacent.spacings_mm[]`` is stored in
+  (``spacings_mm[i]`` lies between the i-th and (i+1)-th label of that
+  sequence, every label, unrecognised ones last). Before item 216 the order
+  was ascending integer label. The larger neighbour, not the mean, so a label
+  beside an undersized cap does not read large.
 - **spacing_ratio (A2, item 211)**: the *mean* of the spacings adjacent to
   the label, divided by the median of the case's spacings not adjacent to
   it. The pair is judged together because a fused label adds about one
@@ -38,8 +40,12 @@ Design decisions (item 207 spec, A1-A6):
   (``relabel_swap`` label 20, size 1.0). Interior labels beside a missed
   level now pass the spacing gate (``remove_level_relabel`` label 22, mean
   1.5408) and only the size gate (0.9984) keeps them silent.
-- Absence-tolerant: a record without ``stage3.spacing_consistency.
-  spacings_mm``, with a spacing count other than ``len(per_label) - 1``, or
+- Gate (item 216, A12): only a record whose Stage-3-only spacing statistics
+  are present (``pairs.adjacent.mean_spacing_mm``, read as a gate and
+  declared a bookkeeping consumed path) is judged, so the survivor existing
+  on a Stage-3-less record (D10) starts no new judgement.
+- Absence-tolerant: a record without ``pairs.adjacent.spacings_mm``, with a
+  spacing count other than ``len(per_label) - 1``, or
   with a label lacking a numeric volume, or with a non-integer ``per_label``
   key (item 211) is not judged (returns ``[]``).
 - Unrecognised severity raises ``ValueError`` before any work. The record is
@@ -56,6 +62,7 @@ import statistics
 from typing import Dict, List
 
 from segfacet.heuristics.finding import Finding
+from segfacet.labels import anatomical_order
 from segfacet.heuristics.rule import (
     ConsumedPath,
     Rule,
@@ -132,6 +139,19 @@ class FusedLabelRule(Rule):
         ),
         consumed_paths=(
             ConsumedPath(
+                path="pairs.adjacent.mean_spacing_mm",
+                role="bookkeeping",
+                reason=(
+                    "gate: the survivor spacing array exists on records "
+                    "without Stage 3 too (item 216, D10), but only a record "
+                    "carrying the Stage-3-only statistics is judged (A12)"
+                ),
+            ),
+            ConsumedPath(
+                path="pairs.adjacent.spacings_mm[]",
+                role="signal",
+            ),
+            ConsumedPath(
                 path="per_label",
                 role="bookkeeping",
                 reason="container: iterated to reach each label's volume",
@@ -147,10 +167,6 @@ class FusedLabelRule(Rule):
                     "identity: names the level in the finding and excludes "
                     "sacral and coccygeal labels from judgement"
                 ),
-            ),
-            ConsumedPath(
-                path="stage3.spacing_consistency.spacings_mm[]",
-                role="signal",
             ),
         ),
         detectors=(
@@ -173,7 +189,7 @@ class FusedLabelRule(Rule):
                 ),
                 signal_paths=(
                     "per_label.{label}.geometry.physical_volume_mm3",
-                    "stage3.spacing_consistency.spacings_mm[]",
+                    "pairs.adjacent.spacings_mm[]",
                 ),
             ),
         ),
@@ -194,12 +210,10 @@ class FusedLabelRule(Rule):
             self.rule_id, "spacing_ratio_threshold", default=DEFAULT_SPACING_RATIO
         )
 
-        stage3 = record.get("stage3")
-        if not isinstance(stage3, dict):
-            return []
-        sc = stage3.get("spacing_consistency")
-        if not isinstance(sc, dict):
-            return []
+        pairs = record.get("pairs")
+        sc = pairs.get("adjacent") if isinstance(pairs, dict) else None
+        if not isinstance(sc, dict) or not _is_num(sc.get("mean_spacing_mm")):
+            return []  # A12: judged only with the Stage-3-only statistics
         spacings = sc.get("spacings_mm")
         if not isinstance(spacings, (list, tuple)) or not all(
             _is_num(s) for s in spacings
@@ -210,9 +224,16 @@ class FusedLabelRule(Rule):
         if not isinstance(per_label, dict) or len(spacings) != len(per_label) - 1:
             return []
         try:
-            keys = sorted(per_label.keys(), key=int)
+            by_label = {int(k): k for k in per_label}
         except (TypeError, ValueError):
             return []  # item 211 A3: a non-integer key is not judged
+        names = {}
+        for label, k in by_label.items():
+            entry = per_label[k]
+            name = entry.get("level_name") if isinstance(entry, dict) else None
+            names[label] = name if isinstance(name, str) else "unknown"
+        # Item 216 (D1, D7): the survivor is stored in anatomical order.
+        keys = [by_label[label] for label in anatomical_order(names)]
         volumes = []
         for k in keys:
             entry = per_label[k]

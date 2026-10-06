@@ -55,6 +55,24 @@ Design decisions (item 022)
    ``per_label.{label}`` (item 215), in ascending integer-label order like
    every other ``per_label`` entry (item 016).
 
+Design decisions (item 216)
+----------------------------
+1. **Two case-level containers.** ``case`` holds the case-wide values
+   (``sequence``, ``curve``, and when a scan was supplied ``intensity``);
+   ``pairs`` holds the values that belong to a pair of labels
+   (``overlaps`` and ``adjacent``). ``relationships``, ``overlaps`` and
+   ``stage3`` no longer exist as keys.
+2. **One element order.** Every array in the record that has one element per
+   label, and every sequence a Stage 3 extractor was fed, is in the item-198
+   anatomical order (:func:`segfacet.labels.anatomical_order`); the order
+   itself is stored as ``case.sequence.order[]``. ``per_label`` keys stay in
+   ascending integer order.
+3. **One adjacent-pair spacing array**, ``pairs.adjacent.spacings_mm``,
+   emitted from ``relationships.neighbour_spacings_mm`` (the pipeline stores
+   the anatomical-order, every-label array there). The four derived
+   statistics sit beside it and stay Stage-3-only. The overlaps' ``name_a`` /
+   ``name_b`` are no longer emitted: the level names live on ``per_label``.
+
 Design decisions (item 215)
 ----------------------------
 1. **Identity is stored once**, on the ``per_label`` entry itself. The
@@ -108,6 +126,7 @@ __all__ = [
     "label_intensity_to_dict",
     "build_intensity_entries",
     "add_intensity_kind",
+    "add_case_intensity",
     "build_image_features_block",
 ]
 
@@ -236,12 +255,14 @@ def centroid_to_dict(c: "LabelCentroid") -> dict:
 
 
 def overlap_to_dict(o: "OverlapPair") -> dict:
-    """Convert an :class:`~segfacet.features.overlap.OverlapPair` to a dict."""
+    """Convert an :class:`~segfacet.features.overlap.OverlapPair` to a dict.
+
+    ``name_a`` / ``name_b`` are not emitted (item 216): each is the level name
+    of ``label_a`` / ``label_b``, stored once at ``per_label.{label}.level_name``.
+    """
     return {
         "label_a": o.label_a,
         "label_b": o.label_b,
-        "name_a": o.name_a,
-        "name_b": o.name_b,
         "overlap_voxels": o.overlap_voxels,
     }
 
@@ -254,6 +275,9 @@ def relationships_to_dict(
     Returns ``None`` (JSON ``null``) when ``rel`` is ``None`` — e.g. for a
     zero-label map where no relationships are computed. Otherwise returns a dict
     with the merged item-014 field names; list fields are shallow-copied.
+    (Item 216: :func:`build_features_block` emits ``neighbour_spacings_mm`` at
+    ``pairs.adjacent.spacings_mm`` and the other four fields under
+    ``case.sequence``; this converter keeps its legacy shape.)
     """
     if rel is None:
         return None
@@ -441,9 +465,11 @@ def build_features_block(
 
     This is the consolidation layer: it does not re-derive any geometry, it
     merges already-computed per-label dataclasses into one ``per_label`` entry
-    per label and attaches the case-level ``relationships`` and ``overlaps``.
-    When any Stage 3 argument is non-``None``, a ``"stage3"`` sub-block is
-    appended and ``features_version`` is promoted to ``"0.2"``.
+    per label and attaches the case-level ``case.sequence`` and
+    ``pairs.overlaps`` / ``pairs.adjacent`` (item 216). When any Stage 3
+    argument is non-``None``, ``case.curve`` and the Stage-3-only
+    ``pairs.adjacent`` fields are added and ``features_version`` is promoted
+    to the Stage 3 value.
 
     Parameters
     ----------
@@ -484,20 +510,24 @@ def build_features_block(
         ``eigenvalue_ratio``.
     curvature:
         Optional :class:`~segfacet.features.orientation.SpineCurvature` (item 019).
-        When non-``None``, serialised as ``stage3.curvature`` -- except its
-        three per-label tangent-angle arrays, distributed one scalar per
-        label (ascending integer-label order) into
+        When non-``None``, serialised as ``case.curve`` (its four scalars) and
+        ``pairs.adjacent.inter_tangent_angles_deg`` -- except its three
+        per-label tangent-angle arrays, distributed one scalar per label
+        (anatomical order, item 216) into
         ``per_label.{label}.orientation`` as ``tangent_angle_deg``,
         ``tangent_coronal_unwrapped_deg`` and
         ``tangent_sagittal_unwrapped_deg`` (item 215).
     spacing_consistency:
         Optional :class:`~segfacet.features.consistency.SpacingConsistency`
-        (item 020). When non-``None``, serialised as
-        ``stage3.spacing_consistency``.
+        (item 020). When non-``None``, its four statistics are serialised
+        under ``pairs.adjacent``; its ``spacings_mm`` is the survivor that
+        ``relationships`` already supplies at ``pairs.adjacent.spacings_mm``
+        (item 216) and is emitted only when ``relationships`` is ``None``.
     monotonic_consistency:
         Optional :class:`~segfacet.features.consistency.MonotonicConsistency`
         (item 020). When non-``None``, serialised as
-        ``stage3.monotonic_consistency`` -- except ``u_values``, whose
+        ``case.curve.is_monotonic`` and
+        ``pairs.adjacent.non_monotonic_pairs`` -- except ``u_values``, whose
         elements (anatomical order, item 198) become
         ``per_label.{label}.curve.path_u`` (item 215).
     neighbourhood:
@@ -594,16 +624,34 @@ def build_features_block(
     if has_stage3 and features_version == FEATURES_VERSION:
         effective_version = FEATURES_VERSION_STAGE3
 
+    # Item 216 (D1, D7): the record's one element order, shared with the
+    # pipeline that fed the extractors.
+    from segfacet.labels import anatomical_order
+
+    sequence = anatomical_order(
+        {label: per_label[str(label)]["level_name"] for label in all_labels}
+    )
+
+    case: dict = {}
+    adjacent: dict = {}
+    pairs: dict = {"overlaps": overlap_dicts}
+
+    rel_dict = relationships_to_dict(relationships)
+    if rel_dict is None:
+        case["sequence"] = None
+    else:
+        spacings = rel_dict.pop("neighbour_spacings_mm")
+        case["sequence"] = {**rel_dict, "order": list(sequence)}
+        adjacent["spacings_mm"] = spacings
+
     block: dict = {
         "features_version": effective_version,
         "per_label": per_label,
-        "relationships": relationships_to_dict(relationships),
-        "overlaps": overlap_dicts,
+        "case": case,
+        "pairs": pairs,
     }
 
     if has_stage3:
-        stage3: dict = {}
-
         def _kind(label: int, kind: str) -> dict:
             return per_label[str(label)].setdefault(kind, {})
 
@@ -639,53 +687,51 @@ def build_features_block(
                         _without_identity(orientation_to_dict(o))
                     )
 
+        curve: dict = {}
         if curvature is not None:
             curvature_dict = curvature_to_dict(curvature)
             # The three per-label tangent-angle arrays are one scalar per
-            # label: they were computed over the ascending-integer-label
-            # sequence, so each element is stored on its own label's
-            # orientation kind (item 215; no value changes).
+            # label, computed over the anatomical sequence (item 216): each
+            # element is stored on its own label's orientation kind.
             for dest, source in _CURVATURE_PER_LABEL_FIELDS:
                 values = curvature_dict.pop(source)
-                if len(values) != len(all_labels):
+                if len(values) != len(sequence):
                     raise ValueError(
                         f"build_features_block: curvature.{source} has "
-                        f"{len(values)} elements for {len(all_labels)} labels."
+                        f"{len(values)} elements for {len(sequence)} labels."
                     )
-                for label, value in zip(sorted(all_labels), values):
+                for label, value in zip(sequence, values):
                     _kind(label, "orientation")[dest] = value
-            stage3["curvature"] = curvature_dict
+            adjacent["inter_tangent_angles_deg"] = curvature_dict.pop(
+                "inter_tangent_angles_deg"
+            )
+            curve.update(curvature_dict)
 
         if spacing_consistency is not None:
-            stage3["spacing_consistency"] = spacing_consistency_to_dict(
-                spacing_consistency
-            )
+            stats = spacing_consistency_to_dict(spacing_consistency)
+            # The survivor is emitted from ``relationships``; the Stage 3
+            # copy is the merged row (item 216) and is never emitted. A call
+            # with no ``relationships`` still gets the array, from here.
+            spacings = stats.pop("spacings_mm")
+            if "spacings_mm" not in adjacent:
+                adjacent["spacings_mm"] = spacings
+            adjacent.update(stats)
 
         if monotonic_consistency is not None:
             monotonic_dict = monotonic_consistency_to_dict(monotonic_consistency)
-            # ``u_values`` is the one array computed in anatomical order
-            # (item 198): CANONICAL_ORDER rank, unrecognised names last, ties
-            # by label. Each element is stored on its own label's curve kind
-            # as ``path_u`` (item 215; no value changes).
-            from segfacet.labels import CANONICAL_ORDER
-
-            rank = {name: i for i, name in enumerate(CANONICAL_ORDER)}
-            anatomical = sorted(
-                all_labels,
-                key=lambda lab: (
-                    rank.get(per_label[str(lab)]["level_name"], len(rank)),
-                    lab,
-                ),
-            )
+            # ``u_values`` is computed over the anatomical sequence (items
+            # 198, 216): each element is stored on its own label's curve kind
+            # as ``path_u`` (item 215).
             u_values = monotonic_dict.pop("u_values")
-            if len(u_values) != len(anatomical):
+            if len(u_values) != len(sequence):
                 raise ValueError(
                     f"build_features_block: monotonic_consistency.u_values has "
-                    f"{len(u_values)} elements for {len(anatomical)} labels."
+                    f"{len(u_values)} elements for {len(sequence)} labels."
                 )
-            for label, value in zip(anatomical, u_values):
+            for label, value in zip(sequence, u_values):
                 _kind(label, "curve")["path_u"] = value
-            stage3["monotonic_consistency"] = monotonic_dict
+            curve["is_monotonic"] = monotonic_dict["is_monotonic"]
+            adjacent["non_monotonic_pairs"] = monotonic_dict["non_monotonic_pairs"]
 
         if neighbourhood is not None:
             for nb in sorted(neighbourhood, key=lambda nb: nb.label):
@@ -693,7 +739,11 @@ def build_features_block(
                     _without_identity(neighbourhood_to_dict(nb))
                 )
 
-        block["stage3"] = stage3
+        if curve:
+            case["curve"] = curve
+
+    if adjacent:
+        pairs["adjacent"] = adjacent
 
     if stage3_unavailable is not None:
         block["stage3_unavailable"] = {
@@ -776,6 +826,20 @@ def add_intensity_kind(features_block: Mapping, entries: Mapping[str, dict]) -> 
     return {**features_block, "per_label": per_label}
 
 
+def add_case_intensity(features_block: Mapping, case_intensity: Mapping) -> dict:
+    """A copy of *features_block* whose ``case`` container carries the
+    case-level ``intensity`` block (item 216).
+
+    *case_intensity* is :func:`build_image_features_block`'s result: the four
+    case-level fields (``image_features_version``, ``available``,
+    ``radiomics_available``, ``backend``) that sat under the report's top-level
+    ``image_features`` key before item 216. ``features_block`` is never
+    mutated.
+    """
+    case = {**features_block.get("case", {}), "intensity": dict(case_intensity)}
+    return {**features_block, "case": case}
+
+
 def build_image_features_block(
     *,
     backend: str = "builtin",
@@ -783,8 +847,8 @@ def build_image_features_block(
     available: bool = True,
     image_features_version: str = IMAGE_FEATURES_VERSION,
 ) -> dict:
-    """Assemble the case-level ``image_features`` block (item 061, reshaped by
-    item 215).
+    """Assemble the case-level intensity block (item 061, reshaped by items
+    215 and 216: stored on the features record as ``case.intensity``).
 
     Since item 215 the per-label intensity statistics live on the features
     record (``per_label.{label}.intensity``, see
@@ -809,7 +873,7 @@ def build_image_features_block(
     Returns
     -------
     dict
-        A fresh, JSON-ready ``image_features`` block. No file I/O, no wall
+        A fresh, JSON-ready case-level intensity block. No file I/O, no wall
         clock, no NumPy/NiBabel import.
     """
     return {

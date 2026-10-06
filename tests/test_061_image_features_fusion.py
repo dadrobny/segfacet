@@ -1,8 +1,14 @@
 """Tests for item 061 -- fusing intensity features into the JSON report &
 per-case feature table (``src/segfacet/feature_report.py``: ``label_intensity_to_dict``
 / ``build_image_features_block``; ``src/segfacet/report.py``:
-``serialize_report``/``serialize_report_json`` gain ``image_features``;
-``src/segfacet/human_report.py``: ``render_feature_table`` gains ``image_features``).
+``serialize_report``/``serialize_report_json`` gained ``image_features``;
+``src/segfacet/human_report.py``: ``render_feature_table`` gained ``image_features``).
+
+Item 216 (2026-10-06): the four case-level fields moved from the report's
+top-level ``image_features`` key into the features record as
+``features.case.intensity`` (``add_case_intensity``); the two report writers
+and ``render_feature_table`` lost their ``image_features`` parameter, and
+AC8-AC13 read the block from the features record.
 
 Covers Acceptance Criteria AC1-AC13:
 
@@ -50,6 +56,7 @@ import pytest
 from segfacet.config import bundled_default_config
 from segfacet.feature_report import (
     IMAGE_FEATURES_VERSION,
+    add_case_intensity,
     add_intensity_kind,
     build_image_features_block,
     build_intensity_entries,
@@ -214,9 +221,9 @@ def test_ac6_unavailable_sentinel_block_validates_against_schema():
     verdict = _verdict()
     report = serialize_report(
         verdict, "case-061-unavailable", bundled_default_config(),
-        image_features=block,
+        features=add_case_intensity(_features_block(), block),
     )  # must not raise (schema-validated inside serialize_report)
-    assert report["image_features"]["available"] is False
+    assert report["features"]["case"]["intensity"]["available"] is False
 
 
 # =========================================================================== #
@@ -257,9 +264,11 @@ def test_ac8_serialize_report_embeds_block_verbatim_under_top_level_key():
     block = build_image_features_block()
     verdict = _verdict()
     report = serialize_report(
-        verdict, "case-061", bundled_default_config(), image_features=block,
+        verdict, "case-061", bundled_default_config(),
+        features=add_case_intensity(_features_block(), block),
     )  # must not raise
-    assert report["image_features"] == block
+    assert report["features"]["case"]["intensity"] == block
+    assert "image_features" not in report
 
 
 # =========================================================================== #
@@ -277,13 +286,14 @@ def test_ac9_default_omits_image_features_key():
 def test_ac9_report_with_only_other_optional_blocks_omits_image_features():
     verdict = _verdict()
     features_block = {
-        "features_version": "0.2", "per_label": {}, "overlaps": [], "relationships": None,
+        "features_version": "0.2", "per_label": {}, "pairs": {"overlaps": []}, "case": {"sequence": None},
     }
     report = serialize_report(
         verdict, "case-061-others", bundled_default_config(),
         features=features_block, findings=[], reference_delta=None,
     )
     assert "image_features" not in report
+    assert "intensity" not in report["features"]["case"]
 
 
 def test_ac9_omission_is_deep_equal_to_call_without_the_parameter():
@@ -291,7 +301,7 @@ def test_ac9_omission_is_deep_equal_to_call_without_the_parameter():
     config = bundled_default_config()
     report_no_kw = serialize_report(verdict, "case-061-eq", config)
     report_explicit_none = serialize_report(
-        verdict, "case-061-eq", config, image_features=None,
+        verdict, "case-061-eq", config, features=None,
     )
     assert report_no_kw == report_explicit_none
 
@@ -389,8 +399,8 @@ def _intensity_features_block(intensity, extended=None):
             }
             for label in intensity
         },
-        "overlaps": [],
-        "relationships": None,
+        "pairs": {"overlaps": []},
+        "case": {"sequence": None},
     }
     return add_intensity_kind(block, build_intensity_entries(intensity, extended=extended))
 
@@ -399,7 +409,8 @@ def test_ac10_well_formed_block_validates_in_report():
     block = build_image_features_block()
     verdict = _verdict()
     serialize_report(
-        verdict, "case-061-schema-ok", bundled_default_config(), image_features=block,
+        verdict, "case-061-schema-ok", bundled_default_config(),
+        features=add_case_intensity(_features_block(), block),
     )  # must not raise
     serialize_report(
         verdict, "case-061-schema-ok", bundled_default_config(),
@@ -413,7 +424,8 @@ def test_ac10_unknown_top_level_key_is_rejected():
     verdict = _verdict()
     with pytest.raises(jsonschema.ValidationError):
         serialize_report(
-            verdict, "case-061-bogus", bundled_default_config(), image_features=block,
+            verdict, "case-061-bogus", bundled_default_config(),
+            features=add_case_intensity(_features_block(), block),
         )
 
 
@@ -440,12 +452,13 @@ def test_ac11_serialize_report_json_round_trips_equal_to_dict_form():
     features = _intensity_features_block({20: LI_20})
     verdict = _verdict()
     config = bundled_default_config()
+    features = add_case_intensity(features, block)
     text = serialize_report_json(
-        verdict, "case-061-json", config, features=features, image_features=block,
+        verdict, "case-061-json", config, features=features,
     )
     parsed = json.loads(text)  # must not raise
     expected = serialize_report(
-        verdict, "case-061-json", config, features=features, image_features=block,
+        verdict, "case-061-json", config, features=features,
     )
     assert parsed == expected
     assert "NaN" not in text
@@ -495,8 +508,8 @@ def _features_block(labels=(20,)):
     return {
         "features_version": "0.2",
         "per_label": per_label,
-        "overlaps": [],
-        "relationships": None,
+        "pairs": {"overlaps": []},
+        "case": {"sequence": None},
     }
 
 
@@ -512,7 +525,7 @@ def _with_intensity(intensity):
 def test_ac12_render_with_block_includes_per_case_intensity_section():
     fb = _with_intensity({20: LI_20, 21: LI_21})
     block = build_image_features_block()
-    text = render_feature_table(fb, image_features=block)
+    text = render_feature_table(add_case_intensity(fb, block))
     assert "20" in text
     assert "21" in text
     assert _fmt(LI_20.mean) in text
@@ -533,7 +546,7 @@ def _fmt(value):
 def test_ac12_render_without_image_features_is_byte_identical_to_prior_render():
     fb = _features_block()
     without_kw = render_feature_table(fb)
-    with_explicit_none = render_feature_table(fb, image_features=None)
+    with_explicit_none = render_feature_table({**fb, "case": {"sequence": None}})
     assert without_kw == with_explicit_none
     # Sanity: the plain features-table sections are still present.
     assert "Per-label features:" in without_kw
@@ -550,7 +563,7 @@ def test_ac12_render_without_image_features_is_byte_identical_to_prior_render():
 def test_ac13_sentinel_label_renders_placeholder_not_none_or_nan():
     fb = _with_intensity({20: SENTINEL})
     block = build_image_features_block()
-    text = render_feature_table(fb, image_features=block)
+    text = render_feature_table(add_case_intensity(fb, block))
     assert "None" not in text
     assert "nan" not in text.lower()
     assert "n/a" in text.lower() or "(n/a)" in text
@@ -559,7 +572,7 @@ def test_ac13_sentinel_label_renders_placeholder_not_none_or_nan():
 def test_ac13_unavailable_block_renders_explicit_placeholder_line():
     fb = _with_intensity({20: LI_20})
     block = build_image_features_block(available=False)
-    text = render_feature_table(fb, image_features=block)
+    text = render_feature_table(add_case_intensity(fb, block))
     lowered = text.lower()
     assert "(unavailable)" in lowered or "(none)" in lowered
     assert "None" not in text
@@ -569,7 +582,7 @@ def test_ac13_unavailable_block_renders_explicit_placeholder_line():
 def test_ac13_no_raw_python_internals_leak_and_labels_ascending():
     fb = _with_intensity({21: LI_21, 20: LI_20})
     block = build_image_features_block()
-    text = render_feature_table(fb, image_features=block)
+    text = render_feature_table(add_case_intensity(fb, block))
     for forbidden in ("frozenset(", "LabelIntensity", "tuple(", "<class"):
         assert forbidden not in text
     idx20 = text.index("20")
@@ -631,6 +644,6 @@ def test_adv_back_compat_report_deep_equal_across_features_findings_combos():
     config = bundled_default_config()
     fb = _features_block()
     r1 = serialize_report(verdict, "case-061-combo", config, features=fb)
-    r2 = serialize_report(verdict, "case-061-combo", config, features=fb, image_features=None)
+    r2 = serialize_report(verdict, "case-061-combo", config, features=copy.deepcopy(fb))
     assert r1 == r2
     assert "image_features" not in r1

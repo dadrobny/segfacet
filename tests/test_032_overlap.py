@@ -62,24 +62,22 @@ def _make_overlap_entry(
     label_a: int,
     label_b: int,
     overlap_voxels: int,
-    name_a: str = "?",
-    name_b: str = "?",
 ) -> dict:
     """Build a minimal overlaps entry matching overlap_to_dict's (item 016)
-    shape."""
+    shape. Item 216: ``name_a`` / ``name_b`` are no longer part of it -- each
+    side's level name is ``per_label.{label}.level_name``."""
     return {
         "label_a": label_a,
         "label_b": label_b,
-        "name_a": name_a,
-        "name_b": name_b,
         "overlap_voxels": overlap_voxels,
     }
 
 
 def _make_record(entries: list, **other_fields) -> dict:
-    """Assemble a minimal build_features_block-shaped record: a top-level
-    overlaps list plus any extra fields."""
-    record = {"overlaps": list(entries)}
+    """Assemble a minimal build_features_block-shaped record: a
+    ``pairs.overlaps`` list (item 216; formerly a top-level overlaps list)
+    plus any extra fields."""
+    record = {"pairs": {"overlaps": list(entries)}}
     record.update(other_fields)
     return record
 
@@ -166,7 +164,7 @@ def test_ac2_empty_overlaps_list_no_finding():
 def test_ac3_single_pair_fires_exactly_one_finding():
     """AC3: One overlaps entry (20, 21, 37) emits exactly one Finding with
     rule_id == 'overlap'."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -175,7 +173,7 @@ def test_ac3_single_pair_fires_exactly_one_finding():
 
 def test_ac4_offending_pair_attributed_by_both_labels():
     """AC4: labels == frozenset({20, 21}) — both members of the pair."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -184,7 +182,7 @@ def test_ac4_offending_pair_attributed_by_both_labels():
 
 def test_ac5_overlap_magnitude_appears_in_reason():
     """AC5: The shared-voxel count ('37') appears in the finding's reason."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -193,7 +191,7 @@ def test_ac5_overlap_magnitude_appears_in_reason():
 
 def test_ac6_both_offending_labels_named_in_reason():
     """AC6: Both integer labels (20 and 21) appear in the finding's reason."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -212,9 +210,9 @@ def test_ac7_multiple_pairs_ascending_label_order():
     """AC7: Three entries fed out of order emit three findings ordered
     ascending (label_a, label_b): (19,20), (19,21), (20,21)."""
     entries = [
-        _make_overlap_entry(_LABEL_T12, _LABEL_L2, 5, "T12", "L2"),  # (19, 21)
-        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 3, "T12", "L1"),  # (19, 20)
-        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 7, "L1", "L2"),  # (20, 21)
+        _make_overlap_entry(_LABEL_T12, _LABEL_L2, 5),  # (19, 21)
+        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 3),  # (19, 20)
+        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 7),  # (20, 21)
     ]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
@@ -233,8 +231,8 @@ def test_ac8_threshold_suppresses_below_and_flags_at_boundary(tmp_path):
     """AC8: With min_overlap_voxels == 5, a 4-voxel pair yields no finding
     while a 5-voxel pair yields exactly one (inclusive boundary)."""
     entries = [
-        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 4, "T12", "L1"),
-        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 5, "L1", "L2"),
+        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 4),
+        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 5),
     ]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      min_overlap_voxels: 5\n"
@@ -252,7 +250,7 @@ def test_ac8_threshold_suppresses_below_and_flags_at_boundary(tmp_path):
 def test_ac9_default_threshold_flags_one_voxel_overlap():
     """AC9: With no min_overlap_voxels param, a 1-voxel entry yields exactly
     one finding."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 1, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 1)]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
     assert len(findings) == 1
@@ -265,7 +263,7 @@ def test_ac9_default_threshold_flags_one_voxel_overlap():
 
 def test_ac10_default_severity_is_flag():
     """AC10: With no severity param, an overlap finding has Severity.FLAG."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
     assert findings
@@ -275,7 +273,7 @@ def test_ac10_default_severity_is_flag():
 def test_ac10_severity_param_fail_overrides_default(tmp_path):
     """AC10: With params.severity = 'fail', the emitted finding has
     Severity.FAIL."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      severity: fail\n"
     cfg = load_config(_write_yaml(tmp_path, content))
@@ -291,7 +289,7 @@ def test_ac10_severity_param_fail_overrides_default(tmp_path):
 
 def test_ac11_unrecognised_severity_raises_value_error(tmp_path):
     """AC11: An unrecognised severity param string raises ValueError."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      severity: xyz_not_a_severity\n"
     cfg = load_config(_write_yaml(tmp_path, content))
@@ -313,7 +311,7 @@ def test_ac11_value_error_raised_before_per_record_processing(tmp_path):
 def test_ac11_value_error_has_non_empty_message(tmp_path):
     """AC11: The ValueError for a bad severity has a non-empty, readable
     message."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      severity: not_a_real_severity\n"
     cfg = load_config(_write_yaml(tmp_path, content))
@@ -331,9 +329,9 @@ def test_ac12_two_runs_return_equal_lists():
     """AC12: Two successive run_rules calls return equal finding lists in the
     same order."""
     entries = [
-        _make_overlap_entry(_LABEL_T12, _LABEL_L2, 5, "T12", "L2"),
-        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 3, "T12", "L1"),
-        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 7, "L1", "L2"),
+        _make_overlap_entry(_LABEL_T12, _LABEL_L2, 5),
+        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 3),
+        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 7),
     ]
     record = _make_record(entries)
     cfg = default_config()
@@ -357,14 +355,14 @@ def test_ac13_overlaps_absent_no_raise():
 
 def test_ac13_overlaps_none_no_raise():
     """AC13: overlaps == None is treated as no overlaps."""
-    record = {"overlaps": None}
+    record = {"pairs": {"overlaps": None}}
     result = _overlap_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac13_overlaps_empty_list_no_raise():
     """AC13: overlaps == [] yields no findings without raising."""
-    record = {"overlaps": []}
+    record = {"pairs": {"overlaps": []}}
     result = _overlap_findings(run_rules(record, default_config()))
     assert result == []
 
@@ -372,7 +370,7 @@ def test_ac13_overlaps_empty_list_no_raise():
 def test_ac13_overlaps_non_list_placeholder_no_raise():
     """AC13: overlaps == {} (a non-list placeholder used in sibling unit
     tests) is treated as no overlaps, not a list to iterate."""
-    record = {"overlaps": {}}
+    record = {"pairs": {"overlaps": {}}}
     result = _overlap_findings(run_rules(record, default_config()))
     assert result == []
 
@@ -381,8 +379,8 @@ def test_ac13_entry_missing_overlap_voxels_treated_as_zero_and_suppressed():
     """AC13: An entry missing overlap_voxels is treated as 0 and suppressed
     under the default threshold, even amid other flagged pairs."""
     entries = [
-        {"label_a": _LABEL_T12, "label_b": _LABEL_L1, "name_a": "T12", "name_b": "L1"},
-        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 5, "L1", "L2"),
+        {"label_a": _LABEL_T12, "label_b": _LABEL_L1},
+        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 5),
     ]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
@@ -393,7 +391,7 @@ def test_ac13_entry_missing_overlap_voxels_treated_as_zero_and_suppressed():
 def test_ac13_entry_missing_label_field_contributes_no_finding():
     """AC13: An entry missing a label field contributes no finding."""
     entries = [
-        {"label_b": _LABEL_L1, "name_a": "?", "name_b": "L1", "overlap_voxels": 10},
+        {"label_b": _LABEL_L1, "overlap_voxels": 10},
     ]
     record = _make_record(entries)
     findings = _overlap_findings(run_rules(record, default_config()))
@@ -402,7 +400,7 @@ def test_ac13_entry_missing_label_field_contributes_no_finding():
 
 def test_ac13_no_per_label_or_relationships_keys_no_raise():
     """AC13: The record carries no per_label / relationships keys at all."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
     assert "per_label" not in record
     assert "relationships" not in record
@@ -423,7 +421,7 @@ def test_ac14_spacing_agnostic_identical_findings():
     so the comparison isolates AC14's claim about the overlap rule alone —
     it must not be perturbed by sibling rules (e.g. item 031's BorderRule)
     that also inspect per_label but expect a different shape."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record_a = _make_record(
         entries,
         per_label={"foo": 1},
@@ -456,9 +454,9 @@ def test_ac15_evaluate_does_not_mutate_record(tmp_path):
     """AC15: run_rules leaves the entire record (overlaps list and every
     entry dict) unchanged, even when findings fire."""
     entries = [
-        _make_overlap_entry(_LABEL_T12, _LABEL_L2, 5, "T12", "L2"),
-        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 3, "T12", "L1"),
-        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 7, "L1", "L2"),
+        _make_overlap_entry(_LABEL_T12, _LABEL_L2, 5),
+        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 3),
+        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 7),
     ]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      severity: fail\n"
@@ -471,11 +469,11 @@ def test_ac15_evaluate_does_not_mutate_record(tmp_path):
 def test_ac15_overlaps_list_and_entries_not_mutated():
     """AC15: The overlaps list (including each entry dict) is unchanged after
     evaluate."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 37)]
     record = _make_record(entries)
-    original = copy.deepcopy(record["overlaps"])
+    original = copy.deepcopy(record["pairs"]["overlaps"])
     run_rules(record, default_config())
-    assert record["overlaps"] == original
+    assert record["pairs"]["overlaps"] == original
 
 
 # =========================================================================== #
@@ -486,7 +484,7 @@ def test_ac15_overlaps_list_and_entries_not_mutated():
 def test_adv_determinism_with_degenerate_record():
     """Adversarial: two run_rules calls on a record with overlaps == {} (a
     non-list placeholder) return identical (empty) lists."""
-    record = {"overlaps": {}}
+    record = {"pairs": {"overlaps": {}}}
     cfg = default_config()
     run1 = _overlap_findings(run_rules(record, cfg))
     run2 = _overlap_findings(run_rules(record, cfg))
@@ -499,7 +497,7 @@ def test_adv_bad_severity_unused_when_no_overlaps_present_still_raises(tmp_path)
     whether any entries would fire."""
     content = _overlap_yaml_header() + "      severity: not_a_real_severity\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    record = {"overlaps": {}}
+    record = {"pairs": {"overlaps": {}}}
     with pytest.raises(ValueError):
         run_rules(record, cfg)
 
@@ -507,7 +505,7 @@ def test_adv_bad_severity_unused_when_no_overlaps_present_still_raises(tmp_path)
 def test_adv_min_overlap_voxels_boundary_exactly_at_threshold(tmp_path):
     """Adversarial: overlap_voxels exactly equal to min_overlap_voxels fires
     (inclusive >= comparison), reinforcing AC8's boundary semantics."""
-    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 3, "L1", "L2")]
+    entries = [_make_overlap_entry(_LABEL_L1, _LABEL_L2, 3)]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      min_overlap_voxels: 3\n"
     cfg = load_config(_write_yaml(tmp_path, content))
@@ -519,8 +517,8 @@ def test_adv_multiple_pairs_all_below_threshold_yield_no_findings(tmp_path):
     """Adversarial: every pair below a high threshold yields zero findings,
     not a partial/empty-but-crashing result."""
     entries = [
-        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 1, "T12", "L1"),
-        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 2, "L1", "L2"),
+        _make_overlap_entry(_LABEL_T12, _LABEL_L1, 1),
+        _make_overlap_entry(_LABEL_L1, _LABEL_L2, 2),
     ]
     record = _make_record(entries)
     content = _overlap_yaml_header() + "      min_overlap_voxels: 100\n"

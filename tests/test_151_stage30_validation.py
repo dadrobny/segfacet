@@ -646,7 +646,7 @@ def test_ac16_no_committed_case_yields_an_overlap_through_the_pipeline():
     committed geometric case instead of one named case."""
     for case in corpus_module.load_manifest()["cases"]:
         record = _record(case["case_id"])
-        assert record["overlaps"] == [], case["case_id"]
+        assert record["pairs"]["overlaps"] == [], case["case_id"]
         findings = pipeline_findings(case)
         assert "overlap" not in {f.rule_id for f in findings}, case["case_id"]
 

@@ -83,14 +83,17 @@ def _make_record(
     ``per_label`` is keyed by each entry's integer label.
     """
     return {
-        "relationships": {
-            "present_levels": list(present_levels),
-            "missing_levels": list(missing_levels),
-            "is_continuous": len(missing_levels) == 0,
-            "out_of_order_labels": [],
+        # Item 216: relationships -> case.sequence.
+        "case": {
+            "sequence": {
+                "present_levels": list(present_levels),
+                "missing_levels": list(missing_levels),
+                "is_continuous": len(missing_levels) == 0,
+                "out_of_order_labels": [],
+            }
         },
         "per_label": {e["label"]: e for e in (label_entries or [])},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -491,7 +494,7 @@ def test_ac13_value_error_raised_even_with_empty_relationships(tmp_path):
     (severity is parsed before per-record processing)."""
     content = _coverage_yaml_header() + "      severity: garbage\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    record = {"per_label": {}, "relationships": None, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": None}, "pairs": {"overlaps": {}}}
     with pytest.raises(ValueError):
         run_rules(record, cfg)
 
@@ -555,28 +558,28 @@ def test_ac14_fixed_order_interior_then_span_then_count(tmp_path):
 
 def test_ac15_relationships_none_returns_empty_list():
     """AC15: record['relationships'] is None => [] without raising."""
-    record = {"relationships": None, "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": None}, "per_label": {}, "pairs": {"overlaps": {}}}
     assert _cov_findings(run_rules(record, default_config())) == []
 
 
 def test_ac15_relationships_absent_returns_empty_list():
     """AC15: record has no 'relationships' key => [] without raising."""
-    record = {"per_label": {}, "overlaps": {}}
+    record = {"per_label": {}, "pairs": {"overlaps": {}}}
     assert _cov_findings(run_rules(record, default_config())) == []
 
 
 def test_ac15_present_and_missing_levels_absent_no_raise():
     """AC15: relationships present but without present_levels/missing_levels keys."""
-    record = {"relationships": {}, "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": {}}, "per_label": {}, "pairs": {"overlaps": {}}}
     assert _cov_findings(run_rules(record, default_config())) == []
 
 
 def test_ac15_per_label_empty_no_raise():
     """AC15: per_label == {} does not crash the rule."""
     record = {
-        "relationships": {"present_levels": ["L1"], "missing_levels": []},
+        "case": {"sequence": {"present_levels": ["L1"], "missing_levels": []}},
         "per_label": {},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
     assert _cov_findings(run_rules(record, default_config())) == []
 
@@ -584,8 +587,8 @@ def test_ac15_per_label_empty_no_raise():
 def test_ac15_per_label_absent_no_raise():
     """AC15: record has no 'per_label' key at all."""
     record = {
-        "relationships": {"present_levels": ["L1"], "missing_levels": []},
-        "overlaps": {},
+        "case": {"sequence": {"present_levels": ["L1"], "missing_levels": []}},
+        "pairs": {"overlaps": {}},
     }
     result = _cov_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
@@ -625,9 +628,9 @@ def test_ac16_missing_levels_list_not_mutated():
         _make_per_label_entry(4, "L3"),
     ]
     record = _make_record(["T11", "T13", "L1", "L3"], ["L2", "T12"], entries)
-    original = list(record["relationships"]["missing_levels"])
+    original = list(record["case"]["sequence"]["missing_levels"])
     run_rules(record, default_config())
-    assert record["relationships"]["missing_levels"] == original
+    assert record["case"]["sequence"]["missing_levels"] == original
 
 
 # =========================================================================== #
@@ -738,7 +741,7 @@ def test_adv_determinism_multi_check_record(tmp_path):
 def test_adv_malformed_relationships_not_a_mapping_no_raise():
     """Adversarial: relationships that is not a mapping (e.g. a string) is
     tolerated and yields no findings rather than crashing."""
-    record = {"relationships": "not-a-dict", "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": "not-a-dict"}, "per_label": {}, "pairs": {"overlaps": {}}}
     result = _cov_findings(run_rules(record, default_config()))
     assert result == []
 

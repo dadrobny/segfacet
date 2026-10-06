@@ -363,7 +363,10 @@ _PRE_ITEM_TANGENT_ANGLES_DEG = {
     # Item 212 (2026-10-05): the case is a true anterior crop, not a
     # translation; was [26.3425, 28.4101, 3.3337, 44.8979, 3.7078].
     "crop_at_border": [5.0652, 0.3074, 7.2771, 18.6393, 34.9423],
-    "sequence_break": [7.5755, 0.2549, 8.338, 19.241, 33.59],
+    # Item 216 (2026-10-06, D11): the record-wide anatomical order feeds the
+    # fit T13 first, so each label's tangent moves (label order 20-23, 28);
+    # was [7.5755, 0.2549, 8.338, 19.241, 33.59].
+    "sequence_break": [171.3409, 179.6656, 172.4210, 155.8026, 2.1740],
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
@@ -432,7 +435,9 @@ _PRE_ITEM_INTER_TANGENT_ANGLES_DEG = {
     "remove_level": [7.574565, 19.748784, 14.565142],
     # Item 212 (2026-10-05): was [54.752541, 31.743766, 41.564217, 48.605677].
     "crop_at_border": [4.757852, 7.584527, 11.362139, 16.303057],
-    "sequence_break": [7.320601, 8.592928, 10.902949, 14.349002],
+    # Item 216 (2026-10-06, D11): was [7.320601, 8.592928, 10.902949,
+    # 14.349002]; now read along the anatomical sequence T13, L1-L4.
+    "sequence_break": [169.166833, 8.324736, 7.913377, 16.618433],
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
 
@@ -442,7 +447,7 @@ def test_ac7_no_corpus_case_inter_tangent_angles_deg_moves():
     for case in _cases_covered_by(_PRE_ITEM_INTER_TANGENT_ANGLES_DEG, manifest):
         seg_img = loaded_seg_image(case)
         record = extract_feature_record(seg_img, bundled_default_config())
-        actual = list(record["stage3"]["curvature"]["inter_tangent_angles_deg"])
+        actual = list(record["pairs"]["adjacent"]["inter_tangent_angles_deg"])
         expected = _PRE_ITEM_INTER_TANGENT_ANGLES_DEG[case["case_id"]]
         assert actual == pytest.approx(expected, abs=1e-3), (
             f"{case['case_id']}: inter_tangent_angles_deg moved -- {actual} != {expected}"
@@ -561,7 +566,7 @@ def test_ac9_docstring_states_convention_for_both_unsigned_arrays():
     "path",
     [
         "per_label.{label}.orientation.tangent_angle_deg",
-        "stage3.curvature.inter_tangent_angles_deg[]",
+        "pairs.adjacent.inter_tangent_angles_deg[]",
     ],
 )
 def test_ac10_feature_docs_state_convention(path):
@@ -643,8 +648,8 @@ def test_ac14_item_122_plane_and_ras_test_still_passes():
     for path, plane in (
         ("per_label.{label}.orientation.tangent_coronal_unwrapped_deg", "coronal"),
         ("per_label.{label}.orientation.tangent_sagittal_unwrapped_deg", "sagittal"),
-        ("stage3.curvature.coronal_curvature_deg", "coronal"),
-        ("stage3.curvature.sagittal_curvature_deg", "sagittal"),
+        ("case.curve.coronal_curvature_deg", "coronal"),
+        ("case.curve.sagittal_curvature_deg", "sagittal"),
     ):
         t122.test_ac17_new_leaf_docs_name_their_plane_and_ras_precondition(path, plane)
 
@@ -677,12 +682,14 @@ def test_ac15_catalogue_regenerates_byte_identically(tmp_path):
 # (`tangent_angles_deg[]`, `coronal_tangent_angles_deg[]`,
 # `sagittal_tangent_angles_deg[]`) leave `stage3.curvature.*` for
 # `per_label.{label}.orientation.*`, so five paths remain here.
+# Item 216 (2026-10-06): those five moved again -- the four scalars to
+# `case.curve.*`, `inter_tangent_angles_deg[]` to `pairs.adjacent.*`.
 _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
-    "stage3.curvature.coronal_curvature_deg",
-    "stage3.curvature.curvature_plane",
-    "stage3.curvature.inter_tangent_angles_deg[]",
-    "stage3.curvature.sagittal_curvature_deg",
-    "stage3.curvature.total_curvature_deg",
+    "case.curve.coronal_curvature_deg",
+    "case.curve.curvature_plane",
+    "case.curve.sagittal_curvature_deg",
+    "case.curve.total_curvature_deg",
+    "pairs.adjacent.inter_tangent_angles_deg[]",
 )
 # Item 167 (2026-09-20): two new `components` leaf paths
 # (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
@@ -693,7 +700,11 @@ _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
 # Item 215 (2026-10-06): 145 -> 156. Nine merged identity copies (-9), every
 # other 215 row a 1:1 move (the three arrays above included), and the 20
 # report-only reference_delta.{label}.features.<f>.<s> rows catalogued (+20).
-_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 156
+# Item 216 (2026-10-06): 156 -> 154. Three merged rows leave (-3:
+# overlaps[].name_a and .name_b, stage3.spacing_consistency.spacings_mm[]),
+# every other 216 row moves or stays 1:1, and case.sequence.order[] (a stored
+# field with no table row, the note's Deviation 11) joins (+1).
+_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 154
 
 
 def test_ac16_catalogue_leaf_path_set_unchanged():
@@ -714,7 +725,9 @@ def test_ac16_catalogue_leaf_path_set_unchanged():
         f"leaf-path count {len(fresh_paths)} != pre-item "
         f"{_PRE_ITEM_TOTAL_LEAF_PATH_COUNT} -- a path was added or removed"
     )
-    curvature_paths = tuple(sorted(p for p in fresh_paths if p.startswith("stage3.curvature.")))
+    curvature_paths = tuple(
+        sorted(p for p in fresh_paths if p in _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS)
+    )
     assert curvature_paths == _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS
 
 
@@ -736,13 +749,19 @@ def test_ac17_observed_range_cells_unchanged(tmp_path):
     # Re-measured 2026-09-23 on item 173's lordotic base (box base: 0.0,
     # 8.1652; inter 3.83716, 7.59031).
     assert tangent["observed"]["corpus"]["minimum"] == pytest.approx(0.254105, abs=1e-6)
-    assert tangent["observed"]["corpus"]["maximum"] == pytest.approx(33.9343, abs=1e-3)
+    # Item 216 (2026-10-06, D11): 33.9343 -> 179.666. The record-wide
+    # anatomical order feeds the sequence_break driver's fit T13 first, which
+    # moves its per-label tangent angles (its integer and anatomical orders
+    # disagree); no other driver record moves.
+    assert tangent["observed"]["corpus"]["maximum"] == pytest.approx(179.666, abs=1e-3)
     assert tangent["observed"]["verdict"] == "varies"
     assert tangent["status"] == "retune"
 
-    inter = entries_by_path["stage3.curvature.inter_tangent_angles_deg[]"]
+    inter = entries_by_path["pairs.adjacent.inter_tangent_angles_deg[]"]
     assert inter["observed"]["corpus"]["minimum"] == pytest.approx(7.32060, abs=1e-3)
-    assert inter["observed"]["corpus"]["maximum"] == pytest.approx(19.74878, abs=1e-3)
+    # Item 216 (2026-10-06, D11): 19.74878 -> 169.167, the same sequence_break
+    # driver record, now read in anatomical order.
+    assert inter["observed"]["corpus"]["maximum"] == pytest.approx(169.167, abs=1e-3)
     assert inter["observed"]["verdict"] == "varies"
     assert inter["status"] == "retune"
 
@@ -876,13 +895,18 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
         "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
         "sagittal_tangent_angles_deg": [-5.0652315, -0.3073795, 7.2771474, 18.6392868, 34.942344],
     },
+    # Item 216 (2026-10-06, D11): was total and sagittal 41.165481, coronal
+    # 0.0, coronal angles all 0.0 and sagittal angles [-7.575496, -0.254895,
+    # 8.338034, 19.240983, 33.589985]. In anatomical order the coronal
+    # angles of labels 20-23 sit exactly on atan2's +-180 branch cut, so this
+    # case is compared like relabel_swap below.
     "sequence_break": {
-        "total_curvature_deg": 41.165481,
-        "coronal_curvature_deg": 0.0,
-        "sagittal_curvature_deg": 41.165481,
+        "total_curvature_deg": 202.023378,
+        "coronal_curvature_deg": 180.0,
+        "sagittal_curvature_deg": 202.023378,
         "curvature_plane": "sagittal",
-        "coronal_tangent_angles_deg": [0.0, 0.0, 0.0, 0.0, 0.0],
-        "sagittal_tangent_angles_deg": [-7.575496, -0.254895, 8.338034, 19.240983, 33.589985],
+        "coronal_tangent_angles_deg": [-180.0, -180.0, -180.0, -180.0, 0.0],
+        "sagittal_tangent_angles_deg": [171.34087, 179.665606, 187.578982, 204.197415, 2.174037],
     },
     # "force_overlap" key dropped by item 195, 2026-09-28.
 }
@@ -906,7 +930,7 @@ def test_ac21_other_curvature_fields_unmoved():
         # Item 215: the two per-plane arrays are each label's unwrapped
         # tangent angle, read in the ascending-label order they were computed in.
         curv = {
-            **record["stage3"]["curvature"],
+            **record["case"]["curve"],
             "coronal_tangent_angles_deg": _per_label_series(
                 record, "orientation", "tangent_coronal_unwrapped_deg"
             ),
@@ -915,7 +939,9 @@ def test_ac21_other_curvature_fields_unmoved():
             ),
         }
         expected = _PRE_ITEM_OTHER_CURVATURE_FIELDS[case["case_id"]]
-        is_relabel_swap = case["case_id"] == "relabel_swap"
+        # Item 216 (D11): sequence_break joins relabel_swap in sitting on
+        # atan2's branch cut, so it gets the same circle comparison.
+        is_relabel_swap = case["case_id"] in ("relabel_swap", "sequence_break")
 
         for key in ("total_curvature_deg", "sagittal_curvature_deg", "sagittal_tangent_angles_deg"):
             if is_relabel_swap and key == "total_curvature_deg":
@@ -970,7 +996,7 @@ _PRE_ITEM_STATUS_OVERRIDES = {
         "vector's angle projected along each scan dimension -- rather than "
         "one scalar relative to the superior-inferior axis alone.",
     ),
-    "stage3.curvature.inter_tangent_angles_deg[]": (
+    "pairs.adjacent.inter_tangent_angles_deg[]": (
         "retune",
         "Should likewise be decomposed into three per-axis components per "
         "neighbouring vertebra pair, rather than one scalar angle.",

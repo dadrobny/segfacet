@@ -128,7 +128,7 @@ def _record(entries, available=True):
         if available
         else {}
     )
-    return {"image_features": _block(available=available), "per_label": per_label}
+    return {"case": {"intensity": _block(available=available)}, "per_label": per_label}
 
 
 def _intensity_findings(findings):
@@ -179,7 +179,7 @@ def _corpus_record(case_id):
         key: {"label": int(key), "intensity": entry}
         for key, entry in build_intensity_entries(intensity).items()
     }
-    return {"image_features": block, "per_label": per_label}
+    return {"case": {"intensity": block}, "per_label": per_label}
 
 
 # =========================================================================== #
@@ -454,13 +454,13 @@ def test_ac14_no_image_features_key_yields_no_findings():
 
 
 def test_ac14_image_features_none_yields_no_findings():
-    findings = IntensityRule().evaluate({"image_features": None}, default_config())
+    findings = IntensityRule().evaluate({"case": {"intensity": None}}, default_config())
     assert findings == []
 
 
 def test_ac14_image_features_non_mapping_yields_no_findings():
     findings = IntensityRule().evaluate(
-        {"image_features": ["not", "a", "mapping"]}, default_config()
+        {"case": {"intensity": ["not", "a", "mapping"]}}, default_config()
     )
     assert findings == []
 
@@ -472,11 +472,13 @@ def test_ac14_image_features_non_mapping_yields_no_findings():
 
 def test_ac15_unavailable_block_yields_no_findings():
     record = {
-        "image_features": {
-            "image_features_version": "1.1",
-            "available": False,
-            "radiomics_available": False,
-            "backend": "builtin",
+        "case": {
+            "intensity": {
+                "image_features_version": "1.1",
+                "available": False,
+                "radiomics_available": False,
+                "backend": "builtin",
+            }
         }
     }
     findings = IntensityRule().evaluate(record, default_config())

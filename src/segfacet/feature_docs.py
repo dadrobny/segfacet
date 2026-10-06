@@ -59,8 +59,8 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   ``MODE_ANCHOR_PATHS``).
 - **Mode 8** (semantic mislabelling; ``mislabelled_volume_fraction``,
   candidate-vs-GT) is anchored on
-  ``stage3.monotonic_consistency.is_monotonic`` -- the same
-  ``monotonic_consistency`` sub-block ``MislabelRule``'s Detector B (which
+  ``case.curve.is_monotonic`` -- the same
+  monotonic-consistency result (item 216: split between ``case.curve`` and ``pairs.adjacent``) ``MislabelRule``'s Detector B (which
   serves mode 9, out-of-order label sequence, a sub-mode of mode 8) reads
   its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
   (rather than ``non_monotonic_pairs[]``) is deliberately the anchor so
@@ -71,18 +71,18 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   non-anchor witness exists per mapped rule.
 - **Mode 6** (vertebra not segmented; ``missing_level_count``,
   candidate-vs-GT) is anchored on
-  ``relationships.present_levels[]`` -- the present-level span
+  ``case.sequence.present_levels[]`` -- the present-level span
   ``heuristics.coverage.CoverageRule`` resolves its missing-level checks
-  against. ``relationships.missing_levels[]`` itself -- the field the rule
+  against. ``case.sequence.missing_levels[]`` itself -- the field the rule
   actually reads and coverage's only exclusively-consumed leaf path -- is
   deliberately left as a plain attribution for the same reason as mode 8
   above.
 - **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
-  anchored on ``relationships.is_continuous``. That flag stays the metric
+  anchored on ``case.sequence.is_continuous``. That flag stays the metric
   anchor no rule reads; since item 192 (2026-09-28)
   ``heuristics.sequence.SequenceRule`` reads ``per_label`` instead (each
   entry's ``centroid.centroid_mm`` and ``level_name``), not the
-  ``relationships`` sub-block at all.
+  ``case.sequence`` sub-block at all.
 
 ``MetricSpec`` (``segfacet.eval.per_mode``) carries no record-path field, so
 this transcription cannot be read off it mechanically; a future item that adds
@@ -161,13 +161,19 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.features.centroids",
     ),
     (
-        "relationships",
+        "case.sequence",
         "Case-Level Relationships",
         "Stage 2 · item 014",
         "segfacet.features.relationships",
     ),
     (
-        "overlaps",
+        "pairs.adjacent.spacings_mm",
+        "Case-Level Relationships",
+        "Stage 2 · item 014",
+        "segfacet.features.relationships",
+    ),
+    (
+        "pairs.overlaps",
         "Voxel Overlap",
         "Stage 2 · item 015",
         "segfacet.features.overlap",
@@ -185,19 +191,25 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.features.orientation",
     ),
     (
-        "stage3.curvature",
+        "case.curve",
         "Orientation & Curvature",
         "Stage 3 · item 019",
         "segfacet.features.orientation",
     ),
     (
-        "stage3.spacing_consistency",
+        "pairs.adjacent.inter_tangent_angles_deg",
+        "Orientation & Curvature",
+        "Stage 3 · item 019",
+        "segfacet.features.orientation",
+    ),
+    (
+        "pairs.adjacent",
         "Spacing & Monotonic Consistency",
         "Stage 3 · item 020",
         "segfacet.features.consistency",
     ),
     (
-        "stage3.monotonic_consistency",
+        "case.curve.is_monotonic",
         "Spacing & Monotonic Consistency",
         "Stage 3 · item 020",
         "segfacet.features.consistency",
@@ -221,7 +233,7 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.features.radiomics",
     ),
     (
-        "image_features",
+        "case.intensity",
         "Intensity — First-Order",
         "Stage 8 · items 059, 061",
         "segfacet.feature_report",
@@ -391,10 +403,10 @@ MODE_ANCHOR_PATHS: Mapping[int, Tuple[str, ...]] = MappingProxyType(
     {
         1: ("per_label.{label}.components.fragmentation_index",),
         4: ("per_label.{label}.components.stray_component_sizes[]",),
-        6: ("relationships.present_levels[]",),
-        8: ("stage3.monotonic_consistency.is_monotonic",),
-        9: ("relationships.is_continuous",),
-        15: ("overlaps[].overlap_voxels",),
+        6: ("case.sequence.present_levels[]",),
+        8: ("case.curve.is_monotonic",),
+        9: ("case.sequence.is_continuous",),
+        15: ("pairs.overlaps[].overlap_voxels",),
     }
 )
 
@@ -628,7 +640,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "demonstrated need; irrelevant unless a concrete use case proves "
             "otherwise."
         ),
-        "stage3.curvature.inter_tangent_angles_deg[]": (
+        "pairs.adjacent.inter_tangent_angles_deg[]": (
             "retune",
             "Should likewise be decomposed into three per-axis components per "
             "neighbouring vertebra pair, rather than one scalar angle."
@@ -640,7 +652,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "rather than one scalar relative to the superior-inferior axis "
             "alone."
         ),
-        "stage3.curvature.total_curvature_deg": (
+        "case.curve.total_curvature_deg": (
             "retune",
             "Should be expressed per axis component (three values) rather "
             "than as one aggregate scalar, consistent with the tangent-angle "
@@ -653,7 +665,7 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "as-is for now, but is flagged for replacement by a proper "
             "vertebra coordinate system (VCS) estimation once VCS is defined."
         ),
-        "stage3.monotonic_consistency.is_monotonic": (
+        "case.curve.is_monotonic": (
             "retune",
             "Should be wired into the sequence rule directly; "
             "sequence-related checks should typically verify order along the "
@@ -665,31 +677,31 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "non_monotonic_pairs[]; should be exposed and reused as the "
             "actual intermediate rather than silently recomputed."
         ),
-        "stage3.spacing_consistency.cv_spacing": (
+        "pairs.adjacent.cv_spacing": (
             "retune",
             "Computation is sound as-is; needs to be wired into a rule that "
             "detects irregular inter-vertebra spacing, which does not "
             "currently exist."
         ),
-        "stage3.spacing_consistency.deviations_mm[]": (
+        "pairs.adjacent.deviations_mm[]": (
             "retune",
             "Computation is sound as-is; needs to be wired into a rule that "
             "detects irregular inter-vertebra spacing, which does not "
             "currently exist."
         ),
-        "stage3.spacing_consistency.mean_spacing_mm": (
+        "pairs.adjacent.mean_spacing_mm": (
             "retune",
             "Computation is sound as-is; needs to be wired into a rule that "
             "detects irregular inter-vertebra spacing, which does not "
             "currently exist."
         ),
-        "stage3.spacing_consistency.outlier_pairs[]": (
+        "pairs.adjacent.outlier_pairs[]": (
             "retune",
             "Computation is sound as-is; needs to be wired into a rule that "
             "detects irregular inter-vertebra spacing, which does not "
             "currently exist."
         ),
-        "stage3.spacing_consistency.spacings_mm[]": (
+        "pairs.adjacent.spacings_mm[]": (
             "retune",
             "Computation is sound as-is; needs to be wired into a rule that "
             "detects irregular inter-vertebra spacing, which does not "
@@ -815,20 +827,20 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "values are useful to keep as an available catalogue so future "
             "rules can explore and select from them."
         ),
-        "image_features.available": (
+        "case.intensity.available": (
             "retune",
             "Should be derived directly from whether the corresponding "
             "feature block is non-empty, rather than carried as a separate "
             "boolean flag."
         ),
-        "image_features.image_features_version": (
+        "case.intensity.image_features_version": (
             "retire",
             "A schema-shape discriminator, not real dependency-version "
             "provenance -- actual package versions are already tracked by "
             "item 096's run-manifest provenance block; this field is "
             "redundant with that mechanism."
         ),
-        "image_features.radiomics_available": (
+        "case.intensity.radiomics_available": (
             "retune",
             "Should likewise be derived directly from whether extended "
             "radiomics features are actually present, rather than a separate "
@@ -1078,25 +1090,25 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
     {
         'features_version': FeatureDoc(
             measures='Schema-version discriminator for this features block.',
-            computation='Literal "0.1" (Stage-2-only) or "0.2" (Stage 3 present), stamped by build_features_block.',
+            computation='Literal "0.2" (no Stage 3 present) or "0.3" (Stage 3 present), stamped by build_features_block (items 215, 216).',
             units='',
             scale_sensitivity='categorical',
         ),
-        'image_features.available': FeatureDoc(
+        'case.intensity.available': FeatureDoc(
             measures='Whether intensity/radiomics features were attempted and succeeded for this case.',
-            computation='False only when intensity extraction could not run at all (no scan / no backend); per_label is empty in that case.',
+            computation='False only when intensity extraction could not run at all (no scan / no backend); the block still carries its four fields (the per-label statistics are per_label.{label}.intensity, item 215).',
             units='',
             scale_sensitivity='boolean',
         ),
-        'image_features.backend': FeatureDoc(
+        'case.intensity.backend': FeatureDoc(
             measures='Which backend computed the extended radiomics features.',
             computation='"builtin" (first-order only) or "pyradiomics".',
             units='',
             scale_sensitivity='categorical',
         ),
-        'image_features.image_features_version': FeatureDoc(
-            measures='Schema-version discriminator for the image_features block.',
-            computation='Literal "1.0" (item 061), independent of features_version.',
+        'case.intensity.image_features_version': FeatureDoc(
+            measures='Schema-version discriminator for the case.intensity block (formerly the report\'s image_features block).',
+            computation='Literal "1.1" (item 061, bumped by item 215), independent of features_version.',
             units='',
             scale_sensitivity='categorical',
         ),
@@ -1196,43 +1208,31 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='voxels',
             scale_sensitivity='voxel count',
         ),
-        'image_features.radiomics_available': FeatureDoc(
+        'case.intensity.radiomics_available': FeatureDoc(
             measures='Whether the PyRadiomics backend produced any extended features.',
             computation='True only when PyRadiomics is installed, enabled, and ran without error for at least one label.',
             units='',
             scale_sensitivity='boolean',
         ),
-        'overlaps[]': FeatureDoc(
+        'pairs.overlaps[]': FeatureDoc(
             measures='The list of overlapping label pairs for this case.',
             computation="Empty when no two labels' voxel masks share a voxel; feature_report.build_features_block sorts non-empty entries by (label_a, label_b).",
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'overlaps[].label_a': FeatureDoc(
+        'pairs.overlaps[].label_a': FeatureDoc(
             measures='The lower integer label of an overlapping pair.',
             computation='features.overlap.detect_overlaps enforces label_a < label_b.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'overlaps[].label_b': FeatureDoc(
+        'pairs.overlaps[].label_b': FeatureDoc(
             measures='The higher integer label of an overlapping pair.',
             computation='features.overlap.detect_overlaps enforces label_a < label_b.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'overlaps[].name_a': FeatureDoc(
-            measures='Anatomical vertebra name for label_a.',
-            computation='Looked up via the active LabelConvention; "unknown" for an unmapped integer.',
-            units='',
-            scale_sensitivity='categorical',
-        ),
-        'overlaps[].name_b': FeatureDoc(
-            measures='Anatomical vertebra name for label_b.',
-            computation='Looked up via the active LabelConvention; "unknown" for an unmapped integer.',
-            units='',
-            scale_sensitivity='categorical',
-        ),
-        'overlaps[].overlap_voxels': FeatureDoc(
+        'pairs.overlaps[].overlap_voxels': FeatureDoc(
             measures='Number of voxels claimed by both labels of the pair.',
             computation="Bitwise AND of the two labels' boolean mask channels, counted with count_nonzero.",
             units='',
@@ -1516,7 +1516,7 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
         ),
         'reference_delta.reference_delta_version': FeatureDoc(
             measures='Schema-version discriminator for the reference_delta block.',
-            computation='Literal "1.0" (item 046), independent of the reference artifact\'s own schema_version.',
+            computation='Literal "1.1" (item 046, bumped by item 215), independent of the reference artifact\'s own schema_version.',
             units='',
             scale_sensitivity='categorical',
         ),
@@ -1712,43 +1712,49 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'relationships': FeatureDoc(
+        'case.sequence': FeatureDoc(
             measures='Case-level spine relationships, or null for a 0-label map.',
-            computation='None when no labels are present; otherwise a nested object (see the individual relationships.* fields).',
+            computation='None when no labels are present; otherwise a nested object (see the individual case.sequence.* fields).',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'relationships.is_continuous': FeatureDoc(
+        'case.sequence.is_continuous': FeatureDoc(
             measures='Whether the levels were labelled in a head-to-tail-consistent order.',
             computation="True iff each level's canonical rank is >= the previous one, walking the labels in their input order.",
             units='',
             scale_sensitivity='boolean',
         ),
-        'relationships.missing_levels[]': FeatureDoc(
+        'case.sequence.missing_levels[]': FeatureDoc(
             measures='Expected-sequence levels absent within the observed present-level span (item 186).',
             computation='Set difference between the expected-sequence slice [first_present..last_present] and the present-levels set, where the expected sequence is C1-C7, T1-T{thoracic}, L1-L{lumbar}, one sacral element -- default counts (7, 12, 5); a non-default thoracic (11 or 13) or lumbar (4 or 6) count is accepted only when the labels also show the first vertebra on either side of that section (C7 for thoracic, the resolved last thoracic level for lumbar), or is supplied by the caller outright. The sacrum is one element: any of S1-S6 stands for it.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'relationships.neighbour_spacings_mm[]': FeatureDoc(
-            measures='Centroid-to-centroid distance between anatomically adjacent levels.',
-            computation='Euclidean distance (mm) between each consecutive pair in canonical order.',
+        'pairs.adjacent.spacings_mm[]': FeatureDoc(
+            measures='Centroid-to-centroid distance between anatomically adjacent labels (the two former arrays relationships.neighbour_spacings_mm[] and stage3.spacing_consistency.spacings_mm[], merged by item 216).',
+            computation='Euclidean distance (mm) between the centroids of each consecutive pair of case.sequence.order -- every label in the item-198 anatomical order, unrecognised labels last (item 216; the integer-label order is anatomically meaningless). Present on every record with at least one label, [] below two labels.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'relationships.out_of_order_labels[]': FeatureDoc(
+        'case.sequence.order[]': FeatureDoc(
+            measures="The record's one element order: every integer label, in the item-198 anatomical order.",
+            computation='pipeline.extract_feature_record sorts every label by the CANONICAL_ORDER rank of its level name (names outside it last), then by integer label (segfacet.labels.anatomical_order, item 216), and feeds that sequence to the spline fit, every Stage 3 extractor and the neighbourhood; relationships alone is fed ascending integer order. A reader compares it with the sorted keys of per_label to see where the two orders differ.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'case.sequence.out_of_order_labels[]': FeatureDoc(
             measures='Level names that broke the monotonic canonical-rank check.',
             computation='Every level, in input order, whose canonical rank is lower than the running maximum.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'relationships.present_levels[]': FeatureDoc(
+        'case.sequence.present_levels[]': FeatureDoc(
             measures='Recognised anatomical levels, in canonical head-to-tail order.',
             computation='Every centroid whose level_name is in the canonical vocabulary, sorted by canonical rank.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.inter_tangent_angles_deg[]': FeatureDoc(
+        'pairs.adjacent.inter_tangent_angles_deg[]': FeatureDoc(
             measures="Angle between consecutive vertebrae's tangent vectors.",
             computation='Angle between each pair of adjacent unit tangent vectors along the spine, read as if the tangents were normalised so the sequence advances superiorly (item 122); already invariant to traversal direction so no negation is needed to produce that reading.',
             units='degrees',
@@ -1760,7 +1766,7 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.total_curvature_deg': FeatureDoc(
+        'case.curve.total_curvature_deg': FeatureDoc(
             measures='Global curvature magnitude: the larger of the coronal and sagittal per-plane sweeps.',
             computation='max(coronal_curvature_deg, sagittal_curvature_deg); 0 for a perfectly straight column. curvature_plane names which plane it came from.',
             units='degrees',
@@ -1778,31 +1784,31 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.coronal_curvature_deg': FeatureDoc(
+        'case.curve.coronal_curvature_deg': FeatureDoc(
             measures='Coronal-plane (R-S) curvature sweep.',
             computation="max - min of the labels' tangent_coronal_unwrapped_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.sagittal_curvature_deg': FeatureDoc(
+        'case.curve.sagittal_curvature_deg': FeatureDoc(
             measures='Sagittal-plane (A-S) curvature sweep.',
             computation="max - min of the labels' tangent_sagittal_unwrapped_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.curvature.curvature_plane': FeatureDoc(
+        'case.curve.curvature_plane': FeatureDoc(
             measures='Which anatomical plane (coronal or sagittal) total_curvature_deg came from.',
             computation='"coronal" when coronal_curvature_deg >= sagittal_curvature_deg, else "sagittal". An exact tie, including a straight spine\'s 0.0/0.0, resolves to "coronal".',
             units='',
             scale_sensitivity='categorical',
         ),
-        'stage3.monotonic_consistency.is_monotonic': FeatureDoc(
+        'case.curve.is_monotonic': FeatureDoc(
             measures="Whether every vertebra's normalised arc-length position u along the label-free path through the centroids increases along the anatomical order.",
             computation='False as soon as u[i] >= u[i+1] anywhere in the ordered sequence, where u is the normalised arc length along the label-free traversal path through the centroids (item 210).',
             units='',
             scale_sensitivity='boolean',
         ),
-        'stage3.monotonic_consistency.non_monotonic_pairs[]': FeatureDoc(
+        'pairs.adjacent.non_monotonic_pairs[]': FeatureDoc(
             measures='Level-name pairs whose position along the label-free path does not advance.',
             computation='Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the label-free traversal path through the centroids (item 210); equal u values count as a violation too.',
             units='',
@@ -2045,35 +2051,29 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             units='degrees',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.spacing_consistency.cv_spacing': FeatureDoc(
+        'pairs.adjacent.cv_spacing': FeatureDoc(
             measures='Regularity of inter-vertebra spacing.',
             computation='population-std(spacings) / mean(spacings); 0.0 when there is only one spacing.',
             units='',
             scale_sensitivity='dimensionless',
         ),
-        'stage3.spacing_consistency.deviations_mm[]': FeatureDoc(
+        'pairs.adjacent.deviations_mm[]': FeatureDoc(
             measures="Per-pair spacing's signed deviation from the mean.",
             computation='spacings_mm[i] - mean_spacing_mm.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.spacing_consistency.mean_spacing_mm': FeatureDoc(
+        'pairs.adjacent.mean_spacing_mm': FeatureDoc(
             measures='Mean inter-vertebra centroid spacing.',
             computation='Arithmetic mean of the neighbour-to-neighbour centroid distances.',
             units='mm',
             scale_sensitivity='scales with spacing',
         ),
-        'stage3.spacing_consistency.outlier_pairs[]': FeatureDoc(
+        'pairs.adjacent.outlier_pairs[]': FeatureDoc(
             measures='Level-name pairs whose spacing is an outlier.',
             computation='A pair is an outlier when its spacing is >= 2.0x or <= 0.3x the mean spacing (both thresholds configurable).',
             units='',
             scale_sensitivity='dimensionless',
-        ),
-        'stage3.spacing_consistency.spacings_mm[]': FeatureDoc(
-            measures='Per-pair inter-vertebra centroid spacing.',
-            computation='Euclidean centroid-to-centroid distance for each adjacent pair, in input order.',
-            units='mm',
-            scale_sensitivity='scales with spacing',
         ),
     }
 )

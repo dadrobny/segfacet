@@ -94,7 +94,6 @@ def serialize_report(
     features: "dict | None" = None,
     findings: "list | None" = None,
     reference_delta: "dict | None" = None,
-    image_features: "dict | None" = None,
     run_manifest: "dict | None" = None,
 ) -> dict:
     """Serialize a :class:`~segfacet.verdict.Verdict` to a v0 report dict.
@@ -132,13 +131,6 @@ def serialize_report(
         validated together with the rest of the report. When ``None``
         (default) no ``reference_delta`` key is emitted, preserving every
         prior report shape (including the Stage 5 golden snapshots).
-    image_features:
-        Optional Stage 8 ``image_features`` block (item 061), as produced by
-        ``segfacet.feature_report.build_image_features_block``. When non-``None``
-        it is embedded verbatim under the report's ``image_features`` key and
-        validated together with the rest of the report. When ``None``
-        (default) no ``image_features`` key is emitted, preserving every
-        prior report shape (including the item-042 golden snapshots).
     run_manifest:
         Optional run-manifest provenance block (item 096), as produced by
         ``segfacet.run_manifest.build_run_manifest(...).to_dict()``. When
@@ -195,11 +187,9 @@ def serialize_report(
     if reference_delta is not None:
         report["reference_delta"] = reference_delta
 
-    # Optional Stage 8 image_features block (item 061) -- added before
-    # validation for the same reason. Omitting it (None) keeps the prior
-    # report shape intact.
-    if image_features is not None:
-        report["image_features"] = image_features
+    # Item 216: the Stage 8 case-level intensity block (item 061) is stored in
+    # the features block as ``case.intensity``; the report has no top-level
+    # ``image_features`` key any more.
 
     # Optional Stage 17 run_manifest block (item 096) -- added before
     # validation for the same reason. Omitting it (None) keeps the prior
@@ -219,7 +209,6 @@ def serialize_report_json(
     features: "dict | None" = None,
     findings: "list | None" = None,
     reference_delta: "dict | None" = None,
-    image_features: "dict | None" = None,
     run_manifest: "dict | None" = None,
 ) -> str:
     """Serialize a :class:`~segfacet.verdict.Verdict` to a JSON string.
@@ -247,9 +236,6 @@ def serialize_report_json(
     reference_delta:
         Optional Stage 6 ``reference_delta`` block (item 046), forwarded to
         :func:`serialize_report`.
-    image_features:
-        Optional Stage 8 ``image_features`` block (item 061), forwarded to
-        :func:`serialize_report`.
     run_manifest:
         Optional run-manifest provenance block (item 096), forwarded to
         :func:`serialize_report`.
@@ -266,7 +252,6 @@ def serialize_report_json(
         features=features,
         findings=findings,
         reference_delta=reference_delta,
-        image_features=image_features,
         run_manifest=run_manifest,
     )
     return json.dumps(report, indent=indent)

@@ -516,7 +516,7 @@ def _neighbourhood_entries(block):
 
 def test_ac8_multi_label_case_has_per_label_neighbourhood():
     block, case = _multi_label_block()
-    assert "stage3" in block
+    assert "curve" in block["case"]
     entries = _neighbourhood_entries(block)
     assert len(entries) == len(case.expected_labels)
 
@@ -560,7 +560,7 @@ def test_ac9_zero_label_map_no_stage3_key():
 
     case = empty_case()
     block = extract_feature_record(case.seg_img, default_config())
-    assert "stage3" not in block
+    assert "curve" not in block["case"]
 
 
 def test_ac9_single_label_map_no_neighbourhood_key():
@@ -573,7 +573,7 @@ def test_ac9_single_label_map_no_neighbourhood_key():
     block = extract_feature_record(seg, default_config())
     # Matches every other Stage 3 sub-block: single-label maps carry no
     # "stage3" key at all (spline fit requires >= 2 points).
-    assert "stage3" not in block
+    assert "curve" not in block["case"]
 
 
 def test_ac9_single_label_never_raises():

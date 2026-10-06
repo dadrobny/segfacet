@@ -556,8 +556,14 @@ def test_ac18_entry_set_has_138_paths(full_catalogue):
     # image_features.per_label.{label}.label), every other 215 row moves 1:1
     # (the four per-label arrays included), and the 20 report-only
     # reference_delta.{label}.features.<f>.<s> rows join the catalogue (+20).
+    # Item 216 (2026-10-06): 156 -> 154. Three merged rows leave the
+    # catalogue (-3: overlaps[].name_a and .name_b onto
+    # per_label.{label}.level_name, stage3.spacing_consistency.spacings_mm[]
+    # onto pairs.adjacent.spacings_mm[]); every other 216 row moves or stays
+    # 1:1, and case.sequence.order[], a stored field with no table row (the
+    # note's Deviation 11), joins (+1).
     paths = {e.path for e in full_catalogue.entries}
-    assert len(paths) == 156
+    assert len(paths) == 154
 
 
 def test_ac18_committed_entry_set_matches_regenerated(full_catalogue, committed_json_dict):
@@ -815,7 +821,7 @@ def test_adv_sign_handling_all_negative_population_is_informative(observed_range
 def test_adv_boolean_values_are_not_numeric(full_catalogue):
     for path in (
         "per_label.{label}.curve.is_terminal",
-        "relationships.is_continuous",
+        "case.sequence.is_continuous",
     ):
         entry = _entry(full_catalogue, path)
         assert entry.observed.verdict == "non-numeric", path
@@ -834,10 +840,10 @@ def test_adv_iter_leaf_values_bool_excluded_none_skipped(observed_range_module):
     "path",
     [
         "per_label",
-        "overlaps[]",
+        "pairs.overlaps[]",
         "per_label.{label}.components.small_fragments[]",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]",
-        "stage3.spacing_consistency.outlier_pairs[]",
+        "pairs.adjacent.non_monotonic_pairs[]",
+        "pairs.adjacent.outlier_pairs[]",
         "reference_delta.{label}.out_of_range_features[]",
     ],
 )

@@ -208,8 +208,8 @@ v - 1`` claim item 145 transcribed from ``MODE_RUNGS``: see that field.
 
 ``coverage`` re-homed to mode 10 (item 188, 2026-09-28)
 ---------------------------------------------------------
-``coverage`` reads ``relationships.missing_levels[]`` and
-``relationships.present_levels[]`` -- lists of labels, not of vertebrae -- so
+``coverage`` reads ``case.sequence.missing_levels[]`` and
+``case.sequence.present_levels[]`` -- lists of labels, not of vertebrae -- so
 it can see a missing label in the sequence but not whether the vertebra
 behind it exists. That serves mode 10 (skipped level label), not mode 6
 (vertebra not segmented), which mode 6's own declaration had claimed since
@@ -1173,7 +1173,7 @@ _MODE_2 = ModeSpec(
         "neighbour_contact is silent; fused_label (item 207) decides it from "
         "two signals together: per_label.{label}.geometry.physical_volume_mm3 "
         "(the label's volume over its larger adjacent label's, about 2x) and "
-        "stage3.spacing_consistency.spacings_mm[] (the mean of the "
+        "pairs.adjacent.spacings_mm[] (the mean of the "
         "label's adjacent spacings over the median of the other spacings, "
         "about 1.5x, whichever side the fused centroid falls on), "
         "firing only when both strictly exceed their thresholds "
@@ -1208,7 +1208,7 @@ _MODE_2 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.spacing_consistency.spacings_mm[]",
+            path="pairs.adjacent.spacings_mm[]",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1305,7 +1305,7 @@ _MODE_2 = ModeSpec(
                 "body touches nothing (stray_contact_area_mm2 0.0). Mode 2's "
                 "own signal is fused_label's (item 207): label 22's volume "
                 "(38781 mm^3) reads 2.0016x its larger neighbour, and the "
-                "spacings around it (stage3.spacing_consistency.spacings_mm "
+                "spacings around it (pairs.adjacent.spacings_mm "
                 "[33.49, 49.46, 53.50], mean adjacent spacing over the baseline) "
                 "read 1.5371x (re-measured 2026-10-05, item 211), strictly "
                 "above 1.5 and 1.25 respectively; fragmentation stays a "
@@ -1584,7 +1584,7 @@ _MODE_6 = ModeSpec(
         "Defined against ground truth (the Stage-18 metric counts GT levels "
         "with no candidate voxels). No registered rule decides this mode "
         "since item 188 (2026-09-28): coverage's interior-gap detector "
-        "fires on the label gap in relationships.missing_levels[] that "
+        "fires on the label gap in case.sequence.missing_levels[] that "
         "remove_level leaves -- the vertebra is deleted without renumbering "
         "and the remaining labels are kept -- but that detector serves mode "
         "10 (skipped level label), because it cannot tell a missed vertebra "
@@ -1593,8 +1593,7 @@ _MODE_6 = ModeSpec(
         "detectors) is a recorded co-detection, not this mode's own evidence. "
         "remove_level_relabel fires nothing: it deletes L3 and renumbers "
         "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
-        "inter-centroid spacing (the spacings_mm list of the stage 3 "
-        "spacing_consistency block) that no mode-6 rule reads; fused_label "
+        "inter-centroid spacing (pairs.adjacent.spacings_mm[]) that no mode-6 rule reads; fused_label "
         "reads spacing only beside a doubled size, so it is silent there. "
         "That doubled spacing is this mode's own "
         "label-map signal -- it would also catch remove_level -- and its "
@@ -1607,15 +1606,15 @@ _MODE_6 = ModeSpec(
     observability="needs-ground-truth",
     candidate_features=(
         CandidateFeature(
-            path="relationships.present_levels[]",
+            path="case.sequence.present_levels[]",
             role="stage18-metric-anchor",
         ),
         CandidateFeature(
-            path="stage3.spacing_consistency.spacings_mm[]",
+            path="pairs.adjacent.spacings_mm[]",
             role="hypothesised",
         ),
         CandidateFeature(
-            path="relationships.missing_levels[]",
+            path="case.sequence.missing_levels[]",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1699,7 +1698,7 @@ _MODE_7 = ModeSpec(
         "label-map signals are a centroid off the fitted spinal curve "
         "(per_label.{label}.curve.offset_mm, whose shipped detector "
         "serves no mode), a halved inter-centroid spacing where the extra "
-        "segment sits (stage3.spacing_consistency.spacings_mm[]), a "
+        "segment sits (pairs.adjacent.spacings_mm[]), a "
         "volume out of range for the level it is named "
         "(per_label.{label}.geometry.physical_volume_mm3), and a present "
         "level count above the expected count -- coverage's count check "
@@ -1712,7 +1711,7 @@ _MODE_7 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.spacing_consistency.spacings_mm[]",
+            path="pairs.adjacent.spacings_mm[]",
             role="hypothesised",
         ),
         CandidateFeature(
@@ -1720,7 +1719,7 @@ _MODE_7 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="relationships.present_levels[]",
+            path="case.sequence.present_levels[]",
             role="hypothesised",
         ),
     ),
@@ -1770,7 +1769,7 @@ _MODE_8 = ModeSpec(
     observability="single-channel-observable",
     candidate_features=(
         CandidateFeature(
-            path="stage3.monotonic_consistency.is_monotonic",
+            path="case.curve.is_monotonic",
             role="stage18-metric-anchor",
         ),
         CandidateFeature(
@@ -1825,7 +1824,7 @@ _MODE_9 = ModeSpec(
         "L3 and fires swap beside mislabel's ordering, and "
         "sequence_break's tail T13 is one rank descent and fires shift. "
         "mislabel's ordering detector fires on "
-        "stage3.monotonic_consistency.non_monotonic_pairs[] "
+        "pairs.adjacent.non_monotonic_pairs[] "
         "(relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) "
         "those pairs are judged in CANONICAL_ORDER order, so a correctly "
         "placed T13 or Cocc no longer fires, and sequence_break fires "
@@ -1837,15 +1836,15 @@ _MODE_9 = ModeSpec(
     observability="single-channel-observable",
     candidate_features=(
         CandidateFeature(
-            path="relationships.is_continuous",
+            path="case.sequence.is_continuous",
             role="stage18-metric-anchor",
         ),
         CandidateFeature(
-            path="relationships.out_of_order_labels[]",
+            path="case.sequence.out_of_order_labels[]",
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.monotonic_consistency.non_monotonic_pairs[]",
+            path="pairs.adjacent.non_monotonic_pairs[]",
             role="hypothesised",
         ),
     ),
@@ -1873,7 +1872,7 @@ _MODE_9 = ModeSpec(
                 "and 22/L3 are out of expected order along the spline), and "
                 "sequence's swap detector now fires beside it on the same "
                 "pair (labels 21, 22), reading per_label centroids instead "
-                "of relationships.out_of_order_labels[]. A swap is the "
+                "of case.sequence.out_of_order_labels[]. A swap is the "
                 "order-breaking form of mislabelling."
             ),
         ),
@@ -1925,7 +1924,7 @@ _MODE_10 = ModeSpec(
     ),
     mechanism=(
         "coverage's interior-gap detector fires on the label gap in "
-        "relationships.missing_levels[] (item 188, 2026-09-28). The "
+        "case.sequence.missing_levels[] (item 188, 2026-09-28). The "
         "detector cannot tell that gap from a missed vertebra, so on "
         "remove_level (mode 6) it is a co-detection, not a validation of "
         "this mode. sequence's skip detector reads the same gap from "
@@ -1937,18 +1936,17 @@ _MODE_10 = ModeSpec(
         "needs-real-data: a skip-relabel fixture (renumber the labels "
         "caudal to a level down by one without deleting a vertebra) is not "
         "authored. The separating signal is an ordinary inter-centroid "
-        "spacing across the label gap (the spacings_mm list of the stage 3 "
-        "spacing_consistency block); as for mode 6, no mode-10 rule reads it "
+        "spacing across the label gap (pairs.adjacent.spacings_mm[]); as for mode 6, no mode-10 rule reads it "
         "-- fused_label reads spacing only beside a doubled size."
     ),
     observability="single-channel-observable",
     candidate_features=(
         CandidateFeature(
-            path="relationships.missing_levels[]",
+            path="case.sequence.missing_levels[]",
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.spacing_consistency.spacings_mm[]",
+            path="pairs.adjacent.spacings_mm[]",
             role="hypothesised",
         ),
     ),
@@ -2042,7 +2040,7 @@ _MODE_12 = ModeSpec(
         "No shipped rule, no candidate feature in the record, no corpus "
         "case: listed as proposed. The one hypothesised input is a "
         "vertebra-level classifier's output (spine section and counting "
-        "reference), compared against relationships.present_levels[]."
+        "reference), compared against case.sequence.present_levels[]."
     ),
     observability="needs-external-classifier",
     candidate_features=(
@@ -2051,7 +2049,7 @@ _MODE_12 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="relationships.present_levels[]",
+            path="case.sequence.present_levels[]",
             role="hypothesised",
         ),
     ),
@@ -2088,7 +2086,7 @@ _MODE_13 = ModeSpec(
         "No rule exists for this mode yet, which is what proposed means. "
         "The candidate inputs are the minimum inter-label centroid distance "
         "relative to the expected spacing "
-        "(stage3.spacing_consistency.spacings_mm[]) and the "
+        "(pairs.adjacent.spacings_mm[]) and the "
         "stage3_unavailable.reason field the degenerate case populates "
         "(item 129), which no rule reads."
     ),
@@ -2099,7 +2097,7 @@ _MODE_13 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.spacing_consistency.spacings_mm[]",
+            path="pairs.adjacent.spacings_mm[]",
             role="hypothesised",
         ),
     ),
@@ -2151,7 +2149,7 @@ _MODE_14 = ModeSpec(
             role="hypothesised",
         ),
         CandidateFeature(
-            path="stage3.spacing_consistency.spacings_mm[]",
+            path="pairs.adjacent.spacings_mm[]",
             role="hypothesised",
         ),
     ),
@@ -2181,7 +2179,7 @@ _MODE_15 = ModeSpec(
     ),
     mechanism=(
         "A single-channel integer label map holds exactly one label per "
-        "voxel, so overlaps[].overlap_voxels can be non-zero only on a "
+        "voxel, so pairs.overlaps[].overlap_voxels can be non-zero only on a "
         "multi-channel input, which no FACET input path supplies: the "
         "pipeline builds its mask stack from the one label map. The "
         "overlap rule reads that path, is correct and fully wired, and is "
@@ -2192,7 +2190,7 @@ _MODE_15 = ModeSpec(
     observability="structurally-unobservable",
     candidate_features=(
         CandidateFeature(
-            path="overlaps[].overlap_voxels",
+            path="pairs.overlaps[].overlap_voxels",
             role="stage18-metric-anchor",
         ),
         CandidateFeature(
@@ -2460,7 +2458,7 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "(spondylolisthesis, scoliosis, a rigid misplacement): mislabel's "
         "ordering detector, which decides specification mode 9, reads a "
         "different signal entirely "
-        "(stage3.monotonic_consistency.non_monotonic_pairs[]) and never "
+        "(pairs.adjacent.non_monotonic_pairs[]) and never "
         "fires on a displaced-only case. mislabel opts in to this condition "
         "too (item 191, 2026-09-28): a label swap can put a centroid off "
         "the curve fitted in label order, so a genuine mislabel can also "

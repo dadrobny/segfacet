@@ -145,11 +145,11 @@ def test_sacral_labels_share_one_rank():
 
 def test_no_centroid_no_finding():
     record = {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["L1", "T12"],
             "is_continuous": False,
             "out_of_order_labels": ["T12"],
-        },
+        }},
         "per_label": {
             "19": {"label": 19, "level_name": "T12"},
             "20": {"label": 20, "level_name": "L1"},

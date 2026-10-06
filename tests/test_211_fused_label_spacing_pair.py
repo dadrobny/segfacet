@@ -32,7 +32,7 @@ def _evaluate(record: dict, config=None) -> list:
 
 def _with_pair(record: dict, first: float, second: float) -> dict:
     out = copy.deepcopy(record)
-    sp = out["stage3"]["spacing_consistency"]["spacings_mm"]
+    sp = out["pairs"]["adjacent"]["spacings_mm"]
     sp[1], sp[2] = first, second
     return out
 
@@ -45,7 +45,7 @@ def test_ac1_one_normal_and_one_doubled_adjacent_spacing_fires():
     record = _record("fuse_separate")
     assert _fused_labels(_evaluate(record)) == [frozenset({22})]
 
-    p = record["stage3"]["spacing_consistency"]["spacings_mm"][0]
+    p = record["pairs"]["adjacent"]["spacings_mm"][0]
     assert _fused_labels(_evaluate(_with_pair(record, p, 2 * p))) == [frozenset({22})]
 
 
@@ -68,14 +68,14 @@ def test_ac2_a_non_integer_per_label_key_is_not_judged():
 )
 def test_split_proportion_invariant(a, b, fires):
     record = _record("fuse_separate")
-    p = record["stage3"]["spacing_consistency"]["spacings_mm"][0]
+    p = record["pairs"]["adjacent"]["spacings_mm"][0]
     findings = _evaluate(_with_pair(record, a * p, b * p))
     assert _fused_labels(findings) == ([frozenset({22})] if fires else [])
 
 
 def test_missing_vertebra_not_fused():
     record = _record("remove_level_relabel")
-    p = record["stage3"]["spacing_consistency"]["spacings_mm"][0]
+    p = record["pairs"]["adjacent"]["spacings_mm"][0]
     widened = _with_pair(record, 2 * p, 2 * p)
 
     assert _evaluate(record) == []

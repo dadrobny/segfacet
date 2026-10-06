@@ -173,8 +173,8 @@ def test_ac2_all_families_present():
     assert set(block.keys()) == {
         "features_version",
         "per_label",
-        "relationships",
-        "overlaps",
+        "case",
+        "pairs",
     }
     assert block["per_label"], "per_label must not be empty for a multi-label case"
     for key, entry in block["per_label"].items():
@@ -184,9 +184,10 @@ def test_ac2_all_families_present():
         assert "label" in entry
         assert "level_name" in entry
 
-    assert isinstance(block["overlaps"], list)
-    assert block["relationships"] is not None
-    assert "present_levels" in block["relationships"]
+    # Item 216: relationships -> case.sequence, overlaps -> pairs.overlaps.
+    assert isinstance(block["pairs"]["overlaps"], list)
+    assert block["case"]["sequence"] is not None
+    assert "present_levels" in block["case"]["sequence"]
 
 
 def test_ac2_per_label_keys_match_all_labels():
@@ -310,7 +311,7 @@ def test_ac5_overlaps_sorted_by_label_pair():
         relationships=relationships,
         overlaps=unsorted,
     )
-    pairs = [(o["label_a"], o["label_b"]) for o in block["overlaps"]]
+    pairs = [(o["label_a"], o["label_b"]) for o in block["pairs"]["overlaps"]]
     assert pairs == sorted(pairs)
 
 
@@ -437,11 +438,13 @@ def test_ac7_single_label_map():
 
     block, *_ = _features_for_case(_Case())
 
-    assert block["overlaps"] == []
+    # Item 216: overlaps -> pairs.overlaps, relationships -> case.sequence,
+    # relationships.neighbour_spacings_mm -> pairs.adjacent.spacings_mm.
+    assert block["pairs"]["overlaps"] == []
     assert len(block["per_label"]) == 1
-    assert block["relationships"] is not None
-    assert len(block["relationships"]["present_levels"]) <= 1
-    assert block["relationships"]["neighbour_spacings_mm"] == []
+    assert block["case"]["sequence"] is not None
+    assert len(block["case"]["sequence"]["present_levels"]) <= 1
+    assert block["pairs"]["adjacent"]["spacings_mm"] == []
 
     # Still validates + renders.
     serialize_report(_empty_verdict(), "single", _config(), features=block)
@@ -454,12 +457,13 @@ def test_ac7_zero_label_map():
     block, *_ = _features_for_case(case)
 
     assert block["per_label"] == {}
-    assert block["overlaps"] == []
-    # relationships is None (no centroids) -> serialises to null, still valid.
-    assert block["relationships"] is None
+    assert block["pairs"]["overlaps"] == []
+    # case.sequence (item 216; formerly relationships) is None (no centroids)
+    # -> serialises to null, still valid.
+    assert block["case"]["sequence"] is None
 
     report = serialize_report(_empty_verdict(), "empty", _config(), features=block)
-    assert report["features"]["relationships"] is None
+    assert report["features"]["case"]["sequence"] is None
     assert render_feature_table(block).strip()
 
 
@@ -468,7 +472,7 @@ def test_ac7_relationships_none_serialises_to_json_null():
     case = empty_case()
     block, *_ = _features_for_case(case)
     text = serialize_report_json(_empty_verdict(), "empty", _config(), features=block)
-    assert json.loads(text)["features"]["relationships"] is None
+    assert json.loads(text)["features"]["case"]["sequence"] is None
 
 
 # =========================================================================== #

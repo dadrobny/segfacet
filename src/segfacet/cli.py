@@ -302,7 +302,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Enable intensity mode (item 065): compute per-label first-order "
             "intensity/radiomics features from --scan and embed an "
-            "image_features block in the report, letting the intensity / "
+            "case.intensity block in the report, letting the intensity / "
             "intensity_reference_delta rules fire. OFF by default -- falls "
             "back to config intensity.enabled when the flag itself is not "
             "given."
@@ -688,9 +688,10 @@ def _handle_run(args: argparse.Namespace) -> int:
     When ``--intensity`` (or config ``intensity.enabled``) is set, dispatches
     to :func:`segfacet.pipeline.run_qc_with_intensity` instead (item 065),
     additionally computing per-label intensity/radiomics features and
-    embedding an ``image_features`` block in both reports. Writes a JSON
+    storing a ``case.intensity`` block in the features record (item 216) that
+    both reports read. Writes a JSON
     report (:func:`segfacet.report.serialize_report_json`, carrying ``features``
-    + ``findings`` and, in intensity mode, ``image_features``) and a
+    + ``findings``) and a
     human-readable plain-text report
     (:func:`segfacet.human_report.render_human_report`, carrying a Findings
     section and, in intensity mode, an Intensity features section) to
@@ -846,7 +847,6 @@ def _handle_run(args: argparse.Namespace) -> int:
     lower_pct = cfg.reference_param("lower_pct", 1)
     upper_pct = cfg.reference_param("upper_pct", 99)
 
-    image_features = None
     if intensity_enabled:
         scan_img = nib.Nifti1Image(case.scan.data, case.scan.affine)
         radiomics_enabled = bool(cfg.intensity_param("radiomics", True))
@@ -854,7 +854,7 @@ def _handle_run(args: argparse.Namespace) -> int:
             (
                 case_result,
                 features_block,
-                image_features,
+                _image_features,
                 reference_delta,
                 _intensity_reference_delta,
             ) = run_qc_with_intensity(
@@ -907,7 +907,6 @@ def _handle_run(args: argparse.Namespace) -> int:
         features=features_block,
         findings=findings_dicts,
         reference_delta=reference_delta,
-        image_features=image_features,
         run_manifest=run_manifest,
     )
     json_path = out_path / "segfacet_report.json"
@@ -918,7 +917,6 @@ def _handle_run(args: argparse.Namespace) -> int:
         case_id,
         cfg,
         findings=case_result.findings,
-        image_features=image_features,
         features=features_block,
     )
     txt_path = out_path / "segfacet_report.txt"

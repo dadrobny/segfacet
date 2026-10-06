@@ -76,8 +76,8 @@ def _minimal_record(labels=(3, 5)):
     """Return a minimal feature record matching the build_features_block shape."""
     return {
         "per_label": {lbl: {} for lbl in labels},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -583,7 +583,7 @@ def test_ac12_empty_per_label_no_crash_label_reader():
     """AC12: A label-reading rule with per_label={} completes without raising."""
     register_rule(_LabelReaderRule)
     cfg = default_config()
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     findings = run_rules(record, cfg)
     assert isinstance(findings, list)
     assert findings == []
@@ -593,7 +593,7 @@ def test_ac12_empty_per_label_stub_rule_still_runs():
     """AC12: A non-label-reading stub executes cleanly when per_label is empty."""
     register_rule(_StubRule)
     cfg = default_config()
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     findings = run_rules(record, cfg)
     assert len(findings) == 1
 

@@ -215,14 +215,20 @@ def _hand_record(entries, present_levels=None, missing_levels=(), overlaps=None)
         present_levels = [e["level_name"] for e in entries]
     return {
         "per_label": {e["label"]: e for e in entries},
-        "relationships": {
-            "present_levels": list(present_levels),
-            "missing_levels": list(missing_levels),
-            "neighbour_spacings_mm": [],
-            "is_continuous": len(missing_levels) == 0,
-            "out_of_order_labels": [],
+        # Item 216: relationships -> case.sequence, neighbour_spacings_mm ->
+        # pairs.adjacent.spacings_mm, overlaps -> pairs.overlaps.
+        "case": {
+            "sequence": {
+                "present_levels": list(present_levels),
+                "missing_levels": list(missing_levels),
+                "is_continuous": len(missing_levels) == 0,
+                "out_of_order_labels": [],
+            }
         },
-        "overlaps": overlaps if overlaps is not None else [],
+        "pairs": {
+            "overlaps": overlaps if overlaps is not None else [],
+            "adjacent": {"spacings_mm": []},
+        },
     }
 
 
@@ -810,7 +816,7 @@ def test_ac13_mode7_every_other_corpus_case_is_zero(cid):
 def test_ac13_mode7_matches_hand_formula():
     pm = _per_mode()
     record = _RECORDS["sequence_break"]
-    expected = float(len(record["relationships"]["out_of_order_labels"]))
+    expected = float(len(record["case"]["sequence"]["out_of_order_labels"]))
     result = pm.compute_per_mode_metrics(record)
     assert _value(result, 7) == expected
 
@@ -840,8 +846,8 @@ def test_ac14_mode8_matches_hand_formula():
     exercised via two planted overlap entries instead."""
     pm = _per_mode()
     record = dict(_RECORDS["clean_control"])
-    record["overlaps"] = [{"overlap_voxels": 3}, {"overlap_voxels": 4}]
-    expected = float(sum(e["overlap_voxels"] for e in record["overlaps"]))
+    record["pairs"] = {"overlaps": [{"overlap_voxels": 3}, {"overlap_voxels": 4}]}
+    expected = float(sum(e["overlap_voxels"] for e in record["pairs"]["overlaps"]))
     result = pm.compute_per_mode_metrics(record)
     assert _value(result, 8) == 7.0
     assert _value(result, 8) == expected
@@ -849,8 +855,9 @@ def test_ac14_mode8_matches_hand_formula():
 
 def test_ac14_mode8_absent_overlaps_key_is_none():
     pm = _per_mode()
-    record = {k: v for k, v in _RECORDS["clean_control"].items() if k != "overlaps"}
-    assert "overlaps" not in record
+    record = dict(_RECORDS["clean_control"])
+    record["pairs"] = {k: v for k, v in record["pairs"].items() if k != "overlaps"}
+    assert "overlaps" not in record["pairs"]
     result = pm.compute_per_mode_metrics(record)
     assert _value(result, 8) is None
 
@@ -858,7 +865,7 @@ def test_ac14_mode8_absent_overlaps_key_is_none():
 def test_ac14_mode8_present_but_empty_list_is_zero():
     pm = _per_mode()
     record = dict(_RECORDS["clean_control"])
-    record["overlaps"] = []
+    record["pairs"] = {**record["pairs"], "overlaps": []}
     result = pm.compute_per_mode_metrics(record)
     assert _value(result, 8) == 0.0
 
@@ -1262,9 +1269,9 @@ def test_ac22_zero_label_record_relationships_none_no_stage3_no_per_label():
     seg_img = make_labelmap(blocks={})
     record = extract_feature_record(seg_img, _CONFIG)
     assert record["per_label"] == {}
-    assert record["relationships"] is None
-    assert record["overlaps"] == []
-    assert "stage3" not in record
+    assert record["case"]["sequence"] is None
+    assert record["pairs"]["overlaps"] == []
+    assert "curve" not in record["case"]
 
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(record)
@@ -1276,7 +1283,7 @@ def test_ac22_zero_label_record_relationships_none_no_stage3_no_per_label():
 def test_ac22_one_label_record_no_stage3_modes_resolve_from_single_entry():
     seg_img = make_labelmap(blocks={1: ((0, 4), (0, 4), (0, 4))})
     record = extract_feature_record(seg_img, _CONFIG)
-    assert "stage3" not in record
+    assert "curve" not in record["case"]
 
     pm = _per_mode()
     result = pm.compute_per_mode_metrics(record)
@@ -1288,7 +1295,7 @@ def test_ac22_one_label_record_no_stage3_modes_resolve_from_single_entry():
 
 def test_ac22_malformed_per_label_as_list_degrades_to_none_not_typeerror():
     pm = _per_mode()
-    record = {"per_label": [1, 2, 3], "relationships": None, "overlaps": []}
+    record = {"per_label": [1, 2, 3], "case": {"sequence": None}, "pairs": {"overlaps": []}}
     result = pm.compute_per_mode_metrics(record)  # must not raise
     for mode in (2, 3, 6):
         assert result.per_mode[mode - 1].value is None, mode
@@ -1298,8 +1305,8 @@ def test_ac22_malformed_components_as_string_degrades_to_none_not_typeerror():
     pm = _per_mode()
     record = {
         "per_label": {1: {"label": 1, "level_name": "L1", "components": "not-a-dict"}},
-        "relationships": None,
-        "overlaps": [],
+        "case": {"sequence": None},
+        "pairs": {"overlaps": []},
     }
     result = pm.compute_per_mode_metrics(record)  # must not raise
     assert result.per_mode[2 - 1].value is None

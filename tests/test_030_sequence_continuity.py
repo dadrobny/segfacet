@@ -107,14 +107,14 @@ def _make_record(
         if z is not None:
             e["centroid"] = {"centroid_mm": [0.0, 0.0, z]}
     return {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": list(present_levels),
             "missing_levels": [],
             "is_continuous": is_continuous,
             "out_of_order_labels": list(out_of_order_labels),
-        },
+        }},
         "per_label": {e["label"]: e for e in entries},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -353,20 +353,20 @@ def test_ac8_empty_record_no_finding():
 
 def test_ac9_relationships_none_returns_empty_list():
     """AC9: record['relationships'] is None => [] without raising."""
-    record = {"relationships": None, "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": None}, "per_label": {}, "pairs": {"overlaps": {}}}
     assert _seq_findings(run_rules(record, default_config())) == []
 
 
 def test_ac9_relationships_absent_returns_empty_list():
     """AC9: record has no 'relationships' key => [] without raising."""
-    record = {"per_label": {}, "overlaps": {}}
+    record = {"per_label": {}, "pairs": {"overlaps": {}}}
     assert _seq_findings(run_rules(record, default_config())) == []
 
 
 def test_ac9_out_of_order_and_is_continuous_absent_no_raise():
     """AC9: relationships present but without out_of_order_labels /
     is_continuous keys (treated as continuous) => []."""
-    record = {"relationships": {"present_levels": ["L1"]}, "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": {"present_levels": ["L1"]}}, "per_label": {}, "pairs": {"overlaps": {}}}
     assert _seq_findings(run_rules(record, default_config())) == []
 
 
@@ -377,13 +377,13 @@ def test_ac9_per_label_empty_no_raise():
     an offender with no per-label entry has no position to judge, so an empty
     per_label now yields no finding rather than an unattributed one."""
     record = {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["L1", "T12"],
             "is_continuous": False,
             "out_of_order_labels": ["T12"],
-        },
+        }},
         "per_label": {},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
     findings = _seq_findings(run_rules(record, default_config()))
     assert findings == []
@@ -395,12 +395,12 @@ def test_ac9_per_label_absent_no_raise():
     Item 192 (2026-09-28): with no per_label, no entry has a position to
     judge, so the result is empty rather than a single unattributed finding."""
     record = {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["L1", "T12"],
             "is_continuous": False,
             "out_of_order_labels": ["T12"],
-        },
-        "overlaps": {},
+        }},
+        "pairs": {"overlaps": {}},
     }
     result = _seq_findings(run_rules(record, default_config()))
     assert result == []
@@ -409,7 +409,7 @@ def test_ac9_per_label_absent_no_raise():
 def test_ac9_malformed_relationships_not_a_mapping_no_raise():
     """AC9: relationships that is not a mapping (e.g. a string) is tolerated
     and yields no findings rather than crashing."""
-    record = {"relationships": "not-a-dict", "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": "not-a-dict"}, "per_label": {}, "pairs": {"overlaps": {}}}
     result = _seq_findings(run_rules(record, default_config()))
     assert result == []
 
@@ -522,7 +522,7 @@ def test_ac12_value_error_raised_before_per_record_processing(tmp_path):
     is parsed before any per-record processing."""
     content = _sequence_yaml_header() + "      severity: garbage\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    record = {"per_label": {}, "relationships": None, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": None}, "pairs": {"overlaps": {}}}
     with pytest.raises(ValueError):
         run_rules(record, cfg)
 
@@ -646,9 +646,9 @@ def test_ac14_out_of_order_labels_list_not_mutated():
     record = _make_record(
         ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
     )
-    original = list(record["relationships"]["out_of_order_labels"])
+    original = list(record["case"]["sequence"]["out_of_order_labels"])
     run_rules(record, default_config())
-    assert record["relationships"]["out_of_order_labels"] == original
+    assert record["case"]["sequence"]["out_of_order_labels"] == original
 
 
 def test_ac14_per_label_dict_not_mutated():
@@ -688,13 +688,13 @@ def test_adv_per_label_entry_not_a_mapping_no_raise():
     remaining entry (L1) has no position to judge against, so this now
     yields no finding."""
     record = {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": ["L1", "T12"],
             "is_continuous": False,
             "out_of_order_labels": ["T12"],
-        },
+        }},
         "per_label": {1: "not-a-dict", 2: _make_per_label_entry(_LABEL_L1, "L1")},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
     findings = get_rule("sequence").evaluate(record, default_config())
     assert findings == []
@@ -704,12 +704,12 @@ def test_adv_out_of_order_labels_absent_key_treated_as_continuous():
     """Adversarial: relationships with is_continuous explicitly True but no
     out_of_order_labels key at all => no finding, no crash."""
     record = {
-        "relationships": {"present_levels": ["L1", "L2"], "is_continuous": True},
+        "case": {"sequence": {"present_levels": ["L1", "L2"], "is_continuous": True}},
         "per_label": {
             _LABEL_L1: _make_per_label_entry(_LABEL_L1, "L1"),
             _LABEL_L2: _make_per_label_entry(_LABEL_L2, "L2"),
         },
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
     findings = _seq_findings(run_rules(record, default_config()))
     assert findings == []

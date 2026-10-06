@@ -2,8 +2,8 @@
 
 A Stage 4 rule that thresholds item 059's/061's already-computed **first-order
 intensity statistics**, read from each label's ``intensity`` block under
-``record["per_label"]`` (item 215; ``record["image_features"]`` keeps only the
-case-level availability gate). It fires a
+``record["per_label"]`` (item 215; ``record["case"]["intensity"]`` keeps only the
+case-level availability gate, item 216). It fires a
 ``Finding`` when a labelled region's median/std HU statistics are implausible
 for a vertebra, realising the vision's §5.2 image-based feature family feeding
 an explainable rule (the Stage 8 "implausible-intensity flag" deliverable).
@@ -11,8 +11,8 @@ an explainable rule (the Stage 8 "implausible-intensity flag" deliverable).
 Scope
 -----
 This module computes **no** statistic itself — mean/median/std/percentiles are
-already computed by item 059 and serialised into the ``image_features`` block
-by item 061. This rule only *thresholds* those already-computed numbers. It
+already computed by item 059 and serialised into the ``case.intensity`` block
+by item 061 (formerly the top-level ``image_features`` block, item 216). This rule only *thresholds* those already-computed numbers. It
 imports nothing from ``segfacet.features.intensity``, ``segfacet.feature_report``, or
 ``segfacet.synth``, samples no voxel, and is stateless / I/O-free, exactly like its
 Stage 4 siblings (``bounds``, ``fragmentation``, ``coverage``, ``sequence``,
@@ -20,8 +20,8 @@ Stage 4 siblings (``bounds``, ``fragmentation``, ``coverage``, ``sequence``,
 
 It does **not** touch ``segfacet.pipeline``, ``segfacet.cli``, ``segfacet.config``,
 ``default_config.yaml``, ``segfacet.report``, or ``segfacet.aggregate`` — wiring the
-``image_features`` block into the record fed to ``run_rules`` is item 065's
-remit. Until that wiring lands, ``record.get("image_features")`` is absent by
+``case.intensity`` block into the record fed to ``run_rules`` is item 065's
+remit. Until that wiring lands, ``record["case"]["intensity"]`` is absent by
 default, so this rule is silently a no-op and existing pipeline output
 (including the item-042 golden snapshots) is byte-identical at 062 merge.
 
@@ -129,7 +129,7 @@ def _severity_from_param(label: str) -> Severity:
 class IntensityRule(Rule):
     """Implausible-intensity rule (item 062).
 
-    Reads the case-level ``record["image_features"]`` availability gate and
+    Reads the case-level ``record["case"]["intensity"]`` availability gate and
     each label's ``record["per_label"][key]["intensity"]["first_order"]``
     (items 061, 215) and emits a ``Finding`` per fired
     condition. Returns ``[]`` when the block is absent/non-mapping,
@@ -163,7 +163,7 @@ class IntensityRule(Rule):
         ),
         consumed_paths=(
             ConsumedPath(
-                path="image_features.available",
+                path="case.intensity.available",
                 role="bookkeeping",
                 reason=(
                     "gate: the rule returns no findings when the intensity "
@@ -265,7 +265,7 @@ class IntensityRule(Rule):
         ----------
         record:
             Per-case feature dict (read-only). Reads
-            ``record["image_features"]``.
+            ``record["case"]["intensity"]`` and ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads ``rules.intensity.params``.
 
@@ -311,7 +311,8 @@ class IntensityRule(Rule):
             )
         )
 
-        block = record.get("image_features")
+        case = record.get("case")
+        block = case.get("intensity") if isinstance(case, dict) else None
         if not isinstance(block, dict) or not block.get("available"):
             return []
 

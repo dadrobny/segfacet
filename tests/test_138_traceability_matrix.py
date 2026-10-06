@@ -2124,7 +2124,7 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
 
     assert before["anchor_paths"], mode
     bogus_path = before["anchor_paths"][0]
-    assert bogus_path == "relationships.is_continuous", bogus_path
+    assert bogus_path == "case.sequence.is_continuous", bogus_path
 
     rules_before = _rule_records(matrix)
     for rule_id in declared_rules | co_detecting_rules:

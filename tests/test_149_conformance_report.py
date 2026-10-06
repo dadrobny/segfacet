@@ -654,7 +654,7 @@ _AC9_SPLIT_COLUMN_MODES = (
     # Item 192 (2026-09-28): sequence reads per_label centroids, not
     # relationships.out_of_order_labels[]; relationships.is_continuous stays
     # the metric anchor no rule reads.
-    (9, "relationships.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
+    (9, "case.sequence.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
 )
 
 

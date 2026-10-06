@@ -70,6 +70,7 @@ __all__ = [
     "ResolvedSectionCounts",
     "expected_level_sequence",
     "resolve_section_counts",
+    "anatomical_order",
 ]
 
 # Sentinel name for an integer label with no mapping. ``name_of`` always returns
@@ -149,6 +150,25 @@ CANONICAL_ORDER: Tuple[str, ...] = (
 # CANONICAL_ORDER (possible only via a custom override) sort after the canonical
 # ones, then by name, so a custom convention never crashes the summariser.
 _CANONICAL_RANK: Dict[str, int] = {name: i for i, name in enumerate(CANONICAL_ORDER)}
+
+
+def anatomical_order(level_names: Mapping[int, str]) -> List[int]:
+    """The integer labels of *level_names*, in the item-198 anatomical order.
+
+    *level_names* maps each integer label to its level name. The sort key is
+    the :data:`CANONICAL_ORDER` rank of the name -- names outside it rank last
+    -- then the integer label. This is the record's one element order (item
+    216, D7): the producer (``pipeline.extract_feature_record``), the
+    serialiser (``feature_report.build_features_block``) and the readers
+    (``heuristics.fused_label``) all call it, so they agree by construction.
+    """
+    return sorted(
+        level_names,
+        key=lambda label: (
+            _CANONICAL_RANK.get(level_names[label], len(CANONICAL_ORDER)),
+            label,
+        ),
+    )
 
 
 # --------------------------------------------------------------------------- #

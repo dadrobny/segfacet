@@ -116,9 +116,9 @@ _SENTINEL_PATHS = (
     "features_version",
     "per_label.{label}.geometry.touches_superior",
     "per_label.{label}.components.fragmentation_index",
-    "relationships.out_of_order_labels[]",
+    "case.sequence.out_of_order_labels[]",
     "per_label.{label}.curve.offset_mm",
-    "overlaps[].overlap_voxels",
+    "pairs.overlaps[].overlap_voxels",
 )
 
 _REMEDIATION = (
@@ -510,14 +510,14 @@ def test_ac9_direction2_clean_on_current_tree(realised, documented):
 def test_ac9_direction2_reports_no_longer_produced_path():
     message = drift_report(
         realised={"features_version"},
-        documented={"features_version", "relationships.gone_forever"},
+        documented={"features_version", "case.sequence.gone_forever"},
         realised_label="realised by the record but absent from FEATURE_DOCS",
         documented_label=(
             "documented in FEATURE_DOCS but no longer produced by the record"
         ),
     )
     assert message is not None
-    assert "relationships.gone_forever" in message
+    assert "case.sequence.gone_forever" in message
     assert "no longer produced" in message
 
 
@@ -592,11 +592,11 @@ def test_ac12_feature_doc_missing_stub_reports_path():
 
 def test_ac12_catalogue_error_stub_reports_key():
     def _stub():
-        raise CatalogueError("stale FEATURE_DOCS key: relationships.gone")
+        raise CatalogueError("stale FEATURE_DOCS key: case.sequence.gone")
 
     message = strict_build_message(_stub)
     assert message is not None
-    assert "relationships.gone" in message
+    assert "case.sequence.gone" in message
     assert "CatalogueError" in message
 
 
