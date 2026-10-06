@@ -1288,7 +1288,168 @@ Stage 27's last 📋 deliverable bullet.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+**Replay record (2026-10-06, builder).** Every AC1-AC18 below held against its
+corrected bar. Nothing under `src/` or `tests/` was edited, and no generator or
+comparison helper was written into the repo; the scratch scripts live in the
+session scratchpad only. Interpreter for every byte comparison: CPython 3.11.15.
+
+- **Preconditions (step 1).** `aide status` shows items 214-216 done, with
+  queue-029 holding 1/4 items open (217). `aide check` printed `OK (7 warning(s))`
+  before the replay (32 specs without Assumptions, two awaiting gates for stage
+  16, four re-accepted Stage 20 retractions) and is re-run at step 9 below.
+- **AC1.** Clone: `<scratchpad>/clone217`. Clone commit (every attestation
+  cites it): `18609089bf27bda29ba16112ca1997859bc39fb2`, the claim branch's tip at
+  clone time. `<clone>/.venv/bin/python -P` prints `segfacet.__file__` =
+  `<scratchpad>/clone217/src/segfacet/__init__.py`, under the clone.
+  `sys.version` = `3.11.15 (main, Jun 11 2026, 15:20:16) [GCC 14.3.0]`. The venv
+  was built by `aide env --bootstrap` (unconstrained `pip install -e .[dev]`:
+  numpy 2.4.6, scipy 1.17.1, nibabel 5.4.2, scikit-image 0.26.0).
+- **AC2.** B = `3be6c381e8c986754703d80a32e56cb7e68102d5` (the single commit
+  `git log --grep` printed for `progress(aide): item 214 -> done`). The base
+  tree was made with `git worktree add --detach <scratchpad>/base217 <B>` and has
+  its own bootstrapped venv, same interpreter. Its `segfacet.__file__` =
+  `<scratchpad>/base217/src/segfacet/__init__.py`, under the base tree.
+- **AC3 (all equal, `read_bytes()`).** `feature_catalogue.generated.json`
+  (276196 B) and `.md` (62253 B); `failure_modes.generated.json` (63582 B) and
+  `.md` (56261 B); `traceability_matrix.generated.json` (61032 B) and `.md`
+  (34236 B); `golden_evidence.generated.json` (1470 B); `rules.generated.md`
+  (11119 B); `tests/golden/report_format_contract.json` (4585 B, from
+  `format_contract_text()` with the clone root first on `sys.path`);
+  `tests/corpus/manifest.json` (16178 B) with all 18 files the generator wrote
+  (manifest plus 17 fixtures, equal to every committed generated file under
+  `tests/corpus/` except the two hand-kept JSON files `094_pre_migration_snapshot.json`
+  and `119_pre_119_digests.json`); `tests/corpus/intensity/manifest.json`
+  (4089 B) with all 6 files (manifest plus 5 fixtures). The catalogue's
+  regenerated path set has 154 paths, and the SHA-256 of
+  `"\n".join(sorted(paths))` is
+  `2539cea973b6b1063401e8cfcc5f9fd4d8d15d32491fd58bad42098d9b15c467`, equal to
+  `119_pre_119_digests.json`'s `catalogue_leaf_path_set_sha256`.
+- **AC4.** `-m segfacet.reference.artifact --out` exit 0, and
+  `assert_matches_committed_artifact(<fresh>, reference_default.json)` returned
+  without raising.
+- **AC5.** `tests/test_178_corpus_sheet.py::test_ac7_committed_sheet_is_current`:
+  1 passed, no skips, exit 0.
+- **AC6.** `gate list` in the clone prints exactly one gate containing `Stage 27
+  feature-record taxonomy sign-off`: `✅ gate-0080`. The approval date, read
+  from the clone's `progress.md` Status cell, is `✅ Approved (2026-10-06)`.
+  Decision / evidence cell: "Signed 2026-10-06 after review: one anatomical
+  element order stored as case.sequence.order[]; per-label values stored per
+  label whatever computed them; intensity enters the persisted record (Option
+  A). Scope axis unchanged, items 215/216 not re-cut. docs/feature-taxonomy.md @
+  2364df4."
+- **AC7.** The approval commit `00fe6f57259d8a642366d0dcb6c87725c00003f9`
+  (`docs: human gate-0080 approved`, committed 2026-10-06T15:19:25+01:00) is the
+  only match. The earliest `feat(215)` commit on `aide/queue-029`,
+  `c09b07dc573c4b518c2cd3af10a3351ed1460697` (2026-10-06T16:08:55+01:00), is
+  the only one. `git merge-base --is-ancestor <gate> <feat>` exited `0`. The
+  `progress(aide): item 215 -> in-progress` commit is `54b1553` (2026-10-06,
+  16:08:58), which also matched exactly once, so both date strings read
+  2026-10-06 and the ancestry result is what orders the events.
+- **AC8.** In the clone, foreground, `-n auto`, `-P`, `-c <clone>/pyproject.toml`,
+  `--rootdir <clone>`, `-rs`: `test_214_feature_taxonomy_design.py` 11 passed,
+  `test_215_per_label_migration.py` 6 passed,
+  `test_216_neighbour_pair_and_case_level_migration.py` 15 passed. Exit 0 and no
+  skips in each. `test_214` is unchanged.
+- **AC9.** The case report is `segfacet run --scan base_scan --seg
+  clean_control_seg --intensity` with no reference flag, from the clone. It has
+  149 leaf paths (item 215's definition). Last segment `label`: 1 path,
+  `per_label.{label}.label`. Last segment `level_name`: 1 path,
+  `per_label.{label}.level_name`.
+- **AC10.** Table: 165 rows, 80 `kept`, 73 `moved`, 12 `merged` (130 Moved by
+  215, 35 by 216). The `kept`/`moved` new paths number 153, and adding
+  `case.sequence.order[]` (the one stored path with no table row, the signed
+  note's Deviation 11, settled by the maintainer ruling of 2026-10-06) gives
+  154. The catalogue's path set has 154. The two sets are equal (both
+  differences empty); the catalogue contains `case.sequence.order[]`.
+- **AC11.** Recognisability: the leaf set is non-empty (149), and all 20
+  report-only rows' new paths are among the leaves. Of the 149 leaf paths, 148
+  lie among the `kept`/`moved` new paths. Against the table alone the
+  difference is exactly `{case.sequence.order[]}`; with that path added the
+  difference is `{}` (size 0).
+  - Neighbour-pair identity leaf paths the report carries (A11, listed and not
+    counted): `pairs.overlaps[]` only (the container leaf; `clean_control` has no
+    overlaps, and `label_a`, `label_b`, `name_a`, `name_b` carry no leaf).
+  - Label-reference leaf paths (listed, not counted): `case.sequence.order[]`,
+    `per_label.{label}.components.component_contacts[].neighbour_label`,
+    `per_label.{label}.neighbourhood.window_labels[]`.
+- **AC12.** `tests/test_104_feature_catalogue_drift.py`: 53 passed, no skips,
+  exit 0.
+- **AC13.** `tests/test_163_specificity_ratchet.py`: 24 passed, no skips, exit
+  0. `build_matrix().conformance` drives 18 cases: 14 geometric (clean_control,
+  crop_at_border, crop_fov_si, displace, fragment, fuse_adjacent,
+  fuse_separate, inject_islands, relabel_swap, remove_level,
+  remove_level_relabel, sequence_break, split, split_own_label) and 4 intensity
+  (clean_hu, degenerate_uniform, implausible_metal, implausible_soft_tissue).
+  That set equals the union of the two manifests' `case_id` values. Cases with
+  `agrees` False: 0 (agree 18, disagree 0, no unspecified case).
+- **AC14.** The same script ran in B's tree and in the clone, each with its own
+  venv and `-P`. The two trees' case-id sets are equal (18). Every case's
+  `Finding.to_dict()` list is equal in order, reasons included. Finding counts,
+  identical in both trees: clean_control 0, clean_hu 0, crop_at_border 3,
+  crop_fov_si 0, degenerate_uniform 2, displace 1, fragment 1, fuse_adjacent 1,
+  fuse_separate 2, implausible_metal 1, implausible_soft_tissue 1,
+  inject_islands 1, relabel_swap 2, remove_level 2, remove_level_relabel 0,
+  sequence_break 2, split 1, split_own_label 3. No exception was needed for
+  the touched case.
+- **AC15.** Touched cases (the base tree's two arrays differ): `sequence_break`
+  alone. Spacing family on `sequence_break`:
+  - base tree: survivor (`stage3.spacing_consistency.spacings_mm[]`)
+    `[33.493976778181626, 32.695217722421916, 33.87239617123004,
+    36.840004943124015]`, mean 34.2253989037394, cv 0.04582024664953334,
+    deviations `[-0.7314221255577777, -1.530181181317488, -0.353002732509367,
+    2.6146060393846113]`, `outlier_pairs` `[]`;
+  - clone: survivor (`pairs.adjacent.spacings_mm[]`) `[134.1605001114509,
+    33.493976778181626, 32.695217722421916, 33.87239617123004]`, mean
+    58.55552269582112, cv 0.7454911250642116, deviations `[75.60497741562978,
+    -25.061545917639492, -25.860304973399202, -24.68312652459108]`,
+    `outlier_pairs` `[["T13", "L1"]]`.
+
+  The set of cases whose spacing family differs is `{sequence_break}`, equal to
+  the touched set. Whole footprint: 152 `kept`/`moved` rows were compared
+  (153 less `features_version`), with mapping-valued resolutions skipped; the
+  set of cases with any differing row is `{sequence_break}`, equal to the touched
+  set, with 37 differing rows (old paths): the six `stage3.per_label_offsets[]`
+  fields `closest_u`, `dy_mm`, `dz_mm`, `is_terminal`, `offset_mm`,
+  `offset_voxel`; `stage3.curvature.` `coronal_curvature_deg`,
+  `coronal_tangent_angles_deg[]`, `inter_tangent_angles_deg[]`,
+  `sagittal_curvature_deg`, `sagittal_tangent_angles_deg[]`,
+  `tangent_angles_deg[]`, `total_curvature_deg`; the four
+  `stage3.per_label_orientations[]` fields `spline_closest_u`,
+  `spline_tangent[]`, `spline_tangent_coronal_deg`,
+  `spline_tangent_sagittal_deg`; `stage3.monotonic_consistency.u_values[]`
+  (element order only); the four spacing statistics `cv_spacing`,
+  `deviations_mm[]`, `mean_spacing_mm`, `outlier_pairs[]`; and 15
+  `stage3.per_label_neighbourhood[]` fields (`deviation_score`, `is_outlier`,
+  `window_labels[]`, and the `stats.{offset_mm, spacing_mm, volume_mm3}`
+  `mean`, `median`, `std`, `z_score` rows). This matches the claim-time count.
+- **AC16.** `segfacet run ... --intensity` from each tree, no reference flag:
+  - `clean_control`: `segfacet_report.txt` byte-identical, 462 lines, 146
+    findings in both trees.
+  - `displace`: byte-identical, 378 lines, 118 findings in both trees.
+  - `sequence_break`: 379 lines in both, 118 findings in both. `difflib.ndiff`
+    over `splitlines()` gives a base-only list that equals the spec's 11 base-only
+    lines, and a clone-only list that equals the 11 clone-only lines, each in
+    order and compared exactly. No other line differs. Every differing line
+    names a label in {20, 21, 22, 23} (the `reference_delta` reasons and `Labels:`
+    lines). Recorded `(rule_id, labels)` multisets from each
+    `segfacet_report.json`: identical except `reference_delta` on label 21 (8 in
+    the base tree, 7 in the clone) and on label 20 (6 in the base tree, 7 in the
+    clone). Base tree: bounds 4 on each of 20-23; intensity on 22, 23, 28;
+    mislabel on (20, 28); sequence on (28); reference_delta 20:6 21:8 22:7 23:7;
+    intensity_reference_delta 20:17 21:15 22:18 23:19. Clone: the same except
+    reference_delta 20:7 21:7 22:7 23:7. Insight `2026-10-06-f318` is the
+    reason the bundled reference sits out of step with the new order.
+- **AC17.** No row of the Environment-Gated Capability Verification table names
+  Stage 27, or any of items 209-217, in its "Introduced by" cell; none of those
+  nine specs carries a `## Environment / Hardware Dependencies` heading. `aide env`
+  exit 0 (`venv is Python 3.11; import segfacet succeeds; import pytest succeeds`).
+  `env --profile pyradiomics` exit 1 (`No module named 'radiomics'`), `--profile
+  docker` exit 1 (not satisfied), `--profile gpu` exit 1 (`No module named
+  'cupy'`). Recorded only; the table is not edited.
+- **AC18.** The three criteria were attested with `aide progress accept 27
+  --criterion N`, N = 1, 2, 3 in order (the evidence is in `progress.md`).
+- **AC19 and the check at step 9.** Recorded in the entry that follows, after the
+  suite run.
 
 - **Left open:** whether a later stage counts neighbour-pair identity under
   "no identity field is stored more than once". The maintainer kept the
