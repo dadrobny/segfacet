@@ -916,10 +916,11 @@ _PRE_ITEM_OTHER_CURVATURE_FIELDS = {
 def test_ac21_other_curvature_fields_unmoved():
     # relabel_swap's coronal_tangent_angles_deg entries at indices 1 and 2 sit
     # exactly on atan2's +-180 branch cut (the analytic L-R component is pure
-    # summation residue on the lordotic base, which has no lateral curve).
-    # Which side of the cut a platform lands on flips coronal_curvature_deg,
-    # total_curvature_deg and curvature_plane, so those three are not
-    # comparable across platforms for this case. Item 173's
+    # summation residue on the lordotic base, which has no lateral curve), and
+    # since item 216 so do sequence_break's. Which side of the cut a platform
+    # lands on flips coronal_curvature_deg, total_curvature_deg and
+    # curvature_plane, so those three are not comparable across platforms for
+    # these two cases. Item 173's
     # "Correction -- 2026-09-23 (review findings)" part 2 rules on this under
     # fence clause (d): the coronal angles are still compared, as directions
     # on the circle, and the other three fields are left as a dated record of
@@ -942,16 +943,16 @@ def test_ac21_other_curvature_fields_unmoved():
         expected = _PRE_ITEM_OTHER_CURVATURE_FIELDS[case["case_id"]]
         # Item 216 (D11): sequence_break joins relabel_swap in sitting on
         # atan2's branch cut, so it gets the same circle comparison.
-        is_relabel_swap = case["case_id"] in ("relabel_swap", "sequence_break")
+        on_branch_cut = case["case_id"] in ("relabel_swap", "sequence_break")
 
         for key in ("total_curvature_deg", "sagittal_curvature_deg", "sagittal_tangent_angles_deg"):
-            if is_relabel_swap and key == "total_curvature_deg":
+            if on_branch_cut and key == "total_curvature_deg":
                 continue
             assert curv[key] == pytest.approx(expected[key], abs=1e-6), (
                 f"{case['case_id']}.{key} moved: {curv[key]} != {expected[key]}"
             )
 
-        if is_relabel_swap:
+        if on_branch_cut:
             for actual, exp in zip(curv["coronal_tangent_angles_deg"], expected["coronal_tangent_angles_deg"]):
                 circle_delta = abs((actual - exp + 180.0) % 360.0 - 180.0)
                 assert circle_delta <= 1e-6, (

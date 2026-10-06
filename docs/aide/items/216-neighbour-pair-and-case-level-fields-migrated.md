@@ -1474,6 +1474,18 @@ and the Validation section close that gap.
   the build (step 8's correction). `tests/test_213_windows_ci_subset.py`
   checks it unedited.
 
+## Review findings
+
+- `review_path_u_not_bounded_by_schema` (blocking): `stage3OffsetEntry.path_u`
+  had gained `minimum: 0` / `maximum: 1`, but `_path_positions` can yield
+  `1.0 + 2**-52` or `-2**-52` on Python 3.12+, so `serialize_report` would raise
+  and lose the report. The bounds were removed. Test:
+  `tests/test_216_neighbour_pair_and_case_level_migration.py::test_review_path_u_not_bounded_by_schema`.
+- `review_overlap_level_name_from_per_label` (minor): `overlap._level_name`
+  reads names from `per_label.{label}.level_name` since `name_a`/`name_b` merged,
+  and no test pinned it; always returning `str(label)` survived. Test:
+  `tests/test_216_neighbour_pair_and_case_level_migration.py::test_review_overlap_level_name_from_per_label`.
+
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 
 No `[validation]` profile is needed. The validator runs:

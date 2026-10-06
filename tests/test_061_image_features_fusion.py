@@ -546,7 +546,10 @@ def _fmt(value):
 def test_ac12_render_without_image_features_is_byte_identical_to_prior_render():
     fb = _features_block()
     without_kw = render_feature_table(fb)
-    with_explicit_none = render_feature_table({**fb, "case": {"sequence": None}})
+    assert "intensity" not in fb["case"]
+    with_explicit_none = render_feature_table(
+        {**fb, "case": {**fb["case"], "intensity": None}}
+    )
     assert without_kw == with_explicit_none
     # Sanity: the plain features-table sections are still present.
     assert "Per-label features:" in without_kw

@@ -30,7 +30,9 @@ from segfacet.features.centroids import compute_centroid
 from segfacet.features.relationships import compute_spine_relationships
 from segfacet.heuristics.fused_label import FusedLabelRule
 from segfacet.labels import CANONICAL_ORDER
+from segfacet.heuristics.overlap import OverlapRule
 from segfacet.pipeline import extract_feature_record, run_qc
+from segfacet.report import serialize_report
 from segfacet.synth.corpus import CORPUS_DIR, load_manifest
 from segfacet.synth.regression import loaded_seg_image
 
@@ -347,3 +349,36 @@ def test_out_of_order_labels_unchanged():
     assert (
         _resolve(record, _new("relationships.out_of_order_labels[]")) == expected
     )
+
+
+# =========================================================================== #
+# Review findings
+# =========================================================================== #
+
+
+def test_review_path_u_not_bounded_by_schema():
+    img = loaded_seg_image(_case("sequence_break"))
+    config = bundled_default_config()
+    result, features = run_qc(img, config)
+    features = copy.deepcopy(features)
+    low, high = sorted(features["per_label"])[:2]
+    features["per_label"][low]["curve"]["path_u"] = -(2.0**-52)
+    features["per_label"][high]["curve"]["path_u"] = 1.0 + 2.0**-52
+    report = serialize_report(
+        result.verdict, "case", config, features=features
+    )
+    assert report["features"]["per_label"][low]["curve"]["path_u"] < 0
+    assert report["features"]["per_label"][high]["curve"]["path_u"] > 1
+
+
+def test_review_overlap_level_name_from_per_label():
+    config = bundled_default_config()
+    pair = {"label_a": 20, "label_b": 21, "overlap_voxels": 5}
+    named = {
+        "pairs": {"overlaps": [pair]},
+        "per_label": {"20": {"level_name": "L1"}, "21": {"level_name": "L2"}},
+    }
+    (finding,) = OverlapRule().evaluate(named, config)
+    assert "labels 20 (L1) and 21 (L2)" in finding.reason
+    (bare,) = OverlapRule().evaluate({"pairs": {"overlaps": [pair]}}, config)
+    assert "labels 20 (20) and 21 (21)" in bare.reason
