@@ -55,7 +55,7 @@
 | 24    | *(placeholder)* Failure-Mode Discovery & Typed Reference Set          | G8              | 📋     |
 | 25    | *(placeholder)* Segmenter-Native Perturbations                        | G2              | 📋     |
 | 26    | Carried-Defect Remediation (pre-real-data)*(runs next)*               | G2, G7          | ✅     |
-| 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | 🚧     |
+| 27    | Feature Schema Taxonomy & Coordinate System                             | G8              | ✅     |
 | 28    | Spinal Curve Model: Formulation, Offset & Orientation                   | G2, G7          | ✅     |
 | 29    | Golden Retirement & Test-Artifact Hygiene                               | G2, G7          | ✅     |
 | 30    | Failure-Mode Specification: the §6 catalogue as an authored source *(runs next)* | G2, G7, G8 | ✅     |
@@ -161,7 +161,7 @@ shipped"). See "Two kinds of done" above._
 | G5 Deploy on XNAT*(removed from scope 2026-07-25)* | Stage 9 shipped the artefacts; validation was Stage 15 ❌ | ❌     |
 | G6 Portable / GPU*(deferred)*              | Stage 10                                                 | ✅     |
 | G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16)* | 🚧     |
-| G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | 🚧     |
+| G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | ⏸️     |
 
 **Why each 🚧 objective is not yet ✅** _(one line each — the detail lives in the
 linked row/stage, not here):_
@@ -1307,7 +1307,7 @@ discovery.
 
 ---
 
-## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8) — 🚧
+## Stage 27 — Feature Schema Taxonomy & Coordinate System (G8) — ✅
 
 **Goal.** Give the feature record a deliberately designed structure instead of the current
 grouping by *which extractor module happened to compute a field* — the single recurring
@@ -1337,7 +1337,7 @@ justified in writing.
   *(Item 211)*
 - ✅ **Maintenance** `crop_at_border` re-authored as a true anterior crop. *(Item 212)*
 - ✅ **Maintenance** The Windows CI leg runs a pinned OS-sensitive subset. *(Item 213)*
-- 🔍 Stage validation from a clean clone. *(Item 217)*
+- ✅ Stage validation from a clean clone. *(Item 217)*
 
 **Acceptance.**
 
