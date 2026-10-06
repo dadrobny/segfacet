@@ -1323,6 +1323,17 @@ To be updated during implementation.
   - **Nits.** `catalogue.iter_driver_records`' placeholder uses
     `REFERENCE_DELTA_VERSION`; the hand-built `"1.0"` literals in 047, 064
     (rule) and 124 are `"1.1"`; the `pipeline.py` docstring says `"0.2"`.
+  - **Round 2 (five tests D12 broke; inputs reconciled, assertions and the
+    schema untouched).** `tests/test_061_image_features_fusion.py`: a
+    `_STAGE2_STUB` (copied from 121's) is merged into every entry of
+    `_intensity_features_block`, which validated blocks lacking the
+    now-required `geometry`/`components`/`centroid`.
+    `tests/test_022_stage3_serialisation.py::test_adv_only_curvature_supplied`
+    passes `centroids={c.label: c for c in centroids}` so the five curvature
+    arrays have the five labels the length check requires; curvature is
+    still the only Stage 3 block and the assertions are unchanged. A sweep of
+    the other 18 files calling `build_features_block` (865 tests) found no
+    further breakage. Pytest was run on 061, 022 and that sweep: green.
 - **Left open:** whether `per_label.{label}.*` rows move. A7 assumes not.
   *Settled at claim (2026-10-06):* none moves (A7's re-check).
   If the signed table moves any, step 0 widens the fence, rather than this

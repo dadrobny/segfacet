@@ -1101,7 +1101,7 @@ def test_adv_only_curvature_supplied():
     curvature = compute_spine_curvature(fit, centroids)
 
     block = build_features_block(
-        geometry={}, components={}, centroids={},
+        geometry={}, components={}, centroids={c.label: c for c in centroids},
         relationships=None, overlaps=[],
         curvature=curvature,
     )

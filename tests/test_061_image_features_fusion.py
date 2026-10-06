@@ -301,6 +301,82 @@ def test_ac9_omission_is_deep_equal_to_call_without_the_parameter():
 # =========================================================================== #
 
 
+# Item 215 review: the report schema requires geometry/components/centroid on
+# every per_label entry, so a hand-built Stage-3-only block that is validated
+# carries one real label's Stage 2 kinds (measured from the 4-voxel cube of
+# ``synthetic.labelled_blocks_case``).
+_STAGE2_STUB = {
+    "geometry": {
+        "voxel_count": 64,
+        "physical_volume_mm3": 64.0,
+        "extent_x_mm": 4.0,
+        "extent_y_mm": 4.0,
+        "extent_z_mm": 4.0,
+        "bbox_voxel": {
+            "x_min": 2,
+            "x_max": 5,
+            "y_min": 2,
+            "y_max": 5,
+            "z_min": 2,
+            "z_max": 5
+        },
+        "bbox_physical": {
+            "x_min": 2.0,
+            "x_max": 5.0,
+            "y_min": 2.0,
+            "y_max": 5.0,
+            "z_min": 2.0,
+            "z_max": 5.0
+        },
+        "touches_inferior": False,
+        "touches_superior": False,
+        "touches_left": False,
+        "touches_right": False,
+        "touches_anterior": False,
+        "touches_posterior": False
+    },
+    "components": {
+        "component_count": 1,
+        "component_sizes": [
+            64
+        ],
+        "component_volumes_mm3": [
+            64.0
+        ],
+        "largest_component_fraction": 1.0,
+        "small_fragments": [],
+        "fragmentation_index": 1.0,
+        "stray_component_count": 0,
+        "stray_component_sizes": [],
+        "stray_volume_mm3": 0.0,
+        "stray_volume_fraction": 0.0,
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
+        "component_contacts": [
+            {
+                "neighbour_label": 0,
+                "contact_area_mm2": 0.0,
+                "surface_area_mm2": 96.0,
+                "contact_fraction": 0.0
+            }
+        ],
+        "label_contact_fraction": 0.0
+    },
+    "centroid": {
+        "centroid_voxel": [
+            3.5,
+            3.5,
+            3.5
+        ],
+        "centroid_mm": [
+            3.5,
+            3.5,
+            3.5
+        ]
+    }
+}
+
+
 def _intensity_features_block(intensity, extended=None):
     """A minimal features block with one entry per label of *intensity*, each
     carrying the intensity kind (item 215: the per-label statistics live on
@@ -308,7 +384,10 @@ def _intensity_features_block(intensity, extended=None):
     block = {
         "features_version": "0.2",
         "per_label": {
-            str(label): {"label": label, "level_name": "L1"} for label in intensity
+            str(label): {
+                "label": label, "level_name": "L1", **copy.deepcopy(_STAGE2_STUB),
+            }
+            for label in intensity
         },
         "overlaps": [],
         "relationships": None,
