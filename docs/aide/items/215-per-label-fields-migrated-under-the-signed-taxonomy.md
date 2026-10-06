@@ -70,6 +70,11 @@ All 20 are this item's. Step 5 brings them into the catalogue (D8).
   radiomics_available}`, `reference_delta.{lower_pct, upper_pct,
   reference_delta_version, reference_schema_version, reference_source,
   stratum}` and `features_version`.
+  *Corrected at claim (2026-10-06):* four `stage3.curvature.*` /
+  `stage3.monotonic_consistency.*` rows are this item's, not 216's: the
+  three per-label tangent-angle arrays and `u_values[]` (the note's
+  Deviation 5; A2's re-check). Every other row in this bullet is still
+  item 216's.
 - **No rule behaviour changes**, no threshold, no corpus case, no reference
   artifact rebuild (A5).
 - **No in-memory result type changes.** The extractors' dataclasses and
@@ -134,6 +139,9 @@ Terms used below:
   live. `tests/test_104_feature_catalogue_drift.py` holds that file equal to
   a fresh build. After step 5 it also covers the 20 report-only rows, so AC2
   and AC3 are checked against it for all 126 of 215's rows.
+  *Corrected at claim (2026-10-06):* 215's rows in the signed table are
+  130, not 126: A2's 126 plus the four Deviation-5 rows (A2's re-check).
+  AC2 and AC3 are checked against the catalogue for all 130.
 - **The case report** is the `segfacet_report.json` that
   `segfacet.cli.main(["run", "--scan", <scan>, "--seg", <seg>, "--intensity", "--out", <tmp_path>])`
   writes for the corpus case whose `case_id` is `"clean_control"`. `<seg>` and
@@ -157,10 +165,21 @@ Terms used below:
 - [ ] **AC2: every path this item keeps or moves is produced.** The set of
       new paths of 215's rows whose change is `kept` or `moved`, minus the
       catalogue's path set, is empty.
+      *Correction at claim (2026-10-06):* the wording stands, and its row
+      set is 130 rows, not 126 (A2's re-check). It now also requires the
+      four per-label new paths `per_label.{label}.curve.path_u` and
+      `per_label.{label}.orientation.{tangent_angle_deg,
+      tangent_coronal_unwrapped_deg, tangent_sagittal_unwrapped_deg}` in the
+      catalogue.
 - [ ] **AC3: no path this item moves or merges away is still produced.** The
       set of old paths of 215's rows whose change is `moved` or `merged`,
       minus every new path in the table, intersected with the catalogue's
       path set, is empty.
+      *Correction at claim (2026-10-06):* the wording stands, and its row
+      set is 130 rows, not 126 (A2's re-check). It now also requires the
+      four old array paths `stage3.monotonic_consistency.u_values[]` and
+      `stage3.curvature.{tangent_angles_deg, coronal_tangent_angles_deg,
+      sagittal_tangent_angles_deg}[]` to be gone from the catalogue.
 
 These criteria close no stage acceptance criterion.
 
@@ -195,6 +214,18 @@ not here. A1–A3 pin item 214's unbuilt output and are re-checked at claim
   214's AC2 requires the `kept`/`moved` new paths to be unique, so the 20
   report-only rows keep distinct new paths. This spec never parses the note
   itself.
+  - *Re-checked at claim (2026-10-06, base `00fe6f5`: item 214 merged,
+    note as of `2364df4`, gate-0080 ✅ Approved): agrees.* The module
+    exposes `NOTE_PATH` and `read_mapping(text=None)`, plus a third name,
+    `answer_lines`, which this item does not use. `read_mapping` returns
+    `(old, new, change, moved_by)` tuples in table order, with `moved_by`
+    an `int`. Its row regex admits only `kept`/`moved`/`merged` and
+    215/216, and it raises `ValueError` on an unparseable row and when the
+    `## Mapping table` heading does not occur exactly once. Measured: 165
+    rows with 165 distinct old paths. The `kept`/`moved` new paths are
+    unique, and every `merged` new path is a `kept`/`moved` new path. The
+    note's `## Structure` says "No new placeholder is introduced", so new
+    paths use only `{label}`, `[]` and `{radiomic}`.
 - **A2 (pin, item 214): 215's rows are the per-label scope.** The queue cut
   the migration by scope, and gate-0080 re-cuts it if the signed design does
   not. So 215's rows are expected to be exactly the rows whose old path is
@@ -209,6 +240,53 @@ not here. A1–A3 pin item 214's unbuilt output and are re-checked at claim
   That is 1 + 44 + 9 + 8 + 17 + 17 + 30 = 126 rows. The 30 under
   `reference_delta.{label}.` are 10 catalogue rows and the 20 report-only
   rows. Step 0 compares this against the signed table. A row assigned differently is re-cut at the gate.
+  - *Re-checked at claim (2026-10-06, base `00fe6f5`): corrected.* 215's
+    rows in the signed table are **130**: 73 `kept`, 48 `moved`, 9 `merged`.
+    Every row in the six prefixes above carries 215, with the per-prefix
+    counts A2 gives (1, 44, 9, 8, 17, 17, 30). Four more rows carry 215
+    and lie outside them:
+    - `stage3.curvature.tangent_angles_deg[]` →
+      `per_label.{label}.orientation.tangent_angle_deg`;
+    - `stage3.curvature.coronal_tangent_angles_deg[]` →
+      `per_label.{label}.orientation.tangent_coronal_unwrapped_deg`;
+    - `stage3.curvature.sagittal_tangent_angles_deg[]` →
+      `per_label.{label}.orientation.tangent_sagittal_unwrapped_deg`;
+    - `stage3.monotonic_consistency.u_values[]` →
+      `per_label.{label}.curve.path_u`.
+
+    All four are `moved`. The note's Deviation 5 (maintainer decision,
+    2026-10-06) assigns them to this item: a field sits at the scope of
+    the entity it measures, whatever computed it. **This is not the
+    gate's re-cut, so step 0's "stop" does not apply.** The gate row
+    approved the design on 2026-10-06 with "Scope axis unchanged, items
+    215/216 not re-cut". The four rows are per-label values, so they fall
+    on the per-label side of that axis. A2's prefix list approximated the
+    per-label scope and missed values that sit in a case-level container.
+
+    What the four rows add:
+    - **A record-shape change, with no value change.** Each array becomes
+      one scalar per label. The element-to-label mapping follows the
+      sequence each array is computed over today (`pipeline.py`):
+      - the three tangent arrays use ascending integer label order
+        (`ordered_centroids`), the same order as the
+        `stage3.per_label_offsets[]` entries;
+      - `u_values` uses `anatomical_centroids` (`CANONICAL_ORDER` rank,
+        item 198).
+
+      The record-wide anatomical reorder in the note's "Element order" is
+      item 216's.
+    - **No rule reader.** A grep of `src` finds only the serialisers in
+      `feature_report.py`, the `feature_docs.py` rows and the
+      `report_schema_v0.json` definitions, all already on May change.
+      `stage3.curvature.inter_tangent_angles_deg[]` and the rest of
+      `stage3.curvature` / `stage3.monotonic_consistency` stay item 216's.
+    - **Two new test files** under the fence (Authorised paths, fifth
+      pass).
+
+    Also settled by the signed note, and recorded at step 0 (D10): the
+    `image_features.per_label` rows land in the persisted features record
+    (Option A, decided at the gate). Step 3 therefore applies, and step 4's
+    base `FEATURES_VERSION` bump is this item's.
 - **A3 (measured, and pinned against item 214): the identity copies.** In the
   case report's leaf paths:
   - `label` ends six paths: `per_label.{label}`, `stage3.per_label_neighbourhood[]`,
@@ -224,6 +302,22 @@ not here. A1–A3 pin item 214's unbuilt output and are re-checked at claim
   `stray_contact_label`, `window_labels[]` and `overlaps[].{label_a, label_b,
   name_a, name_b}` are references to other labels, and AC1 does not count
   them.
+  - *Re-checked at claim (2026-10-06, base `00fe6f5`): agrees.* The signed
+    table marks exactly nine 215 rows `merged`, each onto a `kept`
+    survivor:
+    - `per_label.{label}.label` absorbs the `label` of
+      `stage3.per_label_offsets[]`, `stage3.per_label_orientations[]`,
+      `stage3.per_label_neighbourhood[]`,
+      `image_features.per_label.{label}` and `reference_delta.{label}`;
+    - `per_label.{label}.level_name` absorbs the `level_name` of the same
+      containers except `image_features`.
+
+    Of the `kept`/`moved` new paths in the whole table, only these two end
+    in a bare `label` or `level_name`. Item 216's three `merged` rows
+    (`overlaps[].name_a`, `overlaps[].name_b`,
+    `stage3.spacing_consistency.spacings_mm[]`) add no such leaf. The
+    note's Answer "Identity fields stored in several containers" and its
+    rule 1 state the same design.
 - **A4 (measured): who reads the five containers.** The grep under
   Authorised paths found these readers in `src/segfacet`:
   - **Rules.** `heuristics/spline_offset.py` reads `per_label_offsets`
@@ -277,6 +371,16 @@ not here. A1–A3 pin item 214's unbuilt output and are re-checked at claim
   is in scope. That is every rule and about sixty more test files. Step 0
   then re-runs the fence grep with that row's old path and amends Authorised
   paths before any test is written.
+  - *Re-checked at claim (2026-10-06, base `00fe6f5`): agrees.* All 45
+    rows with old path `per_label` or `per_label.{label}.*` are `kept`,
+    each with new path equal to old. The fence is not widened to every
+    reader of the canonical container. Rows move *into* that container
+    from elsewhere: the `curve`, `orientation`, `neighbourhood` and
+    `intensity` kinds. That is not this assumption's trigger. Its effect
+    on the canonical entry's shape falls to `report_schema_v0.json`'s
+    `labelFeatures`, which has `additionalProperties: false` and is already
+    on May change. A grep of `tests` finds no test pinning that entry's
+    key set.
 - **A8 (measured): the reasons are clean today.** The case report holds 146
   findings: `intensity_reference_delta` 88, `reference_delta` 35, `bounds` 20
   and `intensity` 3. Both corpora's pipeline findings hold 23 more. No reason
@@ -447,6 +551,24 @@ test, the item-090 reference-default test). Or it was a hand-built rule
 input carrying a version literal that no reader checks (items 047, 062 and
 064's rule tests keep theirs).
 
+**A fifth pass, at claim (2026-10-06, base `00fe6f5`), covers the four
+Deviation-5 rows** (A2's re-check):
+`grep -rnE '\["(curvature|monotonic_consistency)"\]|stage3\.(curvature|monotonic_consistency)\.(u_values|tangent_angles|coronal_tangent|sagittal_tangent)|"(u_values|tangent_angles_deg|coronal_tangent_angles_deg|sagittal_tangent_angles_deg)"' tests`.
+
+- **Added to May change:** `tests/test_122_signed_curvature.py` and
+  `tests/test_143_s_axis_correction.py`.
+- **Widened from fence (b) to fence (a) and (b):** `tests/test_131_tangent_direction_normalisation.py`
+  and `tests/test_132_monotonicity_against_traversal_order.py`, which read
+  the arrays and name their paths.
+- **Already listed:** the hits in 022, 033, 119, 120, 123, 124 and 130, the
+  format fixture and its contract.
+- **Dropped:** every other hit reads an extractor dataclass, not the
+  record (D4: 017, 019, 020, 072, 121, 210), or holds an unrelated
+  identifier (058 and `test_features_intensity.py`'s `hu_values`).
+- **No `src` hit beyond May change.** The step-0 search for the record key
+  of a new placeholder segment was not needed, because the note introduces
+  none.
+
 **May change:**
 
 - `src/segfacet/feature_report.py` — the features and image-features serialisers (step 1), `FEATURES_VERSION_STAGE3` and `IMAGE_FEATURES_VERSION` (step 4).
@@ -521,6 +643,8 @@ input carrying a version literal that no reader checks (items 047, 062 and
 - `tests/test_189_spline_offset_condition.py` — fence (a) (search 1).
 - `tests/test_191_condition_gate.py` — fence (a) (search 1).
 - `tests/test_212_crop_at_border_volume_crop.py` — fence (a): AC4's live offsets read (search 1).
+- `tests/test_122_signed_curvature.py` — fence (a): the per-plane tangent arrays' paths and serialised reads (fifth pass, added at claim 2026-10-06).
+- `tests/test_143_s_axis_correction.py` — fence (a): live `tangent_angles_deg` reads (fifth pass, added at claim 2026-10-06).
 
 **The reconciliation fence** applies to the listed `tests/test_*.py` files
 other than this item's own module. The builder reconciles after
@@ -530,6 +654,14 @@ regeneration. Four kinds of edit are allowed.
 record that names the old path of a 215 row is rewritten to that row's new
 path. For a `merged` identity copy, the copy is removed from a hand-built
 input, and a read of it reads the survivor. The asserted value is unchanged.
+*Amended at claim (2026-10-06):* there are also the four Deviation-5 rows,
+each an array that becomes one scalar per label (A2's re-check). A read of
+one of those arrays reads the per-label scalars in the order the array was
+computed in, and compares the same values. That order is ascending integer
+label for the three tangent arrays, and anatomical order for the path
+positions (`CANONICAL_ORDER` rank, then integer label). In a hand-built
+input the array key is removed, as the empty path-position list is in
+hand-built monotonic-consistency blocks.
 
 **(b) A moved path count.** A count literal moves to its live value. This
 covers any count: catalogue paths overall or under a prefix, catalogue paths
@@ -636,6 +768,29 @@ others.
   The ratchet compares rule ids and labels only. And the corpora run with no
   reference, so the delta rules never fire there. The ratchet would stay
   green.
+
+*Amended at claim (2026-10-06): a second adversarial case*, added by A2's
+re-check. The test-writer writes it as well, and still no others.
+
+- **`path-u-mapped-in-anatomical-order`.** The input is the
+  `clean_control` corpus segmentation relabelled
+  `{20: 28, 21: 20, 22: 21, 23: 22, 24: 23}`, which runs head-to-tail as
+  T13, L1, L2, L3, L4. `tests/test_198_ordering_along_expected_sequence.py`
+  builds it the same way. Its record comes from
+  `segfacet.pipeline.extract_feature_record` with the bundled default
+  config. Two things are asserted:
+  - its `stage3.monotonic_consistency.is_monotonic` is `True`;
+  - `per_label.{label}.curve.path_u`, read in label order 28, 20, 21, 22,
+    23, is strictly increasing.
+- **The failure it guards.** `u_values` is the one Stage-3 array computed
+  in anatomical order. Every other array is in ascending integer order. A
+  serialiser that zips all four arrays with one integer-ordered label list
+  gives every label another label's path position. Label 28 then gets the
+  last value, and the sequence read head-to-tail is no longer increasing.
+- **Why nothing else catches it.** On `clean_control` the two orders
+  coincide, so the mismatch never shows. AC2 and AC3 compare paths only.
+  Validation step 3 compares observed ranges, which do not record which
+  label holds which value. The ratchet compares firing only.
 
 **What else carries the queue's *Testable* claims:**
 
@@ -777,7 +932,50 @@ To be updated during implementation.
     `test_136`'s `()` bucket);
   - a cross-block move raising a record's leaf count (`test_103`);
   - newly catalogued rows.
+- **D10 (step 0 record, 2026-10-06, base `00fe6f5`).** Read against the
+  signed note as of `2364df4`, with gate-0080 approved the same day.
+  - **Merged rows and their survivors:** as in A3's re-check. Nine identity
+    copies merge onto `per_label.{label}.label` (five) and
+    `per_label.{label}.level_name` (four).
+  - **Step 1 also covers the curvature and monotonic serialisers** in
+    `feature_report.py`. The three tangent arrays and `u_values` leave
+    `stage3` and become per-label scalars, in the orders A2's re-check
+    gives. `inter_tangent_angles_deg[]` and the case-level scalars stay
+    where they are, for item 216.
+  - **Step 3 applies (Option A, maintainer decision at the gate).**
+    - `run_qc_with_intensity` builds `per_label.{label}.intensity.*` into
+      the features block. That is the record that is persisted and
+      embedded as the report's `features`.
+    - The image-features element of its 5-tuple, and the report's
+      top-level `image_features` key, keep only the four case-level fields
+      (`available`, `backend`, `image_features_version`,
+      `radiomics_available`). Those are item 216's rows. Item 216 moves
+      them to `case.intensity` and removes the key.
+    - The tuple's arity and order are unchanged (D6). `pipeline.py` and
+      `report.py` are edited under their existing May-change bullets.
+    - The rule record and `compute_intensity_reference_delta` read
+      per-label intensity from the features block.
+  - **Blocks that change shape (step 4).**
+    - The Stage-3-bearing features block: `FEATURES_VERSION_STAGE3`
+      `"0.2"` → `"0.3"`.
+    - `image_features` loses `per_label`: `IMAGE_FEATURES_VERSION` `"1.0"`
+      → `"1.1"`.
+    - `reference_delta.{label}` loses `label` and `level_name`:
+      `REFERENCE_DELTA_VERSION` `"1.0"` → `"1.1"`.
+    - **The base `FEATURES_VERSION` is bumped by this item, `"0.1"` →
+      `"0.2"`.** The table moves the `image_features` per-label fields into
+      `per_label.{label}`, and Option A persists them, so a block without
+      Stage 3 that is built with `--intensity` changes shape. This is step
+      4's first case. Item 216's step 7 reads this record and does not bump
+      it again. The new `"0.2"` reuses the pre-215 Stage-3 value. Item
+      216's spec records that collision as Left open, on the ground that no
+      in-repo reader branches on the value, and this item follows the same
+      batch rule.
+  - **`catalogue.normalise_leaf_path`** needs no placeholder extension,
+    because the note introduces none. Rule (d) is unchanged, because
+    `reference_delta` stays keyed by `{label}`.
 - **Left open:** whether `per_label.{label}.*` rows move. A7 assumes not.
+  *Settled at claim (2026-10-06):* none moves (A7's re-check).
   If the signed table moves any, step 0 widens the fence, rather than this
   spec pre-authorising every canonical-container reader on speculation.
 - **Left open:** whether the transient `intensity_reference_delta` block
