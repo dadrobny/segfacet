@@ -110,6 +110,41 @@ absorbs it, on the validator and merge side. The builder never edits
   attests criterion 2 from both, and criterion 3 from the corpus ratchet
   together with D1.
 
+*Corrected at claim (2026-10-06, base `220baee`: items 214 and 215 merged,
+note as of `2364df4`, gate-0080 ✅ Approved).* The signed note and item 215
+as merged change four things here. Each is a correction, not the gate's
+re-cut. The scope axis and the row cut are unchanged, and gate-0080 was
+approved with "Scope axis unchanged, items 215/216 not re-cut".
+
+- **216's rows are 35, not 39** (A2's re-check). Item 215 moved the four
+  Deviation-5 rows: the three `stage3.curvature.*tangent_angles_deg[]`
+  arrays and `stage3.monotonic_consistency.u_values[]`, now per-label
+  scalars. The other 35 are as listed above: 25 `moved`, 7 `kept` and
+  3 `merged`.
+- **The record-wide anatomical order is this item's** (the note's "Element
+  order", maintainer decision of 2026-10-06; D11). Every array in the record,
+  and the sequence every Stage 3 extractor is fed, is in the item-198
+  anatomical order. So the change to what is measured is no longer confined
+  to the spacing family. Wherever the integer and anatomical orders disagree,
+  these change too: the in-sample fit, the held-out offsets, the tangents,
+  the curvature scalars, `inter_tangent_angles_deg[]`, and the neighbourhood
+  windows and statistics. That includes values at item 215's per-label paths
+  (`per_label.{label}.curve.*`, `.orientation.*` and `.neighbourhood.*`).
+  The bullet "No other value changes" above holds only where the two orders
+  agree. On the committed corpora that is every case but `sequence_break`,
+  and no corpus firing changes (A5's re-check). `relationships`' extractor
+  keeps its ascending-integer input, because `out_of_order_labels[]` is
+  computed from input order (step 1's correction).
+- **One new stored field, `case.sequence.order[]`** (the note's Deviation
+  11). It holds the label keys in that one order. It has no old path, so it
+  has no table row, and the catalogue lists it beside the table's paths
+  (AC1's correction, AC7).
+- **The report's top-level `image_features` key goes** (Option A, decided at
+  the gate). Item 215 put the per-label intensity into the features record
+  and left the four case-level fields under that key. This item moves them
+  to `case.intensity` inside `features` and removes the key (step 3's
+  correction, A14).
+
 ### The split with item 215
 
 The split is the one item 215's spec states, and it holds without exception.
@@ -129,6 +164,16 @@ The split is the one item 215's spec states, and it holds without exception.
 - **Item 214's tests are untouched.** `tests/test_214_feature_taxonomy_design.py`
   is left as it stands through the stage. Its AC1 compares the table against
   a frozen literal.
+
+*Corrected at claim (2026-10-06):* one line of
+`tests/test_215_per_label_migration.py` reads a 216 row.
+`test_path_u_mapped_in_anatomical_order` asserts
+`record["stage3"]["monotonic_consistency"]["is_monotonic"]`, and that field
+moves to `case.curve.is_monotonic`. So the file is on May change after all,
+as item 215's spec provides ("If item 216 must change any of these, its spec
+lists `tests/test_215_per_label_migration.py` under May change"). The edit is
+fence rule 1 on that one access and nothing else. Its AC1–AC3 and its
+`level-name-read-from-survivor` case stay unedited.
 
 ## Acceptance Criteria
 
@@ -185,17 +230,44 @@ Terms used below:
     `#/definitions/stage3MonotonicConsistency`, wherever its new path puts
     it.
 
+  *Corrected at claim (2026-10-06):* after this item
+  `stage3MonotonicConsistency` describes no object. Its two remaining
+  properties split between `case.curve.is_monotonic` and
+  `pairs.adjacent.non_monotonic_pairs[]`. Item 215 moved `u_values` to
+  `per_label.{label}.curve.path_u`, whose description still places `u`
+  "along the spline". So **the monotonic descriptions** are every
+  `description` string in the schema that sits on a property named
+  `is_monotonic`, `non_monotonic_pairs` or `path_u`, or on an object (a
+  definition or a property) that lists one of those three among its direct
+  `properties`.
+- *Added at claim (2026-10-06):* **resolving `P` with `{label}` bound to
+  `L`** is resolving `P` as above, except that the `{label}` segment walks
+  only the key `str(L)`.
+
 - [ ] **AC1: the catalogue's paths are exactly the table's stored paths.** The
       catalogue's path set equals the set of new paths of all 165 rows (215's
       and 216's) whose change is `kept` or `moved`.
+      *Corrected at claim (2026-10-06):* the set it is compared with also
+      holds `case.sequence.order[]`, the stored field of the note's
+      Deviation 11, which has no row. Measured on `220baee`, the table's
+      `kept`/`moved` new paths number 153, so the catalogue is expected to
+      list 154 paths.
 - [ ] **AC2: every top-level container in the record is one the table
       populates.** The set of containers of the clean-control report's leaf
       paths equals the set of containers of the table's `kept`/`moved` new
       paths.
+      *Correction at claim (2026-10-06):* the wording stands. The table's
+      containers are `case`, `features_version`, `pairs`, `per_label` and
+      `reference_delta`. So AC2 also requires the report's top-level
+      `image_features` key to be gone (Option A). On `220baee` the
+      clean-control report still carries it, holding the four case-level
+      fields.
 - [ ] **AC3: the survivor holds the anatomical-order spacings.** On the
       sequence-break report, the values found by resolving the survivor equal,
       to `abs=1e-9`, the Euclidean distances between consecutive centroids of
       the anatomical sequence.
+      *Settled at claim (2026-10-06):* the survivor is
+      `pairs.adjacent.spacings_mm[]` (A3's re-check). The wording stands.
 - [ ] **AC4: the spacing deviations are derived from the survivor.** On the
       sequence-break report, the values found by resolving
       `new("stage3.spacing_consistency.deviations_mm[]")` equal, to
@@ -206,9 +278,32 @@ Terms used below:
       `segfacet.pipeline.run_qc(variant, bundled_default_config())` have
       label sets equal to `[frozenset({22})]`. Before this item the list is
       empty, because integer order pairs T13 last (A6).
+      *Correction at claim (2026-10-06):* the wording stands. Re-measured on
+      `220baee`: the T13 variant fires no `fused_label` finding, and the
+      unknown-label variant fires on {22}. The record-wide order does not
+      change these readings, because `fused_label` reads label volumes and
+      centroid spacings, and neither depends on the fit.
 - [ ] **AC6: no monotonic description calls `u` a spline parameter.** None of
       the monotonic descriptions in `src/segfacet/report_schema_v0.json`
       matches `spline[ -]parameter`, compared case-insensitively.
+      *Correction at claim (2026-10-06):* the wording stands, over the
+      monotonic descriptions as re-defined in the terms above.
+- [ ] **AC7: the record stores its one element order.** *(Added at claim,
+      2026-10-06; the note's Deviation 11.)* On the sequence-break report,
+      the values found by resolving `case.sequence.order[]` equal the
+      anatomical sequence, as integers, in order.
+- [ ] **AC8: the in-sample fit is fed the anatomical sequence.** *(Added at
+      claim, 2026-10-06; the note's "Element order".)* On the sequence-break
+      report, the values found by resolving
+      `new("stage3.per_label_orientations[].spline_closest_u")` with
+      `{label}` bound to each label, read in the order of the anatomical
+      sequence, are strictly increasing.
+- [ ] **AC9: the neighbourhood windows follow the anatomical sequence.**
+      *(Added at claim, 2026-10-06; the note's "Element order".)* On the
+      sequence-break report, for every label at index `i` of the anatomical
+      sequence `S`, the values found by resolving
+      `new("stage3.per_label_neighbourhood[].window_labels[]")` with
+      `{label}` bound to that label equal `S[max(0, i - 1) : i + 2]`.
 
 These criteria close no stage acceptance criterion.
 
@@ -225,6 +320,22 @@ These criteria close no stage acceptance criterion.
 - **AC6.** The definition `stage3MonotonicConsistency` exists. At least one
   schema property references it. Its `u_values` property has a non-empty
   description.
+
+*Corrected at claim (2026-10-06):*
+
+- **AC1.** 216's rows number 35, not 39 (A2's re-check).
+- **AC6.** The three checks above no longer hold after this item, because
+  `stage3MonotonicConsistency` may be removed and `u_values` is gone since
+  item 215. Instead, each of `is_monotonic`, `non_monotonic_pairs` and
+  `path_u` occurs as a property name in the schema at least once, each time
+  with a non-empty description.
+- **AC7–AC9.** The anatomical sequence differs from ascending integer order
+  on this case, and it has one member per `per_label` key. For AC9, at least
+  one label's expected window differs from the window ascending integer
+  order would give. Measured on `220baee`: `spline_closest_u` read in
+  anatomical order is [1.0, 0.0, 0.2451, 0.4831, 0.731], and label 28's
+  window is [23, 28]. Under the record-wide order (A5's re-check) they are
+  [0.0, 0.5693, 0.7219, 0.8505, 1.0] and [28, 20].
 
 The queue's other two *Testable* claims are not restated as criteria:
 
@@ -258,12 +369,60 @@ re-checked at claim (step 0).
   - A `merged` row's new path is the new path of some `kept` or `moved` row.
 
   This spec never parses the note itself.
+  - *Re-checked at claim (2026-10-06, base `220baee`: note as of `2364df4`,
+    gate-0080 ✅ Approved): agrees.* The module exposes `NOTE_PATH`,
+    `read_mapping(text=None)` and a third name, `answer_lines`, which this
+    item does not use. `read_mapping` returns 165
+    `(old, new, change, moved_by)` tuples in table order, with `moved_by` an
+    `int`. Its row regex admits only `kept`/`moved`/`merged` and 215/216, and
+    it raises `ValueError` on an unparseable row. The old paths are the 165
+    frozen ones. The note's `## Structure` says "No new placeholder is
+    introduced": pairs are list elements, so `[]` covers them. Every
+    `merged` new path is a `kept`/`moved` new path.
 - **A2 (pin, item 214): 216's rows are the neighbour-pair and case-level
   scope.** They are exactly the 39 rows listed in the Description:
   6 + 6 + 8 + 5 + 3 + 4 + 6 + 1. That is the 165 rows minus item 215's 126,
   which are 106 catalogue rows plus the 20 report-only rows. Step 0 compares
   this against the signed table. A row assigned differently is re-cut at the
   gate.
+  - *Re-checked at claim (2026-10-06, base `220baee`): corrected.* 216's rows
+    in the signed table are **35**: 25 `moved`, 7 `kept` and 3 `merged`. By
+    group they are `relationships` 6, `overlaps[]` 6, `stage3.curvature.*`
+    5, `stage3.spacing_consistency.*` 5, `stage3.monotonic_consistency.*` 2,
+    `image_features.*` 4, the case-level `reference_delta.*` 6 and
+    `features_version` 1.
+    - **The four missing rows are item 215's.** They are the note's
+      Deviation-5 rows: the three `stage3.curvature.*tangent_angles_deg[]`
+      arrays and `u_values[]`, which became per-label scalars. Item 215
+      moved them (its A2 re-check), and it has merged.
+    - **This is not the gate's re-cut, so step 0's "stop" does not apply.**
+      The four are per-label values, so they fall on the per-label side of
+      the unchanged scope axis. Gate-0080 was approved with "Scope axis
+      unchanged, items 215/216 not re-cut".
+    - **Where the 35 go:**
+      - `relationships` → `case.sequence`, and its four other fields →
+        `case.sequence.<same name>`. `relationships.neighbour_spacings_mm[]`
+        → `pairs.adjacent.spacings_mm[]` (`moved`).
+      - `overlaps[]` → `pairs.overlaps[]`, with `label_a`, `label_b` and
+        `overlap_voxels` moved under it. `name_a` and `name_b` are `merged`
+        onto `per_label.{label}.level_name`.
+      - The four curvature scalars → `case.curve.<same name>`, and
+        `inter_tangent_angles_deg[]` →
+        `pairs.adjacent.inter_tangent_angles_deg[]`.
+      - `is_monotonic` → `case.curve.is_monotonic`, and
+        `non_monotonic_pairs[]` → `pairs.adjacent.non_monotonic_pairs[]`.
+      - The four spacing statistics → `pairs.adjacent.<same name>`.
+        `stage3.spacing_consistency.spacings_mm[]` is `merged` onto
+        `pairs.adjacent.spacings_mm[]`.
+      - The four case-level `image_features` fields →
+        `case.intensity.<same name>`.
+      - The six case-level `reference_delta` fields and `features_version`
+        are `kept`.
+    - **No `stage3` key is left in the record** after this item: items 215
+      and 216 between them move every field it held.
+    - **Two more things with no row are this item's:**
+      `case.sequence.order[]` and the record-wide anatomical order
+      (Description's correction, D11).
 - **A3 (pin, item 214): Answer 6 settles two things this spec cannot.**
   - **Which of the two spacing rows is the survivor.** Under item 214's AC8,
     exactly one is `merged` onto the other's new path. AC3–AC5 read the
@@ -275,6 +434,23 @@ re-checked at claim (step 0).
     open).
 
   Step 0 records both, dated, in Decisions.
+  - *Re-checked at claim (2026-10-06, base `220baee`): agrees, and both
+    points are settled* (recorded in D11).
+    - **The survivor** is `pairs.adjacent.spacings_mm[]`, by the Answer
+      "Which path owns adjacent-pair spacing".
+      `relationships.neighbour_spacings_mm[]` is `moved` to it and
+      `stage3.spacing_consistency.spacings_mm[]` is `merged` onto it. So
+      exactly one of the two is `merged` (item 214's AC8). The Answer states
+      the order and label set of D9 and the presence of D10.
+    - **The per-element copy is re-derived.** It sits behind
+      `per_label.{label}.neighbourhood.stats.spacing_mm.*`, item 215's paths
+      since its merge. The Answer says "the whole neighbourhood container
+      is computed over the anatomical sequence" and "the reorder is item
+      216's". That is now one instance of the record-wide order (D11). It
+      needs no criterion of its own: AC9 checks that the neighbourhood is
+      computed over the anatomical sequence, and step 1's correction
+      computes the per-element spacing list from that same sequence. The
+      first **Left open** under Decisions is settled.
 - **A4 (pin, item 215): the tree this item builds on.**
   - Every 215 row is at its new path, and the catalogue lists the 20
     report-only rows through 215's extended reference-delta driver.
@@ -292,6 +468,73 @@ re-checked at claim (step 0).
   Step 0 re-runs the fence greps on that tree, because what is left of the
   `stage3` container after item 215 decides which of this item's listed
   files still need an edit.
+  - *Re-checked at claim (2026-10-06, base `220baee`, item 215 merged there):
+    agrees, bullet by bullet.*
+    - Every 215 row is at its new path, and the catalogue lists the 20
+      report-only rows. The catalogue has 156 paths (145 − 9 merged + 20).
+    - `per_label.{label}.level_name` and `.centroid.*` are `kept` (215's A7
+      re-check).
+    - `FEATURES_VERSION_STAGE3` is `"0.3"`, and the top-level
+      `schema_version` is `"0.1"`. **Item 215 bumped the base
+      `FEATURES_VERSION`, `"0.1"` → `"0.2"`** (its D10: Option A puts
+      per-label intensity into a block without Stage 3). It also bumped
+      `IMAGE_FEATURES_VERSION` and `REFERENCE_DELTA_VERSION` to `"1.1"`. So
+      step 7 bumps nothing.
+    - `tests/test_215_per_label_migration.py` merged green: validated at
+      `06600f2`, merged at `220baee`. This re-check did not run pytest. One
+      of its lines reads a 216 row (the split's correction).
+    - The count pins and the digest hold item 215's values (A10's
+      re-check).
+    - Every `"stage3"` access that names a 215 row has been re-pointed
+      (215's D11). The `stage3` container still exists after item 215. It
+      holds exactly 216's Stage 3 rows:
+      - `curvature`: the four scalars and `inter_tangent_angles_deg`;
+      - `spacing_consistency`: all five fields;
+      - `monotonic_consistency`: `is_monotonic` and `non_monotonic_pairs`.
+
+    **What item 215 built that this item's steps must follow:**
+    - **The serialiser layout** (215's D11). The `*_to_dict` converters
+      keep their legacy shape, and `build_features_block` distributes their
+      output.
+      - It zips the three tangent arrays with ascending integer labels
+        (`feature_report.py` line 655).
+      - It derives its own copy of the item-198 key to map `path_u` (line
+        666).
+      - Under the record-wide order, both zips use the one anatomical
+        sequence, and the shared function replaces the private key copy (D7,
+        step 1's correction). Its length checks, which raise `ValueError`
+        (215's D12), stay.
+    - **Option A is half done** (215's D10). Per-label intensity is in the
+      features record. `run_qc_with_intensity`'s tuple and the report's
+      top-level `image_features` key carry only the four case-level fields,
+      which are this item's.
+    - **The schema** (215's D11 and D12).
+      - `stage3OffsetEntry`, the `curve` kind, carries `path_u`. Its
+        description still calls it a position "along the spline", from the
+        "monotonic-consistency fit".
+      - `stage3MonotonicConsistency` keeps `is_monotonic` and
+        `non_monotonic_pairs`.
+      - `labelFeatures` requires `geometry`, `components` and `centroid`.
+    - **Docs rows** (insight `2026-10-06-163d`). Some `feature_docs.py` rows
+      still state the pre-215 literals:
+      - the rows for `features_version`, `image_features_version` and
+        `reference_delta_version`;
+      - the unavailable-`image_features` prose saying that `per_label` is
+        empty.
+
+      They are 216's rows (step 4's correction).
+    - **Catalogue attribution** (insight `2026-10-06-1935`). Mechanism B
+      attributes a string key only when exactly one leaf path ends in that
+      segment. This was measured over the post-216 stored paths: the table's
+      153 plus `case.sequence.order[]`.
+      - The only last segment a 216 path shares is `available`, held by
+        `case.intensity.available` and `reference_delta.{label}.available`.
+      - `image_features.available` already shared it before this item.
+      - So this item creates no new ambiguity. It inherits item 215's
+        understatement (`Read by >=1 rule` 51) unchanged, and fixing that
+        is not this item's job.
+
+    The fence greps were re-run on this tree (Authorised paths' correction).
 - **A5 (measured): the collapse is visible on exactly one committed case, and
   changes no firing.** All 18 cases were run through `run_qc`: 14 geometric
   and 4 intensity. On 17 of them the integer and anatomical orders agree, no
@@ -323,6 +566,48 @@ re-checked at claim (step 0).
   in the catalogue's observed range for the survivor: the base
   `spacings_mm[]` range is 32.6952–66.3769, and 134.161 joins it. AC5's
   variant is what shows a rule-level change.
+  - *Re-checked at claim (2026-10-06, base `220baee`): corrected. The
+    value footprint is wider, and the firing claim holds.* The signed
+    note's record-wide order (D11) was measured with a scratch copy of
+    `extract_feature_record`. It sorts `labels` into the item-198 order
+    before the Stage 3 branch, so the fit, every Stage 3 extractor and the
+    neighbourhood take the anatomical sequence, and `relationships` stays
+    on integer order.
+    - **Firing.** All 18 cases, run through
+      `failure_modes._measured_findings`, give the same `(rule_id, labels)`
+      set as on the base. D8 holds under the record-wide order.
+    - **Values.** On the 17 cases whose two orders agree, nothing changes
+      (clean_control, displace and fuse_adjacent were compared leaf by
+      leaf). On `sequence_break`, 138 leaves change besides the spacing
+      family:
+      - `per_label.{label}.curve.*`: for labels 20, 21, 22, 23 and 28,
+        `offset_mm` goes from 0.0595, 0.1513, 0.3436, 0.1602 and 0.0494 to
+        0.0038, 0.2576, 0.9730, 0.9097 and 0.0495. `closest_u` and
+        `is_terminal` change too;
+      - the spline fields and tangent scalars under `.orientation.*`;
+      - `.neighbourhood.*`, where label 28's window goes from [23, 28] to
+        [28, 20];
+      - the four curvature scalars and `inter_tangent_angles_deg[]`.
+
+      `path_u`, `is_monotonic` and `non_monotonic_pairs[]` do not change.
+      Since item 210 they come from the label-free path, not from the fit.
+    - **Reports.**
+      - `segfacet_report.txt` is byte-identical to the base on
+        clean_control with `--intensity`, and on sequence_break with
+        `--no-reference`.
+      - On sequence_break with `--intensity` and the bundled reference, the
+        `(rule_id, labels)` set of the findings is unchanged, but
+        `reference_delta`'s findings move. Label 20 gains a
+        `spline_offset_mm` out-of-range finding (value 0.0038), and label
+        21 loses its own (0.1513). The distribution distances of labels
+        20–23 go from 3.70, 3.90, 4.07 and 3.96 to 3.47, 3.89, 4.06 and
+        4.40. Validation step 5 is corrected to match.
+    - **Off the corpus.** Take clean_control relabelled L1 T13 L2 L3 L4,
+      test_198's `t13-below-l1` input. On it `spline_offset` newly fires on
+      {20}, and `mislabel` and `sequence` are unchanged. These relabels fire
+      exactly as before: T13 at the head, Cocc at the tail, Cocc above S2,
+      and an unknown label 99 at the tail or in the middle. Fence rule 5's
+      correction covers a test that pins such a value or firing set.
 - **A6 (measured): the two `fuse_adjacent` variants.** These are
   `fused_label` readings, in the form (size ratio, spacing ratio), against
   thresholds 1.5 and 1.25.
@@ -351,6 +636,14 @@ re-checked at claim (step 0).
     branch (lines 209–215).
   - **On a coincident-centroid record** the branch is skipped and
     `stage3_unavailable` is set. `relationships` is still computed.
+  - *Re-checked at claim (2026-10-06, base `220baee`): agrees.* Item 215
+    did not change `extract_feature_record`'s body (`git diff 00fe6f5
+    220baee -- src/segfacet/pipeline.py` touches only a docstring literal
+    and `run_qc_with_intensity`). One fact matters for step 1's correction.
+    `compute_spine_relationships` builds `out_of_order_labels` from the
+    order it is given (`features/relationships.py` lines 132–138).
+    `present_levels` and the spacings it sorts itself. On sequence_break
+    `out_of_order_labels` is `["T13"]`.
 - **A8 (measured): who reads 216's rows.** The grep under Authorised paths
   found these readers in `src/segfacet`. The extractors and `sequence.py`
   only mention the paths in dated history prose.
@@ -392,6 +685,23 @@ re-checked at claim (step 0).
       `synth/clean_gt.py` and `heuristics/rule.py`.
 
   `synth/regression.py`, `eval/harness.py` and `cli.py` read no 216 path.
+  - *Re-checked at claim (2026-10-06, base `220baee`): agrees, with three
+    changes item 215 made.*
+    - `heuristics/intensity.py` now reads `record["image_features"]` only
+      for the availability gate. Per-label intensity comes from
+      `record["per_label"]`.
+    - `reference/delta.py`'s `compute_intensity_reference_delta` uses its
+      `image_features` argument only as the `available` gate.
+    - `human_report.py`'s intensity section reads
+      `image_features["available"]`. It renders "(no per-label intensity in
+      the features record)" when that is true and no label carries an
+      intensity kind (215's D12).
+
+    One reader A8 did not list, because Option A was undecided then:
+    `cli.py` passes its `image_features` tuple element to the two report
+    writers as `image_features=` (lines 849–921). Its `--intensity` help
+    text (line 305) also names the report's `image_features` block. Step 3's
+    correction handles both.
 - **A9 (measured): which tests read either spacing array on a degenerate
   record.**
   - `test_016_features_json.py::test_ac7_single_label_map` (line 444) asserts
@@ -420,12 +730,40 @@ re-checked at claim (step 0).
   - The catalogue path-set digest in `tests/corpus/119_pre_119_digests.json`
     is asserted by `test_119_curve_formulation.py`,
     `test_120_leave_one_out_offset.py` and `test_123`.
+  - *Re-checked at claim (2026-10-06, base `220baee`): corrected. The pins
+    hold item 215's values, and A10 missed one.*
+    - **Catalogue total 156:**
+      - `test_124` line 560;
+      - `test_131` line 696 (`_PRE_ITEM_TOTAL_LEAF_PATH_COUNT`);
+      - `test_132` line 712;
+      - `test_136` line 872;
+      - `test_137` lines 987 and 1065;
+      - `test_148` line 1130.
+    - **Record leaf count 95:** `test_103` line 395.
+    - **Empty-evidence buckets:** `test_136`'s is 103 (line 880), and
+      `test_137`'s distribution has `(): 103` (line 1014).
+    - **The digest** is `64bde66b…4fd4620`.
+    - **The missed pin.** `docs/aide/golden_evidence.generated.json` counts
+      each case's record leaf paths (`golden_evidence.py` line 63).
+      `tests/test_126_golden_retirement.py` line 1081 pins its entry to
+      `(28, 95)`. Item 215 found the same pin late (its scope-hand-back
+      correction). This item changes the record's leaf paths: two merged
+      `overlaps[]` names, one merged spacing array, and `+1` for
+      `case.sequence.order[]`. So both files go on May change.
+    - **Committed data.** No committed corpus file stores a record path or
+      a spacing value. No test pins a `sequence_break` Stage 3 value.
+      Searches for the base and record-wide-order offsets of A5's re-check,
+      and for the spacing values above, found none.
 - **A11 (measured): `stage3_unavailable` has no row.**
   - The features block carries it only when two centroids coincide (item
     129), and the catalogue lists no path under it.
   - It is a pipeline diagnostic, not a feature, so the table cannot move it.
   - It keeps its name and shape (Left open), and AC2's clean-control report
     does not carry it.
+  - *Re-checked at claim (2026-10-06, base `220baee`): agrees.* The table
+    gives it no row. After this item no `stage3` key remains in any
+    record, so its name refers to a container that no longer exists. The
+    Left open still stands.
 - **A12 (default): `fused_label` still judges only records with Stage 3.**
   - Before this item the rule returned `[]` when `stage3.spacing_consistency`
     was absent, which is every record with fewer than two labels or
@@ -436,9 +774,40 @@ re-checked at claim (step 0).
   - So the rule keeps its gate on the Stage-3-only spacing statistics being
     present, read at their new path (step 5, and the
     `stage3-unavailable-not-judged` case).
+  - *Re-checked at claim (2026-10-06, base `220baee`): corrected on where
+    the gate reads.* The survivor and the four statistics share one
+    container, `pairs.adjacent`. So the gate cannot be the presence of a
+    container. It is the presence of
+    `new("stage3.spacing_consistency.mean_spacing_mm")`, which is
+    `pairs.adjacent.mean_spacing_mm`. The adversarial case deletes the four
+    statistics' keys, not a container (Testing Strategy's correction).
 - **A13: no human gate beyond gate-0080, and no environment-gated
   capability.** The case-level `radiomics_available` and `backend` rows move
   like any other row.
+- **A14 (default, added at claim 2026-10-06): `case.intensity` exists
+  exactly where the report's `image_features` key exists today.** That is
+  an intensity run (`run_qc_with_intensity`, or the CLI's `--intensity`).
+  A run without intensity carries neither `case.intensity` nor any
+  `per_label.{label}.intensity`.
+  - **Why this default.** The note's Answer "stage3 and image_features
+    beside per_label" says the intensity kind "exists only when a scan was
+    supplied, as today". Its Option-A paragraph also says that "a report
+    made without a scan carries `case.intensity.available = false`".
+  - **How the two are read together.** The CLI always takes a scan, so
+    that sentence is read as an intensity run whose block reports itself
+    unavailable. This keeps every non-intensity record's shape unchanged,
+    and it keeps `tests/test_065_cli_intensity.py`'s presence and absence
+    assertions meaningful once they are re-pointed.
+  - **The alternative is left to the maintainer at the queue boundary:**
+    always emitting `case.intensity` with `available: false`.
+- **A15 (default, added at claim 2026-10-06): `case.sequence.order[]`
+  holds integer labels.** It sits beside the other `case.sequence` fields,
+  so it is present wherever `case.sequence` is.
+  - The note says "the label keys". The other references to a label inside
+    the record are integers: `pairs.overlaps[].label_a`,
+    `neighbourhood.window_labels[]` and
+    `components.component_contacts[].neighbour_label`.
+  - AC7 compares integers.
 
 ## Implementation Steps
 
@@ -603,6 +972,105 @@ re-checked at claim (step 0).
 
 No dependency is added.
 
+*Corrected at claim (2026-10-06, base `220baee`).* Step 0 is done: its
+re-checks are appended to A1–A5, A7, A8 and A10–A12, and its record is D11.
+The other steps change as follows. Where a correction and the original
+disagree, the correction holds.
+
+- **Step 1: one anatomical sequence, fed to everything but
+  `relationships`** (D11).
+  - **The ordering.** Build the item-198 anatomical sequence of every
+    label once, right after the centroids, for every record with at least
+    one label. Use the shared function in `segfacet.labels` (D7). It also
+    replaces the private copy of the key in `build_features_block` that
+    item 215 wrote to map `path_u` (`feature_report.py` line 666).
+  - **`relationships` keeps its ascending-integer input.**
+    `compute_spine_relationships(ordered_by_integer_label)` is called as
+    today. Its `out_of_order_labels` is computed from the order it is given,
+    and an anatomical input would empty it on every record. The survivor
+    still replaces its `neighbour_spacings_mm`, as step 1 says.
+  - **Inside the Stage 3 branch, everything takes the anatomical
+    sequence.** That covers the one in-sample fit, the held-out offsets,
+    the tangent orientations, the curvature, the spacing consistency, the
+    monotonic consistency and the neighbourhood, including its
+    per-element spacing, offset and volume lists.
+    - `ordered_centroids` and the separate `anatomical_spline` refit
+      disappear. Exactly one `fit = fit_centroid_spline(` binding remains,
+      which `tests/test_130_one_closest_point_search.py`'s AC19 already
+      requires.
+    - `compute_vertebra_orientations(seg_img, labels)` is a per-label PCA
+      keyed by label, so order does not matter to it.
+    - The coincident-centroid pre-check looks at every pair, so it does not
+      depend on order either.
+  - **Serialisation.**
+    - The three tangent arrays and `u_values` are zipped with the
+      anatomical sequence. This replaces item 215's `sorted(all_labels)`
+      zip (line 655), and the `tangent-arrays-on-their-own-label` case
+      guards it.
+    - `pairs.adjacent.inter_tangent_angles_deg[]`, the survivor and
+      `deviations_mm[]` are stored in that same order.
+    - `case.sequence.order[]` (A15) is emitted from the same function over
+      the `per_label` entries, beside the other `case.sequence` fields.
+    - `build_features_block` keeps its parameters. Item 215's length checks
+      stay.
+- **Step 2.** The new paths use no new placeholder (A1's re-check), so
+  `catalogue.normalise_leaf_path` needs no extension.
+  `catalogue.iter_driver_records` emits the moved shapes. Its driver ids
+  (`"image_features"`, `"reference_delta"`) keep their names, because
+  `observed_range.py` names them and stays off May change.
+- **Step 3 applies (Option A, A14).**
+  - `run_qc_with_intensity` attaches the four case-level fields to the
+    features block as `case.intensity`. Its 5-tuple keeps its arity and
+    order. The image-features element is the same four-field mapping, so
+    `synth/regression.py` and `eval/harness.py` need no edit.
+  - The rules read `case.intensity.available` from the features record, so
+    the transient rule record no longer needs an `"image_features"` key.
+  - `report.py` stops emitting the top-level `image_features` key.
+  - `human_report.py` reads availability from `features.case.intensity`.
+  - `cli.py` changes only to stop passing `image_features=` to the two
+    report writers, if a writer drops that parameter, and in the
+    `--intensity` help text and docstrings that name the report's
+    `image_features` block. Its pipeline calls and tuple unpacking are
+    unchanged.
+- **Step 4 adds four things.**
+  - **The version rows** (insight `2026-10-06-163d`). `feature_docs.py`'s
+    rows for `features_version`, `image_features_version` and
+    `reference_delta_version` state the live values: `"0.2"` without Stage
+    3 and `"0.3"` with it, then `"1.1"` and `"1.1"`. The prose saying an
+    unavailable `image_features` block has an empty `per_label` is
+    corrected to the four-field shape. All of these are 216's rows.
+  - **A doc row for `case.sequence.order[]`.**
+  - **The survivor's override.** It takes the merged row's
+    `STATUS_OVERRIDES` entry under its own key,
+    `pairs.adjacent.spacings_mm[]`.
+  - **Failure-mode text.** `failure_modes.py`'s path strings are
+    re-pointed for 216's rows only. If a mode definition's prose names a
+    moved `stage3.*` path, that prose is re-pointed too.
+- **Step 5.** The gate reads `pairs.adjacent.mean_spacing_mm` (A12's
+  re-check). The label sequence may be read from `case.sequence.order[]`
+  instead of being recomputed with the shared function. Either way it is
+  the same order. Every absence tolerance stays as step 5 lists it.
+- **Step 6** (D6's correction).
+  - Every moved 216 property is placed under `case.sequence`,
+    `case.curve`, `case.intensity`, `pairs.adjacent` and `pairs.overlaps`,
+    with `case.sequence.order[]` added.
+  - The schema's top-level `image_features` property goes.
+  - The rider also rewrites `path_u`'s description to the label-free MST
+    arc length (item 210), as description text only.
+  - The `spline_closest_u` and `closest_u` descriptions stay as they are,
+    because they are correct.
+- **Step 7: bump nothing.** Item 215 bumped every discriminator once
+  (A4's re-check), and D5 forbids a re-bump.
+- **Step 8.**
+  - `docs/aide/golden_evidence.generated.json` is regenerated, not
+    predicted identical (A10's re-check).
+  - One entry, `tests/test_216_neighbour_pair_and_case_level_migration.py`,
+    goes into `jobs.test.env.WINDOWS_TESTS` in `.github/workflows/ci.yml`,
+    in sorted position. Nothing else in that file changes. The module's
+    fixtures invoke the CLI and read its output back from disk, which is
+    item 213's signal 2. Item 215 had to add its own module the same way
+    (its validation-round-1 correction).
+
 ## Authorised paths
 
 **How the list was produced (2026-10-05, `f5c79df`), so step 0 can re-run
@@ -715,7 +1183,7 @@ heuristics/sequence.py.
 - `tests/test_104_feature_catalogue_drift.py` — fence rule 1: path literals in its own cases; the drift assertions stay (searches 1, 5).
 - `tests/test_110_neighbourhood_wiring.py` — fence rule 1: `"stage3"` presence assertions (search 3).
 - `tests/test_115_stage26_validation.py` — fence rule 1: `"stage3"` presence assertion (search 3).
-- `tests/test_119_curve_formulation.py` — fence rule 1: a curvature `FEATURE_DOCS` key (search 2).
+- `tests/test_119_curve_formulation.py` — fence rule 1: a curvature `FEATURE_DOCS` key (search 2). *Not to be edited (claim re-check, 2026-10-06): that key is now item 215's `per_label.{label}.orientation.tangent_angle_deg`, and nothing else in the file names a 216 row.*
 - `tests/test_120_leave_one_out_offset.py` — fence rule 1: hand-built monotonic record (searches 2, 3).
 - `tests/test_122_signed_curvature.py` — fence rule 1 (searches 2, 3).
 - `tests/test_123_recalibrate_and_regenerate.py` — fence rule 1 (searches 2, 3).
@@ -729,7 +1197,7 @@ heuristics/sequence.py.
 - `tests/test_136_rule_mode_declarations.py` — fence rule 2: entry count and the empty-evidence bucket (search 6).
 - `tests/test_137_mode_less_rule_disposition.py` — fence rule 2: entry count and the exhaustive evidence distribution (searches 4, 6).
 - `tests/test_138_traceability_matrix.py` — fence rule 1 (search 1).
-- `tests/test_143_s_axis_correction.py` — fence rule 1 (searches 2, 3).
+- `tests/test_143_s_axis_correction.py` — fence rule 1 (searches 2, 3). *Not to be edited (claim re-check, 2026-10-06): its only remaining hit is a docstring naming the former `stage3.curvature.tangent_angles_deg[]`, an item-215 row.*
 - `tests/test_146_ninth_mode_and_first_proposed.py` — fence rule 1 (searches 2, 3, 5).
 - `tests/test_147_specification_is_the_record.py` — fence rule 1 (search 1).
 - `tests/test_148_per_path_mode_attribution.py` — fence rules 1, 2: the entry count (searches 1, 4, 6).
@@ -742,6 +1210,14 @@ heuristics/sequence.py.
 - `tests/test_198_ordering_along_expected_sequence.py` — fence rule 1 (searches 2, 3).
 - `tests/test_211_fused_label_spacing_pair.py` — fence rule 1: the spacing path in `_with_pair` and its reads (searches 2, 3).
 - `tests/test_heuristics_bounds_source.py` — fence rule 1 (search 1).
+- `src/segfacet/cli.py` — only the `image_features=` arguments to the two report writers and the help/docstring text naming the report's `image_features` block (step 3's correction; added at claim 2026-10-06).
+- `.github/workflows/ci.yml` — one entry, `tests/test_216_neighbour_pair_and_case_level_migration.py`, in `jobs.test.env.WINDOWS_TESTS`, and nothing else (step 8's correction; added at claim 2026-10-06).
+- `docs/aide/golden_evidence.generated.json` — regenerated: record leaf counts move (A10's re-check; added at claim 2026-10-06).
+- `tests/test_126_golden_retirement.py` — fence rule 2: the `(28, 95)` companion pin (A10's re-check; added at claim 2026-10-06).
+- `tests/test_065_cli_intensity.py` — fence rule 1: report-level `image_features` reads and presence assertions re-pointed to `features.case.intensity` (A14; added at claim 2026-10-06).
+- `tests/test_106_stage19_validation.py` — fence rule 1 as corrected: AC25's key translation also maps a survivor to the old path of a row merged onto it (added at claim 2026-10-06).
+- `tests/test_121_tangent_orientation.py` — fence rule 1: AC19's `report["features"].get("stage3")` guard, which goes vacuous once `stage3` is gone (added at claim 2026-10-06).
+- `tests/test_215_per_label_migration.py` — fence rule 1 on the one `record["stage3"]["monotonic_consistency"]["is_monotonic"]` read in `test_path_u_mapped_in_anatomical_order`, and nothing else (the split's correction; added at claim 2026-10-06).
 
 **The reconciliation fence** applies to the listed test files other than
 this item's own module. The builder reconciles after regeneration. Five kinds
@@ -793,6 +1269,53 @@ file not listed here is a hand-back to spec-author, not an edit. **Re-run
 each listed test after editing it, until it is green.** A test can hold a
 second stale path behind its first failing assert (insight 2026-10-05-da43).
 
+*Corrected at claim (2026-10-06, base `220baee`).* Written as numbered
+points, without path bullets, so that `aide scope` reads no path from them.
+
+1. **The fence greps were re-run on this tree.** The six searches were
+   re-run, with search 4 widened to the quoted key image_features (Option
+   A) and search 6 to the post-215 literals (156, 95, 103 and the pair
+   28, 95). A per-file token check followed, over the non-comment lines of
+   each hit, for a 216 row's container, field name or path.
+   No longer needed: test_119 and test_143. Each is annotated in place, and
+   the validator treats an edit to either as out of scope.
+   Newly needed: test_065_cli_intensity, test_106, test_121, test_126 and
+   test_215, listed above.
+   New src hits that are not record paths: config.py, eval/report.py,
+   eval/eval_report_schema_v0.json, reference/__init__.py,
+   reference/schema.py, reference/reference_default.json and
+   traceability.py. They are reference-config or artifact keys of the same
+   names, and comments.
+   Not to be edited: observed_range.py, which names catalogue driver ids
+   that stay (step 2's correction).
+   Still dropped for reason 1 or as inert: test_014, test_042, test_051
+   (its hand-built empty stage3 dict is read by nothing), test_092,
+   test_features_radiomics and test_aide_status_report.
+2. **Rule 1 also covers three more edits.** First, a report-level
+   image_features read or presence assertion, re-pointed to
+   features.case.intensity (A14). Second, a stage3 presence guard that
+   skips a check when the key is absent, re-pointed like a presence
+   assertion, to the container that now carries the Stage-3-only fields.
+   Third, in test_106's AC25, the translation from a STATUS_OVERRIDES key
+   to its pre-migration key. It also accepts the old path of a merged row
+   whose new path is that key. The survivor pairs.adjacent.spacings_mm[]
+   takes the merged stage3.spacing_consistency.spacings_mm[]'s override
+   (step 4's correction), and only that old path is in the 106 record.
+3. **Rule 2 counts one more kind of change:** plus one for
+   case.sequence.order[], a stored path with no table row (the note's
+   Deviation 11).
+4. **Rule 5 is widened to the record-wide order (D11).** It covers a test
+   that pins any Stage 3 value, the spacing family, or a firing set or
+   finding reason derived from them. The test's input must be one where the
+   integer and anatomical orders disagree, or one that carries an
+   unrecognised label. Such a test moves to the re-measured value, with a
+   dated item-216 comment citing D11. The committed corpora are not such
+   inputs for firing: D8 holds there (A5's re-check), and both manifests
+   stay unedited. A5's re-check found one candidate shape: spline_offset
+   newly fires on the t13-below-l1 relabel. test_198 filters to mislabel,
+   so it is not affected. Any use of this rule is recorded in Decisions by
+   node id.
+
 **Asserts against:**
 
 - `docs/feature-taxonomy.md` — AC1–AC5 read the mapping table through item 214's reader.
@@ -803,6 +1326,7 @@ second stale path behind its first failing assert (insight 2026-10-05-da43).
 - `tests/corpus/fixtures/clean_control_seg.nii.gz` — AC2's segmentation.
 - `tests/corpus/fixtures/base_scan.nii.gz` — every case's scan.
 - `src/segfacet/reference/reference_verse_v1.json` — the default reference behind AC2's report; not rebuilt.
+- `tests/corpus/intensity/manifest.json` — the intensity corpus's expectations; must stay unedited so firing cannot be re-expected (D8; added at claim 2026-10-06).
 
 **Kept off May change on purpose**, so that `aide scope` refuses an edit to
 any of them. No extractor needs an edit (D4): every module under features/,
@@ -813,6 +1337,14 @@ heuristics/sequence.py read no 216 path. Firing cannot be re-expected: both
 corpus manifests stay off, and the specificity-ratchet and item-207
 fused_label tests must pass unedited. Item 214's and item 215's test modules
 stay off, so their guarantees hold unedited.
+
+*Corrected at claim (2026-10-06):* cli.py and test_215's module are now
+on May change, each for the narrow edit its bullet names. Every module under
+features/ stays off: the record-wide order is applied in pipeline.py, by
+what each extractor is given, so D4 holds. heuristics/spline_offset.py and
+reference/ingest.py read item 215's per-label paths, which do not move here.
+They stay off, even though their input values change where the orders
+disagree.
 
 ## Testing Strategy
 
@@ -893,6 +1425,55 @@ grep finds a file that names a moved path. It does not find a test that
 breaks because a value was read from an un-pointed guard. The full suite run
 and the Validation section close that gap.
 
+*Corrected at claim (2026-10-06, base `220baee`).*
+
+- **Nine ACs, one test each.** AC7–AC9 read the sequence-break report
+  through the same module-scoped fixture and resolver. The resolver gains
+  the `{label}` binding the terms define. AC8 and AC9 read their paths
+  through `new(...)`. AC7's path is `case.sequence.order[]`, a literal,
+  because it has no row. The anatomical sequence is still computed in the
+  test from `CANONICAL_ORDER`.
+- **`stage3-unavailable-not-judged`, corrected.** The case no longer deletes
+  a container. In a deep copy it deletes the four Stage-3-only statistics:
+  the new paths of `mean_spacing_mm`, `cv_spacing`, `deviations_mm[]` and
+  `outlier_pairs[]`, all under `pairs.adjacent`. The survivor stays in the
+  same container, and `evaluate` must return `[]` (A12's re-check). The
+  failure mode it guards is unchanged.
+- **Adversarial cases, now exactly four.** The two above, plus these two:
+  - **`tangent-arrays-on-their-own-label`.** Take the
+    `extract_feature_record` record of the unmodified `sequence_break`
+    case. For every label, the wrapped difference
+    `((a - b + 180) % 360) - 180` must be at most 1.0 degree. This is
+    checked between `new("stage3.curvature.coronal_tangent_angles_deg[]")`
+    and `new("stage3.per_label_orientations[].spline_tangent_coronal_deg")`,
+    and likewise for the sagittal pair, each read with `{label}` bound to
+    the label. First assert that the case's two orders differ.
+    - **It guards** the serialiser zipping the anatomical-order tangent
+      arrays with ascending integer labels: item 215's line-655 zip left in
+      place after step 1 reorders the input. Every label's angles would
+      then land on another label, silently. No AC sees it, because AC8 and
+      AC9 read dataclass-keyed fields.
+    - **Measured** on the record-wide order: with the integer zip the
+      differences are 170–202 degrees; with the anatomical zip, at most
+      0.35. The same pairs agree within 0.25 degrees on the base for
+      clean_control and displace.
+  - **`out-of-order-labels-unchanged`.** On the same record, the values
+    resolved at `new("relationships.out_of_order_labels[]")` must be
+    non-empty and equal `compute_spine_relationships(...).out_of_order_labels`.
+    The call takes the case's centroids in ascending integer order, each
+    from `segfacet.features.centroids.compute_centroid(img, label)`.
+    - **It guards** step 1 feeding the anatomical sequence to
+      `relationships` too, which the note's "the only sequence" invites.
+      That empties `out_of_order_labels[]` on every record, and so silently
+      retires `eval/per_mode.py`'s out-of-order signal.
+    - **No firing test sees it.** `sequence` stopped reading the path at
+      item 192, so the ratchet stays green.
+- **Existing tests to reconcile** gain the five files added under
+  Authorised paths. `test_119` and `test_143` leave the list.
+- **The `.github/workflows/ci.yml` entry** for this item's module is part of
+  the build (step 8's correction). `tests/test_213_windows_ci_subset.py`
+  checks it unedited.
+
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 
 No `[validation]` profile is needed. The validator runs:
@@ -933,6 +1514,39 @@ No `[validation]` profile is needed. The validator runs:
      survivor on both cases (A5).
 6. `python .aide/scripts/aide.py check`, which must report no errors.
 
+*Corrected at claim (2026-10-06, base `220baee`; measurements in A5's
+re-check).*
+
+- **Step 3's exception widens to the record-wide order (D11).** Besides
+  the spacing family, three groups of values may differ:
+  - the values of item 215's per-label `curve.*`, `orientation.*` and
+    `neighbourhood.*` rows;
+  - 216's curvature scalars and `inter_tangent_angles_deg[]`;
+  - the statistics.
+
+  They may differ only in values contributed by driver records whose
+  integer and anatomical orders disagree. On the committed corpora that is
+  `sequence_break` alone. Every other row's `status`, evidence and observed
+  range must still be equal. `case.sequence.order[]` has no base entry.
+- **Step 4: no `*_VERSION*` constant changes at all.** Item 215 bumped the
+  base `FEATURES_VERSION` too (A4's re-check).
+- **Step 5 is re-run with three exact comparisons and one bounded
+  difference.**
+  - `segfacet_report.txt` must be byte-identical for clean_control with
+    `--intensity`.
+  - `segfacet_report.txt` must be byte-identical for sequence_break with
+    `--intensity --no-reference`.
+  - For sequence_break with `--intensity` and the bundled reference, the
+    findings' `(rule_id, labels)` set must be identical. Only
+    `reference_delta` finding reasons on labels 20–23 may differ, and only
+    within A5's measured list.
+  - `render_feature_table` is called on the base with
+    `(features, image_features)` and on the branch with `features` alone.
+    Its output must be identical for both cases.
+- **Step 7 (new):** read `feature_docs.py`'s rows for `features_version`,
+  `image_features_version` and `reference_delta_version`. Each must state
+  the live constant (insight `2026-10-06-163d`).
+
 ## Dependencies
 
 - **Item 214** — the signed design note `docs/feature-taxonomy.md`, its
@@ -950,6 +1564,12 @@ No `[validation]` profile is needed. The validator runs:
   (A5, D8), and whose rule-level effect AC5 shows.
 
 Item 217 also replays Validation steps 2 and 5 from a clean clone.
+
+*Corrected at claim (2026-10-06):* the corpus footprint of the authorised
+change is `sequence_break`'s Stage 3 values, not its spacing values alone
+(D11, A5's re-check). There is still no firing change. Criterion 2's
+addressability half reads AC1 as corrected, with `case.sequence.order[]` as
+the one stored path that has no row.
 
 ## Decisions & Trade-offs
 
@@ -991,6 +1611,20 @@ To be updated during implementation.
 - **D6: the schema's `definitions` keys are not renamed.** They are internal
   `$ref` names, not record paths, and tests address them (`test_121`,
   `test_122`). AC6 names `stage3MonotonicConsistency` for the same reason.
+  *Corrected at claim (2026-10-06, default):* the keys that tests address
+  are kept: `stage3Curvature`, `stage3OffsetEntry` and
+  `stage3OrientationEntry` (`test_121`, `test_122`, `test_123`).
+  - **`stage3Curvature`** becomes the definition of `case.curve` and gains
+    `is_monotonic`.
+  - **`stage3SpacingConsistency`** becomes the definition of
+    `pairs.adjacent`. It gains `inter_tangent_angles_deg` and
+    `non_monotonic_pairs`, and requires only the survivor (D10).
+  - **`stage3MonotonicConsistency`** is removed. Its two properties are
+    split between those two, so it describes no object.
+
+  Any other placement that keeps the three tested keys is the builder's
+  call, recorded here. AC6 no longer depends on the definition's name
+  (its correction).
 - **D7: one ordering function, shared by the producer and the reader.** The
   survivor's order and `fused_label`'s label sequence must agree by
   construction. So the item-198 key moves into `segfacet.labels` once,
@@ -1012,11 +1646,43 @@ To be updated during implementation.
   - Only the four derived statistics stay Stage-3-only.
   - The aim is that no existing test's asserted value or presence changes
     outside the authorised collapse.
+- **D11 (step 0 record, 2026-10-06, base `220baee`).** This was read
+  against the signed note as of `2364df4` and item 215 as merged. Gate-0080
+  was approved on 2026-10-06 with "one anatomical element order stored as
+  case.sequence.order[]; per-label values stored per label whatever
+  computed them; intensity enters the persisted record (Option A). Scope
+  axis unchanged, items 215/216 not re-cut".
+  - **Answer 6's two settlements (A3).** The survivor is
+    `pairs.adjacent.spacings_mm[]`, with the `relationships` row `moved` to
+    it and the `stage3` row `merged` onto it. The per-element neighbourhood
+    copy is re-derived over the anatomical sequence, as part of the
+    record-wide order.
+  - **The record-wide anatomical order is this item's** (the note's
+    "Element order": "item 216 owns the sort and `order[]`"; the maintainer,
+    2026-10-06: *"use anatomical order, flag where and why deviations
+    are"*).
+    - It widens D1's authorised change from the spacing family to every
+      Stage 3 value wherever the two orders disagree. Item 217 attests it
+      as the same explicitly authorised exception to Stage 27 criterion 3.
+    - "Flag the deviations" is met by the stored order alone. The note
+      stores no per-field marker: a reader compares `case.sequence.order[]`
+      with the sorted keys of `per_label`.
+    - The note's "re-check" of the thresholds calibrated on the old order
+      (`mislabel`, `fused_label`, `sequence`) is A5's re-check. It found no
+      corpus firing change, so no threshold moves.
+  - **Rows:** 35 (A2's re-check). The new stored field is
+    `case.sequence.order[]` (A15). The report-key removal follows Option A
+    (A14).
+  - **Not a re-cut.** The row cut and the scope axis are unchanged. The
+    additions are assigned to this item by name in the signed note.
+  - **Versions:** none bumped (A4's re-check, D5).
 - **Left open:** whether the per-element spacing copy behind
   `stage3.per_label_neighbourhood[].stats.spacing_mm.*` is re-derived from
   the survivor. Item 214's Answer 6 decides it. Step 0 amends this spec if it
   is, because that value change lands here even though item 215 moves the
   paths.
+  *Settled at claim (2026-10-06):* it is re-derived, as part of the
+  record-wide order (A3's re-check, D11), and AC9 covers its sequence.
 - **Left open:** `stage3_unavailable` keeps its name even once no `stage3`
   container remains (maintainer, 2026-10-05). It has no catalogue row (A11),
   so the table cannot move it, and renaming it would change the report
@@ -1025,3 +1691,12 @@ To be updated during implementation.
   reuses the value that meant "Stage 3 present" before item 215 moved that
   meaning to `"0.3"`. No in-repo reader branches on the value, so this item
   follows the batch rule as written.
+  *Settled at claim (2026-10-06):* item 215 made that bump (its D10) and
+  recorded the same collision. This item bumps nothing.
+- **Left open (added at claim, 2026-10-06):** the bundled
+  `reference_verse_v1.json` was built from integer-order fits. Its
+  Stage-3-derived statistics, `spline_offset_mm` among them, are therefore
+  stale for a VerSe subject whose orders disagree (one carrying T13 = 28)
+  until a rebuild. A rebuild needs the VerSe data, and no reference is
+  rebuilt in this stage. So the reference stays as it is, and the
+  divergence is captured as insight `2026-10-06-f318`.
