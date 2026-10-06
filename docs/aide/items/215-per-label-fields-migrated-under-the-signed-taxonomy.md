@@ -1179,6 +1179,7 @@ To be updated during implementation.
       `.level_name` to `reference_delta.{label}.available` (the level name's
       survivor carries `sequence`'s signal modes).
     - 104, 106, 119, 138, 149, 154, 191: path strings re-pointed.
+    - 126: `test_ac22_documented_2694_evidence_still_verifies_unchanged` pin `(30, 101)` -> `(28, 95)` (assert, message, dated docstring line).
     - `tests/report_format_fixture.py` and `tests/golden/report_format_contract.json`,
       `tests/corpus/119_pre_119_digests.json`: regenerated per steps 6.
 - **Left open:** whether `per_label.{label}.*` rows move. A7 assumes not.
