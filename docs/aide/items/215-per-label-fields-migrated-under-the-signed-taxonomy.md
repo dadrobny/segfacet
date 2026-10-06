@@ -656,6 +656,7 @@ Deviation-5 rows** (A2's re-check):
 - `src/segfacet/heuristics/coverage.py` — one bookkeeping `ConsumedPath` for `per_label.{label}.level_name` (added 2026-10-06, builder hand-back; see the correction below).
 - `docs/aide/golden_evidence.generated.json` — regenerated (step 6): each case's leaf-path counts drop with the merged copies (added 2026-10-06, builder hand-back; see the correction below).
 - `tests/test_126_golden_retirement.py` — fence (b): the literal `(30, 101)` companion pin (added 2026-10-06, found while verifying the hand-back; see the correction below).
+- `.github/workflows/ci.yml` — one entry, `tests/test_215_per_label_migration.py`, added to `jobs.test.env.WINDOWS_TESTS` in sorted position, and nothing else in the file (added 2026-10-06, validation round 1; see the second correction below).
 
 *Corrected after the builder's scope hand-back (2026-10-06, branch head
 `54b1553`, base `aide/queue-029`).* The four bullets above were appended to
@@ -707,6 +708,45 @@ builder's, and it is not on the branch yet.
 and `tests/test_134_decision_table_evidence_companion.py` read the
 companion but compare it with a live measurement and pin no count, so
 they need no edit.
+
+*Corrected after validation round 1 (2026-10-06, branch head `650a5b2`,
+base `aide/queue-029`).* Two tests outside the original fence failed. Both
+follow from the signed migration, and neither resolution changes a rule,
+a threshold or a measured value.
+
+**`tests/test_106_stage19_validation.py::test_ac25_steering_review_heading_present_and_honest`.**
+It requires every `feature_docs.STATUS_OVERRIDES` key to appear verbatim in
+the `### Stage-19 steering review` section of
+`docs/aide/items/106-validate-stage19.md`. The file was already on May change
+under fences (a) and (b), but neither fits. Fence (a) would rewrite the
+lookup to the new path, which the 106 record never contained. Measured on
+the branch: 44 of the 87 keys are missing from the section. 24 are 215 rows
+whose key was renamed per the table, and in each case the row's old path is
+in the section verbatim. The other 20 are the report-only rows, which step 5
+gave the `(status, rationale)` of their `physical_volume_mm3` counterpart.
+They have no entry in the 106 record because they were not catalogued when
+it was written. Each counterpart's key is in the section. The 106 spec is a
+merged record and stays unedited. Three other fixes were rejected. Keeping
+the old keys as aliases in `feature_docs.py` would undo the migration.
+Dropping the 20 copied overrides would change the status step 5 assigned.
+Skipping or loosening the test is barred by the fence. The edit allowed is
+fence (e), below. The test keeps its meaning: every override in force is
+transcribed, honestly, in the steering review as that review was written.
+
+**`tests/test_213_windows_ci_subset.py::test_ac5_list_is_exactly_the_os_sensitive_set`.**
+Item 213's classifier flags `tests/test_215_per_label_migration.py` on signal
+2 ("invokes the `segfacet` CLI"). The flag is genuine, not incidental. The
+module-scoped `case_report` fixture runs `segfacet.cli.main(["run", ...,
+"--intensity", "--out", <tmp dir>])` and reads `segfacet_report.json` back
+from disk. That is the CLI-and-filesystem path Windows can refute, and it is
+the same shape as `tests/test_065_cli_intensity.py`, which is already listed.
+So the test-writer does not remove the trigger. The fix is to add one entry,
+`tests/test_215_per_label_migration.py`, to `jobs.test.env.WINDOWS_TESTS` in
+`.github/workflows/ci.yml`, in its sorted position. That is directly after
+`tests/test_213_windows_ci_subset.py` and before
+`tests/test_aide_check_no_errors.py`, at `650a5b2`. Nothing else in that file changes: not the Test step's `run`, not the
+comments, not any other job. `tests/test_213_windows_ci_subset.py` is not
+edited, and neither is its `WINDOWS_EXTRA`.
 
 **The reconciliation fence** applies to the listed `tests/test_*.py` files
 other than this item's own module. The builder reconciles after
@@ -765,6 +805,44 @@ migration. A red test in a file not listed here is a
 hand-back to spec-author, not an edit. **Re-run each listed test after
 editing it, until it is green.** A test can hold a second stale path behind
 its first failing assert (insight 2026-10-05-da43).
+
+*Amended after validation round 1 (2026-10-06):* one more kind of edit is
+allowed. It applies only to
+`tests/test_106_stage19_validation.py::test_ac25_steering_review_heading_present_and_honest`
+(see the second correction under May change).
+
+**(e) A lookup into a merged record, translated back through the signed
+table.** The test still slices the steering-review section exactly as it
+does now, and keeps its empty-map branch. For each key `k` of
+`feature_docs.STATUS_OVERRIDES` it looks up a pre-migration key `p`, found
+in three steps:
+
+1. **Translate through the table.** Read the table with
+   `read_mapping()` from `tests/feature_taxonomy_mapping.py` (A1), imported
+   and never restated. If a row with `change` `kept` or `moved` has `new ==
+   k`, `p` is that row's `old`. Item 214's AC2 makes that row unique. If no
+   such row exists, `p = k`: that row is Moved by 216 and still sits at its
+   old path. The rule is not restricted to `moved_by == 215`, so it keeps
+   holding once item 216 renames its own keys from the same table.
+2. **Report-only copies.** If `p` is one of the 20 report-only paths,
+   `reference_delta.{label}.features.<f>.<s>` with `<f>` one of
+   `extent_x_mm`, `extent_y_mm`, `extent_z_mm` or `spline_offset_mm`
+   (Description), let `c` be `k` with `<f>` replaced by
+   `physical_volume_mm3`. First assert `STATUS_OVERRIDES[k] ==
+   STATUS_OVERRIDES[c]`, so the copy carries its counterpart's verdict
+   verbatim (step 5). Then take `p` from `c` by step 1. The steering review
+   recorded the counterpart's decision, and the copy is honest only while it
+   equals it.
+3. **Assert as before.** Assert `p in section`. The message names both `k`
+   and `p`.
+
+No other assertion in the file changes. The section is not re-sliced, no
+override is exempted, and no key is matched loosely (by prefix, last segment
+or regex over the section). `docs/aide/items/106-validate-stage19.md` is
+never edited, and it is not a May-change path. A key that step 1 or step 2
+cannot account for fails, and that failure is a hand-back, not an edit.
+Measured at `650a5b2`, the rule accounts for all 87 keys: 43 are verbatim, 24
+translate through moved rows, and 20 go through their counterpart.
 
 **Asserts against:**
 
@@ -875,6 +953,12 @@ paths, found by the recorded greps. That list is a floor, not a guarantee. A
 grep finds a file that names a moved path. It does not find a test that
 breaks because a value was read from an un-pointed guard. The full suite run
 and the Validation section are what close that gap.
+*Amended (2026-10-06, validation round 1):* two more tests to reconcile.
+They are `tests/test_106_stage19_validation.py::test_ac25_steering_review_heading_present_and_honest`,
+under fence (e), and
+`tests/test_213_windows_ci_subset.py::test_ac5_list_is_exactly_the_os_sensitive_set`.
+The second is fixed by the one `WINDOWS_TESTS` entry in
+`.github/workflows/ci.yml`, and its test file is not edited.
 
 ## Validation  <!-- OPTIONAL: how to OBSERVE this working, beyond the tests -->
 
