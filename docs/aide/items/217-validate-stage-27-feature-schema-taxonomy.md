@@ -1422,6 +1422,12 @@ session scratchpad only. Interpreter for every byte comparison: CPython 3.11.15.
   `stage3.per_label_neighbourhood[]` fields (`deviation_score`, `is_outlier`,
   `window_labels[]`, and the `stats.{offset_mm, spacing_mm, volume_mm3}`
   `mean`, `median`, `std`, `z_score` rows). This matches the claim-time count.
+  *(2026-10-06 note: "element order only" for `u_values[]` was first asserted
+  from the claim-time observation, and the replay's compare script only flagged
+  the row as differing. It is now confirmed by measurement: the clone's
+  per-label `path_u` values (0.0, 0.2447, 0.4835, 0.7309, 1.0) are the base
+  list [1.0, 0.0, 0.2447, 0.4835, 0.7309] reordered. The reviewer checked this
+  on the replay outputs, and the validator's independent replay reproduced it.)*
 - **AC16.** `segfacet run ... --intensity` from each tree, no reference flag:
   - `clean_control`: `segfacet_report.txt` byte-identical, 462 lines, 146
     findings in both trees.
@@ -1448,6 +1454,7 @@ session scratchpad only. Interpreter for every byte comparison: CPython 3.11.15.
   'cupy'`). Recorded only; the table is not edited.
 - **AC18.** The three criteria were attested with `aide progress accept 27
   --criterion N`, N = 1, 2, 3 in order (the evidence is in `progress.md`).
+  *(2026-10-06 note: superseded by "AC18, as run" below; kept as recorded.)*
 - **AC18, as run.** Criteria 1, 2 and 3 were each accepted with `aide progress
   accept 27 --criterion N` in order, and each printed `accepted`. Every
   criterion's text names the clone commit (and B for criterion 3), the ACs
@@ -1479,6 +1486,10 @@ session scratchpad only. Interpreter for every byte comparison: CPython 3.11.15.
 
   The one commit after that tip is this record's own, which changes only this
   spec's Decisions text.
+
+- **Step 10 (2026-10-06 note).** Done after AC19. The base worktree
+  registration is gone (`git worktree list` shows only the primary checkout),
+  and the replay clones lived in the session scratchpad.
 
 - **Left open:** whether a later stage counts neighbour-pair identity under
   "no identity field is stored more than once". The maintainer kept the
