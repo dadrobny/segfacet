@@ -11,7 +11,20 @@
 > Step 2 of the AIDE loop. Derived from [`vision.md`](vision.md). Breaks the
 > vision into incremental, demonstrable, locally-deployable stages (~1 week each).
 
-> **Run order from here (2026-09-22): 33 (closing Stage 32's criterion 1) → 27 → 21 → 16.** Stages are numbered for stability and
+> **Run order from here (2026-10-07): 16 → (21 when a Stage 16 measurement needs it).**
+> Stage 27 closed with queue 029 on 2026-10-06. At that boundary the maintainer decided,
+> under the prototype posture, to go straight to rung 3 — real SPINEPS output on real VerSe
+> CT, Stage 16 — and **defer Stage 21** (rung 2, real GT + scripted perturbation) rather
+> than build it first. The reasons: the SPINEPS passes over VerSe19 and VerSe20 already
+> exist in the programme repository (gate `gate-ae46`'s prerequisite), rung 2 adds nothing
+> a rung-3 measurement cannot say more directly about what real segmenters produce, and a
+> cohort false-positive baseline on real GT already exists from Stage 14. Stage 16's
+> *Dependencies* on Stage 21 is therefore lifted: it now rests on Stages 13, 14, 18 and 20
+> only, and every calibration claim stays labelled rung 1 until Stage 21 resumes. The
+> curated-challenging-case deliverable of Stage 16 stays behind gate `gate-2f91` and is
+> queued only once that gate is approved.
+>
+> **Run order 2026-09-22 (superseded): 33 (closing Stage 32's criterion 1) → 27 → 21 → 16.** Stages are numbered for stability and
 > several run earlier than their numbers suggest — Stages 26, 28 and 29 ran before Stage 20
 > because they changed what it audits, and Stage 30 does the same; Stages 31 and 32 run
 > before Stage 27 because the catalogue item 150 signed off must settle, mode by mode,
@@ -682,6 +695,17 @@ when they do.
 > perturbation, used for calibration). Depends on Stage 21, which supplies the
 > per-mode metrics and the specificity harness this stage's sensitivity claims rest on.
 
+> **Dependency on Stage 21 lifted 2026-10-07** (queue-029 boundary, maintainer decision —
+> see the run order at the top). The per-mode metrics and the specificity harness the
+> note above attributes to Stage 21 were in fact delivered by Stages 18 and 20, both ✅.
+> What Stage 21 would have added — thresholds calibrated on perturbed real GT — is not a
+> prerequisite for *measuring* what a real segmenter produces; it is deferred, and every
+> sensitivity figure this stage records is labelled with the rung its thresholds were
+> calibrated at (rung 1). The first queue of this stage carries the real candidate
+> cohort, the per-mode sensitivity and Dice-vs-flag correlation, and the account of
+> which §6 modes SPINEPS actually produces; the curated challenging-case corpus waits for
+> gate `gate-2f91`.
+
 **Deliverables.**
 
 - **Real candidate cohort**: run **SPINEPS** (primary; TotalSegmentator optional as a
@@ -1012,6 +1036,11 @@ state, not a defect.
 > `prototype` posture the stage's first queue calibrates the rules that serve the modes
 > Stage 32 refined, on a rung-2 corpus sized for that. Rules serving modes left as
 > documented drafts are calibrated when their mode is picked up, not ahead of it.
+
+> **Deferred 2026-10-07** (queue-029 boundary, maintainer decision — see the run order at
+> the top). Stage 16 runs first; this stage resumes when a Stage 16 measurement needs
+> rung-2 calibration. Its four deliverables read ⏸️ in [`progress.md`](progress.md) with
+> the reason on each.
 
 **Goal.** Move calibration off hand-crafted geometry. The current corpus is built from
 synthetic fixtures (`synth/clean_gt.py`) — five stacked lumbar blocks at 1 mm isotropic.
