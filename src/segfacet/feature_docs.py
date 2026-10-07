@@ -426,6 +426,12 @@ CONDITION_ANCHOR_PATHS: Mapping[str, Tuple[str, ...]] = MappingProxyType(
 # retune), transcribed verbatim from the maintainer's recorded calls; see this
 # item's spec, "### Stage-19 steering review" in Decisions & Trade-offs, for
 # the full transcript. Ordered by catalogue order for readability.
+# Stage 27 (queue 029) carried out two of these calls and their 20 entries are
+# deleted: the five per_label.{label}.curve.* rows ("separate
+# stage3.per_label_offsets[] array") by item 215, and the fifteen
+# per_label.{label}.intensity.first_order.* rows ("separate
+# image_features.per_label container") by items 215/216. Both now nest under
+# per_label.{label}.*, so their status derives as for any other path.
 # --------------------------------------------------------------------------- #
 
 STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
@@ -594,46 +600,6 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "needed again; not worth carrying as a stored duplicate of "
             "centroid_mm."
         ),
-        "per_label.{label}.curve.closest_u": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
-        "per_label.{label}.curve.dx_mm": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
-        "per_label.{label}.curve.dy_mm": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
-        "per_label.{label}.curve.dz_mm": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
-        "per_label.{label}.curve.offset_mm": (
-            "retune",
-            "Should be nested under the existing per_label.{label}.* "
-            "structure rather than living in a separate "
-            "stage3.per_label_offsets[] array; label/level_name here "
-            "duplicate the identity fields already carried at the top level "
-            "of per_label."
-        ),
         "per_label.{label}.curve.offset_voxel": (
             "retire",
             "An anisotropic-voxel-unit duplicate of offset_mm with no "
@@ -706,126 +672,6 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "Computation is sound as-is; needs to be wired into a rule that "
             "detects irregular inter-vertebra spacing, which does not "
             "currently exist."
-        ),
-        "per_label.{label}.intensity.first_order.entropy": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.iqr": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.max": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.mean": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.median": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.min": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.n_nonfinite_excluded": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.p05": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.p25": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.p50": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.p75": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.p95": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.range": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.std": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
-        ),
-        "per_label.{label}.intensity.first_order.voxel_count": (
-            "retune",
-            "Should be restructured to nest under the main "
-            "per_label.{label}.* pattern rather than a separate "
-            "image_features.per_label.{label}.* container; the individual "
-            "values are useful to keep as an available catalogue so future "
-            "rules can explore and select from them."
         ),
         "case.intensity.available": (
             "retune",

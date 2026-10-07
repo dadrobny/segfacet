@@ -2252,11 +2252,11 @@ _MODE_16 = ModeSpec(
     observability="needs-paired-scan",
     candidate_features=(
         CandidateFeature(
-            path="image_features.per_label[].median_hu",
+            path="per_label.{label}.intensity.first_order.median",
             role="hypothesised",
         ),
         CandidateFeature(
-            path="image_features.per_label[].std_hu",
+            path="per_label.{label}.intensity.first_order.std",
             role="hypothesised",
         ),
         CandidateFeature(

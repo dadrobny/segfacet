@@ -1910,3 +1910,8 @@ To be updated during implementation.
     checked `curvature` only, `monotonic_consistency` only,
     `spacing_consistency` only, curvature with monotonic, and the full set,
     each with and without `relationships`: all validate.
+- **D19 (maintainer decision at the queue-029 boundary, 2026-10-07): A14
+  stands.** `case.intensity` and `per_label.{label}.intensity` exist only on
+  an intensity run. The alternative A14 left open, always emitting
+  `case.intensity` with `available: false`, is declined, so no record made
+  without intensity changes shape.

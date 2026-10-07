@@ -508,8 +508,8 @@ Corpus cases:
 
 Candidate features:
 
-- `hypothesised` candidate path: `image_features.per_label[].median_hu`
-- `hypothesised` candidate path: `image_features.per_label[].std_hu`
+- `hypothesised` candidate path: `per_label.{label}.intensity.first_order.median`
+- `hypothesised` candidate path: `per_label.{label}.intensity.first_order.std`
 - `hypothesised` candidate path: `intensity_reference_delta.per_label[].robust_z`
 
 Mechanism: The committed intensity corpus demonstrates this mode end-to-end three times over: implausible_metal (label 22's median reads 2999 HU, above the plausible bone band's ceiling), implausible_soft_tissue (40 HU, below its floor) and degenerate_uniform (a constant fill, zero spread) each drive the intensity rule through segfacet.synth.regression.intensity_pipeline_findings, which is why that edge sits at the strongest rung. intensity_reference_delta declares no mode since item 193 (2026-09-28): none of its consumed_paths entries is classified signal, so it contributes no mode to any path. It cannot fire on the committed corpus in any case: the synthetic intensity corpus is built against no reference distribution and the harness attaches none.

@@ -1075,7 +1075,13 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     pairs.adjacent.spacings_mm[], -1) and case.sequence.order[], a stored
     field with no table row, joins (+1), so m is unchanged; order[] is read
     by no rule, so n gains 1 (the merged array was wired by fused_label and
-    its survivor is too)."""
+    its survivor is too).
+
+    (29, 95) -> (30, 95): queue 029 close-out (2026-10-07): the twenty
+    STATUS_OVERRIDES entries Stage 27 carried out were deleted, so
+    per_label.{label}.curve.closest_u, read by no rule, now derives
+    "unwired" instead of "retune" (n +1). The deleted intensity rows are
+    not on a geometric record."""
     import segfacet.catalogue as catalogue
 
     from segfacet.synth.golden import build_report_for_case
@@ -1085,8 +1091,8 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     assert case_id in companion["cases"], f"{case_id!r} missing from the companion"
     entry = companion["cases"][case_id]
     documented_n, documented_m = entry["unwired_leaf_paths"], entry["total_leaf_paths"]
-    assert (documented_n, documented_m) == (29, 95), (  # item 208 (2026-09-30); item 215 (2026-10-06); item 216 (2026-10-06)
-        f"{case_id!r}'s documented evidence has moved off the pinned 29/95 "
+    assert (documented_n, documented_m) == (30, 95), (  # item 208 (2026-09-30); item 215 (2026-10-06); item 216 (2026-10-06); queue 029 (2026-10-07)
+        f"{case_id!r}'s documented evidence has moved off the pinned 30/95 "
         f"value: {documented_n}/{documented_m}"
     )
 

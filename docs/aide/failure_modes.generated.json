@@ -859,11 +859,11 @@
     {
       "candidate_features": [
         {
-          "path": "image_features.per_label[].median_hu",
+          "path": "per_label.{label}.intensity.first_order.median",
           "role": "hypothesised"
         },
         {
-          "path": "image_features.per_label[].std_hu",
+          "path": "per_label.{label}.intensity.first_order.std",
           "role": "hypothesised"
         },
         {

@@ -54,7 +54,7 @@ Corpus-designated rule ids that no rule registers: none.
 
 ## Features -> rules
 
-Total catalogued paths: 154. Read by >=1 rule: 50. Read by no rule: 104. Unwired: 33.
+Total catalogued paths: 154. Read by >=1 rule: 50. Read by no rule: 104. Unwired: 43.
 
 a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.
 

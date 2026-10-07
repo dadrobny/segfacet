@@ -3637,7 +3637,7 @@
           "path": "per_label.{label}.curve.closest_u",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -3700,7 +3700,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -3763,7 +3763,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -3826,7 +3826,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -3964,7 +3964,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -5867,7 +5867,7 @@
           "path": "per_label.{label}.intensity.first_order.entropy",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -5913,7 +5913,7 @@
           "path": "per_label.{label}.intensity.first_order.iqr",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -5961,7 +5961,7 @@
           "path": "per_label.{label}.intensity.first_order.max",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6009,7 +6009,7 @@
           "path": "per_label.{label}.intensity.first_order.mean",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6073,7 +6073,7 @@
             ]
           ],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6121,7 +6121,7 @@
           "path": "per_label.{label}.intensity.first_order.min",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6165,7 +6165,7 @@
           "path": "per_label.{label}.intensity.first_order.n_nonfinite_excluded",
           "rule_evidence": [],
           "scale_sensitivity": "voxel count",
-          "status": "retune",
+          "status": "unwired",
           "units": "voxels"
         },
         {
@@ -6211,7 +6211,7 @@
           "path": "per_label.{label}.intensity.first_order.p05",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6257,7 +6257,7 @@
           "path": "per_label.{label}.intensity.first_order.p25",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6303,7 +6303,7 @@
           "path": "per_label.{label}.intensity.first_order.p50",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6349,7 +6349,7 @@
           "path": "per_label.{label}.intensity.first_order.p75",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6395,7 +6395,7 @@
           "path": "per_label.{label}.intensity.first_order.p95",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6441,7 +6441,7 @@
           "path": "per_label.{label}.intensity.first_order.range",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6505,7 +6505,7 @@
             ]
           ],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6549,7 +6549,7 @@
           "path": "per_label.{label}.intensity.first_order.voxel_count",
           "rule_evidence": [],
           "scale_sensitivity": "voxel count",
-          "status": "retune",
+          "status": "unwired",
           "units": "voxels"
         }
       ],

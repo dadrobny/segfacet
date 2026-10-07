@@ -9,6 +9,11 @@
 > No roadmap or vision edit is performed by this document; it exists to be
 > consumed by `/aide-feedback-loop` and the create-vision / create-roadmap entry
 > points.
+>
+> **Record paths renamed (2026-10-07).** Stage 27 (queue 029, items 215/216)
+> moved the feature record's paths. Paths named below (`stage3.*`,
+> `image_features.*`) are as they were when this was written; the
+> [mapping table](../feature-taxonomy.md#mapping-table) gives each one's current path.
 
 ---
 
