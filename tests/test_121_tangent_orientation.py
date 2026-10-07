@@ -25,6 +25,7 @@ robustness (out-of-order and mismatched label sets), and schema
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 import math
@@ -62,11 +63,105 @@ import jsonschema  # noqa: E402
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _NEW_LEAF_PATHS = (
-    "stage3.per_label_orientations[].spline_closest_u",
-    "stage3.per_label_orientations[].spline_tangent[]",
-    "stage3.per_label_orientations[].spline_tangent_coronal_deg",
-    "stage3.per_label_orientations[].spline_tangent_sagittal_deg",
+    "per_label.{label}.orientation.spline_closest_u",
+    "per_label.{label}.orientation.spline_tangent[]",
+    "per_label.{label}.orientation.spline_tangent_coronal_deg",
+    "per_label.{label}.orientation.spline_tangent_sagittal_deg",
 )
+
+
+# Item 215 review: the report schema requires geometry/components/centroid on
+# every per_label entry, so a hand-built Stage-3-only block that is validated
+# carries one real label's Stage 2 kinds (measured from the 4-voxel cube of
+# ``synthetic.labelled_blocks_case``).
+_STAGE2_STUB = {
+    "geometry": {
+        "voxel_count": 64,
+        "physical_volume_mm3": 64.0,
+        "extent_x_mm": 4.0,
+        "extent_y_mm": 4.0,
+        "extent_z_mm": 4.0,
+        "bbox_voxel": {
+            "x_min": 2,
+            "x_max": 5,
+            "y_min": 2,
+            "y_max": 5,
+            "z_min": 2,
+            "z_max": 5
+        },
+        "bbox_physical": {
+            "x_min": 2.0,
+            "x_max": 5.0,
+            "y_min": 2.0,
+            "y_max": 5.0,
+            "z_min": 2.0,
+            "z_max": 5.0
+        },
+        "touches_inferior": False,
+        "touches_superior": False,
+        "touches_left": False,
+        "touches_right": False,
+        "touches_anterior": False,
+        "touches_posterior": False
+    },
+    "components": {
+        "component_count": 1,
+        "component_sizes": [
+            64
+        ],
+        "component_volumes_mm3": [
+            64.0
+        ],
+        "largest_component_fraction": 1.0,
+        "small_fragments": [],
+        "fragmentation_index": 1.0,
+        "stray_component_count": 0,
+        "stray_component_sizes": [],
+        "stray_volume_mm3": 0.0,
+        "stray_volume_fraction": 0.0,
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
+        "component_contacts": [
+            {
+                "neighbour_label": 0,
+                "contact_area_mm2": 0.0,
+                "surface_area_mm2": 96.0,
+                "contact_fraction": 0.0
+            }
+        ],
+        "label_contact_fraction": 0.0
+    },
+    "centroid": {
+        "centroid_voxel": [
+            3.5,
+            3.5,
+            3.5
+        ],
+        "centroid_mm": [
+            3.5,
+            3.5,
+            3.5
+        ]
+    }
+}
+
+
+def _with_stage2_stubs(block):
+    for entry in block["per_label"].values():
+        for kind, value in _STAGE2_STUB.items():
+            entry[kind] = copy.deepcopy(value)
+    return block
+
+
+def _orientation_entries(features):
+    """Each label's ``orientation`` block with its identity read from the
+    surviving ``per_label`` entry (item 215: stored once there), ascending
+    label order."""
+    return [
+        {"label": e["label"], "level_name": e["level_name"], **e["orientation"]}
+        for e in features["per_label"].values()
+        if "orientation" in e
+    ]
 
 _RAS_MARKERS = ("ras", "r, a, s", "load_volume", "right, anterior, superior")
 
@@ -410,7 +505,7 @@ def test_ac10_principal_axis_within_0996_of_left_right_on_every_golden():
     seen_exclusions = set()
     for case in cases:
         data = build_report_for_case(case)
-        entries = data["features"]["stage3"]["per_label_orientations"]
+        entries = _orientation_entries(data["features"])
         assert entries, f"{case['case_id']!r} has no per_label_orientations entries"
         for entry in entries:
             key = (case["case_id"], entry["label"])
@@ -463,7 +558,7 @@ def test_ac10_principal_axis_exactly_left_right_off_the_named_exceptions():
     assert plain, "expected at least one non-exceptional corpus case"
     for case in plain:
         data = build_report_for_case(case)
-        entries = data["features"]["stage3"]["per_label_orientations"]
+        entries = _orientation_entries(data["features"])
         assert entries
         for entry in entries:
             axis = entry["principal_axis"]
@@ -571,7 +666,7 @@ def test_ac15_merge_by_label_not_index():
         orientations=shuffled_orientations,
         tangent_orientations=shuffled_tangents,
     )
-    entries = block["stage3"]["per_label_orientations"]
+    entries = _orientation_entries(block)
     tangents_by_label = {t.label: t for t in tangents}
     assert len(entries) == len(centroids)
     for entry in entries:
@@ -621,7 +716,7 @@ def test_ac17_omitted_tangent_orientations_keeps_four_original_keys():
         relationships=None, overlaps=[],
         orientations=orientations,
     )
-    entries = block["stage3"]["per_label_orientations"]
+    entries = _orientation_entries(block)
     assert entries
     for entry in entries:
         assert set(entry.keys()) == {"label", "level_name", "principal_axis", "eigenvalue_ratio"}
@@ -638,6 +733,7 @@ def test_ac17_omitted_tangent_orientations_report_validates():
     verdict = Verdict.build(reasons=[], per_label={})
     from segfacet.config import default_config
 
+    _with_stage2_stubs(block)
     report = serialize_report(verdict, "case-121", default_config(), features=block)
     jsonschema.validate(report, _SCHEMA)
 
@@ -675,6 +771,7 @@ def test_ac18_report_with_new_keys_validates():
     from segfacet.config import default_config
 
     verdict = Verdict.build(reasons=[], per_label={})
+    _with_stage2_stubs(block)
     report = serialize_report(verdict, "case-121", default_config(), features=block)
     jsonschema.validate(report, _SCHEMA)
 
@@ -689,7 +786,7 @@ def test_ac18_misspelt_fifth_key_fails_validation():
         orientations=orientations,
         tangent_orientations=tangents,
     )
-    block["stage3"]["per_label_orientations"][0]["spline_tangnet_typo"] = 1.0
+    next(iter(block["per_label"].values()))["orientation"]["spline_tangnet_typo"] = 1.0
     from segfacet.config import default_config
 
     verdict = Verdict.build(reasons=[], per_label={})
@@ -709,10 +806,11 @@ def test_ac19_every_corpus_case_carries_all_four_keys_on_every_entry():
     assert cases
     for case in cases:
         report = build_report_for_case(case)
-        stage3 = report["features"].get("stage3")
-        if not stage3:
+        # Item 216: the container that carries the Stage-3-only fields is
+        # case.curve (there is no 'stage3' key any more).
+        if "curve" not in report["features"]["case"]:
             continue
-        entries = stage3["per_label_orientations"]
+        entries = _orientation_entries(report["features"])
         assert entries, f"{case['case_id']!r} has no per_label_orientations entries"
         for entry in entries:
             for key in (
@@ -754,8 +852,8 @@ def test_ac21_dataclass_docstring_states_proxy_and_ras_precondition():
 @pytest.mark.parametrize(
     "path",
     [
-        "stage3.per_label_orientations[].spline_tangent_coronal_deg",
-        "stage3.per_label_orientations[].spline_tangent_sagittal_deg",
+        "per_label.{label}.orientation.spline_tangent_coronal_deg",
+        "per_label.{label}.orientation.spline_tangent_sagittal_deg",
     ],
 )
 def test_ac21_angle_leaf_docs_state_proxy_and_ras_precondition(path):
@@ -776,7 +874,7 @@ def test_ac21_angle_leaf_docs_state_proxy_and_ras_precondition(path):
 
 
 def test_ac22_principal_axis_doc_records_demotion_with_measured_evidence():
-    doc = FEATURE_DOCS["stage3.per_label_orientations[].principal_axis[]"]
+    doc = FEATURE_DOCS["per_label.{label}.orientation.principal_axis[]"]
     text = doc.measures + " " + doc.computation
     assert "0.996" in text, f"principal_axis doc omits the measured 0.996 bound: {text!r}"
     assert "seven" in text.lower() or "7" in text, (
@@ -790,7 +888,7 @@ def test_ac22_principal_axis_doc_records_demotion_with_measured_evidence():
 def test_ac22_principal_axis_status_override_unchanged():
     from segfacet.feature_docs import STATUS_OVERRIDES
 
-    assert "stage3.per_label_orientations[].principal_axis[]" in STATUS_OVERRIDES
+    assert "per_label.{label}.orientation.principal_axis[]" in STATUS_OVERRIDES
 
 
 # =========================================================================== #

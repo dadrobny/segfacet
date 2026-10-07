@@ -617,14 +617,22 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
     mode either -- it can no longer serve as this AC's "sibling signal path
     still shows" control. Re-pointed to ``intensity``, a rule that still
     declares a mode and still classifies both roles: a bookkeeping path
-    (``image_features.available``) stays honestly mode-less, and its own
-    signal path (``image_features.per_label.{label}.first_order.median``)
-    still carries mode 16."""
+    (``case.intensity.available``, formerly ``image_features.available``)
+    stays honestly mode-less, and its own
+    signal path (``per_label.{label}.intensity.first_order.median``)
+    still carries mode 16.
+
+    Reconciled (item 215, 2026-10-06): ``reference_delta.{label}.label`` and
+    ``.level_name`` merged onto ``per_label.{label}``. The label's survivor
+    (``per_label.{label}.label``) is still honestly mode-less and stands in
+    for the first; the level name's survivor carries ``sequence``'s signal
+    modes, so the second is re-pointed to ``reference_delta.{label}.
+    available``, another bookkeeping path of the same rule."""
     cat = shipped_catalogue
     for path in (
         "reference_delta.lower_pct",
-        "reference_delta.{label}.label",
-        "reference_delta.{label}.level_name",
+        "per_label.{label}.label",
+        "reference_delta.{label}.available",
     ):
         entry = _entry(cat, path)
         assert entry.failure_modes == (), path
@@ -633,11 +641,11 @@ def test_ac11_three_bookkeeping_paths_empty_signal_path_still_shows(shipped_cata
     # mode-less, while its sibling signal path still carries mode 16 -- so
     # the three bookkeeping paths above are dropped by their classification,
     # not by every rule reaching them losing its modes.
-    bookkeeping_path = "image_features.available"
+    bookkeeping_path = "case.intensity.available"
     entry = _entry(cat, bookkeeping_path)
     assert entry.failure_modes == (), bookkeeping_path
 
-    signal_path = "image_features.per_label.{label}.first_order.median"
+    signal_path = "per_label.{label}.intensity.first_order.median"
     entry = _entry(cat, signal_path)
     assert entry.failure_modes == (16,), signal_path
 
@@ -690,8 +698,8 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
     # intensity paths its declaring rules classify "signal".
     intensity_mode_paths = paths_by_mode.get(16, set())
     assert intensity_mode_paths == {
-        "image_features.per_label.{label}.first_order.median",
-        "image_features.per_label.{label}.first_order.std",
+        "per_label.{label}.intensity.first_order.median",
+        "per_label.{label}.intensity.first_order.std",
     }, intensity_mode_paths
 
 
@@ -888,16 +896,22 @@ def _overlap_reconstructed_record():
     corpus case. Measured: ``run_rules`` on it yields exactly one
     ``overlap`` finding (detector ``overlapping_segments``, labels
     ``{20, 21}``)."""
+    # Item 216: the level names are each label's per_label level_name
+    # (overlaps[].name_a/name_b merged onto it).
     return {
-        "overlaps": [
-            {
-                "label_a": 20,
-                "label_b": 21,
-                "name_a": "L1",
-                "name_b": "L2",
-                "overlap_voxels": 7,
-            }
-        ]
+        "per_label": {
+            "20": {"label": 20, "level_name": "L1"},
+            "21": {"label": 21, "level_name": "L2"},
+        },
+        "pairs": {
+            "overlaps": [
+                {
+                    "label_a": 20,
+                    "label_b": 21,
+                    "overlap_voxels": 7,
+                }
+            ]
+        },
     }
 
 
@@ -1117,8 +1131,11 @@ def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_c
     # (`stray_contact_area_mm2`, `stray_contact_label`) move this 138 -> 140.
     # Item 187 (2026-09-28): `component_contacts[].<four keys>` and
     # `label_contact_fraction` move this 140 -> 145.
+    # Item 215 (2026-10-06): 145 -> 156 (-9 merged identity copies, +20
+    # report-only reference_delta rows catalogued).
     cat = shipped_catalogue
-    assert len(cat.entries) == 145
+    # Item 216 (2026-10-06): 156 -> 154 (-3 merged rows, +1 case.sequence.order[]).
+    assert len(cat.entries) == 154
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}

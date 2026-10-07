@@ -154,7 +154,8 @@ def test_ac4_no_interior_label_displaced_past_the_threshold():
     rec = extract_feature_record(
         loaded_seg_image(_manifest_case("crop_at_border")), bundled_default_config()
     )
-    entries = rec["stage3"]["per_label_offsets"]
+    # Item 215: each offset is its label's ``curve`` block.
+    entries = [e["curve"] for e in rec["per_label"].values() if "curve" in e]
     interior = [e for e in entries if not e["is_terminal"]]
     assert interior, entries
     threshold = _offset_threshold()

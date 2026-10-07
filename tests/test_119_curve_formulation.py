@@ -803,7 +803,7 @@ def test_ac26_orientation_curvature_note_no_longer_names_splev():
     from segfacet.feature_docs import FEATURE_DOCS, GROUP_INTROS
 
     assert "splev" not in GROUP_INTROS["Orientation & Curvature"]
-    tangent_doc = FEATURE_DOCS["stage3.curvature.tangent_angles_deg[]"]
+    tangent_doc = FEATURE_DOCS["per_label.{label}.orientation.tangent_angle_deg"]
     assert "splev" not in tangent_doc.computation
 
 

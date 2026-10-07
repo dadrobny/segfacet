@@ -654,7 +654,7 @@ _AC9_SPLIT_COLUMN_MODES = (
     # Item 192 (2026-09-28): sequence reads per_label centroids, not
     # relationships.out_of_order_labels[]; relationships.is_continuous stays
     # the metric anchor no rule reads.
-    (9, "relationships.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
+    (9, "case.sequence.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
 )
 
 
@@ -721,7 +721,7 @@ def test_ac10_mode1_read_paths_are_signal_classified_only(matrix):
     mode1 = _mode_record(matrix, 1)
     assert "per_label.{label}.components.fragmentation_index" in mode1["read_paths"]
     assert "per_label.{label}.geometry.physical_volume_mm3" not in mode1["read_paths"]
-    assert "reference_delta.{label}.level_name" not in mode1["read_paths"]
+    assert "per_label.{label}.level_name" not in mode1["read_paths"]
     assert "reference_delta.lower_pct" not in mode1["read_paths"]
 
 

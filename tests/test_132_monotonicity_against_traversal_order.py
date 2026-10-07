@@ -118,9 +118,33 @@ def _manifest_case(case_id: str) -> dict:
     raise AssertionError(f"case_id {case_id!r} not found in the committed manifest")
 
 
+def _mono(features: dict) -> dict:
+    """The former ``stage3.monotonic_consistency`` mapping, read from where
+    item 216 stores its two fields (``case.curve.is_monotonic`` and
+    ``pairs.adjacent.non_monotonic_pairs``)."""
+    return {
+        "is_monotonic": features["case"]["curve"]["is_monotonic"],
+        "non_monotonic_pairs": features["pairs"]["adjacent"]["non_monotonic_pairs"],
+    }
+
+
 def _record(case_id: str) -> dict:
     seg_img = loaded_seg_image(_manifest_case(case_id))
     return extract_feature_record(seg_img, bundled_default_config())
+
+
+def _path_u_in_anatomical_order(record: dict) -> list:
+    """Each label's ``curve.path_u`` in anatomical order (CANONICAL_ORDER rank,
+    then label) -- the order the former ``u_values[]`` array was computed in
+    (item 198); item 215 stores each element on its own label."""
+    from segfacet.labels import CANONICAL_ORDER
+
+    rank = {name: i for i, name in enumerate(CANONICAL_ORDER)}
+    entries = sorted(
+        record["per_label"].values(),
+        key=lambda e: (rank.get(e["level_name"], len(rank)), e["label"]),
+    )
+    return [e["curve"]["path_u"] for e in entries]
 
 
 def _run_qc_case(case_id: str):
@@ -158,13 +182,13 @@ def test_ac1_mode4_relabel_swap_is_non_monotonic_through_shipped_record_builder(
     and this reads True; post-fix, against the traversal-ordered reference
     curve, it reads False."""
     record = _record("relabel_swap")
-    mono = record["stage3"]["monotonic_consistency"]
+    mono = _mono(record)
     assert mono["is_monotonic"] is False
 
 
 def test_ac2_mode4_relabel_swap_non_monotonic_pairs_names_l2_l3():
     record = _record("relabel_swap")
-    mono = record["stage3"]["monotonic_consistency"]
+    mono = _mono(record)
     assert mono["non_monotonic_pairs"] == [["L2", "L3"]]
 
 
@@ -175,7 +199,7 @@ def test_ac2_mode4_relabel_swap_non_monotonic_pairs_names_l2_l3():
 
 def test_ac3_clean_control_stays_monotonic():
     record = _record("clean_control")
-    mono = record["stage3"]["monotonic_consistency"]
+    mono = _mono(record)
     assert mono["is_monotonic"] is True
     assert mono["non_monotonic_pairs"] == []
 
@@ -206,7 +230,7 @@ _PRE_ITEM_U_VALUES = {
 @pytest.mark.parametrize("case_id", sorted(_PRE_ITEM_U_VALUES))
 def test_ac4_no_clean_case_u_values_move(case_id):
     record = _record(case_id)
-    actual = record["stage3"]["monotonic_consistency"]["u_values"]
+    actual = _path_u_in_anatomical_order(record)
     expected = _PRE_ITEM_U_VALUES[case_id]
     assert actual == pytest.approx(expected, abs=1e-9), (
         f"{case_id}: u_values moved -- {actual} != {expected}"
@@ -599,9 +623,9 @@ def test_ac27_item_123_detector_a_claim_preserved():
 @pytest.mark.parametrize(
     "path",
     [
-        "stage3.monotonic_consistency.is_monotonic",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]",
-        "stage3.monotonic_consistency.u_values[]",
+        "case.curve.is_monotonic",
+        "pairs.adjacent.non_monotonic_pairs[]",
+        "per_label.{label}.curve.path_u",
     ],
 )
 def test_ac28_computation_strings_state_traversal_ordered_curve(path):
@@ -659,11 +683,36 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # flat 0.0 across that population, deriving "constant-synthetic" (four
 # paths, 6 -> 10); `.surface_area_mm2` is non-zero and non-constant across
 # it, deriving "varies" (one path, 83 -> 84).
+#
+# Item 215 (2026-10-06): 145 -> 156 total, "placeholder" 12 -> 26, "varies"
+# 84 -> 81, "non-numeric" unchanged at 39, "constant-synthetic" unchanged at
+# 10. Row by row: nine merged identity copies leave (-9 total):
+# `reference_delta.{label}.level_name` and the four `level_name` copies of
+# the offsets / orientations / neighbourhood containers (non-numeric, -4),
+# the `label` copies of the offsets / orientations / neighbourhood containers
+# (varies, -3), and `image_features.per_label.{label}.label` plus
+# `reference_delta.{label}.label` (placeholder, -2). The 20 report-only
+# reference_delta rows join (+20): the four `out_of_range` rows are boolean
+# (non-numeric, +4) and the sixteen numeric ones come only from the
+# hand-typed placeholder driver (placeholder, +16). Every other 215 row moves
+# 1:1 with the same verdict.
+#
+# Item 216 (2026-10-06): 156 -> 154 total, "constant-synthetic" 10 -> 7,
+# "non-numeric" 39 -> 37, "varies" 81 -> 84, "placeholder" unchanged at 26.
+# Row by row: three merged rows leave (-3 total): `overlaps[].name_a` and
+# `.name_b` (non-numeric, -2) and `stage3.spacing_consistency.spacings_mm[]`
+# (varies, -1); `case.sequence.order[]`, a stored field with no table row,
+# joins (varies, +1); and three paths flip from "constant-synthetic" to
+# "varies" because the record-wide anatomical order (D11) changes the
+# sequence_break driver's coronal tangent values: `case.curve.coronal_curvature_deg`,
+# `per_label.{label}.orientation.spline_tangent_coronal_deg` and
+# `per_label.{label}.orientation.tangent_coronal_unwrapped_deg` (cs -3,
+# varies +3). Every other 216 row moves 1:1 with the same verdict.
 _PRE_ITEM_OBSERVED_SUMMARY = {
-    "constant-synthetic": 10,
+    "constant-synthetic": 7,
     "degenerate": 0,
-    "non-numeric": 39,
-    "placeholder": 12,
+    "non-numeric": 37,
+    "placeholder": 26,
     "unobserved": 0,
     "varies": 84,
 }
@@ -680,18 +729,21 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     entries_by_path = {e["path"]: e for g in fresh["groups"] for e in g["entries"]}
     leaf_count = sum(len(g["entries"]) for g in fresh["groups"])
 
-    assert leaf_count == 145, f"leaf-path count {leaf_count} != pre-item 145"
+    # 145 -> 156 (item 215, 2026-10-06): -9 merged identity copies, +20
+    # report-only reference_delta rows; 156 -> 154 (item 216, 2026-10-06):
+    # -3 merged rows, +1 case.sequence.order[]; see the summary comment above.
+    assert leaf_count == 154, f"leaf-path count {leaf_count} != 154"
     assert fresh["observed_summary"] == _PRE_ITEM_OBSERVED_SUMMARY
 
-    is_mono = entries_by_path["stage3.monotonic_consistency.is_monotonic"]
+    is_mono = entries_by_path["case.curve.is_monotonic"]
     assert is_mono["status"] == "retune"
     assert is_mono["observed"]["verdict"] == "non-numeric"
 
-    pairs_entry = entries_by_path["stage3.monotonic_consistency.non_monotonic_pairs[]"]
+    pairs_entry = entries_by_path["pairs.adjacent.non_monotonic_pairs[]"]
     assert pairs_entry["status"] == "keep"
     assert pairs_entry["observed"]["verdict"] == "non-numeric"
 
-    u_entry = entries_by_path["stage3.monotonic_consistency.u_values[]"]
+    u_entry = entries_by_path["per_label.{label}.curve.path_u"]
     assert u_entry["status"] == "retune"
     assert u_entry["observed"]["verdict"] == "varies"
     corpus_obs = u_entry["observed"]["corpus"]
@@ -709,13 +761,13 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
 # =========================================================================== #
 
 _PRE_ITEM_STATUS_OVERRIDES = {
-    "stage3.monotonic_consistency.is_monotonic": (
+    "case.curve.is_monotonic": (
         "retune",
         "Should be wired into the sequence rule directly; "
         "sequence-related checks should typically verify order along the "
         "spline parameter, not only label order.",
     ),
-    "stage3.monotonic_consistency.u_values[]": (
+    "per_label.{label}.curve.path_u": (
         "retune",
         "Suspected to already be computed internally to produce "
         "non_monotonic_pairs[]; should be exposed and reused as the "
@@ -980,7 +1032,7 @@ def test_adv_run_qc_mode4_relabel_swap_deterministic_across_two_calls():
     case_result_a, block_a = _run_qc_case("relabel_swap")
     case_result_b, block_b = _run_qc_case("relabel_swap")
 
-    assert block_a["stage3"]["monotonic_consistency"] == block_b["stage3"]["monotonic_consistency"]
+    assert _mono(block_a) == _mono(block_b)
 
     pairs_a = {(f.rule_id, tuple(sorted(f.labels))) for f in case_result_a.findings}
     pairs_b = {(f.rule_id, tuple(sorted(f.labels))) for f in case_result_b.findings}

@@ -87,14 +87,14 @@ def _record(present_levels: list, missing_levels: list = (), entries: list = ())
     carries present_levels/missing_levels (item 014 shape), per_label is
     keyed by each entry's integer label (item 016 shape)."""
     return {
-        "relationships": {
+        "case": {"sequence": {
             "present_levels": list(present_levels),
             "missing_levels": list(missing_levels),
             "is_continuous": len(missing_levels) == 0,
             "out_of_order_labels": [],
-        },
+        }},
         "per_label": {e["label"]: e for e in entries},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -202,7 +202,7 @@ def test_ac2_non_truncated_end_reported_false():
 
 def test_ac3_relationships_none_conservative_no_raise():
     """AC3: relationships None yields has_span False, both flags False."""
-    record = {"relationships": None, "per_label": {}, "overlaps": {}}
+    record = {"case": {"sequence": None}, "per_label": {}, "pairs": {"overlaps": {}}}
     fov = derive_fov_coverage(record)
     assert fov.has_span is False
     assert fov.superior_truncated is False
@@ -211,7 +211,7 @@ def test_ac3_relationships_none_conservative_no_raise():
 
 def test_ac3_relationships_absent_conservative_no_raise():
     """AC3: record with no 'relationships' key at all."""
-    record = {"per_label": {}, "overlaps": {}}
+    record = {"per_label": {}, "pairs": {"overlaps": {}}}
     fov = derive_fov_coverage(record)
     assert fov.has_span is False
     assert fov.superior_truncated is False
@@ -231,9 +231,9 @@ def test_ac3_empty_per_label_conservative_no_raise():
     """AC3: an empty per_label with a non-empty present span does not crash
     and both flags default to not-truncated."""
     record = {
-        "relationships": {"present_levels": ["L1", "L2"], "missing_levels": []},
+        "case": {"sequence": {"present_levels": ["L1", "L2"], "missing_levels": []}},
         "per_label": {},
-        "overlaps": {},
+        "pairs": {"overlaps": {}},
     }
     fov = derive_fov_coverage(record)
     assert fov.superior_end_level == "L1"
@@ -677,8 +677,8 @@ def test_adv_missing_span_end_geometry_border_surfaces_no_crash():
     031's AC15 conservative branch through the shared helper)."""
     record = {
         "per_label": {1: {"label": 1, "level_name": "L1"}},
-        "relationships": {"present_levels": ["L1"]},
-        "overlaps": {},
+        "case": {"sequence": {"present_levels": ["L1"]}},
+        "pairs": {"overlaps": {}},
     }
     findings = _border_findings(run_rules(record, default_config()))
     assert findings == []

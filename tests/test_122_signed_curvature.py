@@ -24,6 +24,7 @@ load-bearing.
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import os
@@ -61,12 +62,14 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 _CATALOGUE_JSON = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.json"
 _CATALOGUE_MD = _REPO_ROOT / "docs" / "aide" / "feature_catalogue.generated.md"
 
+# Item 215 (2026-10-06): the two per-plane arrays moved from
+# stage3.curvature.* to one scalar per label under per_label.{label}.orientation.
 _NEW_LEAF_PATHS = (
-    "stage3.curvature.coronal_tangent_angles_deg[]",
-    "stage3.curvature.sagittal_tangent_angles_deg[]",
-    "stage3.curvature.coronal_curvature_deg",
-    "stage3.curvature.sagittal_curvature_deg",
-    "stage3.curvature.curvature_plane",
+    "per_label.{label}.orientation.tangent_coronal_unwrapped_deg",
+    "per_label.{label}.orientation.tangent_sagittal_unwrapped_deg",
+    "case.curve.coronal_curvature_deg",
+    "case.curve.sagittal_curvature_deg",
+    "case.curve.curvature_plane",
 )
 
 # =========================================================================== #
@@ -449,6 +452,89 @@ def _empty_verdict() -> Verdict:
     return Verdict.build(reasons=[], per_label={})
 
 
+# Item 215 review: the report schema requires geometry/components/centroid on
+# every per_label entry, so a hand-built Stage-3-only block that is validated
+# carries one real label's Stage 2 kinds (measured from the 4-voxel cube of
+# ``synthetic.labelled_blocks_case``).
+_STAGE2_STUB = {
+    "geometry": {
+        "voxel_count": 64,
+        "physical_volume_mm3": 64.0,
+        "extent_x_mm": 4.0,
+        "extent_y_mm": 4.0,
+        "extent_z_mm": 4.0,
+        "bbox_voxel": {
+            "x_min": 2,
+            "x_max": 5,
+            "y_min": 2,
+            "y_max": 5,
+            "z_min": 2,
+            "z_max": 5
+        },
+        "bbox_physical": {
+            "x_min": 2.0,
+            "x_max": 5.0,
+            "y_min": 2.0,
+            "y_max": 5.0,
+            "z_min": 2.0,
+            "z_max": 5.0
+        },
+        "touches_inferior": False,
+        "touches_superior": False,
+        "touches_left": False,
+        "touches_right": False,
+        "touches_anterior": False,
+        "touches_posterior": False
+    },
+    "components": {
+        "component_count": 1,
+        "component_sizes": [
+            64
+        ],
+        "component_volumes_mm3": [
+            64.0
+        ],
+        "largest_component_fraction": 1.0,
+        "small_fragments": [],
+        "fragmentation_index": 1.0,
+        "stray_component_count": 0,
+        "stray_component_sizes": [],
+        "stray_volume_mm3": 0.0,
+        "stray_volume_fraction": 0.0,
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
+        "component_contacts": [
+            {
+                "neighbour_label": 0,
+                "contact_area_mm2": 0.0,
+                "surface_area_mm2": 96.0,
+                "contact_fraction": 0.0
+            }
+        ],
+        "label_contact_fraction": 0.0
+    },
+    "centroid": {
+        "centroid_voxel": [
+            3.5,
+            3.5,
+            3.5
+        ],
+        "centroid_mm": [
+            3.5,
+            3.5,
+            3.5
+        ]
+    }
+}
+
+
+def _with_stage2_stubs(block):
+    for entry in block["per_label"].values():
+        for kind, value in _STAGE2_STUB.items():
+            entry[kind] = copy.deepcopy(value)
+    return block
+
+
 def _full_stage3_block(centroids: List[LabelCentroid]):
     from segfacet.features.consistency import (
         compute_monotonic_consistency,
@@ -471,7 +557,7 @@ def _full_stage3_block(centroids: List[LabelCentroid]):
         )
         for c in centroids
     ]
-    return build_features_block(
+    block = build_features_block(
         geometry={},
         components={},
         centroids={},
@@ -483,19 +569,27 @@ def _full_stage3_block(centroids: List[LabelCentroid]):
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
+    return _with_stage2_stubs(block)
 
 
 def test_ac16_schema_defines_all_five_new_keys():
     curvature_def = _SCHEMA["definitions"]["stage3Curvature"]
     for key in (
-        "coronal_tangent_angles_deg",
-        "sagittal_tangent_angles_deg",
         "coronal_curvature_deg",
         "sagittal_curvature_deg",
         "curvature_plane",
     ):
         assert key in curvature_def["properties"], f"schema missing property {key!r}"
-        assert key in curvature_def["required"], f"schema does not require {key!r}"
+        # Item 216: no `required`; the scalars are tied by a dependencies group.
+        assert key in curvature_def["dependencies"], f"schema does not tie {key!r}"
+        assert set(curvature_def["dependencies"][key]) == (
+            set(curvature_def["dependencies"]) - {key}
+        ), f"{key!r} is not tied to the other curvature scalars"
+    assert "required" not in curvature_def
+    # Item 215: the two per-plane arrays are per-label orientation scalars.
+    orientation_def = _SCHEMA["definitions"]["stage3OrientationEntry"]
+    for key in ("tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"):
+        assert key in orientation_def["properties"], f"schema missing property {key!r}"
 
 
 def test_ac16_full_report_with_new_keys_validates():
@@ -503,17 +597,21 @@ def test_ac16_full_report_with_new_keys_validates():
     block = _full_stage3_block(centroids)
     report = serialize_report(_empty_verdict(), "case-122", _config(), features=block)
     jsonschema.validate(report, _SCHEMA)
-    curv = report["features"]["stage3"]["curvature"]
+    curv = report["features"]["case"]["curve"]
     for key in _NEW_LEAF_PATHS:
         bare = key.rsplit(".", 1)[-1].rstrip("[]")
-        assert bare in curv
+        if key.startswith("case.curve."):
+            assert bare in curv
+        else:
+            for entry in report["features"]["per_label"].values():
+                assert bare in entry["orientation"]
 
 
 def test_ac16_missing_required_key_fails_validation():
     """Proves 'required' is load-bearing: dropping one new key fails validation."""
     centroids = _balanced_s_curve()
     block = _full_stage3_block(centroids)
-    del block["stage3"]["curvature"]["curvature_plane"]
+    del block["case"]["curve"]["curvature_plane"]
     with pytest.raises(jsonschema.ValidationError):
         serialize_report(_empty_verdict(), "case-122", _config(), features=block)
 
@@ -529,10 +627,10 @@ _RAS_MARKERS = ("ras", "r, a, s", "load_volume", "right, anterior, superior")
 @pytest.mark.parametrize(
     "path,plane",
     [
-        ("stage3.curvature.coronal_tangent_angles_deg[]", "coronal"),
-        ("stage3.curvature.sagittal_tangent_angles_deg[]", "sagittal"),
-        ("stage3.curvature.coronal_curvature_deg", "coronal"),
-        ("stage3.curvature.sagittal_curvature_deg", "sagittal"),
+        ("per_label.{label}.orientation.tangent_coronal_unwrapped_deg", "coronal"),
+        ("per_label.{label}.orientation.tangent_sagittal_unwrapped_deg", "sagittal"),
+        ("case.curve.coronal_curvature_deg", "coronal"),
+        ("case.curve.sagittal_curvature_deg", "sagittal"),
     ],
 )
 def test_ac17_new_leaf_docs_name_their_plane_and_ras_precondition(path, plane):
@@ -546,7 +644,7 @@ def test_ac17_new_leaf_docs_name_their_plane_and_ras_precondition(path, plane):
 
 
 def test_ac17_curvature_plane_key_documented():
-    assert "stage3.curvature.curvature_plane" in FEATURE_DOCS
+    assert "case.curve.curvature_plane" in FEATURE_DOCS
 
 
 # =========================================================================== #
@@ -555,7 +653,7 @@ def test_ac17_curvature_plane_key_documented():
 
 
 def test_ac18_total_curvature_doc_drops_retired_formula():
-    doc = FEATURE_DOCS["stage3.curvature.total_curvature_deg"]
+    doc = FEATURE_DOCS["case.curve.total_curvature_deg"]
     combined = doc.measures + " " + doc.computation
     assert "max(tangent_angles_deg)" not in combined
     assert "min(tangent_angles_deg)" not in combined
@@ -631,15 +729,19 @@ def test_ac20_new_curvature_keys_present_in_every_committed_golden():
     assert cases
     for case in cases:
         data = build_report_for_case(case)
-        curv = data["features"]["stage3"]["curvature"]
+        curv = data["features"]["case"]["curve"]
         for key in (
-            "coronal_tangent_angles_deg",
-            "sagittal_tangent_angles_deg",
             "coronal_curvature_deg",
             "sagittal_curvature_deg",
             "curvature_plane",
         ):
             assert key in curv, f"{case['case_id']!r} fresh report missing {key!r}"
+        # Item 215: the two per-plane arrays are each label's orientation scalars.
+        for entry in data["features"]["per_label"].values():
+            for key in ("tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"):
+                assert key in entry["orientation"], (
+                    f"{case['case_id']!r} fresh report missing {key!r}"
+                )
 
 
 # =========================================================================== #

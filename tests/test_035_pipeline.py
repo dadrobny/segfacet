@@ -49,9 +49,8 @@ def test_ac6_multi_label_case_has_expected_top_level_keys():
     assert set(block.keys()) >= {
         "features_version",
         "per_label",
-        "relationships",
-        "overlaps",
-        "stage3",
+        "case",
+        "pairs",
     }
 
 
@@ -75,8 +74,11 @@ def test_ac6_multi_label_case_has_stage3_subblock():
     """AC6: with >=2 labels, a non-None stage3 sub-block is present."""
     case = labelled_blocks_case()
     block = extract_feature_record(case.seg_img, _config())
-    assert "stage3" in block
-    assert block["stage3"] is not None
+    # Item 216: the Stage 3 case-level fields live in case.curve and
+    # pairs.adjacent (there is no 'stage3' container any more).
+    assert "curve" in block["case"]
+    assert block["case"]["curve"] is not None
+    assert "mean_spacing_mm" in block["pairs"]["adjacent"]
 
 
 # =========================================================================== #
@@ -95,21 +97,22 @@ def test_ac7_zero_label_map_empty_overlaps():
     """AC7: a zero-label map yields overlaps == []."""
     case = empty_case()
     block = extract_feature_record(case.seg_img, _config())
-    assert block["overlaps"] == []
+    assert block["pairs"]["overlaps"] == []
 
 
 def test_ac7_zero_label_map_relationships_none():
     """AC7: a zero-label map yields relationships == None."""
     case = empty_case()
     block = extract_feature_record(case.seg_img, _config())
-    assert block["relationships"] is None
+    assert block["case"]["sequence"] is None
 
 
 def test_ac7_zero_label_map_no_stage3_key():
     """AC7: a zero-label map's block carries no 'stage3' key at all."""
     case = empty_case()
     block = extract_feature_record(case.seg_img, _config())
-    assert "stage3" not in block
+    assert "curve" not in block["case"]
+    assert "mean_spacing_mm" not in block["pairs"].get("adjacent", {})
 
 
 def test_ac7_single_label_map_has_geometry_components_centroid():
@@ -129,7 +132,8 @@ def test_ac7_single_label_map_no_stage3_key():
     needs >= 2 centroids)."""
     seg = make_labelmap(blocks={1: ((2, 6), (2, 6), (2, 6))})
     block = extract_feature_record(seg, _config())
-    assert "stage3" not in block
+    assert "curve" not in block["case"]
+    assert "mean_spacing_mm" not in block["pairs"].get("adjacent", {})
 
 
 def test_ac7_single_label_map_validates_in_report():
@@ -287,5 +291,6 @@ def test_adv_run_qc_on_single_label_case_no_crash():
     seg = make_labelmap(blocks={1: ((2, 6), (2, 6), (2, 6))})
     cfg = _config()
     case_result, block = run_qc(seg, cfg)
-    assert "stage3" not in block
+    assert "curve" not in block["case"]
+    assert "mean_spacing_mm" not in block["pairs"].get("adjacent", {})
     assert isinstance(case_result.findings, tuple)

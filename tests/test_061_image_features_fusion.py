@@ -1,10 +1,23 @@
 """Tests for item 061 -- fusing intensity features into the JSON report &
 per-case feature table (``src/segfacet/feature_report.py``: ``label_intensity_to_dict``
 / ``build_image_features_block``; ``src/segfacet/report.py``:
-``serialize_report``/``serialize_report_json`` gain ``image_features``;
-``src/segfacet/human_report.py``: ``render_feature_table`` gains ``image_features``).
+``serialize_report``/``serialize_report_json`` gained ``image_features``;
+``src/segfacet/human_report.py``: ``render_feature_table`` gained ``image_features``).
+
+Item 216 (2026-10-06): the four case-level fields moved from the report's
+top-level ``image_features`` key into the features record as
+``features.case.intensity`` (``add_case_intensity``); the two report writers
+and ``render_feature_table`` lost their ``image_features`` parameter, and
+AC8-AC13 read the block from the features record.
 
 Covers Acceptance Criteria AC1-AC13:
+
+Item 215 (2026-10-06): the per-label statistics left the ``image_features``
+block and are stored as each label's ``per_label.{label}.intensity`` kind
+(``build_intensity_entries`` / ``add_intensity_kind``); the block keeps only
+the four case-level fields. The AC1-AC7 per-label assertions therefore read
+the intensity entries, and AC12/AC13 render from a features block carrying
+them.
 
 - AC1: build_image_features_block produces a well-formed block.
 - AC2: per-label first_order mirrors LabelIntensity field-for-field.
@@ -43,7 +56,10 @@ import pytest
 from segfacet.config import bundled_default_config
 from segfacet.feature_report import (
     IMAGE_FEATURES_VERSION,
+    add_case_intensity,
+    add_intensity_kind,
     build_image_features_block,
+    build_intensity_entries,
     label_intensity_to_dict,
 )
 from segfacet.features.intensity import LabelIntensity
@@ -87,20 +103,24 @@ def _verdict():
     return Verdict.build(reasons=[], per_label={})
 
 
+
 # =========================================================================== #
 # AC1: build_image_features_block produces a well-formed block
 # =========================================================================== #
 
 
 def test_ac1_well_formed_block_with_two_populated_labels():
-    block = build_image_features_block({20: LI_20, 21: LI_21})
+    block = build_image_features_block()
     assert block["image_features_version"] == IMAGE_FEATURES_VERSION
-    assert IMAGE_FEATURES_VERSION == "1.0"
+    # Item 215 (2026-10-06): per_label left the block, "1.0" -> "1.1".
+    assert IMAGE_FEATURES_VERSION == "1.1"
     assert block["available"] is True
     assert block["radiomics_available"] is False
     assert block["backend"] == "builtin"
-    assert set(block["per_label"].keys()) == {"20", "21"}
-    assert len(block["per_label"]) == 2
+    assert "per_label" not in block
+    entries = build_intensity_entries({20: LI_20, 21: LI_21})
+    assert set(entries.keys()) == {"20", "21"}
+    assert len(entries) == 2
 
 
 # =========================================================================== #
@@ -109,9 +129,9 @@ def test_ac1_well_formed_block_with_two_populated_labels():
 
 
 def test_ac2_first_order_mirrors_label_intensity_field_for_field():
-    block = build_image_features_block({20: LI_20})
-    entry = block["per_label"]["20"]
-    assert entry["label"] == 20
+    entry = build_intensity_entries({20: LI_20})["20"]
+    # The label is the per_label entry's own identity, not repeated here.
+    assert "label" not in entry
     first_order = entry["first_order"]
     assert set(first_order.keys()) == {"voxel_count", "n_nonfinite_excluded"} | set(_STAT_FIELDS)
     assert first_order["voxel_count"] == LI_20.voxel_count
@@ -134,13 +154,13 @@ def test_ac2_label_intensity_to_dict_matches_dataclass():
 
 
 def test_ac3_sentinel_statistics_are_none_not_nan():
-    block = build_image_features_block({99: SENTINEL})
-    first_order = block["per_label"]["99"]["first_order"]
+    entries = build_intensity_entries({99: SENTINEL})
+    first_order = entries["99"]["first_order"]
     for field_name in _STAT_FIELDS:
         assert first_order[field_name] is None, field_name
     assert isinstance(first_order["voxel_count"], int)
     assert isinstance(first_order["n_nonfinite_excluded"], int)
-    text = json.dumps(block, allow_nan=False)  # must not raise
+    text = json.dumps(entries, allow_nan=False)  # must not raise
     assert "NaN" not in text
     assert "Infinity" not in text
 
@@ -151,19 +171,19 @@ def test_ac3_sentinel_statistics_are_none_not_nan():
 
 
 def test_ac4_extended_seam_places_mapping_under_label():
-    block = build_image_features_block(
+    entries = build_intensity_entries(
         {20: LI_20, 21: LI_21},
         extended={20: {"original_glcm_Contrast": 1.5}},
     )
-    assert block["per_label"]["20"]["extended"] == {"original_glcm_Contrast": 1.5}
+    assert entries["20"]["extended"] == {"original_glcm_Contrast": 1.5}
     # Present in intensity but absent from extended -> empty dict.
-    assert block["per_label"]["21"]["extended"] == {}
+    assert entries["21"]["extended"] == {}
 
 
 def test_ac4_extended_none_default_yields_empty_dicts_for_every_entry():
-    block = build_image_features_block({20: LI_20, 21: LI_21})
-    assert block["per_label"]["20"]["extended"] == {}
-    assert block["per_label"]["21"]["extended"] == {}
+    entries = build_intensity_entries({20: LI_20, 21: LI_21})
+    assert entries["20"]["extended"] == {}
+    assert entries["21"]["extended"] == {}
 
 
 # =========================================================================== #
@@ -173,14 +193,14 @@ def test_ac4_extended_none_default_yields_empty_dicts_for_every_entry():
 
 def test_ac5_provenance_echoes_backend_and_radiomics_available():
     block = build_image_features_block(
-        {20: LI_20}, backend="pyradiomics", radiomics_available=True,
+        backend="pyradiomics", radiomics_available=True,
     )
     assert block["backend"] == "pyradiomics"
     assert block["radiomics_available"] is True
 
 
 def test_ac5_provenance_defaults_are_builtin_and_false():
-    block = build_image_features_block({20: LI_20})
+    block = build_image_features_block()
     assert block["backend"] == "builtin"
     assert block["radiomics_available"] is False
 
@@ -191,19 +211,19 @@ def test_ac5_provenance_defaults_are_builtin_and_false():
 
 
 def test_ac6_available_false_yields_empty_per_label_sentinel():
-    block = build_image_features_block({20: LI_20}, available=False)
+    block = build_image_features_block(available=False)
     assert block["available"] is False
-    assert block["per_label"] == {}
+    assert "per_label" not in block
 
 
 def test_ac6_unavailable_sentinel_block_validates_against_schema():
-    block = build_image_features_block({20: LI_20}, available=False)
+    block = build_image_features_block(available=False)
     verdict = _verdict()
     report = serialize_report(
         verdict, "case-061-unavailable", bundled_default_config(),
-        image_features=block,
+        features=add_case_intensity(_features_block(), block),
     )  # must not raise (schema-validated inside serialize_report)
-    assert report["image_features"]["available"] is False
+    assert report["features"]["case"]["intensity"]["available"] is False
 
 
 # =========================================================================== #
@@ -213,16 +233,16 @@ def test_ac6_unavailable_sentinel_block_validates_against_schema():
 
 def test_ac7_deterministic_equal_dicts_and_byte_identical_json():
     intensity = {21: LI_21, 20: LI_20}
-    block1 = build_image_features_block(intensity)
-    block2 = build_image_features_block(intensity)
-    assert block1 == block2
-    assert json.dumps(block1, sort_keys=True) == json.dumps(block2, sort_keys=True)
+    entries1 = build_intensity_entries(intensity)
+    entries2 = build_intensity_entries(intensity)
+    assert entries1 == entries2
+    assert json.dumps(entries1, sort_keys=True) == json.dumps(entries2, sort_keys=True)
 
 
 def test_ac7_per_label_ascending_regardless_of_input_order():
     intensity = {21: LI_21, 20: LI_20}
-    block = build_image_features_block(intensity)
-    assert list(block["per_label"].keys()) == ["20", "21"]
+    entries = build_intensity_entries(intensity)
+    assert list(entries.keys()) == ["20", "21"]
 
 
 def test_ac7_inputs_are_not_mutated():
@@ -230,7 +250,7 @@ def test_ac7_inputs_are_not_mutated():
     extended = {20: {"original_glcm_Contrast": 1.5}}
     intensity_before = copy.deepcopy(intensity)
     extended_before = copy.deepcopy(extended)
-    build_image_features_block(intensity, extended=extended)
+    build_intensity_entries(intensity, extended=extended)
     assert intensity == intensity_before
     assert extended == extended_before
 
@@ -241,12 +261,14 @@ def test_ac7_inputs_are_not_mutated():
 
 
 def test_ac8_serialize_report_embeds_block_verbatim_under_top_level_key():
-    block = build_image_features_block({20: LI_20})
+    block = build_image_features_block()
     verdict = _verdict()
     report = serialize_report(
-        verdict, "case-061", bundled_default_config(), image_features=block,
+        verdict, "case-061", bundled_default_config(),
+        features=add_case_intensity(_features_block(), block),
     )  # must not raise
-    assert report["image_features"] == block
+    assert report["features"]["case"]["intensity"] == block
+    assert "image_features" not in report
 
 
 # =========================================================================== #
@@ -264,13 +286,14 @@ def test_ac9_default_omits_image_features_key():
 def test_ac9_report_with_only_other_optional_blocks_omits_image_features():
     verdict = _verdict()
     features_block = {
-        "features_version": "0.1", "per_label": {}, "overlaps": [], "relationships": None,
+        "features_version": "0.2", "per_label": {}, "pairs": {"overlaps": []}, "case": {"sequence": None},
     }
     report = serialize_report(
         verdict, "case-061-others", bundled_default_config(),
         features=features_block, findings=[], reference_delta=None,
     )
     assert "image_features" not in report
+    assert "intensity" not in report["features"]["case"]
 
 
 def test_ac9_omission_is_deep_equal_to_call_without_the_parameter():
@@ -278,7 +301,7 @@ def test_ac9_omission_is_deep_equal_to_call_without_the_parameter():
     config = bundled_default_config()
     report_no_kw = serialize_report(verdict, "case-061-eq", config)
     report_explicit_none = serialize_report(
-        verdict, "case-061-eq", config, image_features=None,
+        verdict, "case-061-eq", config, features=None,
     )
     assert report_no_kw == report_explicit_none
 
@@ -288,31 +311,134 @@ def test_ac9_omission_is_deep_equal_to_call_without_the_parameter():
 # =========================================================================== #
 
 
+# Item 215 review: the report schema requires geometry/components/centroid on
+# every per_label entry, so a hand-built Stage-3-only block that is validated
+# carries one real label's Stage 2 kinds (measured from the 4-voxel cube of
+# ``synthetic.labelled_blocks_case``).
+_STAGE2_STUB = {
+    "geometry": {
+        "voxel_count": 64,
+        "physical_volume_mm3": 64.0,
+        "extent_x_mm": 4.0,
+        "extent_y_mm": 4.0,
+        "extent_z_mm": 4.0,
+        "bbox_voxel": {
+            "x_min": 2,
+            "x_max": 5,
+            "y_min": 2,
+            "y_max": 5,
+            "z_min": 2,
+            "z_max": 5
+        },
+        "bbox_physical": {
+            "x_min": 2.0,
+            "x_max": 5.0,
+            "y_min": 2.0,
+            "y_max": 5.0,
+            "z_min": 2.0,
+            "z_max": 5.0
+        },
+        "touches_inferior": False,
+        "touches_superior": False,
+        "touches_left": False,
+        "touches_right": False,
+        "touches_anterior": False,
+        "touches_posterior": False
+    },
+    "components": {
+        "component_count": 1,
+        "component_sizes": [
+            64
+        ],
+        "component_volumes_mm3": [
+            64.0
+        ],
+        "largest_component_fraction": 1.0,
+        "small_fragments": [],
+        "fragmentation_index": 1.0,
+        "stray_component_count": 0,
+        "stray_component_sizes": [],
+        "stray_volume_mm3": 0.0,
+        "stray_volume_fraction": 0.0,
+        "stray_contact_area_mm2": 0.0,
+        "stray_contact_label": 0,
+        "component_contacts": [
+            {
+                "neighbour_label": 0,
+                "contact_area_mm2": 0.0,
+                "surface_area_mm2": 96.0,
+                "contact_fraction": 0.0
+            }
+        ],
+        "label_contact_fraction": 0.0
+    },
+    "centroid": {
+        "centroid_voxel": [
+            3.5,
+            3.5,
+            3.5
+        ],
+        "centroid_mm": [
+            3.5,
+            3.5,
+            3.5
+        ]
+    }
+}
+
+
+def _intensity_features_block(intensity, extended=None):
+    """A minimal features block with one entry per label of *intensity*, each
+    carrying the intensity kind (item 215: the per-label statistics live on
+    the features record)."""
+    block = {
+        "features_version": "0.2",
+        "per_label": {
+            str(label): {
+                "label": label, "level_name": "L1", **copy.deepcopy(_STAGE2_STUB),
+            }
+            for label in intensity
+        },
+        "pairs": {"overlaps": []},
+        "case": {"sequence": None},
+    }
+    return add_intensity_kind(block, build_intensity_entries(intensity, extended=extended))
+
+
 def test_ac10_well_formed_block_validates_in_report():
-    block = build_image_features_block({20: LI_20})
+    block = build_image_features_block()
     verdict = _verdict()
     serialize_report(
-        verdict, "case-061-schema-ok", bundled_default_config(), image_features=block,
+        verdict, "case-061-schema-ok", bundled_default_config(),
+        features=add_case_intensity(_features_block(), block),
+    )  # must not raise
+    serialize_report(
+        verdict, "case-061-schema-ok", bundled_default_config(),
+        features=_intensity_features_block({20: LI_20}),
     )  # must not raise
 
 
 def test_ac10_unknown_top_level_key_is_rejected():
-    block = build_image_features_block({20: LI_20})
+    block = build_image_features_block()
     block["bogus"] = 1
     verdict = _verdict()
     with pytest.raises(jsonschema.ValidationError):
         serialize_report(
-            verdict, "case-061-bogus", bundled_default_config(), image_features=block,
+            verdict, "case-061-bogus", bundled_default_config(),
+            features=add_case_intensity(_features_block(), block),
         )
 
 
 def test_ac10_missing_required_first_order_field_is_rejected():
-    block = build_image_features_block({20: LI_20})
-    del block["per_label"]["20"]["first_order"]["mean"]
+    features = _intensity_features_block({20: LI_20})
     verdict = _verdict()
+    serialize_report(
+        verdict, "case-061-missing-field", bundled_default_config(), features=features,
+    )  # well-formed before the deletion
+    del features["per_label"]["20"]["intensity"]["first_order"]["mean"]
     with pytest.raises(jsonschema.ValidationError):
         serialize_report(
-            verdict, "case-061-missing-field", bundled_default_config(), image_features=block,
+            verdict, "case-061-missing-field", bundled_default_config(), features=features,
         )
 
 
@@ -322,15 +448,17 @@ def test_ac10_missing_required_first_order_field_is_rejected():
 
 
 def test_ac11_serialize_report_json_round_trips_equal_to_dict_form():
-    block = build_image_features_block({20: LI_20, 99: SENTINEL})
+    block = build_image_features_block()
+    features = _intensity_features_block({20: LI_20})
     verdict = _verdict()
     config = bundled_default_config()
+    features = add_case_intensity(features, block)
     text = serialize_report_json(
-        verdict, "case-061-json", config, image_features=block,
+        verdict, "case-061-json", config, features=features,
     )
     parsed = json.loads(text)  # must not raise
     expected = serialize_report(
-        verdict, "case-061-json", config, image_features=block,
+        verdict, "case-061-json", config, features=features,
     )
     assert parsed == expected
     assert "NaN" not in text
@@ -342,49 +470,62 @@ def test_ac11_serialize_report_json_round_trips_equal_to_dict_form():
 # =========================================================================== #
 
 
-def _features_block():
-    return {
-        "features_version": "0.1",
-        "per_label": {
-            "20": {
-                "label": 20, "level_name": "L1",
-                "geometry": {
-                    "voxel_count": 100, "physical_volume_mm3": 500.0,
-                    "extent_x_mm": 1, "extent_y_mm": 1, "extent_z_mm": 1,
-                    "bbox_voxel": {
-                        "x_min": 0, "x_max": 4,
-                        "y_min": 0, "y_max": 4,
-                        "z_min": 0, "z_max": 4,
-                    },
-                    "bbox_physical": {
-                        "x_min": 0.0, "x_max": 4.0,
-                        "y_min": 0.0, "y_max": 4.0,
-                        "z_min": 0.0, "z_max": 4.0,
-                    },
-                    "touches_inferior": False, "touches_superior": False,
-                    "touches_left": False, "touches_right": False,
-                    "touches_anterior": False, "touches_posterior": False,
+_LEVEL_NAMES = {20: "L1", 21: "L2", 99: "UNKNOWN"}
+
+
+def _features_block(labels=(20,)):
+    per_label = {}
+    for label in labels:
+        per_label[str(label)] = {
+            "label": label, "level_name": _LEVEL_NAMES[label],
+            "geometry": {
+                "voxel_count": 100, "physical_volume_mm3": 500.0,
+                "extent_x_mm": 1, "extent_y_mm": 1, "extent_z_mm": 1,
+                "bbox_voxel": {
+                    "x_min": 0, "x_max": 4,
+                    "y_min": 0, "y_max": 4,
+                    "z_min": 0, "z_max": 4,
                 },
-                "components": {
-                    "component_count": 1, "component_sizes": [100],
-                    "component_volumes_mm3": [500.0],
-                    "largest_component_fraction": 1.0, "small_fragments": [],
-                    "fragmentation_index": 1.0,
-                    "stray_component_count": 0, "stray_component_sizes": [],
-                    "stray_volume_mm3": 0.0, "stray_volume_fraction": 0.0,
+                "bbox_physical": {
+                    "x_min": 0.0, "x_max": 4.0,
+                    "y_min": 0.0, "y_max": 4.0,
+                    "z_min": 0.0, "z_max": 4.0,
                 },
-                "centroid": {"centroid_voxel": [1, 2, 3], "centroid_mm": [1.0, 2.0, 3.0]},
+                "touches_inferior": False, "touches_superior": False,
+                "touches_left": False, "touches_right": False,
+                "touches_anterior": False, "touches_posterior": False,
             },
-        },
-        "overlaps": [],
-        "relationships": None,
+            "components": {
+                "component_count": 1, "component_sizes": [100],
+                "component_volumes_mm3": [500.0],
+                "largest_component_fraction": 1.0, "small_fragments": [],
+                "fragmentation_index": 1.0,
+                "stray_component_count": 0, "stray_component_sizes": [],
+                "stray_volume_mm3": 0.0, "stray_volume_fraction": 0.0,
+            },
+            "centroid": {"centroid_voxel": [1, 2, 3], "centroid_mm": [1.0, 2.0, 3.0]},
+        }
+    return {
+        "features_version": "0.2",
+        "per_label": per_label,
+        "pairs": {"overlaps": []},
+        "case": {"sequence": None},
     }
 
 
+def _with_intensity(intensity):
+    """A features block with one entry per label of *intensity*, each
+    carrying its intensity kind (item 215)."""
+    return add_intensity_kind(
+        _features_block(labels=tuple(sorted(intensity))),
+        build_intensity_entries(intensity),
+    )
+
+
 def test_ac12_render_with_block_includes_per_case_intensity_section():
-    fb = _features_block()
-    block = build_image_features_block({20: LI_20, 21: LI_21})
-    text = render_feature_table(fb, image_features=block)
+    fb = _with_intensity({20: LI_20, 21: LI_21})
+    block = build_image_features_block()
+    text = render_feature_table(add_case_intensity(fb, block))
     assert "20" in text
     assert "21" in text
     assert _fmt(LI_20.mean) in text
@@ -405,7 +546,10 @@ def _fmt(value):
 def test_ac12_render_without_image_features_is_byte_identical_to_prior_render():
     fb = _features_block()
     without_kw = render_feature_table(fb)
-    with_explicit_none = render_feature_table(fb, image_features=None)
+    assert "intensity" not in fb["case"]
+    with_explicit_none = render_feature_table(
+        {**fb, "case": {**fb["case"], "intensity": None}}
+    )
     assert without_kw == with_explicit_none
     # Sanity: the plain features-table sections are still present.
     assert "Per-label features:" in without_kw
@@ -420,18 +564,18 @@ def test_ac12_render_without_image_features_is_byte_identical_to_prior_render():
 
 
 def test_ac13_sentinel_label_renders_placeholder_not_none_or_nan():
-    fb = _features_block()
-    block = build_image_features_block({20: SENTINEL})
-    text = render_feature_table(fb, image_features=block)
+    fb = _with_intensity({20: SENTINEL})
+    block = build_image_features_block()
+    text = render_feature_table(add_case_intensity(fb, block))
     assert "None" not in text
     assert "nan" not in text.lower()
     assert "n/a" in text.lower() or "(n/a)" in text
 
 
 def test_ac13_unavailable_block_renders_explicit_placeholder_line():
-    fb = _features_block()
-    block = build_image_features_block({20: LI_20}, available=False)
-    text = render_feature_table(fb, image_features=block)
+    fb = _with_intensity({20: LI_20})
+    block = build_image_features_block(available=False)
+    text = render_feature_table(add_case_intensity(fb, block))
     lowered = text.lower()
     assert "(unavailable)" in lowered or "(none)" in lowered
     assert "None" not in text
@@ -439,9 +583,9 @@ def test_ac13_unavailable_block_renders_explicit_placeholder_line():
 
 
 def test_ac13_no_raw_python_internals_leak_and_labels_ascending():
-    fb = _features_block()
-    block = build_image_features_block({21: LI_21, 20: LI_20})
-    text = render_feature_table(fb, image_features=block)
+    fb = _with_intensity({21: LI_21, 20: LI_20})
+    block = build_image_features_block()
+    text = render_feature_table(add_case_intensity(fb, block))
     for forbidden in ("frozenset(", "LabelIntensity", "tuple(", "<class"):
         assert forbidden not in text
     idx20 = text.index("20")
@@ -455,46 +599,47 @@ def test_ac13_no_raw_python_internals_leak_and_labels_ascending():
 
 
 def test_adv_empty_intensity_mapping_yields_available_true_empty_per_label():
-    block = build_image_features_block({})
+    block = build_image_features_block()
     assert block["available"] is True
-    assert block["per_label"] == {}
+    assert build_intensity_entries({}) == {}
     json.dumps(block, allow_nan=False)  # must not raise
 
 
 def test_adv_mixed_populated_and_sentinel_labels_serialise_and_order_correctly():
-    block = build_image_features_block({20: LI_20, 99: SENTINEL})
-    text = json.dumps(block, allow_nan=False)  # must not raise
+    entries = build_intensity_entries({20: LI_20, 99: SENTINEL})
+    text = json.dumps(entries, allow_nan=False)  # must not raise
     assert "NaN" not in text
-    assert set(block["per_label"].keys()) == {"20", "99"}
-    assert list(block["per_label"].keys()) == ["20", "99"]
+    assert set(entries.keys()) == {"20", "99"}
+    assert list(entries.keys()) == ["20", "99"]
 
 
 def test_adv_extended_for_label_absent_from_intensity_is_ignored():
-    block = build_image_features_block(
+    entries = build_intensity_entries(
         {20: LI_20}, extended={20: {"a": 1.0}, 999: {"b": 2.0}},
     )
-    assert set(block["per_label"].keys()) == {"20"}
-    assert block["per_label"]["20"]["extended"] == {"a": 1.0}
+    assert set(entries.keys()) == {"20"}
+    assert entries["20"]["extended"] == {"a": 1.0}
 
 
 def test_adv_extended_dict_is_shallow_copied_not_aliased():
     ext = {20: {"a": 1.0}}
-    block = build_image_features_block({20: LI_20}, extended=ext)
-    block["per_label"]["20"]["extended"]["a"] = 999.0
+    entries = build_intensity_entries({20: LI_20}, extended=ext)
+    entries["20"]["extended"]["a"] = 999.0
     assert ext[20]["a"] == 1.0
 
 
 def test_adv_schema_round_trip_survives_json_dumps_loads_with_null_statistic():
-    block = build_image_features_block({99: SENTINEL})
-    round_tripped = json.loads(json.dumps(block))
-    assert round_tripped == block
-    assert round_tripped["per_label"]["99"]["first_order"]["mean"] is None
+    entries = build_intensity_entries({99: SENTINEL})
+    round_tripped = json.loads(json.dumps(entries))
+    assert round_tripped == entries
+    assert round_tripped["99"]["first_order"]["mean"] is None
 
     verdict = _verdict()
+    features = _intensity_features_block({99: SENTINEL})
     report = serialize_report(
-        verdict, "case-061-roundtrip", bundled_default_config(), image_features=block,
+        verdict, "case-061-roundtrip", bundled_default_config(), features=features,
     )  # must not raise -- null statistic still validates
-    assert report["image_features"]["per_label"]["99"]["first_order"]["mean"] is None
+    assert report["features"]["per_label"]["99"]["intensity"]["first_order"]["mean"] is None
 
 
 def test_adv_back_compat_report_deep_equal_across_features_findings_combos():
@@ -502,6 +647,6 @@ def test_adv_back_compat_report_deep_equal_across_features_findings_combos():
     config = bundled_default_config()
     fb = _features_block()
     r1 = serialize_report(verdict, "case-061-combo", config, features=fb)
-    r2 = serialize_report(verdict, "case-061-combo", config, features=fb, image_features=None)
+    r2 = serialize_report(verdict, "case-061-combo", config, features=copy.deepcopy(fb))
     assert r1 == r2
     assert "image_features" not in r1

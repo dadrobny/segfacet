@@ -102,11 +102,13 @@ def test_ac8_cli_intensity_flag_writes_image_features_on_clean_run(tmp_path):
     assert code == 0
 
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    image_features = report["image_features"]
+    image_features = report["features"]["case"]["intensity"]
     assert image_features["available"] is True
-    assert image_features["per_label"]
-    for entry in image_features["per_label"].values():
-        assert isinstance(entry["first_order"], dict)
+    # Item 215: the per-label first_order dicts are each label's intensity
+    # kind in the report's ``features`` block.
+    assert report["features"]["per_label"]
+    for entry in report["features"]["per_label"].values():
+        assert isinstance(entry["intensity"]["first_order"], dict)
 
     findings = report.get("findings", [])
     assert not any(f["rule_id"] == "intensity" for f in findings)
@@ -154,7 +156,7 @@ def test_ac9_cli_intensity_flag_flags_implausible_metal_on_label_22(tmp_path):
     assert code in (0, 1)
 
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    assert report["image_features"]["available"] is True
+    assert report["features"]["case"]["intensity"]["available"] is True
 
     findings = report["findings"]
     intensity_findings = [f for f in findings if f["rule_id"] == "intensity"]
@@ -182,7 +184,7 @@ def test_ac10_no_intensity_flag_omits_image_features_key(tmp_path):
         ]
     )
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    assert "image_features" not in report
+    assert "intensity" not in report["features"]["case"]
     findings = report.get("findings", [])
     assert not any(f["rule_id"] == "intensity" for f in findings)
 
@@ -242,7 +244,7 @@ def test_ac11_config_intensity_enabled_without_cli_flag(tmp_path):
     )
     assert code == 0
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    assert "image_features" in report
+    assert "intensity" in report["features"]["case"]
 
 
 def test_ac11_intensity_param_default_and_override():
@@ -267,7 +269,7 @@ def test_ac11_flag_off_and_config_absent_leaves_image_features_absent(tmp_path):
         ]
     )
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    assert "image_features" not in report
+    assert "intensity" not in report["features"]["case"]
 
 
 # =========================================================================== #

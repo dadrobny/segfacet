@@ -82,7 +82,7 @@ def t12_map_record():
 
 
 def test_ac1_t12_map_no_missing_level(t12_map_record):
-    assert t12_map_record["relationships"]["missing_levels"] == []
+    assert t12_map_record["case"]["sequence"]["missing_levels"] == []
 
 
 # =========================================================================== #

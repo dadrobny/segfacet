@@ -7,8 +7,8 @@ partial vertebra at the image border whose appearance is truncated by the
 field of view (FOV). It consumes the pre-computed per-label image-border-
 contact flags (item 011, exposed under each ``per_label`` entry's ``geometry``
 sub-block, via ``geometry_to_dict``, item 016) and, for terminal-position
-classification, ``relationships.present_levels`` (item 014). It does not
-recompute geometry, border flags, or relationships.
+classification, ``case.sequence.present_levels`` (item 014). It does not
+recompute geometry, border flags, or case.sequence (was relationships, item 216).
 
 Design decisions (recorded per item 031 spec):
 - Cranio-caudal (``touches_superior`` / ``touches_inferior``) is the FOV-end
@@ -27,10 +27,10 @@ Design decisions (recorded per item 031 spec):
   vertebra is present and carries a real integer label, in contrast to item
   029's case-level missing-level findings.
 - One finding per offending label, emitted in ascending integer-label order.
-- Terminal position is decided from ``relationships.present_levels``, sourced
+- Terminal position is decided from ``case.sequence.present_levels``, sourced
   via the shared ``segfacet.heuristics.fov.derive_fov_coverage`` helper (item
   089) so ``border`` and ``coverage`` resolve the same covered-span ends and
-  can never disagree; when unavailable (``relationships`` None/absent or
+  can never disagree; when unavailable (``case.sequence`` None/absent or
   ``present_levels`` empty) a border-touching label is classified
   **unexpected** (surfaced, not hidden).
 - Unrecognised severity string raises ValueError before any per-record
@@ -168,6 +168,15 @@ class BorderRule(Rule):
         ),
         consumed_paths=(
             ConsumedPath(
+                path="case.sequence.present_levels[]",
+                role="bookkeeping",
+                reason=(
+                    "gate: the same FOV-span derivation that decides which "
+                    "terminal face is expected; the touched face is the "
+                    "evidence"
+                ),
+            ),
+            ConsumedPath(
                 path="per_label",
                 role="bookkeeping",
                 reason=(
@@ -225,21 +234,20 @@ class BorderRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="per_label.{label}.label",
+                role="bookkeeping",
+                reason=(
+                    "identity: the label id carried into the finding's "
+                    "labels set"
+                ),
+            ),
+            ConsumedPath(
                 path="per_label.{label}.level_name",
                 role="bookkeeping",
                 reason=(
                     "gate and message interpolation: compared against "
                     "derive_fov_coverage's end levels to exempt an "
                     "expected terminal face; never mode-6 evidence itself"
-                ),
-            ),
-            ConsumedPath(
-                path="relationships.present_levels[]",
-                role="bookkeeping",
-                reason=(
-                    "gate: the same FOV-span derivation that decides which "
-                    "terminal face is expected; the touched face is the "
-                    "evidence"
                 ),
             ),
         ),
@@ -290,7 +298,7 @@ class BorderRule(Rule):
         ----------
         record:
             Per-case feature dict (read-only). Reads ``record["per_label"]``
-            and ``record["relationships"]``.
+            and ``record["case"]["sequence"]``.
         config:
             HeuristicConfig instance. Reads ``rules.border.params``.
 

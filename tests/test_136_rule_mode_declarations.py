@@ -854,17 +854,44 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     Reconciled again (item 208, 2026-09-30): ``per_label.{label}.components.
     label_contact_fraction`` leaves the ``()`` bucket because the new
     ``split_fragment`` rule consumes it: ``stayed_empty`` moves 90 -> 89.
-    ``stayed_rule_unmapped`` stays 0."""
+    ``stayed_rule_unmapped`` stays 0.
+
+    Reconciled again (item 215, 2026-10-06): the catalogue moves 145 -> 156.
+    Nine identity copies merge away (-9) and the 20 report-only
+    ``reference_delta.{label}.features.<f>.<s>`` rows are catalogued (+20).
+    ``stayed_empty`` moves 89 -> 103: the four unconsumed orientations and
+    neighbourhood identity copies merge away (-4), sixteen of the twenty new
+    rows are consumed by no rule (+16), and ``physical_volume_mm3``'s
+    ``percentile_rank`` and ``value`` lose their consuming rules to the
+    static scan's ambiguity once five features share each last segment (+2:
+    survivors that changed evidence bucket). ``stayed_rule_unmapped`` stays 0
+    (re-measured against the regenerated committed catalogue, not assumed).
+
+    Reconciled again (item 216, 2026-10-06): the catalogue moves 156 -> 154.
+    Three merged rows leave (-3: ``overlaps[].name_a`` and ``.name_b``, both
+    consumed bookkeeping, and ``stage3.spacing_consistency.spacings_mm[]``,
+    consumed by ``fused_label``), and ``case.sequence.order[]`` joins (+1, no
+    rule reads it). ``stayed_empty`` moves 103 -> 102: the survivor
+    ``pairs.adjacent.spacings_mm[]`` leaves the empty bucket for the
+    ``fused_label`` consumer (-1, a survivor that changed evidence bucket),
+    ``pairs.adjacent.mean_spacing_mm`` leaves it for the ``fused_label`` gate
+    it is now declared bookkeeping for (-1, likewise), and
+    ``case.sequence.order[]`` joins it (+1). ``stayed_rule_unmapped`` stays 0
+    (re-measured against the regenerated committed catalogue, not assumed)."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 145
+    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
 
     assert stayed_rule_unmapped == 0
-    assert stayed_empty == 89  # item 207 (2026-09-30): 91 -> 90; item 208 (2026-09-30): 90 -> 89
+    # item 207 (2026-09-30): 91 -> 90; item 208 (2026-09-30): 90 -> 89;
+    # item 215 (2026-10-06): 89 -> 103 (-4 merged, +16 new, +2 survivors);
+    # item 216 (2026-10-06): 103 -> 102 (-1 survivor, -1 mean_spacing_mm,
+    # +1 new row).
+    assert stayed_empty == 102
 
 
 # =========================================================================== #

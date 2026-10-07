@@ -322,8 +322,12 @@ def test_ac6_degraded_record_omits_stage3():
     seg_img = _coincident_label_map()
     _assert_coincidence(seg_img, 21, 22)
     record = extract_feature_record(seg_img, bundled_default_config())
-    assert "stage3" not in record
-    assert record["features_version"] == "0.1"
+    # Item 216: no Stage 3 field in the containers that now carry them (the
+    # survivor spacing array is not Stage-3-only, D10).
+    assert "curve" not in record["case"]
+    assert "mean_spacing_mm" not in record["pairs"]["adjacent"]
+    # Item 215 (2026-10-06): the base discriminator "0.1" -> "0.2".
+    assert record["features_version"] == "0.2"
 
 
 # =========================================================================== #
@@ -342,8 +346,8 @@ def test_ac7_degraded_record_carries_stage1_2_features():
         assert "geometry" in entry
         assert "components" in entry
         assert "centroid" in entry
-    assert "relationships" in record
-    assert "overlaps" in record
+    assert "sequence" in record["case"]
+    assert "overlaps" in record["pairs"]
 
 
 # =========================================================================== #
@@ -693,8 +697,14 @@ def test_ac28_mode5_remove_level_offsets_numerically_unmoved():
     seg_img = loaded_seg_image(case)
 
     record = extract_feature_record(seg_img, bundled_default_config())
-    offsets = record["stage3"]["per_label_offsets"]
-    assert offsets, "remove_level produced no per_label_offsets"
+    # Item 215: each offset is its label's ``curve`` block, the identity
+    # (label) read from the per_label entry.
+    offsets = [
+        {"label": e["label"], **e["curve"]}
+        for e in record["per_label"].values()
+        if "curve" in e
+    ]
+    assert offsets, "remove_level produced no per-label curve blocks"
     assert len(offsets) == 4
 
     seen = set()
@@ -890,7 +900,8 @@ def test_adv_coincident_pair_among_five_labels_still_degrades():
     assert c21.centroid_mm == c22.centroid_mm
 
     record = extract_feature_record(seg_img, bundled_default_config())
-    assert "stage3" not in record
+    assert "curve" not in record["case"]
+    assert "mean_spacing_mm" not in record["pairs"]["adjacent"]
     assert record["stage3_unavailable"]["reason"] == "coincident_centroids"
     assert {int(k) for k in record["per_label"]} == {1, 2, 3, 21, 22}
 
@@ -921,7 +932,7 @@ def test_adv_near_coincident_pipeline_does_not_degrade():
 
     record = extract_feature_record(seg_img, bundled_default_config())
     assert "stage3_unavailable" not in record
-    assert "stage3" in record
+    assert "curve" in record["case"]
 
 
 def test_adv_degraded_record_round_trips_through_serialize_and_json():

@@ -57,19 +57,19 @@ def _entry(
 def _block(entries, offsets=None):
     """Build a minimal ``features`` block dict from a list of per_label entries.
 
-    ``offsets`` is an optional list of ``(label, offset_mm)`` pairs added under
-    ``stage3.per_label_offsets``.
+    ``offsets`` is an optional list of ``(label, offset_mm)`` pairs added as
+    each label's ``per_label.{label}.curve`` block (item 215). The version
+    literals follow item 215's bumps (Stage 3 "0.2" -> "0.3", base "0.1" ->
+    "0.2").
     """
     block = {
-        "features_version": "0.2" if offsets is not None else "0.1",
-        "per_label": {str(e["label"]): e for e in entries},
+        "features_version": "0.3" if offsets is not None else "0.2",
+        "per_label": {str(e["label"]): dict(e) for e in entries},
     }
     if offsets is not None:
-        block["stage3"] = {
-            "per_label_offsets": [
-                {"label": lbl, "offset_mm": off} for lbl, off in offsets
-            ]
-        }
+        block["stage3"] = {}
+        for lbl, off in offsets:
+            block["per_label"][str(lbl)]["curve"] = {"offset_mm": off}
     return block
 
 
@@ -566,7 +566,7 @@ def test_ac13_per_label_not_a_dict_raises():
     from segfacet.eval.feature_match import compute_feature_match
 
     gt = _block([_entry(20, "L1")])
-    bad = {"features_version": "0.1", "per_label": []}
+    bad = {"features_version": "0.2", "per_label": []}
     with pytest.raises(FacetInputError):
         compute_feature_match(bad, gt)
 

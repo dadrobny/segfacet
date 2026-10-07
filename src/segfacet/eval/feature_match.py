@@ -28,7 +28,7 @@ non-configurable ordered set):
 
 The first four are read from a label entry's ``geometry`` sub-dict;
 ``spline_offset_mm`` is the Stage-3 per-label perpendicular offset read from
-the block's ``stage3.per_label_offsets`` list and is legitimately absent for
+the entry's ``per_label.{label}.curve`` block and is legitimately absent for
 Stage-2-only blocks (marked ``available=False``, never an error).
 
 For each tracked feature, per matched label:
@@ -231,10 +231,12 @@ def _require_block(obj: Any, side: str) -> Mapping[str, Any]:
 
 
 def _offset_map(block: Mapping[str, Any]) -> Dict[int, float]:
-    """Build ``{label: offset_mm}`` from ``block.stage3.per_label_offsets``."""
-    stage3 = block.get("stage3") or {}
-    offsets = stage3.get("per_label_offsets") or []
-    return {int(o["label"]): float(o["offset_mm"]) for o in offsets}
+    """Build ``{label: offset_mm}`` from each ``per_label[*].curve`` block."""
+    return {
+        int(entry["label"]): float(entry["curve"]["offset_mm"])
+        for entry in block["per_label"].values()
+        if "offset_mm" in (entry.get("curve") or {})
+    }
 
 
 def _scalar_value(
@@ -290,7 +292,7 @@ def compute_feature_match(
         ``segfacet.feature_report.build_features_block`` -- each carrying a
         top-level ``per_label`` mapping (keyed by ``str(label)``, each entry
         carrying ``label``, ``level_name``, ``geometry``, ``centroid``, ...)
-        and an optional ``stage3.per_label_offsets`` list. Never mutated.
+        and an optional ``curve`` block per entry. Never mutated.
 
     Returns
     -------

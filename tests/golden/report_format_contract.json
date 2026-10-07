@@ -22,7 +22,7 @@
     ]
   },
   "features": {
-    "features_version": "0.2",
+    "features_version": "0.3",
     "per_label": {
       "7": {
         "label": 7,
@@ -94,90 +94,77 @@
             27.31460592837104,
             1e-12
           ]
-        }
-      }
-    },
-    "overlaps": [
-      {
-        "label_a": 6,
-        "label_b": 7,
-        "name_a": "L4",
-        "name_b": "L3",
-        "overlap_voxels": 3
-      }
-    ],
-    "relationships": {
-      "present_levels": [
-        "L4",
-        "L3"
-      ],
-      "missing_levels": [],
-      "neighbour_spacings_mm": [
-        106.9841827768014
-      ],
-      "is_continuous": true,
-      "out_of_order_labels": []
-    },
-    "stage3": {
-      "per_label_offsets": [
-        {
-          "label": 7,
-          "level_name": "L3",
+        },
+        "curve": {
           "closest_u": 0.5,
           "offset_mm": 53.47129068415773,
           "offset_voxel": 1.0,
           "dx_mm": -84.62037195428361,
           "dy_mm": 1e-12,
-          "dz_mm": 106.9841827768014
-        }
-      ],
-      "per_label_orientations": [
-        {
-          "label": 7,
-          "level_name": "L3",
+          "dz_mm": 106.9841827768014,
+          "path_u": 0.5
+        },
+        "orientation": {
           "principal_axis": [
             0.0,
             0.0,
             1.0
           ],
-          "eigenvalue_ratio": 106.9841827768014
+          "eigenvalue_ratio": 106.9841827768014,
+          "tangent_angle_deg": 1e-12,
+          "tangent_coronal_unwrapped_deg": -84.62037195428361,
+          "tangent_sagittal_unwrapped_deg": 106.9841827768014
         }
-      ],
-      "curvature": {
-        "tangent_angles_deg": [
-          1e-12
+      }
+    },
+    "case": {
+      "sequence": {
+        "present_levels": [
+          "L4",
+          "L3"
         ],
-        "inter_tangent_angles_deg": [],
+        "missing_levels": [],
+        "is_continuous": true,
+        "out_of_order_labels": [],
+        "order": [
+          6,
+          7
+        ]
+      },
+      "curve": {
         "total_curvature_deg": 1.0,
-        "coronal_tangent_angles_deg": [
-          -84.62037195428361
-        ],
-        "sagittal_tangent_angles_deg": [
-          106.9841827768014
-        ],
         "coronal_curvature_deg": 1.0,
         "sagittal_curvature_deg": 0.0,
-        "curvature_plane": "coronal"
+        "curvature_plane": "coronal",
+        "is_monotonic": true
       },
-      "spacing_consistency": {
-        "mean_spacing_mm": 106.9841827768014,
-        "cv_spacing": 0.0,
+      "intensity": {
+        "image_features_version": "1.1",
+        "available": true,
+        "radiomics_available": false,
+        "backend": "builtin"
+      }
+    },
+    "pairs": {
+      "overlaps": [
+        {
+          "label_a": 6,
+          "label_b": 7,
+          "overlap_voxels": 3
+        }
+      ],
+      "adjacent": {
         "spacings_mm": [
           106.9841827768014
         ],
+        "inter_tangent_angles_deg": [],
+        "mean_spacing_mm": 106.9841827768014,
+        "cv_spacing": 0.0,
         "deviations_mm": [
           -84.62037195428361
         ],
-        "outlier_pairs": []
-      },
-      "monotonic_consistency": {
-        "is_monotonic": true,
-        "non_monotonic_pairs": [],
-        "u_values": [
-          0.0,
-          0.5,
-          1.0
-        ]
+        "outlier_pairs": [],
+        "non_monotonic_pairs": []
       }
     }
   },

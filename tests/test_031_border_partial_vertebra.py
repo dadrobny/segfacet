@@ -79,7 +79,7 @@ def _make_record(present_levels: list, entries: list) -> dict:
     """Assemble a minimal build_features_block-shaped record: per_label keyed
     by integer label, plus relationships.present_levels."""
     return {
-        "relationships": {"present_levels": list(present_levels)},
+        "case": {"sequence": {"present_levels": list(present_levels)}},
         "per_label": {e["label"]: e for e in entries},
     }
 
@@ -363,7 +363,7 @@ def test_ac12_value_error_raised_before_per_record_processing(tmp_path):
     is parsed before any per-record processing."""
     content = _border_yaml_header() + "      severity: garbage\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    record = {"per_label": {}, "relationships": None}
+    record = {"per_label": {}, "case": {"sequence": None}}
     with pytest.raises(ValueError):
         run_rules(record, cfg)
 
@@ -446,13 +446,13 @@ def test_ac14_spacing_agnostic_identical_findings():
 
 def test_ac15_per_label_empty_no_raise():
     """AC15: per_label == {} returns [] without raising."""
-    record = {"per_label": {}, "relationships": {"present_levels": []}}
+    record = {"per_label": {}, "case": {"sequence": {"present_levels": []}}}
     assert _border_findings(run_rules(record, default_config())) == []
 
 
 def test_ac15_per_label_absent_no_raise():
     """AC15: record has no 'per_label' key at all."""
-    record = {"relationships": {"present_levels": []}}
+    record = {"case": {"sequence": {"present_levels": []}}}
     result = _border_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
     assert result == []
@@ -463,7 +463,7 @@ def test_ac15_entry_without_geometry_contributes_no_finding():
     finding and does not crash."""
     record = {
         "per_label": {_LABEL_L1: {"label": _LABEL_L1, "level_name": "L1"}},
-        "relationships": {"present_levels": ["L1"]},
+        "case": {"sequence": {"present_levels": ["L1"]}},
     }
     result = _border_findings(run_rules(record, default_config()))
     assert result == []
@@ -473,7 +473,7 @@ def test_ac15_relationships_none_border_touch_treated_unexpected():
     """AC15: relationships None/absent with a border-touching label is
     treated as unexpected (surfaced), not crashing."""
     entries = [_make_entry(_LABEL_L1, "L1", touched_faces=("touches_superior",))]
-    record = {"per_label": {e["label"]: e for e in entries}, "relationships": None}
+    record = {"per_label": {e["label"]: e for e in entries}, "case": {"sequence": None}}
     findings = _border_findings(run_rules(record, default_config()))
     assert len(findings) == 1
     assert findings[0].labels == frozenset({_LABEL_L1})
@@ -540,9 +540,9 @@ def test_ac16_relationships_not_mutated():
         _make_entry(_LABEL_L1, "L1", touched_faces=()),
     ]
     record = _make_record(["T12", "L1"], entries)
-    original = list(record["relationships"]["present_levels"])
+    original = list(record["case"]["sequence"]["present_levels"])
     run_rules(record, default_config())
-    assert record["relationships"]["present_levels"] == original
+    assert record["case"]["sequence"]["present_levels"] == original
 
 
 # =========================================================================== #

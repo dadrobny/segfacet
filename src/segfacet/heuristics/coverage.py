@@ -4,11 +4,11 @@ Implements a **coverage rule family** targeting failure mode 10 (skipped
 level label) in ``failure_modes.SPECIFICATION`` — every vertebra is
 segmented but the labels skip a level. Item 188 (2026-09-28) re-homed the
 rule off mode 6 (vertebra not segmented): the rule reads
-``relationships.missing_levels[]``/``relationships.present_levels[]``, lists
+``case.sequence.missing_levels[]``/``case.sequence.present_levels[]``, lists
 of *labels*, so it can see a missing label in the sequence but not whether
 the vertebra behind it is actually there — that is mode 10's finding, not
 mode 6's. It runs up to three independent checks off the pre-computed
-``relationships`` (item 014) and per-label ``geometry`` (item 011)
+``case.sequence`` (item 014; was ``relationships``, item 216) and per-label ``geometry`` (item 011)
 sub-blocks, distinguished by a stable tag at the start of each finding's
 ``reason`` string:
 
@@ -16,7 +16,7 @@ sub-blocks, distinguished by a stable tag at the start of each finding's
    *within* the observed present-label span is bracketed above and below by
    segmented vertebrae, so the field-of-view (FOV) demonstrably covers it: an
    interior gap is always a genuine failure and is never border-suppressed.
-   Reads ``relationships.missing_levels`` directly (item 014 already restricts
+   Reads ``case.sequence.missing_levels`` directly (item 014 already restricts
    it to interior gaps) rather than re-deriving it.
 
 2. **Incomplete coverage vs an expected span** *(opt-in via
@@ -151,7 +151,7 @@ class CoverageRule(Rule):
         evidence=(
             "analytic",
             "the always-active missing_interior detector reads the label "
-            "gap in relationships.missing_levels[] -- what a skipped level "
+            "gap in case.sequence.missing_levels[] -- what a skipped level "
             "label (mode 10) leaves -- but the rule cannot see whether the "
             "vertebra behind the gap is actually present, so it cannot "
             "distinguish a skipped label from a missed vertebra (mode 6). "
@@ -159,10 +159,26 @@ class CoverageRule(Rule):
             "fires this detector as a recorded co-detection, not a "
             "validation of mode 10: no committed case expresses mode 10 "
             "itself (item 188, 2026-09-28). The two opt-in checks (expected "
-            "span, expected count) over relationships.present_levels[] "
+            "span, expected count) over case.sequence.present_levels[] "
             "moved with the rule and serve the same mode, needs-real-data.",
         ),
         consumed_paths=(
+            ConsumedPath(
+                path="case.sequence",
+                role="bookkeeping",
+                reason=(
+                    "container: the block the two level lists are read "
+                    "from"
+                ),
+            ),
+            ConsumedPath(
+                path="case.sequence.missing_levels[]",
+                role="signal",
+            ),
+            ConsumedPath(
+                path="case.sequence.present_levels[]",
+                role="signal",
+            ),
             ConsumedPath(
                 path="per_label",
                 role="bookkeeping",
@@ -172,20 +188,13 @@ class CoverageRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="relationships",
+                path="per_label.{label}.level_name",
                 role="bookkeeping",
                 reason=(
-                    "container: the block the two level lists are read "
-                    "from"
+                    "gate: matches the FOV span's end levels to the "
+                    "per_label entries that carry them; never mode-6 "
+                    "evidence itself"
                 ),
-            ),
-            ConsumedPath(
-                path="relationships.missing_levels[]",
-                role="signal",
-            ),
-            ConsumedPath(
-                path="relationships.present_levels[]",
-                role="signal",
             ),
         ),
         detectors=(
@@ -201,7 +210,7 @@ class CoverageRule(Rule):
                     "< `expected_count`, strictly (not border-aware)"
                 ),
                 params=(("expected_count", None),),
-                signal_paths=("relationships.present_levels[]",),
+                signal_paths=("case.sequence.present_levels[]",),
             ),
             RuleDetector(
                 detector_id="incomplete_span",
@@ -217,7 +226,7 @@ class CoverageRule(Rule):
                     "beyond a truncated end"
                 ),
                 params=(("expected_levels", ()), ("border_aware", DEFAULT_BORDER_AWARE)),
-                signal_paths=("relationships.present_levels[]",),
+                signal_paths=("case.sequence.present_levels[]",),
             ),
             RuleDetector(
                 detector_id="missing_interior",
@@ -227,10 +236,10 @@ class CoverageRule(Rule):
                     "present levels?"
                 ),
                 fires_when=(
-                    "`relationships.missing_levels` is non-empty (always "
+                    "`case.sequence.missing_levels` is non-empty (always "
                     "active, never border-suppressed)"
                 ),
-                signal_paths=("relationships.missing_levels[]",),
+                signal_paths=("case.sequence.missing_levels[]",),
             ),
         ),
     )
@@ -241,7 +250,7 @@ class CoverageRule(Rule):
         Parameters
         ----------
         record:
-            Per-case feature dict (read-only). Reads ``record["relationships"]``
+            Per-case feature dict (read-only). Reads ``record["case"]["sequence"]``
             and ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads ``rules.coverage.params``.
@@ -276,9 +285,10 @@ class CoverageRule(Rule):
 
         findings: List[Finding] = []
 
-        rel = record.get("relationships")
+        case = record.get("case")
+        rel = case.get("sequence") if isinstance(case, dict) else None
         if not isinstance(rel, dict):
-            # Absent / None / not-a-mapping relationships (AC15) — tolerate.
+            # Absent / None / not-a-mapping case.sequence (AC15) — tolerate.
             return findings
 
         present_levels: List[str] = list(rel.get("present_levels") or [])

@@ -52,7 +52,7 @@ import pytest
 import segfacet.heuristics.intensity  # noqa: F401 — triggers IntensityRule registration
 from segfacet.aggregate import build_case_result
 from segfacet.config import SUPPORTED_SCHEMA_VERSION, default_config, load_config
-from segfacet.feature_report import build_image_features_block
+from segfacet.feature_report import build_image_features_block, build_intensity_entries
 from segfacet.features.intensity import compute_intensity_features
 from segfacet.heuristics import Rule, get_rule, iter_rules, run_rules
 from segfacet.heuristics.intensity import IntensityRule
@@ -104,19 +104,31 @@ def _label_entry(label, median=500.0, std=50.0, first_order=None):
     return {"label": label, "first_order": fo, "extended": {}}
 
 
-def _block(entries, available=True):
-    per_label = {str(e["label"]): e for e in entries} if available else {}
+def _block(available=True):
+    """The case-level image_features block (item 215: it carries no per_label)."""
     return {
-        "image_features_version": "1.0",
+        "image_features_version": "1.1",
         "available": available,
         "radiomics_available": False,
         "backend": "builtin",
-        "per_label": per_label,
     }
 
 
 def _record(entries, available=True):
-    return {"image_features": _block(entries, available=available)}
+    """A record whose per_label entries carry each label's intensity kind
+    (item 215), plus the case-level availability block."""
+    per_label = (
+        {
+            str(e["label"]): {
+                "label": e["label"],
+                "intensity": {k: v for k, v in e.items() if k != "label"},
+            }
+            for e in entries
+        }
+        if available
+        else {}
+    )
+    return {"case": {"intensity": _block(available=available)}, "per_label": per_label}
 
 
 def _intensity_findings(findings):
@@ -162,8 +174,12 @@ def _corpus_record(case_id):
     scan_img = nib.load(str(scan_path))
     seg_img = nib.load(str(seg_path))
     intensity = compute_intensity_features(scan_img, seg_img)
-    block = build_image_features_block(intensity)
-    return {"image_features": block}
+    block = build_image_features_block()
+    per_label = {
+        key: {"label": int(key), "intensity": entry}
+        for key, entry in build_intensity_entries(intensity).items()
+    }
+    return {"case": {"intensity": block}, "per_label": per_label}
 
 
 # =========================================================================== #
@@ -438,13 +454,13 @@ def test_ac14_no_image_features_key_yields_no_findings():
 
 
 def test_ac14_image_features_none_yields_no_findings():
-    findings = IntensityRule().evaluate({"image_features": None}, default_config())
+    findings = IntensityRule().evaluate({"case": {"intensity": None}}, default_config())
     assert findings == []
 
 
 def test_ac14_image_features_non_mapping_yields_no_findings():
     findings = IntensityRule().evaluate(
-        {"image_features": ["not", "a", "mapping"]}, default_config()
+        {"case": {"intensity": ["not", "a", "mapping"]}}, default_config()
     )
     assert findings == []
 
@@ -456,12 +472,13 @@ def test_ac14_image_features_non_mapping_yields_no_findings():
 
 def test_ac15_unavailable_block_yields_no_findings():
     record = {
-        "image_features": {
-            "image_features_version": "1.0",
-            "available": False,
-            "radiomics_available": False,
-            "backend": "builtin",
-            "per_label": {},
+        "case": {
+            "intensity": {
+                "image_features_version": "1.1",
+                "available": False,
+                "radiomics_available": False,
+                "backend": "builtin",
+            }
         }
     }
     findings = IntensityRule().evaluate(record, default_config())
@@ -581,8 +598,7 @@ def test_ac20_ascending_label_then_low_high_degenerate_order():
     label_23_high_and_degenerate = _label_entry(_LABEL_L2, median=3000.0, std=0.5)
 
     # Insert in reverse (23 before 20) and rely on the rule to sort ascending.
-    block = _block([label_23_high_and_degenerate, label_20_low])
-    record = {"image_features": block}
+    record = _record([label_23_high_and_degenerate, label_20_low])
     findings = _intensity_findings(run_rules(record, default_config()))
 
     assert len(findings) == 3
@@ -663,14 +679,15 @@ def test_adv_std_exactly_at_degenerate_threshold_fires_inclusive():
 
 
 def test_adv_empty_per_label_yields_no_findings():
-    record = {"image_features": _block([])}
+    record = _record([])
     assert _intensity_findings(run_rules(record, default_config())) == []
 
 
 def test_adv_non_dict_label_entry_skipped_no_raise():
-    block = _block([_plausible_entry(_LABEL_L1)])
-    block["per_label"]["999"] = "not-a-dict"
-    record = {"image_features": block}
+    record = _record([_plausible_entry(_LABEL_L1)])
+    # Item 215: the malformed element is the label's intensity kind block
+    # (every other rule also reads the per_label entries themselves).
+    record["per_label"]["999"] = {"label": 999, "intensity": "not-a-dict"}
     result = run_rules(record, default_config())
     assert isinstance(result, list)
 

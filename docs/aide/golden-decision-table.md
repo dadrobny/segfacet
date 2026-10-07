@@ -1,5 +1,10 @@
 # Golden-file decision table — Stage 19 (item 105)
 
+> **Record paths renamed (2026-10-07).** Stage 27 (queue 029, items 215/216)
+> moved the feature record's paths. Paths named below (`stage3.*`,
+> `image_features.*`) are as they were when this was written; the
+> [mapping table](../feature-taxonomy.md#mapping-table) gives each one's current path.
+
 This document is the deliverable the roadmap's Stage 19 calls "the golden
 decision table": one row per committed exact-match fixture under `tests/`
 (Section 1), one row per adjacent exact-match artifact that lives outside

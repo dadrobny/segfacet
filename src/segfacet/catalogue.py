@@ -19,7 +19,7 @@ Four derivation mechanisms, each carrying its own evidence tag
   argument in *each rule's own module file*, matched to catalogue paths by
   last path segment -- but **only when that last segment names exactly one**
   leaf path (item 110, AC11b). Catches branches the driver set never realises
-  (e.g. ``overlaps[].overlap_voxels`` when the driver set happens not to
+  (e.g. ``pairs.overlaps[].overlap_voxels`` when the driver set happens not to
   populate it). A name shared by >1 leaf path's last segment (e.g. ``label``,
   ``level_name``, ``mean``, ``median``, ``std``) carries no positional
   information tying it to a specific block, so it contributes no evidence for
@@ -425,24 +425,29 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     (this function's source names no path under the tests directory) so item
     104's drift test never needs a second, drifting copy of the driver set.
     Deterministic: two calls yield equal records. The union of the yielded
-    records' leaf paths realises at least one non-empty ``overlaps`` element,
-    one record with a ``stage3`` block, and one degenerate (0/1-label, hence
-    no ``stage3``) record.
+    records' leaf paths realises at least one non-empty ``pairs.overlaps``
+    element, one record with Stage 3 fields (``case.curve``), and one
+    degenerate (0/1-label, hence no Stage 3) record.
     """
     import numpy as np
     import nibabel as nib
 
     from segfacet.config import bundled_default_config
-    from segfacet.feature_report import build_image_features_block
+    from segfacet.feature_report import (
+        build_image_features_block,
+        build_intensity_entries,
+    )
     from segfacet.features.intensity import LabelIntensity
     from segfacet.features.overlap import detect_overlaps
     from segfacet.pipeline import extract_feature_record
     from segfacet.reference.delta import (
+        REFERENCE_DELTA_VERSION,
         FeatureDelta,
         LabelDelta,
         ReferenceDelta,
         reference_delta_to_dict,
     )
+    from segfacet.reference.ingest import INGESTED_FEATURES
     from segfacet.synth.clean_gt import build_clean_spine
     from segfacet.synth.perturbation import get_perturbation
 
@@ -460,7 +465,7 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     yield "single_label", extract_feature_record(single.seg_img, config)
 
     # A deliberate non-empty overlaps block: reuse the clean record's other
-    # blocks verbatim, replacing only "overlaps" with a real
+    # blocks verbatim, replacing only ``pairs.overlaps`` with a real
     # detect_overlaps() result over a two-channel stack sharing every voxel
     # of the first label -- a multi-channel input the catalogue builds
     # itself, since no committed corpus case can express one (item 195,
@@ -471,16 +476,17 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     stack = np.stack([mask_a, np.array(mask_a, copy=True)], axis=0)
     overlap_pairs = detect_overlaps(stack, np.array([label_a, label_b]))
     overlaps_record = dict(clean_record)
-    overlaps_record["overlaps"] = [
-        {
-            "label_a": p.label_a,
-            "label_b": p.label_b,
-            "name_a": p.name_a,
-            "name_b": p.name_b,
-            "overlap_voxels": p.overlap_voxels,
-        }
-        for p in overlap_pairs
-    ]
+    overlaps_record["pairs"] = {
+        **clean_record["pairs"],
+        "overlaps": [
+            {
+                "label_a": p.label_a,
+                "label_b": p.label_b,
+                "overlap_voxels": p.overlap_voxels,
+            }
+            for p in overlap_pairs
+        ],
+    }
     yield "overlaps", overlaps_record
 
     fragment_cls = get_perturbation("fragment")
@@ -517,32 +523,44 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
         entropy=3.5,
     )
     image_features_block = build_image_features_block(
-        intensity={label_a: placeholder_intensity},
-        extended={label_a: {"original_firstorder_Mean": 480.0}},
         backend="builtin",
         radiomics_available=False,
     )
-    yield "image_features", {"image_features": image_features_block}
+    intensity_entries = build_intensity_entries(
+        {label_a: placeholder_intensity},
+        extended={label_a: {"original_firstorder_Mean": 480.0}},
+    )
+    yield "image_features", {
+        "per_label": {str(label_a): {"intensity": intensity_entries[str(label_a)]}},
+        "case": {"intensity": image_features_block},
+    }
 
-    placeholder_feature_delta = FeatureDelta(
-        feature="physical_volume_mm3",
-        value=18750.0,
-        z_score=0.1,
-        robust_z=0.2,
-        percentile_rank=55.0,
-        out_of_range=False,
+    # One placeholder per feature name ``compute_reference_delta`` scores from a
+    # record (``INGESTED_FEATURES``), so the catalogue lists every
+    # ``reference_delta.{label}.features.<f>.<s>`` path a real report carries
+    # (item 215, D8) -- not only ``physical_volume_mm3``'s.
+    placeholder_feature_deltas = tuple(
+        FeatureDelta(
+            feature=name,
+            value=18750.0,
+            z_score=0.1,
+            robust_z=0.2,
+            percentile_rank=55.0,
+            out_of_range=False,
+        )
+        for name in INGESTED_FEATURES
     )
     placeholder_label_delta = LabelDelta(
         label=label_a,
         level_name="L1",
         stratum="all",
         available=True,
-        features=(placeholder_feature_delta,),
+        features=placeholder_feature_deltas,
         distribution_distance=0.2,
         out_of_range_features=(),
     )
     placeholder_reference_delta = ReferenceDelta(
-        reference_delta_version="1.0",
+        reference_delta_version=REFERENCE_DELTA_VERSION,
         reference_schema_version="1.0",
         reference_source="synthetic-placeholder",
         stratum="all",
@@ -850,8 +868,15 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
                 attributions[path][rule.rule_id].add("observed")
 
     # Mechanism B: static AST scan of each rule's own module file.
+    # A path that is the dotted prefix of another leaf (an empty container
+    # in one driver record, e.g. ``case.sequence`` on ``zero_label``) is a
+    # container, not a field: a bare key literal must not attribute to it
+    # (item 216, D18).
+    containers = {p.rsplit(".", 1)[0] for p in leaf_union if "." in p}
     by_last_segment: Dict[str, List[str]] = defaultdict(list)
     for path in leaf_union:
+        if path in containers:
+            continue
         by_last_segment[_last_segment(path)].append(path)
 
     for rule in rules:

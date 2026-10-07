@@ -162,8 +162,8 @@ def _entry(label, level_name, volume_mm3=20_000.0, extent_x_mm=30.0,
 def _record(*entries: dict, reference=None) -> dict:
     record = {
         "per_label": {e["label"]: e for e in entries},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     if reference is not None:
         record["reference"] = reference
@@ -515,7 +515,7 @@ def test_ac9_source_reference_without_attached_reference_matches_hand_set(tmp_pa
 
 def test_ac9_source_reference_without_attached_reference_does_not_crash():
     cfg = default_config()
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     findings = _bounds_findings(BoundsRule().evaluate(record, cfg))
     assert findings == []
 
@@ -708,7 +708,7 @@ def test_adv_per_metric_fallback_extent_fires_via_hand_set(tmp_path):
 
 def test_adv_empty_per_label_reference_mode_returns_empty_list(tmp_path):
     cfg = load_config(_write_yaml(tmp_path, _reference_mode_yaml()))
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}, "reference": _full_reference()}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}, "reference": _full_reference()}
     assert _bounds_findings(run_rules(record, cfg)) == []
 
 

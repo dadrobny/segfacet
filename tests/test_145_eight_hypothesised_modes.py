@@ -1036,7 +1036,13 @@ def test_ac15_fov_truncation_displacement_claim_holds_live(corpus):
             "spline_offset", "max_offset_mm", default=_DEFAULT_MAX_OFFSET_MM
         )
     )
-    offsets = record["stage3"]["per_label_offsets"]
+    # Item 215: each offset is its label's ``curve`` block; the label is the
+    # per_label entry's own.
+    offsets = [
+        {"label": e["label"], **e["curve"]}
+        for e in record["per_label"].values()
+        if "curve" in e
+    ]
     interior = [o for o in offsets if o["label"] in face_labels and not o["is_terminal"]]
     assert interior, offsets
     assert all(o["offset_mm"] <= threshold for o in interior), (threshold, interior)

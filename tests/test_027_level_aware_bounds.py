@@ -82,8 +82,8 @@ def _make_record(*entries: dict) -> dict:
     """Build a feature record whose per_label is keyed by each entry's label int."""
     return {
         "per_label": {e["label"]: e for e in entries},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -807,14 +807,14 @@ def test_ac13_deterministic_two_runs_identical(tmp_path):
 
 def test_ac14_empty_per_label_returns_empty_list():
     """AC14: evaluate on a record with per_label={} returns [] without raising."""
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     findings = _bounds_findings(run_rules(record, default_config()))
     assert findings == []
 
 
 def test_ac14_absent_per_label_returns_empty_list():
     """AC14: evaluate on a record with no 'per_label' key returns [] without raising."""
-    record = {"relationships": {}, "overlaps": {}}
+    record = {"case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     findings = _bounds_findings(run_rules(record, default_config()))
     assert findings == []
 
@@ -935,7 +935,7 @@ def test_adv_geometry_missing_key_no_crash(tmp_path):
             "voxel_count": 5000,
         },
     }
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     # Must not raise; may produce findings for metrics that are present
     findings = _bounds_findings(run_rules(record, cfg))
     assert isinstance(findings, list)

@@ -807,8 +807,8 @@ def test_ac11_all_drift_directions_and_strict_mechanism_are_clean():
 )
 @pytest.mark.parametrize("label", [3, 17])
 def test_ac12_normalise_leaf_path_collapses_extended_regardless_of_backend(label, name):
-    raw = f"image_features.per_label.{label}.extended.{name}"
-    assert normalise_leaf_path(raw) == "image_features.per_label.{label}.extended.{radiomic}"
+    raw = f"per_label.{label}.intensity.extended.{name}"
+    assert normalise_leaf_path(raw) == "per_label.{label}.intensity.extended.{radiomic}"
 
 
 # =========================================================================== #
@@ -1182,8 +1182,35 @@ def test_ac25_steering_review_heading_present_and_honest():
 
     overrides = feature_docs_module.STATUS_OVERRIDES
     if overrides:
+        # Item 215 fence (e): the 106 record predates the taxonomy migration, so
+        # each key is looked up as its pre-migration path, translated back
+        # through the signed table.
+        from feature_taxonomy_mapping import read_mapping
+
+        new_to_old = {new: old for old, new, change, _by in read_mapping() if change in ("kept", "moved")}
+        # Item 216: a survivor also stands for the row merged onto it, and the
+        # 106 record transcribed the merged row's override (the survivor
+        # pairs.adjacent.spacings_mm[] takes stage3.spacing_consistency.
+        # spacings_mm[]'s), so that old path is accepted too.
+        merged_old: dict = {}
+        for old, new, change, _by in read_mapping():
+            if change == "merged":
+                merged_old.setdefault(new, []).append(old)
+        report_only = re.compile(
+            r"^reference_delta\.\{label\}\.features\."
+            r"(?:extent_x_mm|extent_y_mm|extent_z_mm|spline_offset_mm)\.[a-z_]+$"
+        )
         for key in overrides:
-            assert key in section, f"override key {key!r} not transcribed in the steering-review section"
+            p = new_to_old.get(key, key)
+            if report_only.match(p):
+                counterpart = re.sub(r"\.features\.[a-z_0-9]+\.", ".features.physical_volume_mm3.", key, count=1)
+                assert overrides[key] == overrides[counterpart], (
+                    f"override {key!r} differs from its physical_volume_mm3 counterpart {counterpart!r}"
+                )
+                p = new_to_old.get(counterpart, counterpart)
+            assert any(c in section for c in [p, *merged_old.get(key, [])]), (
+                f"override key {key!r} (pre-migration {p!r}) not transcribed in the steering-review section"
+            )
     else:
         assert "no override recorded" in section
 

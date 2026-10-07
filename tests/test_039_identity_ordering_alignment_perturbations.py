@@ -6,7 +6,7 @@ Covers Acceptance Criteria AC1-AC24:
 - AC1-AC6 (Group A, ``displace``): registration; leave-one-out offset clears
   the mislabel threshold; body translated wholesale (single component,
   preserved voxel count, no bounds/fragmentation/border finding); fires the
-  misalignment finding via a reconstructed ``per_label_offsets`` record fed
+  misalignment finding via a reconstructed ``per_label.{label}.curve`` record fed
   to ``MislabelRule`` directly; since item 120 promoted a held-out per-label
   spline offset into the pipeline, plain ``run_qc`` now fires ``mislabel`` on
   the displaced label too (no longer a documented limitation); Expectation
@@ -155,10 +155,10 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
         (target,) = expectation.expected_labels
         loo = _loo_offset(labelmap, target)
         target_is_terminal = False
-        for entry in record["stage3"]["per_label_offsets"]:
+        for entry in record["per_label"].values():
             if entry["label"] == target:
-                entry["offset_mm"] = loo
-                target_is_terminal = bool(entry.get("is_terminal"))
+                entry["curve"]["offset_mm"] = loo
+                target_is_terminal = bool(entry["curve"].get("is_terminal"))
         # Item 189 (2026-09-28): the offset detector moved to its own
         # spline_offset rule.
         findings = SplineOffsetRule().evaluate(record, cfg)
@@ -178,10 +178,10 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
         return fires
     if operator_name == "relabel_swap":
         pairs = _reconstruct_mono_pairs(labelmap)
-        record["stage3"]["monotonic_consistency"]["non_monotonic_pairs"] = [
+        record["pairs"]["adjacent"]["non_monotonic_pairs"] = [
             list(p) for p in pairs
         ]
-        record["stage3"]["monotonic_consistency"]["is_monotonic"] = False
+        record["case"]["curve"]["is_monotonic"] = False
         findings = MislabelRule().evaluate(record, cfg)
         return any(
             f.rule_id == "mislabel"
@@ -379,10 +379,10 @@ def test_ac10_relabel_swap_fires_ordering_finding_via_reconstructed_record():
 
     record = extract_feature_record(result.labelmap, cfg)
     pairs = _reconstruct_mono_pairs(result.labelmap)
-    record["stage3"]["monotonic_consistency"]["non_monotonic_pairs"] = [
+    record["pairs"]["adjacent"]["non_monotonic_pairs"] = [
         list(p) for p in pairs
     ]
-    record["stage3"]["monotonic_consistency"]["is_monotonic"] = False
+    record["case"]["curve"]["is_monotonic"] = False
 
     findings = MislabelRule().evaluate(record, cfg)
     matches = [
@@ -665,10 +665,10 @@ def test_adv_relabel_swap_different_adjacent_pair_fires_on_exactly_that_pair():
     )
     record = extract_feature_record(result.labelmap, cfg)
     pairs = _reconstruct_mono_pairs(result.labelmap)
-    record["stage3"]["monotonic_consistency"]["non_monotonic_pairs"] = [
+    record["pairs"]["adjacent"]["non_monotonic_pairs"] = [
         list(p) for p in pairs
     ]
-    record["stage3"]["monotonic_consistency"]["is_monotonic"] = False
+    record["case"]["curve"]["is_monotonic"] = False
     findings = MislabelRule().evaluate(record, cfg)
     matches = [
         f

@@ -62,7 +62,7 @@ __all__ = [
 
 # Version discriminator for the reference_delta report block, independent of
 # the report schema_version and the reference schema_version.
-REFERENCE_DELTA_VERSION: str = "1.0"
+REFERENCE_DELTA_VERSION: str = "1.1"
 
 # Default out-of-range bound percentiles.
 DEFAULT_LOWER_PCT: int = 1
@@ -207,7 +207,7 @@ def _case_features_for_label(entry: Mapping, offsets_by_label: Mapping[int, floa
 
     Reads the geometry scalars from ``entry["geometry"]`` (whichever of
     ``_GEOMETRY_FEATURES`` are present) and, when available, the matching
-    Stage 3 spline offset. Never mutates ``entry``.
+    spline offset. Never mutates ``entry``.
     """
 
     geometry = entry.get("geometry", {})
@@ -228,7 +228,7 @@ def _distribution_distance(feature_deltas: Tuple[FeatureDelta, ...]) -> Optional
 
 def _intensity_case_values(image_entry: Mapping, tracked_intensity: Tuple[str, ...]) -> dict:
     """Extract the tracked ``intensity_*`` values present for one label's
-    ``image_features`` per-label entry (item 064).
+    ``intensity`` kind block (items 064, 215).
 
     Reads ``image_entry["first_order"]`` and, for each ``tracked_intensity``
     name (``"intensity_<stat>"``), looks up ``first_order["<stat>"]`` (the
@@ -259,7 +259,7 @@ def _morphology_case_values(
 
     Reads ``largest_component_fraction`` / ``component_count`` from
     ``entry["components"]`` (cast ``component_count`` to ``float``) and, when
-    available, the matching Stage 3 ``eigenvalue_ratio``. Never reads
+    available, the matching ``eigenvalue_ratio``. Never reads
     ``entry["geometry"]``. Never mutates ``entry``.
     """
 
@@ -322,15 +322,16 @@ def compute_reference_delta(
     tracked_features = tuple(sorted(reference.features))
 
     offsets_by_label = {}
-    stage3 = features_block.get("stage3")
-    if stage3 is not None:
-        for offset_entry in stage3.get("per_label_offsets", []):
-            if offset_entry.get("is_terminal"):
-                # Symmetric with reference/ingest.py's exclusion (item 123):
-                # the reference distribution is interior-only, so a
-                # terminal case-side offset must never be scored against it.
-                continue
-            offsets_by_label[int(offset_entry["label"])] = offset_entry["offset_mm"]
+    for label_entry in features_block.get("per_label", {}).values():
+        offset_entry = label_entry.get("curve")
+        if not isinstance(offset_entry, MappingABC) or "offset_mm" not in offset_entry:
+            continue
+        if offset_entry.get("is_terminal"):
+            # Symmetric with reference/ingest.py's exclusion (item 123):
+            # the reference distribution is interior-only, so a
+            # terminal case-side offset must never be scored against it.
+            continue
+        offsets_by_label[int(label_entry["label"])] = offset_entry["offset_mm"]
 
     per_label = {}
     for _label_str, entry in features_block.get("per_label", {}).items():
@@ -413,8 +414,9 @@ def compute_intensity_reference_delta(
     used purely as the authoritative label -> ``level_name`` join surface),
     looks up its level's ``FeatureStats`` in ``reference`` (for ``stratum``)
     and scores the case's intensity values -- drawn from
-    ``image_features["per_label"][str(label)]["first_order"]`` (item 061's
-    shape) -- against the ``intensity_``-prefixed subset of
+    ``features_block["per_label"][str(label)]["intensity"]["first_order"]``
+    (items 061, 215; ``image_features`` -- the ``case.intensity`` block since
+    item 216 -- is only the case-level availability gate) -- against the ``intensity_``-prefixed subset of
     ``reference.features``. Reuses :func:`_feature_delta` (and hence the
     same z / robust-z / percentile-rank / out-of-range / distribution-distance
     mechanics item 046 uses for geometry).
@@ -455,20 +457,12 @@ def compute_intensity_reference_delta(
         sorted(name for name in reference.features if name.startswith(INTENSITY_FEATURE_PREFIX))
     )
 
-    image_by_label: dict = {}
-    if (
-        isinstance(image_features, MappingABC)
-        and image_features.get("available")
-        and isinstance(image_features.get("per_label"), MappingABC)
-    ):
-        for label_key, image_entry in image_features["per_label"].items():
-            if not isinstance(image_entry, MappingABC):
-                continue
-            try:
-                image_label = int(image_entry.get("label", label_key))
-            except (TypeError, ValueError):
-                continue
-            image_by_label[image_label] = image_entry
+    # The case-level ``image_features`` block is only the availability gate;
+    # the per-label statistics live on the features record's own entries
+    # (item 215).
+    intensity_enabled = isinstance(image_features, MappingABC) and bool(
+        image_features.get("available")
+    )
 
     per_label = {}
     for _label_str, entry in features_block.get("per_label", {}).items():
@@ -489,7 +483,9 @@ def compute_intensity_reference_delta(
             continue
 
         level_dist = level_strata[stratum]
-        case_values = _intensity_case_values(image_by_label.get(label, {}), tracked_intensity)
+        case_values = _intensity_case_values(
+            entry.get("intensity", {}) if intensity_enabled else {}, tracked_intensity
+        )
 
         feature_deltas = []
         for feature_name in tracked_intensity:
@@ -552,7 +548,7 @@ def compute_morphology_reference_delta(
     ``FeatureStats`` in ``reference`` (for ``stratum``) and scores the case's
     morphology values -- ``largest_component_fraction`` / ``component_count``
     from that label's ``components`` block, and ``eigenvalue_ratio`` from
-    ``features_block["stage3"]["per_label_orientations"]`` matched by label --
+    ``features_block["per_label"][key]["orientation"]`` --
     against the :data:`MORPHOLOGY_FEATURES` subset of ``reference.features``.
     Reuses :func:`_feature_delta` (the same z / robust-z / percentile-rank /
     out-of-range / distribution-distance mechanics the other two deltas use).
@@ -594,10 +590,10 @@ def compute_morphology_reference_delta(
     )
 
     orientations_by_label = {}
-    stage3 = features_block.get("stage3")
-    if stage3 is not None:
-        for orientation_entry in stage3.get("per_label_orientations", []):
-            orientations_by_label[int(orientation_entry["label"])] = orientation_entry[
+    for label_entry in features_block.get("per_label", {}).values():
+        orientation_entry = label_entry.get("orientation")
+        if isinstance(orientation_entry, MappingABC) and "eigenvalue_ratio" in orientation_entry:
+            orientations_by_label[int(label_entry["label"])] = orientation_entry[
                 "eigenvalue_ratio"
             ]
 
@@ -678,8 +674,6 @@ def _feature_delta_to_dict(fd: FeatureDelta) -> dict:
 
 def _label_delta_to_dict(ld: LabelDelta) -> dict:
     return {
-        "label": ld.label,
-        "level_name": ld.level_name,
         "available": ld.available,
         "distribution_distance": ld.distribution_distance,
         "out_of_range_features": list(ld.out_of_range_features),

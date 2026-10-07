@@ -65,10 +65,6 @@
       "description": "Optional Stage 6 delta-to-reference block (item 046): per-label distribution-relative metrics scored against a loaded reference distribution. Absent for reports that did not run the delta-to-reference computation.",
       "$ref": "#/definitions/referenceDelta"
     },
-    "image_features": {
-      "description": "Optional Stage 8 image-based feature block (item 061): per-label first-order intensity statistics and optional radiomics extended features. Absent for reports that did not run the intensity extraction.",
-      "$ref": "#/definitions/imageFeatures"
-    },
     "run_manifest": {
       "description": "Optional Stage 17 run-manifest provenance block (item 096): segmenter version/SHA, weights hash, seed, dataset id, post-processing toggles, and resolved package versions. Absent for reports that were not given any manifest flags.",
       "$ref": "#/definitions/runManifest"
@@ -134,13 +130,29 @@
     },
     "features": {
       "type": "object",
-      "description": "Consolidated Stage 2 features for a case: per-label geometry/components/centroid, inter-vertebra relationships, and overlap pairs. Stage 3 adds an optional 'stage3' sub-block.",
+      "description": "Consolidated features for a case: per-label kind blocks (geometry, components, centroid and, when computed, curve, orientation, neighbourhood and intensity), the case-level 'case' container (level sequence and, when computed, curve and intensity) and the 'pairs' container (overlap pairs and adjacent-pair values).",
       "additionalProperties": false,
-      "required": ["features_version", "per_label", "overlaps", "relationships"],
+      "required": ["features_version", "per_label", "case", "pairs"],
+      "if": {
+        "properties": {
+          "pairs": {
+            "properties": {"adjacent": {"required": ["non_monotonic_pairs"]}},
+            "required": ["adjacent"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "case": {
+            "properties": {"curve": {"required": ["is_monotonic"]}},
+            "required": ["curve"]
+          }
+        }
+      },
       "properties": {
         "features_version": {
           "type": "string",
-          "description": "Version discriminator for the features block, independent of the top-level schema_version. Stage 3 bumps this to '0.2'.",
+          "description": "Version discriminator for the features block, independent of the top-level schema_version. Stage 3 bumps this to '0.3'; item 215 bumped the base value to '0.2' (the per-label intensity kind) and the Stage 3 value from '0.2' to '0.3' (the per-label Stage 3 fields moved under per_label.{label}). Item 216 moved the case-level fields under 'case' and 'pairs' without a further bump.",
           "minLength": 1
         },
         "per_label": {
@@ -150,23 +162,13 @@
             "$ref": "#/definitions/labelFeatures"
           }
         },
-        "overlaps": {
-          "type": "array",
-          "description": "Voxel-level overlap between label pairs. Empty when no labels overlap.",
-          "items": {
-            "$ref": "#/definitions/overlapPair"
-          }
+        "case": {
+          "description": "Case-wide values (item 216): the level sequence (null when not computed, e.g. zero labels) and, when computed, the spinal curve and the case-level intensity block.",
+          "$ref": "#/definitions/caseFeatures"
         },
-        "relationships": {
-          "description": "Inter-vertebra relationships, or null when not computed (e.g. zero labels).",
-          "oneOf": [
-            {"$ref": "#/definitions/relationships"},
-            {"type": "null"}
-          ]
-        },
-        "stage3": {
-          "description": "Optional Stage 3 deviation features (spline offset, orientation/curvature, neighbour-consistency). Absent for Stage-2-only reports.",
-          "$ref": "#/definitions/stage3"
+        "pairs": {
+          "description": "Values that belong to a pair of labels (item 216): the voxel-level overlaps and the adjacent-pair values.",
+          "$ref": "#/definitions/pairFeatures"
         },
         "stage3_unavailable": {
           "description": "Optional diagnostic recording why the Stage 3 spline fit was not attempted (item 129) -- present only when at least two labels are present but Stage 3 was skipped, e.g. two centroids sharing an exact mm-coordinate. Deliberately outside the feature catalogue.",
@@ -213,7 +215,7 @@
     },
     "labelFeatures": {
       "type": "object",
-      "description": "All Stage 2 features for a single integer label.",
+      "description": "All features for a single integer label. The identity (label, level_name) is stored once, here; every other copy was merged onto it (item 215). Geometry, components and centroid come from the label map and are required. Curve, orientation and neighbourhood are present when Stage 3 ran, and intensity when a scan was supplied.",
       "additionalProperties": false,
       "required": ["label", "level_name", "geometry", "components", "centroid"],
       "properties": {
@@ -227,7 +229,11 @@
         },
         "geometry": {"$ref": "#/definitions/geometry"},
         "components": {"$ref": "#/definitions/components"},
-        "centroid": {"$ref": "#/definitions/centroid"}
+        "centroid": {"$ref": "#/definitions/centroid"},
+        "curve": {"$ref": "#/definitions/stage3OffsetEntry"},
+        "orientation": {"$ref": "#/definitions/stage3OrientationEntry"},
+        "neighbourhood": {"$ref": "#/definitions/stage3NeighbourhoodEntry"},
+        "intensity": {"$ref": "#/definitions/imageLabelFeatures"}
       }
     },
     "bbox": {
@@ -406,27 +412,65 @@
     },
     "overlapPair": {
       "type": "object",
-      "description": "A single pair of overlapping labels (item 015). Ordered so label_a < label_b.",
+      "description": "A single pair of overlapping labels (item 015), stored as pairs.overlaps[]. Ordered so label_a < label_b. Each side's level name is stored once, at per_label.{label}.level_name (item 216).",
       "additionalProperties": false,
-      "required": ["label_a", "label_b", "name_a", "name_b", "overlap_voxels"],
+      "required": ["label_a", "label_b", "overlap_voxels"],
       "properties": {
         "label_a": {"type": "integer"},
         "label_b": {"type": "integer"},
-        "name_a": {"type": "string"},
-        "name_b": {"type": "string"},
         "overlap_voxels": {"type": "integer", "minimum": 0}
+      }
+    },
+    "caseFeatures": {
+      "type": "object",
+      "description": "Case-wide values (item 216), stored as features.case.",
+      "additionalProperties": false,
+      "required": ["sequence"],
+      "properties": {
+        "sequence": {
+          "description": "The case's level sequence (features.case.sequence), or null when not computed (e.g. zero labels).",
+          "oneOf": [
+            {"$ref": "#/definitions/relationships"},
+            {"type": "null"}
+          ]
+        },
+        "curve": {
+          "description": "Global spinal curve descriptors (features.case.curve); present when at least two labels allowed the Stage 3 fit.",
+          "$ref": "#/definitions/stage3Curvature"
+        },
+        "intensity": {
+          "description": "Optional Stage 8 case-level intensity block (items 061, 216): availability and provenance of the intensity features (the per-label statistics are stored under per_label.{label}.intensity, item 215). Absent for runs that did not run the intensity extraction.",
+          "$ref": "#/definitions/imageFeatures"
+        }
+      }
+    },
+    "pairFeatures": {
+      "type": "object",
+      "description": "Values that belong to a pair of labels (item 216), stored as features.pairs.",
+      "additionalProperties": false,
+      "required": ["overlaps"],
+      "properties": {
+        "overlaps": {
+          "type": "array",
+          "description": "Voxel-level overlap between label pairs. Empty when no labels overlap.",
+          "items": {"$ref": "#/definitions/overlapPair"}
+        },
+        "adjacent": {
+          "description": "Values of each pair of adjacent labels in the anatomical sequence; present for every record with at least one label.",
+          "$ref": "#/definitions/stage3SpacingConsistency"
+        }
       }
     },
     "relationships": {
       "type": "object",
-      "description": "Inter-vertebra relationships for the case (item 014).",
+      "description": "The case's level sequence (item 014, stored as features.case.sequence since item 216).",
       "additionalProperties": false,
       "required": [
         "present_levels",
         "missing_levels",
-        "neighbour_spacings_mm",
         "is_continuous",
-        "out_of_order_labels"
+        "out_of_order_labels",
+        "order"
       ],
       "properties": {
         "present_levels": {
@@ -439,78 +483,51 @@
           "description": "Levels absent within the observed [min..max] span, in canonical order.",
           "items": {"type": "string"}
         },
-        "neighbour_spacings_mm": {
-          "type": "array",
-          "description": "Euclidean distances (mm) between adjacent centroids in canonical order.",
-          "items": {"type": "number"}
-        },
         "is_continuous": {"type": "boolean"},
         "out_of_order_labels": {
           "type": "array",
-          "description": "Level names (in input order) that broke canonical monotonicity.",
+          "description": "Level names (in the integer-label input order, which is the order this array alone is computed in) that broke canonical monotonicity.",
           "items": {"type": "string"}
-        }
-      }
-    },
-    "stage3": {
-      "type": "object",
-      "description": "Stage 3 deviation features (item 022): per-vertebra spline offsets, orientation/curvature, and neighbour-consistency metrics.",
-      "additionalProperties": false,
-      "properties": {
-        "per_label_offsets": {
+        },
+        "order": {
           "type": "array",
-          "description": "Per-vertebra perpendicular offset from the fitted spline (item 018). Sorted ascending by label.",
-          "items": {"$ref": "#/definitions/stage3OffsetEntry"}
-        },
-        "per_label_orientations": {
-          "type": "array",
-          "description": "Per-vertebra PCA orientation (item 019). Sorted ascending by label.",
-          "items": {"$ref": "#/definitions/stage3OrientationEntry"}
-        },
-        "curvature": {
-          "description": "Global spinal curvature descriptors (item 019).",
-          "$ref": "#/definitions/stage3Curvature"
-        },
-        "spacing_consistency": {
-          "description": "Inter-centroid spacing regularity metrics (item 020).",
-          "$ref": "#/definitions/stage3SpacingConsistency"
-        },
-        "monotonic_consistency": {
-          "description": "Anatomical-order vs spline-parameter monotonicity metrics (item 020).",
-          "$ref": "#/definitions/stage3MonotonicConsistency"
-        },
-        "per_label_neighbourhood": {
-          "type": "array",
-          "description": "Per-vertebra local neighbourhood comparison (item 110): sliding-window statistics and a leave-one-out deviation score/outlier flag for a named feature set. Sorted ascending by label. Unwired: no rule consumes this block yet.",
-          "items": {"$ref": "#/definitions/stage3NeighbourhoodEntry"}
+          "description": "Every integer label of the record in the one anatomical order that every per-label sequence, array and Stage 3 extractor input in the record follows (item 216): the CANONICAL_ORDER rank of the label's level name with unrecognised names last, then the integer label (item 198). Compare with the sorted keys of per_label to see where it departs from integer order.",
+          "items": {"type": "integer"}
         }
       }
     },
     "stage3OffsetEntry": {
       "type": "object",
-      "description": "Per-vertebra perpendicular offset from the fitted spline.",
+      "description": "A label's position relative to the fitted spinal curve (per_label.{label}.curve): its perpendicular offset from the spline (item 018) and its normalised arc-length position along the label-free path through the centroids (items 198, 210). No identity copy; the entry's own label and level_name name it (item 215). The six offset fields come together (any one requires the rest), and path_u may stand alone: the pipeline emits a path_u-only curve when a monotonic-consistency result is supplied without spline offsets.",
       "additionalProperties": false,
-      "required": ["label", "level_name", "closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+      "dependencies": {
+        "closest_u": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "offset_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "offset_voxel": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "dx_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "dy_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"],
+        "dz_mm": ["closest_u", "offset_mm", "offset_voxel", "dx_mm", "dy_mm", "dz_mm"]
+      },
       "properties": {
-        "label": {"type": "integer", "description": "Integer label value."},
-        "level_name": {"type": "string", "description": "Anatomical vertebra name."},
         "closest_u": {"type": "number", "description": "Spline parameter value (0..1) of the closest point on the curve."},
         "offset_mm": {"type": "number", "minimum": 0, "description": "Euclidean distance (mm) to the closest spline point."},
         "offset_voxel": {"type": "number", "minimum": 0, "description": "Same distance in voxel units."},
         "dx_mm": {"type": "number", "description": "x-component of the displacement vector (mm)."},
         "dy_mm": {"type": "number", "description": "y-component of the displacement vector (mm)."},
         "dz_mm": {"type": "number", "description": "z-component of the displacement vector (mm)."},
-        "is_terminal": {"type": "boolean", "description": "True for the first/last entry of the ordered centroid sequence it was measured in (item 123). Optional -- an entry omitting it is treated as interior (False) by every consumer."}
+        "is_terminal": {"type": "boolean", "description": "True for the first/last entry of the ordered centroid sequence it was measured in (item 123). Optional -- an entry omitting it is treated as interior (False) by every consumer."},
+        "path_u": {"type": "number", "description": "This label's u: its normalised arc length in [0, 1] along the label-free minimum-spanning-tree longest path through the vertebra centroids (item 210), directed to have the fewest inversions against the anatomical order; a different quantity from closest_u, the position on the fitted spline. One element of the former stage3.monotonic_consistency.u_values array."}
       }
     },
     "stage3OrientationEntry": {
       "type": "object",
-      "description": "Per-vertebra PCA orientation.",
+      "description": "Which way a label's vertebral body points (per_label.{label}.orientation): the PCA principal axis (item 019), the spline tangent (item 121) and the tangent's unwrapped per-plane angles (item 131, 122). No identity copy (item 215). Either the PCA pair (principal_axis, eigenvalue_ratio) or the three unwrapped tangent angles must be present: the PCA and the curvature fields come from independent optional sources.",
       "additionalProperties": false,
-      "required": ["label", "level_name", "principal_axis", "eigenvalue_ratio"],
+      "anyOf": [
+        {"required": ["principal_axis", "eigenvalue_ratio"]},
+        {"required": ["tangent_angle_deg", "tangent_coronal_unwrapped_deg", "tangent_sagittal_unwrapped_deg"]}
+      ],
       "properties": {
-        "label": {"type": "integer", "description": "Integer label value."},
-        "level_name": {"type": "string", "description": "Anatomical vertebra name."},
         "principal_axis": {
           "type": "array",
           "description": "Unit vector (3 floats) of the first principal component in mm-space.",
@@ -528,106 +545,72 @@
           "maxItems": 3
         },
         "spline_tangent_coronal_deg": {"type": "number", "description": "Signed in-plane tilt in the coronal (R-S) plane at spline_closest_u, wrapped to (-180, 180] (item 121)."},
-        "spline_tangent_sagittal_deg": {"type": "number", "description": "Signed in-plane tilt in the sagittal (A-S) plane at spline_closest_u, wrapped to (-180, 180] (item 121)."}
+        "spline_tangent_sagittal_deg": {"type": "number", "description": "Signed in-plane tilt in the sagittal (A-S) plane at spline_closest_u, wrapped to (-180, 180] (item 121)."},
+        "tangent_angle_deg": {"type": "number", "description": "Spline tangent angle (degrees) at this label's u value, relative to the z-axis, computed from tangents normalised so the sequence advances superiorly (items 131, 215). One element of the former stage3.curvature.tangent_angles_deg array."},
+        "tangent_coronal_unwrapped_deg": {"type": "number", "description": "Signed tangent angle (degrees) in the coronal (R-S) plane at this label, degrees(atan2(t_R, t_S)), unwrapped along the spine (items 122, 215); the same tangent as spline_tangent_coronal_deg, read unwrapped instead of wrapped. One element of the former stage3.curvature.coronal_tangent_angles_deg array."},
+        "tangent_sagittal_unwrapped_deg": {"type": "number", "description": "Signed tangent angle (degrees) in the sagittal (A-S) plane at this label, unwrapped and direction-normalised like tangent_coronal_unwrapped_deg (items 122, 215). One element of the former stage3.curvature.sagittal_tangent_angles_deg array."}
       }
     },
     "stage3Curvature": {
       "type": "object",
-      "description": "Global spinal curvature descriptors.",
+      "description": "Global spinal curve descriptors (features.case.curve): the four curvature scalars and whether the anatomical order advances along the label-free path. The three per-label tangent-angle arrays are stored one scalar per label under per_label.{label}.orientation since item 215; the adjacent-pair arrays under pairs.adjacent since item 216.",
       "additionalProperties": false,
-      "required": [
-        "tangent_angles_deg",
-        "inter_tangent_angles_deg",
-        "total_curvature_deg",
-        "coronal_tangent_angles_deg",
-        "sagittal_tangent_angles_deg",
-        "coronal_curvature_deg",
-        "sagittal_curvature_deg",
-        "curvature_plane"
-      ],
+      "dependencies": {
+        "total_curvature_deg": ["coronal_curvature_deg", "sagittal_curvature_deg", "curvature_plane"],
+        "coronal_curvature_deg": ["total_curvature_deg", "sagittal_curvature_deg", "curvature_plane"],
+        "sagittal_curvature_deg": ["total_curvature_deg", "coronal_curvature_deg", "curvature_plane"],
+        "curvature_plane": ["total_curvature_deg", "coronal_curvature_deg", "sagittal_curvature_deg"]
+      },
       "properties": {
-        "tangent_angles_deg": {
-          "type": "array",
-          "description": "Spline tangent angle (degrees) at each centroid's u value, relative to the z-axis, computed from tangents normalised so the sequence advances superiorly (item 131), invariant to whether the caller supplied centroids cranial-first or caudal-first.",
-          "items": {"type": "number"}
-        },
-        "inter_tangent_angles_deg": {
-          "type": "array",
-          "description": "Angle (degrees) between consecutive tangent vectors. Length is n_centroids - 1. Read as if the tangents were normalised so the sequence advances superiorly; already invariant to traversal direction, so no negation is needed to produce that reading.",
-          "items": {"type": "number"}
-        },
         "total_curvature_deg": {
           "type": "number",
           "minimum": 0,
           "description": "The larger of coronal_curvature_deg and sagittal_curvature_deg -- the sweep in the anatomical plane the spine turns in most. See curvature_plane for which one."
         },
-        "coronal_tangent_angles_deg": {
-          "type": "array",
-          "description": "Signed tangent angle (degrees) in the coronal (R-S) plane at each centroid: degrees(atan2(t_R, t_S)), unwrapped along the spine and computed from tangents normalised so the sequence advances superiorly. Positive tilts toward the patient's right as the spine advances cranially. Requires RAS-ordered mm centroids (io.load_volume reorients every volume to R, A, S).",
-          "items": {"type": "number"}
-        },
-        "sagittal_tangent_angles_deg": {
-          "type": "array",
-          "description": "Signed tangent angle (degrees) in the sagittal (A-S) plane at each centroid: degrees(atan2(t_A, t_S)), unwrapped and direction-normalised the same way as coronal_tangent_angles_deg. Positive tilts anterior. Requires RAS-ordered mm centroids (io.load_volume reorients every volume to R, A, S).",
-          "items": {"type": "number"}
-        },
         "coronal_curvature_deg": {
           "type": "number",
           "minimum": 0,
-          "description": "max - min of coronal_tangent_angles_deg -- the coronal-plane sweep. 0.0 for a curve confined to the sagittal plane."
+          "description": "max - min of the labels' tangent_coronal_unwrapped_deg -- the coronal-plane sweep. 0.0 for a curve confined to the sagittal plane."
         },
         "sagittal_curvature_deg": {
           "type": "number",
           "minimum": 0,
-          "description": "max - min of sagittal_tangent_angles_deg -- the sagittal-plane sweep. 0.0 for a curve confined to the coronal plane."
+          "description": "max - min of the labels' tangent_sagittal_unwrapped_deg -- the sagittal-plane sweep. 0.0 for a curve confined to the coronal plane."
         },
         "curvature_plane": {
           "type": "string",
           "enum": ["coronal", "sagittal"],
           "description": "\"coronal\" when coronal_curvature_deg >= sagittal_curvature_deg, else \"sagittal\". An exact tie (including 0.0/0.0) resolves to \"coronal\"."
-        }
+        },
+        "is_monotonic": {"type": "boolean", "description": "True iff u, the normalised arc length along the label-free minimum-spanning-tree longest path through the centroids (item 210), increases at every consecutive pair in anatomical order. Each label's own u is per_label.{label}.curve.path_u."}
       }
     },
     "stage3SpacingConsistency": {
       "type": "object",
-      "description": "Inter-centroid spacing regularity metrics.",
+      "description": "Values of each pair of adjacent labels in the anatomical sequence (features.pairs.adjacent). Only spacings_mm exists on every record with at least one label; the statistics and the two pair arrays are Stage 3 values derived from that same sequence.",
       "additionalProperties": false,
-      "required": ["mean_spacing_mm", "cv_spacing", "spacings_mm", "deviations_mm", "outlier_pairs"],
+      "dependencies": {
+        "mean_spacing_mm": ["spacings_mm"],
+        "cv_spacing": ["spacings_mm"],
+        "deviations_mm": ["spacings_mm"],
+        "outlier_pairs": ["spacings_mm"]
+      },
       "properties": {
-        "mean_spacing_mm": {"type": "number", "description": "Mean inter-centroid spacing (mm)."},
-        "cv_spacing": {"type": "number", "minimum": 0, "description": "Coefficient of variation of inter-centroid spacings."},
         "spacings_mm": {
           "type": "array",
-          "description": "Per-adjacent-pair spacings in anatomical order (length n_centroids - 1).",
+          "description": "Euclidean distances (mm) between the centroids of consecutive labels of the anatomical sequence (case.sequence.order): every label, unrecognised labels last (item 216; the integer-label order is anatomically meaningless). Length is n_labels - 1, and [] below two labels; present on every record with at least one label, including one whose centroids coincide.",
           "items": {"type": "number"}
         },
+        "mean_spacing_mm": {"type": "number", "description": "Mean of spacings_mm (mm). Stage 3 only."},
+        "cv_spacing": {"type": "number", "minimum": 0, "description": "Coefficient of variation of spacings_mm. Stage 3 only."},
         "deviations_mm": {
           "type": "array",
-          "description": "Signed deviation of each spacing from the mean.",
+          "description": "Signed deviation of each spacings_mm element from its mean. Stage 3 only.",
           "items": {"type": "number"}
         },
         "outlier_pairs": {
           "type": "array",
-          "description": "Level-name pairs whose spacing is flagged as an outlier. Each entry is a 2-element list [level_a, level_b].",
-          "items": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 2,
-            "maxItems": 2
-          }
-        }
-      }
-    },
-    "stage3MonotonicConsistency": {
-      "type": "object",
-      "description": "Anatomical-order vs spline-parameter monotonicity metrics.",
-      "additionalProperties": false,
-      "required": ["is_monotonic", "non_monotonic_pairs", "u_values"],
-      "properties": {
-        "is_monotonic": {"type": "boolean", "description": "True iff spline parameter u increases at every consecutive pair."},
-        "non_monotonic_pairs": {
-          "type": "array",
-          "description": "Level-name pairs where u did not advance. Each entry is a 2-element list [level_a, level_b].",
+          "description": "Level-name pairs whose spacing is flagged as an outlier. Each entry is a 2-element list [level_a, level_b]. Stage 3 only.",
           "items": {
             "type": "array",
             "items": {"type": "string"},
@@ -635,21 +618,29 @@
             "maxItems": 2
           }
         },
-        "u_values": {
+        "inter_tangent_angles_deg": {
           "type": "array",
-          "description": "Per-centroid spline parameter values (length n_centroids).",
+          "description": "Angle (degrees) between consecutive tangent vectors of the anatomical sequence. Length is n_centroids - 1. Read as if the tangents were normalised so the sequence advances superiorly; already invariant to traversal direction, so no negation is needed to produce that reading. Stage 3 only.",
           "items": {"type": "number"}
+        },
+        "non_monotonic_pairs": {
+          "type": "array",
+          "description": "Level-name pairs where u, the normalised arc length along the label-free path through the centroids (item 210), did not advance in anatomical order. Each entry is a 2-element list [level_a, level_b]. Stage 3 only.",
+          "items": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 2,
+            "maxItems": 2
+          }
         }
       }
     },
     "stage3NeighbourhoodEntry": {
       "type": "object",
-      "description": "One vertebra's local neighbourhood comparison result (item 110).",
+      "description": "One vertebra's local neighbourhood comparison result (item 110), stored as per_label.{label}.neighbourhood. No identity copy (item 215).",
       "additionalProperties": false,
-      "required": ["label", "level_name", "window_labels", "stats", "deviation_score", "is_outlier"],
+      "required": ["window_labels", "stats", "deviation_score", "is_outlier"],
       "properties": {
-        "label": {"type": "integer", "description": "Integer label value."},
-        "level_name": {"type": "string", "description": "Anatomical vertebra name."},
         "window_labels": {
           "type": "array",
           "description": "Integer label values of every vertebra in the sliding window (including the focal vertebra).",
@@ -731,19 +722,15 @@
     },
     "referenceLabelDelta": {
       "type": "object",
-      "description": "One label's delta-to-reference result.",
+      "description": "One label's delta-to-reference result, keyed by the label in referenceDelta.per_label. It carries no copy of the label or its level_name: those are stored once, on per_label.{label} (item 215).",
       "additionalProperties": false,
       "required": [
-        "label",
-        "level_name",
         "available",
         "distribution_distance",
         "out_of_range_features",
         "features"
       ],
       "properties": {
-        "label": {"type": "integer", "description": "The integer label value."},
-        "level_name": {"type": "string", "description": "Anatomical vertebra name looked up in the reference."},
         "available": {
           "type": "boolean",
           "description": "False when the (level_name, stratum) pair is absent from the reference; features/distribution_distance are then empty/null, not an error."
@@ -768,14 +755,13 @@
     },
     "imageFeatures": {
       "type": "object",
-      "description": "Stage 8 image-based feature block (item 061): per-label first-order intensity statistics and optional radiomics extended features, with block-level provenance.",
+      "description": "Stage 8 image-based feature block (item 061), case-level fields only since item 215: availability and provenance of the intensity features. The per-label statistics are stored as per_label.{label}.intensity in the features block.",
       "additionalProperties": false,
       "required": [
         "image_features_version",
         "available",
         "radiomics_available",
-        "backend",
-        "per_label"
+        "backend"
       ],
       "properties": {
         "image_features_version": {
@@ -785,7 +771,7 @@
         },
         "available": {
           "type": "boolean",
-          "description": "False when intensity was attempted but unavailable (no scan / no backend); per_label is then empty, not an error."
+          "description": "False when intensity was attempted but unavailable (no scan / no backend), not an error."
         },
         "radiomics_available": {
           "type": "boolean",
@@ -794,23 +780,15 @@
         "backend": {
           "type": "string",
           "description": "Provenance marker for the intensity/radiomics backend used (e.g. 'builtin', 'pyradiomics')."
-        },
-        "per_label": {
-          "type": "object",
-          "description": "Per-label image feature records, keyed by the string representation of the integer label value. Empty when available is false.",
-          "additionalProperties": {
-            "$ref": "#/definitions/imageLabelFeatures"
-          }
         }
       }
     },
     "imageLabelFeatures": {
       "type": "object",
-      "description": "One label's image-based feature record: first-order intensity statistics plus optional radiomics extended features.",
+      "description": "One label's image-based feature record, stored as per_label.{label}.intensity: first-order intensity statistics plus optional radiomics extended features. No identity copy (item 215).",
       "additionalProperties": false,
-      "required": ["label", "first_order", "extended"],
+      "required": ["first_order", "extended"],
       "properties": {
-        "label": {"type": "integer", "description": "The integer label value."},
         "first_order": {"$ref": "#/definitions/firstOrderIntensity"},
         "extended": {
           "type": "object",

@@ -479,8 +479,9 @@ class Rule(abc.ABC):
         ----------
         record:
             The per-case feature dict (a JSON-ready ``Mapping[str, Any]``
-            with ``per_label``, ``relationships``, ``overlaps``, and an
-            optional ``stage3`` sub-block).  Treat as **read-only**.
+            with ``per_label``, ``case`` (``sequence``, and when computed
+            ``curve`` and ``intensity``), and ``pairs`` (``overlaps`` and
+            ``adjacent``)).  Treat as **read-only**.
         config:
             A :class:`~segfacet.config.HeuristicConfig` instance.  Use
             ``config.rule_param(self.rule_id, key, default=…)`` to read

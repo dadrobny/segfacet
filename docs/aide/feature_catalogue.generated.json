@@ -2529,22 +2529,38 @@
             "render_feature_table"
           ],
           "consuming_rules": [
+            "border",
+            "intensity",
             "mislabel",
-            "sequence"
+            "sequence",
+            "spline_offset"
           ],
           "documented": true,
           "failure_modes": [],
           "measures": "The integer vertebra label this per_label entry describes.",
           "mode_evidence": [
+            "rule_mode_less",
             "rule_bookkeeping"
           ],
           "mode_roles": [
+            [
+              "border",
+              "bookkeeping"
+            ],
+            [
+              "intensity",
+              "bookkeeping"
+            ],
             [
               "mislabel",
               "bookkeeping"
             ],
             [
               "sequence",
+              "bookkeeping"
+            ],
+            [
+              "spline_offset",
               "bookkeeping"
             ]
           ],
@@ -2585,12 +2601,36 @@
           "path": "per_label.{label}.label",
           "rule_evidence": [
             [
+              "border",
+              "static"
+            ],
+            [
+              "intensity",
+              "static"
+            ],
+            [
               "mislabel",
               "observed"
             ],
             [
+              "mislabel",
+              "static"
+            ],
+            [
               "sequence",
               "observed"
+            ],
+            [
+              "sequence",
+              "static"
+            ],
+            [
+              "spline_offset",
+              "observed"
+            ],
+            [
+              "spline_offset",
+              "static"
             ]
           ],
           "scale_sensitivity": "identifier",
@@ -2606,11 +2646,16 @@
           "consuming_rules": [
             "border",
             "bounds",
+            "coverage",
             "fragmentation",
             "fused_label",
+            "intensity_reference_delta",
             "mislabel",
             "neighbour_contact",
+            "overlap",
+            "reference_delta",
             "sequence",
+            "spline_offset",
             "split_fragment"
           ],
           "documented": true,
@@ -2636,11 +2681,19 @@
               "bookkeeping"
             ],
             [
+              "coverage",
+              "bookkeeping"
+            ],
+            [
               "fragmentation",
               "bookkeeping"
             ],
             [
               "fused_label",
+              "bookkeeping"
+            ],
+            [
+              "intensity_reference_delta",
               "bookkeeping"
             ],
             [
@@ -2652,8 +2705,20 @@
               "bookkeeping"
             ],
             [
+              "overlap",
+              "bookkeeping"
+            ],
+            [
+              "reference_delta",
+              "bookkeeping"
+            ],
+            [
               "sequence",
               "signal"
+            ],
+            [
+              "spline_offset",
+              "bookkeeping"
             ],
             [
               "split_fragment",
@@ -2701,32 +2766,92 @@
               "observed"
             ],
             [
+              "border",
+              "static"
+            ],
+            [
               "bounds",
               "observed"
+            ],
+            [
+              "bounds",
+              "static"
+            ],
+            [
+              "coverage",
+              "static"
             ],
             [
               "fragmentation",
               "observed"
             ],
             [
+              "fragmentation",
+              "static"
+            ],
+            [
               "fused_label",
               "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ],
+            [
+              "intensity_reference_delta",
+              "static"
             ],
             [
               "mislabel",
               "observed"
             ],
             [
+              "mislabel",
+              "static"
+            ],
+            [
               "neighbour_contact",
               "observed"
+            ],
+            [
+              "neighbour_contact",
+              "static"
+            ],
+            [
+              "overlap",
+              "observed"
+            ],
+            [
+              "overlap",
+              "static"
+            ],
+            [
+              "reference_delta",
+              "static"
             ],
             [
               "sequence",
               "observed"
             ],
             [
+              "sequence",
+              "static"
+            ],
+            [
+              "spline_offset",
+              "observed"
+            ],
+            [
+              "spline_offset",
+              "static"
+            ],
+            [
               "split_fragment",
               "observed"
+            ],
+            [
+              "split_fragment",
+              "static"
             ]
           ],
           "scale_sensitivity": "categorical",
@@ -2734,7 +2859,7 @@
           "units": ""
         }
       ],
-      "intro": "Centre of mass of each label's voxel mask, plus the integer label/anatomical level_name identity pair every other per-label block below re-carries.",
+      "intro": "Centre of mass of each label's voxel mask, plus the integer label/anatomical level_name identity pair, stored once here (item 215): no other block carries a copy.",
       "module": "segfacet.features.centroids",
       "stage": "Stage 2 · item 013",
       "title": "Centroid & Identity"
@@ -2742,7 +2867,7 @@
     {
       "entries": [
         {
-          "computation": "None when no labels are present; otherwise a nested object (see the individual relationships.* fields).",
+          "computation": "None when no labels are present; otherwise a nested object (see the individual case.sequence.* fields).",
           "consumers": [
             "compute_per_mode_metrics",
             "render_feature_table"
@@ -2791,15 +2916,11 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships",
+          "path": "case.sequence",
           "rule_evidence": [
             [
               "coverage",
               "observed"
-            ],
-            [
-              "coverage",
-              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -2855,7 +2976,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.is_continuous",
+          "path": "case.sequence.is_continuous",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "keep",
@@ -2919,7 +3040,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.missing_levels[]",
+          "path": "case.sequence.missing_levels[]",
           "rule_evidence": [
             [
               "coverage",
@@ -2935,24 +3056,22 @@
           "units": ""
         },
         {
-          "computation": "Euclidean distance (mm) between each consecutive pair in canonical order.",
-          "consumers": [
-            "render_feature_table"
-          ],
+          "computation": "pipeline.extract_feature_record sorts every label by the CANONICAL_ORDER rank of its level name (names outside it last), then by integer label (segfacet.labels.anatomical_order, item 216), and feeds that sequence to the spline fit, every Stage 3 extractor and the neighbourhood; relationships alone is fed ascending integer order. A reader compares it with the sorted keys of per_label to see where the two orders differ.",
+          "consumers": [],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Centroid-to-centroid distance between anatomically adjacent levels.",
+          "measures": "The record's one element order: every integer label, in the item-198 anatomical order.",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {
             "corpus": {
-              "count": 19,
+              "count": 25,
               "covered": true,
               "informative": true,
-              "magnitude": 134.161,
-              "maximum": 134.161,
-              "minimum": 32.6952,
+              "magnitude": 28.0,
+              "maximum": 28.0,
+              "minimum": 20.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -2962,7 +3081,7 @@
                 "sequence_break",
                 "single_label"
               ],
-              "span": 101.465
+              "span": 8.0
             },
             "numeric": true,
             "reference": {
@@ -2979,11 +3098,11 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "relationships.neighbour_spacings_mm[]",
+          "path": "case.sequence.order[]",
           "rule_evidence": [],
-          "scale_sensitivity": "scales with spacing",
-          "status": "keep",
-          "units": "mm"
+          "scale_sensitivity": "identifier",
+          "status": "unwired",
+          "units": ""
         },
         {
           "computation": "Every level, in input order, whose canonical rank is lower than the running maximum.",
@@ -3031,7 +3150,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.out_of_order_labels[]",
+          "path": "case.sequence.out_of_order_labels[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "keep",
@@ -3104,7 +3223,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "relationships.present_levels[]",
+          "path": "case.sequence.present_levels[]",
           "rule_evidence": [
             [
               "border",
@@ -3122,6 +3241,78 @@
           "scale_sensitivity": "dimensionless",
           "status": "keep",
           "units": ""
+        },
+        {
+          "computation": "Euclidean distance (mm) between the centroids of each consecutive pair of case.sequence.order -- every label in the item-198 anatomical order, unrecognised labels last (item 216; the integer-label order is anatomically meaningless). Present on every record with at least one label, [] below two labels.",
+          "consumers": [
+            "render_feature_table"
+          ],
+          "consuming_rules": [
+            "fused_label"
+          ],
+          "documented": true,
+          "failure_modes": [
+            2
+          ],
+          "measures": "Centroid-to-centroid distance between anatomically adjacent labels (the two former arrays relationships.neighbour_spacings_mm[] and stage3.spacing_consistency.spacings_mm[], merged by item 216).",
+          "mode_evidence": [
+            "rule_mode_map",
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "fused_label",
+              "signal"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 19,
+              "covered": true,
+              "informative": true,
+              "magnitude": 134.161,
+              "maximum": 134.161,
+              "minimum": 32.6952,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break",
+                "single_label"
+              ],
+              "span": 101.465
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.spacings_mm[]",
+          "rule_evidence": [
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "scales with spacing",
+          "status": "retune",
+          "units": "mm"
         }
       ],
       "intro": "Computed once per case from the full ordered set of centroids (ascending integer-label order).",
@@ -3186,15 +3377,11 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "overlaps[]",
+          "path": "pairs.overlaps[]",
           "rule_evidence": [
             [
               "overlap",
               "observed"
-            ],
-            [
-              "overlap",
-              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -3250,7 +3437,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "overlaps[].label_a",
+          "path": "pairs.overlaps[].label_a",
           "rule_evidence": [
             [
               "overlap",
@@ -3314,7 +3501,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "overlaps[].label_b",
+          "path": "pairs.overlaps[].label_b",
           "rule_evidence": [
             [
               "overlap",
@@ -3326,134 +3513,6 @@
             ]
           ],
           "scale_sensitivity": "dimensionless",
-          "status": "keep",
-          "units": ""
-        },
-        {
-          "computation": "Looked up via the active LabelConvention; \"unknown\" for an unmapped integer.",
-          "consumers": [
-            "render_feature_table"
-          ],
-          "consuming_rules": [
-            "overlap"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for label_a.",
-          "mode_evidence": [
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "overlap",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "overlaps"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "overlaps[].name_a",
-          "rule_evidence": [
-            [
-              "overlap",
-              "observed"
-            ],
-            [
-              "overlap",
-              "static"
-            ]
-          ],
-          "scale_sensitivity": "categorical",
-          "status": "keep",
-          "units": ""
-        },
-        {
-          "computation": "Looked up via the active LabelConvention; \"unknown\" for an unmapped integer.",
-          "consumers": [
-            "render_feature_table"
-          ],
-          "consuming_rules": [
-            "overlap"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for label_b.",
-          "mode_evidence": [
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "overlap",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "overlaps"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "overlaps[].name_b",
-          "rule_evidence": [
-            [
-              "overlap",
-              "observed"
-            ],
-            [
-              "overlap",
-              "static"
-            ]
-          ],
-          "scale_sensitivity": "categorical",
           "status": "keep",
           "units": ""
         },
@@ -3510,7 +3569,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "overlaps[].overlap_voxels",
+          "path": "pairs.overlaps[].overlap_voxels",
           "rule_evidence": [
             [
               "overlap",
@@ -3575,10 +3634,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].closest_u",
+          "path": "per_label.{label}.curve.closest_u",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -3633,7 +3692,7 @@
             "verdict": "constant-synthetic"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].dx_mm",
+          "path": "per_label.{label}.curve.dx_mm",
           "rule_evidence": [
             [
               "spline_offset",
@@ -3641,7 +3700,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -3668,9 +3727,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.339971,
-              "maximum": 0.151338,
-              "minimum": -0.339971,
+              "magnitude": 0.966346,
+              "maximum": 0.257646,
+              "minimum": -0.966346,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3679,7 +3738,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.491309
+              "span": 1.22399
             },
             "numeric": true,
             "reference": {
@@ -3696,7 +3755,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].dy_mm",
+          "path": "per_label.{label}.curve.dy_mm",
           "rule_evidence": [
             [
               "spline_offset",
@@ -3704,7 +3763,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -3731,9 +3790,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.0531917,
-              "maximum": 0.0497259,
-              "minimum": -0.0531917,
+              "magnitude": 0.898946,
+              "maximum": 0.113217,
+              "minimum": -0.898946,
               "population": "corpus",
               "source": [
                 "clean",
@@ -3742,7 +3801,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.102918
+              "span": 1.01216
             },
             "numeric": true,
             "reference": {
@@ -3759,7 +3818,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].dz_mm",
+          "path": "per_label.{label}.curve.dz_mm",
           "rule_evidence": [
             [
               "spline_offset",
@@ -3767,7 +3826,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -3822,7 +3881,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].is_terminal",
+          "path": "per_label.{label}.curve.is_terminal",
           "rule_evidence": [
             [
               "spline_offset",
@@ -3835,132 +3894,6 @@
           ],
           "scale_sensitivity": "boolean",
           "status": "keep",
-          "units": ""
-        },
-        {
-          "computation": "Copied from the source VertebralSplineOffset dataclass.",
-          "consumers": [],
-          "consuming_rules": [
-            "spline_offset"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "The integer label this spline-offset entry describes.",
-          "mode_evidence": [
-            "rule_mode_less",
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "spline_offset",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": true,
-              "magnitude": 28.0,
-              "maximum": 28.0,
-              "minimum": 20.0,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 8.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_offsets[].label",
-          "rule_evidence": [
-            [
-              "spline_offset",
-              "observed"
-            ]
-          ],
-          "scale_sensitivity": "identifier",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "Copied from the source VertebralSplineOffset dataclass.",
-          "consumers": [],
-          "consuming_rules": [
-            "spline_offset"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for this spline-offset entry.",
-          "mode_evidence": [
-            "rule_mode_less",
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "spline_offset",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_offsets[].level_name",
-          "rule_evidence": [
-            [
-              "spline_offset",
-              "observed"
-            ]
-          ],
-          "scale_sensitivity": "categorical",
-          "status": "retune",
           "units": ""
         },
         {
@@ -3989,8 +3922,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.343588,
-              "maximum": 0.343588,
+              "magnitude": 0.972955,
+              "maximum": 0.972955,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -4000,7 +3933,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.343588
+              "span": 0.972955
             },
             "numeric": true,
             "reference": {
@@ -4019,7 +3952,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].offset_mm",
+          "path": "per_label.{label}.curve.offset_mm",
           "rule_evidence": [
             [
               "spline_offset",
@@ -4031,7 +3964,7 @@
             ]
           ],
           "scale_sensitivity": "scales with spacing",
-          "status": "retune",
+          "status": "keep",
           "units": "mm"
         },
         {
@@ -4048,8 +3981,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.343588,
-              "maximum": 0.343588,
+              "magnitude": 0.972955,
+              "maximum": 0.972955,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -4059,7 +3992,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.343588
+              "span": 0.972955
             },
             "numeric": true,
             "reference": {
@@ -4076,11 +4009,59 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_offsets[].offset_voxel",
+          "path": "per_label.{label}.curve.offset_voxel",
           "rule_evidence": [],
           "scale_sensitivity": "voxel count",
           "status": "retire",
           "units": "voxels"
+        },
+        {
+          "computation": "The arc length of every vertebra's closest point on the longest path of the centroids' minimum spanning tree (the traversal path), divided by the path length and directed to have fewer inversions against the supplied order (item 210); not the order under test.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Each vertebra's normalised arc-length position u along the label-free path through the centroids, in CANONICAL_ORDER order.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 24,
+              "covered": true,
+              "informative": true,
+              "magnitude": 1.0,
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 1.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "per_label.{label}.curve.path_u",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
         }
       ],
       "intro": "A cubic (degree clamped to n_points-1 when the sequence is short) smoothing B-spline is fit through the ordered centroids' mm-coordinates (scipy.interpolate.make_splprep, s = n_points by default); this spline underlies the per-vertebra offset measured here and the orientation/curvature/consistency families below. offset_mm is a held-out (leave-one-out, down-weighted) measurement (item 120): a level's offset is its closest-approach distance to a curve refit with that level and the case's dominant outlier down-weighted to a negligible constant, so the level under test cannot pull the curve toward itself. dx_mm/dy_mm/dz_mm are anatomically readable -- array axis 0 left-right, axis 1 anterior-posterior, axis 2 cranio-caudal -- only because io.load_volume reorients every volume to axis codes (R, A, S) and centroid_mm carries no affine of its own. is_terminal (item 123) marks the first/last vertebra of the sequence; the spline_offset rule (item 189, moved off mislabel) and the reference distribution both treat offset_mm as an interior-only feature, excluding a terminal entry from their judgement, because the held-out refit extrapolates past the end of its parameter domain there.",
@@ -4091,7 +4072,7 @@
     {
       "entries": [
         {
-          "computation": "max - min of coronal_tangent_angles_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
+          "computation": "max - min of the labels' tangent_coronal_unwrapped_deg. 0.0 for a curve confined to the sagittal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -4103,9 +4084,9 @@
             "corpus": {
               "count": 5,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
+              "informative": true,
+              "magnitude": 180.0,
+              "maximum": 180.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -4115,7 +4096,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 180.0
             },
             "numeric": true,
             "reference": {
@@ -4129,58 +4110,10 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.curvature.coronal_curvature_deg",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "degrees(atan2(t_R, t_S)) per centroid, unwrapped along the ordered sequence, computed from tangents normalised so the sequence advances superiorly. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Signed tangent angle in the coronal (R-S) plane at each centroid; positive tilts toward the patient's right as the spine advances cranially.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 0.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "constant-synthetic"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.coronal_tangent_angles_deg[]",
+          "path": "case.curve.coronal_curvature_deg",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -4228,62 +4161,14 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.curvature.curvature_plane",
+          "path": "case.curve.curvature_plane",
           "rule_evidence": [],
           "scale_sensitivity": "categorical",
           "status": "unwired",
           "units": ""
         },
         {
-          "computation": "Angle between each pair of adjacent unit tangent vectors along the spine, read as if the tangents were normalised so the sequence advances superiorly (item 122); already invariant to traversal direction so no negation is needed to produce that reading.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Angle between consecutive vertebrae's tangent vectors.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 19,
-              "covered": true,
-              "informative": true,
-              "magnitude": 19.7488,
-              "maximum": 19.7488,
-              "minimum": 7.3206,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 12.4282
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.inter_tangent_angles_deg[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
-          "units": "degrees"
-        },
-        {
-          "computation": "max - min of sagittal_tangent_angles_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
+          "computation": "max - min of the labels' tangent_sagittal_unwrapped_deg. 0.0 for a curve confined to the coronal plane. Requires RAS-ordered mm centroids, guaranteed by io.load_volume.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -4296,8 +4181,8 @@
               "count": 5,
               "covered": true,
               "informative": true,
-              "magnitude": 41.8885,
-              "maximum": 41.8885,
+              "magnitude": 202.023,
+              "maximum": 202.023,
               "minimum": 41.1436,
               "population": "corpus",
               "source": [
@@ -4307,7 +4192,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.744932
+              "span": 160.88
             },
             "numeric": true,
             "reference": {
@@ -4324,106 +4209,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.curvature.sagittal_curvature_deg",
+          "path": "case.curve.sagittal_curvature_deg",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "degrees(atan2(t_A, t_S)) per centroid, unwrapped along the ordered sequence, computed from tangents normalised so the sequence advances superiorly. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Signed tangent angle in the sagittal (A-S) plane at each centroid; positive tilts anterior.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": true,
-              "magnitude": 33.9343,
-              "maximum": 33.9343,
-              "minimum": -7.95422,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 41.8885
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.sagittal_tangent_angles_deg[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "unwired",
-          "units": "degrees"
-        },
-        {
-          "computation": "Evaluated at each vertebra's stored u via the spline's first derivative (evaluate_spline_derivative, nu=1), from tangents normalised so the sequence advances superiorly (item 131), invariant to whether the caller supplied centroids cranial-first or caudal-first.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Angle between the spline's local tangent and the superior-inferior axis, per vertebra.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": true,
-              "magnitude": 33.9343,
-              "maximum": 33.9343,
-              "minimum": 0.254105,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 33.6802
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.curvature.tangent_angles_deg[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
           "units": "degrees"
         },
         {
@@ -4440,8 +4229,8 @@
               "count": 5,
               "covered": true,
               "informative": true,
-              "magnitude": 41.8885,
-              "maximum": 41.8885,
+              "magnitude": 202.023,
+              "maximum": 202.023,
               "minimum": 41.1436,
               "population": "corpus",
               "source": [
@@ -4451,7 +4240,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.744932
+              "span": 160.88
             },
             "numeric": true,
             "reference": {
@@ -4468,7 +4257,55 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.curvature.total_curvature_deg",
+          "path": "case.curve.total_curvature_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": "degrees"
+        },
+        {
+          "computation": "Angle between each pair of adjacent unit tangent vectors along the spine, read as if the tangents were normalised so the sequence advances superiorly (item 122); already invariant to traversal direction so no negation is needed to produce that reading.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Angle between consecutive vertebrae's tangent vectors.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 19,
+              "covered": true,
+              "informative": true,
+              "magnitude": 169.167,
+              "maximum": 169.167,
+              "minimum": 7.3206,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 161.846
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.inter_tangent_angles_deg[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
@@ -4520,110 +4357,14 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_orientations[].eigenvalue_ratio",
+          "path": "per_label.{label}.orientation.eigenvalue_ratio",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "keep",
           "units": ""
         },
         {
-          "computation": "Copied from the source VertebralOrientation dataclass.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "The integer label this orientation entry describes.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": true,
-              "magnitude": 28.0,
-              "maximum": 28.0,
-              "minimum": 20.0,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 8.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_orientations[].label",
-          "rule_evidence": [],
-          "scale_sensitivity": "identifier",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "Copied from the source VertebralOrientation dataclass.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for this orientation entry.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_orientations[].level_name",
-          "rule_evidence": [],
-          "scale_sensitivity": "categorical",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "Eigenvector of the largest eigenvalue of the 3x3 covariance of the mean-centred, spacing-scaled voxel coordinates. Demoted (item 121): measured across all nine committed corpus goldens (2026-08-29), every per_label_orientations entry satisfies abs(dot(principal_axis, (1,0,0))) >= 0.996, and on seven of the nine cases it is exactly [1.0, 0.0, 0.0] on every vertebra -- the fixture body's widest side, which never discriminates between vertebrae. Prefer spline_tangent_coronal_deg / spline_tangent_sagittal_deg as the per-vertebra orientation estimate.",
+          "computation": "Eigenvector of the largest eigenvalue of the 3x3 covariance of the mean-centred, spacing-scaled voxel coordinates. Demoted (item 121): measured across all nine committed corpus goldens (2026-08-29), every per-label orientation block satisfies abs(dot(principal_axis, (1,0,0))) >= 0.996, and on seven of the nine cases it is exactly [1.0, 0.0, 0.0] on every vertebra -- the fixture body's widest side, which never discriminates between vertebrae. Prefer spline_tangent_coronal_deg / spline_tangent_sagittal_deg as the per-vertebra orientation estimate.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -4664,14 +4405,14 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_orientations[].principal_axis[]",
+          "path": "per_label.{label}.orientation.principal_axis[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
         },
         {
-          "computation": "compute_spline_offsets(centroids, fit).closest_u for this label -- the same coarse-scan-plus-refinement estimator stage3.per_label_offsets[].closest_u uses, but against the in-sample fit rather than a held-out refit (the two are distinguished by the spline_ prefix on this key).",
+          "computation": "compute_spline_offsets(centroids, fit).closest_u for this label -- the same coarse-scan-plus-refinement estimator per_label.{label}.curve.closest_u uses, but against the in-sample fit rather than a held-out refit (the two are distinguished by the spline_ prefix on this key).",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -4712,7 +4453,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_orientations[].spline_closest_u",
+          "path": "per_label.{label}.orientation.spline_closest_u",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -4732,9 +4473,9 @@
               "count": 72,
               "covered": true,
               "informative": true,
-              "magnitude": 0.999991,
+              "magnitude": 1.0,
               "maximum": 0.999991,
-              "minimum": -0.138382,
+              "minimum": -1.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4743,7 +4484,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 1.13837
+              "span": 1.99999
             },
             "numeric": true,
             "reference": {
@@ -4760,14 +4501,14 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_orientations[].spline_tangent[]",
+          "path": "per_label.{label}.orientation.spline_tangent[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
           "units": ""
         },
         {
-          "computation": "degrees(atan2(t_R, t_S)) of spline_tangent, wrapped to (-180, 180] and deliberately not unwrapped (unlike stage3.curvature.coronal_tangent_angles_deg, this is a single per-vertebra reading, not a sequence to accumulate a sweep over). Positive means the curve tilts toward the patient's right as it advances cranially. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
+          "computation": "degrees(atan2(t_R, t_S)) of spline_tangent, wrapped to (-180, 180] and deliberately not unwrapped (unlike per_label.{label}.orientation.tangent_coronal_unwrapped_deg, this is a single per-vertebra reading, not a sequence to accumulate a sweep over). Positive means the curve tilts toward the patient's right as it advances cranially. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -4779,10 +4520,10 @@
             "corpus": {
               "count": 24,
               "covered": true,
-              "informative": false,
-              "magnitude": 0.0,
-              "maximum": 0.0,
-              "minimum": 0.0,
+              "informative": true,
+              "magnitude": 180.0,
+              "maximum": 180.0,
+              "minimum": -180.0,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4791,7 +4532,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.0
+              "span": 360.0
             },
             "numeric": true,
             "reference": {
@@ -4805,10 +4546,10 @@
               "source": [],
               "span": null
             },
-            "verdict": "constant-synthetic"
+            "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_orientations[].spline_tangent_coronal_deg",
+          "path": "per_label.{label}.orientation.spline_tangent_coronal_deg",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -4828,9 +4569,9 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 33.9342,
-              "maximum": 33.9342,
-              "minimum": -7.9542,
+              "magnitude": 179.967,
+              "maximum": 179.967,
+              "minimum": -172.766,
               "population": "corpus",
               "source": [
                 "clean",
@@ -4839,7 +4580,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 41.8884
+              "span": 352.733
             },
             "numeric": true,
             "reference": {
@@ -4856,7 +4597,151 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_orientations[].spline_tangent_sagittal_deg",
+          "path": "per_label.{label}.orientation.spline_tangent_sagittal_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "unwired",
+          "units": "degrees"
+        },
+        {
+          "computation": "Evaluated at each vertebra's stored u via the spline's first derivative (evaluate_spline_derivative, nu=1), from tangents normalised so the sequence advances superiorly (item 131), invariant to whether the caller supplied centroids cranial-first or caudal-first.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Angle between the spline's local tangent and the superior-inferior axis, per vertebra.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 24,
+              "covered": true,
+              "informative": true,
+              "magnitude": 179.666,
+              "maximum": 179.666,
+              "minimum": 0.254105,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 179.412
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "per_label.{label}.orientation.tangent_angle_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": "degrees"
+        },
+        {
+          "computation": "degrees(atan2(t_R, t_S)) per centroid, unwrapped along the ordered sequence, computed from tangents normalised so the sequence advances superiorly. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Signed tangent angle in the coronal (R-S) plane at each centroid; positive tilts toward the patient's right as the spine advances cranially.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 24,
+              "covered": true,
+              "informative": true,
+              "magnitude": 180.0,
+              "maximum": 0.0,
+              "minimum": -180.0,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 180.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "per_label.{label}.orientation.tangent_coronal_unwrapped_deg",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "unwired",
+          "units": "degrees"
+        },
+        {
+          "computation": "degrees(atan2(t_A, t_S)) per centroid, unwrapped along the ordered sequence, computed from tangents normalised so the sequence advances superiorly. Requires RAS-ordered mm centroids (axis 0 = Right, 1 = Anterior, 2 = Superior), guaranteed by io.load_volume.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Signed tangent angle in the sagittal (A-S) plane at each centroid; positive tilts anterior.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 24,
+              "covered": true,
+              "informative": true,
+              "magnitude": 204.197,
+              "maximum": 204.197,
+              "minimum": -7.95422,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 212.152
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "per_label.{label}.orientation.tangent_sagittal_unwrapped_deg",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -4916,11 +4801,173 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.monotonic_consistency.is_monotonic",
+          "path": "case.curve.is_monotonic",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "retune",
           "units": ""
+        },
+        {
+          "computation": "population-std(spacings) / mean(spacings); 0.0 when there is only one spacing.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Regularity of inter-vertebra spacing.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.745491,
+              "maximum": 0.745491,
+              "minimum": 0.0454739,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 0.700017
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.cv_spacing",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "spacings_mm[i] - mean_spacing_mm.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Per-pair spacing's signed deviation from the mean.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 19,
+              "covered": true,
+              "informative": true,
+              "magnitude": 75.605,
+              "maximum": 75.605,
+              "minimum": -25.8603,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 101.465
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.deviations_mm[]",
+          "rule_evidence": [],
+          "scale_sensitivity": "scales with spacing",
+          "status": "retune",
+          "units": "mm"
+        },
+        {
+          "computation": "Arithmetic mean of the neighbour-to-neighbour centroid distances.",
+          "consumers": [],
+          "consuming_rules": [
+            "fused_label"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Mean inter-vertebra centroid spacing.",
+          "mode_evidence": [
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "fused_label",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 5,
+              "covered": true,
+              "informative": true,
+              "magnitude": 58.5555,
+              "maximum": 58.5555,
+              "minimum": 34.2181,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "missing_level",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 24.3374
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "pairs.adjacent.mean_spacing_mm",
+          "rule_evidence": [
+            [
+              "fused_label",
+              "observed"
+            ],
+            [
+              "fused_label",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "scales with spacing",
+          "status": "retune",
+          "units": "mm"
         },
         {
           "computation": "Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the label-free traversal path through the centroids (item 210); equal u values count as a violation too.",
@@ -4976,7 +5023,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.monotonic_consistency.non_monotonic_pairs[]",
+          "path": "pairs.adjacent.non_monotonic_pairs[]",
           "rule_evidence": [
             [
               "mislabel",
@@ -4990,198 +5037,6 @@
           "scale_sensitivity": "dimensionless",
           "status": "keep",
           "units": ""
-        },
-        {
-          "computation": "The arc length of every vertebra's closest point on the longest path of the centroids' minimum spanning tree (the traversal path), divided by the path length and directed to have fewer inversions against the supplied order (item 210); not the order under test.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Each vertebra's normalised arc-length position u along the label-free path through the centroids, in CANONICAL_ORDER order.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": true,
-              "magnitude": 1.0,
-              "maximum": 1.0,
-              "minimum": 0.0,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 1.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.monotonic_consistency.u_values[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "population-std(spacings) / mean(spacings); 0.0 when there is only one spacing.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Regularity of inter-vertebra spacing.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": true,
-              "magnitude": 0.324242,
-              "maximum": 0.324242,
-              "minimum": 0.0454739,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 0.278768
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.cv_spacing",
-          "rule_evidence": [],
-          "scale_sensitivity": "dimensionless",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "spacings_mm[i] - mean_spacing_mm.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Per-pair spacing's signed deviation from the mean.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 19,
-              "covered": true,
-              "informative": true,
-              "magnitude": 20.8066,
-              "maximum": 20.8066,
-              "minimum": -12.0763,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 32.883
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.deviations_mm[]",
-          "rule_evidence": [],
-          "scale_sensitivity": "scales with spacing",
-          "status": "retune",
-          "units": "mm"
-        },
-        {
-          "computation": "Arithmetic mean of the neighbour-to-neighbour centroid distances.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Mean inter-vertebra centroid spacing.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 5,
-              "covered": true,
-              "informative": true,
-              "magnitude": 45.5703,
-              "maximum": 45.5703,
-              "minimum": 34.2181,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 11.3522
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.mean_spacing_mm",
-          "rule_evidence": [],
-          "scale_sensitivity": "scales with spacing",
-          "status": "retune",
-          "units": "mm"
         },
         {
           "computation": "A pair is an outlier when its spacing is >= 2.0x or <= 0.3x the mean spacing (both thresholds configurable).",
@@ -5225,80 +5080,11 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.spacing_consistency.outlier_pairs[]",
+          "path": "pairs.adjacent.outlier_pairs[]",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
-        },
-        {
-          "computation": "Euclidean centroid-to-centroid distance for each adjacent pair, in input order.",
-          "consumers": [],
-          "consuming_rules": [
-            "fused_label"
-          ],
-          "documented": true,
-          "failure_modes": [
-            2
-          ],
-          "measures": "Per-pair inter-vertebra centroid spacing.",
-          "mode_evidence": [
-            "rule_mode_map",
-            "rule_declaration"
-          ],
-          "mode_roles": [
-            [
-              "fused_label",
-              "signal"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": 19,
-              "covered": true,
-              "informative": true,
-              "magnitude": 66.3769,
-              "maximum": 66.3769,
-              "minimum": 32.6952,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 33.6817
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.spacing_consistency.spacings_mm[]",
-          "rule_evidence": [
-            [
-              "fused_label",
-              "observed"
-            ],
-            [
-              "fused_label",
-              "static"
-            ]
-          ],
-          "scale_sensitivity": "scales with spacing",
-          "status": "retune",
-          "units": "mm"
         }
       ],
       "intro": "Inter-vertebra centroid spacing regularity (from the centroids alone) and whether each vertebra's normalised arc-length position u on the label-free traversal path through the centroids increases along the anatomical order (item 210; no spline is read).",
@@ -5350,7 +5136,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].deviation_score",
+          "path": "per_label.{label}.neighbourhood.deviation_score",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -5398,110 +5184,14 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].is_outlier",
+          "path": "per_label.{label}.neighbourhood.is_outlier",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "unwired",
           "units": ""
         },
         {
-          "computation": "Copied verbatim from the focal centroid.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Integer label of the focal vertebra in this neighbourhood entry.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": 24,
-              "covered": true,
-              "informative": true,
-              "magnitude": 28.0,
-              "maximum": 28.0,
-              "minimum": 20.0,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": 8.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "varies"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].label",
-          "rule_evidence": [],
-          "scale_sensitivity": "identifier",
-          "status": "unwired",
-          "units": ""
-        },
-        {
-          "computation": "Copied verbatim from the focal centroid.",
-          "consumers": [],
-          "consuming_rules": [],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical level name of the focal vertebra in this neighbourhood entry.",
-          "mode_evidence": [],
-          "mode_roles": [],
-          "observed": {
-            "corpus": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "corpus",
-              "source": [
-                "clean",
-                "fragmented",
-                "missing_level",
-                "overlaps",
-                "sequence_break"
-              ],
-              "span": null
-            },
-            "numeric": false,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "non-numeric"
-          },
-          "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].level_name",
-          "rule_evidence": [],
-          "scale_sensitivity": "identifier",
-          "status": "unwired",
-          "units": ""
-        },
-        {
-          "computation": "Mean of per_label_offsets[].offset_mm over the window indices.",
+          "computation": "Mean of per_label.{label}.curve.offset_mm over the window indices.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -5514,8 +5204,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.218387,
-              "maximum": 0.218387,
+              "magnitude": 0.941318,
+              "maximum": 0.941318,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5525,7 +5215,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.218387
+              "span": 0.941318
             },
             "numeric": true,
             "reference": {
@@ -5542,14 +5232,14 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.offset_mm.mean",
+          "path": "per_label.{label}.neighbourhood.stats.offset_mm.mean",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
           "units": "mm"
         },
         {
-          "computation": "Median of per_label_offsets[].offset_mm over the window indices.",
+          "computation": "Median of per_label.{label}.curve.offset_mm over the window indices.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -5562,8 +5252,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.160233,
-              "maximum": 0.160233,
+              "magnitude": 0.941318,
+              "maximum": 0.941318,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5573,7 +5263,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.160233
+              "span": 0.941318
             },
             "numeric": true,
             "reference": {
@@ -5590,14 +5280,14 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.offset_mm.median",
+          "path": "per_label.{label}.neighbourhood.stats.offset_mm.median",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
           "units": "mm"
         },
         {
-          "computation": "Population std (ddof=0) of per_label_offsets[].offset_mm over the window indices.",
+          "computation": "Population std (ddof=0) of per_label.{label}.curve.offset_mm over the window indices.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -5610,8 +5300,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 0.121301,
-              "maximum": 0.121301,
+              "magnitude": 0.410339,
+              "maximum": 0.410339,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5621,7 +5311,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 0.121301
+              "span": 0.410339
             },
             "numeric": true,
             "reference": {
@@ -5638,7 +5328,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.offset_mm.std",
+          "path": "per_label.{label}.neighbourhood.stats.offset_mm.std",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -5686,7 +5376,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.offset_mm.z_score",
+          "path": "per_label.{label}.neighbourhood.stats.offset_mm.z_score",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -5706,8 +5396,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 49.9355,
-              "maximum": 49.9355,
+              "magnitude": 83.8272,
+              "maximum": 83.8272,
               "minimum": 33.0946,
               "population": "corpus",
               "source": [
@@ -5717,7 +5407,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.8409
+              "span": 50.7326
             },
             "numeric": true,
             "reference": {
@@ -5734,7 +5424,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.spacing_mm.mean",
+          "path": "per_label.{label}.neighbourhood.stats.spacing_mm.mean",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -5754,8 +5444,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 49.9355,
-              "maximum": 49.9355,
+              "magnitude": 83.8272,
+              "maximum": 83.8272,
               "minimum": 33.0946,
               "population": "corpus",
               "source": [
@@ -5765,7 +5455,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.8409
+              "span": 50.7326
             },
             "numeric": true,
             "reference": {
@@ -5782,7 +5472,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.spacing_mm.median",
+          "path": "per_label.{label}.neighbourhood.stats.spacing_mm.median",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -5802,8 +5492,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 16.4415,
-              "maximum": 16.4415,
+              "magnitude": 50.3333,
+              "maximum": 50.3333,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5813,7 +5503,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 16.4415
+              "span": 50.3333
             },
             "numeric": true,
             "reference": {
@@ -5830,7 +5520,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.spacing_mm.std",
+          "path": "per_label.{label}.neighbourhood.stats.spacing_mm.std",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -5850,8 +5540,8 @@
               "count": 24,
               "covered": true,
               "informative": true,
-              "magnitude": 32883000.0,
-              "maximum": 32883000.0,
+              "magnitude": 100667000.0,
+              "maximum": 100667000.0,
               "minimum": 0.0,
               "population": "corpus",
               "source": [
@@ -5861,7 +5551,7 @@
                 "overlaps",
                 "sequence_break"
               ],
-              "span": 32883000.0
+              "span": 100667000.0
             },
             "numeric": true,
             "reference": {
@@ -5878,7 +5568,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.spacing_mm.z_score",
+          "path": "per_label.{label}.neighbourhood.stats.spacing_mm.z_score",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -5926,7 +5616,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.volume_mm3.mean",
+          "path": "per_label.{label}.neighbourhood.stats.volume_mm3.mean",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -5974,7 +5664,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.volume_mm3.median",
+          "path": "per_label.{label}.neighbourhood.stats.volume_mm3.median",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -6022,7 +5712,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.volume_mm3.std",
+          "path": "per_label.{label}.neighbourhood.stats.volume_mm3.std",
           "rule_evidence": [],
           "scale_sensitivity": "scales with spacing",
           "status": "unwired",
@@ -6070,7 +5760,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].stats.volume_mm3.z_score",
+          "path": "per_label.{label}.neighbourhood.stats.volume_mm3.z_score",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -6118,7 +5808,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "stage3.per_label_neighbourhood[].window_labels[]",
+          "path": "per_label.{label}.neighbourhood.window_labels[]",
           "rule_evidence": [],
           "scale_sensitivity": "identifier",
           "status": "unwired",
@@ -6134,7 +5824,9 @@
       "entries": [
         {
           "computation": "Fixed 32-bin histogram spanning [min, max], base-2 (bits); a uniform/constant region is defined as entropy 0.0.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6172,10 +5864,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.entropy",
+          "path": "per_label.{label}.intensity.first_order.entropy",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6218,15 +5910,17 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.iqr",
+          "path": "per_label.{label}.intensity.first_order.iqr",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
           "computation": "Maximum of the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6264,15 +5958,17 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.max",
+          "path": "per_label.{label}.intensity.first_order.max",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
           "computation": "Arithmetic mean over the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6310,15 +6006,17 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.mean",
+          "path": "per_label.{label}.intensity.first_order.mean",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
           "computation": "50th percentile of the finite voxel values; equals p50 exactly.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [
             "intensity"
           ],
@@ -6367,7 +6065,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.median",
+          "path": "per_label.{label}.intensity.first_order.median",
           "rule_evidence": [
             [
               "intensity",
@@ -6375,12 +6073,14 @@
             ]
           ],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
           "computation": "Minimum of the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
@@ -6418,10 +6118,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.min",
+          "path": "per_label.{label}.intensity.first_order.min",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6462,10 +6162,10 @@
             "verdict": "placeholder"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.n_nonfinite_excluded",
+          "path": "per_label.{label}.intensity.first_order.n_nonfinite_excluded",
           "rule_evidence": [],
           "scale_sensitivity": "voxel count",
-          "status": "retune",
+          "status": "unwired",
           "units": "voxels"
         },
         {
@@ -6508,10 +6208,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.p05",
+          "path": "per_label.{label}.intensity.first_order.p05",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6554,10 +6254,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.p25",
+          "path": "per_label.{label}.intensity.first_order.p25",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6600,10 +6300,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.p50",
+          "path": "per_label.{label}.intensity.first_order.p50",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6646,10 +6346,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.p75",
+          "path": "per_label.{label}.intensity.first_order.p75",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6692,10 +6392,10 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.p95",
+          "path": "per_label.{label}.intensity.first_order.p95",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
@@ -6738,15 +6438,17 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.range",
+          "path": "per_label.{label}.intensity.first_order.range",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "unwired",
           "units": ""
         },
         {
           "computation": "Population (ddof=0) standard deviation of the finite voxel values.",
-          "consumers": [],
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [
             "intensity"
           ],
@@ -6795,7 +6497,7 @@
             "verdict": "varies"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.std",
+          "path": "per_label.{label}.intensity.first_order.std",
           "rule_evidence": [
             [
               "intensity",
@@ -6803,7 +6505,7 @@
             ]
           ],
           "scale_sensitivity": "dimensionless",
-          "status": "retune",
+          "status": "keep",
           "units": ""
         },
         {
@@ -6844,10 +6546,10 @@
             "verdict": "placeholder"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.first_order.voxel_count",
+          "path": "per_label.{label}.intensity.first_order.voxel_count",
           "rule_evidence": [],
           "scale_sensitivity": "voxel count",
-          "status": "retune",
+          "status": "unwired",
           "units": "voxels"
         }
       ],
@@ -6896,7 +6598,7 @@
             "verdict": "placeholder"
           },
           "origin": "record",
-          "path": "image_features.per_label.{label}.extended.{radiomic}",
+          "path": "per_label.{label}.intensity.extended.{radiomic}",
           "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "unwired",
@@ -6911,8 +6613,10 @@
     {
       "entries": [
         {
-          "computation": "False only when intensity extraction could not run at all (no scan / no backend); per_label is empty in that case.",
-          "consumers": [],
+          "computation": "False only when intensity extraction could not run at all (no scan / no backend); the block still carries its four fields (the per-label statistics are per_label.{label}.intensity, item 215).",
+          "consumers": [
+            "render_feature_table"
+          ],
           "consuming_rules": [
             "intensity"
           ],
@@ -6957,7 +6661,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.available",
+          "path": "case.intensity.available",
           "rule_evidence": [
             [
               "intensity",
@@ -7006,19 +6710,19 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.backend",
+          "path": "case.intensity.backend",
           "rule_evidence": [],
           "scale_sensitivity": "categorical",
           "status": "unwired",
           "units": ""
         },
         {
-          "computation": "Literal \"1.0\" (item 061), independent of features_version.",
+          "computation": "Literal \"1.1\" (item 061, bumped by item 215), independent of features_version.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "Schema-version discriminator for the image_features block.",
+          "measures": "Schema-version discriminator for the case.intensity block (formerly the report's image_features block).",
           "mode_evidence": [],
           "mode_roles": [],
           "observed": {
@@ -7050,68 +6754,10 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.image_features_version",
+          "path": "case.intensity.image_features_version",
           "rule_evidence": [],
           "scale_sensitivity": "categorical",
           "status": "retire",
-          "units": ""
-        },
-        {
-          "computation": "Copied verbatim from the intensity extraction's label key.",
-          "consumers": [],
-          "consuming_rules": [
-            "intensity"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "The integer label this image_features entry describes.",
-          "mode_evidence": [
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "intensity",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": 1,
-              "covered": true,
-              "informative": true,
-              "magnitude": 20.0,
-              "maximum": 20.0,
-              "minimum": 20.0,
-              "population": "corpus",
-              "source": [
-                "image_features"
-              ],
-              "span": 0.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "placeholder"
-          },
-          "origin": "record",
-          "path": "image_features.per_label.{label}.label",
-          "rule_evidence": [
-            [
-              "intensity",
-              "observed"
-            ]
-          ],
-          "scale_sensitivity": "identifier",
-          "status": "retune",
           "units": ""
         },
         {
@@ -7152,7 +6798,7 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "image_features.radiomics_available",
+          "path": "case.intensity.radiomics_available",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
           "status": "retune",
@@ -7240,7 +6886,7 @@
           "units": ""
         },
         {
-          "computation": "Literal \"1.0\" (item 046), independent of the reference artifact's own schema_version.",
+          "computation": "Literal \"1.1\" (item 046, bumped by item 215), independent of the reference artifact's own schema_version.",
           "consumers": [],
           "consuming_rules": [],
           "documented": true,
@@ -7658,6 +7304,711 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
+          "path": "reference_delta.{label}.features.extent_x_mm.out_of_range",
+          "rule_evidence": [],
+          "scale_sensitivity": "boolean",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Where the case's value falls in the reference's percentile grid.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 55.0,
+              "maximum": 55.0,
+              "minimum": 55.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_x_mm.percentile_rank",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.",
+          "consumers": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Outlier-resistant z-score against the reference.",
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.2,
+              "maximum": 0.2,
+              "minimum": 0.2,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_x_mm.robust_z",
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "observed"
+            ]
+          ],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Read directly from the case's features_block for this label.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The case's own value for this tracked feature.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 18750.0,
+              "maximum": 18750.0,
+              "minimum": 18750.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_x_mm.value",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - mean) / std; None when the reference std is 0 for this feature/level.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Standard z-score against the reference.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.1,
+              "maximum": 0.1,
+              "minimum": 0.1,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_x_mm.z_score",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Whether the value falls outside the configured percentile band.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_y_mm.out_of_range",
+          "rule_evidence": [],
+          "scale_sensitivity": "boolean",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Where the case's value falls in the reference's percentile grid.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 55.0,
+              "maximum": 55.0,
+              "minimum": 55.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_y_mm.percentile_rank",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.",
+          "consumers": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Outlier-resistant z-score against the reference.",
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.2,
+              "maximum": 0.2,
+              "minimum": 0.2,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_y_mm.robust_z",
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "observed"
+            ]
+          ],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Read directly from the case's features_block for this label.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The case's own value for this tracked feature.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 18750.0,
+              "maximum": 18750.0,
+              "minimum": 18750.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_y_mm.value",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - mean) / std; None when the reference std is 0 for this feature/level.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Standard z-score against the reference.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.1,
+              "maximum": 0.1,
+              "minimum": 0.1,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_y_mm.z_score",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Whether the value falls outside the configured percentile band.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_z_mm.out_of_range",
+          "rule_evidence": [],
+          "scale_sensitivity": "boolean",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Where the case's value falls in the reference's percentile grid.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 55.0,
+              "maximum": 55.0,
+              "minimum": 55.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_z_mm.percentile_rank",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.",
+          "consumers": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Outlier-resistant z-score against the reference.",
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.2,
+              "maximum": 0.2,
+              "minimum": 0.2,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_z_mm.robust_z",
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "observed"
+            ]
+          ],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Read directly from the case's features_block for this label.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The case's own value for this tracked feature.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 18750.0,
+              "maximum": 18750.0,
+              "minimum": 18750.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_z_mm.value",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - mean) / std; None when the reference std is 0 for this feature/level.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Standard z-score against the reference.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.1,
+              "maximum": 0.1,
+              "minimum": 0.1,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.extent_z_mm.z_score",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Whether the value falls outside the configured percentile band.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
           "path": "reference_delta.{label}.features.physical_volume_mm3.out_of_range",
           "rule_evidence": [],
           "scale_sensitivity": "boolean",
@@ -7667,28 +8018,12 @@
         {
           "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
           "consumers": [],
-          "consuming_rules": [
-            "intensity_reference_delta",
-            "reference_delta"
-          ],
+          "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
-          "mode_evidence": [
-            "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
-          ],
-          "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
-            [
-              "reference_delta",
-              "bookkeeping"
-            ]
-          ],
+          "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7719,16 +8054,7 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
-          "rule_evidence": [
-            [
-              "intensity_reference_delta",
-              "static"
-            ],
-            [
-              "reference_delta",
-              "static"
-            ]
-          ],
+          "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7737,7 +8063,6 @@
           "computation": "(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.",
           "consumers": [],
           "consuming_rules": [
-            "intensity_reference_delta",
             "reference_delta"
           ],
           "documented": true,
@@ -7745,14 +8070,9 @@
           "measures": "Outlier-resistant z-score against the reference.",
           "mode_evidence": [
             "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
             [
               "reference_delta",
               "bookkeeping"
@@ -7790,16 +8110,8 @@
           "path": "reference_delta.{label}.features.physical_volume_mm3.robust_z",
           "rule_evidence": [
             [
-              "intensity_reference_delta",
-              "static"
-            ],
-            [
               "reference_delta",
               "observed"
-            ],
-            [
-              "reference_delta",
-              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -7809,28 +8121,12 @@
         {
           "computation": "Read directly from the case's features_block for this label.",
           "consumers": [],
-          "consuming_rules": [
-            "intensity_reference_delta",
-            "reference_delta"
-          ],
+          "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
-          "mode_evidence": [
-            "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
-          ],
-          "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
-            [
-              "reference_delta",
-              "bookkeeping"
-            ]
-          ],
+          "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7861,16 +8157,7 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.physical_volume_mm3.value",
-          "rule_evidence": [
-            [
-              "intensity_reference_delta",
-              "static"
-            ],
-            [
-              "reference_delta",
-              "static"
-            ]
-          ],
+          "rule_evidence": [],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7920,83 +8207,14 @@
           "units": ""
         },
         {
-          "computation": "Copied from the source LabelDelta dataclass.",
+          "computation": "value < percentiles[p{lower_pct}] or value > percentiles[p{upper_pct}].",
           "consumers": [],
-          "consuming_rules": [
-            "reference_delta"
-          ],
+          "consuming_rules": [],
           "documented": true,
           "failure_modes": [],
-          "measures": "The integer label this reference-delta entry describes.",
-          "mode_evidence": [
-            "rule_mode_less",
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "reference_delta",
-              "bookkeeping"
-            ]
-          ],
-          "observed": {
-            "corpus": {
-              "count": 1,
-              "covered": true,
-              "informative": true,
-              "magnitude": 20.0,
-              "maximum": 20.0,
-              "minimum": 20.0,
-              "population": "corpus",
-              "source": [
-                "reference_delta"
-              ],
-              "span": 0.0
-            },
-            "numeric": true,
-            "reference": {
-              "count": null,
-              "covered": false,
-              "informative": false,
-              "magnitude": null,
-              "maximum": null,
-              "minimum": null,
-              "population": "reference",
-              "source": [],
-              "span": null
-            },
-            "verdict": "placeholder"
-          },
-          "origin": "record",
-          "path": "reference_delta.{label}.label",
-          "rule_evidence": [
-            [
-              "reference_delta",
-              "observed"
-            ]
-          ],
-          "scale_sensitivity": "identifier",
-          "status": "retune",
-          "units": ""
-        },
-        {
-          "computation": "Copied from the source LabelDelta dataclass.",
-          "consumers": [],
-          "consuming_rules": [
-            "reference_delta"
-          ],
-          "documented": true,
-          "failure_modes": [],
-          "measures": "Anatomical vertebra name for this reference-delta entry.",
-          "mode_evidence": [
-            "rule_mode_less",
-            "rule_bookkeeping"
-          ],
-          "mode_roles": [
-            [
-              "reference_delta",
-              "bookkeeping"
-            ]
-          ],
+          "measures": "Whether the value falls outside the configured percentile band.",
+          "mode_evidence": [],
+          "mode_roles": [],
           "observed": {
             "corpus": {
               "count": null,
@@ -8026,14 +8244,200 @@
             "verdict": "non-numeric"
           },
           "origin": "record",
-          "path": "reference_delta.{label}.level_name",
+          "path": "reference_delta.{label}.features.spline_offset_mm.out_of_range",
+          "rule_evidence": [],
+          "scale_sensitivity": "boolean",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Where the case's value falls in the reference's percentile grid.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 55.0,
+              "maximum": 55.0,
+              "minimum": 55.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.spline_offset_mm.percentile_rank",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - p50) / (IQR / 1.349), IQR = p75 - p25 from the reference; None when the reference IQR is 0.",
+          "consumers": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Outlier-resistant z-score against the reference.",
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.2,
+              "maximum": 0.2,
+              "minimum": 0.2,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.spline_offset_mm.robust_z",
           "rule_evidence": [
             [
               "reference_delta",
               "observed"
             ]
           ],
-          "scale_sensitivity": "categorical",
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "Read directly from the case's features_block for this label.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The case's own value for this tracked feature.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 18750.0,
+              "maximum": 18750.0,
+              "minimum": 18750.0,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.spline_offset_mm.value",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
+          "status": "retune",
+          "units": ""
+        },
+        {
+          "computation": "(value - mean) / std; None when the reference std is 0 for this feature/level.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Standard z-score against the reference.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 1,
+              "covered": true,
+              "informative": true,
+              "magnitude": 0.1,
+              "maximum": 0.1,
+              "minimum": 0.1,
+              "population": "corpus",
+              "source": [
+                "reference_delta"
+              ],
+              "span": 0.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "placeholder"
+          },
+          "origin": "record",
+          "path": "reference_delta.{label}.features.spline_offset_mm.z_score",
+          "rule_evidence": [],
+          "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
         },
@@ -8119,7 +8523,7 @@
     {
       "entries": [
         {
-          "computation": "Literal \"0.1\" (Stage-2-only) or \"0.2\" (Stage 3 present), stamped by build_features_block.",
+          "computation": "Literal \"0.2\" (no Stage 3 present) or \"0.3\" (Stage 3 present), stamped by build_features_block (items 215, 216).",
           "consumers": [
             "render_feature_table"
           ],
@@ -8183,8 +8587,10 @@
             "intensity_reference_delta",
             "mislabel",
             "neighbour_contact",
+            "overlap",
             "reference_delta",
             "sequence",
+            "spline_offset",
             "split_fragment"
           ],
           "documented": true,
@@ -8233,11 +8639,19 @@
               "bookkeeping"
             ],
             [
+              "overlap",
+              "bookkeeping"
+            ],
+            [
               "reference_delta",
               "not-read"
             ],
             [
               "sequence",
+              "bookkeeping"
+            ],
+            [
+              "spline_offset",
               "bookkeeping"
             ],
             [
@@ -8313,11 +8727,19 @@
               "static"
             ],
             [
+              "overlap",
+              "static"
+            ],
+            [
               "reference_delta",
               "static"
             ],
             [
               "sequence",
+              "static"
+            ],
+            [
+              "spline_offset",
               "static"
             ],
             [
@@ -8338,10 +8760,10 @@
   ],
   "note": "Generated by `python -m segfacet.catalogue` (item 103). Do not hand-edit this document -- edit `src/segfacet/feature_docs.py` (prose / owners / mode anchors / status overrides) and regenerate. `record[\"reference\"]` is deliberately excluded: the `bounds` and `fragmentation` rules read it, but it is a `ReferenceDistribution` object handle, not serialised feature data with a leaf path. Item 124's `observed` block reports each numeric path's observed range across two independent populations -- the in-package synthetic driver corpus (never flags a feature dead) and the committed real-GT reference distribution (the only population that can produce the `\"degenerate\"` verdict) -- but only the 21 of 99 numeric paths the reference vocabulary covers can ever read `\"degenerate\"`; the rest get their numbers reported and no verdict stronger than `\"constant-synthetic\"`.",
   "observed_summary": {
-    "constant-synthetic": 10,
+    "constant-synthetic": 7,
     "degenerate": 0,
-    "non-numeric": 39,
-    "placeholder": 12,
+    "non-numeric": 37,
+    "placeholder": 26,
     "unobserved": 0,
     "varies": 84
   },

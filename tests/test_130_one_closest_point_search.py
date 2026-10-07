@@ -708,7 +708,8 @@ def test_ac21_coincident_centroids_precheck_preserved():
 
     record = extract_feature_record(seg_img, bundled_default_config())
 
-    assert "stage3" not in record
+    assert "curve" not in record["case"]
+    assert "mean_spacing_mm" not in record["pairs"]["adjacent"]
     info = record["stage3_unavailable"]
     assert info["reason"] == "coincident_centroids"
     assert set(info["levels"]) == {"L2", "L3"}
@@ -760,7 +761,7 @@ def test_ac23_catalogue_closest_u_text_matches_shipped_constants():
     assert n_scan_default == 500
     assert xatol_default == 1e-6
 
-    doc = FEATURE_DOCS["stage3.per_label_offsets[].closest_u"]
+    doc = FEATURE_DOCS["per_label.{label}.curve.closest_u"]
     assert "500" in doc.computation
     assert "minimize_scalar" in doc.computation
     assert "1e-6" in doc.computation
@@ -986,5 +987,11 @@ def test_adversarial_extract_feature_record_determinism():
     r1 = extract_feature_record(seg_img, bundled_default_config())
     r2 = extract_feature_record(seg_img, bundled_default_config())
 
-    assert r1["stage3"]["per_label_offsets"] == r2["stage3"]["per_label_offsets"]
-    assert r1["stage3"]["monotonic_consistency"] == r2["stage3"]["monotonic_consistency"]
+    assert [e.get("curve") for e in r1["per_label"].values()] == [
+        e.get("curve") for e in r2["per_label"].values()
+    ]
+    assert r1["case"]["curve"]["is_monotonic"] == r2["case"]["curve"]["is_monotonic"]
+    assert (
+        r1["pairs"]["adjacent"]["non_monotonic_pairs"]
+        == r2["pairs"]["adjacent"]["non_monotonic_pairs"]
+    )

@@ -85,8 +85,9 @@ _MISLABEL_TAG = "Vertebra ordering inconsistent with label:"
 
 
 def _make_offset_entry(label: int, offset_mm: float, level_name: str = "?") -> dict:
-    """Build a minimal per_label_offsets entry matching spline_offset_to_dict's
-    (item 018) shape."""
+    """Build a minimal offset entry matching spline_offset_to_dict's (item 018)
+    shape; ``_make_record`` places it at ``per_label.{label}.curve`` with the
+    identity on the per_label entry itself (item 215)."""
     return {
         "label": label,
         "level_name": level_name,
@@ -108,21 +109,24 @@ def _make_record(
     per_label: dict | None = None,
     **other_fields,
 ) -> dict:
-    """Assemble a minimal build_features_block-shaped record: a stage3
-    sub-dict carrying per_label_offsets + monotonic_consistency, a top-level
-    per_label map, plus any extra fields."""
+    """Assemble a minimal build_features_block-shaped record: the monotonic
+    fields (item 216: ``case.curve.is_monotonic`` and
+    ``pairs.adjacent.non_monotonic_pairs``), a top-level per_label map whose
+    entries carry each offset as their ``curve`` block (item 215), plus any
+    extra fields."""
     record = {
-        "stage3": {
-            "per_label_offsets": list(offsets),
-            "monotonic_consistency": {
-                "is_monotonic": len(pairs) == 0,
-                "non_monotonic_pairs": [list(p) for p in pairs],
-                "u_values": [],
-            },
-        },
+        "case": {"curve": {"is_monotonic": len(pairs) == 0}},
+        "pairs": {"adjacent": {"non_monotonic_pairs": [list(p) for p in pairs]}},
     }
-    if per_label is not None:
-        record["per_label"] = per_label
+    merged = {key: dict(entry) for key, entry in (per_label or {}).items()}
+    for offset in offsets:
+        entry = merged.setdefault(str(offset.get("label", 999)), {})
+        entry.update({k: offset[k] for k in ("label", "level_name") if k in offset})
+        entry["curve"] = {
+            k: v for k, v in offset.items() if k not in ("label", "level_name")
+        }
+    if merged or per_label is not None:
+        record["per_label"] = merged
     record.update(other_fields)
     return record
 
@@ -571,7 +575,7 @@ def test_ac17_two_runs_return_equal_lists():
 
 
 def test_ac18_stage3_absent_no_raise():
-    """AC18: record has no 'stage3' key at all."""
+    """AC18: record has no ``pairs`` container at all (formerly 'stage3')."""
     record = {}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
@@ -579,47 +583,43 @@ def test_ac18_stage3_absent_no_raise():
 
 
 def test_ac18_stage3_none_no_raise():
-    """AC18: stage3 == None is treated as no stage3 block."""
-    record = {"stage3": None}
+    """AC18: pairs == None is treated as no pairs block."""
+    record = {"pairs": None}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac18_stage3_non_dict_no_raise():
-    """AC18: stage3 == [] (a non-dict placeholder) is treated as {}."""
-    record = {"stage3": []}
+    """AC18: pairs == [] (a non-dict placeholder) is treated as {}."""
+    record = {"pairs": []}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac18_per_label_offsets_absent_no_raise():
-    """AC18: stage3 present but per_label_offsets absent yields no offset
-    findings."""
-    record = {"stage3": {"monotonic_consistency": {"non_monotonic_pairs": []}}}
+    """AC18: stage3 present but no per-label curve block yields no offset
+    findings (item 215: the offsets live at per_label.{label}.curve)."""
+    record = {"pairs": {"adjacent": {"non_monotonic_pairs": []}}}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac18_per_label_offsets_none_no_raise():
-    """AC18: per_label_offsets == None is treated as no offsets."""
+    """AC18: a per-label curve block == None is treated as no offsets."""
     record = {
-        "stage3": {
-            "per_label_offsets": None,
-            "monotonic_consistency": {"non_monotonic_pairs": []},
-        }
+        "per_label": {"20": {"label": 20, "level_name": "L1", "curve": None}},
+        "pairs": {"adjacent": {"non_monotonic_pairs": []}},
     }
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac18_per_label_offsets_non_list_no_raise():
-    """AC18: per_label_offsets == {} (non-list placeholder) is treated as no
-    offsets."""
+    """AC18: a per-label curve block == [] (non-dict placeholder) is treated
+    as no offsets."""
     record = {
-        "stage3": {
-            "per_label_offsets": {},
-            "monotonic_consistency": {"non_monotonic_pairs": []},
-        }
+        "per_label": {"20": {"label": 20, "level_name": "L1", "curve": []}},
+        "pairs": {"adjacent": {"non_monotonic_pairs": []}},
     }
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
@@ -627,14 +627,14 @@ def test_ac18_per_label_offsets_non_list_no_raise():
 
 def test_ac18_monotonic_consistency_absent_no_raise():
     """AC18: monotonic_consistency absent yields no order findings."""
-    record = {"stage3": {"per_label_offsets": []}}
+    record = {"pairs": {}}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
 
 def test_ac18_monotonic_consistency_none_no_raise():
     """AC18: monotonic_consistency == None is treated as {}."""
-    record = {"stage3": {"per_label_offsets": [], "monotonic_consistency": None}}
+    record = {"pairs": {"adjacent": None}}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
@@ -642,7 +642,7 @@ def test_ac18_monotonic_consistency_none_no_raise():
 def test_ac18_monotonic_consistency_non_dict_no_raise():
     """AC18: monotonic_consistency == [] (non-dict placeholder) is treated as
     {}."""
-    record = {"stage3": {"per_label_offsets": [], "monotonic_consistency": []}}
+    record = {"pairs": {"adjacent": []}}
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
 
@@ -651,7 +651,7 @@ def test_ac18_non_monotonic_pairs_absent_no_raise():
     """AC18: monotonic_consistency present but non_monotonic_pairs absent
     yields no order findings."""
     record = {
-        "stage3": {"per_label_offsets": [], "monotonic_consistency": {}},
+        "pairs": {"adjacent": {}},
     }
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
@@ -660,10 +660,7 @@ def test_ac18_non_monotonic_pairs_absent_no_raise():
 def test_ac18_non_monotonic_pairs_none_no_raise():
     """AC18: non_monotonic_pairs == None is treated as no pairs."""
     record = {
-        "stage3": {
-            "per_label_offsets": [],
-            "monotonic_consistency": {"non_monotonic_pairs": None},
-        }
+        "pairs": {"adjacent": {"non_monotonic_pairs": None}},
     }
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
@@ -673,10 +670,7 @@ def test_ac18_non_monotonic_pairs_non_list_no_raise():
     """AC18: non_monotonic_pairs == {} (non-list placeholder) is treated as
     no pairs."""
     record = {
-        "stage3": {
-            "per_label_offsets": [],
-            "monotonic_consistency": {"non_monotonic_pairs": {}},
-        }
+        "pairs": {"adjacent": {"non_monotonic_pairs": {}}},
     }
     result = _mislabel_findings(run_rules(record, default_config()))
     assert result == []
@@ -750,9 +744,9 @@ def test_ac19_field_isolation_identical_findings():
 
     def _record(overlaps, relationships, extra_stage3, spacing_mm):
         record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
-        record["stage3"].update(extra_stage3)
-        record["overlaps"] = overlaps
-        record["relationships"] = relationships
+        record["pairs"]["adjacent"].update(extra_stage3)
+        record["pairs"]["overlaps"] = overlaps
+        record["case"]["sequence"] = relationships
         record["spacing_mm"] = spacing_mm
         return record
 
@@ -800,14 +794,14 @@ def test_ac20_evaluate_does_not_mutate_record(tmp_path):
 
 
 def test_ac20_stage3_sub_blocks_not_mutated():
-    """AC20: The stage3.per_label_offsets list and monotonic_consistency
-    dict (including nested pairs) are unchanged after evaluate."""
+    """AC20: The stage3 monotonic_consistency dict (including nested pairs)
+    is unchanged after evaluate."""
     offsets = [_make_offset_entry(_LABEL_L1, 41.3, "L1")]
     per_label = _make_per_label({_LABEL_T12: "T12", _LABEL_L1: "L1"})
     record = _make_record(offsets, [["T12", "L1"]], per_label=per_label)
-    original_stage3 = copy.deepcopy(record["stage3"])
+    original_stage3 = copy.deepcopy(record["pairs"])
     run_rules(record, default_config())
-    assert record["stage3"] == original_stage3
+    assert record["pairs"] == original_stage3
 
 
 # =========================================================================== #
@@ -818,7 +812,7 @@ def test_ac20_stage3_sub_blocks_not_mutated():
 def test_adv_determinism_with_degenerate_record():
     """Adversarial: two run_rules calls on a record with degenerate stage3
     placeholders return identical (empty) lists."""
-    record = {"stage3": {"per_label_offsets": {}, "monotonic_consistency": []}}
+    record = {"pairs": {"adjacent": []}}
     cfg = default_config()
     run1 = _mislabel_findings(run_rules(record, cfg))
     run2 = _mislabel_findings(run_rules(record, cfg))
@@ -831,7 +825,7 @@ def test_adv_bad_severity_raises_even_with_degenerate_stage3(tmp_path):
     whether any entries would fire."""
     content = _mislabel_yaml_header() + "      severity: not_a_real_severity\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    record = {"stage3": []}
+    record = {"pairs": []}
     with pytest.raises(ValueError):
         run_rules(record, cfg)
 

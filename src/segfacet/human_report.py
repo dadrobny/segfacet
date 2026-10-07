@@ -86,7 +86,6 @@ def render_human_report(
     case_id: str,
     config: "HeuristicConfig",
     findings: "list | None" = None,
-    image_features: "dict | None" = None,
     features: "dict | None" = None,
 ) -> str:
     """Render a human-readable QC report string.
@@ -107,13 +106,6 @@ def render_human_report(
         ``to_dict()`` dicts. When ``None`` (default) no "Findings" section is
         rendered, preserving the item-010 report shape exactly. When an empty
         list, a "Findings" section is rendered with a "(none)" body.
-    image_features:
-        Optional Stage 8 ``image_features`` block (item 061/065), as
-        produced by :func:`~segfacet.feature_report.build_image_features_block`.
-        When non-``None``, delegates to the existing item-061
-        ``_render_image_features_section`` so an "Intensity features:"
-        section is appended. When ``None`` (default), no section is
-        appended, preserving byte-identical output.
     features:
         Optional features block (item 097, Stage 17), as produced by
         :func:`~segfacet.feature_report.build_features_block`. When
@@ -125,7 +117,11 @@ def render_human_report(
         report and the CLI's stdout "Label inventory" table. When
         ``None`` (default), the section lists only labels that have
         findings, exactly as before -- preserving byte-identical output
-        for every existing caller. When this mapping carries
+        for every existing caller. When the block carries the case-level
+        ``case.intensity`` (item 216; the Stage 8 availability block that
+        was the report's ``image_features`` key), an "Intensity features:"
+        section is appended after "Findings" (item 065); without it, no
+        section is appended. When this mapping carries
         ``"stage3_unavailable"`` (item 129), a "Degraded features:" section
         naming the cause is appended after "Per-label findings" and before
         "Findings"; when the key is absent, output is byte-identical to
@@ -216,12 +212,13 @@ def render_human_report(
         lines.extend(_render_findings_section(findings))
 
     # ------------------------------------------------------------------ #
-    # Intensity features section (item 065) — only rendered when explicitly
-    # supplied, so the omitted-image_features case is byte-for-byte the
-    # pre-item report.
+    # Intensity features section (item 065) — only rendered when the features
+    # block carries ``case.intensity`` (item 216), so a run without intensity
+    # is byte-for-byte the pre-item report.
     # ------------------------------------------------------------------ #
-    if image_features is not None:
-        lines.extend(_render_image_features_section(image_features))
+    case_intensity = _case_intensity(features)
+    if case_intensity is not None:
+        lines.extend(_render_image_features_section(case_intensity, features))
 
     return "\n".join(lines)
 
@@ -246,20 +243,45 @@ def _fmt_or_na(value) -> str:
     return _fmt_num(value)
 
 
-def _render_image_features_section(image_features: dict) -> "list[str]":
+def _case_intensity(features: "dict | None") -> "dict | None":
+    """The case-level ``case.intensity`` block of *features*, or ``None``."""
+    case = (features or {}).get("case")
+    block = case.get("intensity") if isinstance(case, dict) else None
+    return block if isinstance(block, dict) else None
+
+
+def _render_image_features_section(
+    image_features: dict, features: "dict | None" = None
+) -> "list[str]":
     """Build the 'Intensity features' section lines for ``render_feature_table``.
 
-    Renders one row per ``per_label`` entry (ascending integer-label order)
+    The case-level *image_features* block (``case.intensity``, item 216) says
+    whether intensity is available;
+    the statistics themselves are each label's ``intensity`` kind block in
+    *features* (item 215).
+
+    Renders one row per ``per_label`` entry carrying one (ascending
+    integer-label order)
     showing label and mean/median/std/min/max/entropy, formatted via
     ``_fmt_or_na`` so ``None`` statistics render as ``(n/a)`` rather than raw
     Python ``None``/``nan`` text. When the block is unavailable (``available``
-    is falsy) or ``per_label`` is empty, a single explicit placeholder line is
-    rendered instead.
+    is falsy) a single ``(unavailable)`` line is rendered; when it is available
+    but no label carries an ``intensity`` kind, a distinct explicit line says so.
     """
     lines: list[str] = ["Intensity features:"]
-    per_label = image_features.get("per_label") or {}
-    if not image_features.get("available", False) or not per_label:
+    per_label = {
+        key: entry
+        for key, entry in ((features or {}).get("per_label") or {}).items()
+        if isinstance(entry.get("intensity"), dict)
+    }
+    if not image_features.get("available", False):
         lines.append("  (unavailable)")
+        lines.append("")
+        return lines
+    if not per_label:
+        # Available but nothing to show: the statistics live in *features*
+        # (item 215), so say so instead of calling the block unavailable.
+        lines.append("  (no per-label intensity in the features record)")
         lines.append("")
         return lines
 
@@ -271,7 +293,7 @@ def _render_image_features_section(image_features: dict) -> "list[str]":
     lines.append("  " + "-" * (len(header) - 2))
     for key in sorted(per_label, key=lambda k: int(k)):
         entry = per_label[key]
-        first_order = entry.get("first_order", {})
+        first_order = entry["intensity"].get("first_order", {})
         lines.append(
             f"  {entry.get('label', key):>6}  "
             f"{_fmt_or_na(first_order.get('mean')):>10}  "
@@ -285,10 +307,7 @@ def _render_image_features_section(image_features: dict) -> "list[str]":
     return lines
 
 
-def render_feature_table(
-    features_block: dict,
-    image_features: "dict | None" = None,
-) -> str:
+def render_feature_table(features_block: dict) -> str:
     """Render a :func:`segfacet.feature_report.build_features_block` block as text.
 
     Produces a deterministic, stdlib-only plain-text table: one row per label
@@ -306,16 +325,14 @@ def render_feature_table(
         A features block dict as returned by
         :func:`~segfacet.feature_report.build_features_block` (or parsed from a
         serialised report's ``features`` key).
-    image_features:
-        Optional Stage 8 ``image_features`` block (item 061), as produced by
-        :func:`~segfacet.feature_report.build_image_features_block` (or parsed
-        from a serialised report's ``image_features`` key). When non-``None``,
-        an "Intensity features:" section is appended after the existing
-        sections, listing each present label (ascending) with its
-        mean/median/std/min/max/entropy, formatted null-safely (``None``
-        statistics render as ``(n/a)``; an unavailable/empty block renders a
-        single ``(unavailable)`` line). When ``None`` (default), no section is
-        appended and the output is byte-identical to the pre-item render.
+
+    When the block carries ``case.intensity`` (item 216; the Stage 8 block
+    that was the report's top-level ``image_features`` key), an "Intensity
+    features:" section is appended after the existing sections, listing each
+    present label (ascending) with its mean/median/std/min/max/entropy,
+    formatted null-safely (``None`` statistics render as ``(n/a)``; an
+    unavailable/empty block renders a single ``(unavailable)`` line). Without
+    it, no section is appended.
 
     Returns
     -------
@@ -367,13 +384,17 @@ def render_feature_table(
     # ------------------------------------------------------------------ #
     # Overlaps
     # ------------------------------------------------------------------ #
-    overlaps = features_block.get("overlaps", [])
+    pairs = features_block.get("pairs") or {}
+    overlaps = pairs.get("overlaps", [])
     lines.append("Overlaps:")
     if overlaps:
         for ov in overlaps:
+            # Item 216: the level names are each label's per_label level_name.
+            name_a = (per_label.get(str(ov.get("label_a"))) or {}).get("level_name", "?")
+            name_b = (per_label.get(str(ov.get("label_b"))) or {}).get("level_name", "?")
             lines.append(
-                f"  {ov.get('name_a', '?')} (label {ov.get('label_a', '?')}) <-> "
-                f"{ov.get('name_b', '?')} (label {ov.get('label_b', '?')}): "
+                f"  {name_a} (label {ov.get('label_a', '?')}) <-> "
+                f"{name_b} (label {ov.get('label_b', '?')}): "
                 f"{_fmt_num(ov.get('overlap_voxels', 0))} voxels"
             )
     else:
@@ -383,14 +404,14 @@ def render_feature_table(
     # ------------------------------------------------------------------ #
     # Relationships
     # ------------------------------------------------------------------ #
-    rel = features_block.get("relationships")
+    rel = (features_block.get("case") or {}).get("sequence")
     lines.append("Relationships:")
     if rel is None:
         lines.append("  (none)")
     else:
         present = rel.get("present_levels", [])
         missing = rel.get("missing_levels", [])
-        spacings = rel.get("neighbour_spacings_mm", [])
+        spacings = (pairs.get("adjacent") or {}).get("spacings_mm", [])
         out_of_order = rel.get("out_of_order_labels", [])
         lines.append(
             f"  Present levels: {', '.join(present) if present else '(none)'}"
@@ -410,11 +431,12 @@ def render_feature_table(
     lines.append("")
 
     # ------------------------------------------------------------------ #
-    # Intensity features (item 061) — only rendered when explicitly
-    # supplied, so the omitted-image_features case is byte-for-byte the
-    # pre-item render.
+    # Intensity features (item 061) — only rendered when the block carries
+    # ``case.intensity`` (item 216), so the no-intensity case is byte-for-byte
+    # the pre-item render.
     # ------------------------------------------------------------------ #
-    if image_features is not None:
-        lines.extend(_render_image_features_section(image_features))
+    case_intensity = _case_intensity(features_block)
+    if case_intensity is not None:
+        lines.extend(_render_image_features_section(case_intensity, features_block))
 
     return "\n".join(lines)

@@ -98,10 +98,15 @@ def _label_entry(
 
 def _block(entries, lower_pct=1, upper_pct=99, stratum="all"):
     """``entries`` is a list of label-entry dicts (as from _label_entry),
-    keyed by str(label) as reference_delta_to_dict shapes it (item 046)."""
-    per_label = {str(e["label"]): e for e in entries}
+    keyed by str(label) as reference_delta_to_dict shapes it (item 046).
+    Item 215: the delta entry carries no copy of the label or level name; the
+    identity is on the record's own per_label entry (see ``_record``)."""
+    per_label = {
+        str(e["label"]): {k: v for k, v in e.items() if k not in ("label", "level_name")}
+        for e in entries
+    }
     return {
-        "reference_delta_version": "1.0",
+        "reference_delta_version": "1.1",
         "stratum": stratum,
         "lower_pct": lower_pct,
         "upper_pct": upper_pct,
@@ -127,7 +132,13 @@ def _in_distribution_entry(label=_LABEL_L1, level_name="L1"):
 
 
 def _record(entries, lower_pct=1, upper_pct=99):
-    return {"reference_delta": _block(entries, lower_pct=lower_pct, upper_pct=upper_pct)}
+    return {
+        "per_label": {
+            str(e["label"]): {"label": e["label"], "level_name": e["level_name"]}
+            for e in entries
+        },
+        "reference_delta": _block(entries, lower_pct=lower_pct, upper_pct=upper_pct),
+    }
 
 
 def _ref_findings(findings):

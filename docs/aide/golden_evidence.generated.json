@@ -1,59 +1,59 @@
 {
   "cases": {
     "clean_control": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "crop_at_border": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "crop_fov_si": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "displace": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "fragment": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "fuse_adjacent": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "fuse_separate": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "inject_islands": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "relabel_swap": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "remove_level": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "remove_level_relabel": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "sequence_break": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "split": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     },
     "split_own_label": {
-      "total_leaf_paths": 101,
+      "total_leaf_paths": 95,
       "unwired_leaf_paths": 30
     }
   },

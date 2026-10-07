@@ -2124,7 +2124,7 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
 
     assert before["anchor_paths"], mode
     bogus_path = before["anchor_paths"][0]
-    assert bogus_path == "relationships.is_continuous", bogus_path
+    assert bogus_path == "case.sequence.is_continuous", bogus_path
 
     rules_before = _rule_records(matrix)
     for rule_id in declared_rules | co_detecting_rules:
@@ -2345,7 +2345,7 @@ def test_ac32_mode1_rule_list_contains_every_feature_derived_required_rule(matri
     feature_record_path = {
         name: "per_label.{label}.geometry." + name for name in tracked if name != "spline_offset_mm"
     }
-    feature_record_path["spline_offset_mm"] = "stage3.per_label_offsets[].offset_mm"
+    feature_record_path["spline_offset_mm"] = "per_label.{label}.curve.offset_mm"
     assert set(feature_record_path) == set(tracked)
 
     anchor_modes_by_path: dict = {}

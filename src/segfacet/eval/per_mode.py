@@ -333,13 +333,13 @@ _METRIC_TABLE: Dict[str, Tuple[str, str, float, str]] = {
         "record",
         0.0,
         "Count of labels breaking canonical head-to-tail monotonicity "
-        "(relationships.out_of_order_labels).",
+        "(case.sequence.out_of_order_labels).",
     ),
     "overlapping_voxel_count": (
         "increases",
         "record",
         0.0,
-        "Sum of overlap_voxels over the record's overlaps block.",
+        "Sum of overlap_voxels over the record's pairs.overlaps block.",
     ),
 }
 
@@ -596,25 +596,27 @@ def _fov_clipped_label_count(record: Any) -> Tuple[Optional[float], Optional[str
 
 
 def _out_of_order_label_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
-    rel = record.get("relationships") if hasattr(record, "get") else None
+    case = record.get("case") if hasattr(record, "get") else None
+    rel = case.get("sequence") if isinstance(case, dict) else None
     if not isinstance(rel, dict):
-        return None, "out_of_order_label_count: record has no relationships block"
+        return None, "out_of_order_label_count: record has no case.sequence block"
     out_of_order = rel.get("out_of_order_labels")
     if not isinstance(out_of_order, list):
         return (
             None,
-            "out_of_order_label_count: relationships block has no "
+            "out_of_order_label_count: case.sequence block has no "
             "out_of_order_labels list",
         )
     return float(len(out_of_order)), None
 
 
 def _overlapping_voxel_count(record: Any) -> Tuple[Optional[float], Optional[str]]:
-    overlaps = record.get("overlaps", _MISSING) if hasattr(record, "get") else _MISSING
+    pairs = record.get("pairs") if hasattr(record, "get") else None
+    overlaps = pairs.get("overlaps", _MISSING) if isinstance(pairs, dict) else _MISSING
     if overlaps is _MISSING:
-        return None, "overlapping_voxel_count: record has no overlaps key"
+        return None, "overlapping_voxel_count: record has no pairs.overlaps key"
     if not isinstance(overlaps, list):
-        return None, "overlapping_voxel_count: overlaps block is not a list"
+        return None, "overlapping_voxel_count: pairs.overlaps block is not a list"
     total = 0
     for entry in overlaps:
         if isinstance(entry, dict) and "overlap_voxels" in entry:

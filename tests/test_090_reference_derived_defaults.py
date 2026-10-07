@@ -199,8 +199,8 @@ def _frag_entry(label, level_name, fragmentation_index=0.9, component_count=1,
 def _record(*entries: dict, reference=None) -> dict:
     record = {
         "per_label": {e["label"]: e for e in entries},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     if reference is not None:
         record["reference"] = reference

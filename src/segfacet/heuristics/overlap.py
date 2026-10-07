@@ -3,16 +3,19 @@
 Implements an **overlap rule** targeting failure mode 15 (overlapping
 segments) in ``failure_modes.SPECIFICATION``: voxels assigned to more than one vertebra label, or labels whose
 masks intersect. It consumes the pre-computed overlap-detection results (item
-015, exposed at the per-case feature record's top-level ``overlaps`` key,
-assembled by ``build_features_block`` / ``overlap_to_dict``, item 016). It does
+015, exposed at the per-case feature record's ``pairs.overlaps`` key (item
+216; formerly the top-level ``overlaps`` key), assembled by
+``build_features_block`` / ``overlap_to_dict``, item 016). It does
 not re-derive overlaps and never touches a mask stack or label map.
 
 Design decisions (recorded per item 032 spec):
-- The rule reads **only** ``record["overlaps"]`` — never ``per_label``,
-  ``relationships``, ``geometry``, or any mm/spacing/extent/volume field — so
-  it is inherently spacing-agnostic.
-- Any non-list ``overlaps`` (absent, ``None``, or a non-list placeholder such
-  as ``{}``) is treated as "no overlaps" and yields no finding.
+- The rule reads ``record["pairs"]["overlaps"]`` and, for the level names it
+  prints (merged onto ``per_label.{label}.level_name`` by item 216), each
+  overlapping label's ``per_label`` entry -- never ``case.sequence``,
+  ``geometry``, or any mm/spacing/extent/volume field -- so it is inherently
+  spacing-agnostic.
+- Any non-list ``pairs.overlaps`` (absent, ``None``, or a non-list placeholder
+  such as ``{}``) is treated as "no overlaps" and yields no finding.
 - One finding per overlapping pair, label-attributed with
   ``frozenset({label_a, label_b})`` (both offenders are present, real
   labels — unlike item 029's case-level missing-level findings).
@@ -72,6 +75,14 @@ def _severity_from_param(label: str) -> Severity:
     return sev
 
 
+def _level_name(per_label: dict, label: int) -> str:
+    """The level name of *label* from its ``per_label`` entry (item 216: the
+    merged ``overlaps[].name_a``/``name_b``); the label itself when absent."""
+    entry = per_label.get(str(label), per_label.get(label))
+    name = entry.get("level_name") if isinstance(entry, dict) else None
+    return name if isinstance(name, str) else str(label)
+
+
 def _sort_key(item):
     """Sort normalised overlap entries by ascending (label_a, label_b), with
     None sorted last."""
@@ -105,7 +116,7 @@ class OverlapRule(Rule):
         modes=(15,),
         evidence=(
             "analytic",
-            "needs multi-channel input: overlaps[] is non-empty only when two "
+            "needs multi-channel input: pairs.overlaps[] is non-empty only when two "
             "labels claim one voxel, which a single-channel integer label map "
             "cannot express, so the pipeline's one-hot mask stack yields no "
             "overlap on any input FACET accepts today. Mode 15 (overlapping "
@@ -116,14 +127,14 @@ class OverlapRule(Rule):
         ),
         consumed_paths=(
             ConsumedPath(
-                path="overlaps[]",
+                path="pairs.overlaps[]",
                 role="bookkeeping",
                 reason=(
                     "container: iterated to reach each pair's voxel count"
                 ),
             ),
             ConsumedPath(
-                path="overlaps[].label_a",
+                path="pairs.overlaps[].label_a",
                 role="bookkeeping",
                 reason=(
                     "identity: one side of the overlapping pair, carried "
@@ -131,31 +142,31 @@ class OverlapRule(Rule):
                 ),
             ),
             ConsumedPath(
-                path="overlaps[].label_b",
+                path="pairs.overlaps[].label_b",
                 role="bookkeeping",
                 reason=(
                     "identity: the other side of the overlapping pair"
                 ),
             ),
             ConsumedPath(
-                path="overlaps[].name_a",
-                role="bookkeeping",
-                reason=(
-                    "message interpolation: the level name printed in the "
-                    "finding"
-                ),
-            ),
-            ConsumedPath(
-                path="overlaps[].name_b",
-                role="bookkeeping",
-                reason=(
-                    "message interpolation: the level name printed in the "
-                    "finding"
-                ),
-            ),
-            ConsumedPath(
-                path="overlaps[].overlap_voxels",
+                path="pairs.overlaps[].overlap_voxels",
                 role="signal",
+            ),
+            ConsumedPath(
+                path="per_label",
+                role="bookkeeping",
+                reason=(
+                    "container: looked up by label to reach each side's "
+                    "level name"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.level_name",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: each side's level name printed "
+                    "in the finding (the merged overlaps[].name_a/name_b)"
+                ),
             ),
         ),
         detectors=(
@@ -170,7 +181,7 @@ class OverlapRule(Rule):
                     "(inclusive); one finding per pair"
                 ),
                 params=(("min_overlap_voxels", _DEFAULT_MIN_OVERLAP_VOXELS),),
-                signal_paths=("overlaps[].overlap_voxels",),
+                signal_paths=("pairs.overlaps[].overlap_voxels",),
             ),
         ),
     )
@@ -181,8 +192,8 @@ class OverlapRule(Rule):
         Parameters
         ----------
         record:
-            Per-case feature dict (read-only). Reads only
-            ``record["overlaps"]``.
+            Per-case feature dict (read-only). Reads
+            ``record["pairs"]["overlaps"]`` and ``record["per_label"]``.
         config:
             HeuristicConfig instance. Reads ``rules.overlap.params``.
 
@@ -213,7 +224,11 @@ class OverlapRule(Rule):
 
         findings: List[Finding] = []
 
-        overlaps = record.get("overlaps")
+        pairs = record.get("pairs")
+        overlaps = pairs.get("overlaps") if isinstance(pairs, dict) else None
+        per_label = record.get("per_label")
+        if not isinstance(per_label, dict):
+            per_label = {}
         if not isinstance(overlaps, list):
             return findings  # AC2, AC13 — absent / None / non-list placeholder
 
@@ -228,8 +243,8 @@ class OverlapRule(Rule):
             label_a = int(raw_a)
             label_b = int(raw_b)
             voxels = int(entry.get("overlap_voxels", 0) or 0)
-            name_a = entry.get("name_a", str(label_a) if label_a is not None else "?")
-            name_b = entry.get("name_b", str(label_b) if label_b is not None else "?")
+            name_a = _level_name(per_label, label_a)
+            name_b = _level_name(per_label, label_b)
             normalised.append((label_a, label_b, voxels, name_a, name_b))
 
         normalised.sort(key=_sort_key)

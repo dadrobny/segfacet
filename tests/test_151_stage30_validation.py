@@ -153,8 +153,9 @@ def _max_offset_mm() -> float:
 
 
 def _per_label_offset(record: dict, label: int) -> dict:
-    entries = [e for e in record["stage3"]["per_label_offsets"] if e["label"] == label]
-    assert entries, f"no stage3.per_label_offsets entry for label {label}"
+    # Item 215: the offset is the label's ``curve`` block on its per_label entry.
+    entries = [e["curve"] for e in record["per_label"].values() if e["label"] == label]
+    assert entries, f"no per_label.{{label}}.curve block for label {label}"
     assert len(entries) == 1, entries
     return entries[0]
 
@@ -645,7 +646,7 @@ def test_ac16_no_committed_case_yields_an_overlap_through_the_pipeline():
     committed geometric case instead of one named case."""
     for case in corpus_module.load_manifest()["cases"]:
         record = _record(case["case_id"])
-        assert record["overlaps"] == [], case["case_id"]
+        assert record["pairs"]["overlaps"] == [], case["case_id"]
         findings = pipeline_findings(case)
         assert "overlap" not in {f.rule_id for f in findings}, case["case_id"]
 

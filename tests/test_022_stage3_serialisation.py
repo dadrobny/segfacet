@@ -51,6 +51,7 @@ paths, no external services).
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 import math
@@ -180,6 +181,18 @@ def _mask_stack(seg_img, labels):
     return stack, np.asarray(labels, dtype=np.int64)
 
 
+def _kind_entries(block, kind):
+    """Each label's ``kind`` block (``curve`` / ``orientation``), with its
+    identity read from the surviving ``per_label`` entry (item 215: the
+    identity is stored once there, not in the kind block), ascending label.
+    """
+    return [
+        {"label": e["label"], "level_name": e["level_name"], **e[kind]}
+        for e in block["per_label"].values()
+        if kind in e
+    ]
+
+
 def _stage2_for_case(case, config=None):
     """Build the Stage 2 feature maps for a SyntheticCase."""
     if config is None:
@@ -205,7 +218,7 @@ def _full_block_for_spine(centroids: List[LabelCentroid]):
     serialisation behaviour without needing a full label map.
     """
     offsets, orientations, curvature, spacing, monotonic = _build_stage3(centroids)
-    return build_features_block(
+    block = build_features_block(
         geometry={},
         components={},
         centroids={},
@@ -217,6 +230,22 @@ def _full_block_for_spine(centroids: List[LabelCentroid]):
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
+    # The schema requires geometry/components/centroid on every per_label entry
+    # (item 215 review); give each stub entry one real label's Stage 2 kinds.
+    case = labelled_blocks_case()
+    geometry, components, centroids_map, *_ = _stage2_for_case(case)
+    lab = sorted(case.expected_labels)[0]
+    template = build_features_block(
+        geometry={lab: geometry[lab]},
+        components={lab: components[lab]},
+        centroids={lab: centroids_map[lab]},
+        relationships=None,
+        overlaps=[],
+    )["per_label"][str(lab)]
+    for entry in block["per_label"].values():
+        for kind in ("geometry", "components", "centroid"):
+            entry[kind] = copy.deepcopy(template[kind])
+    return block
 
 
 # =========================================================================== #
@@ -228,7 +257,10 @@ def test_ac1_stage3_key_present_when_stage3_supplied():
     """AC1: build_features_block with Stage 3 args returns a block with 'stage3'."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    assert "stage3" in block, "Expected 'stage3' key in features block"
+    # Item 216: the case-level Stage 3 fields live in case.curve and
+    # pairs.adjacent (there is no 'stage3' container any more).
+    assert "curve" in block["case"], "Expected 'case.curve' in features block"
+    assert "mean_spacing_mm" in block["pairs"]["adjacent"]
 
 
 def test_ac1_stage3_report_passes_schema_validation():
@@ -248,7 +280,7 @@ def test_ac1_stage3_top_level_features_key_present():
     block = _full_block_for_spine(centroids)
     report = serialize_report(_empty_verdict(), "c022", _config(), features=block)
     assert "features" in report
-    assert "stage3" in report["features"]
+    assert "curve" in report["features"]["case"]
 
 
 # =========================================================================== #
@@ -257,25 +289,34 @@ def test_ac1_stage3_top_level_features_key_present():
 
 
 def test_ac2_all_stage3_subkeys_present():
-    """AC2: 'stage3' contains all five expected sub-keys."""
+    """AC2: 'stage3' contains the three case-level sub-keys, and every label
+    carries the curve and orientation kinds (item 215: the per-label offsets
+    and orientations moved under ``per_label.{label}``)."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    stage3 = block["stage3"]
+    # Item 216: curvature -> case.curve (+ pairs.adjacent.inter_tangent_angles_deg),
+    # spacing_consistency -> pairs.adjacent, monotonic_consistency ->
+    # case.curve.is_monotonic + pairs.adjacent.non_monotonic_pairs.
     for key in (
-        "per_label_offsets",
-        "per_label_orientations",
-        "curvature",
-        "spacing_consistency",
-        "monotonic_consistency",
+        "total_curvature_deg",
+        "is_monotonic",
     ):
-        assert key in stage3, f"Expected 'stage3.{key}' to be present"
+        assert key in block["case"]["curve"], f"Expected 'case.curve.{key}' to be present"
+    for key in (
+        "inter_tangent_angles_deg",
+        "mean_spacing_mm",
+        "non_monotonic_pairs",
+    ):
+        assert key in block["pairs"]["adjacent"], f"Expected 'pairs.adjacent.{key}' to be present"
+    for kind in ("curve", "orientation"):
+        assert all(kind in e for e in block["per_label"].values()), kind
 
 
 def test_ac2_per_label_offsets_has_required_keys():
     """AC2: Each entry in per_label_offsets has all required offset fields."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         for key in ("label", "level_name", "closest_u", "offset_mm",
                     "offset_voxel", "dx_mm", "dy_mm", "dz_mm"):
             assert key in entry, f"per_label_offsets entry missing key: {key!r}"
@@ -286,7 +327,7 @@ def test_ac2_per_label_orientations_has_required_keys():
     eigenvalue_ratio."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_orientations"]:
+    for entry in _kind_entries(block, "orientation"):
         for key in ("label", "level_name", "principal_axis", "eigenvalue_ratio"):
             assert key in entry, f"per_label_orientations entry missing key: {key!r}"
 
@@ -295,7 +336,7 @@ def test_ac2_per_label_orientations_principal_axis_is_3_element_list():
     """AC2: principal_axis is a 3-element list of numbers."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_orientations"]:
+    for entry in _kind_entries(block, "orientation"):
         axis = entry["principal_axis"]
         assert isinstance(axis, list), f"principal_axis should be a list, got {type(axis)}"
         assert len(axis) == 3, f"principal_axis should have 3 elements, got {len(axis)}"
@@ -304,13 +345,18 @@ def test_ac2_per_label_orientations_principal_axis_is_3_element_list():
 
 
 def test_ac2_curvature_has_required_keys():
-    """AC2: curvature object has tangent_angles_deg, inter_tangent_angles_deg,
-    total_curvature_deg."""
+    """AC2: curvature object has inter_tangent_angles_deg, total_curvature_deg;
+    the per-label tangent angle (formerly ``tangent_angles_deg``) is each
+    label's ``orientation.tangent_angle_deg`` (item 215)."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    curv = block["stage3"]["curvature"]
-    for key in ("tangent_angles_deg", "inter_tangent_angles_deg", "total_curvature_deg"):
+    curv = {**block["case"]["curve"], **block["pairs"]["adjacent"]}
+    for key in ("inter_tangent_angles_deg", "total_curvature_deg"):
         assert key in curv, f"curvature missing key: {key!r}"
+    assert "tangent_angles_deg" not in curv
+    assert all(
+        "tangent_angle_deg" in e["orientation"] for e in block["per_label"].values()
+    )
 
 
 def test_ac2_curvature_inter_tangent_length_is_n_minus_1():
@@ -318,7 +364,7 @@ def test_ac2_curvature_inter_tangent_length_is_n_minus_1():
     n = 5
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    inter = block["stage3"]["curvature"]["inter_tangent_angles_deg"]
+    inter = block["pairs"]["adjacent"]["inter_tangent_angles_deg"]
     assert len(inter) == n - 1, f"Expected {n - 1} inter-tangent angles, got {len(inter)}"
 
 
@@ -327,19 +373,23 @@ def test_ac2_spacing_consistency_has_required_keys():
     deviations_mm, outlier_pairs."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    sc = block["stage3"]["spacing_consistency"]
+    sc = block["pairs"]["adjacent"]
     for key in ("mean_spacing_mm", "cv_spacing", "spacings_mm",
                 "deviations_mm", "outlier_pairs"):
         assert key in sc, f"spacing_consistency missing key: {key!r}"
 
 
 def test_ac2_monotonic_consistency_has_required_keys():
-    """AC2: monotonic_consistency has is_monotonic, non_monotonic_pairs, u_values."""
+    """AC2: monotonic_consistency has is_monotonic, non_monotonic_pairs; the
+    per-label path position (formerly ``u_values``) is each label's
+    ``curve.path_u`` (item 215)."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    mc = block["stage3"]["monotonic_consistency"]
-    for key in ("is_monotonic", "non_monotonic_pairs", "u_values"):
+    mc = {**block["case"]["curve"], **block["pairs"]["adjacent"]}
+    for key in ("is_monotonic", "non_monotonic_pairs"):
         assert key in mc, f"monotonic_consistency missing key: {key!r}"
+    assert "u_values" not in mc
+    assert all("path_u" in e["curve"] for e in block["per_label"].values())
 
 
 def test_ac2_per_label_offsets_count_matches_centroids():
@@ -347,7 +397,7 @@ def test_ac2_per_label_offsets_count_matches_centroids():
     n = 6
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["per_label_offsets"]) == n
+    assert len(_kind_entries(block, "curve")) == n
 
 
 def test_ac2_per_label_orientations_count_matches_centroids():
@@ -355,7 +405,7 @@ def test_ac2_per_label_orientations_count_matches_centroids():
     n = 6
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["per_label_orientations"]) == n
+    assert len(_kind_entries(block, "orientation")) == n
 
 
 def test_ac2_u_values_length_in_monotonic_consistency():
@@ -363,7 +413,7 @@ def test_ac2_u_values_length_in_monotonic_consistency():
     n = 5
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["monotonic_consistency"]["u_values"]) == n
+    assert len([e["curve"]["path_u"] for e in block["per_label"].values()]) == n
 
 
 def test_ac2_spacings_mm_length_in_spacing_consistency():
@@ -371,7 +421,7 @@ def test_ac2_spacings_mm_length_in_spacing_consistency():
     n = 5
     centroids = _straight_spine(n)
     block = _full_block_for_spine(centroids)
-    assert len(block["stage3"]["spacing_consistency"]["spacings_mm"]) == n - 1
+    assert len(block["pairs"]["adjacent"]["spacings_mm"]) == n - 1
 
 
 # =========================================================================== #
@@ -383,7 +433,7 @@ def test_ac3_gt_all_offsets_near_zero():
     """AC3: For GT centroids lying on the spline, all serialised offset_mm < 1.0 mm."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         assert entry["offset_mm"] < 1.0, (
             f"Level {entry['level_name']}: serialised offset_mm="
             f"{entry['offset_mm']:.4f} >= 1.0 mm"
@@ -394,7 +444,7 @@ def test_ac3_gt_curved_spine_offsets_near_zero():
     """AC3: GT curved-spine centroids have serialised offset_mm < 1.0 mm."""
     centroids = _curved_spine()
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         assert entry["offset_mm"] < 1.0, (
             f"Level {entry['level_name']}: offset_mm={entry['offset_mm']:.4f}"
         )
@@ -404,7 +454,7 @@ def test_ac3_gt_spacing_cv_low():
     """AC3: For a uniform GT spine, serialised cv_spacing < 0.05."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    cv = block["stage3"]["spacing_consistency"]["cv_spacing"]
+    cv = block["pairs"]["adjacent"]["cv_spacing"]
     assert cv < 0.05, f"Expected cv_spacing < 0.05 for uniform GT, got {cv:.6f}"
 
 
@@ -412,7 +462,7 @@ def test_ac3_gt_is_monotonic_true():
     """AC3: For a GT well-ordered spine, serialised is_monotonic is True."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    assert block["stage3"]["monotonic_consistency"]["is_monotonic"] is True, (
+    assert block["case"]["curve"]["is_monotonic"] is True, (
         "Expected is_monotonic=True for GT spine"
     )
 
@@ -421,7 +471,7 @@ def test_ac3_gt_no_spacing_outliers():
     """AC3: A uniform GT spine has no outlier_pairs in spacing_consistency."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    assert block["stage3"]["spacing_consistency"]["outlier_pairs"] == [], (
+    assert block["pairs"]["adjacent"]["outlier_pairs"] == [], (
         "Expected no spacing outliers for uniform GT spine"
     )
 
@@ -430,7 +480,7 @@ def test_ac3_gt_no_non_monotonic_pairs():
     """AC3: A GT spine has empty non_monotonic_pairs in monotonic_consistency."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    assert block["stage3"]["monotonic_consistency"]["non_monotonic_pairs"] == [], (
+    assert block["pairs"]["adjacent"]["non_monotonic_pairs"] == [], (
         "Expected no non-monotonic pairs for GT spine"
     )
 
@@ -473,7 +523,7 @@ def test_ac4_displaced_centroid_has_large_serialised_offset():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    displaced_entry = block["stage3"]["per_label_offsets"][3]
+    displaced_entry = _kind_entries(block, "curve")[3]
     assert displaced_entry["offset_mm"] >= 8.0, (
         f"Displaced centroid offset_mm={displaced_entry['offset_mm']:.4f} < 8.0"
     )
@@ -512,7 +562,7 @@ def test_ac4_displaced_centroid_others_remain_small():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    for i, entry in enumerate(block["stage3"]["per_label_offsets"]):
+    for i, entry in enumerate(_kind_entries(block, "curve")):
         if i == 3:
             continue
         assert entry["offset_mm"] < 2.0, (
@@ -556,7 +606,7 @@ def test_ac5_injected_gap_produces_spacing_outlier():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    outlier_pairs = block["stage3"]["spacing_consistency"]["outlier_pairs"]
+    outlier_pairs = block["pairs"]["adjacent"]["outlier_pairs"]
     assert len(outlier_pairs) >= 1, (
         "Expected at least one outlier pair in serialised spacing_consistency"
     )
@@ -591,7 +641,7 @@ def test_ac5_outlier_pairs_are_two_element_lists():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    for pair in block["stage3"]["spacing_consistency"]["outlier_pairs"]:
+    for pair in block["pairs"]["adjacent"]["outlier_pairs"]:
         assert isinstance(pair, list), f"outlier_pairs entry is not a list: {pair!r}"
         assert len(pair) == 2, f"outlier_pairs entry is not 2-element: {pair!r}"
         assert isinstance(pair[0], str), f"outlier_pairs[0] is not str: {pair[0]!r}"
@@ -623,7 +673,7 @@ def test_ac6_missing_level_detected_in_relationships():
     )
     # relationships block should reflect the missing levels
     # (present_levels has the gap but missing_levels captures it)
-    assert block["relationships"] is not None
+    assert block["case"]["sequence"] is not None
 
 
 def test_ac6_missing_level_creates_spacing_outlier():
@@ -671,7 +721,7 @@ def test_ac6_missing_level_creates_spacing_outlier():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    outlier_pairs = block["stage3"]["spacing_consistency"]["outlier_pairs"]
+    outlier_pairs = block["pairs"]["adjacent"]["outlier_pairs"]
     assert len(outlier_pairs) >= 1, (
         "Expected at least one spacing outlier: gap 25 mm > threshold 20 mm "
         "(2.0 × mean 10.0 mm)"
@@ -696,8 +746,12 @@ def test_ac7_stage3_absent_when_not_supplied():
         relationships=relationships,
         overlaps=overlaps,
     )
-    assert "stage3" not in block, (
-        "Expected no 'stage3' key when Stage 3 arguments are not supplied"
+    # Item 216: no Stage 3 field in the container that carries them.
+    assert "curve" not in block["case"], (
+        "Expected no 'case.curve' when Stage 3 arguments are not supplied"
+    )
+    assert set(block["pairs"]["adjacent"]) == {"spacings_mm"}, (
+        "Expected only the survivor spacing array when Stage 3 arguments are not supplied"
     )
 
 
@@ -756,7 +810,7 @@ def test_ac8_per_label_offsets_ascending_label_order():
     """AC8: per_label_offsets is in ascending integer-label order."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    labels_in_block = [e["label"] for e in block["stage3"]["per_label_offsets"]]
+    labels_in_block = [e["label"] for e in _kind_entries(block, "curve")]
     assert labels_in_block == sorted(labels_in_block)
 
 
@@ -764,7 +818,7 @@ def test_ac8_per_label_orientations_ascending_label_order():
     """AC8: per_label_orientations is in ascending integer-label order."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    labels_in_block = [e["label"] for e in block["stage3"]["per_label_orientations"]]
+    labels_in_block = [e["label"] for e in _kind_entries(block, "orientation")]
     assert labels_in_block == sorted(labels_in_block)
 
 
@@ -776,8 +830,8 @@ def test_ac8_json_text_round_trip_preserves_offset_values():
     text = json.dumps(report, ensure_ascii=False, sort_keys=True)
     parsed = json.loads(text)
     for orig, parsed_entry in zip(
-        block["stage3"]["per_label_offsets"],
-        parsed["features"]["stage3"]["per_label_offsets"],
+        _kind_entries(block, "curve"),
+        _kind_entries(parsed["features"], "curve"),
     ):
         assert math.isclose(orig["offset_mm"], parsed_entry["offset_mm"], rel_tol=1e-9)
 
@@ -822,14 +876,23 @@ def test_ac9_stage3_key_order_and_key_set_explicit():
         "findings",
     ], f"top-level key order moved: {list(produced.keys())!r}"
 
-    stage3_keys = set(produced["features"]["stage3"].keys())
-    assert stage3_keys == {
-        "per_label_offsets",
-        "per_label_orientations",
-        "curvature",
-        "spacing_consistency",
-        "monotonic_consistency",
-    }, f"stage3 key set moved: {stage3_keys!r}"
+    # Item 216: the Stage 3 case-level fields are case.curve and pairs.adjacent.
+    case_keys = list(produced["features"]["case"].keys())
+    assert case_keys == [
+        "sequence",
+        "curve",
+        "intensity",
+    ], f"case key order moved: {case_keys!r}"
+    adjacent_keys = set(produced["features"]["pairs"]["adjacent"].keys())
+    assert adjacent_keys == {
+        "spacings_mm",
+        "inter_tangent_angles_deg",
+        "mean_spacing_mm",
+        "cv_spacing",
+        "deviations_mm",
+        "outlier_pairs",
+        "non_monotonic_pairs",
+    }, f"pairs.adjacent key set moved: {adjacent_keys!r}"
 
 
 # =========================================================================== #
@@ -838,16 +901,18 @@ def test_ac9_stage3_key_order_and_key_set_explicit():
 
 
 def test_ac9_features_version_is_02_when_stage3_present():
-    """AC9: features_version is '0.2' when Stage 3 data is supplied."""
+    """AC9: features_version is the Stage 3 value when Stage 3 data is supplied."""
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
-    assert block["features_version"] == "0.2", (
-        f"Expected features_version='0.2', got {block['features_version']!r}"
+    # Item 215 (2026-10-06): the per-label Stage 3 fields moved under
+    # per_label.{label}, so the Stage 3 discriminator "0.2" -> "0.3".
+    assert block["features_version"] == "0.3", (
+        f"Expected features_version='0.3', got {block['features_version']!r}"
     )
 
 
 def test_ac9_features_version_is_01_when_stage3_absent():
-    """AC9: features_version remains '0.1' for a Stage-2-only block."""
+    """AC9: features_version stays at the base value for a Stage-2-only block."""
     case = labelled_blocks_case()
     geometry, components, centroids_map, centroid_seq, relationships, overlaps = \
         _stage2_for_case(case)
@@ -858,8 +923,10 @@ def test_ac9_features_version_is_01_when_stage3_absent():
         relationships=relationships,
         overlaps=overlaps,
     )
-    assert block["features_version"] == "0.1", (
-        f"Expected features_version='0.1' for Stage-2-only block, "
+    # Item 215 (2026-10-06): the base discriminator "0.1" -> "0.2" (the
+    # per-label intensity kind changes a no-Stage-3 block's shape).
+    assert block["features_version"] == "0.2", (
+        f"Expected features_version='0.2' for Stage-2-only block, "
         f"got {block['features_version']!r}"
     )
 
@@ -869,7 +936,7 @@ def test_ac9_features_version_in_serialised_report():
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     report = serialize_report(_empty_verdict(), "c", _config(), features=block)
-    assert report["features"]["features_version"] == "0.2"
+    assert report["features"]["features_version"] == "0.3"  # item 215, see above
 
 
 # =========================================================================== #
@@ -1047,8 +1114,10 @@ def test_adv_only_spline_offsets_supplied():
         relationships=None, overlaps=[],
         spline_offsets=offsets,
     )
-    assert "stage3" in block
-    assert "per_label_offsets" in block["stage3"]
+    # Item 216: Stage 3 recognised -> the version is promoted.
+    assert block["features_version"] == "0.3"
+    assert block["per_label"]
+    assert all("curve" in e for e in block["per_label"].values())
 
 
 def test_adv_only_curvature_supplied():
@@ -1058,12 +1127,12 @@ def test_adv_only_curvature_supplied():
     curvature = compute_spine_curvature(fit, centroids)
 
     block = build_features_block(
-        geometry={}, components={}, centroids={},
+        geometry={}, components={}, centroids={c.label: c for c in centroids},
         relationships=None, overlaps=[],
         curvature=curvature,
     )
-    assert "stage3" in block
-    assert "curvature" in block["stage3"]
+    assert block["features_version"] == "0.3"
+    assert "total_curvature_deg" in block["case"]["curve"]
 
 
 def test_adv_all_stage3_none_no_stage3_key():
@@ -1077,16 +1146,16 @@ def test_adv_all_stage3_none_no_stage3_key():
         spacing_consistency=None,
         monotonic_consistency=None,
     )
-    assert "stage3" not in block
+    assert "curve" not in block["case"]
 
 
 def test_adv_two_centroid_spine_full_pipeline():
     """Minimum valid spine (2 centroids) passes through the full Stage 3 pipeline."""
     centroids = _straight_spine(2, spacing_mm=10.0)
     block = _full_block_for_spine(centroids)
-    assert "stage3" in block
-    assert len(block["stage3"]["per_label_offsets"]) == 2
-    assert block["stage3"]["monotonic_consistency"]["is_monotonic"] is True
+    assert "curve" in block["case"]
+    assert len(_kind_entries(block, "curve")) == 2
+    assert block["case"]["curve"]["is_monotonic"] is True
 
 
 def test_adv_schema_rejects_missing_offset_mm():
@@ -1097,7 +1166,7 @@ def test_adv_schema_rejects_missing_offset_mm():
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     bad = json.loads(json.dumps(block))
-    del bad["stage3"]["per_label_offsets"][0]["offset_mm"]
+    del next(iter(bad["per_label"].values()))["curve"]["offset_mm"]
 
     report = serialize_report(_empty_verdict(), "c", _config())
     report["features"] = bad
@@ -1113,7 +1182,7 @@ def test_adv_schema_rejects_missing_is_monotonic():
     centroids = _straight_spine(5)
     block = _full_block_for_spine(centroids)
     bad = json.loads(json.dumps(block))
-    del bad["stage3"]["monotonic_consistency"]["is_monotonic"]
+    del bad["case"]["curve"]["is_monotonic"]
 
     report = serialize_report(_empty_verdict(), "c", _config())
     report["features"] = bad
@@ -1130,7 +1199,7 @@ def test_adv_all_serialised_offsets_non_negative():
     """All serialised offset_mm and offset_voxel values are non-negative."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         assert entry["offset_mm"] >= 0.0
         assert entry["offset_voxel"] >= 0.0
 
@@ -1139,7 +1208,7 @@ def test_adv_all_u_values_in_unit_interval():
     """All serialised u_values in monotonic_consistency are in [0.0, 1.0]."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for u in block["stage3"]["monotonic_consistency"]["u_values"]:
+    for u in [e["curve"]["path_u"] for e in block["per_label"].values()]:
         assert 0.0 <= float(u) <= 1.0, f"u value {u} out of [0, 1]"
 
 
@@ -1147,28 +1216,28 @@ def test_adv_total_curvature_non_negative():
     """Serialised total_curvature_deg is non-negative."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    assert block["stage3"]["curvature"]["total_curvature_deg"] >= 0.0
+    assert block["case"]["curve"]["total_curvature_deg"] >= 0.0
 
 
 def test_adv_mean_spacing_positive():
     """Serialised mean_spacing_mm is positive for well-separated centroids."""
     centroids = _straight_spine(6, spacing_mm=10.0)
     block = _full_block_for_spine(centroids)
-    assert block["stage3"]["spacing_consistency"]["mean_spacing_mm"] > 0.0
+    assert block["pairs"]["adjacent"]["mean_spacing_mm"] > 0.0
 
 
 def test_adv_cv_spacing_non_negative():
     """Serialised cv_spacing is non-negative."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    assert block["stage3"]["spacing_consistency"]["cv_spacing"] >= 0.0
+    assert block["pairs"]["adjacent"]["cv_spacing"] >= 0.0
 
 
 def test_adv_vector_components_consistent_in_serialised_block():
     """sqrt(dx_mm² + dy_mm² + dz_mm²) ≈ offset_mm in the serialised block (abs_tol=0.1)."""
     centroids = _straight_spine(6)
     block = _full_block_for_spine(centroids)
-    for entry in block["stage3"]["per_label_offsets"]:
+    for entry in _kind_entries(block, "curve"):
         reconstructed = math.sqrt(
             entry["dx_mm"] ** 2 + entry["dy_mm"] ** 2 + entry["dz_mm"] ** 2
         )
@@ -1206,7 +1275,7 @@ def test_adv_non_monotonic_pairs_are_two_element_lists():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    for pair in block["stage3"]["monotonic_consistency"]["non_monotonic_pairs"]:
+    for pair in block["pairs"]["adjacent"]["non_monotonic_pairs"]:
         assert isinstance(pair, list), f"non_monotonic_pairs entry is not a list: {pair!r}"
         assert len(pair) == 2
         assert isinstance(pair[0], str)
@@ -1241,7 +1310,7 @@ def test_adv_swapped_spine_is_non_monotonic_in_serialised_block():
         spacing_consistency=spacing,
         monotonic_consistency=monotonic,
     )
-    assert block["stage3"]["monotonic_consistency"]["is_monotonic"] is False, (
+    assert block["case"]["curve"]["is_monotonic"] is False, (
         "Expected is_monotonic=False for swapped centroid sequence"
     )
 

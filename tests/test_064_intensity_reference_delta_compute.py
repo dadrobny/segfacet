@@ -40,7 +40,11 @@ import json
 
 import pytest
 
-from segfacet.feature_report import build_image_features_block
+from segfacet.feature_report import (
+    add_intensity_kind,
+    build_image_features_block,
+    build_intensity_entries,
+)
 from segfacet.features.intensity import LabelIntensity
 from segfacet.reference import (
     ALL_STRATUM,
@@ -176,8 +180,14 @@ def _features_block(entries):
     return {"per_label": per_label}
 
 
-def _image_features(intensity_by_label, *, available=True):
-    return build_image_features_block(intensity_by_label, available=available)
+def _scored(block, intensity_by_label, *, available=True):
+    """``(block, image_features)`` for a compute call (item 215): *block* with
+    each label's intensity kind stored on its per_label entry, and the
+    case-level image_features block (availability gate only)."""
+    return (
+        add_intensity_kind(block, build_intensity_entries(intensity_by_label)),
+        build_image_features_block(available=available),
+    )
 
 
 def _label_intensity(**overrides):
@@ -236,7 +246,7 @@ def test_ac1_intensity_feature_prefix_constant():
 def test_ac2_label_scored_against_its_own_level():
     reference = _single_feature_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features({20: _label_intensity(median=200.0)})  # == p50
+    block, image_features = _scored(block, {20: _label_intensity(median=200.0)})  # == p50
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     label_delta = delta.per_label[20]
@@ -257,7 +267,7 @@ def test_ac2_label_scored_against_its_own_level():
 def test_ac3_feature_value_equals_first_order_value_with_prefix_stripped():
     reference = _two_level_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features({20: _label_intensity(median=213.0, mean=201.5)})
+    block, image_features = _scored(block, {20: _label_intensity(median=213.0, mean=201.5)})
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     label_delta = delta.per_label[20]
@@ -275,14 +285,14 @@ def test_ac3_feature_value_equals_first_order_value_with_prefix_stripped():
 
 def test_ac4_same_value_scored_against_two_levels_gives_opposite_verdicts():
     reference = _two_level_reference()
-    image_features = _image_features({20: _label_intensity(median=205.0)})
+    intensity = {20: _label_intensity(median=205.0)}
 
-    block_level_a = _features_block([(20, "L1")])
+    block_level_a, image_features = _scored(_features_block([(20, "L1")]), intensity)
     delta_a = compute_intensity_reference_delta(block_level_a, image_features, reference)
     fd_a = _feature_delta(delta_a.per_label[20], "intensity_median")
     assert fd_a.out_of_range is False  # inside L1's band (p1=110..p99=290)
 
-    block_level_b = _features_block([(20, "L2")])
+    block_level_b, image_features = _scored(_features_block([(20, "L2")]), intensity)
     delta_b = compute_intensity_reference_delta(block_level_b, image_features, reference)
     fd_b = _feature_delta(delta_b.per_label[20], "intensity_median")
     assert fd_b.out_of_range is True  # far outside L2's band (p1=22..p99=78)
@@ -296,7 +306,7 @@ def test_ac4_same_value_scored_against_two_levels_gives_opposite_verdicts():
 def test_ac5_out_of_band_value_flags_out_of_range_and_is_listed():
     reference = _single_feature_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features({20: _label_intensity(median=1000.0)})  # >> p99 (290)
+    block, image_features = _scored(block, {20: _label_intensity(median=1000.0)})  # >> p99 (290)
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     label_delta = delta.per_label[20]
@@ -317,7 +327,7 @@ def test_ac6_large_deviation_yields_large_robust_z_and_rms_distance():
     block = _features_block([(20, "L1")])
     median_value = 1000.0
     mean_value = 210.0
-    image_features = _image_features(
+    block, image_features = _scored(block, 
         {20: _label_intensity(median=median_value, mean=mean_value)}
     )
 
@@ -347,7 +357,7 @@ def test_ac6_large_deviation_yields_large_robust_z_and_rms_distance():
 def test_ac7_absent_level_yields_unavailable_not_a_crash():
     reference = _single_feature_reference()
     block = _features_block([(99, "UNKNOWN")])
-    image_features = _image_features({99: _label_intensity()})
+    block, image_features = _scored(block, {99: _label_intensity()})
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     label_delta = delta.per_label[99]
@@ -361,7 +371,7 @@ def test_ac7_absent_level_yields_unavailable_not_a_crash():
 def test_ac7_absent_stratum_yields_unavailable_not_a_crash():
     reference = _single_feature_reference()  # only carries stratum "all"
     block = _features_block([(20, "L1")])
-    image_features = _image_features({20: _label_intensity()})
+    block, image_features = _scored(block, {20: _label_intensity()})
 
     delta = compute_intensity_reference_delta(
         block, image_features, reference, stratum="s1"
@@ -381,7 +391,7 @@ def test_ac7_absent_stratum_yields_unavailable_not_a_crash():
 def test_ac8_geometry_only_reference_yields_empty_intensity_features():
     reference = _geometry_only_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features({20: _label_intensity()})
+    block, image_features = _scored(block, {20: _label_intensity()})
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     label_delta = delta.per_label[20]
@@ -400,7 +410,7 @@ def test_ac8_geometry_only_reference_yields_empty_intensity_features():
 def test_ac9_none_first_order_value_omits_that_feature_but_scores_siblings():
     reference = _two_level_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features(
+    block, image_features = _scored(block, 
         {20: _label_intensity(median=None, mean=201.0)}
     )
 
@@ -421,7 +431,7 @@ def test_ac9_sentinel_label_intensity_yields_no_intensity_features():
         p05=None, p25=None, p50=None, p75=None, p95=None,
         range=None, iqr=None, entropy=None,
     )
-    image_features = _image_features({20: sentinel})
+    block, image_features = _scored(block, {20: sentinel})
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     assert delta.per_label[20].features == ()
@@ -452,7 +462,7 @@ def test_ac10_non_mapping_image_features_yields_no_intensity_scores():
 def test_ac10_unavailable_image_features_yields_no_intensity_scores():
     reference = _single_feature_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features({20: _label_intensity()}, available=False)
+    block, image_features = _scored(block, {20: _label_intensity()}, available=False)
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     assert delta.per_label[20].features == ()
@@ -468,7 +478,7 @@ def test_ac10_unavailable_image_features_yields_no_intensity_scores():
 def test_ac11_deterministic_and_non_mutating():
     reference = _two_level_reference()
     block = _features_block([(20, "L1")])
-    image_features = _image_features(
+    block, image_features = _scored(block, 
         {20: _label_intensity(median=213.0, mean=201.5)}
     )
 
@@ -498,7 +508,7 @@ def test_ac11_deterministic_and_non_mutating():
 def test_adv_empty_features_block_yields_empty_per_label():
     reference = _two_level_reference()
     block = _features_block([])
-    image_features = _image_features({})
+    block, image_features = _scored(block, {})
 
     delta = compute_intensity_reference_delta(block, image_features, reference)
     assert delta.per_label == {}
@@ -513,14 +523,18 @@ def test_adv_value_exactly_on_bound_is_in_range_just_past_is_out():
     block = _features_block([(20, "L1")])
     p1 = INTENSITY_MEDIAN_L1.percentiles["p1"]
 
-    image_on_bound = _image_features({20: _label_intensity(median=p1)})
-    delta_on_bound = compute_intensity_reference_delta(block, image_on_bound, reference)
+    block_on_bound, image_on_bound = _scored(block, {20: _label_intensity(median=p1)})
+    delta_on_bound = compute_intensity_reference_delta(
+        block_on_bound, image_on_bound, reference
+    )
     fd_on_bound = _feature_delta(delta_on_bound.per_label[20], "intensity_median")
     assert fd_on_bound.out_of_range is False
 
-    image_below_bound = _image_features({20: _label_intensity(median=p1 - 0.0001)})
+    block_below_bound, image_below_bound = _scored(
+        block, {20: _label_intensity(median=p1 - 0.0001)}
+    )
     delta_below_bound = compute_intensity_reference_delta(
-        block, image_below_bound, reference
+        block_below_bound, image_below_bound, reference
     )
     fd_below_bound = _feature_delta(delta_below_bound.per_label[20], "intensity_median")
     assert fd_below_bound.out_of_range is True
@@ -535,7 +549,7 @@ def test_adv_mixed_sentinel_and_populated_labels_in_one_block():
         p05=None, p25=None, p50=None, p75=None, p95=None,
         range=None, iqr=None, entropy=None,
     )
-    image_features = _image_features(
+    block, image_features = _scored(block, 
         {20: sentinel, 21: _label_intensity(median=205.0, mean=201.0)}
     )
 
@@ -547,7 +561,7 @@ def test_adv_mixed_sentinel_and_populated_labels_in_one_block():
 def test_adv_determinism_non_mutation_via_deep_copy_comparison():
     reference = _two_level_reference()
     block = _features_block([(20, "L1"), (21, "L2")])
-    image_features = _image_features(
+    block, image_features = _scored(block, 
         {20: _label_intensity(median=205.0), 21: _label_intensity(median=55.0)}
     )
     block_snapshot = copy.deepcopy(block)
@@ -578,7 +592,7 @@ def test_adv_real_061_shaped_block_composes_over_a_painted_synthetic_scan():
 
     geo_block = extract_feature_record(spine.seg_img, config)
     intensity_by_label = compute_intensity_features(scan_img, spine.seg_img)
-    image_features = build_image_features_block(intensity_by_label)
+    geo_block, image_features = _scored(geo_block, intensity_by_label)
 
     reference = _two_level_reference()  # only carries "L1"/"L2" -- fine, AC7 path
     delta = compute_intensity_reference_delta(geo_block, image_features, reference)

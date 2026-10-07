@@ -21,7 +21,7 @@ Covers Acceptance Criteria AC1-AC25:
         five named canonical paths, no bare-integer segment, and exactly 67
         members.
 - AC5:  ``iter_driver_records`` is in-package (no ``tests/`` literal),
-        deterministic, and its union realises a non-empty ``overlaps``, a
+        deterministic, and its union realises a non-empty ``pairs.overlaps``, a
         ``stage3`` block, and a degenerate (no-``stage3``) record.
 - AC6:  coverage is exact and duplicate-free both directions against the
         driver-record union ``U``.
@@ -33,7 +33,7 @@ Covers Acceptance Criteria AC1-AC25:
         traced vs. plain across all nine corpus records.
 - AC10: dynamic attribution reproduces the measured rule<->feature reads for
         six named paths.
-- AC11: ``overlaps[].overlap_voxels`` carries ``"overlap"`` regardless of
+- AC11: ``pairs.overlaps[].overlap_voxels`` carries ``"overlap"`` regardless of
         evidence tag.
 - AC12: every rule attribution carries a valid evidence tag; the
         ``rule_evidence`` rule-id set equals ``consuming_rules``.
@@ -312,7 +312,7 @@ def test_ac2_feature_docs_module_imports_nothing_non_stdlib(feature_docs_module)
             "reference_delta.per_label.9.distribution_distance",
             "reference_delta.{label}.distribution_distance",
         ),
-        ("overlaps.2.overlap_voxels", "overlaps[].overlap_voxels"),
+        ("pairs.overlaps.2.overlap_voxels", "pairs.overlaps[].overlap_voxels"),
     ],
 )
 def test_ac3_normalise_leaf_path_collapses(catalogue_module, raw, expected):
@@ -323,11 +323,11 @@ def test_ac3_normalise_leaf_path_collapses(catalogue_module, raw, expected):
     "path",
     [
         "per_label.{label}.geometry.touches_superior",
-        "relationships.out_of_order_labels[]",
-        "stage3.per_label_offsets[].offset_mm",
+        "case.sequence.out_of_order_labels[]",
+        "per_label.{label}.curve.offset_mm",
         "features_version",
         "extended.{radiomic}",
-        "overlaps[].overlap_voxels",
+        "pairs.overlaps[].overlap_voxels",
         "per_label.3.components.fragmentation_index",
     ],
 )
@@ -342,7 +342,7 @@ def test_ac3_normalise_leaf_path_idempotent(catalogue_module, path):
     [
         "per_label.4.geometry.touches_superior",
         "reference_delta.per_label.11.features.spline_offset_mm",
-        "overlaps.0.overlap_voxels",
+        "pairs.overlaps.0.overlap_voxels",
     ],
 )
 def test_ac3_no_bare_integer_segment_remains(catalogue_module, path):
@@ -363,8 +363,8 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     for expected in (
         "per_label.{label}.geometry.touches_superior",
         "per_label.{label}.components.fragmentation_index",
-        "relationships.out_of_order_labels[]",
-        "stage3.per_label_offsets[].offset_mm",
+        "case.sequence.out_of_order_labels[]",
+        "per_label.{label}.curve.offset_mm",
         "features_version",
     ):
         assert expected in paths, expected
@@ -386,13 +386,23 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # per_label.{label}.components.label_contact_fraction; clean_control's
     # single-component label still emits a one-entry component_contacts[],
     # so all five appear.
-    assert len(paths) == 101
+    # 101 -> 95: item 215 (2026-10-06) merges six identity copies out of this
+    # record -- `label` and `level_name` of stage3.per_label_offsets[],
+    # stage3.per_label_orientations[] and stage3.per_label_neighbourhood[]
+    # (-6). Every other 215 row it carries is a 1:1 move (the four per-label
+    # arrays become scalars at new paths), and the record carries no
+    # image_features or reference_delta row.
+    # 95 -> 95: item 216 (2026-10-06) merges one spacing array out of this
+    # record (stage3.spacing_consistency.spacings_mm[] onto
+    # pairs.adjacent.spacings_mm[], -1) and stores one new field with no row,
+    # case.sequence.order[] (+1). Every other 216 row it carries is a 1:1 move.
+    assert len(paths) == 95
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):
-    record = {"relationships": {"out_of_order_labels": []}}
+    record = {"case": {"sequence": {"out_of_order_labels": []}}}
     paths = catalogue_module.iter_leaf_paths(record)
-    assert "relationships.out_of_order_labels[]" in paths
+    assert "case.sequence.out_of_order_labels[]" in paths
 
 
 # =========================================================================== #
@@ -415,16 +425,19 @@ def test_ac5_deterministic_across_calls(catalogue_module):
 
 
 def test_ac5_union_has_nonempty_overlaps_pair(catalogue_module, driver_records, leaf_union):
-    assert "overlaps[].overlap_voxels" in leaf_union
-    assert any(record.get("overlaps") for record in driver_records.values())
+    assert "pairs.overlaps[].overlap_voxels" in leaf_union
+    assert any(
+        (record.get("pairs") or {}).get("overlaps") for record in driver_records.values()
+    )
 
 
 def test_ac5_union_has_a_stage3_record(driver_records):
-    assert any("stage3" in record for record in driver_records.values())
+    # Item 216: the Stage 3 case-level fields live in case.curve.
+    assert any("curve" in record.get("case", {}) for record in driver_records.values())
 
 
 def test_ac5_union_has_a_degenerate_record(driver_records):
-    assert any("stage3" not in record for record in driver_records.values())
+    assert any("curve" not in record.get("case", {}) for record in driver_records.values())
 
 
 # =========================================================================== #
@@ -540,11 +553,11 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.geometry.touches_anterior", "border"),
         ("per_label.{label}.geometry.touches_posterior", "border"),
         # Item 192 (2026-09-28): sequence reads per_label centroids, not
-        # relationships.out_of_order_labels[].
+        # case.sequence.out_of_order_labels[].
         ("per_label.{label}.centroid.centroid_mm[]", "sequence"),
-        ("relationships.missing_levels[]", "coverage"),
+        ("case.sequence.missing_levels[]", "coverage"),
         # Item 189 (2026-09-28): the offset detector moved to spline_offset.
-        ("stage3.per_label_offsets[].offset_mm", "spline_offset"),
+        ("per_label.{label}.curve.offset_mm", "spline_offset"),
         ("per_label.{label}.geometry.physical_volume_mm3", "bounds"),
     ],
 )
@@ -561,7 +574,7 @@ def test_ac10_observed_rule_attribution(full_catalogue, path, rule_id):
 
 
 def test_ac11_overlap_voxels_attributed_to_overlap_rule(full_catalogue):
-    entry = _entry(full_catalogue, "overlaps[].overlap_voxels")
+    entry = _entry(full_catalogue, "pairs.overlaps[].overlap_voxels")
     assert "overlap" in entry.consuming_rules
 
 
@@ -660,7 +673,7 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     asserted separately -- which keeps the "derived from ``synth/``" claim
     this AC is about, instead of weakening the pin to a subset check.
 
-    ``overlap``'s only ``"signal"`` path, ``overlaps[].overlap_voxels``, is
+    ``overlap``'s only ``"signal"`` path, ``pairs.overlaps[].overlap_voxels``, is
     also ``MODE_ANCHOR_PATHS[15]``'s sole member, so there is no non-anchor
     entry to match against. For a rule whose every signal path is an anchor
     path, assert that fact directly (the signal set is a non-empty subset of
@@ -843,8 +856,7 @@ def test_ac15_intensity_rule_only_entries_are_honest_by_role(
     mode-less: an entry either ``intensity`` rule reaches only ``"signal"``
     (the two ``first_order`` paths) carries their declared mode with
     ``("rule_declaration",)``; an entry either reaches only ``"bookkeeping"``
-    (e.g. ``image_features.available``,
-    ``image_features.per_label.{label}.label``) is honestly ``()`` with
+    (e.g. ``case.intensity.available``) is honestly ``()`` with
     ``("rule_bookkeeping",)``. Both restatements are checked, split by role
     rather than lumped together. The declared mode is read live -- item 150's
     sign-off renumbered "implausible tissue under a label" from 9 to 10, and
@@ -1220,12 +1232,12 @@ def test_adv_iter_leaf_paths_zero_label_record_relationships_none(catalogue_modu
     record = _CORPUS_RECORDS.get("clean_control")
     zero_label = dict(record)
     zero_label["per_label"] = {}
-    zero_label["relationships"] = None
-    zero_label.pop("stage3", None)
+    zero_label["case"] = {"sequence": None}
+    zero_label["pairs"] = {"overlaps": []}
     paths = catalogue_module.iter_leaf_paths(zero_label)
-    assert "relationships" in paths
+    assert "case.sequence" in paths
     for path in paths:
-        assert not path.startswith("relationships.")
+        assert not path.startswith("case.sequence.")
 
 
 def test_adv_deeply_nested_empty_dict_beside_empty_list_are_distinct(catalogue_module):

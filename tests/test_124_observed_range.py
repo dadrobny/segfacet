@@ -12,7 +12,7 @@ Covers Acceptance Criteria AC1-AC23:
 - AC4:  an unresolved path's ``observed.reference`` is ``covered: False``
         with every numeric field ``None`` (never ``0``, never omitted).
 - AC5:  an injected pre-123-magnitude reference flags exactly
-        ``stage3.per_label_offsets[].offset_mm`` as ``"degenerate"``.
+        ``per_label.{label}.curve.offset_mm`` as ``"degenerate"``.
 - AC6:  a legitimately-constant synthetic path (``dy_mm``) reads
         ``"constant-synthetic"``, never ``"degenerate"``.
 - AC7:  a placeholder-only path reads ``"placeholder"``.
@@ -308,7 +308,7 @@ def test_ac3_reference_range_aggregates_across_levels_and_strata(
     ranges = observed_range_module.build_observed_ranges(
         driver_records=driver_records, reference=reference
     )
-    observed = ranges.get("stage3.per_label_offsets[].offset_mm")
+    observed = ranges.get("per_label.{label}.curve.offset_mm")
     assert observed is not None
     assert observed.reference.minimum == pytest.approx(min(per_level_mins), rel=1e-5)
     assert observed.reference.maximum == pytest.approx(max(per_level_maxs), rel=1e-5)
@@ -322,7 +322,7 @@ def test_ac3_reference_range_aggregates_across_levels_and_strata(
 
 def test_ac4_uncovered_reference_path_is_null_not_zero(full_catalogue):
     # dy_mm is not among the 21 reference features (Description).
-    entry = _entry(full_catalogue, "stage3.per_label_offsets[].dy_mm")
+    entry = _entry(full_catalogue, "per_label.{label}.curve.dy_mm")
     ref = entry.observed.reference
     assert ref.covered is False
     assert ref.minimum is None
@@ -341,7 +341,7 @@ def test_ac5_pre123_magnitude_reference_flags_offset_mm_degenerate(observed_rang
         {"spline_offset_mm": (_PRE123_MIN, _PRE123_MAX)}
     )
     ranges = observed_range_module.build_observed_ranges(reference=dead_reference)
-    entry_range = ranges["stage3.per_label_offsets[].offset_mm"]
+    entry_range = ranges["per_label.{label}.curve.offset_mm"]
     assert entry_range.verdict == "degenerate"
 
 
@@ -351,7 +351,7 @@ def test_ac5_only_the_targeted_path_is_flagged_degenerate(observed_range_module)
     )
     ranges = observed_range_module.build_observed_ranges(reference=dead_reference)
     degenerate_paths = [p for p, r in ranges.items() if r.verdict == "degenerate"]
-    assert degenerate_paths == ["stage3.per_label_offsets[].offset_mm"]
+    assert degenerate_paths == ["per_label.{label}.curve.offset_mm"]
 
 
 # =========================================================================== #
@@ -365,7 +365,7 @@ def test_ac6_constant_synthetic_dy_mm_not_degenerate(full_catalogue):
     # lordotic base curves in the sagittal plane with no lateral curve, so the
     # constant path is now dx_mm (L-R) and dy_mm varies. The name records the
     # box-base path.
-    entry = _entry(full_catalogue, "stage3.per_label_offsets[].dx_mm")
+    entry = _entry(full_catalogue, "per_label.{label}.curve.dx_mm")
     assert entry.observed.verdict == "constant-synthetic"
     assert entry.observed.verdict != "degenerate"
 
@@ -425,7 +425,7 @@ def test_ac10_shipped_catalogue_has_zero_degenerate(committed_json_dict):
 
 
 def test_ac11_offset_mm_varies_with_magnitude_above_one(committed_json_dict):
-    entry = _json_entry(committed_json_dict, "stage3.per_label_offsets[].offset_mm")
+    entry = _json_entry(committed_json_dict, "per_label.{label}.curve.offset_mm")
     assert entry["observed"]["verdict"] == "varies"
     assert entry["observed"]["reference"]["magnitude"] > 1.0
 
@@ -549,8 +549,21 @@ def test_ac18_entry_set_has_138_paths(full_catalogue):
     # (`component_contacts[].neighbour_label` / `.contact_area_mm2` /
     # `.surface_area_mm2` / `.contact_fraction`, `label_contact_fraction`),
     # 140 -> 145. The two item-167 paths stay (A4).
+    # Item 215 (2026-10-06): 145 -> 156. Nine identity copies merge onto
+    # per_label.{label}.label / .level_name (-9: label and level_name of
+    # stage3.per_label_offsets[], stage3.per_label_orientations[],
+    # stage3.per_label_neighbourhood[] and reference_delta.{label}, plus
+    # image_features.per_label.{label}.label), every other 215 row moves 1:1
+    # (the four per-label arrays included), and the 20 report-only
+    # reference_delta.{label}.features.<f>.<s> rows join the catalogue (+20).
+    # Item 216 (2026-10-06): 156 -> 154. Three merged rows leave the
+    # catalogue (-3: overlaps[].name_a and .name_b onto
+    # per_label.{label}.level_name, stage3.spacing_consistency.spacings_mm[]
+    # onto pairs.adjacent.spacings_mm[]); every other 216 row moves or stays
+    # 1:1, and case.sequence.order[], a stored field with no table row (the
+    # note's Deviation 11), joins (+1).
     paths = {e.path for e in full_catalogue.entries}
-    assert len(paths) == 145
+    assert len(paths) == 154
 
 
 def test_ac18_committed_entry_set_matches_regenerated(full_catalogue, committed_json_dict):
@@ -665,7 +678,7 @@ def test_ac22_main_accepts_reference_flag(catalogue_module, tmp_path):
         ["--json", str(json_dest), "--md", str(md_dest), "--reference", str(alt_path)]
     )
     data = json.loads(json_dest.read_bytes().decode("utf-8"))
-    entry = _json_entry(data, "stage3.per_label_offsets[].offset_mm")
+    entry = _json_entry(data, "per_label.{label}.curve.offset_mm")
     assert entry["observed"]["verdict"] == "degenerate"
 
 
@@ -708,7 +721,7 @@ def test_adv_verdict_order_degenerate_beats_varies(observed_range_module):
         {"spline_offset_mm": (_PRE123_MIN, _PRE123_MAX)}
     )
     ranges = observed_range_module.build_observed_ranges(reference=dead_reference)
-    entry_range = ranges["stage3.per_label_offsets[].offset_mm"]
+    entry_range = ranges["per_label.{label}.curve.offset_mm"]
     assert entry_range.corpus.covered is True
     assert entry_range.corpus.informative is True
     assert entry_range.verdict == "degenerate"
@@ -748,7 +761,7 @@ def test_adv_verdict_order_placeholder_beats_varies(observed_range_module):
         out_of_range_features=(),
     )
     large_reference_delta = ReferenceDelta(
-        reference_delta_version="1.0",
+        reference_delta_version="1.1",
         reference_schema_version="1.0",
         reference_source="synthetic-placeholder",
         stratum="all",
@@ -807,8 +820,8 @@ def test_adv_sign_handling_all_negative_population_is_informative(observed_range
 
 def test_adv_boolean_values_are_not_numeric(full_catalogue):
     for path in (
-        "stage3.per_label_offsets[].is_terminal",
-        "relationships.is_continuous",
+        "per_label.{label}.curve.is_terminal",
+        "case.sequence.is_continuous",
     ):
         entry = _entry(full_catalogue, path)
         assert entry.observed.verdict == "non-numeric", path
@@ -827,10 +840,10 @@ def test_adv_iter_leaf_values_bool_excluded_none_skipped(observed_range_module):
     "path",
     [
         "per_label",
-        "overlaps[]",
+        "pairs.overlaps[]",
         "per_label.{label}.components.small_fragments[]",
-        "stage3.monotonic_consistency.non_monotonic_pairs[]",
-        "stage3.spacing_consistency.outlier_pairs[]",
+        "pairs.adjacent.non_monotonic_pairs[]",
+        "pairs.adjacent.outlier_pairs[]",
         "reference_delta.{label}.out_of_range_features[]",
     ],
 )
@@ -840,7 +853,7 @@ def test_adv_empty_container_paths_are_classified_not_dropped(full_catalogue, pa
 
 
 def test_adv_scalar_list_collected_element_wise(full_catalogue):
-    entry = _entry(full_catalogue, "stage3.curvature.tangent_angles_deg[]")
+    entry = _entry(full_catalogue, "per_label.{label}.orientation.tangent_angle_deg")
     assert entry.observed.corpus.count is not None
     assert entry.observed.corpus.count > 1
 

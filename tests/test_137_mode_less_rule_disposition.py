@@ -221,7 +221,6 @@ def _firing_record():
     )
     record = {
         **features_block,
-        "image_features": image_features,
         "reference": reference,
         "reference_delta": delta,
         "intensity_reference_delta": intensity_delta,
@@ -297,7 +296,7 @@ def test_adv_reference_delta_declared_modes_cover_every_tracked_mode_anchor_feat
     feature_record_path = {
         name: "per_label.{label}.geometry." + name for name in tracked if name != "spline_offset_mm"
     }
-    feature_record_path["spline_offset_mm"] = "stage3.per_label_offsets[].offset_mm"
+    feature_record_path["spline_offset_mm"] = "per_label.{label}.curve.offset_mm"
     assert set(feature_record_path) == set(tracked)
 
     anchor_modes_by_path: dict = {}
@@ -952,11 +951,39 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     ``per_label.{label}.level_name`` gain ``split_fragment`` as a consuming
     rule with their modes unchanged. The ``("rule_mode_map",
     "rule_declaration")`` bucket moves 11 -> 12; ``len(entries)`` stays 145,
-    ``mode1_count`` 5, ``mode2_count`` 11 and ``mode16_count`` 2."""
+    ``mode1_count`` 5, ``mode2_count`` 11 and ``mode16_count`` 2.
+
+    Re-measured (item 215, 2026-10-06): the catalogue moves 145 -> 156 and
+    ``mode1_count`` (5), ``mode2_count`` (11) and ``mode16_count`` (2) do not
+    move. Nine identity copies merge away (-9) and the 20 report-only
+    ``reference_delta.{label}.features.<f>.<s>`` rows are catalogued (+20).
+    Bucket by bucket, from the regenerated catalogue:
+
+    * ``()``: 89 -> 103. The four unconsumed orientations / neighbourhood
+      identity copies merge away (-4); the 16 new rows no rule consumes join
+      (+16); ``physical_volume_mm3``'s ``percentile_rank`` and ``value`` fall
+      out of ``("rule_mode_less", "rule_bookkeeping", "rule_not_read")`` into
+      it (+2), because once five features share each last segment the static
+      scan can no longer attribute them (kind 4: survivors that changed
+      bucket).
+    * ``("rule_bookkeeping",)``: 10 -> 8. ``per_label.{label}.label`` leaves
+      for the mode-less bucket below (-1: ``spline_offset`` and the border
+      rule's static attribution make it consumed by a mode-less rule, kind 4)
+      and ``image_features.per_label.{label}.label`` merges away (-1).
+    * ``("rule_mode_less", "rule_bookkeeping")``: 9 -> 11. The four merged
+      ``spline_offset`` and ``reference_delta`` identity copies leave (-4);
+      ``per_label.{label}.label`` joins (+1); ``physical_volume_mm3``'s
+      ``robust_z`` joins from the three-source bucket (+1); the four new
+      ``robust_z`` rows join (+4).
+    * ``("rule_mode_less", "rule_bookkeeping", "rule_not_read")``: 8 -> 5.
+      ``percentile_rank`` and ``value`` leave for ``()`` (-2) and ``robust_z``
+      leaves for the bucket above (-1).
+
+    No other bucket moves."""
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 145
+    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
 
     # The two analytic rules' own declared modes ...
     # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
@@ -982,11 +1009,19 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     expected = {
         # Item 187 (2026-09-28): 86 -> 91 (five new unwired paths).
         # Item 207 (2026-09-30): 91 -> 90 (spacings_mm[] is now consumed).
-        (): 89,  # item 208 (2026-09-30): 90 -> 89
+        # Item 215 (2026-10-06): 89 -> 103 (-4 merged, +16 new, +2 survivors).
+        # Item 216 (2026-10-06): 103 -> 102 (the survivor
+        # pairs.adjacent.spacings_mm[] leaves for the fused_label consumer,
+        # -1; pairs.adjacent.mean_spacing_mm leaves for the fused_label gate
+        # it is declared bookkeeping for, -1; case.sequence.order[] joins, +1).
+        (): 102,
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
-        ("rule_bookkeeping",): 10,
+        # item 215 (2026-10-06): 10 -> 8; item 216 (2026-10-06): 8 -> 7
+        # (overlaps[].name_a and .name_b merge onto per_label.{label}.level_name,
+        # -2; pairs.adjacent.mean_spacing_mm joins from the empty bucket, +1).
+        ("rule_bookkeeping",): 7,
         # Item 193 (2026-09-28): entries consumed only by reference_delta
         # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
@@ -1004,12 +1039,12 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("per_mode_metric",): 2,
         # Item 193 (2026-09-28): 6 -> 9 -- reference_delta's three
         # re-classified signal paths join here.
-        ("rule_mode_less", "rule_bookkeeping"): 9,
+        ("rule_mode_less", "rule_bookkeeping"): 11,  # item 215 (2026-10-06): 9 -> 11
         # Item 193 (2026-09-28): 1 -> 8 -- the seven reference_delta.*
         # entries shared with intensity_reference_delta (previously
         # ("rule_declaration",) or ("rule_declaration", "rule_not_read"))
         # join here now both consuming rules are mode-less.
-        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 8,
+        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 5,  # item 215: 8 -> 5
         (
             "per_mode_metric",
             "rule_mode_map",
@@ -1033,7 +1068,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 145
+    assert sum(distribution.values()) == 154  # item 216 (2026-10-06): 156 -> 154
 
 
 # =========================================================================== #

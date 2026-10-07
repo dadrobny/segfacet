@@ -100,8 +100,8 @@ def _make_record(*entries: dict) -> dict:
     """Build a feature record whose per_label is keyed by each entry's label int."""
     return {
         "per_label": {e["label"]: e for e in entries},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
 
 
@@ -833,7 +833,7 @@ def test_ac15_value_error_raised_even_on_empty_per_label(tmp_path):
         + "      island_min_voxels: 50\n"
     )
     cfg = load_config(_write_yaml(tmp_path, content))
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     with pytest.raises(ValueError):
         run_rules(record, cfg)
 
@@ -929,20 +929,20 @@ def test_ac16_multi_label_findings_ordered_ascending_by_label():
 
 def test_ac17_empty_per_label_returns_empty_list():
     """AC17: evaluate on per_label={} returns [] without raising."""
-    record = {"per_label": {}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     assert _frag_findings(run_rules(record, default_config())) == []
 
 
 def test_ac17_absent_per_label_returns_empty_list():
     """AC17: evaluate on a record with no 'per_label' key returns [] without raising."""
-    record = {"relationships": {}, "overlaps": {}}
+    record = {"case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     assert _frag_findings(run_rules(record, default_config())) == []
 
 
 def test_ac17_missing_components_subdict_skipped_gracefully():
     """AC17: A per-label entry without a 'components' key is skipped without crashing."""
     entry = {"label": 22, "level_name": "L3"}  # no 'components' key
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     result = _frag_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
 
@@ -957,7 +957,7 @@ def test_ac17_missing_fragmentation_index_skipped_gracefully():
         "small_fragments": [],
     }
     entry = {"label": 22, "level_name": "L3", "components": comp}
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     result = _frag_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
 
@@ -973,7 +973,7 @@ def test_ac17_missing_component_sizes_handled_gracefully():
         # 'component_sizes' intentionally absent
     }
     entry = {"label": 22, "level_name": "L3", "components": comp}
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     result = _frag_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
 
@@ -981,7 +981,7 @@ def test_ac17_missing_component_sizes_handled_gracefully():
 def test_ac17_components_not_a_mapping_skipped_gracefully():
     """AC17: A components value that is not a dict is skipped without crashing."""
     entry = {"label": 22, "level_name": "L3", "components": "not-a-dict"}
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     result = _frag_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
 
@@ -995,8 +995,8 @@ def test_ac17_label_missing_components_does_not_suppress_other_labels():
     entry_with_comp = _make_label_entry(22, "L3", components=comp_intact)
     record = {
         "per_label": {3: entry_no_comp, 22: entry_with_comp},
-        "relationships": {},
-        "overlaps": {},
+        "case": {"sequence": {}},
+        "pairs": {"overlaps": {}},
     }
     findings = _frag_findings(run_rules(record, default_config()))
     label22 = [f for f in findings if 22 in f.labels]
@@ -1109,7 +1109,7 @@ def test_adv_empty_component_sizes_no_crash():
         "small_fragments": [],
     }
     entry = {"label": 22, "level_name": "L3", "components": comp}
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     result = _frag_findings(run_rules(record, default_config()))
     assert isinstance(result, list)
 
@@ -1125,7 +1125,7 @@ def test_adv_largest_component_fraction_used_as_fallback():
         "small_fragments": [],
     }
     entry = {"label": 22, "level_name": "L3", "components": comp}
-    record = {"per_label": {22: entry}, "relationships": {}, "overlaps": {}}
+    record = {"per_label": {22: entry}, "case": {"sequence": {}}, "pairs": {"overlaps": {}}}
     frag = [
         f for f in _frag_findings(run_rules(record, default_config()))
         if f.reason.startswith("Fragmentation:")

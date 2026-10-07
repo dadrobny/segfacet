@@ -69,10 +69,10 @@ def test_ac2_mislabel_reads_no_spline_offset_path():
     entries = build_catalogue(strict=True).entries
     checked = 0
     for entry in entries:
-        if entry.path.startswith("stage3.per_label_offsets[]"):
+        if entry.path.startswith("per_label.{label}.curve."):
             assert "mislabel" not in entry.consuming_rules, entry.path
             checked += 1
-    assert checked > 0, "expected at least one stage3.per_label_offsets[] entry"
+    assert checked > 0, "expected at least one per_label.{label}.curve.* entry"
 
 
 # =========================================================================== #
@@ -91,7 +91,7 @@ def test_ac3_spline_offset_rule_declares_no_failure_mode():
 
 def test_ac4_offset_is_the_conditions_signal():
     entries = build_catalogue(strict=True).entries
-    matches = [e for e in entries if e.path == "stage3.per_label_offsets[].offset_mm"]
+    matches = [e for e in entries if e.path == "per_label.{label}.curve.offset_mm"]
     assert len(matches) == 1, matches
     assert matches[0].mode_roles == (("spline_offset", "condition-signal"),)
 
@@ -231,8 +231,9 @@ def test_ac14_recorded_corpus_margins_are_live():
         fires = bool(get_rule("spline_offset").evaluate(record, config))
         if fires:
             continue
-        for entry in record["stage3"]["per_label_offsets"]:
-            if entry.get("is_terminal"):
+        for label_entry in record["per_label"].values():
+            entry = label_entry.get("curve", {})
+            if not entry or entry.get("is_terminal"):
                 continue
             non_firing_interior_offsets.append(entry["offset_mm"])
     assert non_firing_interior_offsets, "expected >=1 non-firing interior offset"
@@ -243,7 +244,7 @@ def test_ac14_recorded_corpus_margins_are_live():
             loaded_seg_image(_manifest_case(case_id)), config
         )
         matches = [
-            e for e in record["stage3"]["per_label_offsets"] if e["label"] == 22
+            e["curve"] for e in record["per_label"].values() if e["label"] == 22
         ]
         assert len(matches) == 1, matches
         assert not matches[0].get("is_terminal"), "expected label 22 to be interior"
@@ -283,7 +284,7 @@ def test_threshold_read_from_own_section():
     case = _manifest_case("displace")
     config = bundled_default_config()
     record = extract_feature_record(loaded_seg_image(case), config)
-    matches = [e for e in record["stage3"]["per_label_offsets"] if e["label"] == 22]
+    matches = [e["curve"] for e in record["per_label"].values() if e["label"] == 22]
     assert len(matches) == 1, matches
     offset_mm = matches[0]["offset_mm"]
 
