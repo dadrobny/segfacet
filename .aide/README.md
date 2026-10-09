@@ -81,11 +81,13 @@ spawns a sub-agent per leaf task and gates approvals.
   test-writer → builder → validator+merge, with a bounded build↔validate cycle
   (`loop.validation_rounds`) in which the builder steps up a tier when a failure
   survives a round or is serious from the first FAIL. Under
-  `loop.review = "background"` a reviewer runs once, concurrently with the
-  first validation, and the merge waits for both; its findings join the first
+  `loop.review = "background"` a reviewer runs once per run (claim to merge;
+  a reopen starts a new one), concurrently with that run's first
+  validation, and the merge waits for both; its findings join the first
   fix round, and every round after is checked by a fresh validator alone,
   which finds a test traced to each blocking finding fixed, or a stated
-  reason there is none (§9). A
+  reason there is none (§9) — an owner's reopen reason among them, checked
+  from that run's first validation on. A
   builder that finds the spec and the tests in contradiction hands the item
   back to spec-author rather than picking a side (§5).
 - **`/aide-run-queue [NNN]`** — claims each item (`aide claim`) then runs it via
@@ -125,14 +127,18 @@ ready straight to stopping for the merge, and reports "CI: none declared".
    `none left` means no 📋 item is left, not that every item is ✅: an item
    still 🚧 or 🔍 that no planned item waits on can remain, and the PR is
    marked ready without it. The runner resumes a 🚧 claim before claiming,
-   and a 🔍 item under `pr` mode lands when its own PR merges.
+   and a 🔍 item under `pr` mode lands when its own PR merges. A 🔍 item
+   unmerged until a person approves the human gate that is its evidence is
+   the exception: the queue has not ended while it waits, so `claim` names
+   it in a `none left — …` report ending `early ready: no`, and `aide queue
+   ready` refuses.
 2. **Clean up.** `aide gc` previews the claim branches it would delete;
    `aide gc --yes` deletes them once the list is right.
 3. **Mark the PR ready.** `aide queue ready` pushes the branch where origin
    lacks its commits and marks the queue's PR ready for review. A refusal
    ends the step with its sentence reported: no PR (`aide queue pr` opens
-   the draft), a closed or merged one, `local` mode, no forge declared, or
-   no remote.
+   the draft), a closed or merged one, `local` mode, no forge declared, no
+   remote, or an item still awaiting the human gate that is its evidence.
 4. **Wait for CI.** Read the branch's `checks=` from `aide status`, in
    bounded waits that each fit inside one tool call of the runtime; the
    orchestrator waits in its own session rather than handing the wait to a
@@ -240,7 +246,8 @@ after each merge.
 
 ## Model routing by role (capability tiers)
 
-Five sub-agents split work by role, plus one optional sixth. The engine's
+Sub-agents split work by role; a role marked *optional* is one an adapter may
+leave out. The engine's
 contract names **capability tiers**, not model names — the adapter binds each
 tier to its own runtime's models (as high as necessary, as low as adequate). Deterministic recon/claim is
 **not** an agent — orchestrators call `aide claim`.
@@ -252,9 +259,12 @@ tier to its own runtime's models (as high as necessary, as low as adequate). Det
 | `test-writer` | **T2** | writes one test per acceptance criterion, plus the cases the spec names |
 | `builder` | **T2** | implements the source dir to satisfy every AC; re-dispatched on T3 when a failure survives a round or is serious |
 | `validator` | **T2** | quality gate: tests, AC coverage, scope, vision fit; reconciles + merges |
-| `reviewer` | **T2** | *optional, `loop.review`* — adversarial read of the item's diff as first built, concurrent with the first validation; produces findings, merges nothing |
+| `reviewer` | **T2** | *optional, `loop.review`* — adversarial read of the item's diff as each run first built it, concurrent with that run's first validation; produces findings, merges nothing |
+| `spec-reviewer` | **T3** | *optional* — reads all of a queue's specs at once, before any is built, for the cross-item conflicts `aide check --queue` cannot decide; findings go to the human |
+| `insights-triager` | **T2** | *optional* — judges every open inbox entry's route, duplicate, decayed premise or wrong type; returns a plan, writes nothing |
 
-No agent signs off its own work; every role gets a fresh instance per item.
+No agent signs off its own work; every role gets a fresh instance per item
+(per queue for `spec-reviewer`, per triage pass for `insights-triager`).
 
 **`validator` and `reviewer` are two different reads of one diff** (§9).
 Validation is spec-relative and gates the merge; review is adversarial and

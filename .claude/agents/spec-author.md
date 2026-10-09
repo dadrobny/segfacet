@@ -64,7 +64,9 @@ the setting and follow it; nothing ever hangs waiting for input.
    Acceptance Criteria, in none of the shapes §1 → items.md rules out — one
    test per AC, no compound and/or, no factual claim worded so a shape check
    could satisfy it, and the *(closes Stage N criterion M)* annotation on any
-   AC that closes a stage criterion, since position is not a mapping — and
+   AC that closes a stage criterion, since position is not a mapping, and
+   the *(evidence: gate-<hex>)* annotation only on an AC a person alone can
+   check (step 6) — and
    **each one justified**: written only where the deliverable, or a declared
    consumer in the batch, fails without it (§1 → items.md, preloaded above);
    a question you deliberately leave undecided is one `**Left open:**` line
@@ -100,6 +102,17 @@ the setting and follow it; nothing ever hangs waiting for input.
    prose blocks nothing. Adding one is safe and always allowed; **never** run
    `aide gate approve`/`decline`, which is a person's call alone. This is the
    one `progress.md` edit permitted to you.
+
+   **An AC no loop-run test can measure is the one other reason for a row.**
+   §1 → items.md (`aide-item-specs`, preloaded above) sets the bar, and it
+   is high: read it there rather than from this line. Where the bar is met — say, the code sits in a sibling
+   repository whose own rules forbid the loop running tests of it — write in
+   the Assumptions (or beside the AC) why no test can measure it, add a row
+   whose Gate cell asks that one AC's by-hand question with `Blocks: —`
+   (§1 → human gates: never this item's number, or it is never claimed), run
+   `python .aide/scripts/aide.py gate list` for its ID, and end the AC line
+   with that ID's evidence annotation. One row per such AC, never one row for
+   several.
 7. **Sweep for stale test assumptions.** If the spec (or an Assumption)
    changes an existing default or behaviour, grep `tests_dir` for tests pinning
    the OLD behaviour and list every hit in the Testing Strategy as "existing
@@ -123,7 +136,7 @@ the setting and follow it; nothing ever hangs waiting for input.
 - **Do NOT run `pytest`.** **Do NOT edit `progress.md`** (the builder sets 🚧,
   the validator sets 🔍, and `aide merge` writes the ✅ — all via the CLI), with
   exactly one exception: adding a row to its `## Human gates` table (step 6).
-- Edit only `docs/aide/items/NNN-*.md`, plus that one gate row.
+- Edit only `docs/aide/items/NNN-*.md`, plus the gate rows step 6 adds.
 
 ## Stop and hand back (needs human approval)
 

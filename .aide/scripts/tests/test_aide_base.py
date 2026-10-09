@@ -195,6 +195,43 @@ def test_claim_dry_run_names_the_base_and_creates_nothing(tmp_path: Path, capsys
     assert "aide/027-bounds-rules" not in _branches(repo)
 
 
+
+def test_claim_from_a_claim_branch_takes_its_recorded_base(tmp_path: Path,
+                                                           capsys):
+    """Issue #433: a validator ending PASS (awaiting gate-…) leaves HEAD on the
+    item's claim branch. The next claim from there takes the base that branch
+    recorded — the queue branch — never `main_branch`, and branches FROM it,
+    so the left item's work does not come along."""
+    repo = _init_repo(tmp_path / "repo")
+    _run(["git", "switch", "-c", "aide/queue-003"], repo)
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    _commit(repo, "src/demo/bounds.py", "x = 2\n", "027's work")
+    capsys.readouterr()
+
+    assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
+    assert capsys.readouterr().out.startswith(
+        "would claim item 028 -> aide/028-coverage-rules (Coverage rules); "
+        "base aide/queue-003")
+    assert aide.main(["--repo", str(repo), "claim"]) == 0
+    assert aide._recorded_branch_base(repo, "aide/028-coverage-rules") == "aide/queue-003"
+    assert (repo / "src" / "demo" / "bounds.py").read_text(encoding="utf-8") == "x = 1\n"
+
+
+def test_claim_from_a_claim_branch_with_no_recorded_base_is_refused(
+        tmp_path: Path, capsys):
+    """Issue #433: `main_branch` is the guess that misroutes, so a claim
+    branch whose base this checkout never recorded is refused — --dry-run
+    too — and `--base` decides."""
+    repo = _init_repo(tmp_path / "repo")
+    _run(["git", "switch", "-c", "aide/027-bounds-rules"], repo)
+    for extra in (["--dry-run"], []):
+        assert aide.main(["--repo", str(repo), "claim", *extra]) == 1
+        err = capsys.readouterr().err
+        assert "no recorded base" in err and "--base" in err
+    assert "aide/028-coverage-rules" not in _branches(repo)
+    assert aide.main(["--repo", str(repo), "claim", "--base", "main"]) == 0
+    assert aide._recorded_branch_base(repo, "aide/028-coverage-rules") == "main"
+
 # --------------------------------------------------------------------------- #
 # merge honours the base
 # --------------------------------------------------------------------------- #

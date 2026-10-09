@@ -119,10 +119,13 @@ queue file, a roadmap deliverable and every item spec, and lands as **one**
 reviewed PR — so each of its items must branch off *and merge back into* that
 branch, not `main`. Two things make that work without a flag at every call site:
 
-- **`aide claim` records what it branched off.** It creates the branch from
-  whatever is checked out and remembers that as the item's base. Inference is
-  deliberately narrow — only a *recognised* queue branch (`<prefix>queue-NNN`,
-  `<prefix>specs-queue-NNN`), never an arbitrary checked-out branch.
+- **`aide claim` records what it branched off.** Without `--base` it infers
+  the base from what is checked out, creates the branch from that base and
+  remembers it as the item's base. Inference is deliberately narrow — only a
+  *recognised* queue branch (`<prefix>queue-NNN`, `<prefix>specs-queue-NNN`),
+  or a claim branch (`<prefix>NNN-…`), which stands for the base it recorded
+  and is refused when it recorded none; never an arbitrary checked-out
+  branch.
 - **`aide merge` returns the item to its recorded base**, so the validator's
   documented `aide merge NNN` step is correct on a queue branch with no change.
 
@@ -363,6 +366,13 @@ checks" just after a push as the answer: CI may not have started yet.
   long after it was correctly built.
 - **Why base inference is narrow.** Inferring a base from an arbitrary
   checked-out branch would silently retarget a merge.
+- **Why a claim branch stands for its recorded base.** A validator ending
+  PASS (awaiting gate-…) leaves its item 🔍 on its claim branch with HEAD
+  still there, and a person approves that gate there, so the next claim is
+  routinely run from one. Read as an arbitrary branch it fell back to
+  `main_branch`, and the next item of a queue was branched off and merged
+  into `main` instead of the queue branch (issue #433). One with no record is
+  refused rather than read as `main_branch`, the guess that misrouted it.
 - **Why the record is local.** The base is a fact about this checkout's
   branching, not about the project.
 - **Why a base the loop writes to must be a local branch.** `git switch` to a

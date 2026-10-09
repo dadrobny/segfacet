@@ -1,6 +1,6 @@
 ---
 name: aide-review-insights
-description: Triage the open insight inbox — route each entry by type, judge duplicates, decayed premises and wrong types, and hand `framework` entries over as issues.
+description: Triage the open insight inbox — an `insights-triager` sub-agent routes each entry by type and judges duplicates, decayed premises and wrong types; this session applies its plan with the verbs and hands `framework` entries over as issues.
 ---
 
 # Review the insight inbox
@@ -14,6 +14,22 @@ authoring a queue, from `/aide-feedback-loop`, or whenever the inbox has grown.
 A `framework` entry may already have been handed over on capture, so expect some
 entries to be ticked before you arrive.
 
+**Orchestration model.** The judging is dispatched; the writing is not.
+Reading every open entry with its context and checking each against the tree
+is reviewer-shaped work, so spawn the **`insights-triager`** agent once, on the
+model its agent spec pins: it judges every entry by steps 2–4 and returns a
+plan — each entry's action, the `--pointer` or `--trail` text, the fold's
+target and text, the composed `framework` body — and writes nothing. This
+session then applies the plan with the verbs (steps 2–6): a tick or a fold is
+made where it is committed, and a hand-over's body is printed whole at an
+`ask` gate the human is watching, which a sub-agent's is not. Check the plan
+against the steps rather than re-deriving it, and read the one entry yourself
+(`insights list <ID>`) where a row cannot be applied as given. The split is
+the same however this pass was reached — on its own, before a queue, or from
+`/aide-feedback-loop`. When step 1 prints no open entry there is nothing to
+judge, and nothing is spawned; run step 3's stale-pointer sweep here, over
+the recently closed entries alone.
+
 ## Instructions
 
 ### 1. Read the backlog with the verb, not by opening the file
@@ -24,7 +40,9 @@ python .aide/scripts/aide.py insights list --open
 
 The file interleaves closed and open entries, so reading it whole costs the
 entire history to see a working set that is usually a dozen lines. Open the file
-only when you need one entry's full context, and then only that entry.
+only when you need one entry's full context, and then only that entry. This
+listing decides whether the triager is spawned at all; its reading of each
+entry is the triager's.
 
 ### 2. Route each unchecked entry by its type
 

@@ -420,6 +420,16 @@ class RunnerMissing(MissingTool):
                          f"or fix [python] test_command in aide.toml")
 
 
+class RunnerUnrunnable(MissingTool):
+    """The test command's program was found, and starting it failed."""
+
+    def __init__(self, program: str, found: str, exc: OSError) -> None:
+        why = exc.strerror or str(exc)
+        super().__init__(f"the test command '{program}' was found at {found} "
+                         f"and cannot be run ({why}) — fix [python] "
+                         f"test_command in aide.toml")
+
+
 class ToolMisconfigured(MissingTool):
     """`.aide/local.toml` names where a program is, and it is not there — or
     the file cannot be read, so where it puts the program cannot be known
@@ -4174,6 +4184,9 @@ _INSIGHT_POSITION_RE = re.compile(
 _ENTRY_POSITION_RE = re.compile(
     r"(?i:\b(?:entry|entries))\s+#?(?P<n>[1-9]\d{0,3})(?![\w-]|\.\d)")
 _INSIGHT_CONTEXT_RE = re.compile(r"(?i)\b(?:insights?|inbox)")
+#: What precedes a template marker's name: ``<!-- aide-template: insights 2
+#: -->`` names the inbox template's version, never an entry (issue #439).
+_TEMPLATE_MARKER_LEAD_RE = re.compile(r"(?i)aide-template:\s*$")
 
 
 def _citation_files(repo_root: Path, config: Dict[str, Dict[str, object]],
@@ -4201,7 +4214,8 @@ def _positional_citations(line: str, pool_size: Callable[[], int]) -> List["re.M
 
     ``insight 28``, ``insights.md entry 28`` and ``inbox entry #28`` anywhere;
     a bare ``entry 28`` only on a line that also says *insight* or *inbox*,
-    since a ledger row or a table entry is an "entry" too. *pool_size* is
+    since a ledger row or a table entry is an "entry" too — and never the
+    name and version of an ``aide-template:`` marker. *pool_size* is
     called only when a match looks like a year: "insights 2026" is a year, not
     entry 2026, so a bare number that reads as one counts only after "entry"
     or "#", or when the inbox and its archives really hold that many entries.
@@ -4216,6 +4230,8 @@ def _positional_citations(line: str, pool_size: Callable[[], int]) -> List["re.M
                       if m.span("n") not in covered]
     out = []
     for m in positions:
+        if _TEMPLATE_MARKER_LEAD_RE.search(line, 0, m.start()):
+            continue
         n = int(m.group("n"))
         if (1900 <= n <= 2099 and not re.search(r"(?i)entr|#", m.group(0))
                 and n > pool_size()):
@@ -4224,36 +4240,52 @@ def _positional_citations(line: str, pool_size: Callable[[], int]) -> List["re.M
     return out
 
 
+class PositionCitation(NamedTuple):
+    """One citation of an insight by position, and where git counts its line."""
+    where: str       # the file, as `_rel_display` shows it
+    lineno: int      # `str.splitlines`' line number, the one printed
+    cited: str       # the citation's text
+    n: int           # the position it cites
+    path: Path       # the file itself, for `_CitationHistory`
+    gitline: int     # the line git blames by (``_git_line_numbers``)
+
+
 def insight_position_citations(repo_root: Path,
                                config: Dict[str, Dict[str, object]],
                                ddir: Path,
-                               pool_size: int) -> List[Tuple[str, int, str, int]]:
+                               pool_size: int) -> List[PositionCitation]:
     """Every citation of an insight by position in docs_dir and tests_dir.
 
-    ``(where, lineno, cited text, position)``, in file then line order, over
-    the files ``insight_reference_findings`` reads (``_citation_files`` — the
-    inbox and its archives excepted). What `insights archive` lists before it
-    renumbers the inbox (issue #295): the run is the last point at which a
-    position still means what its author wrote.
+    In file then line order, over the files ``insight_reference_findings``
+    reads (``_citation_files`` — the inbox and its archives excepted). What
+    `insights archive` lists before it renumbers the inbox (issue #295).
+    Each carries its file and git line number, because the listing resolves
+    a citation through ``_CitationHistory`` exactly as `aide check` does
+    (issue #419): what a position meant is what it held in the inbox of the
+    commit that wrote the citing line, not what it holds today. The files are
+    read with ``newline=""`` for the same reason as the check's.
 
     Records are listed too, unlike `aide check`'s positional warning (issue
     #338): the listing is printed once, by the run that moves the entries,
-    and its ID is the one the position held before this move — the mapping
-    that preserves what a record's citation meant. The check recovers it
-    from git history since issue #361 (``_CitationHistory``), but only where
-    the history is there to read; this listing needs none.
+    and it is the last run at which today's holder of a renumbered position
+    can still be named by that number — the fallback where history is
+    unavailable.
     """
-    out: List[Tuple[str, int, str, int]] = []
+    out: List[PositionCitation] = []
     docs, tests = _citation_files(repo_root, config, ddir)
     for path in docs + tests:
         try:
-            text = path.read_text(encoding=_ENCODING)
+            with open(path, encoding=_ENCODING, newline="") as fh:
+                text = fh.read()
         except (OSError, UnicodeDecodeError):
             continue
         where = _rel_display(path, repo_root)
+        gitline = _git_line_numbers(text)
         for lineno, line in enumerate(text.splitlines(), start=1):
             for m in _positional_citations(line, lambda: pool_size):
-                out.append((where, lineno, m.group(0).strip(), int(m.group("n"))))
+                out.append(PositionCitation(where, lineno, m.group(0).strip(),
+                                            int(m.group("n")), path,
+                                            gitline[lineno - 1]))
     return out
 
 
@@ -4393,6 +4425,9 @@ class _CitationHistory:
     shallow clone's boundary commit — blame stops there, so the commit it
     names is where history ends, not where the line was written. "Named no
     entry" is said only when that commit's inbox was read and is shorter.
+
+    ``resolve`` is the lookup; ``hint`` formats it for `aide check`, and
+    `insights archive`'s listing formats the same answer (issue #419).
     """
 
     _ZERO = re.compile(r"^0+$")
@@ -4500,55 +4535,115 @@ class _CitationHistory:
             self._shown[sha] = entries
         return self._shown[sha]
 
-    @staticmethod
-    def _fallback(n: int, today: Optional[str]) -> str:
-        if today is None:
-            return f"; history unavailable, and today's inbox has no entry {n}"
-        return (f"; entry {n} of the inbox is insight {today} today "
-                f"(today's holder; history unavailable) — cite that if it is "
-                f"the one meant")
+    def resolve(self, path: Path, gitline: int, n: int,
+                pool: List[Tuple[str, InsightEntry]],
+                ids: List[Optional[str]]) -> "CitationMeaning":
+        """What entry *n* meant on *path*'s git line *gitline*, and how known.
+
+        The one resolution both surfaces format: `aide check`'s warning
+        (``hint``) and `insights archive`'s listing (issue #419), so the two
+        cannot name different IDs for one citation. *pool* and *ids* are
+        today's (``load_insight_pool``, ``insight_ids``), live inbox first.
+        """
+        live = [i for i, (rel, _) in enumerate(pool) if rel == "insights.md"]
+        held = live[n - 1] if 1 <= n <= len(live) else None
+        today = ids[held] if held is not None else None
+
+        def known(how: str, sha: str = "", iid: Optional[str] = None,
+                  index: Optional[int] = None) -> CitationMeaning:
+            return CitationMeaning(how, n, iid, index, sha, today, held)
+
+        commits = self._commits(path)
+        if commits is None or gitline not in commits:
+            return known(CitationMeaning.UNAVAILABLE, iid=today, index=held)
+        sha = commits[gitline]
+        if sha is None:
+            return known(CitationMeaning.UNCOMMITTED, iid=today, index=held)
+        then = self._inbox_at(sha) if sha else None
+        if then is None:
+            return known(CitationMeaning.UNAVAILABLE, iid=today, index=held)
+        if n > len(then):
+            return known(CitationMeaning.NO_ENTRY_THEN, sha)
+        entry = then[n - 1]
+        claim = insight_claim_hash(entry)
+        if claim is None:
+            return known(CitationMeaning.MALFORMED, sha)
+        found = [i for i, (_, e) in enumerate(pool)
+                 if e.date == entry.date and insight_claim_hash(e) == claim]
+        if not found:
+            return known(CitationMeaning.CLAIM_GONE, sha, insight_ids(then)[n - 1])
+        return known(CitationMeaning.COMMITTED, sha, ids[found[0]], found[0])
 
     def hint(self, path: Path, gitline: int, n: int,
              pool: List[Tuple[str, InsightEntry]],
              ids: List[Optional[str]]) -> str:
         """The warning's second half: the ID entry *n* meant, and how known."""
-        live_ids = [i for (rel, _), i in zip(pool, ids) if rel == "insights.md"]
-        today = live_ids[n - 1] if 1 <= n <= len(live_ids) else None
-        commits = self._commits(path)
-        if commits is None or gitline not in commits:
-            return self._fallback(n, today)
-        sha = commits[gitline]
-        if sha is None:
+        r = self.resolve(path, gitline, n, pool, ids)
+        today = r.today
+        if r.how == CitationMeaning.UNAVAILABLE:
+            if today is None:
+                return f"; history unavailable, and today's inbox has no entry {n}"
+            return (f"; entry {n} of the inbox is insight {today} today "
+                    f"(today's holder; history unavailable) — cite that if it is "
+                    f"the one meant")
+        if r.how == CitationMeaning.UNCOMMITTED:
             if today is None:
                 return (f"; this line is not committed, and today's inbox has "
                         f"no entry {n}")
             return (f"; this line is not committed, so it was written against "
                     f"today's inbox, where entry {n} is insight {today} — cite "
                     f"that")
-        then = self._inbox_at(sha) if sha else None
-        if then is None:
-            return self._fallback(n, today)
-        when = f"when {sha[:7]} wrote this line"
-        if n > len(then):
+        when = r.when
+        if r.how == CitationMeaning.NO_ENTRY_THEN:
             return (f"; the inbox held no entry {n} {when}, so the citation "
                     f"named no entry — find the claim meant with `aide "
                     f"insights list`")
-        entry = then[n - 1]
-        claim = insight_claim_hash(entry)
-        if claim is None:
+        if r.how == CitationMeaning.MALFORMED:
             return (f"; entry {n} {when} was a malformed line with no ID — "
                     f"find the claim meant with `aide insights list`")
-        found = [i for i, (_, e) in enumerate(pool)
-                 if e.date == entry.date and insight_claim_hash(e) == claim]
-        if not found:
-            meant = insight_ids(then)[n - 1]
-            return (f"; entry {n} was insight {meant} {when}, a claim no longer "
+        if r.how == CitationMeaning.CLAIM_GONE:
+            return (f"; entry {n} was insight {r.iid} {when}, a claim no longer "
                     f"in the inbox or its archives")
-        meant = ids[found[0]]
-        if meant == today:
-            return f"; entry {n} was insight {meant} {when}, and still is — cite that"
-        return (f"; entry {n} was insight {meant} {when} — cite that; an "
+        if r.iid == today:
+            return f"; entry {n} was insight {r.iid} {when}, and still is — cite that"
+        return (f"; entry {n} was insight {r.iid} {when} — cite that; an "
                 f"archive or a merge has moved it since")
+
+
+class CitationMeaning(NamedTuple):
+    """``_CitationHistory.resolve``'s answer for one positional citation.
+
+    *how* is one of the constants below. *iid* is the ID to cite — the meant
+    entry's ID today (COMMITTED), today's holder of position *n* (UNCOMMITTED,
+    UNAVAILABLE), or the ID the entry had then (CLAIM_GONE) — and None where
+    there is none to name. *index* is the meant entry's place in the pool it
+    was resolved against, so a caller can tell a live entry from an archived
+    one; *held* is the pool index of today's holder of *n*.
+    """
+    how: str
+    n: int
+    iid: Optional[str]
+    index: Optional[int]
+    sha: str
+    today: Optional[str]
+    held: Optional[int]
+
+    #: Named by the inbox in the commit that last wrote the citing line.
+    COMMITTED = "committed"
+    #: The line is not committed: written against today's inbox.
+    UNCOMMITTED = "uncommitted"
+    #: No history to read; today's holder, labelled.
+    UNAVAILABLE = "unavailable"
+    #: That commit's inbox held fewer than *n* entries.
+    NO_ENTRY_THEN = "no-entry-then"
+    #: That commit's entry *n* was a line with no ID.
+    MALFORMED = "malformed"
+    #: That commit's entry *n* is in neither the inbox nor its archives now.
+    CLAIM_GONE = "claim-gone"
+
+    @property
+    def when(self) -> str:
+        return f"when {self.sha[:7]} wrote this line"
 
 
 def _git_line_numbers(text: str) -> List[int]:
@@ -5314,7 +5409,9 @@ def _declined_reach_spent(lines: List[str], g: HumanGate) -> bool:
     return True
 
 
-def gate_warnings(lines: List[str]) -> List[str]:
+def gate_warnings(lines: List[str],
+                  evidence: Optional[Dict[int, List[Tuple[int, Optional[int]]]]] = None
+                  ) -> List[str]:
     """One warning per unresolved human gate.
 
     A warning, never an error: an outstanding gate is a normal state — work is
@@ -5322,13 +5419,40 @@ def gate_warnings(lines: List[str]) -> List[str]:
     is *visible* rather than buried in an item spec's prose. A row too
     mis-shaped to be a gate is not a state but a defect, and is an error in
     ``unreadable_row_errors``.
+
+    *evidence* is `evidence_gate_citations`: a gate a live spec names as a
+    criterion's evidence is worded as the check it records (issue #420) —
+    awaiting, it waits on a person's check rather than holding nothing by
+    mistake; declined, it has failed a criterion and is not re-planned while
+    the annotation still points at it.
     """
     out: List[str] = []
+    evidence = evidence or {}
     gates = human_gates(lines)
     for n, (g, gid) in enumerate(zip(gates, gate_ids(gates)), start=1):
         if g.kind == "approved":
             continue
         name = f"human gate {n}{', ' + gid if gid else ''} ({g.text})"
+        cited = evidence.get(n - 1)
+        if cited and g.kind in ("awaiting", "declined"):
+            names = ", ".join(_criterion_name(i, ac) for i, ac in cited)
+            items = sorted({i for i, _ in cited})
+            if g.kind == "declined":
+                out.append(
+                    f"progress.md:{g.lineno}: {name} was DECLINED, and it is "
+                    f"the evidence for {names} — that criterion has failed. "
+                    f"Once the fix is built, re-ask the check as a new Gate "
+                    f"cell (a new ID) and re-point the annotation at it, or "
+                    f"drop the criterion (conventions.md §1 → human gates)")
+                continue
+            if g.blocks_cell.strip() in _EMPTY_CELL:
+                merges = ", ".join(f"`aide merge {i:03d}`" for i in items)
+                verb = "refuses" if len(items) == 1 else "refuse"
+                out.append(
+                    f"progress.md:{g.lineno}: {name} is awaiting a person's "
+                    f"check — the evidence for {names}; {merges} {verb} "
+                    f"until it is ✅ Approved")
+                continue
         if g.kind is None:
             out.append(
                 f"progress.md:{g.lineno}: {name} has an "
@@ -7921,7 +8045,10 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     # Before anything reads the tables: a row no reader can use is dropped by
     # every check below, including the ones that would have errored on it.
     errors.extend(unreadable_row_errors(lines))
-    warnings.extend(gate_warnings(lines))
+    errors.extend(evidence_annotation_errors(repo_root, ddir, lines))
+    evidence = evidence_gate_citations(ddir, lines)
+    warnings.extend(gate_warnings(lines, evidence))
+    warnings.extend(evidence_gate_warnings(lines, evidence))
     gate_errors, gate_ref_warnings = gate_reference_findings(repo_root, config,
                                                              ddir, lines)
     errors.extend(gate_errors)
@@ -8457,6 +8584,27 @@ def patterns_overlap(a: str, b: str) -> bool:
     return pattern_covers(a, b) or pattern_covers(b, a)
 
 
+def _retires_a_pin(changer: "AuthorisedPaths", pinner: "AuthorisedPaths",
+                   pinner_number: int) -> bool:
+    """True when *changer* lists, under May change, a test file *pinner* owns.
+
+    "Owns" is read twice, and both readings must hold: the entry is named for
+    the pinner by §6's `test_NNN_<topic>.py` convention (`owning_item`, the
+    reader `aide scope` uses to attribute a test file to its item), and it
+    overlaps something the pinner itself lists under May change — the file
+    the pinner writes. The name is what restricts this to TESTS: §1 → items
+    prescribes the later item listing the earlier item's *test file*, and an
+    overlap with any other May change entry of the pinner is a second writer
+    on a source file, which retires no pin (`may-change-overlap` already
+    reports it). A broad glob such as `tests/**` on the changer's side names no
+    owner, so it declares nothing about whose test it retires and earns
+    nothing here.
+    """
+    return any(owning_item(pa) == pinner_number
+               and any(patterns_overlap(pa, pb) for pb in pinner.may_change)
+               for pa in changer.may_change)
+
+
 def _built_after(graph: Dict[int, List[int]]) -> Dict[int, Set[int]]:
     """For each item, every item it is built *after* — its declared
     dependencies and theirs, transitively.
@@ -8652,6 +8800,23 @@ def queue_spec_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
                 # declared dependency keeps the error: an undeclared ordering
                 # is exactly what this check exists to find.
                 continue
+            if (b in built_after.get(a, ())
+                    and _retires_a_pin(declared[a], declared[b], b)):
+                # The other direction, and the shape §1 → items prescribes for
+                # a premise about a sibling's schedule (issue #445): the PINNER
+                # b is the earlier item, the changer a depends on it, and a's
+                # spec lists one of b's own test files under May change from
+                # the start — the pin is retired by the very item whose edit
+                # breaks it, and the spec says so. Silent rather than demoted
+                # to a warning: a check that complains about a shape the
+                # contract prescribes teaches the reader to skim the one that
+                # is real, and before this exemption the error stood with none
+                # of its remedies available until b merged. The dependency
+                # alone is not enough — a changer built after the pinner that
+                # lists none of its tests still breaks the pin undeclared
+                # (`test_the_dependency_exemption_is_directional`), so that
+                # pair keeps the error.
+                continue
             for pa in declared[a].may_change:
                 for pb in declared[b].asserts_against:
                     if patterns_overlap(pa, pb):
@@ -8664,7 +8829,13 @@ def queue_spec_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
                             f"or — if item {b:03d} is meant to be built after item "
                             f"{a:03d} and to pin what it produced — say so under "
                             f"item {b:03d}'s '## Dependencies', which both orders "
-                            f"the queue and retires this finding"))
+                            f"the queue and retires this finding; or — if item "
+                            f"{a:03d} is meant to be built after item {b:03d} and "
+                            f"to retire its pin — name item {b:03d} under item "
+                            f"{a:03d}'s '## Dependencies' and list item {b:03d}'s "
+                            f"test file (test_{b:03d}_…, one item {b:03d}'s own May "
+                            f"change lists) under item {a:03d}'s May change "
+                            f"(conventions.md §1 → items)"))
 
     # Row 5 — the dependency graph. A cycle deadlocks `aide claim`: every item
     # in it is blocked by another in it, so the queue silently stops producing
@@ -8726,6 +8897,181 @@ def spec_closed_criteria(text: str) -> Set[Tuple[int, int]]:
     for m in _CLOSES_CRITERION_RE.finditer(_section_text(text, _AC_HEADING_RE)):
         for n in re.findall(r"\d+", m.group(2)):
             out.add((int(m.group(1)), int(n)))
+    return out
+
+
+#: An AC's *(evidence: gate-<hex>)* annotation (§1 → items.md, issue #420):
+#: the human gate whose approval stands in for that criterion's test. It
+#: opens at `(evidence:` followed by the word `gate`, any case, emphasis
+#: optional as for *(closes …)*; the body runs to the closing parenthesis,
+#: across a wrapped line of the same bullet. Read loosely from there, so a
+#: body that is not exactly one gate ID as `aide gate list` prints it is
+#: reported as malformed rather than read as no annotation, which would
+#: silently lift the merge hold. `(evidence:` followed by anything else —
+#: a test name, "see CI log" — is prose.
+_EVIDENCE_OPEN_RE = re.compile(
+    r"\(\s*evidence\s*:\s*(?P<body>gate\b[^)]*)(?P<close>\))?", re.IGNORECASE)
+_EVIDENCE_BODY_RE = re.compile(r"^\s*(?P<id>" + _GATE_ID_SHAPE + r")\s*$")
+#: The template's placeholder, `gate-<hex>`: the syntax shown, not a gate.
+_EVIDENCE_PLACEHOLDER_RE = re.compile(r"^\s*gate-<hex>\s*$", re.IGNORECASE)
+#: An inline code span — the syntax quoted, never an annotation.
+_CODE_SPAN_RE = re.compile(r"`[^`]*`")
+#: A top-level bullet opening a criterion in `## Acceptance Criteria`; an
+#: indented or unmarked line continues the bullet above it.
+_AC_BULLET_START_RE = re.compile(r"^[-*+]\s")
+_AC_NUMBER_RE = re.compile(r"\bAC(\d+)\b")
+
+
+def spec_evidence_annotations(text: str
+                              ) -> Tuple[List[Tuple[Optional[int], str]],
+                                         List[Tuple[Optional[int], str]]]:
+    """``(cited, malformed)`` for the spec's *(evidence: …)* annotations, each
+    a list of ``(criterion number, text)`` in order (§1 → items.md, #420).
+
+    An annotation opens at ``(evidence:`` followed by the word ``gate``
+    (`_EVIDENCE_OPEN_RE`), outside inline code, and is not the template's
+    ``gate-<hex>`` placeholder. *cited* holds the gate ID of each whose body
+    is exactly one gate ID; *malformed* the annotation as written for every
+    other one — an upper-case or short hex, a missing hyphen, two IDs, no
+    closing parenthesis. The number is the first ``ACn`` of the bullet carrying the
+    annotation, a wrapped bullet included; None for a bullet naming no
+    ``ACn``. Text outside the section is not read: a gate ID there is a
+    citation, not evidence.
+    """
+    bullets: List[str] = []
+    for line in _section_text(text, _AC_HEADING_RE).splitlines():
+        if _AC_BULLET_START_RE.match(line) or not bullets:
+            bullets.append(line)
+        else:
+            bullets[-1] += "\n" + line
+    cited: List[Tuple[Optional[int], str]] = []
+    malformed: List[Tuple[Optional[int], str]] = []
+    for bullet in bullets:
+        m_ac = _AC_NUMBER_RE.search(bullet)
+        ac = int(m_ac.group(1)) if m_ac else None
+        prose = _CODE_SPAN_RE.sub(lambda c: " " * len(c.group(0)), bullet)
+        for m in _EVIDENCE_OPEN_RE.finditer(prose):
+            if _EVIDENCE_PLACEHOLDER_RE.match(m.group("body")):
+                continue
+            body = _EVIDENCE_BODY_RE.match(m.group("body"))
+            if body and m.group("close"):
+                cited.append((ac, body.group("id")))
+            else:
+                malformed.append((ac, " ".join(m.group(0).split())))
+    return cited, malformed
+
+
+def spec_evidence_gates(text: str) -> List[Tuple[Optional[int], str]]:
+    """``(criterion number, gate ID)`` per well-formed *(evidence: gate-<hex>)*
+    annotation in the spec's Acceptance Criteria (`spec_evidence_annotations`)."""
+    return spec_evidence_annotations(text)[0]
+
+
+def evidence_annotation_errors(repo_root: Path, ddir: Path,
+                               lines: List[str]) -> List[str]:
+    """An `aide check` error per malformed evidence annotation in a live item
+    spec (§1 → items.md, issue #420): read as no annotation, it would lift the
+    merge hold on a criterion its author meant a person to check. A record is
+    not read — the item is settled either way."""
+    idir = ddir / "items"
+    if not idir.is_dir():
+        return []
+    records = record_documents(ddir, _parse_item_status(lines)[2],
+                               withdrawn_stage_items(lines))
+    out: List[str] = []
+    for path in sorted(idir.glob("*.md")):
+        number = item_spec_number(path)
+        if number is None or path in records:
+            continue
+        try:
+            text = path.read_text(encoding=_ENCODING)
+        except (OSError, UnicodeDecodeError):
+            continue
+        for ac, written in spec_evidence_annotations(text)[1]:
+            which = f"AC{ac}" if ac is not None else "an acceptance criterion"
+            out.append(
+                f"{_rel_display(path, repo_root)}: {which}'s evidence "
+                f"annotation '{written}' does not name exactly one gate ID — "
+                f"write *(evidence: gate-<hex>)* with the one ID `aide gate "
+                f"list` prints, lowercase hex; one gate per criterion, and "
+                f"until it reads as one `aide merge {number:03d}` refuses "
+                f"(conventions.md §1 → items)")
+    return out
+
+
+def _criterion_name(number: int, ac: Optional[int]) -> str:
+    """``item 012 AC3`` — or ``an item 012 criterion`` for an unnumbered one."""
+    return f"item {number:03d} AC{ac}" if ac is not None else \
+        f"an item {number:03d} criterion"
+
+
+def evidence_gate_citations(ddir: Path, lines: List[str]
+                            ) -> Dict[int, List[Tuple[int, Optional[int]]]]:
+    """Gate index (into ``human_gates(lines)``) -> the ``(item, criterion)``
+    pairs whose evidence it is, over the live item specs under *ddir*.
+
+    A record (`record_documents`: an item ✅, ❌, ⏸️ or withdrawn) is not
+    read — its gate has done its work, or never will. An ID naming no row or
+    two different Gate cells maps nowhere: `gate_reference_findings` reports
+    both.
+    """
+    gates = human_gates(lines)
+    idir = ddir / "items"
+    if not gates or not idir.is_dir():
+        return {}
+    records = record_documents(ddir, _parse_item_status(lines)[2],
+                               withdrawn_stage_items(lines))
+    out: Dict[int, List[Tuple[int, Optional[int]]]] = {}
+    for path in sorted(idir.glob("*.md")):
+        number = item_spec_number(path)
+        if number is None or path in records:
+            continue
+        try:
+            text = path.read_text(encoding=_ENCODING)
+        except (OSError, UnicodeDecodeError):
+            continue
+        for ac, ref in spec_evidence_gates(text):
+            hits = resolve_gate_ref(ref, gates)
+            if not hits or len({gate_hash(gates[i]) for i in hits}) > 1:
+                continue
+            for i in hits:
+                if (number, ac) not in out.setdefault(i, []):
+                    out[i].append((number, ac))
+    return out
+
+
+def evidence_gate_warnings(lines: List[str],
+                           evidence: Dict[int, List[Tuple[int, Optional[int]]]]
+                           ) -> List[str]:
+    """The two misuses of an evidence gate `aide check` reports (§1 → human
+    gates, issue #420): one gate standing in for more than one criterion, and
+    an unresolved one whose reach holds the item it is evidence for — `aide
+    claim` never offers that item, so nothing is ever built to check."""
+    out: List[str] = []
+    gates = human_gates(lines)
+    ids = gate_ids(gates)
+    for i, cited in sorted(evidence.items()):
+        g = gates[i]
+        name = f"human gate {i + 1}{', ' + ids[i] if ids[i] else ''} ({g.text})"
+        if len(cited) > 1:
+            names = ", ".join(_criterion_name(n, ac) for n, ac in cited)
+            out.append(
+                f"progress.md:{g.lineno}: {name} is the evidence for more "
+                f"than one acceptance criterion ({names}) — one gate per "
+                f"criterion, so a declined check fails exactly one; raise a "
+                f"gate for each (conventions.md §1 → items)")
+        if g.kind == "approved":
+            continue
+        own = sorted({n for n, _ in cited
+                      if g.blocks_all or n in g.blocks
+                      or (g.stage is not None and n in gate_stage_items(lines, g))})
+        if own:
+            out.append(
+                f"progress.md:{g.lineno}: {name} is the evidence for "
+                f"{', '.join(f'item {n:03d}' for n in own)} and its Blocks "
+                f"cell '{g.blocks_cell}' holds that item, so `aide claim` "
+                f"never offers it and nothing is built to check — write '—' "
+                f"(conventions.md §1 → human gates)")
     return out
 
 
@@ -10880,37 +11226,85 @@ def archive_position_map(text: str, remaining: str) -> Dict[int, Optional[int]]:
     return out
 
 
+def _archive_citation_line(c: PositionCitation, r: CitationMeaning,
+                           pool: List[Tuple[str, InsightEntry]],
+                           shifted: Dict[int, Optional[int]]) -> str:
+    """One line of the archive listing: the ID *c* meant, how that is known
+    (``CitationMeaning`` — the labels `aide check`'s hint uses), and what this
+    move does to that entry."""
+    head = f"  {c.where}:{c.lineno}: `{c.cited}`"
+    find = "find the claim meant with `aide insights list`"
+    if r.how == CitationMeaning.NO_ENTRY_THEN:
+        return f"{head} named no entry {r.when} (the inbox held fewer) — {find}"
+    if r.how == CitationMeaning.MALFORMED:
+        return f"{head} was a malformed line with no ID {r.when} — {find}"
+    if r.how == CitationMeaning.CLAIM_GONE:
+        return (f"{head} meant insight {r.iid} {r.when}, a claim no longer in "
+                f"the inbox or its archives")
+    # Every listed position is renumbered, so today's inbox holds it: index
+    # is set for each resolution that reaches here.
+    assert r.index is not None
+    if pool[r.index][0] != "insights.md":
+        fate = "already archived"
+    else:
+        # The live inbox comes first in the pool, so its index is its position.
+        pos = r.index + 1
+        if pos not in shifted:
+            fate = f"still entry {pos} after the move"
+        elif shifted[pos] is None:
+            fate = "archived by this move"
+        else:
+            fate = f"entry {shifted[pos]} after the move"
+    iid = r.iid or "(no ID — the entry does not parse)"
+    if r.how == CitationMeaning.COMMITTED:
+        return f"{head} meant insight {iid} {r.when} — {fate}"
+    if r.how == CitationMeaning.UNCOMMITTED:
+        return (f"{head} is insight {iid} (not committed, so written against "
+                f"today's inbox) — {fate}")
+    return f"{head} is insight {iid} (today's holder; history unavailable) — {fate}"
+
+
 def _print_invalidated_citations(text: str, remaining: str, ddir: Path,
                                  repo_root: Path, config, dry_run: bool) -> None:
-    """List every positional citation this archive changes the meaning of.
+    """List every positional citation whose number this archive changes.
 
-    Each with the ID its position holds *before* the move, which is the
-    mapping an author needs to rewrite it and the one thing the archive run is
-    the last to know (issue #295). A warning, not a refusal: the listing
-    itself preserves the mapping, and the move already waits on --yes.
+    Which citations: those of a position the move renumbers or archives
+    (``archive_position_map``) — the number's reading changes under them.
+    A citation already stale from an earlier archive, at a number this move
+    leaves alone, is deliberately not listed: this move does not change what
+    it reads as, and `aide check` warns on it with the same history-resolved
+    ID, so nothing the listing would say is lost.
+    What each meant: resolved through ``_CitationHistory`` exactly as `aide
+    check`'s hint is (issue #419) — the entry the position held in the inbox
+    of the commit that last wrote the citing line, named by its ID today;
+    today's holder only for an uncommitted line, or labelled where there is
+    no history. Each line then says what this move does to *that* entry.
+    Printing today's holder alone (issue #295) named a different claim for a
+    citation written before an earlier archive, with nothing to flag it.
+
+    A warning, not a refusal: the listing itself preserves the mapping, and
+    the move already waits on --yes.
     """
     shifted = archive_position_map(text, remaining)
     if not shifted:
         return
     pool = load_insight_pool(ddir)
     ids = insight_ids([e for _, e in pool])
-    live_ids = [i for (rel, _), i in zip(pool, ids) if rel == "insights.md"]
     hits = [c for c in insight_position_citations(repo_root, config, ddir, len(pool))
-            if c[3] in shifted]
+            if c.n in shifted]
     if not hits:
         return
+    history = _CitationHistory(repo_root, ddir)
+    for c in hits:
+        history.want(c.path, c.gitline)
     verb = "would renumber" if dry_run else "renumbers"
     print(f"aide insights archive: this archive {verb} {len(hits)} citation"
           f"{'' if len(hits) == 1 else 's'} by position — rewrite each as the "
-          f"ID its position holds before the move (conventions.md §1 → "
-          f"insights.md):")
-    for where, lineno, cited, n in hits:
-        iid = live_ids[n - 1] if n <= len(live_ids) else None
-        dest = shifted[n]
-        fate = "archived" if dest is None else f"entry {dest} after it"
-        print(f"  {where}:{lineno}: `{cited}` is insight "
-              f"{iid or '(no ID — the entry does not parse)'} before the move "
-              f"({fate})")
+          f"ID named below, the entry its position held when the citing line "
+          f"was written (conventions.md §1 → insights.md):")
+    for c in hits:
+        r = history.resolve(c.path, c.gitline, c.n, pool, ids)
+        print(_archive_citation_line(c, r, pool, shifted))
 
 
 def _cmd_insights_archive(path: Path, text: str, ddir: Path, ddir_rel: str,
@@ -11086,7 +11480,7 @@ def _cmd_insights_resolve(path: Path, text: str, ddir_rel: str, repo_root: Path,
 
 
 # --------------------------------------------------------------------------- #
-# ledger — one row per item worked (§1 → ledger.md)
+# ledger — one row per run of an item (§1 → ledger.md)
 # --------------------------------------------------------------------------- #
 #: The row, in the order `.aide/templates/ledger.md` draws it. The template is
 #: the shape's executable statement (§1) and this tuple is what writes it, so
@@ -11421,7 +11815,7 @@ def append_ledger_row(repo_root: Path, config, cells: List[str],
             return None
         path.write_bytes(template.read_bytes())
         print(f"notice: created {rel} from .aide/templates/ledger.md — the run "
-              f"ledger, one row per item worked (conventions.md §1)")
+              f"ledger, one row per run of an item (conventions.md §1)")
     text = path.read_text(encoding=_ENCODING)
     if text and not text.endswith("\n"):
         text += "\n"
@@ -12494,6 +12888,42 @@ def _queue_pr(args: argparse.Namespace) -> int:
     return 0
 
 
+def _queue_branch_evidence_waits(repo_root: Path,
+                                 config: Dict[str, Dict[str, object]],
+                                 branch: str, number: int
+                                 ) -> Dict[int, Tuple[str, List[Tuple[str, str]]]]:
+    """`evidence_waits` over queue *number*'s items, read at *branch*'s tip.
+
+    The queue file and progress.md are both read as committed on the queue
+    branch, which is what its PR carries: an item merged there is ✅ in that
+    copy and not read. A copy git cannot show reads as no items, so nothing
+    is refused on a reading that failed. The queue file and the item
+    statuses are read from the branch alone; the evidence reading itself is
+    `_merge_unmet_evidence`'s, with its own copies.
+    """
+    ddir_rel = _docs_rel(config)
+    listed = git(["ls-tree", "--name-only", branch, f"{ddir_rel}/queue/"],
+                 repo_root, check=False)
+    qtext = None
+    if listed.returncode == 0:
+        for p in (l.strip() for l in listed.stdout.splitlines()):
+            if p.endswith(".md") and queue_number(Path(p)) == number:
+                shown = git(["show", f"{branch}:./{p}"], repo_root, check=False)
+                if shown.returncode == 0:
+                    qtext = shown.stdout
+                break
+    if qtext is None:
+        return {}
+    shown = git(["show", f"{branch}:./{_progress_rel(config)}"], repo_root,
+                check=False)
+    item_status = (_parse_item_status(shown.stdout.splitlines())[2]
+                   if shown.returncode == 0 else {})
+    prefix = str(config["git"].get("branch_prefix", "aide/"))
+    return evidence_waits(repo_root, config, queue_item_numbers(qtext),
+                          item_status, _list_claim_branches(repo_root, prefix),
+                          fallback=branch)
+
+
 def _queue_ready(args: argparse.Namespace) -> int:
     """Mark the queue branch's PR ready, or back to draft; see -h."""
     tag = "aide queue ready" + (" --undo" if args.undo else "")
@@ -12504,6 +12934,24 @@ def _queue_ready(args: argparse.Namespace) -> int:
     branch, number = _queue_pr_branch(repo_root, config, tag, args.number)
     if branch is None or number is None:
         return 1
+    if not args.undo:
+        waits = _queue_branch_evidence_waits(repo_root, config, branch, number)
+        if waits:
+            # Issue #428: an item `merge` refuses until a person approves the
+            # gate that is its evidence has not landed on the queue branch, so
+            # marking the PR ready would ship the queue without it. Before
+            # the forge is asked anything: the refusal reads git alone.
+            named = "; ".join(f"{n:03d} ({'; '.join(p for _, p in unmet)})"
+                              for n, (_, unmet) in waits.items())
+            print(f"{tag}: queue {number:03d} has item(s) not merged, each "
+                  f"awaiting the human gate that is its evidence — {named} — "
+                  f"so the queue has not ended and nothing was pushed or "
+                  f"changed on the forge. A person checks each built item on "
+                  f"its claim branch and runs `aide gate approve <ID>` there, "
+                  f"then 'aide merge <NNN>' lands it; or declines the gate, "
+                  f"and the criterion is rebuilt and re-asked as a new gate. "
+                  f"Then re-run 'aide queue ready'.", file=sys.stderr)
+            return 1
     pr, why = _branch_pr_facts(repo_root, branch)
     if why is not None:
         print(f"{tag}: could not ask the forge about {branch} ({why}); "
@@ -14137,13 +14585,17 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     holding an item on evidence no other checkout can see, so it exits 1 and
     says how to finish or release it. Nor is an
     **unreadable gate row**, which holds every item on a gate nobody can read:
-    exit 1, naming the row.
+    exit 1, naming the row. Nor is an **evidence annotation no approval can
+    clear** on a 🔍 item (`EVIDENCE_DEFECTS`, issue #432): exit 1, naming the
+    item and the criterion whose annotation to correct.
 
     Every report that exits 0 with items still open ends on an ``early
     ready:`` fact (issue #331), which is what the queue-end step keys on to
     mark the queue's PR ready while a person decides a gate: see
     `_early_ready`. A bare ``none left`` carries none — that is exhaustion,
-    the step's own trigger.
+    the step's own trigger — so it is never printed while an item is 🔍 and
+    unmerged awaiting the human gate that is its evidence (issue #428): that
+    item is named, exit 0, and the ``early ready:`` line says no.
     """
     ppath = docs_dir(repo_root, config) / "progress.md"
     plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
@@ -14203,7 +14655,13 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     relevant = [(n, g, gid) for n, (g, gid)
                 in enumerate(zip(all_gates, gate_ids(all_gates)), start=1)
                 if g.kind != "approved" and (g.blocks_all or _reached(g))]
-    if not relevant and not open_items:
+    # A 🔍 item unmerged until a person approves the gate that is its
+    # evidence (issue #428) is not open, yet the queue has not ended: it is
+    # named on every path below, and a bare "none left" — exhaustion, which
+    # the queue-end step runs on — is never printed over it.
+    waits = evidence_waits(repo_root, config, scan_order, item_status,
+                           claim_branches)
+    if not relevant and not open_items and not waits:
         print("none left")
         return 0
 
@@ -14224,7 +14682,26 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     early = _early_ready(repo_root, config, live_ordered,
                          [(n, g) for n, g, _ in relevant], gated,
                          claimed, item_status, scan_order, holds,
-                         all_withdrawn)
+                         all_withdrawn,
+                         [n for n in scan_order if n in waits])
+
+    def _wait_line(num: int) -> str:
+        branch, unmet = waits[num]
+        return (f"  {num:03d} {titles.get(num, 'item ' + str(num))} — "
+                f"{evidence_wait_phrase(branch, unmet)}")
+
+    def _waits_report(named: Collection[int] = ()) -> None:
+        # *named*: the open ones the per-item list already gave a line.
+        for num in scan_order:
+            if num in waits and num not in named:
+                print(_wait_line(num))
+        if waits:
+            print("  A person checks each built item on its claim branch and "
+                  "decides its gate there, never an agent: aide gate approve "
+                  "<ID> --evidence \"…\" lets 'aide merge <NNN>' land it, and "
+                  "a declined gate fails its criterion, rebuilt and re-asked "
+                  "as a new gate. Until then 'aide queue ready' refuses the "
+                  "queue.")
 
     def _withdrawn_reason(num: int) -> str:
         stages = withdrawn[num]
@@ -14279,6 +14756,33 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
                   "and delete the branch ('git branch -D <branch>'); if not, "
                   "land its work or release the item.")
 
+    # An annotation no approval can clear — not one gate ID, naming no gate
+    # row, or matching more than one (`EVIDENCE_DEFECTS`) — is not a wait a
+    # person will end, so it is a defect like the unreadable row: exit
+    # 1 naming what to repair, never the exit 0 the queue-end step reads as
+    # "a person is deciding" (issue #432).
+    broken = {n: [phrase for state, phrase in unmet
+                  if state in EVIDENCE_DEFECTS]
+              for n, (_, unmet) in waits.items()}
+    if any(broken.values()):
+        print("none left — an item's evidence annotation names no single "
+              "gate, so no approval can let it merge:")
+        for num in scan_order:
+            if broken.get(num):
+                branch = waits[num][0]
+                print(f"  {num:03d} {titles.get(num, 'item ' + str(num))} — "
+                      f"🔍{f' on {branch}' if branch else ''}, its spec's "
+                      + "; ".join(broken[num]))
+        print("  Correct each annotation in the item's spec to the one "
+              "gate-<hex> ID 'aide gate list' prints, and claim again; "
+              "'aide merge' refuses the item until then.")
+        # A stranded claim exits 1 too and is named with it, not one claim
+        # later: two defects, one report.
+        if stranded:
+            _stranded_lines()
+            _stranded_notice()
+        return 1
+
     if relevant:
         print("none left — held by an unresolved human gate:")
         for n, g, gid in relevant:
@@ -14294,12 +14798,22 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
             if num in withdrawn:
                 print(f"  {num:03d} {titles.get(num, 'item ' + str(num))} — "
                       f"{_withdrawn_reason(num)}")
+        _waits_report()
         # A broken state is not hidden behind a gate: an unpublished or
         # deleted claim exits 1 on this path exactly as on the per-item one.
         if stranded:
             _stranded_lines()
             _stranded_notice()
             return 1
+        print(early)
+        return 0
+
+    if not open_ordered:
+        # Nothing open and no gate: only an evidence wait keeps the queue
+        # from its end (issue #428).
+        print(f"none left — {len(waits)} item(s) not merged, each awaiting "
+              f"the human gate that is its evidence:")
+        _waits_report()
         print(early)
         return 0
 
@@ -14314,7 +14828,12 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
         if num in withdrawn:
             print(f"{head} {_withdrawn_reason(num)}")
         elif num in stranded:
+            # Before the evidence wait, deliberately: a stranded claim is a
+            # broken state that exits 1 (#364) and is repaired first; the
+            # wait is named on the next claim once it is.
             print(f"{head} {_stranded_reason(num)}")
+        elif num in waits:
+            print(_wait_line(num))
         elif br is not None:
             print(f"{head} claimed by {br}, already in flight")
         else:
@@ -14332,6 +14851,7 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
                 print(f"{head} open and unblocked, yet not offered — please "
                       f"report this")
 
+    _waits_report(open_items)
     if stranded:
         _stranded_notice()
         return 1
@@ -14344,7 +14864,8 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
                  claimed: Dict[int, str], item_status: Dict[int, str],
                  scan_order: List[int],
                  holds: Optional[Dict[int, List[int]]] = None,
-                 withdrawn: Collection[int] = ()) -> str:
+                 withdrawn: Collection[int] = (),
+                 evidence: Sequence[int] = ()) -> str:
     """The ``early ready:`` line ending a ``none left — …`` report that exits 0.
 
     ``yes`` when every gate holding the queue is still ⏳ awaiting its
@@ -14356,7 +14877,11 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
     trigger (issue #331). ``no`` otherwise, with the first reason found, in
     the order the clauses are listed.
 
-    A ❌ declined gate is not a decision pending but one made against the
+    An item in *evidence* — 🔍 and unmerged until the human gate that is
+    its evidence is approved (`evidence_waits`, issue #428) — says ``no``
+    before any other clause: its work has not landed in the queue, and
+    `queue ready` refuses while it waits. A ❌ declined gate is not a
+    decision pending but one made against the
     plan, which is re-planned rather than shipped, so it says ``no``. The ✅
     clause is what keeps a queue held whole by its own plan gate, nothing
     built, from reading as ready. An ``all`` gate over a queue with nothing
@@ -14391,7 +14916,10 @@ def _early_ready(repo_root: Path, config, open_ordered: List[int],
     loose = [n for n in open_ordered if n not in held]
     busy = [n for n in loose if n in claimed]
     settled = [(n, g) for n, g in gates if g.kind != "awaiting"]
-    if not gates:
+    if evidence:
+        why = (f"{evidence[0]:03d} awaits the human gate that is its "
+               f"evidence, so its work has not landed")
+    elif not gates:
         why = "no gate holds an open item"
     elif settled:
         n, g = settled[0]
@@ -14459,9 +14987,32 @@ def cmd_claim(args: argparse.Namespace) -> int:
     # was fixed. Inferring the base from a *recognised queue branch* (never from
     # an arbitrary branch, which would silently retarget a merge) closes that
     # half without asking every caller to pass a flag it cannot know.
+    #
+    # A *claim branch* stands for the base it recorded (issue #433): a
+    # validator ending PASS (awaiting gate-…) leaves its item 🔍 there with
+    # HEAD still on it, and a person approves the gate there, so the next
+    # claim is routinely run from one. Its recorded base is where the queue's
+    # work belongs; `main_branch` would put the next item off its queue. A
+    # claim branch with NO recorded base is refused rather than read as
+    # `main_branch`: that guess is exactly the misroute, and a wrong base is
+    # silent until merge lands the item somewhere else, while a refusal costs
+    # one `--base`.
     current = _current_branch(repo_root)
-    base = args.base or (current if _is_queue_branch(current, prefix)
-                         else str(config["git"].get("main_branch", "main")))
+    if args.base:
+        base = args.base
+    elif _is_queue_branch(current, prefix):
+        base = current
+    elif _branch_item_number(current, prefix) is not None:
+        recorded = _recorded_branch_base(repo_root, current)
+        if recorded is None:
+            print(f"aide claim: {current} is a claim branch with no recorded "
+                  f"base, so where the next item belongs is unknown — nothing "
+                  f"was claimed. Switch to the branch the queue's work belongs "
+                  f"on, or pass --base <branch>.", file=sys.stderr)
+            return 1
+        base = recorded
+    else:
+        base = str(config["git"].get("main_branch", "main"))
 
     if not _local_branch_exists(repo_root, base):
         print(f"aide claim: base '{base}' is not a local branch — an item is "
@@ -15132,14 +15683,27 @@ def junit_failure_ids(xml_text: str,
 def _run_suite_argv(argv: List[str], repo_root: Path) -> subprocess.CompletedProcess:
     """The one entry the engine runs the test command through: a program that
     is not there is `RunnerMissing`, never a `FileNotFoundError` traceback
-    (issue #352), and an empty command is refused by each verb before this."""
-    try:
-        return subprocess.run(argv, cwd=str(repo_root))
-    except (FileNotFoundError, PermissionError):
-        # PermissionError: a path that names a file with no execute bit.
-        if resolve_tool(argv[0], repo_root) is None:
+    (issue #352), and an empty command is refused by each verb before this.
+
+    The program spawned is the one `resolve_tool` found, as `aide env`
+    reports it: on Windows a list argv is searched for with `.exe` alone, so
+    the bare name of an `npm.cmd` shim was a `FileNotFoundError` for a
+    program the engine had just called present (issue #449). One found and
+    still not startable is `RunnerUnrunnable`, naming where it was found."""
+    found = resolve_tool(argv[0], repo_root)
+    if found is None:
+        try:
+            return subprocess.run(argv, cwd=str(repo_root))
+        except (FileNotFoundError, PermissionError):
+            # PermissionError: a path that names a file with no execute bit.
             raise RunnerMissing(argv[0], repo_root) from None
-        raise
+    # A `.cmd` or `.bat` runs through cmd.exe, which re-reads its arguments
+    # (`%`, `&`, `^`): they are the project's own `test_command`, split on
+    # whitespace, and the JUnit arguments go only to pytest, never a shim.
+    try:
+        return subprocess.run([found, *argv[1:]], cwd=str(repo_root))
+    except OSError as exc:
+        raise RunnerUnrunnable(argv[0], found, exc) from None
 
 
 def run_test_suite(repo_root: Path, argv: List[str],
@@ -15818,6 +16382,155 @@ def _merge_dropped_item(repo_root: Path, config, number: int,
     return " and ".join(places)
 
 
+#: The `_merge_unmet_evidence` states that are defects in the annotation, not
+#: a decision pending: no approval clears one, only an edit to the spec does.
+#: `merge` gives them their own remedy and `claim` exits 1 on them (issue
+#: #432), where an ⏳ awaiting or ❌ declined gate is a wait and exits 0.
+EVIDENCE_DEFECTS = frozenset({"malformed", "no-row", "ambiguous"})
+
+
+def _merge_unmet_evidence(repo_root: Path, config, number: int, base: str,
+                          branch: str) -> List[Tuple[str, str]]:
+    """``(state, phrase)`` per criterion of item *number* whose evidence is
+    not met — ``("awaiting", "AC3: gate-3fa1 is ⏳ Awaiting")`` — or ``[]``
+    (issue #420). *state* is ``awaiting``, ``unrecognised``, ``declined``,
+    ``no-row``, ``ambiguous`` or ``malformed``: the refusal's remedy differs.
+
+    The spec is read at the claim branch, which is what lands, else in the
+    working tree. A malformed annotation is unmet whatever the gates say. The
+    gate is read in one copy of progress.md: the claim branch's where it
+    carries the row — the spec-author raised it there or on the queue branch
+    it came from, and the person checks the built item there — else the
+    working tree's, else the base's. The first copy that resolves the ID
+    decides and a later one never overrides it, so a stale ✅ elsewhere cannot
+    outvote the ❌ written beside the work. Two rows asking the same question
+    meet the criterion only when both are approved.
+    """
+    ddir_rel = _docs_rel(config)
+    spec_text: Optional[str] = None
+    listed = git(["ls-tree", "--name-only", branch, f"{ddir_rel}/items/"],
+                 repo_root, check=False)
+    if listed.returncode == 0:
+        for p in sorted(l.strip() for l in listed.stdout.splitlines()):
+            if p and item_spec_number(PurePath(p)) == number:
+                shown = git(["show", f"{branch}:./{p}"], repo_root, check=False)
+                if shown.returncode == 0:
+                    spec_text = shown.stdout
+                break
+    if spec_text is None:
+        specs = item_spec_paths(docs_dir(repo_root, config) / "items", number)
+        try:
+            spec_text = specs[0].read_text(encoding=_ENCODING) if specs else None
+        except (OSError, UnicodeDecodeError):
+            spec_text = None
+    if not spec_text:
+        return []
+    cited, malformed = spec_evidence_annotations(spec_text)
+
+    def which(ac: Optional[int]) -> str:
+        return f"AC{ac}" if ac is not None else "a criterion"
+
+    out: List[Tuple[str, str]] = [
+        ("malformed", f"{which(ac)}: '{written}' is not one gate ID")
+        for ac, written in malformed]
+    if not cited:
+        return out
+    rel = _progress_rel(config)
+    copies: List[List[HumanGate]] = []
+    shown = git(["show", f"{branch}:./{rel}"], repo_root, check=False)
+    if shown.returncode == 0:
+        copies.append(human_gates(shown.stdout.splitlines()))
+    path = repo_root / rel
+    if path.is_file():
+        try:
+            copies.append(human_gates(path.read_text(encoding=_ENCODING).splitlines()))
+        except (OSError, UnicodeDecodeError):
+            pass
+    shown = git(["show", f"{base}:./{rel}"], repo_root, check=False)
+    if shown.returncode == 0:
+        copies.append(human_gates(shown.stdout.splitlines()))
+    words = {"awaiting": "is ⏳ Awaiting", "declined": "is ❌ Declined",
+             "unrecognised": "has an unrecognised status",
+             "ambiguous": "matches more than one gate",
+             "no-row": "names no gate row"}
+    for ac, ref in cited:
+        state = "no-row"
+        for gates in copies:
+            hits = resolve_gate_ref(ref, gates)
+            if not hits:
+                continue
+            kinds = {gates[i].kind for i in hits}
+            if len({gate_hash(gates[i]) for i in hits}) > 1:
+                state = "ambiguous"
+            elif kinds == {"approved"}:
+                state = "approved"
+            elif "declined" in kinds:
+                state = "declined"
+            elif "awaiting" in kinds:
+                state = "awaiting"
+            else:
+                state = "unrecognised"
+            break
+        if state != "approved":
+            out.append((state, f"{which(ac)}: {ref} {words[state]}"))
+    return out
+
+
+def evidence_waits(repo_root: Path, config, numbers: Sequence[int],
+                   item_status: Dict[int, str], branches: Sequence[str],
+                   fallback: Optional[str] = None
+                   ) -> Dict[int, Tuple[str, List[Tuple[str, str]]]]:
+    """Item -> ``(claim branch, unmet)`` for each of *numbers* that is 🔍 and
+    unmerged because a criterion's evidence gate is not ✅ Approved — exactly
+    what `_merge_unmet_evidence` refuses `aide merge` on (issue #428).
+
+    Such an item has not landed and cannot until a person decides its gate,
+    so the queue's end must not run over it: `claim` names it rather than
+    reporting a bare ``none left``, and `queue ready` refuses. The 🔍 is read
+    where the validator writes it — on the item's claim branch, whose base
+    still shows the item 📋 — or in *item_status*, the caller's progress.md,
+    whichever is further on. An item ✅, ❌ or ⏸️ there has left the queue
+    and is not read. A 🔍 item whose evidence is met is not a wait: under
+    `pr` mode it is one whose PR awaits its merge, which `merge` already let
+    through. An item with no claim branch reads its spec at *fallback*
+    (`queue ready`: the queue branch it reads progress.md at), else at
+    ``main_branch``.
+    """
+    prefix = str(config["git"].get("branch_prefix", "aide/"))
+    main = fallback or str(config["git"].get("main_branch", "main"))
+    rel = _progress_rel(config)
+    out: Dict[int, Tuple[str, List[Tuple[str, str]]]] = {}
+    for n in numbers:
+        status = item_status.get(n, "planned")
+        if status in ("complete", "excluded", "deferred"):
+            continue
+        branch = next((b for b in branches
+                       if _branch_item_number(b, prefix) == n), None)
+        ref: Optional[str] = None
+        if branch is not None:
+            ref = (branch if _local_branch_exists(repo_root, branch)
+                   else f"origin/{branch}")
+            shown = git(["show", f"{ref}:./{rel}"], repo_root, check=False)
+            if shown.returncode == 0:
+                there = _parse_item_status(shown.stdout.splitlines())[2].get(n)
+                if there is not None and RANK[there] > RANK[status]:
+                    status = there
+        if status != "in-review":
+            continue
+        base = (_recorded_branch_base(repo_root, branch) if branch else None) or main
+        unmet = _merge_unmet_evidence(repo_root, config, n, base, ref or base)
+        if unmet:
+            out[n] = (branch or "", unmet)
+    return out
+
+
+def evidence_wait_phrase(branch: str, unmet: List[Tuple[str, str]]) -> str:
+    """``🔍 on aide/027-x, awaiting …: AC2: gate-3fa1 is ⏳ Awaiting``."""
+    where = f" on {branch}" if branch else ""
+    return (f"🔍{where}, unmerged until the human gate that is its evidence "
+            f"is ✅ Approved: " + "; ".join(phrase for _, phrase in unmet))
+
+
 def _merge_withdrawn_item(repo_root: Path, config, number: int, base: str,
                           branch: str) -> Tuple[str, List[str]]:
     """Where item *number* reads 📋 with every bullet in a withdrawn stage —
@@ -15965,6 +16678,37 @@ def cmd_merge(args: argparse.Namespace) -> int:
               f"written. Drop it ('aide progress set {args.number:03d} "
               f"dropped --reason …'), or take the stage's summary row off ❌ "
               f"and re-run 'aide merge {args.number:03d}'.", file=sys.stderr)
+        return 1
+    unmet = _merge_unmet_evidence(repo_root, config, args.number, main, branch)
+    if unmet:
+        # Issue #420: a criterion whose evidence is a person's check is met
+        # only once that person approved it, and a merge is the last point
+        # anything can still hold the item for them. Before the push of `pr`
+        # mode too: a PR opened over an unchecked item invites its merge.
+        states = {state for state, _ in unmet}
+        remedies: List[str] = []
+        if states & {"awaiting", "unrecognised"}:
+            remedies.append(
+                f"for a gate awaiting its check, a person checks the built "
+                f"item on {branch} and runs `aide gate approve <ID>` there")
+        if "declined" in states:
+            remedies.append(
+                "for a declined gate, its criterion has failed: rebuild it, "
+                "re-ask the check as a new Gate cell (a new ID) and re-point "
+                "the annotation at it — never approve a declined gate")
+        if states & EVIDENCE_DEFECTS:
+            remedies.append(
+                "for an annotation naming no single gate, correct it to the "
+                "one gate-<hex> ID `aide gate list` prints")
+        remedy = "; ".join(remedies)
+        remedy = remedy[:1].upper() + remedy[1:]
+        print(f"aide merge: item {args.number:03d} has acceptance criteria "
+              f"whose evidence is a human gate not ✅ Approved — "
+              f"{'; '.join(phrase for _, phrase in unmet)} — and a criterion "
+              f"whose check no person has approved is not met, so nothing "
+              f"was merged, pushed or written. "
+              f"{remedy}; then re-run 'aide merge "
+              f"{args.number:03d}'.", file=sys.stderr)
         return 1
 
     if mode == "pr":
@@ -17327,25 +18071,21 @@ def _traces_to(name: str, ac_numbers: List[int], labels: List[str],
     """*name* carries one of *ac_numbers* (`ac3`) or one of *labels*, or one
     of its parametrize *ids* does (issue #314).
 
-    The name matches a label anywhere in it, as it always has. An id is
-    compared normalised the same way (lower case, `-` read as `_`), and a
-    label or `acN` must stand in it as a whole token — bounded by anything
-    but a letter or digit — since an id is often a free-text value rather
-    than a name built from its case: label `call` matches id `bool-call`,
-    and does not match `recall`.
+    The name and each id are compared normalised alike (lower case, `-` read
+    as `_`), and a label or `acN` must stand in either as a whole token —
+    bounded by anything but a letter or digit: label `docs` matches
+    `test_update_docs_index` and not `test_docstring_parsed`, label `call`
+    matches id `bool-call` and not `recall`. Until issue #423 the name
+    matched a label anywhere in it, so a short label (`docs`, `io`, `run`)
+    vouched for every test whose name merely contained it.
     """
     wanted = set(ac_numbers)
     norm = [lbl.lower().replace("-", "_") for lbl in labels]
-    low = name.lower()
-    if any(int(n) in wanted for n in _AC_TOKEN_RE.findall(low)):
-        return True
-    if any(lbl in low for lbl in norm):
-        return True
-    for raw in ids:
-        ident = raw.lower().replace("-", "_")
-        if any(int(n) in wanted for n in _AC_TOKEN_RE.findall(ident)):
+    for raw in (name, *ids):
+        text = raw.lower().replace("-", "_")
+        if any(int(n) in wanted for n in _AC_TOKEN_RE.findall(text)):
             return True
-        if any(re.search(rf"(?<![a-z0-9]){re.escape(lbl)}(?![a-z0-9])", ident)
+        if any(re.search(rf"(?<![a-z0-9]){re.escape(lbl)}(?![a-z0-9])", text)
                for lbl in norm):
             return True
     return False
@@ -18955,7 +19695,9 @@ def build_parser() -> argparse.ArgumentParser:
             "gate whose reach holds nothing open: a Blocks cell left empty "
             "(\u2014), or items and stages all \u2705 or \u274c, a "
             "\U0001f4cb item every bullet of which sits in a withdrawn "
-            "stage counting as \u274c; never `all` or `stage N+`. A "
+            "stage counting as \u274c; never `all` or `stage N+`; and never "
+            "one an item spec that is not a record still names as a "
+            "criterion's evidence. A "
             "summary row marked "
             "\u274c is left out of every stage comparison "
             "above, deliverables and header alike: the stage is "
@@ -19067,6 +19809,21 @@ def build_parser() -> argparse.ArgumentParser:
             "path, a file name, a URL or a heading anchor is not a citation, "
             "and tests_dir is not read. A position, insight or gate, is never "
             "zero-padded: 037 is an item number.\n"
+            "\n"
+            "Over the evidence annotations of the item specs that are not "
+            "records \u2014 "
+            "`(evidence: gate-<hex>)` on an Acceptance Criteria line \u2014 "
+            "one opening at `(evidence: gate` outside inline code, the "
+            "template's gate-<hex> placeholder aside: an ERROR for one that "
+            "is not exactly one well-formed gate ID (an upper-case or short "
+            "hex, a missing hyphen, two IDs), since read as no annotation it "
+            "would lift the merge's hold; and "
+            "warnings: an awaiting gate so named with an empty Blocks cell is "
+            "reported as awaiting a person's check, naming the criterion and "
+            "the merge it holds, in place of the gate warning above; a "
+            "declined one names the criterion it failed; a gate named as the "
+            "evidence for more than one criterion; and an unresolved one "
+            "whose reach holds the item it is evidence for.\n"
             "\n"
             "A record is the spec of an item progress.md shows \u2705, "
             "\u274c or \u23f8\ufe0f, or \U0001f4cb with every bullet in a "
@@ -19514,7 +20271,13 @@ def build_parser() -> argparse.ArgumentParser:
             "Before the mode or the forge is considered, both refuse, exit "
             "1, a queue branch whose tip carries no queue file of its own "
             "number: nothing is planned on it, so a pull request would have "
-            "no plan to carry.\n"
+            "no plan to carry. ready without --undo refuses, exit 1, before "
+            "the forge is asked anything, while an item of the queue is "
+            "\U0001f50d and unmerged until a person approves the human gate "
+            "that is its evidence \u2014 the queue's items and their status "
+            "read as committed on the queue branch, a \U0001f50d on an "
+            "item's claim branch too; the refusal names each item and its "
+            "gate.\n"
             "\n"
             "An option the action does not read is refused, exit 2, before "
             "anything is done: pr and ready take no --dry-run, --base, "
@@ -19608,9 +20371,10 @@ def build_parser() -> argparse.ArgumentParser:
             "frozen and no longer shape-checked; what remains is renumbered, "
             "so re-run list. Every citation by position in docs/aide or "
             "tests_dir whose number the move changes is listed before "
-            "anything moves, dry run or not, with the ID that position holds before the move and "
-            "whether it is archived or renumbered; the archive still "
-            "proceeds\n"
+            "anything moves, dry run or not, with the ID it meant — read "
+            "from history exactly as check's hint is, and labelled where "
+            "there is none — and whether that entry is archived or "
+            "renumbered; the archive still proceeds\n"
             "resolve: write the union of a conflicted inbox — the shared "
             "history, then each side's new entries in capture order; a tick "
             "on either side stands and keeps its pointer, trail lines merge "
@@ -19658,7 +20422,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ledger = sub.add_parser(
         "ledger", help="record what an item cost where no merge will, and "
-        "read the rows back (one row per item, docs/aide/ledger.md)",
+        "read the rows back (one row per run of an item, docs/aide/ledger.md)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "abandon: the row for an item that never merged \u2014 one "
@@ -19776,10 +20540,19 @@ def register_git_subcommands(sub) -> None:
             "waits on one \u2014 one reaches it, or it waits only on items "
             "that do \u2014 no open item is claimed, and at least one item of "
             "the queues checked is \u2705; no otherwise, with the reason. A "
-            "\u274c declined gate makes it no. An `all` gate over a queue "
+            "\u274c declined gate makes it no. So does an item \U0001f50d "
+            "and unmerged until a person approves the human gate that is its "
+            "evidence, which the report names with its criterion and gate: "
+            "a bare \"none left\" is never printed over it. An evidence "
+            "annotation no approval can clear \u2014 not one gate ID, naming "
+            "no gate row, or matching more than one \u2014 is not such a "
+            "wait: the report names the item and its criterion and exits 1. "
+            "An `all` gate "
+            "over a queue "
             "with nothing left open is read the same way, a yes in words of "
             "its own. A bare "
-            "\"none left\" (nothing open, no gate) carries no such line. An "
+            "\"none left\" (nothing open, no gate, no item awaiting its "
+            "evidence gate) carries no such line. An "
             "unpublished claim \u2014 a claim branch origin has never seen "
             "\u2014 exits 1 with how to publish or release it, whether or not "
             "a gate holds the rest. A claim branch origin had and has since "
@@ -19798,13 +20571,19 @@ def register_git_subcommands(sub) -> None:
             "written; an engine-marked assumption and one already carrying a "
             "re-check are not named, and a dependency that left the queue as "
             "\u274c, \u23f8\ufe0f or a \U0001f4cb item of a withdrawn stage "
-            "is named as having no code to check against."))
+            "is named as having no code to check against.\n"
+            "\n"
+            "Without --base the item's base is the current branch when that "
+            "is a queue branch, the base a current claim branch recorded "
+            "when it is one \u2014 a claim branch with none recorded is "
+            "refused, exit 1, before anything is created \u2014 and "
+            "main_branch otherwise. The item is branched from that base, "
+            "whatever is checked out."))
     p_claim.add_argument("--queue", type=int, default=None,
                          help="queue number (default: the lowest-numbered open queue)")
     p_claim.add_argument("--base", default=None,
                          help="branch this claim off, and merge it back into "
-                              "(default: the current branch when it is a queue "
-                              "branch, else main_branch)")
+                              "(default: below)")
     p_claim.add_argument("--dry-run", action="store_true", help="print the pick, do not create/push a branch")
     p_claim.set_defaults(func=cmd_claim)
 
@@ -19818,7 +20597,8 @@ def register_git_subcommands(sub) -> None:
             "origin is refused, exit 1, before anything is run, merged, "
             "pushed or written.\n"
             "\n"
-            "The row is one per item, in docs/aide/ledger.md \u2014 created "
+            "The row is one per run of an item, in docs/aide/ledger.md \u2014 "
+            "created "
             "from .aide/templates/ledger.md the first time there is a row to "
             "write, and committed together with the \u2705 so the two can "
             "never disagree. Every cell is derived here: the item, its queue, "
@@ -19868,6 +20648,26 @@ def register_git_subcommands(sub) -> None:
             "names `aide progress set NNN dropped`; one the claim branch, "
             "the working tree or the base reads \U0001f6a7 is merged, since "
             "started work is live until its owner drops it.\n"
+            "\n"
+            "An item whose spec names a human gate as an acceptance "
+            "criterion's evidence — `(evidence: gate-<hex>)` on the "
+            "criterion's line — is refused the same way, exit 1, while "
+            "any such gate is not ✅ Approved or names no gate row, and "
+            "while such an annotation is not exactly one well-formed gate "
+            "ID. The gate is read from the claim branch's progress.md where "
+            "it carries the row, else the working tree's, else the base's: "
+            "the first copy that resolves the ID decides, and a later one "
+            "never overrides it. The refusal names each criterion and its "
+            "gate, and what clears it — a person's approval for an awaiting "
+            "gate; a rebuild, a re-asked gate and a re-pointed annotation "
+            "for a declined one, which is never approved; a corrected ID "
+            "otherwise — and comes before the push under pr mode too. Two "
+            "rows asking the same question meet a criterion only when both "
+            "are \u2705. The spec is read at the claim branch, else in the "
+            "working tree, whatever the item's status in progress.md, so an "
+            "annotation `aide check` does not read \u2014 one only the claim "
+            "branch carries, or one in a record's spec \u2014 still holds the "
+            "merge.\n"
             "\n"
             "The finding cells read [loop] review, from aide.toml. Where it "
             "is off no reviewer ran, so the three of them are written as `-` "
@@ -20188,7 +20988,9 @@ def register_git_subcommands(sub) -> None:
             "## Testing Strategy or its optional ## Review findings names (the "
             "first word of a bullet, closed by a colon, or by a full stop when "
             "the word is in bold or backticks and text follows: `empty-input: "
-            "...`, `**empty-input.** ...`); a test "
+            "...`, `**empty-input.** ...`), the label standing as a whole "
+            "word of the test's name, with - read as _ (docs traces "
+            "test_update_docs_index, not test_docstring_parsed); a test "
             "naming none is reported as one the spec did not ask for. A "
             "parametrised test also traces through its literal "
             "pytest.mark.parametrize ids — a string argvalue, the strings of a "

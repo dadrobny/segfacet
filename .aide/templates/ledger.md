@@ -1,6 +1,6 @@
 <!--
-  AIDE run ledger. One row per item worked, appended by the verbs that end an
-  item. The engine creates docs/aide/ledger.md from this file, byte for byte,
+  AIDE run ledger. One row per run of an item, appended by the verbs that end
+  a run. The engine creates docs/aide/ledger.md from this file, byte for byte,
   the first time one of them has a row to write; nobody copies it by hand and
   nothing edits a row afterwards.
   What each column holds, and which cells a caller passes rather than the
@@ -22,7 +22,7 @@
 <!-- aide-template: ledger 3 -->
 # Run Ledger
 
-_One row per item, newest last._
+_One row per run of an item, newest last._
 
 | Item | Queue | Stage | Kind | Outcome | ACs | Tests | Files | Rounds | Blocking | Minor | Nit | Engine | Date | Suite s | Inherited |
 |------|-------|-------|------|---------|-----|-------|-------|--------|----------|-------|-----|--------|------|---------|-----------|

@@ -43,8 +43,8 @@ in `progress.md`. The person raising the gate chooses the reach.
 
 A gate known at planning time is stated in the `roadmap.md` stage and implies
 `Blocks: stage N`; one discovered while specifying an item is noted in its
-Validation or Assumptions block, implying `Blocks: NNN`; `progress.md` holds
-the **authoritative row**, always — a gate that exists only as prose in a
+Validation or Assumptions block, implying `Blocks: NNN` — an evidence gate
+excepted, below; `progress.md` holds the **authoritative row**, always — a gate that exists only as prose in a
 roadmap or a spec blocks nothing. **A declined gate keeps blocking.** The
 remedy is to re-plan: drop the blocked items, or change what the gate asks.
 **A declined gate whose reach holds nothing open is re-planned** — its Blocks
@@ -52,6 +52,20 @@ cell names nothing (`—`), or only items and stages that are already ✅ or ❌
 The row stays as the record of the decision. `all` and `stage N+` reach work
 not yet written, so a declined one is never re-planned this way. A stage not
 yet written, or with nothing queued, is not spent.
+
+**An evidence gate records a person's check of the built item, and blocks
+nothing** — the gate an acceptance criterion names as its evidence, when no
+loop-run test can measure it (§1 → items.md, delivered to `spec-author` in
+`aide-item-specs`). Its Gate cell asks the by-hand question and its Blocks
+cell is `—`. **It must not block its own item**: `aide claim` would never offer
+the item, and nothing would be built to check. Its dependents wait anyway — a
+dependency is met only once ✅, and `aide merge` refuses the item until the
+gate is ✅ Approved. **The spec-author writes the row by hand** — no verb adds
+one — beside the spec it writes, and cites the row's ID on the criterion; a
+person checks the built item on its claim branch and decides there. **A
+declined evidence gate is not re-planned while a live spec still cites it**: a
+re-check is re-asked as a new Gate cell, so a new ID, and the annotation is
+re-pointed at it.
 
 **Cite a gate by its ID, never by its position** — the `gate-<hex>` that
 `aide gate list` prints, in an item spec, a queue file, a roadmap stage or

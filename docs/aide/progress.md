@@ -49,7 +49,7 @@
 | 18    | Failure-Mode-Specific Metric Surface                                    | G2, G7          | ✅     |
 | 19    | Generated Feature & Rule Catalogue + Steering Review                    | G7, G8          | ✅     |
 | 20    | Failure-Mode ↔ Feature ↔ Rule Traceability & Specificity Harness      | G2, G7          | ✅     |
-| 21    | Real-GT Perturbation Corpus                                             | G3, G7          | 📋     |
+| 21    | Real-GT Perturbation Corpus                                             | G3, G7          | ⏸️     |
 | 22    | *(placeholder)* Unified `(scan, seg)` Extraction                    | —              | 📋     |
 | 23    | *(placeholder)* Multivariate Normative Model                          | G3              | 📋     |
 | 24    | *(placeholder)* Failure-Mode Discovery & Typed Reference Set          | G8              | 📋     |
@@ -62,6 +62,7 @@
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
 | 33    | Corpus & Rule Re-grounding: modes 2 and 3 to the bar                    | G2, G7, G8      | ✅     |
+| 34    | Maintenance                                                             | —               | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -125,6 +126,15 @@
 > **Re-targeted 2026-09-30** at gate `gate-51da`: the selected modes became **2 and 3**
 > (mode 4 left the stage at its `gate-bb24` intermediate state), signed at the bar at
 > `gate-0133` on 2026-10-02. The stage title was corrected on 2026-10-03.
+
+> **Stage 21 deferred 2026-10-07** (queue-029 boundary feedback loop, after Stage 27
+> closed). The maintainer decided to go straight to rung 3 — Stage 16, real SPINEPS output
+> on real VerSe CT — under the prototype posture, and not to build the rung-2 perturbed
+> real-GT corpus first. Stage 21's four deliverables are ⏸️ with the reason on each; Stage
+> 16's dependency on Stage 21 is lifted in [`roadmap.md`](roadmap.md). Run order, stated
+> once at the top of [`roadmap.md`](roadmap.md): **16 → (21 when needed)**. Stage 16's
+> items are gated by `gate-ae46` (SPINEPS output handed over) and, for its curated
+> challenging-case deliverable only, `gate-2f91`.
 
 ## Two kinds of "done" — implementation vs. validation
 
@@ -206,7 +216,7 @@ item, or doc where the detail already lives, not a prose copy of it._
 | Radiomics feature extraction                    | `pyradiomics` (extra: `segqc[radiomics]`)                                            | Stage 8*(Item 060)*                                                                                                             | ✅ Verified (2026-07-14, GitHub Actions CI)                                                  | CI`verify-environment-gated` (`ci.yml`) installs the extra and runs the radiomics tests, failing on any skip (`assert_no_skips.py`). First real run found + fixed a degenerate-mask bug (item 076); green since PR #33.                                                                                                          |
 | Containerised pipeline (Docker build + run)     | Docker (external tool, no pip dependency)                                                | Stage 9*(Items 066, 069, 070)*                                                                                                  | ✅ Verified (2026-07-14, GitHub Actions CI)                                                  | Same CI job does a real`docker build` + `docker run` smoke test (`test_066/069/070`); item 080 gated it to a Linux daemon (skip, not error, on Windows-container hosts).                                                                                                                                                         |
 | XNAT Container Service command on a real server | XNAT server + Container Service (external environment)                                   | Stage 9*(Items 067, 068, 070)*; **Stage 15 ❌ Excluded**                                                                  | ❓ Unverified (out of scope since 2026-07-25)                                                | The container itself is verified (Docker row). Installing`command.json` on a real XNAT server never happened and now never will *here*: deployment left scope in [`vision.md`](vision.md) §0 and G5 was removed. Row retained so the artefacts' unverified status stays on the record rather than vanishing with the stage.      |
-| Real automatic-segmentation failure corpus      | **SPINEPS** (primary) / TotalSegmentator outputs on real CT (external tool + data) | Stages 5, 7*(Items 041, 053, 057)*; to be closed by Stage 16                                                                    | ❓ Unverified                                                                                | §6 modes are detected only on synthetically perturbed GT; no real-failure output has run, so item 057's per-mode sensitivities are synthetic-only. Curated challenging cases ([`vision.md`](vision.md) §8) unbuilt. → Stage 16 (rung 3), which now depends on Stage 21 (rung 2).                                                   |
+| Real automatic-segmentation failure corpus      | **SPINEPS** (primary) / TotalSegmentator outputs on real CT (external tool + data) | Stages 5, 7*(Items 041, 053, 057)*; to be closed by Stage 16                                                                    | ❓ Unverified                                                                                | §6 modes are detected only on synthetically perturbed GT; no real-failure output has run, so item 057's per-mode sensitivities are synthetic-only. Curated challenging cases ([`vision.md`](vision.md) §8) unbuilt. → Stage 16 (rung 3); its dependency on Stage 21 (rung 2) was lifted 2026-10-07, Stage 21 deferred.                                                   |
 | GPU-accelerated feature extraction              | `cupy` (extra: `segqc[gpu]`)                                                         | Stage 10*(Items 071–075)*; closed by *(Item 085)*                                                                            | ✅ Verified (2026-07-16, Quadro P6000 sm_61, CuPy`cupy-cuda12x` 14.1.1, driver 580.159.04) | Verified on a Pascal sm_61 workstation (2× P6000) with the CPU/GPU equivalence tests executing; first CuPy run found + fixed a NEP-50 regression (item 085). Install`cupy-cuda12x` (**not** `cupy-cuda13x` — drops Pascal). No CI GPU coverage — see [`docs/gpu-verification.md`](../gpu-verification.md).               |
 | Real SPINEPS-output label-convention round-trip | Real SPINEPS-produced label map (external tool + data), via `SEGFACET_SPINEPS_FIXTURE` | Stage 17 (Item 097)                                                                                                                | ❓ Unverified                                                                                | No committed real-SPINEPS fixture; requires `SEGFACET_SPINEPS_FIXTURE` pointing at a directory of real SPINEPS output. Narrower than the "Real automatic-segmentation failure corpus" row above (Stage 16 sensitivity/DICE scope) — this row is level-**naming** correctness only. Mechanics unconditionally covered by a committed synthetic TPTBox-labeled fixture (`tests/test_097_stage17_validation.py::test_ac4_*`); the real-data path (`test_ac6_real_spineps_fixture_level_names_correct`) is a genuine, cleanly-skipping `skipif` not yet exercised for real. |
 | Real segmentation-tool run-vs-run per-mode comparison | Two real runs of a real segmenter over the same cohort (e.g. a post-processing step on vs. off), external tool + data | Stage 18 *(Items 101, 102)*                                                                                                       | ❓ Unverified                                                                                | Only ever exercised on the synthetic corpus and on in-memory perturbed clean spines (item 101's API tests, item 102's CLI replay); no two real segmenter runs exist in this repo. Narrower than the "Real automatic-segmentation failure corpus" row above (that row is Stage 16's per-mode **sensitivity** scope; this row is run-vs-run **attribution** scope). |
@@ -262,6 +272,7 @@ may resolve one._
 | Stage 33 at-the-bar sign-off of modes 3 and 4 — the maintainer re-reads modes 3 (split vertebra segment) and 4 (islands) on the lordotic corpus, as rendered in [`failure_modes.generated.md`](failure_modes.generated.md), with the corpus sheet [`corpus_sheet.png`](corpus_sheet.png) and the rule table [`rules.generated.md`](rules.generated.md), and for each either signs it off at the bar, signs it off at a recorded intermediate state with the reason, or names what must change first. Roadmap Stage 33 D5. The decision brief is in [`items/203-modes-3-and-4-re-signed-at-the-bar.md`](items/203-modes-3-and-4-re-signed-at-the-bar.md): both modes clear `traceability.bar_conditions` 1–5 live (measured 2026-09-29), and the open judgements are that mode 3's `split_own_label` sub-type is expressed only through the `bounds` proxy, that no committed value lies near `neighbour_contact`'s 0.1 contact-fraction threshold because the lordotic base's bodies never touch, and that mode 4's distance grading (`island_distance_from_main_body_mm`), the reason given at gate-bb24, is still unbuilt. The outcome and reason per mode are then recorded as one `ModeSignOff` each in `src/segfacet/failure_modes.py`'s `MODE_SIGN_OFFS`, replacing gate-bb24's two intermediate-state records | — | ❌ Declined (2026-09-30) | Neither yet (2026-09-30). Mode 2/3 boundary re-drawn: mode 2 keeps the paired case (a label overreaching onto a neighbour, sub-type (a) today); mode 3 becomes the own-label fragment case only (sub-type (b)). Mode 3 needs its own detector: high label contact fraction plus small volume. Mode 4 needs re-definition: more than one connected component, with small components, or larger components further from the main body; to be refined. Re-planned as new queue-027 items before a fresh sign-off gate. |
 | Stage 33 at-the-bar sign-off of modes 2 and 3 after the mode 2/3 boundary re-draw — raised when gate-51da was declined (2026-09-30), which moved the selected modes from 3 and 4 to 2 and 3. After items 205–208 have landed, the maintainer reads mode 2 (fused vertebra segments: one label covering its own vertebra plus part or all of a neighbour) and mode 3 (split vertebra segment, re-drawn as the own-label fragment) as rendered in [`failure_modes.generated.md`](failure_modes.generated.md), with the corpus sheet [`corpus_sheet.png`](corpus_sheet.png) and the rule table [`rules.generated.md`](rules.generated.md). For each mode, they either sign it off at the bar, sign it off at a recorded intermediate state with the reason, or name what must change first. Roadmap Stage 33 D5. The decision brief is written into [`items/203-modes-3-and-4-re-signed-at-the-bar.md`](items/203-modes-3-and-4-re-signed-at-the-bar.md) when item 203 is re-specified. The outcome and reason per mode are recorded as one `ModeSignOff` each in `src/segfacet/failure_modes.py`'s `MODE_SIGN_OFFS` | 203, 204 | ✅ Approved (2026-10-02) | modes 2 and 3 are at the bar |
 | Stage 27 feature-record taxonomy sign-off — after item 214 has merged, the maintainer reads the design note [`../feature-taxonomy.md`](../feature-taxonomy.md): the record's structure and its rationale, the alternatives considered, every deviation from the scope × kind starting proposal with its reason, the answers to the four known instances (identity fields in several containers, stage3 and image_features beside per_label, image-axis-relative shape features, the reference-delta's feature selection) and to the two inbox questions (where per-component features live, which path owns adjacent-pair spacing), and the mapping table from every feature-catalogue leaf path to its new path and owning migration item. Roadmap Stage 27 D1, criterion 1. Approval releases the per-label migration (item 215), the neighbour-pair and case-level migration (item 216) and the stage validation (item 217). If the signed design departs from the scope axis, items 215 and 216 are re-cut to match it at this gate, as queue 027 was re-cut at gate-51da | 215, 216, 217 | ✅ Approved (2026-10-06) | Signed 2026-10-06 after review: one anatomical element order stored as case.sequence.order[]; per-label values stored per label whatever computed them; intensity enters the persisted record (Option A). Scope axis unchanged, items 215/216 not re-cut. docs/feature-taxonomy.md @ 2364df4. |
+| Adjudicate `sub-verse406_split-verse261` T10 (label 17): is its 18.51 mm held-out spline offset genuine scoliotic anatomy the deformity envelope must accommodate, or a ground-truth labelling artefact? It is the single value that set the shipped `mislabel.max_offset_mm = 13.0` (interior-only p99 12.91 mm, item 123) and the one real scoliotic VerSe19 subject of the 17 selected that fires `mislabel` through the shipped pipeline (item 125, 2026-08-30), which keeps Stage 28's G3 criterion "a real scoliotic curve in the VerSe cohort is not flagged as an offset outlier" unticked. Anatomy means 13.0 mm flags a real curve and the threshold or envelope is revisited before Stage 16 measures `mislabel` sensitivity on real segmenter output; artefact means 13.0 mm stands and the criterion's open state is recorded with that reason. Needs a person looking at the case in a viewer, not more measurement. Moved from the roadmap Backlog 2026-10-09 (insight 2026-08-29-8f8a) | stage 16 | ⏳ Awaiting | — |
 
 ---
 
@@ -1132,7 +1143,7 @@ rule(s) and any features they need; features may be added alone, modes and rules
 
 ---
 
-## Stage 21 — Real-GT Perturbation Corpus (G3, G7) — 📋
+## Stage 21 — Real-GT Perturbation Corpus (G3, G7) — ⏸️
 
 **Goal.** Move calibration off hand-crafted geometry. The corpus is built from synthetic
 fixtures (five stacked lumbar blocks, 1 mm isotropic); thresholds fitted to it are fitted
@@ -1144,14 +1155,18 @@ failures (Stage 16 — validation).
 
 **Deliverables.**
 
-- 📋 Existing `Perturbation` operators re-sourced from **real VerSe GT**, with a manifest
+- ⏸️ Existing `Perturbation` operators re-sourced from **real VerSe GT**, with a manifest
   of subject IDs, seeds and operator parameters so the corpus reproduces without
   committing bulk data.
-- 📋 A real clean-control baseline — a *cohort* false-positive rate, not one synthetic
+  - **2026-10-07** → deferred: Maintainer decision 2026-10-07 at the queue-029 boundary: under the prototype posture the project moves straight to rung 3 (Stage 16, real SPINEPS output on real VerSe CT) and does not build the rung-2 perturbed-real-GT corpus first; resumed when a Stage 16 measurement needs it
+- ⏸️ A real clean-control baseline — a *cohort* false-positive rate, not one synthetic
   pass case.
-- 📋 Threshold calibration and all sensitivity claims moved to rung 2.
-- 📋 Stage 19's golden decision acted on: retire corpus-snapshot goldens as their cases
+  - **2026-10-07** → deferred: Maintainer decision 2026-10-07: Stage 16 runs before Stage 21; a cohort false-positive baseline on real GT already exists from Stage 14 (held-out VerSe19, Outcome targets), so this is not a Stage 16 prerequisite
+- ⏸️ Threshold calibration and all sensitivity claims moved to rung 2.
+  - **2026-10-07** → deferred: Maintainer decision 2026-10-07: Stage 16 runs before Stage 21; calibration claims stay at rung 1 and are labelled so until this stage resumes
+- ⏸️ Stage 19's golden decision acted on: retire corpus-snapshot goldens as their cases
   are superseded; do **not** regenerate the nine snapshots against the new corpus.
+  - **2026-10-07** → deferred: Maintainer decision 2026-10-07: Stage 16 runs before Stage 21; the golden retirement itself was already executed by Stage 29 D1, so nothing of this bullet is pending today
 
 **Acceptance.**
 
@@ -1959,3 +1974,22 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
   - **2026-10-02** → Item 204 AC7 and AC8, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8: tests/test_204_stage33_validation.py and tests/test_186_expected_level_sequence.py::test_ac2_t12_map_no_coverage_finding pass (3 passed). The six-block T12, L1-L5 map (labels 19-24, no 28) has relationships.missing_levels == [] and run_rules under bundled_default_config returns six findings, all (border, unexpected_clip); none comes from a detector serving mode 6 or 10 (the three coverage detectors and sequence/skip, derived from the live registry), so no missing-level finding.
 - [x] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
   as measured numbers with what they were measured on (**G7**). *(Item 204 AC9, measured in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8 from segfacet.failure_modes (SPECIFICATION, derive_status, derive_mode_rung, a rung of None counted as none): derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7.)*
+
+---
+
+# Stage scoped 2026-10-09 (queue-029 boundary roadmap triage)
+
+> The one standing maintenance stage. Full statement in [`roadmap.md`](roadmap.md).
+
+---
+
+## Stage 34 — Maintenance — 📋
+
+**Goal.** Close insight-derived `defect`, `gap` and `automation` entries in maintenance
+queues, so a repair never reopens the stage it repairs and never rides in on an unrelated
+item. Reopens when a maintenance queue wires items in; closes by rollup when they ship.
+
+**Deliverables.** Wired per maintenance queue, one bullet per item; none yet.
+
+**Validation / acceptance.** None of its own: each maintenance item's spec carries its own
+acceptance criteria.
