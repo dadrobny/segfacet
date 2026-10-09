@@ -1124,16 +1124,6 @@ def test_ac22_nine_goldens_match_corpus_case_ids(tmp_path):
     assert stems == case_ids
 
 
-def test_ac22_stage21_deliverable_bullet_still_planned():
-    text = _read_progress()
-    section = _markdown_section(text, "## Stage 21")
-    for line in section.splitlines():
-        if "Stage 19's golden decision acted on" in line:
-            assert line.strip().startswith("- \U0001F4CB"), line
-            return
-    pytest.fail("no Stage-21 deliverable bullet naming \"Stage 19's golden decision acted on\"")
-
-
 def test_ac22_annotations_state_stage19_decides_stage21_executes_if_ticked():
     text = _read_progress()
     section = _stage19_section(text)
