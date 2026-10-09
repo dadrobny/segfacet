@@ -67,10 +67,13 @@ file" — and stays for `aide scope` to judge.
 **Where two specs in one batch collide, the ordering is declared, not left
 implicit.** `aide check --queue` reads a queue's declarations against each other
 before any item is built and errors when one item changes what another pins; a
-declared dependency that already orders the pair discounts it. **A pair with no
-declared dependency keeps the error, and saying so under `## Dependencies` is
-the third remedy the message offers** — the other two being to widen the pin
-or narrow the edit.
+declared dependency that already orders the pair discounts it. So does the
+reverse ordering when the later, changing item also lists the pinning item's
+own test file under **May change** — the retirement §1 → items prescribes for a
+sibling's schedule premise. **A pair with no declared dependency keeps the
+error, and saying so under `## Dependencies` is the third remedy the message
+offers** — the others being to widen the pin, narrow the edit, or retire the
+pin from the later item.
 
 #### Rationale
 
@@ -88,6 +91,12 @@ or narrow the edit.
   those files on every item — the mandatory status flip alone touches
   `progress.md` — so the pin can never hold, and `aide scope` would report the
   routine bookkeeping as a contradiction on every run.
+- **Why a retired pin is discounted.** Before issue #445 only the pinning
+  item built *last* was exempt, so the shape §1 → items prescribes — the
+  earlier item pins, the later one changes the artifact and lists the earlier
+  test under May change — errored with none of its remedies available until
+  the earlier item merged. The dependency alone stays insufficient: a later
+  item that names none of the pinner's tests still breaks the pin undeclared.
 - **Why a path is never double-listed.** The moment the item uses its
   authorisation, `aide scope` reports the change as a contradiction — correctly,
   by the pin's meaning — and no spec-side fix is visible at validation time.

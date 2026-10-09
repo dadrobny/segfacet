@@ -1,4 +1,4 @@
-"""The run ledger — one row per item worked (issue #244, §1 → ``ledger.md``).
+"""The run ledger — one row per run of an item (issue #244, §1 → ``ledger.md``).
 
 Three layers, in the order the code has them. The parsers (``parse_findings``,
 ``ledger_warnings``) are pure and tested as such; the derivation

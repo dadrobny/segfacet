@@ -517,6 +517,36 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_gates::test_a_declined_gate_whose_reach_is_spent_is_silent",
           "test_aide_gates::test_a_declined_gate_that_could_still_hold_work_warns",
           "test_aide_gates::test_a_declined_gate_whose_blocks_cell_reads_as_nothing_is_a_typo")),
+        # `gate_warnings`' evidence branch, before `_declined_reach_spent`
+        # (issue #420); `evidence_gate_citations` skips `record_documents`.
+        ("and never one an item spec that is not a record still names as a "
+         "criterion's evidence",
+         ("test_aide_evidence_gates::test_a_declined_evidence_gate_a_live_spec_cites_is_not_re_planned",
+          "test_aide_evidence_gates::test_a_declined_evidence_gate_cited_only_by_a_record_is_silent")),
+        # `evidence_annotation_errors`, over `spec_evidence_annotations`'
+        # malformed list, live specs only.
+        ("one opening at `(evidence: gate` outside inline code, the "
+         "template's gate-<hex> placeholder aside",
+         ("test_aide_evidence_gates::test_prose_quoted_syntax_and_the_placeholder_neither_cite_nor_error",
+          "test_aide_evidence_gates::test_the_template_guidance_left_in_a_spec_neither_cites_nor_errors")),
+        ("an ERROR for one that is not exactly one well-formed gate ID (an "
+         "upper-case or short hex, a missing hyphen, two IDs)",
+         ("test_aide_evidence_gates::test_check_errors_on_a_malformed_annotation_in_a_live_spec",
+          "test_aide_evidence_gates::test_a_malformed_annotation_in_a_record_is_not_an_error")),
+        # `gate_warnings`' evidence branch for an awaiting gate whose Blocks
+        # cell is in `_EMPTY_CELL`; an uncited one keeps "holds nothing".
+        ("an awaiting gate so named with an empty Blocks cell is reported as "
+         "awaiting a person's check, naming the criterion and the merge it "
+         "holds, in place of the gate warning above",
+         ("test_aide_evidence_gates::test_check_reports_an_awaiting_evidence_gate_as_awaiting_the_check",
+          "test_aide_evidence_gates::test_an_uncited_awaiting_gate_with_an_empty_reach_still_says_it_holds_nothing")),
+        # `evidence_gate_warnings`: `len(cited) > 1`, and an unresolved
+        # gate whose reach (`blocks_all`, `blocks`, `gate_stage_items`)
+        # holds a citing item.
+        ("a gate named as the evidence for more than one criterion; and an "
+         "unresolved one whose reach holds the item it is evidence for",
+         ("test_aide_evidence_gates::test_one_gate_named_as_the_evidence_for_two_criteria_warns",
+          "test_aide_evidence_gates::test_an_evidence_gate_that_blocks_its_own_item_warns")),
         # `withdrawn` from the summary rows, passed to `objective_rollup` in
         # `derived_cell_findings`, and its `derived == "excluded"` branch
         # (issue #382).
@@ -733,7 +763,8 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "entry 28 on a line that says insight or inbox \u2014 is a warning",
          ("test_aide_insights::test_a_positional_citation_is_a_warning_naming_the_id",
           "test_aide_insights::test_a_positional_citation_in_a_test_is_a_warning_too")),
-        # `_CitationHistory.hint` (issue #361): blame names the commit, `git
+        # `_CitationHistory.resolve`, formatted by `hint` (issues #361,
+        # #419): blame names the commit, `git
         # show` that commit's inbox, and the entry there is named by the ID
         # it has today in the inbox or its archives.
         ("naming the ID that position held when the citing line was last "
@@ -1447,16 +1478,27 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "test_aide_insights::test_archive_says_the_numbers_have_shifted"),
         # `_print_invalidated_citations` (issue #295): `insight_position_citations`
         # filtered to the positions `archive_position_map` says change, printed
-        # before the dry-run return and before any write; exit stays 0.
+        # before the dry-run return and before any write; exit stays 0. Each
+        # resolved by `_CitationHistory.resolve`, the one `hint` formats too
+        # (issue #419), and the fate is the meant entry's.
         ("Every citation by position in docs/aide or tests_dir whose number "
          "the move changes is listed before anything moves, dry run or not, "
-         "with the ID that position holds before the move and whether it is "
+         "with the ID it meant \u2014 read from history exactly as check's hint "
+         "is, and labelled where there is none \u2014 and whether that entry is "
          "archived or renumbered; the archive still proceeds",
          ("test_aide_insights::"
           "test_a_dry_run_archive_lists_each_positional_citation_with_its_id_before",
           "test_aide_insights::test_an_archive_that_moves_lists_them_and_still_proceeds",
           "test_aide_insights::test_an_archive_lists_no_citation_whose_number_it_leaves_alone",
-          "test_aide_insights::test_the_position_map_names_what_moves_and_what_shifts")),
+          "test_aide_insights::test_the_position_map_names_what_moves_and_what_shifts",
+          "test_aide_insights::"
+          "test_the_archive_listing_names_what_a_citation_meant_at_its_commit",
+          "test_aide_insights::test_the_archive_listing_and_check_name_one_id",
+          "test_aide_insights::test_the_archive_listing_says_a_meant_entry_is_already_archived",
+          "test_aide_insights::"
+          "test_an_uncommitted_citation_in_the_archive_listing_is_todays_holder",
+          "test_aide_insights::"
+          "test_without_history_the_archive_listing_labels_todays_holder")),
         # `resolve_insights_text`: shared prefix, then each side's tail.
         ("write the union of a conflicted inbox — the shared history, then "
          "each side's new entries in capture order",
@@ -1585,6 +1627,25 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # `settled` in `_early_ready`: any relevant gate not "awaiting".
         ("A \u274c declined gate makes it no",
          "test_aide_gates::test_a_declined_gate_is_no_early_ready"),
+        # `evidence_waits` in `_report_nothing_claimable` — the 🔍 read on
+        # the claim branch too — and `_early_ready`'s first clause (#428).
+        ("So does an item \U0001f50d and unmerged until a person approves "
+         "the human gate that is its evidence, which the report names with "
+         "its criterion and gate: a bare \"none left\" is never printed "
+         "over it",
+         ("test_aide_evidence_gates::test_claim_names_an_item_awaiting_its_evidence_gate_never_a_bare_none_left",
+          "test_aide_evidence_gates::test_claim_from_the_base_names_the_wait_not_a_claim_in_flight",
+          "test_aide_evidence_gates::test_a_declined_evidence_gate_holds_the_queue_end_too",
+          "test_aide_evidence_gates::test_an_evidence_wait_says_no_before_a_gate_would_say_yes")),
+        # `broken` over `EVIDENCE_DEFECTS` in `_report_nothing_claimable`,
+        # returning 1 before the bare "none left" (issue #432).
+        ("An evidence annotation no approval can clear \u2014 not one gate "
+         "ID, naming no gate row, or matching more than one \u2014 is not "
+         "such a wait: the report names the item and its criterion and "
+         "exits 1",
+         ("test_aide_evidence_gates::test_an_annotation_no_approval_can_clear_exits_1_naming_it",
+          "test_aide_evidence_gates::test_an_annotation_matching_two_gates_exits_1_too",
+          "test_aide_evidence_gates::test_an_awaiting_gate_beside_a_broken_annotation_still_exits_1")),
         # `elif not open_ordered:` — its own wording.
         ("An `all` gate over a queue with nothing left open is read the same "
          "way, a yes in words of its own",
@@ -1601,10 +1662,12 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "found there, and is never advised a push",
          ("test_aide_git::test_claim_names_a_landed_claim_branch_deleted_on_origin",
           "test_aide_git::test_claim_names_an_unfound_claim_branch_deleted_on_origin")),
-        # `if not relevant and not open_items: print("none left")` returns
-        # before `_early_ready` is printed.
-        ("A bare \"none left\" (nothing open, no gate) carries no such line",
-         "test_aide_git::test_an_empty_queue_still_says_only_none_left"),
+        # `if not relevant and not open_items and not waits: print("none
+        # left")` returns before `_early_ready` is printed (issue #428).
+        ("A bare \"none left\" (nothing open, no gate, no item awaiting its "
+         "evidence gate) carries no such line",
+         ("test_aide_git::test_an_empty_queue_still_says_only_none_left",
+          "test_aide_evidence_gates::test_claim_names_an_item_awaiting_its_evidence_gate_never_a_bare_none_left")),
         # `if block_everything or unreadable_gate_rows(plines): return None`,
         # and `cmd_claim` exits 1 naming the row.
         ("A human-gates row it cannot read holds every item",
@@ -1612,6 +1675,22 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         # A defect rather than a normal hold, so not the "none left" exit.
         ("the report names the row and exits 1",
          "test_aide_gates::test_claim_holds_every_item_behind_an_unreadable_gate_row"),
+        # The `base =` chain in `cmd_claim` (issue #433).
+        ("Without --base the item's base is the current branch when that is "
+         "a queue branch, the base a current claim branch recorded when it "
+         "is one",
+         ("test_aide_base::test_claim_from_a_queue_branch_records_that_branch",
+          "test_aide_base::test_claim_from_a_claim_branch_takes_its_recorded_base")),
+        ("a claim branch with none recorded is refused, exit 1, before "
+         "anything is created",
+         "test_aide_base::test_claim_from_a_claim_branch_with_no_recorded_base_is_refused"),
+        ("and main_branch otherwise",
+         ("test_aide_base::test_claim_from_main_records_main",
+          "test_aide_base::test_claim_does_not_infer_a_base_from_an_arbitrary_branch")),
+        # `git switch -c branch base`, the start point named.
+        ("The item is branched from that base, whatever is checked out",
+         ("test_aide_base::test_claim_branches_from_the_base_not_from_head",
+          "test_aide_base::test_claim_from_a_claim_branch_takes_its_recorded_base")),
         # `ensure_insights_inbox(repo_root, config, verb="claim")` in `cmd_claim`.
         ("A missing insights.md is created from the template on the way through",
          "test_aide_git::test_claim_creates_the_missing_inbox_on_the_way_through"),
@@ -1943,6 +2022,11 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_traceability::test_a_label_closed_by_a_full_stop_is_a_label_too",
           "test_aide_traceability::"
           "test_a_full_stop_with_nothing_after_it_or_inside_a_word_is_prose")),
+        # `_traces_to`'s bounded match over the name (#423).
+        ("the label standing as a whole word of the test's name, with - read "
+         "as _ (docs traces test_update_docs_index, not "
+         "test_docstring_parsed)",
+         "test_aide_traceability::test_a_name_matches_a_label_as_a_whole_word_only"),
         # `_parametrize_ids` over the AST, `_traces_to`'s id branch (#314).
         ("A parametrised test also traces through its literal "
          "pytest.mark.parametrize ids — a string argvalue, the strings of a "
@@ -2024,8 +2108,47 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
         ("one the claim branch, the working tree or the base reads "
          "\U0001f6a7 is merged",
          "test_aide_git::test_merge_refuses_a_planned_item_of_a_withdrawn_stage"),
+        # `_merge_unmet_evidence` — the spec at the claim branch, the gate
+        # in the first copy of progress.md that resolves it — right after the
+        # withdrawn refusal and before the pr-mode push (issue #420).
+        ("is refused the same way, exit 1, while any such gate is not "
+         "\u2705 Approved or names no gate row",
+         ("test_aide_evidence_gates::test_merge_refuses_an_item_whose_evidence_gate_is_not_approved",
+          "test_aide_evidence_gates::test_merge_refuses_an_evidence_id_that_names_no_gate_row")),
+        # `spec_evidence_annotations`' malformed list, read first.
+        ("and while such an annotation is not exactly one well-formed gate ID",
+         "test_aide_evidence_gates::test_merge_refuses_a_malformed_annotation_before_anything_moves"),
+        # `copies` in order: claim branch, working tree, base; `break` on
+        # the first that resolves the ID.
+        ("The gate is read from the claim branch's progress.md where it "
+         "carries the row, else the working tree's, else the base's: the "
+         "first copy that resolves the ID decides, and a later one never "
+         "overrides it",
+         ("test_aide_evidence_gates::test_the_claim_branch_decides_over_a_stale_approval_on_the_base",
+          "test_aide_evidence_gates::test_a_row_only_the_working_tree_carries_decides_there",
+          "test_aide_evidence_gates::test_a_row_only_the_base_carries_decides_there")),
+        # `remedies` in `cmd_merge`, keyed by the states present.
+        ("The refusal names each criterion and its gate, and what clears it "
+         "\u2014 a person's approval for an awaiting gate; a rebuild, a "
+         "re-asked gate and a re-pointed annotation for a declined one, "
+         "which is never approved; a corrected ID otherwise",
+         ("test_aide_evidence_gates::test_merge_refuses_an_item_whose_evidence_gate_is_not_approved",
+          "test_aide_evidence_gates::test_merge_refuses_a_malformed_annotation_before_anything_moves")),
+        ("and comes before the push under pr mode too",
+         "test_aide_evidence_gates::test_pr_mode_merge_refuses_an_unapproved_evidence_gate_before_the_push"),
+        # `_merge_unmet_evidence`: `kinds == {"approved"}` over every hit.
+        ("Two rows asking the same question meet a criterion only when both "
+         "are \u2705",
+         "test_aide_evidence_gates::test_two_rows_asking_the_same_question_meet_a_criterion_only_when_both_are_approved"),
+        # `_merge_unmet_evidence` reads `git show <branch>:<spec>` first and
+        # never `record_documents`.
+        ("The spec is read at the claim branch, else in the working tree, "
+         "whatever the item's status in progress.md, so an annotation `aide "
+         "check` does not read \u2014 one only the claim branch carries, or "
+         "one in a record's spec \u2014 still holds the merge",
+         "test_aide_evidence_gates::test_merge_reads_an_annotation_check_on_the_base_does_not_see"),
         # `pending_row` -> `append_ledger_row`, one row, `ledger_path(ddir)`.
-        ("The row is one per item, in docs/aide/ledger.md",
+        ("The row is one per run of an item, in docs/aide/ledger.md",
          "test_aide_ledger::"
          "test_merge_writes_the_row_in_the_commit_that_ticks_the_item"),
         # `append_ledger_row`: `path.write_bytes(template.read_bytes())`.
@@ -2572,6 +2695,13 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_queue_pr::test_a_queue_branch_with_no_queue_file_is_refused_and_nothing_pushed",
           "test_aide_queue_pr::test_the_missing_queue_file_is_refused_before_the_mode_or_the_forge",
           "test_aide_queue_pr::test_only_a_committed_queue_file_of_the_branchs_own_number_counts")),
+        # `_queue_ready`: `_queue_branch_evidence_waits` -> `evidence_waits`,
+        # after `_queue_pr_branch` and before `_branch_pr_facts`, skipped
+        # under `args.undo` (issue #428).
+        ("ready without --undo refuses, exit 1, before the forge is asked "
+         "anything, while an item of the queue is \U0001f50d and unmerged "
+         "until a person approves the human gate that is its evidence",
+         "test_aide_queue_pr::test_ready_refuses_while_an_item_awaits_its_evidence_gate"),
         # `_queue_stray_options`, first thing in `cmd_queue`.
         ("An option the action does not read is refused, exit 2, before "
          "anything is done",

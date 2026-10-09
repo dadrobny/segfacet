@@ -341,6 +341,21 @@ def test_an_id_matches_a_label_or_an_ac_as_a_whole_word_only():
     assert aide._traces_to("test_x", [], ["Bool-Call"], ("BOOL_CALL",))
 
 
+def test_a_name_matches_a_label_as_a_whole_word_only():
+    """Issue #423: `docs` stands in `test_update_docs_index`, not in
+    `test_docstring_parsed`; a multi-word label stands as its run of words,
+    `stale-marker` in `test_stale_marker_warns`, not in
+    `test_stale_markers`."""
+    assert aide._traces_to("test_update_docs_index", [], ["docs"])
+    assert aide._traces_to("test_docs", [], ["docs"])
+    assert not aide._traces_to("test_docstring_parsed", [], ["docs"])
+    assert not aide._traces_to("test_pydocs", [], ["docs"])
+    assert aide._traces_to("test_stale_marker_warns", [], ["stale-marker"])
+    assert not aide._traces_to("test_stale_markers", [], ["stale-marker"])
+    added = [("tests/t.py", "test_docstring_parsed", ())]
+    assert len(aide.traceability_warnings(added, [], ["docs"], "s.md")) == 1
+
+
 def test_a_review_finding_label_traces_like_a_case():
     added = [("tests/t.py", "test_review_rejects_escaped_pipe", ())]
     assert aide.traceability_warnings(added, [1], ["escaped-pipe"], "s.md") == []

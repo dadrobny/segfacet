@@ -110,6 +110,17 @@ written `<docs_dir>/…` below are relative to whatever it is actually set to.
    authoring has no review at this point, so the rule binds the spec-author in
    both modes; you are the second reading it gets when there is a batch.
 
+   **A person's check in place of a test is the narrowest exception, and you
+   are the read that holds it narrow.** For every AC carrying an
+   *(evidence: gate-<hex>)* annotation (§1 → items.md), confirm the spec
+   shows why nothing the loop runs could measure it — a sibling repository
+   whose own instructions forbid loop-run tests of that code, a behaviour
+   only someone walking the application can see. Flag an annotation whose
+   spec gives no such reason, or a reason that amounts to the test being
+   hard to write. The choice for the human is "write the test" versus
+   "record why no test can". (A gate cited by two ACs, and one that blocks
+   the item it is evidence for, are `aide check` warnings, not yours.)
+
 5. **Read the dependency prose for direction.** `**Downstream` marks a forward
    reference; anything before that marker is read as a blocker. Flag a
    "**Item NNN** depends on this item" aside sitting *before* the marker — it

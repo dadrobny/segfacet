@@ -97,8 +97,8 @@ that just ran `list`, and nowhere else.
   still open. An ID in a record that resolves to nothing is still an error. A
   position is never zero-padded — `037` is an item number, not a citation.
   `insights archive` lists the positional citations it is about to renumber,
-  each with the ID its position holds before the move — rewrite them from
-  that list.
+  each with the ID it meant, read from history exactly as the warning reads
+  it and labelled the same way — rewrite them from that list.
 - **Human gates have IDs of their own.** A gate is cited by the `gate-<hex>`
   ID `aide gate list` prints, under the same resolvability check (§1 → human
   gates).
@@ -222,24 +222,27 @@ whichever of them the entry is heading for.
   a file name, and a false error there would block a merge on prose. The
   word costs the author nothing and makes a match a citation by construction.
   A positional citation is only a warning, because what a number meant when
-  written cannot be recovered from the file alone. The archive run still knows
-  what every number meant, so it prints the mapping before the move rather
-  than refusing — the listing preserves it, and the move already waits on
-  `--yes` (issue #295). After it, the check recovers the meaning from history
-  (issue #361): the commit that last wrote the citing line, and the inbox as
-  it stood in that commit. It once named what the number held *today*, and
-  after an archive that is a different claim — following the hint rewrote the
-  citation to point at something its author never meant. Today's holder is
-  right only for a line not yet committed, and is offered, labelled, only
-  where there is no history to read.
+  written cannot be recovered from the file alone. The archive run prints the
+  mapping before the move rather than refusing — the listing preserves it,
+  and the move already waits on `--yes` (issue #295). The check recovers the
+  meaning from history (issue #361): the commit that last wrote the citing
+  line, and the inbox as it stood in that commit. It once named what the
+  number held *today*, and after an archive that is a different claim —
+  following the hint rewrote the citation to point at something its author
+  never meant. Today's holder is right only for a line not yet committed, and
+  is offered, labelled, only where there is no history to read. The archive
+  listing named today's holder too until issue #419, which was wrong the same
+  way for a citation written before an earlier archive or on a branch that
+  ordered the inbox differently; it now resolves through the check's own
+  lookup, so the two surfaces cannot name different IDs for one citation.
 - **Why a record is not read for positions.** A record is never rewritten, so
   the warning could not be cleared — one consumer carried 394 warnings, about
   330 of them on merged specs and finished queues (issue #338) — and on a
   record written before an archive, the warning's hint then named whatever
   moved into that number since, which is a wrong answer offered as a fix. The
-  archive listing still names a record's positions: it is printed by the one
-  run that knows what the number meant. A dangling ID stays an error there, because
-  no reader can follow it whoever wrote it.
+  archive listing still names a record's positions: it is printed once, by
+  the run that changes what the number reads as. A dangling ID stays an error
+  there, because no reader can follow it whoever wrote it.
 - **Why tests are read for positions too.** A test comment or assertion
   message naming "insight 28" goes stale on the next archive or merge exactly
   as a spec does, and it is the test, not the spec, that the next author

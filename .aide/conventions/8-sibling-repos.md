@@ -21,9 +21,11 @@ instruction files for the working directory's repo only; a declared sibling —
 the framework clone included — gets nothing, and nothing announces the gap. So
 read that repo's instruction file first, before editing, committing to, or
 otherwise acting on a repo that is not the working directory's. Where two
-repos' rules disagree about a file, the repo that owns the file wins. The rule
-holds for a person too, and for an interactive session with no agent spec in
-play.
+repos' rules disagree about a file, the repo that owns the file wins — and
+where the owner's rules leave a file no test the loop may run, an acceptance
+criterion about it names a human gate as its evidence instead (§1 →
+items.md). The rule holds for a person too, and for an interactive session
+with no agent spec in play.
 
 **A runtime may automate this.** Where one can inject context on demand, an
 adapter should **point** a session at a declared sibling's instruction file the

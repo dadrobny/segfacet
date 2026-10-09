@@ -26,13 +26,13 @@ the item spec, and your verdict gates the merge — that is validation (§9,
 preloaded above). It is not a review: reading the diff adversarially for the
 defect the spec never anticipated is a different question, and under
 `loop.review = "background"` a `reviewer` is answering it concurrently with the
-item's first validator — once, never after a fix round. Where that role runs,
+run's first validator — once per run, never after a fix round. Where that role runs,
 its findings are not yours to collect, act on, or wait for — the orchestrator
 gates the merge on both. The one exception is check 7: after a fix round
-that carried blocking findings, your brief names them, and you check that
-each left its record and its test — never whether the fix is right, which
-stays review's question and is not asked again. Where no reviewer runs, the
-gap is real and unstaffed:
+that carried blocking findings, or in a run its owner reopened, your brief
+names them, and you check that each left its record and its test — never
+whether the fix is right, which stays review's question and is not asked
+again. Where no reviewer runs, the gap is real and unstaffed:
 your PASS still means "meets its spec", never "this code is correct". Scope
 and vision fit are yours alone (checks 3 and 4) whether or not a reviewer
 runs: a reviewer reads the code, not the bounds. The status you write,
@@ -107,6 +107,18 @@ Read `aide.toml` for `project.source_dir`, `project.tests_dir` and
    asserts a fact about live state answered by a test its subject could pass
    while the claim is false — §1 → items.md names that shape, and it is a FAIL
    with that reason, not a PASS.
+
+   **An AC whose line carries an *(evidence: gate-<hex>)* annotation is
+   covered by that gate instead of a test** (§9, preloaded above). Read its
+   row in `python .aide/scripts/aide.py gate list`, on the claim branch —
+   the copy `aide merge` reads first, and the one that decides when it
+   carries the row. ✅ Approved covers it. ❌ Declined is a FAIL for that AC,
+   for the builder. An ID the list does not show, or an annotation that is
+   not one well-formed ID (`aide check` errors on it), is a FAIL for the
+   `spec-author`. Anything
+   else — ⏳ Awaiting, usually — is a **hold**, not a FAIL: carry on through
+   checks 3–7, and the Verdict below says what a hold does to the PASS path.
+   Whether a test could have measured the AC is not yours to judge.
 3. **Code stays within scope.** Run the check rather than eyeballing the diff:
 
    ```
@@ -134,12 +146,13 @@ Read `aide.toml` for `project.source_dir`, `project.tests_dir` and
    profile is unsatisfied, follow the spec's stated downgrade (record
    `❓ Unverified` — this is NOT a FAIL), and never report the gated path as
    exercised when it wasn't.
-7. **Every blocking review finding your brief names left its trace.** Only
-   when the brief lists blocking findings fixed on the branch (§9, preloaded
-   above); otherwise there is nothing to check. It runs whatever step 1
-   found, a red suite under `pr` included, so the hand-back names every
-   failure at once. For each, the spec's
-   `## Review findings` must hold its bullet, and the bullet must either
+7. **Every blocking finding your brief names left its trace.** Only when
+   the brief lists blocking findings fixed on the branch — review findings,
+   or the reason an owner reopened the item, which §9 (preloaded above)
+   holds to the same rule; otherwise there is nothing to check. It runs
+   whatever step 1 found, a red suite under `pr` included, so the hand-back
+   names every failure at once. For each, the spec's `## Review findings`
+   must hold its bullet, and the bullet must either
    label a test — one under `tests_dir` whose name or parametrize id carries
    that label, which then ran in your step 1 suite and is judged there like
    any other test — or end with why the finding has no test. A finding with
@@ -165,8 +178,9 @@ Read `aide.toml` for `project.source_dir`, `project.tests_dir` and
 - **FAIL** if: the suite is red under `pr`, or the merge refused failures
   this item caused (below); an AC has no test, or has one its subject could
   pass while the AC's factual claim is false (check 2); changes are
-  out-of-scope; the vision is contradicted; an Assumption diverged; or a
-  blocking review finding your brief names left no trace (check 7). Report
+  out-of-scope; the vision is contradicted; an Assumption diverged; an AC's
+  evidence gate is declined, names no row or is malformed (check 2); or a
+  blocking finding your brief names left no trace (check 7). Report
   precisely what failed
   and hand back so the orchestrator dispatches the right agent (builder for code,
   test-writer for coverage). Do **not** merge.
@@ -175,6 +189,13 @@ Read `aide.toml` for `project.source_dir`, `project.tests_dir` and
   died (step 1, merge step 3): no verdict, because the check did not finish —
   not a FAIL, since nothing failed that a builder could fix. Report the
   command, label, elapsed time and log tail, and which limit it hit.
+
+- **PASS (awaiting gate-<hex>)** when every check holds but an AC's evidence
+  gate is a hold (check 2): run step 1 below (`progress set NNN in-review`)
+  and step 2, attesting no stage criterion an awaiting AC closes, then stop —
+  do **not** run step 3's merge, which refuses the item anyway until the
+  gate is ✅ Approved. Report each awaiting gate's ID, the AC it covers and
+  the claim branch a person checks the built item on.
 
 - **PASS** only when every check holds. Then, in order:
   1. **Reconcile `progress.md` via the CLI** — it flips the item's row to 🔍
@@ -322,8 +343,9 @@ one write allowed outside your edit scope.
 
 ## Output
 
-Return a tight report: PASS/FAIL (or INCOMPLETE, step 1), the AC checklist
-(✓/✗ per criterion with the covering test name), the same per blocking
+Return a tight report: PASS/FAIL (or INCOMPLETE, step 1; or PASS awaiting
+a gate), the AC checklist (✓/✗ per criterion with the covering test name, or
+its evidence gate's ID and status), the same per blocking
 finding your brief named (check 7: the test name, or "no test: <the stated
 reason>"), scope check result, and (on
 FAIL) the exact agent to dispatch and reproduce steps.

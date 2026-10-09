@@ -36,8 +36,8 @@ parallel*.
 
 | Concern | Owner | Notes |
 |---|---|---|
-| Claim the next 📋 item | `aide claim` (CLI) | `python .aide/scripts/aide.py claim [--queue NNN]` — syncs, checks `aide/*` branches, picks the first unclaimed unblocked 📋 item, creates + pushes `aide/NNN-*`; prints item number + branch + title, and the base when it is not `main`. Deterministic, no subagent. **Run it from the branch the queue's work belongs on**: claiming while a queue branch is checked out records that branch as each item's base, so `aide merge` returns the item to it and the whole queue still lands as one reviewed PR. |
-| Run one item end-to-end | **`/aide-run-item NNN`** | spec-author → test-writer → builder → validator+merge, incl. the build↔validate cycle (≤`loop.validation_rounds` rounds). Under `loop.review = "background"` a `reviewer` reads the diff once, concurrently with the first validator, and the merge waits for both. See that command for the per-item detail. |
+| Claim the next 📋 item | `aide claim` (CLI) | `python .aide/scripts/aide.py claim [--queue NNN]` — syncs, checks `aide/*` branches, picks the first unclaimed unblocked 📋 item, creates + pushes `aide/NNN-*`; prints item number + branch + title, and the base when it is not `main`. Deterministic, no subagent. **Run it from the branch the queue's work belongs on**: claiming while a queue branch is checked out records that branch as each item's base, so `aide merge` returns the item to it and the whole queue still lands as one reviewed PR. An item's claim branch left checked out stands for the base it recorded. |
+| Run one item end-to-end | **`/aide-run-item NNN`** | spec-author → test-writer → builder → validator+merge, incl. the build↔validate cycle (≤`loop.validation_rounds` rounds). Under `loop.review = "background"` a `reviewer` reads the diff once per run, concurrently with its first validator, and the merge waits for both. See that command for the per-item detail. |
 | Approval gates, looping | *orchestrator* | stays in the main thread |
 | Generating the **next** queue | **not here** | only `/aide-run-roadmap` (or a manual `/aide-create-queue`) does that |
 
@@ -69,7 +69,15 @@ stranded otherwise.
    resumed --reason …`) it reads 📋 and is resumed here on the branch it
    kept. Skip a 🔍 item: its work is pushed and awaits a human's merge;
    step 0's `sync` names it once it has landed, with the `aide progress set
-   NNN done` that records it.
+   NNN done` that records it. The exception is a 🔍 item still on its claim
+   branch because an AC's evidence gate awaited a person's check
+   (`/aide-run-item` → *An item awaiting its evidence gate*). Tell it from a
+   🔍 item awaiting its PR's merge under `pr` by its spec: an Acceptance
+   Criteria line carries an `(evidence: gate-…)` annotation whose gate
+   `aide gate list` (run on the claim branch) does not show ✅ — or did not,
+   when the validator stopped. Once that gate is decided, hand the item to
+   `/aide-run-item` below; while it is ⏳, skip it and name it in the step-4
+   checkpoint.
 4. For each unfinished item (item-number order), hand it to **`/aide-run-item NNN
    aide/NNN-short-name`**. `/aide-run-item` is itself resumable — its spec-author
    step returns an existing spec, re-checking a pinned dependency's interface
@@ -107,8 +115,10 @@ Repeat until `aide claim` reports no remaining unclaimed 📋 item **in this que
    ```
    It syncs, checks `aide/*` branches, picks the first unclaimed 📋 item with no
    blocking dependency still 📋/🚧, creates + pushes `aide/NNN-short-name`, and
-   prints the item number, branch name, and title. Prints `none left` when the
-   queue is exhausted.
+   prints the item number, branch name, and title. Prints a bare `none left`
+   when the queue is exhausted, and a `none left — …` report when something
+   still holds it — a human gate, or an item awaiting the gate that is its
+   evidence (step 2).
 
 2. **Decide (orchestrator).**
    - **Item claimed** → go to step 3.
@@ -120,14 +130,19 @@ Repeat until `aide claim` reports no remaining unclaimed 📋 item **in this que
      the gate is a person's, and its result is informational.
    - **`none left — …` followed by per-item reasons** → the queue is still open
      and nothing in it is offerable. This is **not** exhaustion. On exit 0 (a
-     gate, a claim already in flight, a dependency not landed — the last line
+     gate, a claim already in flight, a dependency not landed, an item
+     awaiting the human gate that is its evidence — the last line
      reads `early ready: no — …`) relay the reasons
      verbatim and stop. On a **non-zero** exit something is broken — an
      *unpublished claim* (an `aide claim` whose push failed), a claim branch
-     origin has deleted (never re-push it), or a human-gates
-     row `aide` cannot read, which holds every item — so surface it verbatim
-     and stop: publishing or releasing that branch, or repairing that row, is
-     the human's call.
+     origin has deleted (never re-push it), a human-gates
+     row `aide` cannot read, which holds every item, or an evidence
+     annotation no approval can clear — so surface it verbatim
+     and stop: publishing or releasing that branch, or repairing that row or
+     annotation, is the human's call. A claim run from a claim branch that
+     recorded no base is refused the same way, before anything is created:
+     switch to the queue branch, or pass `--base <queue branch>`, and claim
+     again.
    - **Any other non-zero exit** → surface the sentence and stop.
 
 3. **Run the item** — load `/aide-run-item NNN aide/NNN-short-name` inline as a
@@ -135,7 +150,15 @@ Repeat until `aide claim` reports no remaining unclaimed 📋 item **in this que
    build → validate) and merges on PASS; **wait for it to finish** before looping.
 
 4. **Checkpoint (orchestrator).** Relay a one- or two-line summary (item,
-   merged/failed, key facts). If the item reported a **PR / force-push /
+   merged/failed, key facts). An item that ended **PASS (awaiting
+   gate-<hex>)** is not merged: relay the gate, the AC and the claim branch
+   for the person to check, and carry on from its claim branch, whose
+   recorded base the next claim takes — its dependents wait on its ✅ by
+   themselves. The engine holds the queue end for it: while one is still
+   waiting, `aide claim` names it in a `none left — …` report ending
+   `early ready: no`, never a bare `none left`, and `aide queue ready`
+   refuses — so step 2 relays that report and stops, with the queue held on
+   that gate. If the item reported a **PR / force-push /
    structural** stop, **pause and ask the user**. Otherwise continue to step 1.
 
 ## Queue end
@@ -154,7 +177,8 @@ This is the queue-end step `.aide/README.md` → *The queue-end step* defines
 3. **Mark it ready.** `python .aide/scripts/aide.py queue ready`. On exit 1
    relay its sentence and go to the report: `local` mode, no forge declared
    (`[git] forge = "none"`) or no origin (no forge exists — the merge gate
-   already ran the suite), no PR, or a closed or merged one.
+   already ran the suite), no PR, a closed or merged one, or an item still
+   awaiting the human gate that is its evidence.
 4. **Wait for CI, in this session.** Start the poll, then wait on its label
    until it answers:
    ```
@@ -245,8 +269,8 @@ the item's own spec.
    findings on one item go in one reason, separated by `; `.
 6. **Fix.** Go back to **Loop**. `aide claim --queue NNN` offers each
    reopened item as it offers any 📋 one, and `/aide-run-item K` runs it
-   with the findings in its builder's brief (that command, *An item a CI fix
-   round reopened*). Pass them on from your triage; in a fresh session they
+   with the findings in its builder's brief (that command, *A reopened
+   item*). Pass them on from your triage; in a fresh session they
    are the item's `reopened:` reason in `aide status`. Its merge ticks the
    `gap` the reopening captured; nothing is left to close on green.
 7. When `aide claim` prints a bare `none left` again, **Queue end** runs

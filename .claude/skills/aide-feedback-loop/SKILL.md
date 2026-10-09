@@ -1,6 +1,6 @@
 ---
 name: aide-feedback-loop
-description: Analyze issues and suggest improvements to the process and documents.
+description: Analyze issues and suggest improvements to the process and documents, then apply the project-document amendments the user agrees to.
 ---
 
 # Feedback Loop
@@ -29,6 +29,24 @@ ones this run needs; none of them is restated below.
 
 Triage is the one that always runs, and it runs *first*: what it routes is the
 raw material for everything below.
+
+### Orchestration model
+
+The retrospective is this session's own work; the reading behind it mostly is
+not. Which pass runs where:
+
+| Work | Runs | Model |
+|---|---|---|
+| `/aide-review-insights` — judging the open entries | the `insights-triager` sub-agent that pass spawns; its plan is applied here | the one its agent spec pins |
+| `/aide-review-permissions`, `/aide-review-instructions`, `/aide-review-ledger`, `/aide-status-report` | here — each runs a script or a verb and reads its output | this session's |
+| a measurement a finding needs — re-running a fixture, reading CI timings, reading a sibling repository's workflow | a read-only `Explore` sub-agent per question, fanned out in parallel | named at the spawn: `"haiku"` for a search or read sweep, `"sonnet"` where the helper must judge |
+| steps 1–6 below — the gaps, the process, the framework, the recommendations, and the edits agreed to | here | this session's |
+
+Name the model on every spawn you make here. `spawn_model_guard` refuses an
+unnamed one only from inside a sub-agent, so in this session nothing stops an
+`Explore` helper inheriting your model — and a sweep on the strongest tier
+costs that tier for reading files. A slash command cannot pin the session
+model: choose it for the retrospective, since that is what it is spent on.
 
 ### 1. Document gaps
 
@@ -75,6 +93,51 @@ Framework/process changes land via a **reviewed PR**, never a direct merge.
 
 Provide specific, actionable suggestions: updates to vision/roadmap/progress,
 template changes, `aide.toml` changes, new skills, process improvements.
+
+Each one falls on one side of a line, and say which:
+
+- **A project document** — `docs/aide/vision.md`, `roadmap.md`,
+  `progress.md`. This loop applies it (step 6) once the user agrees.
+- **The framework surface** (step 3's list, `aide.toml` included) — it stays a
+  recommendation. It lands through a reviewed PR, or goes upstream as a
+  `framework` insight or issue; this loop edits none of it.
+
+### 6. Apply the agreed document amendments
+
+Propose each project-document amendment as the edit itself — the file, the
+place, the text — and apply it only once the user agrees to it. Apply it
+here: do not send the user to `/aide-create-vision`, `/aide-create-roadmap`
+or `/aide-create-progress` for an amendment. Those author a document from
+scratch, and are the route only when one needs rebuilding rather than
+amending — it is missing, or its shape no longer holds what the project now
+is.
+
+- **Read the shape before editing.** The section for the document — §1 →
+  `vision.md`, `roadmap.md` or `progress.md` — and its template in
+  `.aide/templates/`. The edit keeps every shape the scripts parse.
+- **Where a verb owns the edit, use the verb.** A status, a deferral, a drop,
+  a criterion's wording, a correction to a ticked box, a reopened item:
+  `aide progress` (`python .aide/scripts/aide.py progress -h` lists them).
+  Never hand-edit what a verb writes; hand-edit only the prose no verb
+  reaches.
+- **The user's agreement is not an attestation or a resolution.** Ticking an
+  acceptance box takes a check this session actually ran, passed as its
+  evidence through `aide progress accept --evidence` (§1 → `progress.md`);
+  agreeing to the recommendation is not one.
+  A human gate may be raised here, but only a person resolves one (§1 →
+  human gates) — leave `aide gate approve`/`decline` to them.
+- **Make the smallest edit that carries the agreed change**, and leave the
+  rest of the document as it reads.
+- **Finish with `python .aide/scripts/aide.py check`**, and clear any error
+  the edit introduced before committing.
+- **Commit on the current branch.** The verbs commit their own edits;
+  commit a hand edit with the recommendation it applies. How that branch
+  reaches `main_branch` is the merge policy's (`.aide/README.md`), not this
+  loop's — and that policy puts `vision.md` and `roadmap.md` behind a
+  reviewed PR. So when the current branch *is* `main_branch`, an amendment to
+  either goes on a branch of its own, cut from `main_branch`, for that PR —
+  not onto `main_branch` — and tell the user which branch the session is now
+  on.
 
 ### Important notes
 
