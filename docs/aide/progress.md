@@ -62,6 +62,7 @@
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
 | 33    | Corpus & Rule Re-grounding: modes 2 and 3 to the bar                    | G2, G7, G8      | ✅     |
+| 34    | Maintenance                                                             | —               | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -1972,3 +1973,22 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
   - **2026-10-02** → Item 204 AC7 and AC8, replayed in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8: tests/test_204_stage33_validation.py and tests/test_186_expected_level_sequence.py::test_ac2_t12_map_no_coverage_finding pass (3 passed). The six-block T12, L1-L5 map (labels 19-24, no 28) has relationships.missing_levels == [] and run_rules under bundled_default_config returns six findings, all (border, unexpected_clip); none comes from a detector serving mode 6 or 10 (the three coverage detectors and sequence/skip, derived from the live registry), so no missing-level finding.
 - [x] The detection count is re-stated in `progress.md` per lifecycle status and per rung,
   as measured numbers with what they were measured on (**G7**). *(Item 204 AC9, measured in a fresh clone at commit e0c17ab3ad292735280e26f9251146c3a87bc4d8 from segfacet.failure_modes (SPECIFICATION, derive_status, derive_mode_rung, a rung of None counted as none): derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7.)*
+
+---
+
+# Stage scoped 2026-10-09 (queue-029 boundary roadmap triage)
+
+> The one standing maintenance stage. Full statement in [`roadmap.md`](roadmap.md).
+
+---
+
+## Stage 34 — Maintenance — 📋
+
+**Goal.** Close insight-derived `defect`, `gap` and `automation` entries in maintenance
+queues, so a repair never reopens the stage it repairs and never rides in on an unrelated
+item. Reopens when a maintenance queue wires items in; closes by rollup when they ship.
+
+**Deliverables.** Wired per maintenance queue, one bullet per item; none yet.
+
+**Validation / acceptance.** None of its own: each maintenance item's spec carries its own
+acceptance criteria.

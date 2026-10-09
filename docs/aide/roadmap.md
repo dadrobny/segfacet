@@ -1,7 +1,9 @@
 <!-- aide-template: roadmap 1 -->
 # FACET — Development Roadmap
 
-> **Status:** v3.2 (2026-09-22: Stage 33 added after queue-022's review, Stage 32 annotated;
+> **Status:** v3.3 (2026-10-09: Stage 34 — Maintenance added as the one standing
+> maintenance stage, the Carried defects section removed with its live entries returned to
+> `insights.md`, the Backlog pruned to ideas only; v3.2 2026-09-22: Stage 33 added after queue-022's review, Stage 32 annotated;
 > v3.1 approved 2026-09-15: Stages 31–32 added, Stages 20 and 30 annotated after
 > item 150's sign-off; v3 approved 2026-09-03) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-03 against
 > [`vision.md`](vision.md) v3 (incremental update; every completed or in-progress stage is
@@ -2172,227 +2174,67 @@ skip-relabel fixture) is not blocked by this stage and belongs to no stage.
 
 ---
 
+# Stage scoped 2026-10-09 (queue-029 boundary roadmap triage)
+
+> One standing stage for insight-derived maintenance, replacing the earlier practice of
+> scoping a new stage per maintenance batch (Stages 26, 29 and 31, which stay as written,
+> ✅, as history). The roadmap's former "Carried defects" list is gone: its live entries
+> were returned to `insights.md` as open entries (2026-10-09-ed9b, 2026-10-09-bc75,
+> 2026-10-09-2c9f, 2026-10-09-9de3, 2026-10-09-7e82, 2026-10-09-c1b7) and the rest were
+> already fixed. A known defect, gap or automation lives in `insights.md`, open, until
+> the item that fixes it ticks it. The framework is formalising this arrangement in
+> aide-loop issue #453.
+
+---
+
+## Stage 34 — Maintenance
+
+**Goal.** Close insight-derived `defect`, `gap` and `automation` entries in maintenance
+queues, so that a repair never reopens the stage it repairs and never rides in on an
+unrelated item. The stage is standing: it reopens when a maintenance queue wires items
+into it and closes again by rollup when they ship, with no roadmap edit per batch.
+
+**Deliverables.** The maintenance queues' items. Each maintenance queue wires one bullet
+per item into this stage's section of [`progress.md`](progress.md); this document lists
+none. Every insight-derived fix goes here, never under a feature stage. A feature stage's
+queue keeps a `gap` only when that stage was going to fill it anyway.
+
+**Dependencies.** None. No stage's blocking Dependencies name this stage.
+
+**Validation / acceptance.** No criteria of its own: each maintenance item's spec carries
+its own acceptance criteria.
+
+---
+
 # Backlog — unowned ideas
 
-> Recorded so they are not lost. **No stage owns these**; each was raised deliberately as
-> "consider later, not now". Promote to a stage when its evidence exists.
+> **Ideas only.** Scope that is not ready to plan, kept so it is not lost. No defect,
+> gap, decision or status goes here: a known defect or gap is an open `insights.md`
+> entry, a decision waiting on a person is a human gate in `progress.md`, and a settled
+> rule belongs in `vision.md`. The queue planner never reads this section. An idea leaves
+> it by promotion to a new stage through `/aide-create-roadmap`, or by deletion.
 
-- **Leave-one-out / counterfactual sensitivity feature** *(maintainer, 2026-07-28)*. For a
-  given vertebra, measure how much a scan-level shape metric (e.g. spline
-  smoothness/curvature) changes under a hypothetical modification of that vertebra —
-  dropping its label, or merging it into its largest bordering neighbour — as a measure of
-  that vertebra's structural influence on the whole spine. Distinct from both the population
-  reference (`reference_delta`) and the local-neighbourhood comparison (Stage 26 D8): this
-  is an *ablation*, not a static comparison. Closest neighbours are Stages 20 (specificity,
-  not a new feature), 21 (perturbation corpus, not a counterfactual) and 23 (normative
-  model, framed around thresholds).
-- **How should the synthetic fallback reference be generated at all?** *(maintainer,
-  2026-07-28)*. `reference_default.json` is built from a 5-subject **synthetic** cohort
-  (`build_clean_spine` + `paint_clean_scan(seed=0)`); it is no longer the CLI default
-  (`reference_verse_v1.json`, 80 real VerSe19 subjects, has been since item 090) and is kept
-  as a fixed fallback / synthetic-regression fixture. Open question: derive it from
-  published anatomical value ranges instead of synthesised geometry, and/or adopt a
-  realistic synthetic-data toolkit. *(The narrower, actionable half — a plausibility check
-  that its ranges have not drifted relative to the real artifact — is a Stage 21
-  deliverable, not backlog.)*
-- **Multichannel / probabilistic segmentation input.** Not planned. Recorded because it is
-  the precondition that would make §6 mode 8 (overlap) observable on real data at all — see
-  Stage 20's evidence rungs.
-- **Feature and metric normalisation policy** *(2026-08-12)*. Two rules govern every scaling
-  decision, and they are project-wide rather than specific to any one metric:
-  1. **A normalisation factor must never introduce a supervision dependency.** Anything
-     derived from ground truth — "the levels this scan *should* have", a GT label count, a
-     reference annotation — is supervision, not a feature. Scaling by it produces a number
-     that cannot be computed on real segmenter output, which is the setting FACET exists to
-     analyse, and quietly mixes supervision into the feature space. This holds even for
-     metrics that are themselves defined as a candidate-vs-GT comparison: that a metric
-     *needs* GT does not license its **scale** to import further GT-derived quantities.
-  2. **Normalisation is human-reviewed, or it does not happen.** The exception is a scaling
-     that is intrinsic by construction — a metric already dimensionless, or bounded 0..1 with
-     a derivable full swing, where the denominator comes from the metric's own definition and
-     no judgement is exercised. Everything else needs an explicitly reviewed and recorded
-     constant or threshold, in the manner of item 106's steering review. **The default, absent
-     review, is no normalisation**: report the raw value.
-
-  Applied to the per-mode metrics: the fraction-valued ones scale intrinsically;
-  `rogue_island_count` (a *maximum over per-label entries*, so a scan-level denominator would
-  change the quantity anyway) and `missing_level_count` (whose only natural denominator is
-  GT-derived, barred by rule 1) both stay **raw** until a reviewed threshold exists. For rogue
-  islands the clean expectation is *none*, so a small declared threshold is the plausible
-  candidate — value **TBC**, and item 109 ships the mechanism without setting it.
-
-  Where no reviewable global constant is defensible at all, the fallback is
-  **neighbourhood-relative** comparison — a vertebra measured against its own neighbours
-  rather than against anything global or supervised. Item 110's generalised neighbourhood API
-  (arbitrary named features, selectable scored subset) is the mechanism; coupling `eval/` to a
-  `features/` refactor was deliberately kept out of Stage 26. A natural fit for **Stage 27**,
-  which is already generalising `reference_delta` off its single hardcoded tracked feature.
-
-- **Does the Stage 18 thesis have any real-data demonstrator left?** *(2026-08-14)*. Item
-  109's AC16 demonstrator turned out to rest on the very saturation bug that item fixed:
-  stripping stray islands from `mode3_inject_islands` reconstructs the candidate to exactly
-  GT, so modes 1/2/3 all land on their own baseline and every one saturates to
-  `abs(normalised_delta) == 1.0` under the pre-109 formula. The "large fraction of its
-  excursion" that made the demonstrator look convincing was an artefact, not a signal: under
-  the fix, mode 2's genuine movement on that real fixture is ~0.0007, single-voxel scale.
-  The headline claim — a *real* corpus case where an unbounded per-mode metric's magnitude
-  dramatically beats aggregate Dice — currently has only a hand-built synthetic fixture
-  behind it. Demonstrating it on real data again needs a corpus case designed for genuinely
-  large per-case magnitude, which makes this a natural rider on **Stage 21**'s perturbation
-  corpus rather than an idea in its own right.
-
-- **`feature_docs.STATUS_OVERRIDES` has no sanctioned retirement path** *(insights.md,
-  item 122, 2026-08-27)*. The overrides are a verbatim transcript of the item-106
-  maintainer walkthrough, so an item that *fixes* a recorded concern (item 122 split
-  `total_curvature_deg` per plane, partly delivering its override's ask) cannot rewrite
-  the recorded human call from inside an item. Needs either a dated append-trail
-  convention like `insights.md`'s, or a queue-boundary review pass that re-asks the
-  maintainer. Same signed-text-vs-live-state family as Stage 29 D11 (the decision table's
-  measured counts), but unlike a count refresh this one needs the maintainer's judgement,
-  so it stays a decision rather than a deliverable.
-- **Is a scoliosis-vs-normal envelope FACET's to build at all?** *(insights.md, item 118,
-  2026-08-27)*. Stage 28's deformity envelope is one threshold over all anatomy; the
-  anticipated refinement — separate normal and scoliotic envelopes — is **pathology
-  differentiation**, a different objective from deciding whether a *segmentation* is
-  wrong. Recorded in `docs/spinal-curve-model.md` §"The deformity envelope is expected to
-  be revised"; whether it belongs in FACET is a `vision.md` question to answer there
-  before any item implements it. *(Vision v3, 2026-09-03, answers it in part: FACET
-  **accommodates** explicitly handled abnormalities — scoliosis within the approved
-  envelope is success criterion 5 — and pathology **differentiation** is the label-driven
-  extension of Use Case B, not a rule FACET writes on its own. Separate normal and
-  scoliotic envelopes therefore need human-provided labels before any item builds them.)*
-- **Held-out offset estimator: two known blind spots, deferred by owner decision**
-  *(insights.md, items 120/123, 2026-08-28/29)*. (i) Only the single dominant outlier is
-  withheld per refit, so with ≥2 genuinely displaced levels a clean vertebra can outread
-  an actual offender (measured: clean 31.96 mm vs displaced 19.31 mm on the two-opposite-
-  displacements adversarial case) — natural follow-up is withholding every level above an
-  outlier cutoff. (ii) Sequence-terminal vertebrae are excluded outright (item 123), so a
-  genuinely displaced terminal vertebra is not looked at — yet terminals are 41/45 of the
-  ≥6 mm VerSe19 outliers. Real treatments: a separately calibrated terminal threshold, an
-  extrapolation-aware estimator, or a curvature model not needing both neighbours.
-- **Adjudicate `sub-verse406_split-verse261` T10 before treating `max_offset_mm = 13.0`
-  as settled — it currently holds Stage 28's G3 box open** *(insights.md, items 123/125,
-  2026-08-29/30)*. Its interior T10 reads 18.51 mm held-out offset — the single value that
-  set the calibrated 13.0 mm threshold, and, measured end-to-end on 2026-08-30, the one
-  real scoliotic subject (of the 17 the selection rule picks) that trips `mislabel`
-  through the shipped pipeline. Whether that reading is genuine anatomy the envelope must
-  accommodate or a GT labelling artefact decides both whether 13.0 mm is calibrated on
-  signal and whether Stage 28's "no real scoliotic curve flagged as offset outlier"
-  acceptance can tick. Needs a person looking at the case, not more measurement.
-
-# Carried defects — no stage owns them yet
-
-> Distinct from the ideas above: each is a **known, located defect** that survived its
-> originating item because the file it lives in was outside that item's authorised paths.
-> Stage 26 was the vehicle for this class and has closed ✅. Routed here from
-> `insights.md` at triage (2026-08-25, then ten more on 2026-08-30) so the next
-> `/aide-create-queue` sees them. **Stage 29 was scoped from this section on 2026-08-30**
-> and took ownership of everything routed here except the entry below, whose remedy is a
-> process decision rather than code — see Stage 29's deliverables for the moved entries
-> (each names its originating `insights.md` date).
-
-- **The `scope-check` CI job matches nothing under this repo's git mode.**
-  `.github/workflows/ci.yml`'s job resolves its item number from an `aide/NNN-` head ref,
-  but `[git] mode = "auto-merge"` means an item branch is merged and deleted locally and
-  never becomes a PR, and a queue PR's head is `aide/queue-NNN`, which the anchored `sed`
-  deliberately declines. Every PR this repo actually opens therefore skips while reporting
-  SUCCESS — a gate that decayed as the branching model changed, not one that never worked.
-  Per-item scope is still enforced by `validator.md` step 3 running `aide scope` in-loop, on
-  one machine and one platform, which is the conventions §7 blind spot exactly. Three
-  options are recorded in the insight: retire the job and state that the validator is the
-  gate; give the queue PR a job that enumerates the items merged into the queue branch and
-  runs `aide scope NNN --base <queue base>` for each (what engine 1.8.0's `--base` enables,
-  and the real answer for the queue-PR model); or add `workflow_dispatch` as a manual
-  stopgap. The framework half is answered — engine 1.18.1's `conventions.md` §4 now states
-  per mode what CI gate is possible — leaving this half project-owned and open.
-
-  **Engine 1.20.0 changed the cost comparison between those three options**, in favour of
-  switching `[git] mode` to `pr`. That route previously carried a branch-deleting footgun
-  independent of the CI question, and 1.20.0 removed both halves of it: `✅` used to mean
-  "merged" under `auto-merge` but only "pushed and awaiting review" under `pr`, and `aide
-  gc`'s `✅` ground deleted a branch locally *and* on the remote without asking git whether
-  the work had landed — so under `pr` the queue-exhaustion sweep offered to delete the head
-  branch of an open PR, with the approval line reading like confirmation. `✅` now means
-  merged in every mode, written by `aide merge` when the merge happens, with `🔍 In Review`
-  as the state between; and `gc` now asks `git merge-tree` whether merging the branch would
-  change its base, skipping any `✅` item whose branch still carries unlanded content. So
-  option (a) — switch to `pr`, which makes the existing job work as designed with no
-  workflow changes at all — is now a straight trade of one human PR-open per item against
-  an independent second-platform scope signal, with none of the collateral risk it used to
-  carry. *(insights.md 2026-08-20, item 117; re-assessed against engine 1.20.0 on
-  2026-08-25)*
-- **Mechanically verify the golden decision table's `asserted by` column in both
-  directions, including indirect consumers** *(insights.md, item 126, 2026-08-30/31)*.
-  `tests/test_105_golden_decision_table.py` AC6 checks that every named test exists;
-  nothing checks that every consuming test is named — an AST sweep on 2026-08-30 found
-  twelve consuming modules against the six listed, so item 126's blast radius was three
-  times the queue's estimate, and even that sweep missed consumers reaching a golden through
-  another module's `GOLDEN_PATH` attribute (test_119/120/123 piggybacking on test_022).
-  Candidate item: a completeness check in the other direction (or a generated column, as
-  item 134 did for the evidence counts) whose sweep also matches shared-attribute idioms
-  (`\.GOLDEN_PATH\b`) across the whole tree.
-- **`test_082_verse_build_recipe.py::test_adv_determinism_two_builds_produce_equal_parsed_artifacts`
-  compares two same-platform builds with numeric tolerance** *(insights.md, item 127,
-  2026-08-31)*. Every sibling regeneration test (test_063/081/120/123) asserts byte-identity
-  for two fresh in-process builds and drops to tolerance only fresh-vs-committed; as written,
-  a run-to-run nondeterminism in the `segfacet build-reference` CLI path passes unnoticed.
-  Candidate item: tighten it to byte-identity.
-- **A collapsed or duplicated label set can pass silently once Stage 3 degrades on
-  coincident centroids** *(insights.md, item 129, 2026-08-31)*. Two labels sharing an exact
-  centroid make Stage 3 absent (`features.stage3_unavailable` records why), every
-  `stage3`-reading rule short-circuits, and `detect_overlaps` sees no overlapping voxels — so
-  no finding of any kind. Candidate item: a rule consuming `stage3_unavailable`, which also
-  gives that key its `FEATURE_DOCS` catalogue entry. *(→ **Stage 30 D3** records it as the
-  catalogue's first `proposed` mode — collapsed or duplicated label set, candidate feature
-  `stage3_unavailable`, no rule yet — 2026-09-03. The rule stays a candidate item for a
-  later queue; a `proposed` mode is listed, not claimed covered.)*
-- **`features/sagittal_projection.py` (item 021) is reachable from nothing** *(insights.md,
-  item 130, 2026-08-31)*. Not `pipeline.py`, `feature_report.py`, `cli.py`, any rule or
-  `scripts/` — only its own test. The dead-wiring shape Stage 26 D8 raised for
-  `neighbourhood.py`, except that it renders a PNG rather than record leaves, so "wire it
-  in" may mean a CLI flag. Decide: wire or retire — no roadmap deliverable owns it.
-- **The synthetic fixture corpus is anatomically inverted along S** *(insights.md, item
-  131, 2026-08-31)*. `synth/clean_gt.py::build_clean_spine` stacks ascending labels along
-  ascending axis 2, so `clean_control_seg.nii.gz` puts L1 at S = 27 mm and L5 at S = 187 mm;
-  every in-repo driver therefore advances superiorly while real VerSe input advances
-  caudally — the inversion that hid item 131's traversal-direction defect for nine items,
-  and which silently flips the sign of any future feature measured against +S. Correcting
-  the stacking moves committed values across the suite and both reference artifacts, so it
-  needs its own item — and Stage 20's specificity baseline should be pinned after it, not
-  before. *(→ **Stage 30 D0**, 2026-09-03: the specification's expected firing sets are
-  measured on the corpus, so the correction lands first in the stage that records them.)*
-- **Maintainer pass over `feature_docs.STATUS_OVERRIDES`' `monotonic_consistency` notes**
-  *(insights.md, item 132, 2026-08-31)*. The `is_monotonic` note says it "should be wired
-  into the sequence rule directly"; `MislabelRule`'s Detector B has consumed
-  `non_monotonic_pairs` since item 033 and fires end-to-end since item 132, so the note
-  reads as an open action that is closed. It is maintainer-signed text no item may rewrite
-  from inside — either a maintainer pass, or the Stage 29 D11 treatment (separate what is
-  measured from what is signed).
-- **Nine pre-existing test files capture subprocess output with `text=True` and no
-  `encoding=`** *(insights.md, queue-018, 2026-09-01)*. `tests/conftest.py` (2),
-  `test_066`, `test_069`, `test_070`, `test_074`, `test_111`, `test_113`, `test_117`,
-  `test_123` (2). All capture ASCII today, which is why none has fired; the identical
-  pattern broke `test_134` on `windows-latest` (PR #58) the first time a capture carried an
-  em dash. `tests/run_process.py::run_utf8` is the drop-in replacement. Candidate item:
-  convert all nine in one mechanical sweep, closing the class in the suite.
-- **Shorten CI wall-clock — the `windows-latest` leg is the critical path at 21 min**
-  *(2026-09-01 feedback loop)*. Measured on the last green run of queue-018 (PR #58,
-  run 33483503854): `test (windows-latest)` 21.0 min, `test (ubuntu-latest)` 13.7 min,
-  `test (numpy 1.26.4)` 13.2 min, `test (numpy 2.0.2)` 10.0 min, gated 1.5 min, scope
-  check 4 s — five near-full suite runs per PR, the slowest gating the whole run. Two
-  measured facts point at the fix: (i) the suite is **parallel-safe** — `pytest -n 4`
-  (pytest-xdist, four workers, the vCPU count of a GitHub-hosted runner) passed 6690/6690
-  locally in **4 m 51 s against 15 m 00 s serial** on 2026-09-01, so adding `pytest-xdist`
-  to `[project.optional-dependencies] dev` and `-n 4` to every `python -m pytest` step in
-  `.github/workflows/ci.yml` should bring ubuntu to ~5 min and windows to ~8 min with no
-  coverage change; (ii) four tests dominate the serial tail and set the parallel floor —
-  `test_128_relocation_checks.py::test_ac13_test115_fence_cap_still_passes_and_points_at_new_module`
-  (103 s), `test_057_evaluate_cli.py::test_ac5_calibrate_writes_config_and_calibration_block`
-  (76 s), and `test_115_stage26_validation.py`'s two `test_ac8_*` AST sweeps (~50 s each) —
-  ~4.7 min of serial time, and the 103 s test alone caps what `-n 4` can reach. Also worth
-  taking: `actions/setup-python`'s `cache: pip` (five installs per run). aide-loop's own
-  Windows work (issue #74, branch `ci/74-windows-defender-and-shards`) measured that the
-  runner image already ships Defender real-time scanning off, so the Windows cost is
-  per-subprocess spawn overhead (~55–70 ms each), not scanning — sharding the Windows leg
-  into parallel jobs is the fallback if xdist proves flaky there, not a first move.
-  Candidate item: xdist + pip cache in one workflow PR, then profile the four outliers.
+- **Leave-one-out / counterfactual sensitivity feature** (insight 2026-07-28-56f4). For a
+  given vertebra, measure how much a scan-level shape metric (for example spline
+  smoothness or curvature) changes when that vertebra is ablated, by dropping its label or
+  merging it into its largest bordering neighbour, as a measure of its structural
+  influence on the whole spine. An ablation, distinct from both the population reference
+  (`reference_delta`) and the local-neighbourhood comparison.
+- **How the synthetic fallback reference should be generated** (insight
+  2026-07-28-bc8a). `reference_default.json` is built from a five-subject synthetic
+  cohort (`build_clean_spine` plus `paint_clean_scan(seed=0)`) and kept as a fixed
+  fallback and synthetic-regression fixture; the CLI default is the real
+  `reference_verse_v1.json`. The idea: derive it from published anatomical value ranges
+  instead of synthesised geometry, or adopt a realistic synthetic-data toolkit.
+- **Multichannel / probabilistic segmentation input.** The precondition that would make
+  the overlap mode observable on real data at all.
+- **A real-data demonstrator for the Stage 18 thesis** (insight 2026-08-14-bb93). A real
+  corpus case where an unbounded per-mode metric's magnitude dramatically beats aggregate
+  Dice. Item 109's demonstrator rested on a saturation artefact, so today only a
+  hand-built synthetic fixture shows it; a real case needs genuinely large per-case
+  magnitude, the kind a perturbation corpus could supply.
+- **A retirement path for `feature_docs.STATUS_OVERRIDES`** (insight 2026-08-27-2a03).
+  The overrides are a verbatim transcript of the item-106 maintainer walkthrough, so an
+  item that fixes a recorded concern cannot rewrite the recorded human call. Either a
+  dated append-trail convention like `insights.md`'s, or a queue-boundary pass that
+  re-asks the maintainer.
