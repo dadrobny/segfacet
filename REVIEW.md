@@ -89,10 +89,10 @@ whatever its rank.
   `docs/aide/insights.md`. Both are immutable records: a spec documents
   what its item was, an insight line is never reworded even when wrong.
   Follow-ups are new lines or new items, not edits to old ones.
-- Pre-pivot language in `docs/aide/` — vision, roadmap, item specs and
-  queues still describe the XNAT-era `segqc` project by design: they
-  are the provenance trail, annotated rather than rewritten, until the
-  re-vision lands. The retained XNAT artefacts (`command.json`,
+- Pre-pivot language in `docs/aide/` — stages, item specs and queues
+  written before the FACET re-issue (`vision.md` v3, 2026-09-03) still
+  describe the XNAT-era `segqc` project by design: they are the
+  provenance trail, annotated rather than rewritten. The retained XNAT artefacts (`command.json`,
   `docker/`, `docs/deployment.md`) await relocation, not deletion.
 - Formatting and style. There is deliberately no linter or formatter;
   `pytest` is the only gate.

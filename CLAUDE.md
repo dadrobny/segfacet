@@ -14,18 +14,19 @@ carrying a machine-readable record of *what* was broken, scores cases against
 reference distributions built from ground truth, and applies an explainable
 heuristic rule set that emits JSON + human-readable reports.
 
-> **⚠️ Pivot in progress (2026-07-25).** This repo was `SegQC-xnat`, an
-> XNAT-deployed QC gate. It is being refocused as the torch-free library half of
-> a failure-mode-driven segmentation-improvement research programme; the GPU /
-> SPINEPS / GSTT half lives in a separate private repo. **This rename landed
-> first; the AIDE re-vision has not happened yet** — so `docs/aide/` (vision,
-> roadmap, progress, 88 item specs, 12 queues) still describes the XNAT project
-> and still says `segqc` throughout. That is deliberate: those documents are the
-> provenance trail and are annotated, not rewritten. Treat them as history until
-> the re-vision lands. XNAT artefacts (`command.json`, `docker/`,
-> `docs/deployment.md`) are retained pending relocation to the programme repo.
+> **History.** Until 2026-07-25 this repo was `SegQC-xnat`, an XNAT-deployed QC
+> gate. It is now the torch-free library half of a failure-mode-driven
+> segmentation-improvement programme. The GPU / SPINEPS / GSTT half is
+> `spine-failure-lab` (package `spinelab`), and the artefacts that cross between
+> the two are listed in that repository's `docs/project/facet-interface.md`
+> (`vision.md` §7.5). The root documents were re-issued for FACET: `vision.md` v3 on
+> 2026-09-03, then v4, and `roadmap.md` against v3. Stages, item specs and queues
+> written before then still say `segqc` and describe the XNAT project. They are the
+> provenance trail, annotated rather than rewritten. The XNAT artefacts
+> (`command.json`, `docker/`, `docs/deployment.md`) are retained pending relocation
+> to the programme repository.
 
-CPU-only, cross-platform (Windows/macOS/Linux), Python 3.9+.
+CPU-only, cross-platform (Windows/macOS/Linux), Python 3.11+.
 
 ## Project configuration
 

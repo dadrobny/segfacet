@@ -15,7 +15,9 @@
 > three changes. SPINEPS is the only reference segmenter, and TotalSegmentator is no
 > longer named. Manual review labels from `spinelab` are a per-level reference for
 > rung 3. All three rungs draw cases from one shared split with three dataset roles
-> (development, calibration and test). Nothing else changes.
+> (development, calibration and test). §7.1 and §10 now give the Python floor as 3.11,
+> which `pyproject.toml` has required since Stage 17's environment migration. Nothing
+> else changes.
 >
 > **Revision note (v4.1, 2026-10-09).** Two owner decisions moved here from the
 > roadmap Backlog, which now holds ideas only: the normalisation rule becomes a
@@ -418,7 +420,7 @@ evidence.
 ## 7. Technical Architecture
 
 ### 7.1 Language & runtime
-- **Python 3.9+** (3.9 is the floor); Windows, macOS and Linux for development
+- **Python 3.11+** (3.11 is the floor since Stage 17); Windows, macOS and Linux for development
   and use.
 - Library-first, with a `segfacet` CLI (`run`, `build-reference`, `evaluate`)
   whose handlers defer heavy imports so `--help` stays fast.
@@ -588,7 +590,7 @@ was measured on.
 ## 10. Constraints & Assumptions
 
 **Constraints**
-- Python **3.9+**; runs CPU-only; no GPU may ever be required.
+- Python **3.11+**; runs CPU-only; no GPU may ever be required.
 - **No deep-learning framework** is imported, in the package or its tests.
 - No dataset is bundled and **no patient data enters git**; cohorts are
   supplied by path and manifest.

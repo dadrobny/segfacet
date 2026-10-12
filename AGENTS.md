@@ -11,8 +11,9 @@ analyses instance segmentations of spine imaging — feature extraction
 over label maps, a synthetic failure corpus, reference distributions,
 and an explainable heuristic rule engine. `README.md` and `CLAUDE.md`
 orient; `docs/aide/` (vision, roadmap, progress) is the source of truth
-for scope, plan and status — noting that its pre-pivot documents still
-describe the XNAT-era `segqc` project as deliberate provenance. Source
+for scope, plan and status — noting that its stages, item specs and
+queues from before the FACET re-issue still describe the XNAT-era
+`segqc` project as deliberate provenance. Source
 lives in `src/segfacet/`, tests in `tests/`; the suite runs as
 `.venv/bin/python -m pytest` and must pass cross-platform (Windows,
 macOS, Linux) with no GPU — PyRadiomics and Docker are environment
