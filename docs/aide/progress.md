@@ -1985,11 +1985,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 
 ## Stage 34 — Maintenance — 📋
 
-**Goal.** Close insight-derived `defect`, `gap` and `automation` entries in maintenance
-queues, so a repair never reopens the stage it repairs and never rides in on an unrelated
-item. Reopens when a maintenance queue wires items in; closes by rollup when they ship.
+**Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
+`automation` entries in maintenance queues.
 
-**Deliverables.** Wired per maintenance queue, one bullet per item; none yet.
-
-**Validation / acceptance.** None of its own: each maintenance item's spec carries its own
-acceptance criteria.
+**Deliverables.** None yet: each maintenance queue adds one bullet per item.

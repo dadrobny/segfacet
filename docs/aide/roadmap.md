@@ -1,7 +1,8 @@
-<!-- aide-template: roadmap 1 -->
+<!-- aide-template: roadmap 2 -->
 # FACET — Development Roadmap
 
-> **Status:** v3.3 (2026-10-09: Stage 34 — Maintenance added as the one standing
+> **Status:** v3.4 (2026-10-12: Stage 34 and the Backlog conformed to roadmap template 2,
+> engine 2.47.3; v3.3 2026-10-09: Stage 34 — Maintenance added as the one standing
 > maintenance stage, the Carried defects section removed with its live entries returned to
 > `insights.md`, the Backlog pruned to ideas only; v3.2 2026-09-22: Stage 33 added after queue-022's review, Stage 32 annotated;
 > v3.1 approved 2026-09-15: Stages 31–32 added, Stages 20 and 30 annotated after
@@ -2182,37 +2183,27 @@ skip-relabel fixture) is not blocked by this stage and belongs to no stage.
 > were returned to `insights.md` as open entries (2026-10-09-ed9b, 2026-10-09-bc75,
 > 2026-10-09-2c9f, 2026-10-09-9de3, 2026-10-09-7e82, 2026-10-09-c1b7) and the rest were
 > already fixed. A known defect, gap or automation lives in `insights.md`, open, until
-> the item that fixes it ticks it. The framework is formalising this arrangement in
-> aide-loop issue #453.
+> the item that fixes it ticks it. The framework formalised this arrangement in engine
+> 2.44.0–2.46.0 (aide-loop issue #453); what the stage and the Backlog below may carry
+> is `.aide/conventions.md` §1 → roadmap.md.
 
 ---
 
 ## Stage 34 — Maintenance
 
-**Goal.** Close insight-derived `defect`, `gap` and `automation` entries in maintenance
-queues, so that a repair never reopens the stage it repairs and never rides in on an
-unrelated item. The stage is standing: it reopens when a maintenance queue wires items
-into it and closes again by rollup when they ship, with no roadmap edit per batch.
+**Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
+`automation` entries in maintenance queues.
 
-**Deliverables.** The maintenance queues' items. Each maintenance queue wires one bullet
-per item into this stage's section of [`progress.md`](progress.md); this document lists
-none. Every insight-derived fix goes here, never under a feature stage. A feature stage's
-queue keeps a `gap` only when that stage was going to fill it anyway.
+**Deliverables.** Added to [`progress.md`](progress.md) by each maintenance queue.
 
-**Dependencies.** None. No stage's blocking Dependencies name this stage.
-
-**Validation / acceptance.** No criteria of its own: each maintenance item's spec carries
-its own acceptance criteria.
+**Dependencies.** None.
 
 ---
 
-# Backlog — unowned ideas
+# Backlog
 
-> **Ideas only.** Scope that is not ready to plan, kept so it is not lost. No defect,
-> gap, decision or status goes here: a known defect or gap is an open `insights.md`
-> entry, a decision waiting on a person is a human gate in `progress.md`, and a settled
-> rule belongs in `vision.md`. The queue planner never reads this section. An idea leaves
-> it by promotion to a new stage through `/aide-create-roadmap`, or by deletion.
+> Ideas only: scope not yet ready to plan. What a bullet may say, and how one leaves the
+> list, is `.aide/conventions.md` §1 → roadmap.md.
 
 - **Leave-one-out / counterfactual sensitivity feature** (insight 2026-07-28-56f4). For a
   given vertebra, measure how much a scan-level shape metric (for example spline
