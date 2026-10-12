@@ -39,7 +39,10 @@ Design decisions (item 207 spec, A1-A6):
   0.8885), 1.5263 (``split``, spacing 1.0512); spacing 1.7915
   (``relabel_swap`` label 20, size 1.0). Interior labels beside a missed
   level now pass the spacing gate (``remove_level_relabel`` label 22, mean
-  1.5408) and only the size gate (0.9984) keeps them silent.
+  1.5408) and only the size gate (0.9984) keeps them silent. Likewise
+  ``sequence_break`` (anatomical order, item 216 A5): spacing 4.0055 at T13
+  and 2.5186 at L1, largest size 1.0032 -- so a spacing-only rule for mode 6
+  would also fire on a label-sequence break (insight 2026-10-05-a332).
 - Gate (item 216, A12): only a record whose Stage-3-only spacing statistics
   are present (``pairs.adjacent.mean_spacing_mm``, read as a gate and
   declared a bookkeeping consumed path) is judged, so the survivor existing

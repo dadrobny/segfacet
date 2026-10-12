@@ -2668,6 +2668,9 @@ def test_a_merge_killed_mid_suite_puts_the_branch_and_its_base_back(
 
     real_run = aide.subprocess.run
     test_cmd = aide.resolve_test_command(root, aide.load_config(root))
+    # Spawned as `resolve_tool` found its program (issue #449).
+    test_cmd = [aide.resolve_tool(test_cmd[0], root) or test_cmd[0],
+                *test_cmd[1:]]
 
     def _killed_mid_suite(cmd, *a, **kw):
         # A prefix: under pytest the merge appends its report options (#275).
@@ -2749,6 +2752,9 @@ def test_a_genuine_bug_in_the_window_restores_and_still_raises(
     root, branch = _claimed_and_worked(tmp_path)
     real_run = aide.subprocess.run
     test_cmd = aide.resolve_test_command(root, aide.load_config(root))
+    # Spawned as `resolve_tool` found its program (issue #449).
+    test_cmd = [aide.resolve_tool(test_cmd[0], root) or test_cmd[0],
+                *test_cmd[1:]]
 
     def _broken(cmd, *a, **kw):
         if list(cmd)[:len(test_cmd)] == list(test_cmd):

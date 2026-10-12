@@ -679,6 +679,62 @@ def test_ready_that_the_forge_refuses_exits_1(tmp_path: Path, monkeypatch):
     assert _run(repo, "ready") == 1
 
 
+def _awaiting_evidence_claim(repo: Path) -> str:
+    """Claim branch aide/001-alpha off Q1, where a validator's PASS (awaiting
+    gate-<hex>) leaves it: 001 🔍, its gate row, a spec citing that gate and
+    the work, unmerged. Back on Q1; returns the gate's ID."""
+    _git(["switch", "-c", "aide/001-alpha"], repo)
+    ddir = repo / "docs" / "aide"
+    question = "Alpha's banner reads well on the kiosk"
+    text = aide.add_gate_rows(PROGRESS.format(icon="🔍", trail=""),
+                              [(question, "—")])
+    (ddir / "progress.md").write_text(text, encoding="utf-8")
+    [gid] = aide.gate_ids(aide.human_gates(text.splitlines()))
+    (ddir / "items").mkdir(exist_ok=True)
+    (ddir / "items" / "001-alpha.md").write_text(
+        "# Item 001 — Alpha\n\n## Acceptance Criteria\n\n"
+        f"- [ ] **AC1: banner.** It reads well. *(evidence: {gid})*\n",
+        encoding="utf-8")
+    (repo / "alpha.txt").write_text("work\n", encoding="utf-8")
+    _commit(repo, "001: spec, gate, work; in review")
+    _git(["switch", Q1], repo)
+    return gid
+
+
+def test_ready_refuses_while_an_item_awaits_its_evidence_gate(
+        tmp_path: Path, monkeypatch, capsys):
+    """Issue #428: the item `merge` refuses until a person approves the gate
+    that is its evidence has not landed, so the queue has not ended — refused
+    before the forge is asked anything. Approved, the same item is 🔍 under
+    `pr` mode only awaiting its PR's merge, and `ready` is unchanged."""
+    repo = _init(tmp_path)
+    _start(repo, 1)
+    _plan(repo, 1)
+    _git(["push"], repo)
+    gid = _awaiting_evidence_claim(repo)
+    before = _on_origin(repo, Q1)
+    calls = _forge(monkeypatch, {Q1: [{"number": 7, "state": "OPEN",
+                                       "isDraft": True}]})
+    capsys.readouterr()
+    assert _run(repo, "ready") == 1
+    err = capsys.readouterr().err
+    assert f"001 (AC1: {gid} is ⏳ Awaiting)" in err
+    assert "`aide gate approve <ID>`" in err
+    assert calls == []
+    assert _on_origin(repo, Q1) == before
+    # Back to draft is never held: a fix round may need it.
+    assert _run(repo, "ready", "--undo") == 0
+
+    _git(["switch", "aide/001-alpha"], repo)
+    assert aide.main(["--repo", str(repo), "gate", "approve", gid,
+                      "--evidence", "read it on the kiosk"]) == 0
+    _git(["switch", Q1], repo)
+    calls = _forge(monkeypatch, {Q1: [{"number": 7, "state": "OPEN",
+                                       "isDraft": True}]})
+    assert _run(repo, "ready") == 0
+    assert _writes(calls) == [["pr", "ready", "7"]]
+
+
 # --------------------------------------------------------------------------- #
 # the refusals both verbs share
 # --------------------------------------------------------------------------- #

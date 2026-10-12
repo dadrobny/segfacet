@@ -46,13 +46,32 @@ and `/aide-review-insights` cannot hold different copies of it):
 |---|---|---|
 | `knowledge` | the owning document — the smallest edit that preserves the fact | the triaging role, on the fold |
 | `defect` | a candidate item on the **maintenance queue** | the queue that absorbs it |
-| `gap` | a candidate item — maintenance queue, or the stage queue when the stage was going to fill it anyway | the queue that absorbs it |
+| `gap` | a candidate item — maintenance queue, or the stage queue when the stage was going to fill it anyway; or the roadmap's Backlog, by the owner, when it is scope not ready to plan | the queue that absorbs it; the owner, ticked `→ roadmap Backlog` |
 | `automation` | a candidate item adding the script/CLI verb **and** the prose that mandates it | the queue that absorbs it |
 | `framework` | an issue on `[framework] repo` from `aide.toml`; unset or offline, it stays pending | the filing role, on the hand-over |
 
 Only the three middle rows are yours: a `knowledge` or `framework` entry still
 open here was not triaged, so route it through `/aide-review-insights` rather
-than folding or filing it mid-batch.
+than folding or filing it mid-batch. The `gap` row's Backlog half is not
+yours either: the owner moves a `gap` there, and a decline of any of the
+three types is the owner's too (§1 → `insights-triage.md`).
+**`defect` and `automation` entries never go to the Backlog.** **A
+pass-over may carry a proposal for the owner, never a decision** — name the
+decline, with its reason, or the Backlog move with the pass-over; tick
+neither.
+**An entry open across three or more queues is already the
+owner's decision** (§1 → `insights-maintenance-queue.md`; `insights list
+--open` prints each entry's wait): do not pass it over again. Queue it when
+the owner has said to. **Until the owner has said, the author puts the
+decision to the owner where the queue is reviewed** — in your closing
+summary, which the queue PR body carries: queue it, decline it, or, for a
+`gap`, move it to the roadmap's Backlog, with the one you would take and
+why. Running with nobody watching does not change this; the queue's review
+is where the owner answers.
+
+**The roadmap's `# Backlog`, if it has one, is not a stage, and the queue
+planner never queues from it** (§1 → `roadmap.md`): a bullet there reaches a
+queue only once the owner has promoted it into a stage.
 
 ### Emit a maintenance queue first when there are fixes to batch
 
@@ -71,7 +90,17 @@ one**, so the maintenance queue is served first and the stage queue starts when
 it empties. How the pair reaches a human is the caller's, below: push and PR are
 never this step's. Number the items sequentially across both,
 maintenance queue first, and wire every one of them into `progress.md`
-(requirement 8) exactly as for a single queue.
+(requirement 8) exactly as for a single queue — **a maintenance item's
+deliverable bullet goes under the maintenance stage, never under the feature
+stage whose module it touches** (§1 → `insights-maintenance-queue.md`; what
+the stage is, §1 → `roadmap.md`).
+
+**When a maintenance queue is warranted and the roadmap has no maintenance
+stage, the queue's author hands back** — before writing either queue, since
+the answer changes `roadmap.md`: name the entries that warrant a maintenance
+queue, and say that **the owner adds the stage once, as an amendment to
+`roadmap.md`**. Nothing else triggers it: a boundary with no
+entry that warrants a maintenance queue writes its stage queue as before.
 
 Write only the stage queue when there is nothing to batch: no open `defect`,
 `gap` or `automation` entry, or none that warrants a queue of its own. That
@@ -90,6 +119,11 @@ as the reason.
    - A small **phase** whose stages together fit within the cap may be queued
      whole.
    - A stage needing more than the cap spans multiple queues.
+   - **A stage queue never takes the maintenance stage as its next stage**:
+     it has no roadmap deliverable to queue, so pass over it. **The
+     maintenance stage is the stage titled exactly `Maintenance`** (§1 →
+     `roadmap.md`). **A stage appended after it is an ordinary stage**,
+     queued in its turn.
    The cap is a **context budget, not a target**. Prioritise by roadmap order and
    unblocked dependencies; whether an earlier stage's icon meets a blocking
    dependency on it — a ⏸️ one included, or one withdrawn by a ❌ summary
@@ -163,13 +197,22 @@ as the reason.
    - Append to an existing reference when a deliverable maps to several items
      (`… *(Items 006, NNN)*`); add the reference to the bullet that has none; or,
      if the item delivers something not yet listed, add a new
-     `- 📋 <deliverable>. *(Item NNN)*` bullet under the right stage. A shared
+     `- 📋 <deliverable>. *(Item NNN)*` bullet under the right stage — for a
+     maintenance queue's item, the maintenance stage, whose deliverables the
+     roadmap never lists. A shared
      marker is shorthand, not a shared status cell: the first status change to
      any of its items splits the bullet into one per item, so the siblings keep
      📋 rather than being completed alongside.
    - **Never change a deliverable's status icon** — leave it 📋. This step only
      makes the item *trackable*; status transitions (📋→🚧→✅) are
      `aide progress set`'s job during execution.
+   - **A maintenance batch rolls the maintenance stage up with its verb,
+     after wiring its bullets.** No verb moves the stage when you add a
+     bullet, so `aide check` errors while a reopened ✅ stage's section header
+     and Stage summary row still read ✅. Run `python .aide/scripts/aide.py
+     progress rollup --stage N --no-commit`, N the maintenance stage, and
+     **commit what it writes in the same commit as the bullets** — never
+     type the icon.
    - **Wire a marker onto a 📋 bullet only.** An item born on a ⏸️ or ❌
      bullet is settled from the start, so its queue would read done the
      moment it is written (§1 → `progress.md`). Queue a ⏸️ bullet only where
@@ -264,6 +307,10 @@ by `N`, which the next archive renumbers:
 python .aide/scripts/aide.py insights tick N --pointer "item NNN"
 ```
 
+**The pointer opens with the item references**, and a gloss may follow them;
+**that tick is the one record that an item is insight-derived**, and a
+pointer that opens with prose and only mentions an item does not count.
+
 Never flip the checkbox or reword the line by hand: **the claim is immutable and
 ticking the checkbox is the one in-place edit**. An entry passed over is left
 exactly as it stands.
@@ -278,4 +325,8 @@ Close your turn by naming, in chat and in the queue-PR body if one is opened:
 - the ones you passed over, with why — **a pass-over leaves the entry open and
   is stated where the queue is reviewed**, rather than left for the next reader
   to re-derive. That is what makes leaving an entry unchecked an honest routing
-  rather than a hope.
+  rather than a hope;
+- the declines and Backlog moves you propose, each with its reason, for the
+  owner to decide, and every entry open across three or more queues the
+  owner has not yet decided, put to them as a decision — queue, decline, or
+  for a `gap` the Backlog — with the one you would take.

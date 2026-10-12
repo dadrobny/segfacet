@@ -115,3 +115,39 @@ Whether an entry warrants one is yours to decide and never silent: too small
 to be worth a branch, blocked on something unbuilt, out of scope, or a `gap`
 the upcoming stage was going to fill anyway — say which, where the queue is
 reviewed.
+
+**A pass-over may carry a proposal for the owner, never a decision.** An
+entry you pass over again and again is named with what the owner might do
+instead — decline it, with its reason, or move a `gap` that is scope not
+ready to plan to the roadmap's Backlog. Both are the owner's (§1 →
+`insights-triage.md`), so you tick neither, and the entry stays open until
+the owner decides. **An entry open across three or more queues is already
+the owner's decision** — `insights list --open` prints each entry's wait —
+so you do not pass it over again, and you queue it once the owner says to.
+**Until the owner has said, the author puts the decision to the owner where
+the queue is reviewed** — queue it, decline it, or, for a `gap`, move it to
+the roadmap's Backlog — with the one you would take and why; an unattended
+run has no owner to ask, so the queue's review is where the answer comes.
+
+**A maintenance item's deliverable bullet goes under the maintenance stage**
+(§1 → `insights-maintenance-queue.md`; what that stage is, §1 → `roadmap.md`),
+**never under the feature stage whose module it touches**: placing it there
+would reopen a closed stage. A `gap` you route to the stage queue is a stage
+item, wired under that stage. **When a maintenance queue is warranted and the
+roadmap has no maintenance stage, the queue's author hands back**, before
+writing either queue: the owner adds the stage once, as an amendment to
+`roadmap.md`, since the answer changes it. Nothing
+else triggers it: a boundary with no entry that warrants a maintenance queue
+writes its stage queue as before.
+
+**The maintenance stage is the stage titled exactly `Maintenance`**, and **a
+stage queue never takes the maintenance stage as its next stage** — it has no
+roadmap deliverable to queue; a stage appended after it is an ordinary
+stage (§1 → `roadmap.md`).
+
+**A maintenance batch rolls the maintenance stage up with its verb, after
+wiring its bullets.** No verb runs when a bullet is added, so a ✅ stage the
+new 📋 bullets reopen still reads ✅ on its section header and Stage summary
+row, and `aide check` errors on both. Run `python .aide/scripts/aide.py
+progress rollup --stage N --no-commit`, N the maintenance stage, and **commit
+what it writes in the same commit as the bullets** — never type the icon.

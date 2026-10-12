@@ -1,11 +1,11 @@
 ---
 name: aide-review-insights
-description: Triage the open insight inbox — route each entry by type, judge duplicates, decayed premises and wrong types, and hand `framework` entries over as issues.
+description: Triage the open insight inbox — an `insights-triager` sub-agent routes each entry by type and judges duplicates, decayed premises and wrong types, and proposes the declines its owner decides; this session applies its plan with the verbs and hands `framework` entries over as issues.
 ---
 
 # Review the insight inbox
 
-Triage `docs/aide/insights.md`: read the open backlog, **route** each entry by
+Triage `docs/aide/insights.md`: read the open entries, **route** each entry by
 its type, **judge** the ones that no longer say what they used to, and hand
 `framework` entries over to the framework repo. It is the boundary pass for
 every type that lands in *this* project, and it runs on its own — before
@@ -14,9 +14,25 @@ authoring a queue, from `/aide-feedback-loop`, or whenever the inbox has grown.
 A `framework` entry may already have been handed over on capture, so expect some
 entries to be ticked before you arrive.
 
+**Orchestration model.** The judging is dispatched; the writing is not.
+Reading every open entry with its context and checking each against the tree
+is reviewer-shaped work, so spawn the **`insights-triager`** agent once, on the
+model its agent spec pins: it judges every entry by steps 2–4 and returns a
+plan — each entry's action, the `--pointer` or `--trail` text, the fold's
+target and text, the composed `framework` body — and writes nothing. This
+session then applies the plan with the verbs (steps 2–6): a tick or a fold is
+made where it is committed, and a hand-over's body is printed whole at an
+`ask` gate the human is watching, which a sub-agent's is not. Check the plan
+against the steps rather than re-deriving it, and read the one entry yourself
+(`insights list <ID>`) where a row cannot be applied as given. The split is
+the same however this pass was reached — on its own, before a queue, or from
+`/aide-feedback-loop`. When step 1 prints no open entry there is nothing to
+judge, and nothing is spawned; run step 3's stale-pointer sweep here, over
+the recently closed entries alone.
+
 ## Instructions
 
-### 1. Read the backlog with the verb, not by opening the file
+### 1. Read the open inbox with the verb, not by opening the file
 
 ```
 python .aide/scripts/aide.py insights list --open
@@ -24,7 +40,9 @@ python .aide/scripts/aide.py insights list --open
 
 The file interleaves closed and open entries, so reading it whole costs the
 entire history to see a working set that is usually a dozen lines. Open the file
-only when you need one entry's full context, and then only that entry.
+only when you need one entry's full context, and then only that entry. This
+listing decides whether the triager is spawned at all; its reading of each
+entry is the triager's.
 
 ### 2. Route each unchecked entry by its type
 
@@ -37,7 +55,7 @@ it):
 |---|---|---|
 | `knowledge` | the owning document — the smallest edit that preserves the fact | the triaging role, on the fold |
 | `defect` | a candidate item on the **maintenance queue** | the queue that absorbs it |
-| `gap` | a candidate item — maintenance queue, or the stage queue when the stage was going to fill it anyway | the queue that absorbs it |
+| `gap` | a candidate item — maintenance queue, or the stage queue when the stage was going to fill it anyway; or the roadmap's Backlog, by the owner, when it is scope not ready to plan | the queue that absorbs it; the owner, ticked `→ roadmap Backlog` |
 | `automation` | a candidate item adding the script/CLI verb **and** the prose that mandates it | the queue that absorbs it |
 | `framework` | an issue on `[framework] repo` from `aide.toml`; unset or offline, it stays pending | the filing role, on the hand-over |
 
@@ -47,8 +65,17 @@ does not exist yet: leaving it unchecked **is** the routing, and the open inbox
 is what carries it to whoever authors that queue — which reads it with
 `insights list --open` and either queues it or says why it passed it over.
 Do not fix such an entry inline here either; that is the queue's work, reviewed
-in the queue's PR. The exception is the entry you do **not** route — see
-*decayed premise* in step 3, which closes one.
+in the queue's PR. The exceptions are not your routings: the entry you do
+**not** route — see *decayed premise* in step 3, which closes one — and the
+two closes only the owner makes, a decline (step 3) and a `gap` moved to the
+roadmap's Backlog.
+
+**`defect` and `automation` entries never go to the Backlog.** A defect stays
+open in the inbox until an item fixes it or the owner declines it. A `gap`
+that is scope not ready to plan may go there, but **the owner moves it**,
+as an amendment to `roadmap.md`: the Backlog bullet cites `insight <ID>`, and
+the entry is ticked `--pointer "roadmap Backlog"`. Propose the move in your
+report; never make it in this pass.
 
 For an `automation` entry, both halves reach the queue or agents keep
 improvising: the deterministic script/verb, *and* the prose edit that mandates
@@ -68,11 +95,33 @@ Routing an entry as written is not the whole of triage. Three findings, one form
   been fixed by work done since. **A decayed premise is ticked, because there is
   nothing left for a queue to carry** — the trail line says what closed it, and
   the claim remains the record of what was true when it was captured. This is
-  the one tick you perform on a `defect`, `gap` or `automation` entry, and it is
-  not a routing: nothing is being sent anywhere.
+  the one tick you make on your own judgement on a `defect`, `gap` or
+  `automation` entry — a decline you apply in step 5 is the owner's decision —
+  and it is not a routing: nothing is being sent anywhere.
 - **Wrong type** — the entry describes a defect and is filed as knowledge, or
   the reverse. Route it by what it *is* and say so in the trail; the type in the
   captured line is never rewritten.
+
+A fourth judgement closes an entry, and it is never yours to make:
+
+- **Declined** — the owner decides a `defect`, `gap` or `automation` entry
+  will not be pursued; it is ticked `--pointer "declined: <reason>"`, and the
+  claim stays the record. **Only the owner declines.** Propose a
+  decline, with its reason, where an entry has waited (below) or its owner
+  has said it will not be done; apply it (step 5) only once the person
+  watching this session agrees. A decline is a scope decision, and it is made at the queue
+  boundary, where a person reads.
+
+**Triage brings each entry open across three or more queues to the owner as
+a decision, and does not pass it over again.** Step 1's listing prints each
+entry's wait as `open across N queues`, and its last line counts the ones at
+three or more. For each of them, put one of three decisions to the person
+watching — or, with nobody watching, in your report, where the owner reads
+it — with the one you would take and why: queue it; decline it; or, for a
+`gap`, move it to the roadmap's Backlog. An entry the owner says to queue
+stays open for the next queue's author, who queues it rather than passing it
+over; the other two are applied as step 5 and step 2 say. Three is a
+convention, not a setting.
 
 **A ticked entry whose status is now stale gets a trail line too** — sweep the
 recently-closed entries for one whose pointer you now know to be wrong. That is
@@ -157,7 +206,9 @@ python .aide/scripts/aide.py insights tick 7 --pointer "docs/architecture.md"
 `7` is the position `list` just printed; the entry's ID works in its place,
 and is the only handle to write anywhere that outlives this pass.
 
-That appends `→ docs/architecture.md` to the entry and flips its checkbox.
+That appends `→ docs/architecture.md` to the entry and flips its checkbox. A
+decline the owner agreed to is ticked the same way, with
+`--pointer "declined: <reason>"`.
 **Ticking the checkbox is the one in-place edit**, and the verb owns it.
 
 Never reword, reorder or delete a captured claim — including one that turned out
@@ -174,7 +225,9 @@ triage pass, never the middle.
 
 Say what you routed, in one block: the entries folded (with where), the ones
 handed over (with issue numbers), the ones left open for the next queue and
-which type each is, and every judgement you recorded. The count of entries left
+which type each is, every judgement you recorded, every decline or
+Backlog move you propose for the owner, with its reason, and every entry
+open across three or more queues with the decision the owner made on it. The count of entries left
 open is what the next queue author is about to read.
 
 ## Command hygiene

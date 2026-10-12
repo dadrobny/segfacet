@@ -284,6 +284,89 @@ def test_list_filters_by_type(tmp_path: Path, capsys):
     assert "utf-8-sig" not in out
 
 
+# --------------------------------------------------------------------------- #
+# an entry's wait — open across N queues (§1 → insights-triage.md, #456)
+# --------------------------------------------------------------------------- #
+def _queue(repo: Path, n: int, created) -> None:
+    """A queue file with a Created line on the header's status line, or none."""
+    qdir = repo / "docs" / "aide" / "queue"
+    qdir.mkdir(exist_ok=True)
+    header = (f"> **Status:** done · **Created:** {created}\n" if created
+              else "> **Status:** done\n")
+    (qdir / f"queue-{n:03d}.md").write_text(
+        f"# Demo — Work Queue {n:03d}\n\n{header}\n## Work items\n\n"
+        f"> **Created:** 1999-01-01 — quoted by an item, never the queue's\n",
+        encoding="utf-8")
+
+
+def test_a_queue_created_date_is_read_from_its_header_only():
+    assert aide.queue_created_date(
+        "# Q\n\n> closed) · **Created:** 2026-07-15\n") == "2026-07-15"
+    assert aide.queue_created_date(
+        "# Q\n\n## Work items\n\n> **Created:** 2026-07-15\n") is None
+    assert aide.queue_created_date("# Q\n\n> **Created:** {{yyyy-mm-dd}}\n") is None
+
+
+def test_the_wait_counts_queues_created_strictly_after_the_capture():
+    created = ["2026-08-01", "2026-08-10", "2026-08-20"]
+    assert aide.queues_open_across("2026-07-31", created) == 3
+    assert aide.queues_open_across("2026-08-01", created) == 2   # same day: not
+    assert aide.queues_open_across("2026-08-05", created) == 2
+    assert aide.queues_open_across("2026-08-20", created) == 0
+    assert aide.queues_open_across("2026-08-01", []) == 0
+
+
+def test_an_undated_queue_counts_only_after_a_dated_one_that_does():
+    # Numbering follows creation: an undated queue after a counting one was
+    # made later still; one before any counting queue says nothing.
+    assert aide.queues_open_across("2026-08-05", [None, "2026-08-10", None]) == 2
+    assert aide.queues_open_across("2026-08-05", ["2026-08-01", None]) == 0
+    assert aide.queues_open_across("2026-08-05", [None, None]) == 0
+
+
+def test_list_open_prints_each_entrys_wait_and_counts_the_long_waits(
+        tmp_path: Path, capsys):
+    """The defect (2026-05-11) has waited across all three queues; the gap
+    (2026-08-15) only across the one created after it. The undated queue
+    counts for the defect, numbered after a dated queue that does."""
+    repo = _repo(tmp_path)
+    _queue(repo, 1, "2026-06-01")
+    _queue(repo, 2, None)
+    _queue(repo, 3, "2026-08-20")
+    assert aide.main(["--repo", str(repo), "insights", "list", "--open"]) == 0
+    out = capsys.readouterr().out
+    defect = next(l for l in out.splitlines() if "happy path a typo" in l)
+    gap = next(l for l in out.splitlines() if "installed engine" in l)
+    assert defect.endswith("· open across 3 queues")
+    assert gap.endswith("· open across 1 queue")
+    assert "aide insights: 1 open across 3 or more queues" in out
+
+
+def test_list_without_open_prints_no_wait(tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    _queue(repo, 1, "2026-09-01")
+    assert aide.main(["--repo", str(repo), "insights", "list"]) == 0
+    assert "open across" not in capsys.readouterr().out
+
+
+def test_status_prints_the_inbox_by_type_and_its_long_waits(tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    for n, created in enumerate(["2026-06-01", "2026-07-01", "2026-08-20"], 1):
+        _queue(repo, n, created)
+    assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert ("  inbox: 2 open (1 defect, 1 gap); 1 open across 3 or more queues"
+            in out.splitlines())
+
+
+def test_status_reads_no_inbox_as_none_and_creates_none(tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    (repo / "docs" / "aide" / "insights.md").unlink()
+    assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
+    assert "  inbox: none" in capsys.readouterr().out.splitlines()
+    assert not (repo / "docs" / "aide" / "insights.md").exists()
+
+
 def test_list_keeps_the_whole_provenance(tmp_path: Path, capsys):
     """Dropping the item ref sends the reader back to the file being replaced."""
     repo = _repo(tmp_path)
@@ -1782,6 +1865,26 @@ def test_a_zero_padded_number_is_not_an_insight_position(tmp_path: Path):
     assert [w.split(":")[1] for w in warnings] == ["2"]
 
 
+def test_a_template_marker_is_not_an_insight_position(tmp_path: Path):
+    """``aide-template: insights 2`` is the inbox template's version, so a
+    spec or a test quoting the marker cites nothing (issue #439)."""
+    repo = _repo(tmp_path)
+    _cite(repo, "docs/aide/items/007-x.md",
+          "The inbox opens `<!-- aide-template: insights 2 -->`.\n"
+          "<!-- AIDE-TEMPLATE:insights 2 --> and insight 2 on one line.\n")
+    _cite(repo, "tests/test_x.py",
+          'assert "<!-- aide-template: insights 2 -->" in text\n')
+    _, warnings = _findings(repo)
+    assert [w.split(":")[:2] for w in warnings] == [["docs/aide/items/007-x.md", "2"]]
+    assert "insight 2" in warnings[0]
+
+
+def test_the_archive_listing_skips_a_template_marker_too():
+    """One detector serves `check` and `insights archive` (issue #439)."""
+    line = "<!-- aide-template: insights 2 --> fixes insight 3"
+    assert [m.group("n") for m in aide._positional_citations(line, lambda: 10)] == ["3"]
+
+
 # --------------------------------------------------------------------------- #
 # insights archive — the citations it renumbers, listed before it moves
 # (issue #295)
@@ -1835,7 +1938,7 @@ def test_an_archive_that_moves_lists_them_and_still_proceeds(tmp_path: Path, cap
 
 def test_an_archive_still_lists_a_records_positional_citation(tmp_path: Path, capsys):
     """`aide check` leaves a record's positions alone (issue #338), but the
-    archive run is the one point that knows what the number meant — the
+    archive run is the one that changes what the number reads as — the
     listing is what preserves it."""
     repo = _repo(tmp_path)
     _progress_007(repo, "✅")
@@ -2316,3 +2419,128 @@ def test_blame_is_asked_for_gits_line_not_splitlines(tmp_path: Path, brk):
 
 def test_git_line_numbers_count_newlines_only():
     assert aide._git_line_numbers("a\nb\r\nc\x0cd\ne") == [1, 2, 3, 3, 4]
+
+
+# --------------------------------------------------------------------------- #
+# the archive listing names what a citation meant when written (issue #419)
+#
+# `insights archive` named the ID a position holds in *today's* inbox. For a
+# citation written before an earlier archive that is a different claim; it now
+# resolves through `_CitationHistory.resolve`, the lookup `aide check`'s hint
+# formats, so the two surfaces cannot name different IDs for one citation.
+# --------------------------------------------------------------------------- #
+def _archive_out(repo: Path, before: str, capsys, *extra: str) -> list:
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", before, *extra]) == 0
+    return [ln for ln in capsys.readouterr().out.splitlines()
+            if ln.startswith("  ") and "`" in ln]
+
+
+def _cited_then_archived(tmp_path: Path, citation: str, first: str) -> Path:
+    """_FIVE, a committed citation, then an archive that renumbers it."""
+    repo = _repo(tmp_path, _FIVE)
+    _cite(repo, "docs/aide/items/007-x.md", citation)
+    _commit_all(repo)
+    assert aide.main(["--repo", str(repo), "insights", "archive",
+                      "--before", first, "--yes"]) == 0
+    return repo
+
+
+def test_the_archive_listing_names_what_a_citation_meant_at_its_commit(
+        tmp_path: Path, capsys):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    # "insight 3" is claim three; the first archive takes claim one, so
+    # claim three is entry 2 and claim four holds entry 3.
+    repo = _cited_then_archived(tmp_path, "Fixes insight 3.\n", "2026-01-02")
+    sha = _run(["git", "log", "-1", "--format=%h", "--", "docs/aide/items"],
+               repo).stdout.strip()
+    # The second takes claim two: claim three moves from entry 2 to entry 1.
+    (line,) = _archive_out(repo, "2026-01-03", capsys)
+    assert line.startswith("  docs/aide/items/007-x.md:1: `insight 3` meant "
+                           f"insight {ids[2]} when {sha[:7]} wrote this line")
+    assert line.endswith("— entry 1 after the move")
+    assert ids[3] not in line                 # today's holder of entry 3
+
+
+def test_the_archive_listing_and_check_name_one_id(tmp_path: Path, capsys):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _cited_then_archived(tmp_path, "Fixes insight 3.\n", "2026-01-02")
+    _, warnings = _findings(repo)
+    (line,) = _archive_out(repo, "2026-01-03", capsys)
+    assert len(warnings) == 1 and f"insight {ids[2]} when " in warnings[0]
+    assert f"insight {ids[2]} when " in line
+
+
+def test_the_archive_listing_says_a_meant_entry_is_already_archived(
+        tmp_path: Path, capsys):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    # Claim one is archived by the first move; position 1 is claim two's,
+    # which the second move archives.
+    repo = _cited_then_archived(tmp_path, "Fixes insight 1.\n", "2026-01-02")
+    (line,) = _archive_out(repo, "2026-01-03", capsys)
+    assert f"meant insight {ids[0]} when " in line
+    assert line.endswith("— already archived")
+    assert ids[1] not in line
+
+
+def test_an_uncommitted_citation_in_the_archive_listing_is_todays_holder(
+        tmp_path: Path, capsys):
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _cited_then_archived(tmp_path, "Nothing yet.\n", "2026-01-02")
+    with open(repo / "docs" / "aide" / "items" / "007-x.md", "a",
+              encoding="utf-8") as fh:
+        fh.write("Fixes insight 3.\n")
+    (line,) = _archive_out(repo, "2026-01-03", capsys)
+    assert line == ("  docs/aide/items/007-x.md:2: `insight 3` is insight "
+                    f"{ids[3]} (not committed, so written against today's "
+                    "inbox) — entry 2 after the move")
+
+
+def test_without_history_the_archive_listing_labels_todays_holder(
+        tmp_path: Path, capsys):
+    repo = tmp_path / "repo"
+    (repo / "docs" / "aide").mkdir(parents=True)
+    (repo / "aide.toml").write_text(AIDE_TOML, encoding="utf-8")
+    (repo / "docs" / "aide" / "insights.md").write_text(_FIVE, encoding="utf-8")
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 2.\n")
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    (line,) = _archive_out(repo, "2026-01-02", capsys)
+    assert line == ("  docs/aide/items/007-x.md:1: `insight 2` is insight "
+                    f"{ids[1]} (today's holder; history unavailable) — entry 1 "
+                    "after the move")
+
+
+def test_the_archive_listing_says_a_position_named_no_entry_then(
+        tmp_path: Path, capsys):
+    repo = _repo(tmp_path, _FIVE)
+    _cite(repo, "docs/aide/items/007-x.md", "Fixes insight 6.\n")
+    _commit_all(repo)
+    with open(repo / "docs" / "aide" / "insights.md", "a", encoding="utf-8") as fh:
+        fh.write("- [x] gap — six *(2026-01-06)* → a\n")
+    _commit_all(repo, "a sixth capture")
+    six = aide.insight_ids(aide.parse_insights(_inbox(repo)))[5]
+    (line,) = _archive_out(repo, "2026-01-02", capsys)
+    assert "`insight 6` named no entry when " in line
+    assert "find the claim meant with `aide insights list`" in line
+    assert six not in line
+
+
+def test_one_resolution_feeds_the_hint_and_the_listing(tmp_path: Path):
+    """`hint` is a formatter over `resolve`: the meaning carries the ID it
+    names and the pool index the listing reads the entry's fate from."""
+    ids = aide.insight_ids(aide.parse_insights(_FIVE))
+    repo = _cited_then_archived(tmp_path, "Fixes insight 3.\n", "2026-01-02")
+    ddir = repo / "docs" / "aide"
+    pool = aide.load_insight_pool(ddir)
+    pids = aide.insight_ids([e for _, e in pool])
+    history = aide._CitationHistory(repo, ddir)
+    path = ddir / "items" / "007-x.md"
+    history.want(path, 1)
+    r = history.resolve(path, 1, 3, pool, pids)
+    assert r.how == aide.CitationMeaning.COMMITTED
+    assert r.iid == ids[2] and pool[r.index][0] == "insights.md"
+    assert r.today == ids[3]
+    assert history.hint(path, 1, 3, pool, pids) == (
+        f"; entry 3 was insight {ids[2]} {r.when} — cite that; an archive or a "
+        f"merge has moved it since")

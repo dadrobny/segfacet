@@ -105,7 +105,12 @@
       "Bash(top -bn1:*)",
       "Bash(mkdir:*)",
       "Bash(.venv/bin/segfacet:*)",
-      "Bash(git blame:*)"
+      "Bash(git blame:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git --version:*)",
+      "Bash(cut:*)",
+      "Bash(which:*)"
     ],
     "ask": [
       "Bash(git push --force:*)",

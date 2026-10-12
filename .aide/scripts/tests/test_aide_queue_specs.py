@@ -330,6 +330,103 @@ def test_the_pinned_state_message_names_the_dependency_remedy(tmp_path: Path):
     assert "## Dependencies" in hit.message
 
 
+def test_a_later_item_retiring_the_earlier_items_test_is_exempt(tmp_path: Path):
+    """The shape §1 → items prescribes for a sibling's schedule premise (issue
+    #445): 027 pins the artifact 028 regenerates, 028 depends on 027 and lists
+    027's test file under May change from the start, retiring the pin. The
+    ordering runs the other way from the `Validate stage N` exemption, and the
+    error used to stand with none of its remedies available until 027 merged."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["tests/test_027_topic.py"],
+                       asserts=["docs/aide/artifact.json"]),
+        28: _spec_text(28, may=["docs/aide/artifact.json",
+                                "tests/test_027_topic.py"],
+                       deps="Item 027 lands first; its pin is retired here."),
+    })
+    findings, _ = _findings(repo)
+    assert [f for f in findings if f.kind == "changes-pinned-state"] == []
+
+
+def test_a_later_changer_listing_none_of_the_pinners_tests_still_errors(
+        tmp_path: Path):
+    """The dependency alone retires nothing: 028 is built after 027 and so
+    lands on top of 027's pin, and its spec says nothing about that test. The
+    break is as undeclared as it was without the dependency."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["tests/test_027_topic.py"],
+                       asserts=["docs/aide/artifact.json"]),
+        28: _spec_text(28, may=["docs/aide/artifact.json",
+                                "tests/test_028_topic.py"],
+                       deps="Item 027 lands first."),
+    })
+    findings, _ = _findings(repo)
+    assert any(f.kind == "changes-pinned-state" and f.items == (28, 27)
+               for f in findings)
+
+
+def test_listing_the_pinners_test_without_a_dependency_still_errors(
+        tmp_path: Path):
+    """The retirement needs the ordering too: with no declared dependency, 028
+    may be built before 027 writes the test it lists, so nothing says which
+    side lands first — the undeclared ordering this check exists to find."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["tests/test_027_topic.py"],
+                       asserts=["docs/aide/artifact.json"]),
+        28: _spec_text(28, may=["docs/aide/artifact.json",
+                                "tests/test_027_topic.py"]),
+    })
+    findings, _ = _findings(repo)
+    assert any(f.kind == "changes-pinned-state" and f.items == (28, 27)
+               for f in findings)
+
+
+def test_sharing_a_non_test_path_with_the_pinner_retires_no_pin(tmp_path: Path):
+    """Only a test file the pinner owns retires its pin. A second writer on one
+    of the pinner's source files is a May change overlap, and the pin it breaks
+    is still standing."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["src/gen.py", "tests/test_027_topic.py"],
+                       asserts=["docs/aide/artifact.json"]),
+        28: _spec_text(28, may=["docs/aide/artifact.json", "src/gen.py"],
+                       deps="Item 027 lands first."),
+    })
+    findings, _ = _findings(repo)
+    assert any(f.kind == "changes-pinned-state" and f.items == (28, 27)
+               for f in findings)
+
+
+def test_a_test_file_named_for_the_pinner_but_not_its_write_retires_nothing(
+        tmp_path: Path):
+    """The name alone is not ownership: 028 lists a `test_027_` file 027 never
+    writes, so no test of 027's is retired and the pin still breaks."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["tests/test_027_topic.py"],
+                       asserts=["docs/aide/artifact.json"]),
+        28: _spec_text(28, may=["docs/aide/artifact.json",
+                                "tests/test_027_other.py"],
+                       deps="Item 027 lands first."),
+    })
+    findings, _ = _findings(repo)
+    assert any(f.kind == "changes-pinned-state" and f.items == (28, 27)
+               for f in findings)
+
+
+def test_the_pinned_state_message_names_the_retirement_remedy(tmp_path: Path):
+    """The prescribed shape has to be reachable from the error text: the
+    fourth way out names the dependency and the pinner's test file under the
+    changer's May change, and the section that prescribes it."""
+    repo = _make_repo(tmp_path, {
+        27: _spec_text(27, may=["src/cli.py"]),
+        28: _spec_text(28, asserts=["src/cli.py"]),
+    })
+    findings, _ = _findings(repo)
+    hit = next(f for f in findings if f.kind == "changes-pinned-state")
+    assert "to retire its pin" in hit.message
+    assert "test_028_" in hit.message and "May change" in hit.message
+    assert "item 028's own May change lists" in hit.message
+    assert "§1 → items" in hit.message
+
+
 def test_a_mutual_dependency_reports_the_cycle_without_hanging(tmp_path: Path):
     """The exemption walks the same edges the cycle check condemns, so it must
     survive a graph that has one — deriving the ordering must not hang on the

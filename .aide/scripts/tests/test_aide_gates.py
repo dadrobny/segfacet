@@ -528,6 +528,9 @@ def test_a_queue_branch_does_not_make_an_item_unclaimable(tmp_path: Path, capsys
 def test_a_real_claim_branch_still_marks_its_item_claimed(tmp_path: Path, capsys):
     repo = _repo(tmp_path, "| G | 999 | ⏳ Awaiting | — |")
     _run(["git", "switch", "-c", "aide/027-alpha"], repo)
+    # As `claim` leaves it: a claim branch with no recorded base is refused
+    # as a place to claim from (issue #433), which is not this test's point.
+    aide._record_branch_base(repo, "aide/027-alpha", "main")
     assert aide.main(["--repo", str(repo), "claim", "--dry-run"]) == 0
     out = capsys.readouterr().out
     assert "item 028" in out and "item 027" not in out

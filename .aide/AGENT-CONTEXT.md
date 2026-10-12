@@ -62,21 +62,22 @@ from the *written* document the last one produced, and a session still holding
 the conversation that drafted it reproduces those assumptions instead of reading
 the artefact.
 
-## Root documents go through their entry point — §5
+## Root documents are authored through their entry point — §5
 
 `vision.md` and `roadmap.md` are authored via the loop's create-vision /
 create-roadmap entry points, which carry the safeguards a free-hand file write
-skips. **Do not write a root document directly, however well the template shape
-is known.** Authoring them is interactive whatever `loop.clarify` says: ask
-until the mandatory sections are grounded in the human's answers, and present
-the result as a draft. A wrong assumption at the root propagates into every
-queue and item derived from it.
+skips. **Do not author a root document directly, however well the template
+shape is known; an agreed amendment is applied in the owner's session.**
+Authoring them is interactive whatever `loop.clarify` says: ask until the
+mandatory sections are grounded in the human's answers, and present the result
+as a draft. A wrong assumption at the root propagates into every queue and item
+derived from it.
 
 ## Mechanical actions go through the CLI — §2, §4, [`README.md`](README.md)
 
 ```
 python .aide/scripts/aide.py check | status | env | sync | claim | scope
-    | test | merge | gc | progress set/accept/amend/retract/reword/reopen
+    | test | merge | gc | progress set/accept/amend/retract/reword/reopen/rollup
     | gate list/approve/decline | insights add/list/tick/archive/resolve
     | queue start/tidy/restack/gate/pr/ready/discard | ledger abandon/report
 ```

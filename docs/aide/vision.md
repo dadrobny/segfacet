@@ -1,13 +1,20 @@
 <!-- aide-template: vision 2 -->
 # FACET — Project Vision
 
-> **Status:** v4 (draft 2026-09-16) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-16
+> **Status:** v4.1 (2026-10-09) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-16
 > **Posture:** prototype
 > Step 1 of the AIDE loop · the root document: [`roadmap.md`](roadmap.md),
 > [`progress.md`](progress.md), every queue and every work item derive from this.
 > Its guiding principles, out-of-scope list and success criteria are the mandatory
 > core the validator checks implementations against.
 
+> **Revision note (v4.1, 2026-10-09).** Two owner decisions moved here from the
+> roadmap Backlog, which now holds ideas only: the normalisation rule becomes a
+> guiding principle (insight 2026-08-12-3c07; ground truth may still calibrate
+> thresholds and build references, never normalise a feature), and pathology
+> differentiation as a FACET-authored rule joins §11 (insight 2026-08-27-3ee5).
+> Nothing else changes.
+>
 > **Revision note (v4).** v3's §6 carried a numbered eight-item list as the
 > interim record of the failure-mode catalogue. Stage 30's sign-off (item 150,
 > 2026-09-15) made `segfacet.failure_modes.SPECIFICATION` the catalogue — ids
@@ -81,6 +88,16 @@ general and deterministic.
 - **Reference-grounded.** Expected feature distributions come from trusted
   ground truth (VerSe), stratified by the variation factors, rather than from
   hand-guessed constants wherever a reference can be built.
+- **Features stay computable without ground truth; normalisation is reviewed or
+  not done.** Ground truth may calibrate thresholds and build references, but a
+  feature's normalisation never draws on it — no scaling by the levels a scan
+  *should* have, a GT label count or a reference annotation — because a feature
+  must be computable on GT-free segmenter output, the setting FACET exists for,
+  even when the metric itself compares against GT. A scaling is applied only
+  when it is intrinsic to the metric (already dimensionless, or bounded with a
+  derivable full swing) or is an explicitly reviewed and recorded constant;
+  absent review, the raw value is reported. Where no reviewable global constant
+  is defensible, a vertebra is compared against its own neighbours instead.
 - **Validated on reality, not just tested.** Synthetic fixtures prove the code
   does what was meant; only real cohorts prove what was meant is right. Every
   claim is worded to say which of the two backs it, on the realism ladder of §8.
@@ -560,6 +577,12 @@ was measured on.
 - **A supervised abnormality classifier from day one, or any deep
   classification head** — the classification arm is a classical, feature-based
   extension layered on the rules (Use Case B), not an initial deliverable.
+- **Pathology differentiation as a rule FACET writes on its own** — for
+  example separate normal and scoliotic deformity envelopes. FACET accommodates
+  explicitly handled abnormalities (scoliosis within the approved envelope,
+  success criterion 5); telling pathologies apart is the label-driven extension
+  of Use Case B, so such envelopes need human-provided labels before any item
+  builds them.
 - **Non-spine anatomy** and non-vertebra structures.
 - **Real-time or clinical-decision use** — a research tool, not a certified
   device.

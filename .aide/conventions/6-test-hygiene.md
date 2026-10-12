@@ -83,7 +83,9 @@ entire loop, indefinitely.
   recorded, never exempted: no test name is excused for looking like a
   review's. A blocking finding fixed with no test, because it is about no
   behaviour (§9), still gets its bullet, written by the role that fixed it
-  in the same commit as the fix and ending with why it has no test.
+  in the same commit as the fix and ending with why it has no test. An
+  owner's reopen reason is recorded the same way, as a blocking finding
+  (§9): its bullet's finding quotes the reason.
 - **An item's tests live in `test_NNN_<topic>.py` under `tests_dir`, NNN
   its item number, unless the project has a reason to diverge.** The file
   name is what says whose criteria a test covers once a later item edits the
@@ -224,6 +226,9 @@ silence as partial throughout — not only on the pin.
   blocking finding with no test gets a bullet too since issue #417: the
   validation after its fix round looks there for the test or the reason
   there is none (§9), so a bullet-less finding would read as untested.
+  An owner's reopen reason takes the same bullet since issue #446, rather
+  than a heading of its own, so the one section stays the one place both
+  validation and `aide scope` read.
 - **Why the test file names its item.** On engine 1.59.2 a consumer's item
   renamed a test in an earlier item's file, as its spec prescribed; `aide
   scope` read the renamed `ac20` against the reconciling item's spec, which

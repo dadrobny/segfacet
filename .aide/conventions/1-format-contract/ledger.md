@@ -9,14 +9,14 @@ project's own ratios and their trend. **The rows are read back through
 `aide ledger report`**, which draws no conclusion: what the readings mean is
 the reader's.
 
-- **One row per item, appended where the ✅ is.** `aide merge` adds the row in
-  the commit that ticks the item, so a row exists exactly for an item the
-  engine landed; an item stopped at the validation-round cap never reaches a
-  merge and takes its row from `aide ledger abandon` instead. One item, one
-  row, whatever it took to get there — a re-dispatched builder, a second
-  validator and a third round all land in the same row. An item `aide progress
-  reopen` sends back is worked again, and its next merge appends a second
-  row. *(aide merge, ledger abandon)*
+- **One row per run of an item, appended where the ✅ is.** `aide merge` adds
+  the row in the commit that ticks the item, so a row exists exactly for an
+  item the engine landed; an item stopped at the validation-round cap never
+  reaches a merge and takes its row from `aide ledger abandon` instead. One
+  run, one row, whatever it took to get there — a re-dispatched builder, a
+  second validator and a third round all land in the same row. An item `aide
+  progress reopen` sends back starts a new run (§9), and its next merge
+  appends a second row. *(aide merge, ledger abandon)*
 - **The engine puts the file there, from `.aide/templates/ledger.md`.** The
   first row to be written creates the document as a byte-exact copy of that
   template; an existing file is only ever appended to, and `aide check` never
@@ -50,9 +50,11 @@ the reader's.
 - **The three finding counts are in-scope findings only, and `-` says no
   review ran.** A finding outside the running item is carried by its
   `insights.md` line rather than by this row (§9), so it is never counted
-  here. And where the writing verb runs under `loop.review = "off"` and the
-  caller passed no counts, it writes `-` in the Blocking, Minor and Nit cells
-  instead of leaving them empty — the engine reads that setting from
+  here, and nor is a finding a reopening carries, which is no review
+  finding even where it is held to the traced-test rule (§9). And where
+  the writing verb runs under `loop.review = "off"` and the caller passed
+  no counts, it writes `-` in the Blocking, Minor and Nit cells instead of
+  leaving them empty — the engine reads that setting from
   `aide.toml`, so no caller supplies it — which leaves a blank in those three
   meaning one thing only: a count that should have been passed and was not.
   *(aide merge, ledger abandon, check)*
@@ -75,8 +77,12 @@ the reader's.
   test-heavy by design, and an
   insight-derived fix (§1 → the maintenance queue) is small by design, so a
   reading of tests per criterion treats each by kind rather than pooling the
-  three. The engine derives it, so the vocabulary is closed. *(aide merge,
-  ledger abandon)*
+  three. **An item is `maintenance` only where a ticked `defect`, `gap` or
+  `automation` entry carries the maintenance queue's own tick naming it**
+  (§1 → `insights-maintenance-queue.md`) — a pointer that opens with it; an
+  item a decline or a decayed premise cites, or a gloss after the tick
+  mentions, stays `normal`. The engine derives it, so the vocabulary is
+  closed. *(aide merge, ledger abandon)*
 - **Two rows appended at one tail are a union: keep both.** Every pair of
   branches that each landed an item conflicts here, exactly as the inbox does
   (§1 → `insights.md`), and the resolution is always the same — both rows
@@ -86,14 +92,14 @@ the reader's.
 
 #### Rationale
 
-- **Why a row per item and not an event per verdict.** A validator FAIL, a
+- **Why a row per run and not an event per verdict.** A validator FAIL, a
   re-dispatched builder and a triaged finding are all facts, and recording
   each as its own row was considered and dropped (2026-09-17): an item with
   two rounds and three findings becomes six rows, so the file grows per retry
   rather than per item and the reading a queue boundary wants — rounds per
   item, tests per criterion — has to be re-aggregated before it can be read.
-  One row per item is also the one shape a verb that already runs once per
-  item can write without any new bookkeeping.
+  One row per run is also the one shape a verb that already runs once per
+  run can write without any new bookkeeping.
 - **Why a reopened item takes a second row.** The first row records a merge
   that happened, with what it cost, and a row is never edited; the reopen
   exists because that merge was not the end of the item (issue #271), so the
@@ -135,6 +141,24 @@ the reader's.
   reading the cell exists for, was inflated for exactly the items that
   reconcile. The cell and `aide scope` read one split, so the test a notice
   calls reconciled is the test the row leaves out.
+- **Why only the maintenance tick makes an item `maintenance`.** Until
+  2.47.1 any item number in a ticked entry's pointer or trail counted, so an
+  owner's decline citing what superseded the entry — "declined: superseded by
+  item 12", natural prose — silently put item 12 into the maintenance share
+  `aide ledger report` draws (issue #460). A prose rule that a decline's
+  reason name no item covered one of the readings and nothing enforced it;
+  reading the tick's own form covers all of them. A decayed premise's "fixed
+  by item 121" is left out on purpose: the item did fix the entry, but it was
+  planned as something else, at its own queue's size, and `kind` is there so
+  that a small-by-design fix is not pooled with the rest. The trail is still
+  read, because it is where `tick` puts an entry's second routing — a declined
+  entry the owner later says to queue — and where `resolve` keeps the other
+  side's tick. **Why the tick may carry a gloss.** A pointer is "where it
+  landed", free-form (§1 → `insights.md`), and one consumer's queue authors
+  annotated about one tick in eleven — `item NNN (what it fixed)`, `item NNN:
+  …` — so a form demanding item references alone misread real ticks as
+  `normal`. Reading the opening references, and only them, keeps those ticks
+  and still never reads a pointer that opens with prose.
 - **Why `-` rather than a fourth reading of a blank.** With the marker
   absent, a project that never switched review on and a run whose reviewer's
   findings were dropped on the floor wrote the identical row — and they are

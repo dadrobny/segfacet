@@ -31,7 +31,7 @@ first if you're on Opus.
 | 1 | **Author the item spec** | `spec-author` | writes `docs/aide/items/NNN-*.md` (Description, atomic AC, steps, testing strategy, deps, decisions), commits. **No code, no tests.** Skip only if the spec file already exists and is complete — and its Assumptions pin no dependency's interface; if they do, it re-checks them (step 1). |
 | 2 | **Write tests** for the item | `test-writer` | reads spec + AC + existing test style, writes one test per AC plus the cases the Testing Strategy names, commits. **No production code, no pytest.** |
 | 3 | **Implement** production code | `builder` (`builder-escalation` once escalated, step 6) | checkout branch, implement `source_dir` per every AC, record decisions, set progress in-progress (`aide progress set NNN in-progress`), commit. **No tests, no pytest.** |
-| 4 | **Review** the diff | `reviewer` | **only when `aide.toml` sets `loop.review = "background"`** (default `"off"`). Dispatched **once per item**, in the background, the moment builder first returns, concurrent with the first step 5 over the same branch — never again after a fix round. Reads the diff adversarially and reports findings; writes nothing, merges nothing. |
+| 4 | **Review** the diff | `reviewer` | **only when `aide.toml` sets `loop.review = "background"`** (default `"off"`). Dispatched **once per run** (§9), in the background, the moment builder first returns, concurrent with the first step 5 over the same branch — never again after a fix round. Reads the diff adversarially and reports findings; writes nothing, merges nothing. |
 | 5 | **Validate** (+ merge, unless held) | `validator` | a **different** agent: runs pytest, checks AC coverage + scope + vision fit, then on PASS reconciles via the CLI (`aide progress set NNN in-review`) and merges (`aide merge NNN` — `merge` writes the ✅ itself once the merge lands). **Under `loop.review = "background"` the merge is held**: it stops after the reconcile, reports PASS (merge held), and *you* merge once the review is discharged. **No new tests.** |
 
 **Spec authoring, testing, implementation, and validation are always separate
@@ -47,7 +47,7 @@ always has; `"background"` runs both, and **the merge waits for both** — a
 review whose findings arrive after the merge gates nothing. Under
 `"background"` the validator stops at PASS with the merge held, and you run
 `aide merge NNN` yourself once its findings are triaged. The reviewer reads
-the diff as first built, once; its findings are triaged at the first
+the diff as the run first built it, once per run; its findings are triaged at the first
 verdict, PASS or FAIL, and a fix round is followed by a fresh validator
 alone, handed the blocking findings fixed on the branch to check each left a
 traced test or said why not — never to judge the fix. Scope and vision fit
@@ -58,43 +58,77 @@ allow-list-friendly shape delivered by `.claude/rules/aide-command-hygiene.md`
 and stated canonically in `.aide/conventions.md` §3. A `PreToolUse` hook
 (`.claude/hooks/command_hygiene_guard.py`) enforces the mechanical ones.
 
-## An item a CI fix round reopened
+## A reopened item
 
-`/aide-run-queue` → *CI fix round* reopens an item whose change broke the
-queue PR's CI, and claims it like any other. You can tell one: `aide status`
-prints `reopened: item NNN (…) — CI …` for it, not completed again. Its spec
-and tests are already merged, so the steps run with four differences:
+`aide progress reopen` sends a ✅ item back to 📋 with a reason, and the queue
+offers it like any other; `aide status` prints `reopened: item NNN (…) — <the
+reason>` for it. Its owner reopens one when a gap turns up after the merge;
+`/aide-run-queue` → *CI fix round* reopens one whose change broke the queue
+PR's CI, with a reason starting `CI `. Either way its spec and tests are
+already merged, and its **findings** are what the reopening found: the
+owner's reason, or the CI failures the orchestrator triaged. So the steps run
+with four differences:
 
 - **Step 1** (`spec-author`) returns the existing spec, as for any item
   whose spec exists.
-- **Step 2** (`test-writer`) **is skipped** unless a finding is in a test.
-  Then brief a fresh `test-writer` with that finding in place of step 2's
-  brief — fix the named test, add none — and the builder still follows for
-  any finding in production code.
+- **Step 2** (`test-writer`) **is skipped** unless a finding is in a test or
+  is an owner's reason about behaviour. For a CI finding in a test, brief a
+  fresh `test-writer` with that finding in place of step 2's brief — fix the
+  named test, add none — and the builder still follows for any finding in
+  production code. An owner's reason is dispatched as the last bullet says.
 - **Step 3's brief — the `builder`'s — carries the findings**, as a
   blocking review finding is carried in step 6. Add to it:
-  > CI findings from the queue's PR, traced to this item: <each: the check,
-  > the failing test or step, the log lines that show it>. Fix them within
-  > the spec's authorised paths.
+  > This item was reopened, and these findings are why: <each: what was
+  > found, and for a CI one the check, the failing test or step and the log
+  > lines that show it>. Fix them within the spec's authorised paths.
 
   They come from the orchestrator's triage, or, in a fresh session, from the
-  item's `reopened:` reason. Carried like one, a CI finding is still not a
-  review finding: it asks for no traced test and no `## Review findings`
-  bullet, and adds nothing to step 5's blocking-findings paragraph, which
-  lists the item's earlier review findings as usual — the failing test or
-  step a CI finding names is its check, and the next CI run re-runs that
-  (§9).
+  item's `reopened:` reason. A reason that names nothing to change — a
+  check that was never run, say — or asks for behaviour the spec does not
+  specify is not a build: stop and ask the user.
+- **An owner's reason leaves a test traced to it, or says why it has none**
+  (§9), as a blocking review finding does: the spec's checks passed while
+  its gap was there, so they cannot be what measures the fix. It is
+  blocking because its owner reopened the item for it — do not re-rank it —
+  and you decide only whether it is about behaviour, as *Blocking, in
+  scope* (step 6) decides. If it is, a fresh `test-writer` follows the
+  builder before step 5, briefed with the reason to write the test that
+  answers it and record its `## Review findings` bullet, the finding
+  quoting the reason; for a reason about a test, that `test-writer` is the
+  whole test-side dispatch, and the test it fixes or adds is the one traced to it —
+  the builder still follows for any part of it in production code. If
+  it is not — a document or a name — add to the builder's brief that it
+  records the bullet, ending with why there is no test, in the commit with
+  the fix. Collect the label from the return: step 5's blocking-findings
+  paragraph names it from the run's first validator on. It is still not a
+  review finding, so no `--findings` total counts it. A CI finding needs
+  none of this: the failing test or step it names is its check, and the
+  next CI run re-runs that (§9).
 
-- **No `reviewer` is spawned**, whatever `loop.review` says: the item was
-  reviewed when it was first built, and a CI fix is a fix round (§9). Under
-  `"background"` the merge is still held and yours to run, with every
-  `--findings` count 0 — no review finding was triaged in this pass. Step
-  5's brief keeps its merge-held paragraph and drops the sentence about a
-  reviewer reading the diff, and wherever step 6 says to wait for the
-  reviewer there is none to wait for.
+Steps 4–6 run as for any item: a reopened item is a new run (§9), so under
+`"background"` its `reviewer` reads the diff this run builds, beside its first
+validator, and its findings are triaged and counted like any run's. Its
+rounds count against this run's own `loop.validation_rounds`, apart from the
+CI round the queue counts for a CI reopening.
 
-Steps 5–6 run as for any item, and their rounds count against this item's
-own `loop.validation_rounds`, apart from the CI round the queue counts.
+## An item awaiting its evidence gate
+
+A 🔍 item whose last validator reported **PASS (awaiting gate-<hex>)** (step 6)
+resumes once `python .aide/scripts/aide.py gate list` shows that gate's
+verdict:
+
+- **✅ Approved** → skip steps 1–4 and dispatch a fresh `validator` (step 5)
+  with the round number its last PASS had: nothing was fixed, so the check is
+  not a round. It re-runs every check, finds the AC covered and merges —
+  under `loop.review = "background"` it stops at PASS (merge held) as usual,
+  and you merge with the totals you kept, or without `--findings` in a
+  session that no longer has them (the merge says so).
+- **❌ Declined** → a FAIL of that AC: a fresh builder with the person's
+  decision note, then a fresh `validator`, counted against the cap as any
+  round. The rebuilt item needs the check asked again, so brief a fresh
+  `spec-author` before that validator to re-ask it as a new Gate cell and
+  re-point the AC's annotation at the new ID (§1 → human gates).
+- **⏳ still** → nothing to do; report it and stop.
 
 ## Steps
 
@@ -133,7 +167,9 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
    > (`docs/aide/items/NNN-*.md`) is committed. Read it for all Acceptance
    > Criteria, the Testing Strategy's named cases, and Decisions; read `tests/`
    > for style. Write one test per AC (named for it) and one per named case
-   > (named for its label) — no others. Commit to the branch.
+   > (named for its label) — no others. An AC whose line carries an
+   > *(evidence: gate-…)* annotation gets no test: list it as gate-covered.
+   > Commit to the branch.
    > **Do NOT touch `src/` and do NOT run pytest.**
    > Return: bullet list of AC / case → test-name mappings.
 
@@ -169,7 +205,7 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
    arbitrable by this loop, so stop and ask the user.
 
 4. **Review (only when `loop.review = "background"`) → spawn a `reviewer` in
-   the background, once per item**, immediately after builder first returns
+   the background, once per run**, immediately after builder first returns
    **implemented** and before you dispatch step 5, so it reads while the
    validator's suite runs. Never re-spawn it after a fix round (step 6).
    Brief:
@@ -228,23 +264,25 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
    > report PASS (merge held)** — do NOT run `aide merge`. The orchestrator
    > merges once the review findings are discharged.
 
-   **When a fix round on this branch has carried blocking review findings,
-   add to that brief** — every one fixed so far, not only the last round's,
-   so a trace a red suite kept a validator from reaching is still checked —
-   less any whose code a later round removed or rewrote, together with the
-   test that measured it: that finding stays counted, and is checked no
-   more. A session that resumes mid-cycle takes them from the spec's
-   `## Review findings` bullets ranked blocking; re-checking a trace costs a
-   read:
-   > This branch fixed blocking review findings: <each: its label in the
-   > spec's `## Review findings`, and the finding in one line>. Check each
-   > as your spec's check 7 says: its bullet is there, and names a test
-   > traced to it or why it has none. Do not judge the fixes themselves.
+   **When a fix round in this run has carried blocking review findings, or
+   the run is an owner's reopen (*A reopened item*), add to that brief** —
+   the owner's reason from the first dispatch on, and every review finding
+   fixed so far, not only the last round's, so a trace a red suite kept a
+   validator from reaching is still checked — less any whose code a later
+   round removed or rewrote, together with the test that measured it: that
+   finding stays counted, and is checked no more. A session that resumes
+   mid-cycle takes them from the spec's `## Review findings` bullets ranked
+   blocking; re-checking a trace costs a read:
+   > This branch fixed blocking findings — review findings, or the reason
+   > its owner reopened it: <each: its label in the spec's
+   > `## Review findings`, and the finding in one line>. Check each as your
+   > spec's check 7 says: its bullet is there, and names a test traced to it
+   > or why it has none. Do not judge the fixes themselves.
 
 6. **Build/test ↔ validate cycle (orchestrator).** A **round** is one build
-   or test fix followed by a fresh `validator` — never a fresh `reviewer`: the
-   item is reviewed once, as first built (§9). Read `loop.validation_rounds`
-   from `aide.toml` (5 when unset): it is the ceiling on rounds per item. Read
+   or test fix followed by a fresh `validator` — never a fresh `reviewer`: a
+   run is reviewed once, as it first built the diff (§9). Read `loop.validation_rounds`
+   from `aide.toml` (5 when unset): it is the ceiling on rounds per run. Read
    the verdict:
    - **Any FAIL of the first validator, `loop.review = "background"`** →
      before dispatching the fix, wait for the reviewer you spawned in step 4
@@ -302,12 +340,22 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
      fix. Do not re-dispatch a validator into the same wait — report the
      command, elapsed time and log tail to the user and stop, like a blocked
      item. Under `loop.review = "background"`, wait for the reviewer first,
-     if step 4 spawned one, and put its findings in that report: they are the item's one review,
+     if step 4 spawned one, and put its findings in that report: they are the run's one review,
      still untriaged, and whoever resumes the item triages them. The validator has already stopped the run; what hung is for a
      person to look at. For a merge, pass on the log tail, which holds
      `aide merge`'s own word on the base, the claim branch and what to
      re-run — and if the validator reports the merge **still running**
      (`stop` exited 93), say that first.
+   - **PASS (awaiting gate-<hex>)** → every check held, and an AC's evidence
+     is a person's check that has not been approved yet (§9). The item is 🔍
+     and unmerged — `aide merge` refuses it until the gate is ✅ — and that is
+     not a round. Under `loop.review = "background"` triage the first
+     validator's review as *PASS (merge held)* below says, and dispatch any
+     fix first: the person checks what will land. Then tell the user which
+     gate to check, for which AC, on which claim branch — they check the
+     built item there and run `python .aide/scripts/aide.py gate approve
+     <ID>` (or `decline`) on that branch — and stop for this item. See *An
+     item awaiting its evidence gate* above `## Steps` for what follows.
    - **PASS**, `loop.review = "off"` → the validator has reconciled progress and
      merged. Done. A PASS may name inherited failures the merge admitted; the
      merge has already put them in `insights.md`.
@@ -360,7 +408,7 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
        passed — after a fix round, on the fresh validator's PASS alone, with
        no second review to wait for — so merge deterministically yourself:
        ```
-       python .claude/scripts/await_run.py start merge NNN --rounds <rounds this item took> \
+       python .claude/scripts/await_run.py start merge NNN --rounds <rounds this run took> \
            --findings blocking=A,minor=B,nit=C
        python .claude/scripts/await_run.py wait <label>
        ```
@@ -376,8 +424,9 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
        `stop` that exits 93 means the merge is still running. It honours `git.mode` and writes the ✅ itself; `--rounds` is the
        count you kept for the cap and `--findings` the totals you kept while
        triaging, and the two are what put those cells in the ledger row
-       (`merge -h`). A, B and C are in-scope findings only: one you sent to
-       `insights.md` is carried by that line and by no cell here. Substitute
+       (`merge -h`). A, B and C are in-scope review findings only: one you
+       sent to `insights.md` is carried by that line and by no cell here,
+       and an owner's reopen reason is no review finding (§9). Substitute
        them with your counts — a command left with its placeholders in it is
        not a command. **A non-zero exit means
        nothing was pushed** — under `auto-merge` it re-runs the full suite and
@@ -402,6 +451,8 @@ own `loop.validation_rounds`, apart from the CI round the queue counts.
 - The item needs a **major structural change** or an edit to a framework/process
   file (`CLAUDE.md`, `aide.toml`, `.aide/**`, `vision.md`, `roadmap.md`,
   `.claude/skills|commands|agents/**`) — needs a reviewed PR, never a direct merge.
+- A validator reports **PASS (awaiting gate-<hex>)** (step 6): an AC waits on
+  a person's check. Name the gate, the AC and the claim branch, and stop.
 - A validator hands back **INCOMPLETE** (step 6): a run hit its budget, hung,
   or died, and was stopped. Report the command, elapsed time and log tail; do
   not re-dispatch.

@@ -9,7 +9,7 @@
     - Implementation Steps            [builder]
     - Authorised paths                [builder, validator, aide scope]
     - Testing Strategy                [test-writer]
-    - Review findings (only once a review round records a finding)  [test-writer, builder, validator, aide scope]
+    - Review findings (only once a review round or a reopening records a finding)  [test-writer, builder, validator, aide scope]
     - Dependencies                    [aide claim]
     - Decisions & Trade-offs          [spec-author: Left open; builder, as it goes]
   Optional: Validation (how to observe the work beyond the tests; the
@@ -55,6 +55,10 @@ _An AC that closes one of this stage's acceptance criteria says so by
 appending `*(closes Stage 20 criterion 3)*` to the criterion line. Most ACs
 close none, and one without the annotation closes nothing; when the
 annotation is earned is conventions.md §1 → items._
+
+_An AC only a person can check may end with `*(evidence: gate-<hex>)*`, the
+ID of the gate row recording that check, and gets no test. When that is
+allowed — rarely — and what the row holds is conventions.md §1 → items._
 
 - [ ] **AC1: {{short name}}.** {{observable statement}}
 
@@ -116,12 +120,12 @@ test-writer writes the AC tests and the cases listed here, and no others
 A test of a producer's output reads that output through the producer's code
 or fixture, never a hand-built copy._
 
-## Review findings  <!-- OPTIONAL: absent until a review round records a finding -->
+## Review findings  <!-- OPTIONAL: absent until a review round or a reopening records a finding -->
 
-_One bullet per finding a review-round test answers, or per blocking
-finding fixed without a test, in the Testing Strategy's label shape —
-conventions.md §6 says who writes it, when, and how a bullet with no test
-ends. Leave the section out while there is none._
+_One bullet per finding a review-round test answers, per blocking finding
+fixed without a test, or per owner's reopen reason, in the Testing
+Strategy's label shape — conventions.md §6 says who writes it, when, and
+how a bullet with no test ends. Leave the section out while there is none._
 
 - {{label}}: {{the finding}} — {{rank}}; {{fix commit}}
 - {{label}}: {{the finding}} — blocking; {{fix commit}}; no test: {{why}}

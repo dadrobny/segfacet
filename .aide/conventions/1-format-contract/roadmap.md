@@ -1,10 +1,16 @@
 ### `roadmap.md` (the staged plan the queues are cut from)
 
 Governs `docs/aide/roadmap.md`: what it must contain and which of its stages
-may still change. It is authored and updated only through the create-roadmap
-entry point (§5); `queue-planner` and `spec-author` read it, and `aide check`
-and `aide progress reword` parse it. `.aide/templates/roadmap.md` draws its
-shape; this section names that shape and fixes what the template cannot carry.
+may still change. **It has two writers, both the owner's.** The create-roadmap
+entry point (§5) authors it, and re-stages it from a changed vision; an
+amendment the owner agrees to — a stage added, a 📋 Planned stage reworded, a
+Backlog bullet — is applied in the owner's own session instead, the feedback
+loop's included, with no need for that entry point. Both are held to the
+started-stage freeze below, and both land through the merge policy's reviewed
+PR (`.aide/README.md`). `queue-planner` and `spec-author` read it, and
+`aide check` and `aide progress reword` parse it. `.aide/templates/roadmap.md`
+draws its shape; this section names that shape and fixes what the template
+cannot carry.
 
 Mandatory (consumer in brackets):
 
@@ -15,8 +21,9 @@ Mandatory (consumer in brackets):
    its Goal, Deliverables, Dependencies and Validation / acceptance blocks.
    The acceptance bullets are the ones `progress.md` mirrors as its boxes; a
    measured outcome is a `Target:` bullet instead, and §1 → `progress.md`
-   says which is which. *(aide check, aide progress reword, create-progress,
-   queue-planner, spec-author)*
+   says which is which. The maintenance stage (below) is the one whose
+   Deliverables list nothing and which has no acceptance bullets. *(aide
+   check, aide progress reword, create-progress, queue-planner, spec-author)*
 
 **The coverage table is complete both ways.** Every G-code in `vision.md` has
 a row — an objective withdrawn from scope too, for as long as the vision lists
@@ -41,7 +48,9 @@ acceptance criterion nothing has yet been claimed against is reworded with
 **New or changed scope enters as a new stage, appended after the last.** Work a
 started stage turns out to need arrives the same way, or through the queue as
 §1 → `progress.md` routes a `❌ Not met` target — never as a bullet added to
-the stage that has started.
+the stage that has started. The maintenance stage (below) is the one
+exception, and only in `progress.md`: its bullets are the maintenance
+queues' items, added under it after it has started.
 
 **A stage's blocking Dependencies name only earlier-numbered stages.** Stages
 close in number order, so a stage waiting on a later one cannot close when its
@@ -68,17 +77,99 @@ waits on.
 re-planned, not queued.** While it is 📋 Planned, its Dependencies are
 reworded here to drop the withdrawn stage, or name what replaces it; started,
 it is frozen, so it is withdrawn too, or what it still needs enters as a new
-stage. Either is the owner's decision, made through the create-roadmap entry
-point (§5); the queue planner hands back rather than queue the dependent
-stage.
+stage. Either is the owner's decision; the queue planner hands back rather
+than queue the dependent stage.
 
 `aide check` warns on a stage under way — 🚧 in `progress.md`, or with a 📋
 item in an open queue — while an earlier stage its blocking Dependencies name
 is ⏸️ or withdrawn: the two states no queue ends. A 📋, 🚧 or 🔍 earlier stage
 is the ordinary wait, and is not named.
 
+**A roadmap holds at most one maintenance stage, and needs none.** It is the
+home of the maintenance queues' items (§1 → `insights-maintenance-queue.md`):
+a `## Stage N — Title` section like any other, added once by either of the
+file's two writers (the opening of this section) and frozen once started,
+which differs from a feature stage in what it carries.
+
+**The maintenance stage is the stage titled exactly `Maintenance`** — its
+heading reads `## Stage N — Maintenance`, the template's, here and in
+`progress.md` — and no other stage takes that title. Nothing else marks it:
+a stage that holds repairs under any other title is a feature stage.
+**A started stage already run as a standing maintenance stage becomes the
+maintenance stage by one retitle to `Maintenance`**, the owner's, made by
+either of the file's two writers, in its heading here and in its `progress.md` header and
+Stage summary row; it is the one edit the freeze allows a started stage's
+heading, and it changes nothing else in the stage.
+
+**A stage queue never takes the maintenance stage as its next stage.** It
+has no roadmap deliverable to queue, so the queue's author choosing the next
+stage passes over it; only a maintenance queue writes under it. A stage
+appended after it is an ordinary stage, queued in its turn.
+
+What it carries:
+
+- **Its Deliverables are the maintenance queues' items, so the roadmap lists
+  none.** Each maintenance queue adds one `progress.md` bullet per item under
+  the stage's section. It is the one stage whose `progress.md` bullets keep
+  growing after it has started; its text here does not.
+- **It has no blocking Dependencies, and no stage's blocking slot names it.**
+  A stage that reopens at every batch would never meet a dependency on it.
+- **No Objective row names it.** Maintenance repairs shipped work and
+  delivers no objective, and a row naming the stage would flip to 🚧 at every
+  reopen.
+- **It has no acceptance criteria of its own.** Each maintenance item's spec
+  carries its own. With no box at stage level nothing goes stale between
+  batches, and `aide check --queue` never reports a queue-end need for the
+  stage: a stage with no unticked box has none.
+- **It reopens and closes by rollup.** It reads 🚧 while a maintenance
+  queue's items are open and ✅ once they ship; the batch that adds its
+  bullets rolls it up with its verb (§1 → `insights-maintenance-queue.md`).
+
+A maintenance stage written earlier with acceptance criteria of its own, and
+retitled so, keeps them, since it is frozen: its boxes record its first close, and nothing
+re-attests them per batch.
+
+`aide check` warns on a second stage titled `Maintenance`, on a coverage row
+or `progress.md` Objective row naming the maintenance stage, on a stage's
+blocking slot naming it and on its own blocking slot naming any stage, and
+on acceptance bullets under it while `progress.md` shows it at nothing but
+📋 Planned — a started one may be one retitled with its criteria, so it is
+never named.
+
+**An optional `# Backlog` section, after the last stage, holds scope not yet
+ready to plan.** It is not a stage: its heading is `# Backlog`, never a
+`## Stage N`, so it ends the last stage's section and no reader takes a
+bullet of it for that stage's. It is edited as the rest of this file is,
+by either of its two writers, and the started-stage freeze does not reach it.
+
+- **Ideas only.** A bullet is a piece of scope in a sentence or two — never a
+  defect, a status icon, a trail, a date, an owner or an annotation such as
+  `→ Stage N`. A defect stays in the inbox (§1 → `insights-triage.md`); a
+  policy belongs in `vision.md`'s guiding principles; a decision about a stage belongs in that
+  stage.
+- **A bullet that came from the inbox cites its entry as `insight <ID>`**,
+  which `aide check` resolves like any citation (§1 → `insights.md`). Only a
+  `gap` entry arrives this way, moved by the owner.
+- **The queue planner never queues from it.** A queue is cut from stages; a
+  Backlog bullet reaches a queue only once it is a stage.
+- **A bullet leaves in one of two ways**: promoted into a new stage appended
+  after the last, as any new scope enters (above), or deleted by the owner.
+  Promotion deletes the bullet in the same edit, so nothing reads in two
+  places.
+
 #### Rationale
 
+- **Why two writers, and one rule over both.** This section once said the
+  file was authored and updated only through the create-roadmap entry point,
+  while the feedback loop, since 2.41.0 (issues #392, #359), applied an
+  agreed amendment in the session and told the user not to rebuild a
+  document to amend it; the owner edits added in 2.44.0 and 2.45.0 — the
+  maintenance stage, its retitle, a Backlog move — were routed through the
+  entry point and so inherited the contradiction (issue #461). The entry
+  point exists for what an amendment does not need: staging a plan from a
+  vision, asking until each stage is grounded. A one-stage edit the owner has
+  already agreed to needs none of that. What protects the plan is the freeze
+  and the reviewed PR, so those bind both routes alike.
 - **Why a started stage is frozen.** Queues were cut from it, items were
   specified against its deliverables, and `progress.md` mirrors its criteria;
   editing it re-points all of that at a plan nobody built to, and a shipped
@@ -167,3 +258,81 @@ is the ordinary wait, and is not named.
   stages and puts ordering without blocking in a sentence after it
   (`None. Independent of Stage 17 — may be queued in either order.`); reading
   the whole block would flag exactly the phrasing the template recommends.
+- **Why one standing maintenance stage.** Before issue #454 the maintenance
+  queue had no stage to put its bullets under, and two consumers improvised
+  opposite answers. One ran a single standing stage through six closes with
+  no `aide check` warning. The other created a new stage per maintenance
+  batch, and each needed an owner amendment to the roadmap — the
+  planner cannot write a stage — and was mapped to objectives it did not
+  deliver. A stage per batch is the rejected alternative for both reasons,
+  and for inflating the plan. So is a `## Maintenance` section of
+  `progress.md` that is not a stage: rollup, `set`, `claim`, `merge`,
+  `check`, `status`, gate reach and the ledger's stage cell all key on stage
+  sections, so it would be a large engine change for the same behaviour.
+- **Why an exact title identifies it, and the stage queue passes it over.**
+  The roadmap is frozen once a stage starts and the engine reads no marker
+  for it, so the title is the one thing every role reads the same way with
+  no judgement: the template writes it, and a planner comparing it decides
+  nothing. Without the pass-over, a feature stage appended after the
+  maintenance stage leaves it as the lowest unfinished stage, and a planner
+  queueing "exactly the next stage" would find no deliverable to queue
+  there.
+- **Why a retitle, and not a looser match.** A title only starting with
+  `Maintenance`, or matched by meaning, would count a project's several
+  per-batch maintenance stages as several, and would ask a planner to judge
+  a title. A consumer that already runs one standing stage under another
+  title would otherwise have to add a second one beside it and split the
+  repair history across two stages; one retitle by the owner keeps the
+  history in one place and changes nothing the freeze protects.
+- **Why the maintenance stage has no criteria.** The standing stage above
+  carried four acceptance boxes. They were attested at its first two closes
+  and never again, so from the third batch on they asserted nothing about
+  the work under them. And one repair was filed under an unrelated feature
+  stage, so as not to reopen the maintenance stage without a planned
+  validation. Criteria on the item, where they are checked when the item is
+  built, remove both: nothing at stage level to go stale, and no queue-end
+  item to plan for.
+- **Why no Objective row and no dependency.** Both would read the stage's
+  status, and its status moves at every batch. An Objective row would report
+  a delivered objective as 🚧 whenever a repair is open; a blocking
+  dependency on it would be met only between batches, by accident.
+- **Why the engine recognises the stage, and only to warn.** Its behaviour
+  needs nothing new: a stage section with no acceptance box raises no
+  queue-end need, its rollup is any stage's, and the ledger's `maintenance`
+  kind comes from the insight tick. Issue #454 left the prose rules above
+  unchecked, since a warning would need the engine to tell the stage apart,
+  until drift was seen. The exact title it fixed is that key, so issue #459
+  turned the rules into warnings rather than wait. A warning, for the
+  forward-dependency reason: a started stage is frozen, and the fix is the
+  owner's. The blocking slot is the one #282 reads, so an ordering sentence
+  after `None.` names the stage freely. Criteria are named only on a stage
+  not yet started: a started one may be one retitled with its criteria,
+  which keeps them, and nothing in the file tells that one from a stage
+  given criteria by mistake.
+- **Why a stage written earlier keeps its criteria.** A started stage is
+  frozen, and its ticked boxes are attestations of its first close; dropping
+  them would rewrite history, and re-attesting them per batch is the drift
+  the rule above removes.
+- **Why a Backlog, and why ruled.** Scope the owner wants recorded but is
+  not ready to plan had no home but a stage, and a stage is planned the moment
+  it is written. One consumer invented a backlog section without rules, and
+  it drifted: a settled project-wide policy that belongs in `vision.md`'s
+  guiding principles, a vision question, and an adjudication tied to a stage
+  that has since closed all sat in it (issue #455). The rules keep it a list
+  of unplanned scope and nothing else.
+- **Why ideas only, and never a defect.** The same consumer's `Carried
+  defects` list shows what a ruleless holding list becomes for defects: of
+  nine entries ticked out of the inbox into it, three were fixed without the
+  list saying so, one was absorbed, and five were still open six weeks later
+  but invisible to `insights list --open` (§1 → `insights-triage.md`). A
+  status or a `→ Stage N` annotation is the same drift in another form: it is
+  a second record of what `progress.md` records.
+- **Why not a tracker.** The framework is deliberately not a
+  project-management or issue-tracking product, so the section carries no
+  status, order, assignment or burndown: it is unplanned scope, kept in the
+  document that owns scope. A forge's tracker is the alternative, and a
+  project with no forge (§4) has none.
+- **Why the `# Backlog` heading needs no engine change.** Every reader of a
+  stage section ends it at the next `#` or `##` heading, so the last stage's
+  Validation / acceptance block never takes in a Backlog bullet; one consumer
+  carried such a section for two months with no `aide check` warning.

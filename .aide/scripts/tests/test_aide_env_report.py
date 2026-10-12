@@ -401,3 +401,60 @@ def test_test_names_a_runner_file_with_no_execute_bit(tmp_path: Path, capsys):
     err = capsys.readouterr().err
     assert "aide test: the test command 'tools/run' is not an executable file" in err
     assert "Traceback" not in err
+
+
+def test_test_spawns_the_program_resolve_tool_found(tmp_path: Path, capsys,
+                                                    monkeypatch):
+    """The suite runs the path `aide env` reports, not the bare name: on
+    Windows a list argv is searched for with `.exe` alone, so an `npm.cmd`
+    shim was a `FileNotFoundError` for a program found (issue #449)."""
+    repo = _repo(tmp_path, test_command="shimmed --flag")
+    shim = str(tmp_path / "bin" / "shimmed.cmd")
+    real_resolve = aide.resolve_tool
+    monkeypatch.setattr(aide, "resolve_tool", lambda name, root, path=None: (
+        shim if name == "shimmed" else real_resolve(name, root, path)))
+    spawned = []
+    real_run = subprocess.run
+
+    def run(args, *a, **kw):
+        if args and args[0] in (shim, "shimmed"):
+            spawned.append(list(args))
+            return subprocess.CompletedProcess(args, 0)
+        return real_run(args, *a, **kw)
+    monkeypatch.setattr(aide.subprocess, "run", run)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "test"]) == 0
+    assert spawned and spawned[0][:2] == [shim, "--flag"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a .cmd shim is Windows")
+def test_test_runs_a_cmd_shim_on_path(tmp_path: Path, capsys, monkeypatch):
+    """The reported case itself: a test command whose program is a `.cmd`
+    file found through PATHEXT, as `npm` is (issue #449)."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "shimmed-aide-449.cmd").write_text("@exit /b 0\r\n",
+                                                  encoding="utf-8")
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    repo = _repo(tmp_path, test_command="shimmed-aide-449")
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "test"]) == 0
+    assert "Traceback" not in capsys.readouterr().err
+
+
+@pytest.mark.skipif(os.name == "nt", reason="an exec format error is POSIX")
+def test_test_names_a_found_runner_that_cannot_start(tmp_path: Path, capsys):
+    """Found, executable, and not a program the kernel can start: one
+    sentence naming where it was found, where a traceback was (issue #449)."""
+    repo = _repo(tmp_path, test_command="tools/run")
+    (repo / "tools").mkdir()
+    run = repo / "tools" / "run"
+    run.write_bytes(b"\x00\x01not a program\n")
+    run.chmod(0o755)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "test"]) == 1
+    err = capsys.readouterr().err
+    assert (f"aide test: the test command 'tools/run' was found at {run} "
+            "and cannot be run (") in err
+    assert "fix [python] test_command in aide.toml" in err
+    assert "Traceback" not in err

@@ -41,6 +41,10 @@ fixture conventions only.
      a fact about live state, satisfy it the way §1 → items.md requires, and
      hand back rather than settling for a check the subject can pass while the
      claim is false.
+   - **No test for an AC whose line carries an *(evidence: gate-<hex>)*
+     annotation**: a person's check, recorded in that gate, covers it
+     (§1 → items.md), and a test the spec says cannot be written is not
+     yours to approximate.
    - Every adversarial case the **Testing Strategy names**, one test each,
      named with the case's label — and **no other**. One test per AC is the
      floor and the ceiling unless the spec names the case (`aide-test-hygiene`
@@ -57,7 +61,9 @@ fixture conventions only.
    `aide-test-hygiene` in your context says what the bullet holds. For a
    **blocking** finding about behaviour the test is owed, not optional: the
    next validator looks for a test carrying that label (§9). One about no
-   behaviour gets the bullet alone, ending with why it has no test.
+   behaviour gets the bullet alone, ending with why it has no test. The
+   reason an owner reopened the item, when you are sent it, is such a
+   blocking finding (§9): its bullet's finding quotes that reason.
 5. **Reconcile the stale tests the spec lists.** When the Testing Strategy
    names "existing tests to reconcile", update those assertions to the NEW
    specified behaviour in this same pass — leaving them fails validation on a
@@ -72,6 +78,7 @@ fixture conventions only.
    Plain single-line message, no co-author trailer, no command substitution.
 7. **Return** a bullet list mapping each AC, each named case and each
    finding to the test that covers it, plus any pre-existing tests reconciled.
+   An AC covered by its gate is listed as `gate-covered: <the gate ID>`.
 
 ## Hard limits
 

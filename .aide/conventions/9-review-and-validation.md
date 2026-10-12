@@ -5,8 +5,9 @@ roles that perform either read rather than pointing at it.
 
 **Validation and review answer different questions.** Validation asks *does
 this branch meet the Acceptance Criteria of the spec it was built from* — the
-suite has no failure the item caused, every AC has a test that measures it,
-the diff is inside the authorised paths, the Assumptions still hold. Every term is measured against
+suite has no failure the item caused, every AC has a test that measures it (or
+the approved gate it names as evidence, below), the diff is inside the
+authorised paths, the Assumptions still hold. Every term is measured against
 the item spec, the verdict is PASS/FAIL — or none, when a run outlasts its
 limit (below) — and it **gates the merge**. Review
 asks *is this code correct, and does it fit the codebase* — it reads the diff
@@ -34,6 +35,28 @@ admission of inherited failures is a PASS that names them. Under `pr`, where
 the merge runs no gate, a red suite is a FAIL. A validation whose merge is
 held for review reports its PASS with the failing tests listed, and says that
 the later merge's gate decides them.
+
+**An acceptance criterion that names a human gate as its evidence is covered
+by that gate, not by a test** (§1 → items.md), and the gate's status decides
+that one criterion and nothing else:
+
+- **✅ Approved covers it.** No test is looked for.
+- **❌ Declined fails it**, back to the builder, as an uncovered criterion
+  fails. A re-check needs the gate re-asked — a reworded Gate cell, so a new
+  ID — and the annotation re-pointed at it: only a person checks it again.
+- **Any other status is a hold, not a FAIL.** ⏳ Awaiting, or a mark the table
+  does not recognise: every other check still runs, and a validation that
+  passes them is a PASS awaiting that gate — the item goes to review and is
+  not merged. `aide merge` refuses it while the gate is not approved, so a
+  hold cannot land by accident, and once a person has approved it a fresh
+  validation runs and merges.
+- **An annotation naming no single gate fails the criterion**, back to the
+  spec's author — an ID naming no row, or an annotation that is not one
+  well-formed ID: there is no check to wait for.
+
+Whether the criterion genuinely needed a person is the spec's judgement, and
+the spec-reviewer's to challenge; validation reads the annotation as written,
+as it reads every other line of the spec.
 
 **Validation runs the whole suite through `aide test`, never as the bare test
 command.** The verb runs the configured command as the merge runs it, exits
@@ -88,22 +111,24 @@ reconstructed afterwards.
 adapter runs the reviewer concurrently with validation, the merge still waits
 for both.
 
-**One review per item, of the diff as first built.** The reviewer is
-dispatched once, when the build first returns, concurrent with the first
-validation, and never again for the same item. Its findings are triaged at that
-validation's verdict whichever way it goes: on a FAIL, the triaging role waits
-for the review and sends every in-scope finding it is fixing in the same fix
-round as the validation failures — one round for both reads. After any fix
-round, a fresh validation runs and no second review; a fix made for a finding
-is measured by that validation like any other fix — a blocking one through
-the test traced to it (below) — and counts against the round cap the same
-way. A finding about code a fix round removed or rewrote
+**One review per run, of the diff the run first built.** A run is an item's
+work from its claim to its merge or `aide ledger abandon` — what one ledger row
+records (§1 → ledger.md) — and a reopened item, whoever reopened it, starts a
+new run. The reviewer is dispatched once per run, when the build first returns,
+concurrent with the run's first validation, and never again in that run. Its
+findings are triaged at that validation's verdict whichever way it goes: on a
+FAIL, the triaging role waits for the review and sends every in-scope finding
+it is fixing in the same fix round as the validation failures — one round for
+both reads. After any fix round, a fresh validation runs and no second review;
+a fix made for a finding is measured by that validation like any other fix — a
+blocking one through the test traced to it (below) — and counts against the
+round cap the same way. A finding about code a fix round removed or rewrote
 before it was fixed is dropped, and not counted: the code it describes no
 longer exists.
 
 **A blocking finding about behaviour is fixed together with a test traced to
 it, and every validation after a fix round checks the trace.** The validation
-is handed every blocking finding fixed on the branch so far whose code a later
+is handed every blocking finding this run has fixed so far whose code a later
 round has not removed, and fails the round where one has no bullet in the
 spec's `## Review findings`, or a bullet naming neither a test traced to it
 nor why it has none (§6) — a finding about a document or a name changes
@@ -114,8 +139,14 @@ the code now answers the finding is review's question, and the validation does
 not ask it — it reads no diff for it, exactly as it re-asks nothing else
 review owns. A minor finding fixed on the branch and a nit carry no such
 requirement, though a test added for one still traces the way §6 says. A
-finding read from the queue's CI is not a review finding here: it names the
-failing test or step that is its check, and the next CI run re-runs that.
+finding a reopening carries — its owner's reason, or one read from the queue's
+CI — is not a review finding, and no ledger count includes it. A CI one names
+the failing test or step that is its check, which the next CI run re-runs. An
+owner's reason has no such check, since the spec's checks passed while the gap
+was there, so it is held to this rule as a blocking finding: the reopening
+ranked it, and no role re-ranks it. Its fix leaves a test traced to it, or a
+bullet saying why it has none, and every validation in that run, the first
+included, is handed it and checks the trace.
 
 **Neither read signs off its own work.** The role that wrote the code performs
 neither, and the reviewer writes no code, modifies no tests, does not merge,
@@ -143,6 +174,18 @@ output in place of a verdict.
   base itself, and the merge already does, so the verdict on a red suite
   moves to the one step that can separate the two. Under `pr` nothing in the
   loop compares, so the old rule stands there.
+
+- **Why a gate's status is read per criterion, and awaiting is a hold.**
+  With no route, a criterion only a person could check — the item's code in a
+  sibling repository whose owners check it by hand — had no test the
+  validator could find, so the validator FAILed it, and a re-dispatched
+  builder could change nothing about that (issue #420). A FAIL is a message to
+  a builder, and an unanswered gate is not a defect a builder can fix, so it
+  holds instead, and the merge refusal makes the hold binding rather than a
+  validator's restraint. Re-judging whether a test could have measured the
+  criterion was left to the spec-reviewer, which reads the batch before
+  anything is built: at validation the item is built, and the only remedy left
+  is a spec change and a rebuild.
 
 - **Why the suite goes through a verb.** A bare run leaves nothing the engine
   can read, so the merge re-ran the whole suite over a tree validation had
@@ -176,7 +219,7 @@ output in place of a verdict.
   blocking, 23 minor, 37 nits (issue #357).
 - **Why concurrent review costs nothing and still gates.** A full suite run is
   the long pole — about three to seven minutes in the recorded runs — and a
-  read of the diff fits inside it. Only the first validation has a review
+  read of the diff fits inside it. Only a run's first validation has a review
   beside it, and the first validation usually passes: at most 9 of those 52
   items took an extra round with no blocking or minor finding behind it, so a
   review is rarely read against a diff that then changes. Findings collected
@@ -193,8 +236,19 @@ output in place of a verdict.
   validation instead, as every other fix is. A finding about code that a fix
   has since removed describes nothing that will merge, so counting it would
   charge the item for code it no longer has.
+- **Why the unit is the run, not the item.** The bound #357 needed was
+  against a review per fix round inside one round cap; a reopened item runs
+  under a cap of its own, so a review per run stays bounded. A reopened run's
+  diff is new code no review has read, and whether it is substantial enough
+  to read would be a judgement, where the run boundary is mechanical and is
+  already the ledger's unit. The rule was once per item, with the one
+  exception written into the runner for a CI reopening: an owner reopen then
+  spawned a reviewer against the rule, and a CI reopening's row recorded `0`
+  findings for a review that never ran (issue #416). Reviewing no reopen at
+  all was rejected: it leaves the new diff unread, and the merge would need
+  to detect a reopen and write `-`, widening a cell that means review is off.
 - **Why a blocking finding's fix brings its own test.** With one review per
-  item, the fresh validation after a fix round is the only check on a
+  run, the fresh validation after a fix round is the only check on a
   finding's fix, and it measured that fix through the spec's tests alone —
   written before the finding existed, so a fix with no test traced to it
   passed on a suite that never exercised it (issue #417). Handing the
@@ -207,6 +261,20 @@ output in place of a verdict.
   instead of the branch, and a nit changes no behaviour by definition. CI
   findings stay out because each already names its check, and the round
   that fixes them ends with CI running it again.
+- **Why an owner's reopen reason is held to the same rule.** An owner
+  reopens an item because the spec's checks passed while something was
+  missing, so the old wording — the spec's own checks measure it — left a
+  behaviour fix able to merge with no test exercising it, measured again
+  only by the tests that had already missed the gap (issue #446). That is
+  the hole #417 closed for a blocking review finding, so the remedy is the
+  same one and reuses its record: a bullet in `## Review findings`, which
+  validation and `aide scope` already read. A heading of its own was
+  rejected as a second reader for one artifact. Every such reason is
+  blocking because the owner's reopen is its triage; letting the
+  orchestrator re-rank it would let a minor rank send the owner's gap to
+  the inbox it came out of. It stays out of the ledger's finding counts,
+  which measure what review found: counting a reopening there would read
+  as review yield for a read that never ran on it.
 - **Why every round runs the whole suite.** A round after the first could run
   only the tests that failed and the ones its fix touched, but the merge takes
   a recorded run only when it covered the whole tree, so a narrowed round
