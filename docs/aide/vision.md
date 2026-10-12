@@ -1,13 +1,22 @@
 <!-- aide-template: vision 2 -->
 # FACET — Project Vision
 
-> **Status:** v4.1 (2026-10-09) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-16
+> **Status:** v4.2 (2026-10-12) · **Created:** 2026-06-24 · **Re-issued:** 2026-09-16
 > **Posture:** prototype
 > Step 1 of the AIDE loop · the root document: [`roadmap.md`](roadmap.md),
 > [`progress.md`](progress.md), every queue and every work item derive from this.
 > Its guiding principles, out-of-scope list and success criteria are the mandatory
 > core the validator checks implementations against.
 
+> **Revision note (v4.2, 2026-10-12).** The owner adopted the interface between this
+> repository and `spine-failure-lab` (package `spinelab`), as written in that
+> repository's `docs/project/facet-interface.md` at commit `7436b0f`. §7.5 now names
+> the artefacts that cross the boundary and who owns each one's schema. §8 makes
+> three changes. SPINEPS is the only reference segmenter, and TotalSegmentator is no
+> longer named. Manual review labels from `spinelab` are a per-level reference for
+> rung 3. All three rungs draw cases from one shared split with three dataset roles
+> (development, calibration and test). Nothing else changes.
+>
 > **Revision note (v4.1, 2026-10-09).** Two owner decisions moved here from the
 > roadmap Backlog, which now holds ideas only: the normalisation rule becomes a
 > guiding principle (insight 2026-08-12-3c07; ground truth may still calibrate
@@ -464,6 +473,29 @@ scan (optional) + instance segmentation
                                  ──► traceability matrix (generated conformance)
 ```
 
+**The boundary with the programme repository.** `spine-failure-lab` (package
+`spinelab`) keeps the list of everything that crosses between the two
+repositories in its `docs/project/facet-interface.md`. That file is pinned here
+by commit (adopted at `7436b0f`). Neither repository imports the other. Each
+artefact has one schema owner, and the consumer vendors a copy pinned at a named
+commit and refuses an instance whose version differs.
+
+- **Into FACET** (spinelab writes each instance):
+  - a `role: candidate` cohort descriptor in FACET's own descriptor format, with
+    case ids that pair with FACET's ground-truth descriptors by equality;
+  - the run manifest the descriptor was derived from;
+  - the review-label table `rl1`, one row per reviewed level, keyed by FACET
+    mode id;
+  - the split manifest that assigns every case a dataset role.
+- **Out of FACET** (FACET owns the schemas):
+  - the per-case report, the cohort evaluation report and the failure-mode
+    catalogue;
+  - each carries the FACET revision that wrote it.
+
+The **FACET mode id** is the join key between FACET's catalogue, the review
+template's class slugs and any later routed classes, because it is the only one
+of them that is never renumbered.
+
 ---
 
 ## 8. Evaluation & Testing Strategy
@@ -481,6 +513,20 @@ Rung 2 needs only real VerSe GT and is available. Rung 3 and the curated
 challenging cases arrive by hand-off from the programme repository and are
 tracked as human gates in [`progress.md`](progress.md).
 
+**Dataset roles: one split for both repositories.** Every case serves exactly
+one role. The split is patient-level, declared once by the programme repository
+(which owns the patient keys), and read here as descriptor subsets:
+
+| Role | VerSe | Serves in FACET |
+|---|---|---|
+| development | VerSe19 and VerSe20 training splits | reference distributions, rule fitting, threshold calibration |
+| calibration | VerSe19 and VerSe20 validation splits | held-out false-positive rate, per-mode sensitivity on real failures while rules are still being tuned |
+| test | VerSe19 and VerSe20 test splits | the final sensitivity and specificity claim; never tuned on |
+
+How a label may be used follows its case's role, not when the label was made.
+SPINEPS's published weights saw VerSe training data, so rung-3 numbers on VerSe
+measure **retention, not generalisation**.
+
 **Corpora and expectations.**
 - **VerSe ground truth** — builds the reference feature set and is the positive
   control: GT should pass at a high rate, measured as a cohort false-positive
@@ -489,9 +535,13 @@ tracked as human gates in [`progress.md`](progress.md).
   real GT, covering every mode the fixtures can express, each case recording
   its expected firing set; the specificity assertion (no unintended rule fires)
   holds on it, with every declared co-detection carrying a reason.
-- **Real segmenter output** — SPINEPS and/or TotalSegmentator on real CT; Dice
-  against GT as a divergence proxy, verdicts and feature divergence expected to
-  track it.
+- **Real segmenter output** — SPINEPS on real CT; Dice against GT as a
+  divergence proxy, verdicts and feature divergence expected to track it.
+- **Manual review labels** — per-level calls made by a reviewer on that same
+  output and delivered as the programme repository's `rl1` table. Each label
+  names a FACET mode, or mode 0 (clean) for a level that was looked at and found
+  clean. They are the reference for per-mode sensitivity and specificity on real
+  failures, and only for the modes a review pass actually looked for.
 - **Curated challenging cases** — real pathology, post-operative changes,
   atypical anatomy, border effects.
 

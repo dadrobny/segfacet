@@ -1,8 +1,10 @@
 <!-- aide-template: roadmap 2 -->
 # FACET — Development Roadmap
 
-> **Status:** v3.4 (2026-10-12: Stage 34 and the Backlog conformed to roadmap template 2,
-> engine 2.47.3; v3.3 2026-10-09: Stage 34 — Maintenance added as the one standing
+> **Status:** v3.5 (2026-10-12: programme interface adopted against
+> [`vision.md`](vision.md) v4.2, Stage 35 added for this repository's side of it, and
+> Stage 16 restated as the real measurement behind it; v3.4 2026-10-12: Stage 34 and the
+> Backlog conformed to roadmap template 2, engine 2.47.3; v3.3 2026-10-09: Stage 34 — Maintenance added as the one standing
 > maintenance stage, the Carried defects section removed with its live entries returned to
 > `insights.md`, the Backlog pruned to ideas only; v3.2 2026-09-22: Stage 33 added after queue-022's review, Stage 32 annotated;
 > v3.1 approved 2026-09-15: Stages 31–32 added, Stages 20 and 30 annotated after
@@ -14,7 +16,14 @@
 > Step 2 of the AIDE loop. Derived from [`vision.md`](vision.md). Breaks the
 > vision into incremental, demonstrable, locally-deployable stages (~1 week each).
 
-> **Run order from here (2026-10-07): 16 → (21 when a Stage 16 measurement needs it).**
+> **Run order from here (2026-10-12): 35 → 16 → (21 when a Stage 16 measurement needs it).**
+> The owner adopted the programme interface (`spine-failure-lab`'s
+> `docs/project/facet-interface.md` at `7436b0f`). This repository's side of it is Stage 35,
+> which needs no hand-off and runs first. Stage 16 keeps the real measurement and waits, ⏸️,
+> for Stage 35 and for gate `gate-ae46`'s bundle. The reasons for going straight to rung 3,
+> given below, still hold.
+>
+> **Run order 2026-10-07 (superseded): 16 → (21 when a Stage 16 measurement needs it).**
 > Stage 27 closed with queue 029 on 2026-10-06. At that boundary the maintainer decided,
 > under the prototype posture, to go straight to rung 3 — real SPINEPS output on real VerSe
 > CT, Stage 16 — and **defer Stage 21** (rung 2, real GT + scripted perturbation) rather
@@ -84,10 +93,10 @@
 | Objective                                       | Delivered by                                                                                                             |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | G1 Detect empty / trivially-failed              | Stage 1                                                                                                                  |
-| G2 Detect catalogued failure modes (§6)        | Stages 4, 5, 18, 28 (specification: **Stage 30**; per-mode refinement: **Stage 32**, re-grounded and taken to the bar by **Stage 33**; traceability and specificity: **Stage 20**, interleaved into 32; real failures: **Stage 16**) |
-| G3 Distinguish failure from variation           | Stages 6, 7 (real-VerSe grounding: Stage 12;**recalibration: Stage 14**; normative model: the multivariate-normative-model placeholder, not yet specified)                |
+| G2 Detect catalogued failure modes (§6)        | Stages 4, 5, 18, 28 (specification: **Stage 30**; per-mode refinement: **Stage 32**, re-grounded and taken to the bar by **Stage 33**; traceability and specificity: **Stage 20**, interleaved into 32; real failures: **Stage 16**, read through the programme interface of **Stage 35**) |
+| G3 Distinguish failure from variation           | Stages 6, 7 (real-VerSe grounding: Stage 12;**recalibration: Stage 14**; development-role reference: **Stage 35**; normative model: the multivariate-normative-model placeholder, not yet specified)                |
 | G4 Per-case and cohort reports                  | Stage 1 (extended by 2–4); cohort characterisation: Stage 18                                                          |
-| G7 Evaluable & regression-testable              | Stages 5, 7 (real-VerSe evaluation: Stage 12;**real data: Stages 14, 16**; corpus rework: **Stages 19–21, 29, 32, 33**; eval-harness re-key: **Stage 31**) |
+| G7 Evaluable & regression-testable              | Stages 5, 7 (real-VerSe evaluation: Stage 12;**real data: Stages 14, 16**; corpus rework: **Stages 19–21, 29, 32, 33**; eval-harness re-key: **Stage 31**; dataset roles and artefact versioning: **Stage 35**) |
 | *(out of scope 2026-07-25)* G5 Deploy on XNAT | Stage 9 shipped the artefacts;**Stage 15 `❌ Excluded`** — see `vision.md` v3 §11                             |
 | *(deferred)* G6 Portable / GPU                | Stage 10                                                                                                                 |
 | G8 Extensible / classification                  | Stages 19, 27, **30** (the add-a-mode path), **31** (§6 re-issue), **32**, **33** (per-mode sign-off); classification arm: Stage 11 *(deferred)* |
@@ -709,29 +718,72 @@ when they do.
 > which §6 modes SPINEPS actually produces; the curated challenging-case corpus waits for
 > gate `gate-2f91`.
 
+> **Restated 2026-10-12 against the programme interface** (maintainer decision, on the
+> maintenance branch after the queue-029 boundary). The owner adopted `spine-failure-lab`'s
+> `docs/project/facet-interface.md` at commit `7436b0f` ([`vision.md`](vision.md) v4.2,
+> §7.5 and §8). Five things follow.
+>
+> - SPINEPS is the only reference segmenter, and TotalSegmentator is dropped.
+> - The candidate descriptor is written by `spinelab` from its run manifest and pinned
+>   here by commit. That **reverses** insight 2026-10-09-b91d, which had this repository
+>   writing it.
+> - The first real-failure reference is `spinelab`'s manual review. Its first pass
+>   (2026-10-06) looked for exactly modes 2 and 3, the two modes signed at the bar on
+>   2026-10-02. It covers 40 sampled VerSe cases (20 VerSe19, 20 VerSe20, each half
+>   ranked by post-processing change and half random), and it reaches FACET as the
+>   `rl1` label table.
+> - Every number is reported against the dataset role of its cases.
+> - **This repository's side of the interface moves to Stage 35**, which is not gated.
+>   This stage keeps the real measurement. It sits behind gate `gate-ae46`, which now
+>   asks for the four-part hand-off bundle, and behind Stage 35. That is a forward
+>   dependency, so this stage is ⏸️ until Stage 35 closes.
+>
+> Further decision: **Dice-vs-flag is measured on per-mode findings.** The
+> verdict-level figure is dominated by `reference_delta`, which flags held-out real GT
+> at 0.90–0.95 (Stage 14). It is reported beside the per-mode figure and labelled as
+> such.
+
 **Deliverables.**
 
-- **Real candidate cohort**: run **SPINEPS** (primary; TotalSegmentator optional as a
-  second opinion) over real VerSe CT, ingested as `role: candidate` through the
-  Stage-13 adapter and scored against real GT.
-- **Real per-mode sensitivity + DICE-vs-flag correlation**, superseding the
-  synthetic-only figures in Stage 7's metrics block (Success Criterion 6).
-- **Curated challenging-case corpus** — real pathology / post-op / atypical
-  anatomy, with expected verdicts (`VerSe_fracture_grading.xlsx` is a natural
-  seed) — the direct test of failure-vs-variation on cases that matter.
-- **A recorded account of which §6 modes real segmenters actually produce**, and
-  at what rate; modes absent from real data are recorded as untested rather than
-  silently credited.
+- **Real candidate cohort**: the SPINEPS VerSe passes, ingested through
+  `spinelab`'s candidate descriptor at a recorded `spinelab` commit, and scored
+  against real GT.
+- **Modes 2 and 3 against review**: per-level sensitivity and specificity
+  against the `rl1` labels on calibration-role cases. They are reported
+  separately for the ranked and random sampling streams, and only the random
+  stream supports a rate. Test-role labels are read once, at the stage
+  validation, after the rules are frozen.
+- **Dice-vs-flag correlation** on per-mode findings, which supersedes the
+  synthetic-only figures in Stage 7's metrics block (Success Criterion 6). The
+  verdict-level figure is reported beside it and labelled as dominated by
+  `reference_delta`.
+- **Which §6 modes SPINEPS produces**, and at what rate, in a recorded account
+  that labels each mode in one of three ways:
+  - **adjudicated**: a review looked for it;
+  - **fired, not adjudicated**: a rule fired, but no review looked for the mode;
+  - **untested**: absent from the data.
+- **Interface asserted on this side**: a test reads `spinelab`'s committed
+  descriptor and `rl1` table at the pinned commit and refuses on version
+  drift. `spinelab` asserts the other direction.
+- **Curated challenging-case corpus** (behind `gate-2f91`) — real pathology /
+  post-op / atypical anatomy, with expected verdicts
+  (`VerSe_fracture_grading.xlsx` is a natural seed) — the direct test of
+  failure-vs-variation on cases that matter.
 
-**Dependencies.** Stages 13, 14 (calibrate first — sensitivity is only meaningful
-against the rules we intend to ship). Feeds Stage 11's abnormality arm.
+**Dependencies.**
+- **In this repository:** Stages 13, 14, 17, 18, 20 and 35. Stage 35 is a
+  forward dependency, tolerated while this stage is ⏸️.
+- **Out of band:** gate `gate-ae46`'s bundle. `spine-failure-lab` must deliver
+  its Stage 9 item 119 (the candidate descriptor and split subsets) and its
+  `rl1` label table.
+- **Feeds:** Stage 11's abnormality arm.
 
 **Validation / acceptance.**
 
 - ≥1 heuristic fires on a **real** instance of each §6 mode the cohort actually
   contains; modes absent from real data are recorded as such rather than
   silently credited (**G2**).
-- Real DICE-vs-flag correlation is measured and correctly signed (**G7**).
+- Real Dice-vs-flag correlation is measured on per-mode findings and correctly signed, with the verdict-level figure reported beside it and labelled as dominated by reference_delta (**G7**, Success Criterion 6).
 - Curated challenging cases run with recorded outcomes, and legitimate variation
   is not flagged at Stage 14's FPR bar.
 - The "Real automatic-segmentation failure corpus" verification row reads
@@ -2197,6 +2249,68 @@ skip-relabel fixture) is not blocked by this stage and belongs to no stage.
 **Deliverables.** Added to [`progress.md`](progress.md) by each maintenance queue.
 
 **Dependencies.** None.
+
+---
+
+# Stage scoped 2026-10-12 (programme interface adopted)
+
+> The owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at commit
+> `7436b0f` ([`vision.md`](vision.md) v4.2, §7.5 and §8). That file lists what crosses
+> between the two repositories: a candidate descriptor, a run manifest, the `rl1`
+> review-label table and a split manifest coming in, and FACET's reports going out.
+> Stage 16's real measurement reads all of them. This repository's side of that
+> interface needs no out-of-band input, so it is a stage of its own and runs before
+> Stage 16.
+
+---
+
+## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7)
+
+**Goal.** FACET can read everything the programme repository will hand it for Stage
+16, and writes reports that repository can pin. Each cohort is split by dataset role,
+real review labels are an expectation the evaluation harness understands, every
+report names the revision that wrote it, and the reference is built from the
+development role only.
+
+**Deliverables.**
+
+- **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
+  ids as well as a directory root, so the split manifest's roles can be named for
+  any cohort.
+- **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
+  carry `development`, `calibration` and `test` subsets over the release's
+  training, validation and test splits. This lets `segfacet evaluate` pair VerSe20
+  candidates by case id and select cases by role.
+- **Real-label expectation**: the evaluation cohort accepts a per-label
+  expectation with several modes per case, read from `spinelab`'s `rl1`
+  review-label table. The table is checked against a vendored schema, taken from
+  the field table of `facet-interface.md` at the pinned `spinelab` commit, and a
+  table at any other version is refused. Mode 0 means a level that was reviewed
+  and found clean.
+- **Artefact versioning**:
+  - a release tag on every revision `spinelab` consumes;
+  - the FACET commit written into every per-case and evaluation report;
+  - a report `schema_version` that moves whenever a feature path moves.
+- **Development-role reference**: the VerSe reference rebuilt from the VerSe19
+  and VerSe20 training splits. This replaces today's VerSe19-training-only
+  `reference_verse_v1.json`, which is out of date for any subject with a T13
+  (insight 2026-10-06-f318).
+
+**Dependencies.** Stages 13, 14, 17 and 27.
+
+**Validation / acceptance.**
+
+- A descriptor whose subsets are case-id lists resolves exactly those cases, and
+  the VerSe19 and VerSe20 descriptors resolve the three role subsets over the
+  release splits (**G7**).
+- An `rl1` table at the pinned version becomes a per-label, several-modes-per-case
+  expectation the evaluation harness scores against, and a table at any other
+  version is refused (**G2**).
+- Every per-case and evaluation report carries the FACET commit and a schema
+  version, and a feature path that moves without a schema-version change fails the
+  suite (**G7**).
+- The rebuilt reference draws only on development-role cases, and no
+  calibration-role or test-role case contributes to it (**G3**).
 
 ---
 
