@@ -2229,3 +2229,9 @@ skip-relabel fixture) is not blocked by this stage and belongs to no stage.
   item that fixes a recorded concern cannot rewrite the recorded human call. Either a
   dated append-trail convention like `insights.md`'s, or a queue-boundary pass that
   re-asks the maintainer.
+- **A refutation harness for `signal` path classifications** (insight 2026-09-04-4caf).
+  Today a `signal` classification is an authored claim nothing can refute. One
+  threshold-crossing mutation per signal path would assert that the reading rule's
+  findings move. Above that, rule-side first-class detector IDs would attribute each path
+  to the one mode it serves (`mislabel`'s offset vs monotonicity detectors,
+  `fragmentation`'s two branches) rather than to every mode of its rule.
