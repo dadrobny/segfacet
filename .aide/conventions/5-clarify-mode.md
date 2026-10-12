@@ -42,11 +42,12 @@ posture on asking-versus-assuming.
 **Root documents are authored through their loop entry point, interactively —
 whatever `loop.clarify` says.** `vision.md` and `roadmap.md` are Steps 1 and 2
 of the loop, and the adapter's create-vision / create-roadmap entry points carry
-the safeguards a free-hand file write skips. Do not write a root document
-directly, however well the template shape is known. Ask until the mandatory
-sections are grounded in the human's answers, and never fill **Guiding
-principles**, **Out of scope**, or **Success criteria** from assumption.
-Present the result as a draft.
+the safeguards a free-hand file write skips. Do not author a root document
+directly, however well the template shape is known; an agreed amendment is
+applied in the owner's session (§1 → `roadmap.md`, `vision.md`). Ask until
+the mandatory sections are grounded in the human's answers, and never fill
+**Guiding principles**, **Out of scope**, or **Success criteria** from
+assumption. Present the result as a draft.
 
 **The duty runs both ways, and it pins at the level a consumer reads.** When
 several specs are authored before any is built, the *producing* spec pins what
@@ -102,6 +103,16 @@ it finds as it claims (`aide claim -h`).
   overwritten only after explicit confirmation; a roadmap is updated
   incrementally, never regenerated), and the draft hand-off the rule above
   names — a draft is what a human can decline without unpicking anything.
+- **Why "author", and not every write.** Since 2.47.2 (issue #461) §1 →
+  `roadmap.md` and `vision.md` name two writers, both the owner's: the entry
+  point authors, and an amendment the owner agrees to — the feedback loop's
+  included — is applied in the owner's own session. The rule here still
+  said "do not write a root document directly", which binds that
+  session too, on the always-on page every session reads: a careful agent
+  applying an agreed amendment in the feedback loop could balk and route it
+  to the create entry point that loop forbids (issue #468). The safeguards the
+  entry points carry — the existing-document check and the draft — guard an
+  authoring; an amendment is already agreed, line by line, with the owner.
 - **Why the producer pins, and why only at the consumer's level.** Left
   unpinned, each consumer independently codes defensively around the
   interface — a tolerant reader plus a hand-back clause where a straight

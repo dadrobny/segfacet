@@ -445,7 +445,10 @@ def test_a_header_marked_done_with_no_summary_row_is_an_error(tmp_path: Path):
     text = text.replace("## Stage 2 — Reports — 🚧", "## Stage 2 — Reports — ✅")
     errors, warnings = _checks(_repo(tmp_path, text))
     assert errors == ["stage 2: header marked ✅ but has non-complete deliverables "
-                      "— they roll up to 🚧 in-progress"], errors
+                      "— they roll up to 🚧 in-progress; a stage's cells follow "
+                      "its bullets, so write the rollup with 'aide progress "
+                      "rollup --stage 2', or move the bullets with 'aide "
+                      "progress set'"], errors
     assert not _about(warnings, "stage 2:"), warnings
 
 
@@ -460,7 +463,7 @@ def test_an_objective_marked_done_over_an_open_stage_is_an_error(tmp_path: Path)
 
 
 @pytest.mark.parametrize("icon, name, fix", [
-    ("📋", "planned", "set it to ✅"),
+    ("📋", "planned", "write ✅ with 'aide progress rollup --stage 1'"),
     ("⏸️", "deferred", "restore ✅"),
 ])
 def test_an_objective_row_below_its_done_stage_is_a_warning(
@@ -555,7 +558,9 @@ def test_each_cell_gets_one_message(tmp_path: Path):
     errors, warnings = _checks(_repo(tmp_path, text))
     assert _about(errors, "stage 2:") == [
         "stage 2: summary marked ✅ but has non-complete deliverables — they "
-        "roll up to ⏸️ deferred"], errors
+        "roll up to ⏸️ deferred; a stage's cells follow its bullets, so write "
+        "the rollup with 'aide progress rollup --stage 2', or move the "
+        "bullets with 'aide progress set'"], errors
     assert len(_about(warnings, "stage 2:")) == 1, warnings
     assert _about(warnings, "stage 2:")[0].startswith(
         "stage 2: header 🔍 in-review but its deliverables roll up to ⏸️ deferred")
@@ -1683,7 +1688,7 @@ def test_check_reads_an_objective_from_the_stages_still_in_scope(tmp_path: Path)
     assert _about(warnings, "objective G1:") == [
         "objective G1: 🚧 in-progress but the stages it names (stage 1 ✅, "
         "2 ❌ withdrawn) roll up to ✅ complete — an Objective row follows "
-        "its stages, so set it to ✅"], warnings
+        "its stages, so write ✅ with 'aide progress rollup --stage 1'"], warnings
 
 
 @pytest.mark.parametrize("icon, status, where", [

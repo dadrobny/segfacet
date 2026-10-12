@@ -40,7 +40,9 @@ verb, whatever its icon**: each copy carries the shared sentence until someone
 says what each item delivers with `aide progress reword --item NNN`, never by
 hand — over a ✅ bullet as readily as a 📋 one, since a deliverable bullet
 carries no attestation. Follow-on deliverables enter through the queue, never
-by retro-editing a closed stage's deliverable list.
+by retro-editing a closed stage's deliverable list; a maintenance queue adding
+its items under the maintenance stage (§1 → `roadmap.md`) is that route, not
+a retro-edit.
 
 **Prefer the verb to a hand edit**: `aide progress set`, `aide progress
 accept`, `aide queue tidy`. Acceptance boxes are **ticked only by

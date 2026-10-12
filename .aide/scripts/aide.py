@@ -17,6 +17,7 @@ Subcommands::
     python .aide/scripts/aide.py progress set NNN resumed --reason TEXT  # ⏸️ back to 📋 (--stage N --deliverable K for an unmarked bullet)
     python .aide/scripts/aide.py progress set NNN dropped --reason TEXT  # ❌ on an item the stage does not need
     python .aide/scripts/aide.py progress set NNN restored --reason TEXT  # ❌ back to 📋 (--stage N --deliverable K for an unmarked bullet)
+    python .aide/scripts/aide.py progress rollup [--stage N]  # a stage's cells to what its bullets roll up to
     python .aide/scripts/aide.py gate list|approve|decline [N|ID]  # human gates in progress.md
     python .aide/scripts/aide.py queue start NNN       # create the queue branch (--specs for specs-)
     python .aide/scripts/aide.py queue tidy NNN        # mark a superseded queue as completed
@@ -2340,7 +2341,8 @@ def _blocked_objectives(lines: List[str]) -> Set[str]:
 
 def _apply_objective_rollup(lines: List[str], stage_status: Dict[str, str],
                             downgrade_stages: Set[str] = frozenset(),
-                            touched_stages: Set[str] = frozenset()) -> None:
+                            touched_stages: Set[str] = frozenset(),
+                            only: Optional[Set[str]] = None) -> None:
     """Roll each Objective row up from the stages its Delivered-by cell names.
 
     The derivation is `objective_rollup`'s; what this adds is when a row may
@@ -2358,7 +2360,10 @@ def _apply_objective_rollup(lines: List[str], stage_status: Dict[str, str],
     (issue #382): it is left out of the derivation and of the downgrade
     test, and a row every stage of which is withdrawn is written ❌ from any
     status, the one ❌ the writer puts on a row — what the summary rows
-    already decided, so `aide check` finds nothing to report there."""
+    already decided, so `aide check` finds nothing to report there.
+
+    With *only*, a row naming none of those stages is left as it reads
+    (`aide progress rollup --stage N`, issue #459)."""
     # An objective linked to an outcome target that is not ✅ Met can never
     # roll up to ✅: its stages shipping is necessary but not sufficient.
     blocked = _blocked_objectives(lines)
@@ -2370,7 +2375,8 @@ def _apply_objective_rollup(lines: List[str], stage_status: Dict[str, str],
         gm = re.match(r"G\d+", cells[0]) if len(cells) == 3 else None
         if gm and _icon_status(cells[2]):
             nums = _objective_row_stages(cells[1])
-            if not nums:
+            if not nums or (only is not None
+                            and not any(n in only for n in nums)):
                 continue
             current = _icon_status(cells[2])
             # Released by a verb only: a stage the calling verb moved. A ⏸️ row
@@ -2589,7 +2595,8 @@ def set_item_status(text: str, num: int, status: str,
 
 def _recompute_rollups(lines: List[str],
                        downgrade_stages: Set[str] = frozenset(),
-                       touched_stages: Set[str] = frozenset()) -> None:
+                       touched_stages: Set[str] = frozenset(),
+                       only: Optional[Set[str]] = None) -> None:
     """Roll every stage header, summary row and Objective row up, in place.
 
     Never downgrades, except a stage in *downgrade_stages* and the Objective
@@ -2603,9 +2610,15 @@ def _recompute_rollups(lines: List[str],
     *touched_stages* are the stages whose bullets the calling verb moved; a
     ⏸️ cell there follows the rollup, where elsewhere it is left as set by
     hand (`_held_by_hand`).
+
+    *only*, when given, is the set of stages whose cells are written at all —
+    their header, their summary row and the Objective rows naming one of
+    them — and every other cell is left as it reads (`rollup_progress`).
     """
     stage_status = stage_rollups(lines)
     for start, end, stage_num in stage_sections(lines):
+        if only is not None and stage_num not in only:
+            continue
         derived = rollup_status(stage_deliverable_statuses(lines, start, end))
         if derived is None:
             continue
@@ -2615,7 +2628,62 @@ def _recompute_rollups(lines: List[str],
                           touched=touched)
         _set_summary_row(lines, stage_num, derived, allow_downgrade=down,
                          touched=touched)
-    _apply_objective_rollup(lines, stage_status, downgrade_stages, touched_stages)
+    _apply_objective_rollup(lines, stage_status, downgrade_stages,
+                            touched_stages, only)
+
+
+def rollup_progress(text: str, stage: Optional[int] = None
+                    ) -> Tuple[str, List[str]]:
+    """``aide progress rollup [--stage N]``: ``(updated text, messages)``.
+
+    Writes what the rollup computes into stage *stage*'s header, its Stage
+    summary row and every Objective row naming it — or, with no *stage*,
+    into those of every stage — up or down, from the bullets as they read
+    (issue #459). It is the verb for the one write no other verb makes: a
+    bullet added by hand under a stage, which leaves the stage's cells as
+    they read until the next verb moves a bullet of it.
+
+    `_recompute_rollups` with the stages rolled up as both *only* and
+    *downgrade_stages*, so each cell follows its rollup either way and a
+    cell outside them is left exactly as it reads. A ⏸️ set by hand is
+    written over like any other cell: once a bullet is added a computed ⏸️
+    and a typed one read the same, and a reopened stage holding a deferred
+    bullet must reach 🚧. ❌ is not: a withdrawn stage — ❌ summary row — is
+    skipped whole, and a ❌ header or Objective row stays (`_held_by_hand`),
+    as every writer leaves it. A stage with no bullet derives nothing and
+    is left as it reads.
+
+    One message per cell written, naming it and its move, in file order;
+    none when nothing changed. Raises ``ValueError`` when *stage* has no
+    ``## Stage N`` section.
+    """
+    lines = text.splitlines()
+    sections = stage_sections(lines)
+    if stage is not None and not any(int(n) == stage for _, _, n in sections):
+        raise ValueError(f"progress.md has no '## Stage {stage}' section")
+    withdrawn = withdrawn_stages(lines)
+    targets = {n for _, _, n in sections
+               if (stage is None or int(n) == stage) and n not in withdrawn}
+    before = list(lines)
+    _recompute_rollups(lines, downgrade_stages=targets, only=targets)
+    messages: List[str] = []
+    for old, new in zip(before, lines):
+        if old == new:
+            continue
+        header = _STAGE_HEADER_RE.match(old)
+        if header:
+            was, now = _header_status(old), _header_status(new)
+            where = f"stage {int(header.group(1))}: header"
+        else:
+            cells = _split_row(old)
+            was, now = _icon_status(cells[-1]), _icon_status(_split_row(new)[-1])
+            code = re.match(r"G\d+", cells[0])
+            where = (f"objective {code.group(0)}" if len(cells) == 3 and code
+                     else f"stage {int(cells[0])}: summary row")
+        shown = STATUS_TO_ICON[was] if was else "no icon"
+        messages.append(f"{where} {shown} → {STATUS_TO_ICON[now]} {now}")
+    return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+            messages)
 
 
 #: The trail prefix a reopen writes under a deliverable bullet — read back by
@@ -4000,6 +4068,72 @@ def _find_entry(entries: List[InsightEntry], ordinal: int) -> InsightEntry:
         f"no entry {ordinal} — the file holds {len(entries)} "
         f"entr{'y' if len(entries) == 1 else 'ies'}; run `insights list` for "
         f"current numbers (an archive renumbers what remains)")
+
+
+# --------------------------------------------------------------------------- #
+# an entry's wait — open across N queues (§1 → insights-triage.md, #456)
+# --------------------------------------------------------------------------- #
+#: The wait at which triage brings an open entry to its owner as a decision.
+#: A convention stated in §1 → `insights-triage.md`, deliberately not an
+#: aide.toml key until a consumer needs another value.
+INSIGHT_WAIT_DECISION = 3
+#: The `**Created:** YYYY-MM-DD` a queue file's header carries
+#: (templates/queue.md); it may share its line with other header fields.
+_QUEUE_CREATED_RE = re.compile(r"\*\*Created:\*\*\s*(\d{4}-\d{2}-\d{2})\b")
+
+
+def queue_created_date(text: str) -> Optional[str]:
+    """The `**Created:**` date of a queue file's header, or None.
+
+    Only the header is read — everything above the first ``## `` heading — so
+    an item description quoting the field is never taken for the queue's own.
+    """
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        m = _QUEUE_CREATED_RE.search(line)
+        if m is not None:
+            return m.group(1)
+    return None
+
+
+def queue_created_dates(qdir: Path) -> List[Optional[str]]:
+    """Each queue file's `Created` date, in queue-number order ([] with none).
+
+    Read from the file and never from git: the figure is the same in every
+    clone, shallow or not, in local mode and with no git at all, and it costs
+    no spawn.
+    """
+    return [queue_created_date(p.read_text(encoding=_ENCODING))
+            for p in iter_queue_paths(qdir)]
+
+
+def queues_open_across(captured: str, created: List[Optional[str]]) -> int:
+    """How many queues an entry captured on *captured* has stayed open across.
+
+    The queue files numbered from the first one whose `Created` date is
+    strictly later than the capture date, that one included. A queue created
+    on the capture day is not counted: both dates are days, and the entry may
+    have been captured after that queue was planned. An undated queue counts
+    when it is numbered after one that does — numbering follows creation —
+    and never otherwise, since nothing says when it was made.
+    """
+    for i, d in enumerate(created):
+        if d is not None and d > captured:
+            return len(created) - i
+    return 0
+
+
+def inbox_wait_summary(entries: List[InsightEntry],
+                       created: List[Optional[str]]
+                       ) -> Tuple[int, Dict[str, int], int]:
+    """(open entries, open entries by type, open ones at the decision wait)."""
+    open_entries = [e for e in entries if not e.ticked]
+    by_type = {t: sum(1 for e in open_entries if e.type == t)
+               for t in _INSIGHT_TYPES}
+    waited = sum(1 for e in open_entries if e.date is not None
+                 and queues_open_across(e.date, created) >= INSIGHT_WAIT_DECISION)
+    return len(open_entries), by_type, waited
 
 
 # --------------------------------------------------------------------------- #
@@ -7130,6 +7264,155 @@ def forward_dependency_warnings(ddir: Path) -> List[str]:
     return out
 
 
+#: The maintenance stage's title, matched exactly (§1 → roadmap.md, issues
+#: #454, #459): the one thing every role reads the same way with no judgement.
+MAINTENANCE_TITLE = "Maintenance"
+
+
+def stage_title(line: str) -> Optional[str]:
+    """The title of a ``## Stage N — Title`` heading, or ``None`` for no heading.
+
+    The text after the number with an HTML comment (the template's
+    ``<!-- OPTIONAL … -->``), a trailing status icon (progress.md's header)
+    and the dashes, colons and spaces around it set aside, and emphasis
+    stripped — ``## Stage 4 — Maintenance — ✅`` and ``## Stage 4 —
+    **Maintenance**`` both read ``Maintenance``. Nothing else is: a title
+    that only starts with the word reads as written.
+    """
+    m = _STAGE_HEADER_RE.match(line)
+    if not m:
+        return None
+    rest = re.sub(r"<!--.*?-->", "", m.group(2)).rstrip()
+    rest = _TRAILING_ICON_RE.sub("", rest)
+    return rest.replace("*", "").replace("`", "").strip(" \t—–-:")
+
+
+def maintenance_stage_numbers(lines: List[str]) -> List[int]:
+    """The numbers of the ``## Stage N`` sections titled exactly
+    `MAINTENANCE_TITLE`, in file order — more than one is the drift
+    `maintenance_stage_warnings` names."""
+    return [int(num) for start, _end, num in stage_sections(lines)
+            if stage_title(lines[start]) == MAINTENANCE_TITLE]
+
+
+def maintenance_stage_warnings(ddir: Path) -> List[str]:
+    """§1 → roadmap.md's maintenance-stage rules, checked (issue #459).
+
+    The maintenance stage is the stage titled exactly ``Maintenance``
+    (issue #454), so once there is a title to key on its prose rules are
+    mechanical:
+
+    1. **At most one.** A second stage so titled, in roadmap.md or in
+       progress.md, each file read for itself.
+    2. **No Objective row names it.** A roadmap coverage row's Delivered-by
+       cell read as `coverage_completeness_warnings` reads it
+       (`named_stage_numbers`), and a progress.md Objective row's as its
+       rollup reads it (`_objective_row_stages`).
+    3. **It has no blocking Dependencies, and no stage's blocking slot names
+       it** — the slot `blocking_dependency_stages` reads for the forward
+       dependency warning (issue #282), so an ordering sentence after
+       ``None.`` blocks nothing and is never named.
+    4. **It has no acceptance criteria of its own** — a roadmap acceptance
+       bullet (`roadmap_acceptance_bullets`, ``Target:`` ones aside) on a
+       maintenance stage that has not started: progress.md has no section
+       and no summary row for it, or shows it 📋 on both. A started one is
+       frozen, and one retitled to ``Maintenance`` keeps the criteria it was
+       written with, so it is never named — the only maintenance stage that
+       can be grandfathered is a started one, and a 📋 one can still be
+       edited.
+
+    A missing file is silent for what needs it. A warning, never an error:
+    roadmaps written before the rules exist, and a started stage is frozen.
+    """
+    out: List[str] = []
+    rule = "§1 → roadmap.md"
+    rpath, ppath = ddir / "roadmap.md", ddir / "progress.md"
+    rlines = (rpath.read_text(encoding=_ENCODING).splitlines()
+              if rpath.is_file() else [])
+    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+              if ppath.is_file() else [])
+    for name, lines in (("roadmap.md", rlines), ("progress.md", plines)):
+        maint = maintenance_stage_numbers(lines)
+        if len(maint) > 1:
+            out.append(
+                f"{name}: stages {', '.join(str(n) for n in maint)} are all "
+                f"titled '{MAINTENANCE_TITLE}' — a roadmap holds at most one "
+                f"maintenance stage, and its exact title is what marks it; "
+                f"the owner keeps one, by an amendment to roadmap.md "
+                f"— {rule}")
+
+    maint = maintenance_stage_numbers(rlines)
+    for line in rlines:
+        if not maint or not line.strip().startswith("|"):
+            continue
+        cells = _split_row(line)
+        codes = _coverage_row_codes(cells)
+        named = [n for n in named_stage_numbers(cells[1]) if n in maint] if codes else []
+        for n in named:
+            out.append(
+                f"roadmap.md: the coverage row for "
+                f"{', '.join(f'G{g}' for g in codes)} names stage {n}, the "
+                f"maintenance stage — it repairs shipped work and delivers no "
+                f"objective, and a row naming it would follow it to 🚧 at "
+                f"every reopen; map the objective to the stages that deliver "
+                f"it — {rule}")
+    for start, end, num in stage_sections(rlines):
+        text = _roadmap_dependency_text(rlines, start, end)
+        named = blocking_dependency_stages(text) if text is not None else []
+        if int(num) in maint and named:
+            shown = ", ".join(str(n) for n in named)
+            out.append(
+                f"roadmap.md: stage {int(num)}, the maintenance stage, names "
+                f"stage{'' if len(named) == 1 else 's'} {shown} in its "
+                f"Dependencies' blocking slot — it has no blocking "
+                f"Dependencies, since it reopens at every maintenance batch; "
+                f"its slot reads None — {rule}")
+            continue
+        for n in (n for n in named if n in maint):
+            out.append(
+                f"roadmap.md: stage {int(num)}'s Dependencies name stage {n}, "
+                f"the maintenance stage, in the blocking slot — it reopens at "
+                f"every maintenance batch, so the dependency would be met only "
+                f"between batches; drop it from the slot, or say what orders "
+                f"the two in a sentence after it — {rule}")
+
+    started: Set[int] = set()
+    for start, _end, num in stage_sections(plines):
+        if _header_status(plines[start]) not in (None, "planned"):
+            started.add(int(num))
+    for line in plines:
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if (cells and _reads(_STAGE_SUMMARY, cells) and cells[0].isdigit()
+                and _icon_status(cells[3]) not in (None, "planned")):
+            started.add(int(cells[0]))
+    for n in maint:
+        if n in started:
+            continue
+        bullets = roadmap_acceptance_bullets(rlines, str(n))
+        if bullets:
+            out.append(
+                f"roadmap.md: stage {n}, the maintenance stage, has "
+                f"{len(bullets)} Validation / acceptance bullet"
+                f"{'' if len(bullets) == 1 else 's'} and has not started — it "
+                f"has no acceptance criteria of its own: each maintenance "
+                f"item's spec carries its own, so remove the block — {rule}")
+
+    pmaint = maintenance_stage_numbers(plines)
+    for line in plines:
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if not (pmaint and cells and _reads(_OBJECTIVE_COVERAGE, cells)):
+            continue
+        for n in (int(x) for x in _objective_row_stages(cells[1])
+                  if int(x) in pmaint):
+            g = re.match(r"G\d+", cells[0]).group(0)
+            out.append(
+                f"progress.md: objective {g}'s Delivered by cell names stage "
+                f"{n}, the maintenance stage — it delivers no objective, and "
+                f"the row would follow it to 🚧 at every reopen; name the "
+                f"stages that deliver it — {rule}")
+    return out
+
+
 #: The G-code(s) opening a roadmap coverage row's first cell — `G2`, or a
 #: leading run `G2, G7`, `G2 and G7`, `G2/G7` — after emphasis, code spans and
 #: one leading parenthetical annotation are set aside: a consumer keeps a
@@ -7786,10 +8069,17 @@ def _stage_drift_fix(off: List[Tuple[str, str]], derived: str,
     carry no item marker, which `set NNN deferred` cannot address (issue
     #336): the remedy names the positional form for them, beside the item
     form while *marked_open* says an itemised bullet is open too.
+
+    Where no cell is ⏸️, the remedy names `aide progress rollup --stage N`,
+    which writes exactly the derivation this compares with (issue #459). A
+    ⏸️ cell keeps its own remedy: §1 → progress.md has the owner record the
+    deferral on the bullets, or put back what the rollup computes.
     """
     target = "cells" if len(off) > 1 else off[0][0]
+    rollup = _rollup_command(stage)
     if derived == "deferred":
-        return f"every open deliverable is ⏸️, so set the {target} to ⏸️"
+        return (f"every open deliverable is ⏸️, so write ⏸️ into the "
+                f"{target} with {rollup}")
     if any(st == "deferred" for _, st in off):
         if derived == "complete":
             return "nothing is left open to defer, so restore ✅"
@@ -7797,9 +8087,15 @@ def _stage_drift_fix(off: List[Tuple[str, str]], derived: str,
                              else "its", [(stage, list(unmarked))]
                              if unmarked else [], marked_open, derived,
                              droppable)
-    return (f"a stage's cells follow its bullets, so set the {target} to "
-            f"{STATUS_TO_ICON[derived]}, or move the bullets with "
-            f"'aide progress set'")
+    return (f"a stage's cells follow its bullets, so write "
+            f"{STATUS_TO_ICON[derived]} into the {target} with {rollup}, or "
+            f"move the bullets with 'aide progress set'")
+
+
+def _rollup_command(stage: str) -> str:
+    """``'aide progress rollup --stage N'`` for a stage as its section heads it."""
+    return (f"'aide progress rollup --stage "
+            f"{int(stage) if stage.isdigit() else stage}'")
 
 
 def derived_cell_findings(lines: List[str]
@@ -7853,7 +8149,9 @@ def derived_cell_findings(lines: List[str]
             errors.append(
                 f"stage {num}: {where} marked ✅ but has non-complete "
                 f"deliverables — they roll up to {STATUS_TO_ICON[derived]} "
-                f"{derived}")
+                f"{derived}; a stage's cells follow its bullets, so write "
+                f"the rollup with {_rollup_command(num)}, "
+                f"or move the bullets with 'aide progress set'")
         if rest:
             unmarked = _unmarked_open_positions(lines, num)
             marked_open = len(unmarked) < sum(
@@ -7864,8 +8162,8 @@ def derived_cell_findings(lines: List[str]
                     f"stage {num}: all deliverables ✅ but {shown} — if the "
                     f"work shipped but the stage's goal is unmet, record the "
                     f"goal as an Outcome target (❌ Not met) and close the "
-                    f"stage; stages track shipped work, targets track "
-                    f"measured outcomes")
+                    f"stage with {_rollup_command(num)}; stages track "
+                    f"shipped work, targets track measured outcomes")
             else:
                 warnings.append(
                     f"stage {num}: {_cells_shown(rest)} but its deliverables "
@@ -7915,6 +8213,10 @@ def derived_cell_findings(lines: List[str]
         if current == derived:
             continue
         named.add(g)
+        # Any live stage it names rolls the row with it (`rollup_progress`
+        # writes every Objective row naming a stage it rolls up, from every
+        # stage the row names), so the first is the one the remedy names.
+        live = next(n for n in nums if n in stage_status and n not in withdrawn)
         stages = ", ".join(
             f"{n} ❌ withdrawn" if n in withdrawn
             else f"{n} {STATUS_TO_ICON[stage_status[n]]}"
@@ -7926,10 +8228,12 @@ def derived_cell_findings(lines: List[str]
                 f"objective {g} marked ✅ but the stages it names (stage "
                 f"{stages}) roll up to {STATUS_TO_ICON[derived]} {derived} — "
                 f"an objective is delivered only when every stage that "
-                f"delivers it is ✅")
+                f"delivers it is ✅, so write {STATUS_TO_ICON[derived]} with "
+                f"{_rollup_command(live)}")
             continue
         if derived == "deferred":
-            fix = "every stage it names is ✅ or ⏸️, so set it to ⏸️"
+            fix = (f"every stage it names is ✅ or ⏸️, so write ⏸️ with "
+                   f"{_rollup_command(live)}")
         elif current == "deferred":
             named_sections = [(start, end, n) for start, end, n in
                               stage_sections(lines)
@@ -7947,8 +8251,8 @@ def derived_cell_findings(lines: List[str]
                                     _stage_can_lose_a_bullet(lines, n)
                                     for n, _ in unmarked))
         else:
-            fix = (f"an Objective row follows its stages, so set it to "
-                   f"{STATUS_TO_ICON[derived]}")
+            fix = (f"an Objective row follows its stages, so write "
+                   f"{STATUS_TO_ICON[derived]} with {_rollup_command(live)}")
         warnings.append(
             f"objective {g}: {STATUS_TO_ICON[current]} {current} but the "
             f"stages it names (stage {stages}) roll up to "
@@ -8009,6 +8313,7 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     warnings.extend(root_document_warnings(ddir))
     warnings.extend(forward_dependency_warnings(ddir))
     warnings.extend(coverage_completeness_warnings(ddir))
+    warnings.extend(maintenance_stage_warnings(ddir))
     # A docs_dir outside the repo falls back to its absolute spelling, which
     # cannot appear in a spec's repo-relative paths — the always-authorised
     # pin lint then has nothing to match; the other spec-shape lints still
@@ -9726,6 +10031,8 @@ def cmd_progress(args: argparse.Namespace) -> int:
         # own error — usage, `error:` and exit 2 — as `type=int` refused it.
         args.progress_parser.error(
             f"argument number: invalid int value: '{args.number}'")
+    if args.action == "rollup":
+        return _cmd_progress_rollup(args)
     if args.item is not None and args.action != "reword":
         print(f"aide progress {args.action}: --item belongs to `reword` alone "
               f"(reword --item NNN --text TEXT)", file=sys.stderr)
@@ -9750,7 +10057,7 @@ def cmd_progress(args: argparse.Namespace) -> int:
         print("usage: aide progress set NNN <in-progress|in-review|done> | "
               "set NNN <deferred|resumed|dropped|restored> --reason TEXT | "
               "reopen NNN --reason TEXT | accept|amend|retract|reword STAGE "
-              "(see aide progress -h)", file=sys.stderr)
+              "| rollup [--stage N] (see aide progress -h)", file=sys.stderr)
         return 2
     if args.status is None:
         print("usage: aide progress set NNN <in-progress|in-review|done> | "
@@ -9859,6 +10166,61 @@ def cmd_progress(args: argparse.Namespace) -> int:
             return _commit_or_restore(repo_root, config, "aide progress set",
                                       "the status", message,
                                       [_progress_rel(config)], before)
+    return 0
+
+
+def _cmd_progress_rollup(args: argparse.Namespace) -> int:
+    """``aide progress rollup [--stage N]`` — write the rollup into the cells.
+
+    For the one write no other verb makes (issue #459): a bullet added under a
+    stage by hand, which leaves its header, Stage summary row and Objective
+    rows as they read — a ✅ over a new 📋 bullet is then an `aide check`
+    error until something rolls the stage up. `rollup_progress` does the
+    rolling; this commits it as every recording verb does, puts it back on a
+    commit that did not happen (issue #309), and is a no-op, exit 0, when
+    every cell already reads its rollup.
+    """
+    usage = "usage: aide progress rollup [--stage N] [--no-commit]"
+    extra = [flag for flag, given in (
+        ("NUMBER", args.number is not None), ("STATUS", args.status is not None),
+        ("--deliverable", args.deliverable is not None),
+        ("--criterion", args.criterion is not None),
+        ("--item", args.item is not None), ("--all", args.all_criteria),
+        ("--reason", args.reason is not None), ("--text", args.text is not None),
+        ("--evidence", args.evidence is not None),
+        ("--date", args.date is not None)) if given]
+    if extra:
+        print(f"{usage}\naide progress rollup: takes --stage N and "
+              f"--no-commit alone, not {', '.join(extra)} — it moves no "
+              f"bullet, it writes what the bullets roll up to",
+              file=sys.stderr)
+        return 2
+    repo_root = find_repo_root(args.repo)
+    config = load_config(repo_root)
+    progress_path = docs_dir(repo_root, config) / "progress.md"
+    if not progress_path.is_file():
+        print(f"error: {progress_path} not found", file=sys.stderr)
+        return 1
+    text = progress_path.read_text(encoding=_ENCODING)
+    try:
+        updated, messages = rollup_progress(text, args.stage)
+    except ValueError as exc:
+        print(f"aide progress rollup: {exc}; progress.md NOT changed",
+              file=sys.stderr)
+        return 1
+    scope = "every stage" if args.stage is None else f"stage {args.stage}"
+    if not messages:
+        print(f"{scope}: no change — every cell already reads its rollup")
+        return 0
+    for msg in messages:
+        print(msg)
+    before = _snapshot([progress_path])
+    progress_path.write_text(updated, encoding="utf-8")
+    if _commits_here(args.no_commit, repo_root, before):
+        return _commit_or_restore(
+            repo_root, config, "aide progress rollup", "the rollup",
+            f"progress(aide): roll up {scope}", [_progress_rel(config)],
+            before)
     return 0
 
 
@@ -10929,7 +11291,9 @@ def cmd_insights(args: argparse.Namespace) -> int:
         return _cmd_insights_add(path, ddir, ddir_rel, repo_root, config, args,
                                  capture or "")
     if args.action == "list":
-        return _cmd_insights_list(parse_insights(text), load_insight_pool(ddir), args)
+        return _cmd_insights_list(parse_insights(text), load_insight_pool(ddir), args,
+                                  queue_created_dates(ddir / "queue")
+                                  if args.open_only else [])
     if args.action == "tick":
         return _cmd_insights_tick(path, text, ddir, ddir_rel, repo_root, config,
                                   args, _dt.date.today().isoformat())
@@ -10967,7 +11331,8 @@ def _render_insight(e: InsightEntry, label: str, iid: Optional[str],
 
 def _cmd_insights_list(entries: List[InsightEntry],
                        pool: List[Tuple[str, InsightEntry]],
-                       args: argparse.Namespace) -> int:
+                       args: argparse.Namespace,
+                       created: Optional[List[Optional[str]]] = None) -> int:
     if args.type and args.type not in _INSIGHT_TYPES:
         print(f"aide insights: --type must be one of {', '.join(_INSIGHT_TYPES)}",
               file=sys.stderr)
@@ -10982,17 +11347,26 @@ def _cmd_insights_list(entries: List[InsightEntry],
     shown = [e for e in entries
              if (not args.open_only or not e.ticked)
              and (not args.type or e.type == args.type)]
+    created = created or []
     for e in shown:
         iid = live_ids[e.ordinal - 1] if e.ordinal <= len(live_ids) else None
-        _render_insight(e, f"{e.ordinal:>3}.", iid, args.trail)
-    open_entries = [e for e in entries if not e.ticked]
-    by_type = {t: sum(1 for e in open_entries if e.type == t) for t in _INSIGHT_TYPES}
+        # The wait is printed under --open only: it is what the queue
+        # boundary reads, and the full listing is the history (issue #456).
+        wait = ""
+        if args.open_only and e.type is not None and e.date is not None:
+            n = queues_open_across(e.date, created)
+            wait = f" · open across {n} queue{'' if n == 1 else 's'}"
+        _render_insight(e, f"{e.ordinal:>3}.", iid, args.trail, wait)
+    n_open, by_type, waited = inbox_wait_summary(entries, created)
     breakdown = ", ".join(f"{n} {t}" for t, n in by_type.items() if n)
     malformed = sum(1 for e in entries if e.type is None)
     print(f"aide insights: {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}, "
-          f"{len(open_entries)} open"
+          f"{n_open} open"
           f"{' (' + breakdown + ')' if breakdown else ''}"
           f"{f'; {malformed} malformed — see `aide check`' if malformed else ''}")
+    if args.open_only:
+        print(f"aide insights: {waited} open across {INSIGHT_WAIT_DECISION} "
+              f"or more queues")
     if len(shown) != len(entries):
         print(f"aide insights: {len(shown)} shown by the filters given")
     return 0
@@ -11623,15 +11997,64 @@ def _queue_item_title(repo_root: Path, config, number: int) -> Optional[str]:
     return None
 
 
+#: The maintenance tick's own pointer (§1 → `insights-maintenance-queue.md`):
+#: it OPENS with item references — `item NNN`, `items 012, 013`, `item 012 and
+#: item 013`, `items 012–014` — and only that head is read. What follows it is
+#: the author's gloss, which `<where it landed>` allows (§1 → `insights.md`):
+#: `item 191 (the border case)`, `item 216: decision 3 rewritten`, `items
+#: 173-178 (178 deletes the directory)`, `item 216 D16: …`; a number in the
+#: gloss is never an item. A bare number continues the head only after the
+#: plural `items` (`items 12, 13`, `items 173-178`); after a singular `item N`
+#: only another `item M` does, so `item 216, 3 rewritten` and `item 216 - 3
+#: rewritten` read [216]. The shape given up is a singular list, `item
+#: 012/013` or `item 012, 013`: it reads as item 012 alone. Anchored at the
+#: start, so a pointer that opens with
+#: prose and only MENTIONS an item — `declined: superseded by item 12`, `fixed
+#: by item 121` — is not this form (issue #460). ``(?!\w)`` ends the head at a
+#: word boundary, so `item 12abc` is no reference at all.
+_ITEM_REFS_HEAD = (r"(?:[Ii]tems\s+" + _ITEM_REF_NUM
+                   + r"(?:\s*[,/–-]\s*" + _ITEM_REF_NUM + r")*"
+                   + r"|[Ii]tem\s+" + _ITEM_REF_NUM + r")")
+_MAINTENANCE_TICK_RE = re.compile(
+    r"\s*" + _ITEM_REFS_HEAD
+    + r"(?:\s*(?:[,;&]|\band\b)\s*" + _ITEM_REFS_HEAD + r")*(?!\w)")
+#: A dated status-trail line as `tick` writes it: `  - **DATE** → POINTER`.
+_INSIGHT_TRAIL_POINTER_RE = re.compile(
+    r"^\s+[-*]\s+\*\*\d{4}-\d{2}-\d{2}\*\*\s*→\s*(?P<pointer>.*)$")
+
+
+def _maintenance_tick_items(pointer: Optional[str]) -> List[int]:
+    """The items at the head of a pointer of the maintenance tick's own form,
+    else ``[]`` — never a number in the gloss after them."""
+    m = _MAINTENANCE_TICK_RE.match(pointer) if pointer else None
+    return _referenced_item_numbers(m.group(0)) if m else []
+
+
 def _insight_derived_item(repo_root: Path, config, number: int) -> bool:
     """Did an insight become item *number*?
 
     §1 → the maintenance queue: the author who queues an open `defect`, `gap`
     or `automation` entry ticks it with the item number it became
     (`insights tick N --pointer "item NNN"`), so the inbox is where the engine
-    can read that an item is insight-derived. The pointer and the entry's trail
-    are read; its **provenance** deliberately is not — that names the item the
-    insight was captured *in*, which is the opposite claim.
+    can read that an item is insight-derived. Only a **ticked** entry counts,
+    and only a pointer of that tick's own form (`_MAINTENANCE_TICK_RE`) — one
+    that OPENS with item references, of which only those count, whatever gloss
+    the author wrote after them: the one on the entry line, or the pointer of a
+    dated trail line — which is where `tick` writes it on an entry already
+    ticked, and where `resolve` keeps a second side's tick. A pointer that
+    opens with prose is not read for item numbers (issue #460):
+
+    - a **decline**, `declined: <reason>`, closes the entry *without* an item,
+      so an item its reason cites is not the item the entry became;
+    - a **decayed premise**, `fixed by item 121`, deliberately does not count
+      either: the item fixed the entry, but it was planned as something else
+      and the entry was closed because nothing was left to queue — `kind`
+      says how an item was planned (small by design), not what it touched;
+    - any other prose naming an item, in a pointer or a trail line, is a
+      remark about the entry, and so is a number in a tick's gloss.
+
+    The entry's **provenance** is never read — it names the item the insight
+    was captured *in*, which is the opposite claim.
     """
     path = insights_path(docs_dir(repo_root, config))
     if not path.is_file():
@@ -11641,11 +12064,15 @@ def _insight_derived_item(repo_root: Path, config, number: int) -> bool:
     except (OSError, UnicodeDecodeError):
         return False
     for entry in entries:
-        if entry.type not in _LEDGER_MAINTENANCE_TYPES:
+        if entry.type not in _LEDGER_MAINTENANCE_TYPES or not entry.ticked:
             continue
-        for text in ([entry.pointer] if entry.pointer else []) + list(entry.trail):
-            if _references_item(text, number):
-                return True
+        pointers = [entry.pointer]
+        for line in entry.trail:
+            m = _INSIGHT_TRAIL_POINTER_RE.match(line)
+            if m:
+                pointers.append(m.group("pointer"))
+        if any(number in _maintenance_tick_items(p) for p in pointers):
+            return True
     return False
 
 
@@ -19021,9 +19448,15 @@ def cmd_status(args: argparse.Namespace) -> int:
     qdir = docs_dir(repo_root, config) / "queue"
     live_seen = False
     live_work: List[int] = []
-    if iter_queue_paths(qdir):
-        for path in iter_queue_paths(qdir):
-            nums = queue_item_numbers(path.read_text(encoding=_ENCODING))
+    # Each queue file is read once: its items here, its Created date for the
+    # inbox line below (issue #456).
+    created: List[Optional[str]] = []
+    queue_paths = iter_queue_paths(qdir)
+    if queue_paths:
+        for path in queue_paths:
+            qtext = path.read_text(encoding=_ENCODING)
+            created.append(queue_created_date(qtext))
+            nums = queue_item_numbers(qtext)
             idle = [n for n in nums if n in withdrawn
                     and item_status.get(n, "planned") == "planned"]
             open_nums = [n for n in nums
@@ -19045,6 +19478,19 @@ def cmd_status(args: argparse.Namespace) -> int:
                 print(f"  {path.name}: done" + (f" — {aside}" if aside else ""))
     else:
         print("  queues: none")
+
+    # The inbox, read and never created here (issue #456): open entries by
+    # type, and how many have waited long enough to be the owner's decision.
+    ipath = insights_path(docs_dir(repo_root, config))
+    if ipath.is_file():
+        n_open, by_type, waited = inbox_wait_summary(
+            parse_insights(ipath.read_text(encoding=_ENCODING)), created)
+        breakdown = ", ".join(f"{n} {t}" for t, n in by_type.items() if n)
+        print(f"  inbox: {n_open} open"
+              + (f" ({breakdown})" if breakdown else "")
+              + f"; {waited} open across {INSIGHT_WAIT_DECISION} or more queues")
+    else:
+        print("  inbox: none")
 
     # Outcome targets not yet ✅ Met — the goal-level state a summary table's
     # stage icons deliberately do not carry (conventions.md §1).
@@ -19659,7 +20105,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Over progress.md's tables, ERRORS: a missing stage summary "
             "table, objective coverage table or stage section; a stage "
             "summary row marked \u2705 over a stage whose deliverables do not "
-            "roll up to \u2705 (`aide progress -h` states the rollup), and a "
+            "roll up to \u2705 (`aide progress -h` states the rollup), each "
+            "such stage error naming `aide progress rollup --stage N`, which "
+            "writes the rollup into the stage's cells, and a "
             "stage header or Objective row so marked over a rollup that is "
             "not \u2705 \u2014 an Objective row's rollup being the same "
             "rule over the rollups of the stages its Delivered by cell "
@@ -19711,7 +20159,15 @@ def build_parser() -> argparse.ArgumentParser:
             "over a rollup that is not \u2705 is its error alone, a "
             "stage's other off cells share one warning, and an Objective "
             "row named against its rollup is not compared with its Outcome "
-            "targets.\n"
+            "targets. A finding naming a stage header, summary row or "
+            "Objective row that is not \u23f8\ufe0f against its rollup, "
+            "error or warning, names `aide progress rollup --stage N` as "
+            "the fix, which "
+            "writes that rollup \u2014 for an Objective row, N the first "
+            "stage it names that has deliverables and is not withdrawn; one "
+            "naming a \u23f8\ufe0f cell names deferring the open work "
+            "instead, and one over an Objective row whose every stage is "
+            "withdrawn names \u274c.\n"
             "\n"
             "Over the Environment-Gated Capability Verification table, "
             "warnings only, since no other check gates on it: a row its "
@@ -19757,7 +20213,15 @@ def build_parser() -> argparse.ArgumentParser:
             "stage a roadmap.md coverage row names with no '## Stage N' "
             "section in roadmap.md, the Delivered by cell read as the "
             "Dependencies slot is, by number after the word Stage or Stages "
-            "or from a cell of bare numbers; every "
+            "or from a cell of bare numbers; the maintenance stage \u2014 "
+            "a stage titled exactly Maintenance \u2014 given a second "
+            "stage of that title, in roadmap.md or in progress.md, named by a "
+            "roadmap.md coverage row or a progress.md Objective row, named "
+            "in another stage's blocking slot or naming any stage in its "
+            "own, or given Validation / acceptance bullets in roadmap.md "
+            "while progress.md shows it at nothing but \U0001f4cb, so a "
+            "started maintenance stage keeps the criteria it was written "
+            "with; every "
             "retracted acceptance criterion and every reopened item, a "
             "normal state rather than a defect, each reported once, by its "
             "latest retraction or reopening, and never as open once the box "
@@ -19878,6 +20342,10 @@ def build_parser() -> argparse.ArgumentParser:
             "deliverable bullet flips, a dated `reopened: <reason>` line goes "
             "under it, its stage rolls back down, and a `gap` insight is "
             "captured (--reason required)\n"
+            "rollup:  write what the rollup computes into stage N's header, "
+            "its summary-table row and every Objective row naming it "
+            "(--stage N), or into those of every stage, up or down; it moves "
+            "no bullet\n"
             "\n"
             "The rollup, applied by set and read by `aide check`: a stage is "
             "\u2705 when every deliverable bullet in it is \u2705 or \u274c "
@@ -19901,7 +20369,7 @@ def build_parser() -> argparse.ArgumentParser:
             "names it, and a row naming withdrawn stages alone reads "
             "\u274c. A header, summary row or Objective "
             "row marked \u23f8\ufe0f by hand stays as it reads until a verb "
-            "moves a bullet of its stage. Apart from deferring, dropping, "
+            "moves a bullet of its stage, or rollup rolls that stage up. Apart from deferring, dropping, "
             "resuming and restoring, set never downgrades a status; an item "
             "whose bullets are all \u23f8\ufe0f or \U0001f4cb leaves "
             "\u23f8\ufe0f by resuming alone, back to \U0001f4cb, one whose "
@@ -20035,13 +20503,28 @@ def build_parser() -> argparse.ArgumentParser:
             "neither drop form refuses there. "
             "No insight is captured: "
             "dropping a deliverable is a decision about scope, not a "
-            "finding."))
+            "finding.\n"
+            "\n"
+            "rollup is for a bullet added by hand, the one write no other "
+            "verb rolls up: until then the stage's cells read as before, and "
+            "a \u2705 over the new \U0001f4cb bullet is an `aide check` "
+            "error. Each cell it rolls up is written as the rollup computes "
+            "it, a \u23f8\ufe0f set by hand included, and every other cell "
+            "is left as it reads. An Objective row naming stage N is "
+            "written from every stage it names, those not rolled up "
+            "included, as `aide check` compares it. A stage whose summary row is \u274c is "
+            "left whole, a \u274c header or Objective row stays, and a "
+            "stage with no deliverable bullet derives nothing. It prints "
+            "each cell it writes, and commits progress.md as set does; with "
+            "every cell already its rollup it writes nothing and exits 0. It "
+            "refuses, exit 1, a stage with no section in progress.md, and, "
+            "exit 2, any argument but --stage and --no-commit."))
     p_prog.add_argument("action",
                         choices=["set", "accept", "amend", "retract", "reword",
-                                 "reopen"])
+                                 "reopen", "rollup"])
     p_prog.add_argument("number", type=_progress_number, nargs="?", default=None,
                         help="item number (set, reopen) | stage number "
-                             "(every other action; none for reword --item)")
+                             "(every other action; none for reword --item or rollup)")
     p_prog.add_argument("status", nargs="?", default=None,
                         help="set: in-progress | in-review | done | deferred "
                              "| dropped | resumed | restored (in-review = "
@@ -20062,7 +20545,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="set deferred|dropped|resumed|restored: the "
                              "stage whose "
                              "deliverable bullet --deliverable names, in "
-                             "place of NNN")
+                             "place of NNN; rollup: the one stage to roll "
+                             "up (default: every stage)")
     p_prog.add_argument("--deliverable", type=int, default=None, metavar="K",
                         help="set deferred|dropped|resumed|restored: the "
                              "1-based position "
@@ -20359,7 +20843,13 @@ def build_parser() -> argparse.ArgumentParser:
             "archive or merge changes; four hex digits, more only where two "
             "different claims of one date would share them. list N or list "
             "ID prints that one entry with its trail, and an ID is found in "
-            "the archives too\n"
+            "the archives too. With --open each entry also prints its wait, "
+            "`open across N queues`: the queue files numbered from the first "
+            "whose **Created:** date is later than the entry's capture date, "
+            "that one included. A queue created on the capture day is not "
+            "counted, and a queue file with no Created date counts only when "
+            "it is numbered after one that does. A closing line counts the "
+            "entries open across 3 or more queues\n"
             "tick:    the one in-place edit — tick entry N (or ID) with --pointer; on "
             "an entry already ticked, append a dated trail line instead; "
             "with --trail, append the dated line under entry N and leave "
@@ -20399,7 +20889,8 @@ def build_parser() -> argparse.ArgumentParser:
                             "(item NNN, queue-NNN, items NNN-NNN); omitted "
                             "when not given")
     p_ins.add_argument("--open", action="store_true", dest="open_only",
-                       help="list: only entries still untriaged")
+                       help="list: only entries still untriaged, each with "
+                            "its wait")
     p_ins.add_argument("--type", default=None,
                        help="list: one of " + ", ".join(_INSIGHT_TYPES))
     p_ins.add_argument("--trail", action="store_true",
@@ -20603,8 +21094,12 @@ def register_git_subcommands(sub) -> None:
             "write, and committed together with the \u2705 so the two can "
             "never disagree. Every cell is derived here: the item, its queue, "
             "its stage, its kind \u2014 validate-stage from an item titled "
-            "`Validate stage N`, maintenance from an inbox entry ticked with "
-            "this item's number, else normal \u2014 how many acceptance "
+            "`Validate stage N`, maintenance from a defect, gap or "
+            "automation entry ticked with a pointer that opens with this "
+            "item's number, `item NNN`, on its line or a dated trail line, "
+            "whatever gloss follows \u2014 a pointer that opens with prose "
+            "and only mentions the item, as a decline's reason may, is not "
+            "that tick \u2014 else normal \u2014 how many acceptance "
             "criteria its spec "
             "carries, how many test functions and files the branch added "
             "against the base this run resolved \u2014 less the tests "
@@ -20866,7 +21361,7 @@ def register_git_subcommands(sub) -> None:
     p_status = sub.add_parser(
         "status", help="one-call roadmap-state report (branch, queues, "
         "claims, PRs, open gates, unmet targets, unverified capabilities, "
-        "retracted criteria)",
+        "retracted criteria, inbox)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "A \U0001f50d item's claim branch is reported as awaiting review, "
@@ -20895,6 +21390,10 @@ def register_git_subcommands(sub) -> None:
             "or not; one that times out or cannot start is not satisfied — "
             "a satisfied profile under an unverified row is a row this "
             "machine can verify now.\n\n"
+            "An `inbox:` line counts the open insights.md entries by type and "
+            "how many of them are open across 3 or more queues, the wait "
+            "`aide insights list --open` prints; it reads none where there is "
+            "no insights.md, which status never creates.\n\n"
             "The stack of unmerged queue branches \u2014 the ones `aide queue "
             "start` counts against [loop] max_open_queues \u2014 is printed "
             "bottom first, after a `stack: N/CAP` line: one `stack N: <branch> "

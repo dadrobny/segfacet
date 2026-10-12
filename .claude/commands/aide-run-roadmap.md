@@ -193,6 +193,7 @@ end**, below the cap. Call the base `<base>` below — `main`, or
   raised none.
 - **Check that it wrote a queue before anything else.** A planner that finds
   nothing it may queue — the next stage waits on a ⏸️ or withdrawn one, or
+  the fixes it would batch have no maintenance stage to go under, or
   queueing it needs a framework-file edit, or the roadmap is ambiguous — hands
   back and writes none. Ask git rather than its summary:
   `git cat-file -e HEAD:docs/aide/queue/queue-NNN.md` (the lower number, for

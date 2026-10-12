@@ -261,7 +261,7 @@ tier to its own runtime's models (as high as necessary, as low as adequate). Det
 | `validator` | **T2** | quality gate: tests, AC coverage, scope, vision fit; reconciles + merges |
 | `reviewer` | **T2** | *optional, `loop.review`* — adversarial read of the item's diff as each run first built it, concurrent with that run's first validation; produces findings, merges nothing |
 | `spec-reviewer` | **T3** | *optional* — reads all of a queue's specs at once, before any is built, for the cross-item conflicts `aide check --queue` cannot decide; findings go to the human |
-| `insights-triager` | **T2** | *optional* — judges every open inbox entry's route, duplicate, decayed premise or wrong type; returns a plan, writes nothing |
+| `insights-triager` | **T2** | *optional* — judges every open inbox entry's route, duplicate, decayed premise or wrong type, and proposes the owner's declines; returns a plan, writes nothing |
 
 No agent signs off its own work; every role gets a fresh instance per item
 (per queue for `spec-reviewer`, per triage pass for `insights-triager`).

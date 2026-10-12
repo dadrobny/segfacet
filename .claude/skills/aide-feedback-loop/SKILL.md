@@ -21,7 +21,7 @@ ones this run needs; none of them is restated below.
 
 | Pass | What it does | When |
 |---|---|---|
-| `/aide-review-insights` | triages the open inbox — routes by type, judges duplicates and decayed premises, files `framework` issues | at every queue boundary; always, if the inbox has unchecked entries |
+| `/aide-review-insights` | triages the open inbox — routes by type, judges duplicates and decayed premises, proposes declines, puts each long-waiting entry to the owner, files `framework` issues | at every queue boundary; always, if the inbox has unchecked entries |
 | `/aide-review-permissions` | ranks the auto-logged permission prompts an unattended run stalls on | when a run needed a human to approve a command |
 | `/aide-review-instructions` | reports which instruction files actually reached which sessions | when a rule looks like it never bound |
 | `/aide-status-report` | regenerates the living HTML status page | when the visible snapshot has gone stale |
@@ -126,6 +126,14 @@ is.
   agreeing to the recommendation is not one.
   A human gate may be raised here, but only a person resolves one (§1 →
   human gates) — leave `aide gate approve`/`decline` to them.
+- **A decline or Backlog move the triage pass proposed is the user's to
+  decide** (§1 → `insights-triage.md`), and so is every entry it brought
+  back after three or more queues — whether to queue it, decline it, or
+  move a `gap` to the Backlog. Put each to them with its reason,
+  and apply only the ones they agree to: a decline with
+  `aide insights tick N --pointer "declined: <reason>"`; a `gap` moved to
+  the roadmap's `# Backlog` as a `roadmap.md` amendment, its bullet citing
+  `insight <ID>`, then ticked `--pointer "roadmap Backlog"`.
 - **Make the smallest edit that carries the agreed change**, and leave the
   rest of the document as it reads.
 - **Finish with `python .aide/scripts/aide.py check`**, and clear any error

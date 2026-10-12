@@ -361,6 +361,120 @@ def test_a_knowledge_entry_routed_to_an_item_is_not_maintenance(tmp_path: Path):
     assert aide.item_kind(repo, aide.load_config(repo), 27) == "normal"
 
 
+def test_a_maintenance_tick_in_the_trail_counts(tmp_path: Path):
+    """`tick` on an entry already ticked writes the pointer as a dated trail
+    line, and `resolve` keeps a second side's tick there: a declined entry the
+    owner later says to queue is ticked `item NNN` exactly so (issue #460)."""
+    routed = INSIGHTS + (
+        "- [x] defect — bounds are off by one *(2026-09-01)* → declined: not now\n"
+        "  - **2026-09-20** → item 027\n")
+    repo = _docs(tmp_path / "repo", insights=routed)
+    assert aide.item_kind(repo, aide.load_config(repo), 27) == "maintenance"
+
+
+def test_a_maintenance_tick_may_name_several_items(tmp_path: Path):
+    """An entry split across items is ticked with each; the form is item
+    references and nothing else."""
+    for i, pointer in enumerate(("items 026, 027", "item 026, item 027",
+                                 "items 026-027", "item 026 and item 027",
+                                 "Item 027.")):
+        routed = INSIGHTS + f"- [x] gap — no bound *(2026-09-01)* → {pointer}\n"
+        repo = _docs(tmp_path / f"r{i}", insights=routed)
+        assert aide.item_kind(repo, aide.load_config(repo), 27) == "maintenance", pointer
+
+
+def test_a_maintenance_tick_may_carry_a_gloss(tmp_path: Path):
+    """A pointer is "where it landed", free-form, so an author may annotate the
+    tick; the references it opens with still count (issue #460, review)."""
+    for i, pointer in enumerate((
+            "item 027 (edge gating); the wider bound is stage 4's",
+            "items 026-027 (027 removes the old module)",
+            "item 027 (descriptions corrected, AC6)",
+            "item 027: design decision 3 rewritten",
+            "item 027 D16: version rows corrected",
+            "item 027 — the bounds fix")):
+        routed = INSIGHTS + f"- [x] gap — no bound *(2026-09-01)* → {pointer}\n"
+        repo = _docs(tmp_path / f"r{i}", insights=routed)
+        assert aide.item_kind(repo, aide.load_config(repo), 27) == "maintenance", pointer
+
+
+def test_a_number_in_a_ticks_gloss_is_not_an_item():
+    """Only the references the pointer opens with are read: the gloss's
+    numbers — a bare one, or even one written `item NNN` — name no item."""
+    assert aide._maintenance_tick_items(
+        "items 173-178 (178 deletes the directory)") == list(range(173, 179))
+    assert aide._maintenance_tick_items(
+        "item 191 (border gating); extents are stage 27's, see item 40") == [191]
+    assert aide._maintenance_tick_items("item 216 D16: rows corrected") == [216]
+    assert aide._maintenance_tick_items("items 12, 13") == [12, 13]
+    assert aide._maintenance_tick_items("item 216: decision 3 rewritten") == [216]
+    for prose in ("declined: superseded by item 12", "fixed by item 121",
+                  "superseded by item 12", "decayed premise: item 5 is gone",
+                  "item 12abc", ""):
+        assert aide._maintenance_tick_items(prose) == [], prose
+
+
+def test_a_bare_number_continues_only_a_plural_head():
+    """`items 12, 13` and `items 173-178` are the documented lists; after a
+    singular `item N` only another `item M` continues the head, so a gloss
+    opening with a comma, a dash or a slash and a number reads no item."""
+    for gloss in ("item 216, 3 rewritten", "item 216 - 3 rewritten",
+                  "item 216 / 3 files"):
+        assert aide._maintenance_tick_items(gloss) == [216], gloss
+    assert aide._maintenance_tick_items(
+        "items 173-178 (the last deletes it)") == list(range(173, 179))
+    assert aide._maintenance_tick_items("items 12, 13") == [12, 13]
+    assert aide._maintenance_tick_items("item 012, item 013") == [12, 13]
+    assert aide._maintenance_tick_items("item 012 and item 013") == [12, 13]
+
+
+def test_a_declined_pointer_naming_an_item_is_not_maintenance(tmp_path: Path):
+    """Issue #460: an owner's decline closes the entry without an item, so an
+    item its reason cites is not the item the entry became."""
+    for i, pointer in enumerate(("declined: superseded by item 27",
+                                 "declined: superseded by Item 027")):
+        routed = INSIGHTS + f"- [x] defect — off by one *(2026-09-01)* → {pointer}\n"
+        repo = _docs(tmp_path / f"r{i}", insights=routed)
+        assert aide.item_kind(repo, aide.load_config(repo), 27) == "normal", pointer
+
+
+def test_a_decayed_premise_naming_an_item_is_not_maintenance(tmp_path: Path):
+    """Issue #460, decided: the item fixed the entry, but it was planned as
+    something else — `kind` says how an item was planned, not what it
+    touched. On the entry line or in the trail."""
+    on_line = INSIGHTS + "- [x] defect — off by one *(2026-09-01)* → fixed by item 027\n"
+    in_trail = INSIGHTS + (
+        "- [x] defect — off by one *(2026-09-01)* → docs/aide/roadmap.md\n"
+        "  - **2026-09-20** → fixed by item 027\n")
+    for name, text in (("line", on_line), ("trail", in_trail)):
+        repo = _docs(tmp_path / name, insights=text)
+        assert aide.item_kind(repo, aide.load_config(repo), 27) == "normal", name
+
+
+def test_trail_prose_naming_an_item_is_not_maintenance(tmp_path: Path):
+    """A trail line is read only for a pointer of the tick's own form, one
+    that opens with the item; a remark that names an item, dated or not, is a
+    remark."""
+    remarked = INSIGHTS + (
+        "- [x] automation — no lint *(2026-09-01)* → item 019\n"
+        "  - **2026-09-20** → the same module was touched by item 027\n"
+        "  - see item 027\n")
+    repo = _docs(tmp_path / "repo", insights=remarked)
+    config = aide.load_config(repo)
+    assert aide.item_kind(repo, config, 27) == "normal"
+    assert aide._insight_derived_item(repo, config, 19)
+
+
+def test_an_open_entry_is_no_items_source(tmp_path: Path):
+    """Only a tick records the item an entry became; a `--trail` line on an
+    open entry is a judgement that keeps it open."""
+    left_open = INSIGHTS + (
+        "- [ ] defect — off by one *(2026-09-01)*\n"
+        "  - **2026-09-20** → item 027\n")
+    repo = _docs(tmp_path / "repo", insights=left_open)
+    assert aide.item_kind(repo, aide.load_config(repo), 27) == "normal"
+
+
 def test_validate_stage_wins_over_an_insight_pointer(tmp_path: Path):
     routed = INSIGHTS + "- [x] gap — nothing pins the stage *(2026-09-01)* → item 028\n"
     repo = _docs(tmp_path / "repo", insights=routed)

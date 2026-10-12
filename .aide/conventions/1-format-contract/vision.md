@@ -1,11 +1,15 @@
 ### `vision.md` (the root document every other one derives from)
 
 Governs `docs/aide/vision.md`: the four sections the loop reads, what each one
-is read for, and the optional build posture. It is authored only through the
-create-vision entry point, interactively (§5); the create-roadmap entry point,
-`queue-planner`, `spec-author` and `validator` read it, and `aide check` lints
-it. `.aide/templates/vision.md` draws its shape and marks
-the four `MANDATORY`; everything else in it is project narrative.
+is read for, and the optional build posture. **It has two writers, both the
+owner's.** The create-vision entry point authors it, interactively (§5), and
+replaces it only once the owner confirms; an amendment the owner agrees to is
+applied in the owner's own session instead, the feedback loop's included, with
+no need for that entry point. Both land through the merge policy's reviewed PR
+(`.aide/README.md`). The create-roadmap entry point, `queue-planner`,
+`spec-author` and `validator` read it, and `aide check` lints it.
+`.aide/templates/vision.md` draws its shape and marks the four `MANDATORY`;
+everything else in it is project narrative.
 
 Mandatory — a vision without any of these gives a downstream role nothing to
 check against (consumer in brackets):
@@ -67,6 +71,13 @@ count under each value — is §1 → items.md, read with this table, not beyond
 
 #### Rationale
 
+- **Why two writers.** This section once said the file was authored only
+  through the create-vision entry point, while the feedback loop, since 2.41.0
+  (issues #392, #359), applied an agreed amendment in the session and told the
+  user not to rebuild a document to amend it (issue #461, found for
+  `roadmap.md`, whose section said the same). The entry point exists to ask
+  until the mandatory sections are grounded in the owner's answers; an
+  amendment the owner has already agreed to is that answer.
 - **Why these four and not the rest.** They are the only sections a role reads
   as a *test*: the validator's vision-fit check is Guiding principles plus Out
   of scope, and the roadmap's traceability is the G-codes and Success

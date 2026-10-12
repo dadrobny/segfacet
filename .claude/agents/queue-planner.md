@@ -49,7 +49,16 @@ Follow the `aide-create-queue` skill in full. In brief:
    runs *at* the queue boundary, when the next queue does not exist yet, so a
    `defect`, `gap` or `automation` entry left open there is waiting for you.
    Every one of them is **considered, and either queued or explicitly passed
-   over — never silently dropped**.
+   over — never silently dropped**. A decline, or a `gap` moved to the
+   roadmap's Backlog, closes an entry too, but both are the owner's (§1 →
+   `insights-triage.md`): you may propose either with a pass-over, never make
+   it. An entry the listing shows open across three or more queues is past
+   proposing: queue it if the owner has said to; otherwise never pass it over
+   again, and put it in step 8's summary — which the queue PR body carries —
+   as a decision for the owner: queue, decline, or for a `gap` the Backlog,
+   with the one you would take and why. With nobody watching, that review is
+   where the owner answers. The roadmap's `# Backlog`, if it has one, is not a stage, and **the
+   queue planner never queues from it** (§1 → `roadmap.md`).
 2. **Determine the next queue number** NNN (highest existing + 1) and the next
    **item number** (sequential across *all* queues — never restart numbering).
    **When open `defect`, `gap` or `automation` entries warrant it, NNN is a
@@ -59,7 +68,15 @@ Follow the `aide-create-queue` skill in full. In brief:
    of the numbering (§1 → `queue-NNN.md`, preloaded above). Item numbers still
    run sequentially across the pair, maintenance queue first. Write only the
    stage queue when there is nothing to batch, or nothing that warrants a queue
-   of its own — and say which it was.
+   of its own — and say which it was. A maintenance queue's items are wired
+   under the roadmap's **maintenance stage** (step 5). **When a maintenance
+   queue is warranted and the roadmap has no maintenance stage, the queue's
+   author hands back**, before writing either queue: stop, name the entries
+   that warrant one, and say that **the owner adds the stage once, as an
+   amendment to `roadmap.md`** (§1 → `insights-maintenance-queue.md`,
+   preloaded above). Nothing else triggers
+   it: a boundary with no entry that warrants a maintenance queue writes its
+   stage queue as before.
 3. **Tidy the superseded previous queue** with the CLI — it writes the
    completion note itself, and the stamp is never typed by hand (§1 →
    `queue-NNN.md`, preloaded above):
@@ -83,6 +100,12 @@ Follow the `aide-create-queue` skill in full. In brief:
    pad with the following stage. A stage needing more spans multiple queues at the
    cap. The cap is a context budget, not a target. Prioritise by roadmap order and
    unblocked dependencies.
+
+   **A stage queue never takes the maintenance stage as its next stage**: it
+   has no roadmap deliverable to queue, so pass over it when choosing the
+   next stage. **The maintenance stage is the stage titled exactly
+   `Maintenance`** (§1 → `roadmap.md`). **A stage appended after it is an
+   ordinary stage**, queued in its turn.
 
    **A blocking dependency on an earlier stage is met only once that stage is
    ✅** (§1 → `roadmap.md`, which is not preloaded — read it there): queue a
@@ -110,6 +133,18 @@ Follow the `aide-create-queue` skill in full. In brief:
    items splits the bullet into one per item. **Never change a status
    icon** (leave deliverables 📋 — status transitions are `aide progress set`'s job
    during execution).
+
+   **A maintenance item's deliverable bullet goes under the maintenance
+   stage**, **never under the feature stage whose module it touches**, and
+   the roadmap lists no deliverable there, so each is a new bullet. **A
+   maintenance batch rolls the maintenance stage up with its verb, after
+   wiring its bullets**: no verb moves a stage when a bullet is added, and
+   `aide check` errors while a reopened ✅ stage's section header and Stage
+   summary row still read ✅, so run
+   `python .aide/scripts/aide.py progress rollup --stage N --no-commit`, N the
+   maintenance stage, and **commit what it writes in the same commit as the
+   bullets** — step 6's (§1 → `insights-maintenance-queue.md`, preloaded
+   above).
 
    **Wire a marker onto a 📋 bullet only.** An item born on a ⏸️ or ❌
    bullet is settled from the start, and its queue reads done the moment it
@@ -165,8 +200,13 @@ Follow the `aide-create-queue` skill in full. In brief:
    the commit of step 6, not before** — the verb rebases onto the upstream before committing,
    and a working tree still holding the queue and the back-fill is exactly the
    state that makes the rebase fail; `aide-create-queue` orders it the same way.
+   **The pointer opens with the item references**, and a gloss may follow
+   them; **that tick is the one record that an item is insight-derived**,
+   and a pointer that opens with prose and only mentions an item does not
+   count.
    An entry you passed over stays open and unticked — it is still a candidate
-   for the next queue — and step 8 says so out loud.
+   for the next queue — and step 8 says so out loud. Never tick a decline or
+   a Backlog move you propose: the owner decides it, and ticks it.
 8. **Return** a tight summary: the queue number — or **both**, saying which is
    the maintenance queue and which the stage queue — the item-number range and
    one-line titles, and confirmation the previous queue was tidied and every
@@ -175,7 +215,9 @@ Follow the `aide-create-queue` skill in full. In brief:
    Name the inbox entries you queued (with the item numbers
    they became) **and the ones you passed over, with why** — a pass-over is
    stated where the queue is reviewed, not left for the next reader to
-   re-derive. Name the two ways to proceed (`/aide-spec-queue NNN` up
+   re-derive — with any decline or Backlog move you propose to the owner,
+   and each entry open across three or more queues the owner has not yet
+   decided, put to them as a decision (step 1). Name the two ways to proceed (`/aide-spec-queue NNN` up
    front, or per-item during `/aide-run-queue NNN`) in the summary — the
    orchestrator carries it into the queue-PR body.
 
@@ -236,9 +278,10 @@ and resolving it destroys the only thing the gate protects.
 - **Do NOT run `pytest`.**
 - Edit only `docs/aide/queue/*.md` and `docs/aide/progress.md` — and in
   `progress.md` only the item-reference back-fill (step 5), the deferral of
-  a carried item or the drop of one its owner decided against (step 3) and
-  the resume of a deferred bullet its owner decided to queue (step 5), each
-  by its verb, and
+  a carried item or the drop of one its owner decided against (step 3), the
+  resume of a deferred bullet its owner decided to queue (step 5) and the
+  roll-up of the maintenance stage after a maintenance batch's bullets
+  (step 5), each by its verb, and
   **adding a row to `## Human gates`** (above), never a deliverable's status
   icon by hand and never new stages/acceptance. Adding a gate row
   is permitted because raising a blocker is safe; **resolving** one is not

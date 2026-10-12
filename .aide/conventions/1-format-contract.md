@@ -60,7 +60,7 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 | `§1 → …` | File | What it fixes |
 |---|---|---|
 | `vision.md` | [`vision.md`](1-format-contract/vision.md) | The root document's four mandatory sections, what each is read for, and the optional build posture the authoring roles apply |
-| `roadmap.md` | [`roadmap.md`](1-format-contract/roadmap.md) | The staged plan: its mandatory shape and its complete coverage table, why a started stage is not re-edited, and which stages a stage may depend on |
+| `roadmap.md` | [`roadmap.md`](1-format-contract/roadmap.md) | The staged plan: its mandatory shape and its complete coverage table, why a started stage is not re-edited, which stages a stage may depend on, the optional maintenance stage, and the optional Backlog of scope not ready to plan |
 | Status icons | [`status-icons.md`](1-format-contract/status-icons.md) | The only six icons, their ranks, and the three structural positions they are read at |
 | `progress.md` | [`progress.md`](1-format-contract/progress.md) | The single source of truth for status — objectives, stages, deliverable bullets, outcome targets |
 | `queue-NNN.md` | [`queue-NNN.md`](1-format-contract/queue-NNN.md) | A batch of one-line items, how a superseded queue is tidied, and when a queue ends with a queue-end item |
@@ -68,8 +68,8 @@ reader. A pointer of the form `§1 → insights.md` resolves to
 | Authorised paths | [`authorised-paths.md`](1-format-contract/authorised-paths.md) | An item's declared scope — the two lists `spec-author` writes |
 | Scope proof | [`authorised-paths-proof.md`](1-format-contract/authorised-paths-proof.md) | How that declaration is proved: `aide scope`, `check --queue`, and what a test may never claim |
 | `insights.md` | [`insights.md`](1-format-contract/insights.md) | The compound-engineering inbox every role captures into: entry shape, the verbs, immutability |
-| Insight triage | [`insights-triage.md`](1-format-contract/insights-triage.md) | Routing an entry by type, judging it, handing a `framework` entry over |
-| The maintenance queue | [`insights-maintenance-queue.md`](1-format-contract/insights-maintenance-queue.md) | Insight-derived fixes, queued ahead of the stage queue |
+| Insight triage | [`insights-triage.md`](1-format-contract/insights-triage.md) | Routing an entry by type, judging it, the owner's decline, handing a `framework` entry over |
+| The maintenance queue | [`insights-maintenance-queue.md`](1-format-contract/insights-maintenance-queue.md) | Insight-derived fixes, queued ahead of the stage queue and wired under the maintenance stage |
 | `ledger.md` | [`ledger.md`](1-format-contract/ledger.md) | The run ledger: one row per run of an item, what it cost and what it added, written by the verbs that end an item |
 | Human gates | [`human-gates.md`](1-format-contract/human-gates.md) | The table that blocks an item until a person decides |
 | Environment-gated capabilities | [`environment-gated-capabilities.md`](1-format-contract/environment-gated-capabilities.md) | Declaring a capability the loop's own machine cannot verify |

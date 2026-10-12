@@ -284,6 +284,89 @@ def test_list_filters_by_type(tmp_path: Path, capsys):
     assert "utf-8-sig" not in out
 
 
+# --------------------------------------------------------------------------- #
+# an entry's wait — open across N queues (§1 → insights-triage.md, #456)
+# --------------------------------------------------------------------------- #
+def _queue(repo: Path, n: int, created) -> None:
+    """A queue file with a Created line on the header's status line, or none."""
+    qdir = repo / "docs" / "aide" / "queue"
+    qdir.mkdir(exist_ok=True)
+    header = (f"> **Status:** done · **Created:** {created}\n" if created
+              else "> **Status:** done\n")
+    (qdir / f"queue-{n:03d}.md").write_text(
+        f"# Demo — Work Queue {n:03d}\n\n{header}\n## Work items\n\n"
+        f"> **Created:** 1999-01-01 — quoted by an item, never the queue's\n",
+        encoding="utf-8")
+
+
+def test_a_queue_created_date_is_read_from_its_header_only():
+    assert aide.queue_created_date(
+        "# Q\n\n> closed) · **Created:** 2026-07-15\n") == "2026-07-15"
+    assert aide.queue_created_date(
+        "# Q\n\n## Work items\n\n> **Created:** 2026-07-15\n") is None
+    assert aide.queue_created_date("# Q\n\n> **Created:** {{yyyy-mm-dd}}\n") is None
+
+
+def test_the_wait_counts_queues_created_strictly_after_the_capture():
+    created = ["2026-08-01", "2026-08-10", "2026-08-20"]
+    assert aide.queues_open_across("2026-07-31", created) == 3
+    assert aide.queues_open_across("2026-08-01", created) == 2   # same day: not
+    assert aide.queues_open_across("2026-08-05", created) == 2
+    assert aide.queues_open_across("2026-08-20", created) == 0
+    assert aide.queues_open_across("2026-08-01", []) == 0
+
+
+def test_an_undated_queue_counts_only_after_a_dated_one_that_does():
+    # Numbering follows creation: an undated queue after a counting one was
+    # made later still; one before any counting queue says nothing.
+    assert aide.queues_open_across("2026-08-05", [None, "2026-08-10", None]) == 2
+    assert aide.queues_open_across("2026-08-05", ["2026-08-01", None]) == 0
+    assert aide.queues_open_across("2026-08-05", [None, None]) == 0
+
+
+def test_list_open_prints_each_entrys_wait_and_counts_the_long_waits(
+        tmp_path: Path, capsys):
+    """The defect (2026-05-11) has waited across all three queues; the gap
+    (2026-08-15) only across the one created after it. The undated queue
+    counts for the defect, numbered after a dated queue that does."""
+    repo = _repo(tmp_path)
+    _queue(repo, 1, "2026-06-01")
+    _queue(repo, 2, None)
+    _queue(repo, 3, "2026-08-20")
+    assert aide.main(["--repo", str(repo), "insights", "list", "--open"]) == 0
+    out = capsys.readouterr().out
+    defect = next(l for l in out.splitlines() if "happy path a typo" in l)
+    gap = next(l for l in out.splitlines() if "installed engine" in l)
+    assert defect.endswith("· open across 3 queues")
+    assert gap.endswith("· open across 1 queue")
+    assert "aide insights: 1 open across 3 or more queues" in out
+
+
+def test_list_without_open_prints_no_wait(tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    _queue(repo, 1, "2026-09-01")
+    assert aide.main(["--repo", str(repo), "insights", "list"]) == 0
+    assert "open across" not in capsys.readouterr().out
+
+
+def test_status_prints_the_inbox_by_type_and_its_long_waits(tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    for n, created in enumerate(["2026-06-01", "2026-07-01", "2026-08-20"], 1):
+        _queue(repo, n, created)
+    assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
+    out = capsys.readouterr().out
+    assert ("  inbox: 2 open (1 defect, 1 gap); 1 open across 3 or more queues"
+            in out.splitlines())
+
+
+def test_status_reads_no_inbox_as_none_and_creates_none(tmp_path: Path, capsys):
+    repo = _repo(tmp_path)
+    (repo / "docs" / "aide" / "insights.md").unlink()
+    assert aide.main(["--repo", str(repo), "status", "--no-fetch"]) == 0
+    assert "  inbox: none" in capsys.readouterr().out.splitlines()
+    assert not (repo / "docs" / "aide" / "insights.md").exists()
+
+
 def test_list_keeps_the_whole_provenance(tmp_path: Path, capsys):
     """Dropping the item ref sends the reader back to the file being replaced."""
     repo = _repo(tmp_path)

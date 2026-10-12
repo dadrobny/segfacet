@@ -14,7 +14,7 @@
   read then replace. Delete this comment in the generated file,
   and keep the aide-template line below it.
 -->
-<!-- aide-template: roadmap 1 -->
+<!-- aide-template: roadmap 2 -->
 # {{project-name}} — Development Roadmap
 
 > **Status:** Draft v1 · **Created:** {{yyyy-mm-dd}}
@@ -99,3 +99,30 @@ acceptance bullet: prefix it `Target:` and mirror it into progress.md's
 
 _Repeat "## Stage N — Title" per stage. Group stages into phases with a
 `# Phase N — name` header above the first stage of the phase, if useful._
+
+---
+
+## Stage {{n}} — Maintenance  <!-- OPTIONAL: at most one -->
+
+_OPTIONAL — delete unless the project runs maintenance queues. Its shape is
+the block below and nothing more: no deliverable bullets, no Validation /
+acceptance block, and no row in the coverage table. What it may carry is
+`.aide/conventions.md` §1 → roadmap.md._
+
+**Goal.** {{one sentence: the shipped work this stage repairs}}
+
+**Deliverables.** Added to `progress.md` by each maintenance queue.
+
+**Dependencies.** None.
+
+---
+
+# Backlog  <!-- OPTIONAL: after the last stage -->
+
+_OPTIONAL — delete unless the project has ideas worth keeping that no stage
+is ready to take on. Keep the `#` heading: it is not a stage. One short
+bullet per idea; what a bullet may say, and how one leaves the list, is
+`.aide/conventions.md` §1 → roadmap.md._
+
+- {{idea, in a sentence or two}}
+- {{idea moved here from the inbox}} (insight {{insight-id}})

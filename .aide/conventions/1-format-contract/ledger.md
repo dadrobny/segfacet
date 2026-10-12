@@ -77,8 +77,12 @@ the reader's.
   test-heavy by design, and an
   insight-derived fix (§1 → the maintenance queue) is small by design, so a
   reading of tests per criterion treats each by kind rather than pooling the
-  three. The engine derives it, so the vocabulary is closed. *(aide merge,
-  ledger abandon)*
+  three. **An item is `maintenance` only where a ticked `defect`, `gap` or
+  `automation` entry carries the maintenance queue's own tick naming it**
+  (§1 → `insights-maintenance-queue.md`) — a pointer that opens with it; an
+  item a decline or a decayed premise cites, or a gloss after the tick
+  mentions, stays `normal`. The engine derives it, so the vocabulary is
+  closed. *(aide merge, ledger abandon)*
 - **Two rows appended at one tail are a union: keep both.** Every pair of
   branches that each landed an item conflicts here, exactly as the inbox does
   (§1 → `insights.md`), and the resolution is always the same — both rows
@@ -137,6 +141,24 @@ the reader's.
   reading the cell exists for, was inflated for exactly the items that
   reconcile. The cell and `aide scope` read one split, so the test a notice
   calls reconciled is the test the row leaves out.
+- **Why only the maintenance tick makes an item `maintenance`.** Until
+  2.47.1 any item number in a ticked entry's pointer or trail counted, so an
+  owner's decline citing what superseded the entry — "declined: superseded by
+  item 12", natural prose — silently put item 12 into the maintenance share
+  `aide ledger report` draws (issue #460). A prose rule that a decline's
+  reason name no item covered one of the readings and nothing enforced it;
+  reading the tick's own form covers all of them. A decayed premise's "fixed
+  by item 121" is left out on purpose: the item did fix the entry, but it was
+  planned as something else, at its own queue's size, and `kind` is there so
+  that a small-by-design fix is not pooled with the rest. The trail is still
+  read, because it is where `tick` puts an entry's second routing — a declined
+  entry the owner later says to queue — and where `resolve` keeps the other
+  side's tick. **Why the tick may carry a gloss.** A pointer is "where it
+  landed", free-form (§1 → `insights.md`), and one consumer's queue authors
+  annotated about one tick in eleven — `item NNN (what it fixed)`, `item NNN:
+  …` — so a form demanding item references alone misread real ticks as
+  `normal`. Reading the opening references, and only them, keeps those ticks
+  and still never reads a pointer that opens with prose.
 - **Why `-` rather than a fourth reading of a blank.** With the marker
   absent, a project that never switched review on and a run whose reviewer's
   findings were dropped on the floor wrote the identical row — and they are
