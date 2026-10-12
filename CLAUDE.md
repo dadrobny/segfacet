@@ -386,7 +386,23 @@ from a local checkout):
   checkout's `src/` and every "pre-fix" result is invalid with no error at
   all. `git switch --detach` in the working checkout avoids the shadowing but
   detaches HEAD mid-item. Item 135's per-defect verification rig (fresh clone
-  plus its own venv) is the worked example (2026-08-31).
+  plus its own venv) is the worked example (2026-08-31). **The shadowing holds
+  for a finder-based editable install only** (re-measured 2026-10-12, insight
+  `2026-10-05-ec3b`): this repo builds with hatchling, whose editable install
+  is a plain path entry (`_editable_impl_segfacet.pth`, no `__editable__`
+  finder), and on that Linux venv `PYTHONPATH=<tree>/src` takes precedence. A
+  `PYTHONPATH` probe is valid here once it prints `segfacet.__file__` and sees
+  the second tree; a Windows venv is unmeasured, and the separate clone needs
+  no such check.
+- **A spec-time probe on a scratch copy of the tree is a lower bound, and it
+  can pass what it never ran** (item 212, insights `2026-10-05-da43` and
+  `2026-10-05-dc87`). It lists each failing test once, at its first failing
+  assert, so a later assert in the same test and a prose-only step the probe
+  skipped stay invisible: a reconciliation fence names more than the probe's
+  failure list. And a copy made without `.git` skips every git-gated
+  `skipif` test (test_116 AC7 needs commit `aeb2f55` reachable), which a
+  pass/fail tally reads as green. Probe from a real clone or a `git
+  worktree`, or name each test in the `-ra` skip list.
 
 ## What is committed vs. per-machine
 
