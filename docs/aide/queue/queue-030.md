@@ -76,12 +76,20 @@ label set): `coverage`'s `missing_interior` and `sequence`'s `skip` (insight
 the entry named as the precondition. Give mode 9 to `ordering` and retire
 `swap`/`shift`, or re-base them on the path position, whichever the spec
 measures to keep every expected detection. Keep one detector for mode 10,
-and update `failure_modes.py`'s rule declarations to match. *Testable:* each
+and update `failure_modes.py`'s rule declarations to match. This finishes
+what the maintainer's item-106 note on `monotonic_consistency` in
+`feature_docs.STATUS_OVERRIDES` asks for ("Should be wired into the
+sequence rule directly; …"). The note reads as an open action that has
+been closed since item 132 (insight `2026-10-09-9de3`). Append the owner's
+line of 2026-10-12, dated, after the note, and keep the item-106
+transcript as written: "Done: order is judged along the label-free path by
+`mislabel`, items 210/219." *Testable:* each
 of modes 9 and 10 is declared against exactly one detector; a curved or
 reclined spine, correctly labelled, fires no ordering finding; every corpus
 case that expected a mode-9 or mode-10 detection still has one; every corpus
 case's measured firing equals its expected set, re-measured where this item
-moves it.
+moves it; the `monotonic_consistency` override carries the owner's dated
+line after the unchanged item-106 note.
 
 ### Item 220: A collapsed label set no longer passes silently
 

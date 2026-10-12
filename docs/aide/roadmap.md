@@ -2349,3 +2349,19 @@ development role only.
   findings move. Above that, rule-side first-class detector IDs would attribute each path
   to the one mode it serves (`mislabel`'s offset vs monotonicity detectors,
   `fragmentation`'s two branches) rather than to every mode of its rule.
+- **Per-component scope** (insights 2026-10-06-2119, 2026-09-30-88a5, 2026-10-02-3eba).
+  A connected component as a feature region beside scan, label and pair, so each piece
+  of a multi-component label is judged on its own. The cheapest route found at the
+  Stage 27 review: a temporary sub-segmentation that relabels components as sub-labels
+  (1.1, 1.2, …), so the existing per-label extractors absorb them unchanged. Two modes
+  wait on it. Mode 4 (islands) needs re-defining first: a piece counts as an island if
+  it is small, or larger but far from the main body, and how size and distance combine
+  is still to be refined with the maintainer. Mode 2's `stray_contact` would also read
+  contact from the neighbour's side, which is maintainer feedback at the `gate-0133`
+  sign-off.
+- **A mode for the label that lost part of its vertebra** (insight 2026-09-30-7d74).
+  When a mode-2 label overreaches onto its neighbour, the neighbour's own label is left
+  covering only the remainder of its vertebra, and nothing names it. Owner position
+  (2026-10-12): such a label falls into mode 1, is fixed by fixing its mode-2
+  counterpart, and is sometimes recorded as a QC comment for future reference. Not the
+  focus for now.
