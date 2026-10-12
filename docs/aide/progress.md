@@ -2012,7 +2012,18 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 **Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
 `automation` entries in maintenance queues.
 
-**Deliverables.** None yet: each maintenance queue adds one bullet per item.
+**Deliverables.** Each maintenance queue adds one bullet per item.
+
+- 📋 One inter-centroid-spacing rule for modes 2 and 6. *(Item 218)*
+- 📋 One check per failure mode for label order and label-set gaps. *(Item 219)*
+- 📋 A collapsed label set no longer passes silently. *(Item 220)*
+- 📋 Held-out spline offset with every outlier withheld. *(Item 221)*
+- 📋 Held-out spline offset at the ends of the sequence. *(Item 222)*
+- 📋 Path-aware rule-read attribution in the catalogue. *(Item 223)*
+- 📋 Platform-sensitive comparisons tolerant, determinism checks exact. *(Item 224)*
+- 📋 Three test guards that see only half of what they guard. *(Item 225)*
+- 📋 Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
+- 📋 Stale descriptions of shipped behaviour, and the path-position end clamp. *(Item 227)*
 
 ---
 
@@ -2026,18 +2037,19 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 **Deliverables.**
 
 - 📋 **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
-  ids as well as a directory root.
+  ids as well as a directory root. *(Item 228)*
 - 📋 **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
-  carry `development`, `calibration` and `test` subsets over the release splits.
+  carry `development`, `calibration` and `test` subsets over the release splits. *(Item 229)*
 - 📋 **Real-label expectation**: the evaluation cohort accepts a per-label
   expectation with several modes per case, read from `spinelab`'s `rl1` table
   against a vendored schema pinned at a `spinelab` commit. Any other version is
-  refused.
+  refused. *(Items 230, 231)*
 - 📋 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
   the FACET commit written into every per-case and evaluation report, and a
-  report `schema_version` that moves whenever a feature path moves.
+  report `schema_version` that moves whenever a feature path moves. *(Items 232, 233)*
 - 📋 **Development-role reference**: the VerSe reference rebuilt from the VerSe19
-  and VerSe20 training splits.
+  and VerSe20 training splits. *(Item 234)*
+- 📋 Stage validation from a clean clone. *(Item 235)*
 
 **Acceptance.**
 
