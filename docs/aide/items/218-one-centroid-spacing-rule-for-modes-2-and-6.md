@@ -620,6 +620,18 @@ Item 220 pinned the manifest and test_129 only as diff-time claims of its
 own branch. Its tests read neither file's content, and nothing this item
 changes reaches them: every collapsed record lacks `path_u` (A1 re-check).
 
+**Correction (2026-10-13, validator round 1).** The lists above stand.
+Round 1 went red in two test files they did not name. Both are reconciled
+under the same fence (Testing Strategy, correction of the same date):
+
+- `tests/test_116_ras_native_corpus.py` — AC7's dated item-218 added-pair entry for `remove_level`.
+- `tests/test_092_eval_reference_wiring.py` — `_outlier_case` re-pointed to 10 mm voxels (Decisions, correction of the same date).
+
+The round's in-scope review fixes need no new path:
+`src/segfacet/heuristics/centroid_spacing.py`,
+`tests/test_207_fused_label_rule.py` and
+`tests/test_040_synthetic_corpus.py` are already under May change.
+
 **Asserts against:**
 
 - `tests/corpus/fixtures/**` — AC1, AC9 and every adversarial case read the committed fixtures; step 7 must not change them.
@@ -835,6 +847,66 @@ exception).
   - test_216 AC1's `stored` set: no leaf moves.
   - The leaf-path pins under Asserts against.
 
+**Correction (2026-10-13, validator round 1,
+`.git/aide-runs/suite-20261013-131945.log`).** The lists above stand. Two
+reds they did not name, and three in-scope review fixes, are reconciled
+under the same fence. Each edit carries a dated item-218 comment.
+
+- **test_116 `test_ac7_case_identity_preserved_vs_merge_base[remove_level]`.**
+  The fresh side gains `("centroid_spacing", (21, 23))`, which the `aeb2f55`
+  golden does not carry. This item adds that finding on purpose (AC1).
+  - Add `_ITEM_218_ADDED_CENTROID_SPACING_PAIRS = {"remove_level": (("centroid_spacing", (21, 23)),)}`
+    in the shape of `_ITEM_198_ADDED_MISLABEL_PAIRS`.
+  - Add the matching loop: assert the pair is present, then strip it. Add
+    one docstring sentence beside item 212's.
+  - The final equality with the golden stays exact.
+  - This test is skipped where commit `aeb2f55` is unreachable
+    (`CLAUDE.md`, the spec-time probe gotcha), so a scratch copy without
+    `.git` skips it rather than running it.
+- **test_092 `test_calibrate_thresholds_forwards_reference_to_every_candidate`.**
+  `_outlier_case` is re-pointed from `spacing=(20.0, 20.0, 20.0)` to
+  `spacing=(10.0, 10.0, 10.0)`. Its `expected_verdict: "pass"` and every
+  assertion in the module are unchanged. The docstring gets one dated line:
+  at 20 mm the three-label spine quantises to an irregular pitch, which
+  `missing_level` reads as a gap. test_049's
+  `_far_outlier_seg_and_reference` stays at 20 mm, because none of its
+  tests asserts a reference-blind pass. The diagnosis and probe numbers are
+  under Decisions & Trade-offs, correction of the same date.
+  - Moving L188's literal alone would not fix the test. At 20 mm the
+    reference-aware run also reads FPR 1.0, so L190's
+    `aware_fpr != blind_fpr` fails next.
+  - The module's other three `_outlier_case` users hold at 10 mm. The
+    reference-blind run reads no finding and the reference-aware run flags
+    the case, so the L77 divergence holds. The cohort cross-check and the
+    no-mutation check do not depend on the spacing.
+- **test_207 L78 (review fix).** Restore the AC2 equality
+  `failure_modes.modes_for_detector("centroid_spacing", "fused_label") == (2,)`.
+  The round-1 reconciliation moved `== (2,)` into the trailing comment,
+  which left a truthiness check that any non-empty tuple passes.
+- **test_040 (review fix).** Rename
+  `test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing`
+  to `test_remove_level_relabel_case_records_mode_6_and_fires_missing_level`.
+  The body is unchanged. Its old name states the opposite of what it now
+  asserts.
+  - No artefact pins the name. A grep of `src/`, `tests/`, the generated
+    documents and `golden-decision-table.md` finds it only in test_040
+    itself. The two other mentions are prose in the item 176 and 218 specs,
+    which stay as provenance.
+  - The cost is one `aide scope` traceability **warning**, never a FAIL
+    (`aide scope -h`). test_040 is item 040's file, so the renamed function
+    is read as an added test and traced against item 040's spec, and its
+    name carries none of item 040's AC numbers or case labels. Do not add an
+    `acN` token to silence it. Item 040's nearest criterion, AC17, is the
+    manifest-equals-operator equality, not this test's pipeline firing.
+- **`centroid_spacing.py` (review fix, no test).** `missing_level` skips a
+  gap with `if not gap_ratio > gap_thr: continue`, so a NaN ratio is not
+  judged. Today a NaN centroid component passes `_is_num`, reads
+  `gap_ratio <= gap_thr` as false, and fires a `nan x` finding. The module
+  docstring also gains the blind spot that Decisions corrects below: two
+  misses with one vertebra between them read about 1.33, and neither fires.
+  No corpus case carries a NaN centroid, and no AC or named adversarial case
+  is added for either change.
+
 ## Validation
 
 1. Replay the two remove-level cases and one fuse case through the CLI:
@@ -952,3 +1024,68 @@ exception).
   gaps of about two pitches. Each gap is the other's local baseline, so
   their ratio reads about 1.0 and neither fires. No corpus or ladder case
   expresses it.
+
+**Correction (2026-10-13, validator round 1).** The entries above stand as
+the record. The following are added or corrected.
+
+- **test_092's red is a legitimate finding on a degenerate fixture, not a
+  false positive on a clean spine.** The probe was run on this branch with
+  `.venv/bin/python`. It built
+  `build_clean_spine(levels=("L1", "L2", "L3"), spacing=s)` and ran `run_qc`
+  with no reference and the bundled default config.
+  - **At s = 20 mm** the map is a 4 × 3 × 6 grid. Each label is 2 voxels
+    (16000 mm³). The centroids sit at z = 80, 40 and 20 mm, and `path_u`
+    reads 0.0, 0.667 and 1.0.
+  - The path-ordered spacings there are 40.0 and 20.0 mm. The one finding is
+    `centroid_spacing`/`missing_level` on labels {20, 21}:
+    `Missing level: The gap between label 20 and label 21 reads 2x the spacing beside it ...`.
+    The verdict is flagged-for-review, so `blind_fpr` is 1.0.
+  - **At s = 1 mm** the spacings read 33.20 and 32.92 mm (ratio 1.009). The
+    run has no finding and passes.
+  - The quantised map really carries a two-pitch gap between two labels of
+    equal size. That is A6's signature, judged as an end gap on one
+    neighbour, which A6 specifies and the `end-gap-judged-on-one-neighbour`
+    case pins.
+  - Nothing clinical reaches 20 mm voxels. A7's 157 VerSe19 masks at native
+    resolution read at most 1.378.
+  - So the rule is not changed, and **no guard is added**. A minimum label
+    count would also silence the specified three-label end gap. A minimum
+    of voxels per pitch is a resolution policy that no real case has asked
+    for.
+  - The fixture's intent, per its docstring and test_049's
+    `_far_outlier_seg_and_reference`, is a case far outside the reference
+    bands. Its reference-blind "pass" was incidental.
+  - **Re-pointing measured.** The probe ran `calibrate_thresholds` with the
+    test's axis (`reference_delta.max_robust_z = 50.0`) on two cases at
+    each s. In the table, "blind" is the run with no reference and "aware"
+    the run with `bundled_default_reference()`.
+
+    | s (mm) | Findings with no reference | blind FPR | aware FPR |
+    |---|---|---|---|
+    | 20 | `centroid_spacing`/`missing_level` {20, 21} | 1.0 | 1.0 |
+    | 15 | `bounds` on 20, 21 and 22 | 1.0 | 1.0 |
+    | 10, 8, 6, 5, 4, 3 | none | 0.0 | 1.0 |
+
+  - 20 mm with `centroid_spacing` disabled reads 0.0 and 1.0. That
+    alternative was not taken, because it drops a rule from a test about
+    reference forwarding when re-pointing keeps every rule live.
+  - **The owner is the builder** (Implementation Step 8, test
+    reconciliation). The reconciliation is in Testing Strategy, correction
+    of the same date.
+- **Validation step 2's status is corrected to read ❓ Unverified (not
+  replayed).** The entry above says "VerSe19 absent". The cohort is in fact
+  mounted at `/mnt/data/spine/data/datasets/VerSe/VerSe19`, which holds
+  `dataset-verse19{training,validation,test}`. Only `SEGFACET_VERSE_COHORT`
+  is unset, so A7's path-order measurement was not replayed with the rule
+  itself. Whoever replays it sets the variable to that root.
+- **The third `Left open` note's ratio is corrected from "about 1.0" to
+  about 1.33.** With spacings p, 2p, 2p and p, each inner gap's local
+  baseline is the mean of the other gap and one normal pitch, (2p + p) / 2.
+  Each gap therefore reads 2p / 1.5p ≈ 1.33. That is still below the 1.5
+  default, so the conclusion stands: neither fires. The builder records the
+  blind spot in `centroid_spacing.py`'s docstring (Testing Strategy,
+  correction of the same date).
+- **`missing_level`'s gap comparison is made NaN-safe**
+  (`if not gap_ratio > gap_thr: continue`), which is a review finding. The
+  size-gate comparison `r > size_thr` has the same shape with a NaN volume.
+  The review did not raise it and it is left as it is.
