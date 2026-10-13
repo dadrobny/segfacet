@@ -135,12 +135,23 @@ def test_emptied_set_returns_first_pass():
     assert records == _item120(c, {_dominant(c)})
 
 
-@pytest.mark.parametrize("cutoff", [6.0, 10.0, 13.0])
-def test_add_step_bounded(monkeypatch, cutoff):
+_ADD_STEP_SETS = [(6.0, frozenset({1, 5, 6})), (10.0, frozenset({5})), (13.0, frozenset())]
+# Each interior index is added at most once (6), and every index that enters
+# the set is removed at most once (initial <= 6, added <= 6), plus the first
+# held-out call: 1 + 6 + 12.
+_MAX_HELD_OUT_CALLS = 19
+
+
+@pytest.mark.parametrize(("cutoff", "expected"), _ADD_STEP_SETS)
+def test_add_step_bounded(monkeypatch, cutoff, expected):
     monkeypatch.setattr(so, "_OUTLIER_CUTOFF_MM", cutoff)
+    calls = []
+    real = so._held_out_records
+    monkeypatch.setattr(so, "_held_out_records", lambda *a, **k: calls.append(1) or real(*a, **k))
     withheld, records = _withhold(_displaced(_spine(), {2: 15.0, 4: -15.0}))
-    assert withheld <= frozenset(range(1, 7))
+    assert withheld == expected
     assert len(records) == 8
+    assert len(calls) <= _MAX_HELD_OUT_CALLS
 
 
 def test_five_levels_every_interior_withheld():
@@ -151,8 +162,9 @@ def test_five_levels_every_interior_withheld():
     assert all(r.offset_mm == r.offset_mm and abs(r.offset_mm) != float("inf") for r in records)
 
 
-def test_withheld_set_is_interior_indices():
-    for shifts in (_TWO_OPPOSITE, {0: 18.0}):
-        c = _displaced(_spine(), shifts)
-        withheld, _ = _withhold(c)
-        assert withheld <= frozenset(range(1, len(c) - 1))
+def test_withheld_set_is_interior_indices(monkeypatch):
+    monkeypatch.setattr(so, "_OUTLIER_CUTOFF_MM", 6.0)
+    c = _displaced(_spine(), {2: 15.0, 4: -15.0})
+    withheld, _ = _withhold(c)
+    assert withheld == frozenset({1, 5, 6})
+    assert not withheld & {0, len(c) - 1}

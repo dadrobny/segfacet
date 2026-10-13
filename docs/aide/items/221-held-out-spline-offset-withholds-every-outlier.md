@@ -506,6 +506,25 @@ only `docs/aide/feature_catalogue.generated.json`, one `intro` string:
 the `.md` rendering does not carry group notes, so its **May change**
 entry will normally stay unused.
 
+## Review findings
+
+- `add-step-bounded-and-withheld-set-interior-assert-exact-sets`:
+  (minor, fixed 2026-10-13): `add-step-bounded` asserted only that the set lay
+  in `1 … 6` and that eight records returned, which holds by construction of
+  the candidate range, and `withheld-set-is-interior-indices` repeated AC3 and
+  held vacuously on AC6's empty set. Fix: `add-step-bounded` asserts the
+  measured sets `{1, 5, 6}`, `{5}` and empty per cutoff, and bounds the number
+  of `_held_out_records` calls at 19 so a non-terminating search fails rather
+  than hangs. `withheld-set-is-interior-indices` runs the cutoff-6
+  configuration, asserts the set `{1, 5, 6}` (which holds the near-terminal
+  index 6) and that neither terminal is in it. Tests:
+  `test_add_step_bounded` and `test_withheld_set_is_interior_indices`.
+- `reference-build-wording-overclaims`:
+  (minor, fixed 2026-10-13 in `f4f146da`): the VerSe19 rebuild record in
+  `docs/reference-build.md` overclaimed, and an in-sample offset comment was
+  unqualified. Fix: both reworded. It has no test: it is a document claim, and
+  AC7 reads only `P` from the record, not its prose.
+
 ## Validation
 
 1. **Rebuild the VerSe19 reference on the branch.** Where
