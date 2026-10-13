@@ -213,9 +213,12 @@
       "condition": "",
       "detail": "remove_level: deleted interior level L3 (label 22) from the span [20, 21, 22, 23, 24]. Mode 6 (vertebra not segmented) of the catalogue signed off at item 150: the vertebra is missed and every remaining label is right, so the gap in the label sequence is that missed vertebra's signature, not a skipped label (mode 10).",
       "detection": "pipeline",
-      "expected_labels": [],
+      "expected_labels": [
+        21,
+        23
+      ],
       "expected_rule_ids": [
-        "coverage"
+        "centroid_spacing"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 6,
@@ -328,13 +331,13 @@
       },
       "case_id": "fuse_adjacent",
       "condition": "",
-      "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the label's size and the inter-centroid spacing around it, is read by fused_label (item 207), which is designated.",
+      "detail": "fuse (bridged): fused neighbour label 23 into target label 22, filling 6262 background voxels over 682 columns along the stacking axis (array axis 2); renumbered (old, new) [(24, 23)]. Mode 2's own signal, the label's size and the inter-centroid spacing around it, is read by centroid_spacing's fused_label detector (items 207, 218), which is designated.",
       "detection": "pipeline",
       "expected_labels": [
         22
       ],
       "expected_rule_ids": [
-        "fused_label"
+        "centroid_spacing"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 2,
@@ -369,11 +372,16 @@
       },
       "case_id": "remove_level_relabel",
       "condition": "",
-      "detail": "remove_level_relabel: deleted interior level L3 (label 22) and renumbered the caudal labels [(23, 22), (24, 23)] so the label sequence stays continuous over the spatial gap. Mode 6 (vertebra not segmented) of the catalogue signed off at item 150; not detected by any shipped rule (the doubled centroid spacing is a hypothesised signal), recorded as expected.",
+      "detail": "remove_level_relabel: deleted interior level L3 (label 22) and renumbered the caudal labels [(23, 22), (24, 23)] so the label sequence stays continuous over the spatial gap. Mode 6 (vertebra not segmented) of the catalogue signed off at item 150; detected since item 218 by centroid_spacing's missing_level detector (the doubled centroid spacing along the spine curve).",
       "detection": "pipeline",
-      "expected_labels": [],
-      "expected_rule_ids": [],
-      "expected_verdict": "pass",
+      "expected_labels": [
+        21,
+        22
+      ],
+      "expected_rule_ids": [
+        "centroid_spacing"
+      ],
+      "expected_verdict": "flagged-for-review",
       "failure_mode": 6,
       "failure_mode_name": "vertebra not segmented",
       "kind": "failure",
@@ -523,14 +531,14 @@
       },
       "case_id": "fuse_separate",
       "condition": "",
-      "detail": "fuse (unbridged, renumbered): relabelled neighbour label 23 onto target label 22 without filling the gap, so 22 covers two full, separate bodies; renumbered (old, new) [(24, 23)]. Mode 2's own signal (label size and the spacings around it) is read by fused_label (item 207); fragmentation on the two components is a co-detection (mode 1's detector), not a mode-1 case.",
+      "detail": "fuse (unbridged, renumbered): relabelled neighbour label 23 onto target label 22 without filling the gap, so 22 covers two full, separate bodies; renumbered (old, new) [(24, 23)]. Mode 2's own signal (label size and the spacings around it) is read by centroid_spacing's fused_label detector (items 207, 218); fragmentation on the two components is a co-detection (mode 1's detector), not a mode-1 case.",
       "detection": "pipeline",
       "expected_labels": [
         22
       ],
       "expected_rule_ids": [
-        "fragmentation",
-        "fused_label"
+        "centroid_spacing",
+        "fragmentation"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 2,

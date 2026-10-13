@@ -74,9 +74,9 @@ _NON_CLEAN_PIPELINE_CASES = [
     for c in _PIPELINE_CASES
     if corpus_case_kind(c) != CASE_KIND_CLEAN_CONTROL and c["expected_rule_ids"]
 ]
-_UNDETECTED_PIPELINE_CASES = [
-    c for c in _PIPELINE_CASES if corpus_case_kind(c) == CASE_KIND_FAILURE and not c["expected_rule_ids"]
-]
+# Item 218 (2026-10-13): _UNDETECTED_PIPELINE_CASES (a failure case designating
+# no rule) is retired. remove_level_relabel, its only member, now designates
+# centroid_spacing, so no committed case is left undetected.
 _RECONSTRUCTED_CASES = [c for c in _CASES if c["detection"] == "reconstructed_record"]
 
 _VALID_DETECTIONS = {"pipeline", "reconstructed_record"}
@@ -167,14 +167,9 @@ def test_ac5_designated_heuristic_fires_for_pipeline_cases(case):
     assert designated_rule_fired(case) is True
 
 
-@pytest.mark.parametrize("case", _UNDETECTED_PIPELINE_CASES, ids=_case_id)
-def test_ac5_undetected_failure_case_fires_nothing_and_verifies(case):
-    """Item 150: a failure-mode case designating no rule is honest only if
-    plain run_qc fires nothing on it; verify_case encodes exactly that."""
-    assert _UNDETECTED_PIPELINE_CASES  # sanity: remove_level_relabel exists
-    assert designated_rule_fired(case) is False
-    assert pipeline_findings(case) == ()
-    assert verify_case(case) is True
+# Item 218 (2026-10-13): test_ac5_undetected_failure_case_fires_nothing_and_
+# verifies is retired -- it collected only remove_level_relabel, which now
+# designates centroid_spacing and is checked by the designated-rule tests above.
 
 
 @pytest.mark.parametrize("case", _NON_CLEAN_PIPELINE_CASES, ids=_case_id)
@@ -286,11 +281,12 @@ def test_adv_verify_case_is_deterministic(case):
 
 
 def test_adv_mode5_remove_level_case_level_labels_no_crash_on_empty_union():
-    """Adversarial: the case-level remove_level case
-    (expected_labels == []) passes offending_labels_match without crashing
-    on the empty-set union."""
+    """Adversarial: the remove_level case passes offending_labels_match
+    without crashing. Item 218 (2026-10-13): it now names the two labels
+    either side of the gap; it was case-level (expected_labels == []), the
+    empty-set union this test was written for."""
     case = _case("remove_level")
-    assert case["expected_labels"] == []
+    assert case["expected_labels"] == [21, 23]
     assert designated_rule_fired(case) is True
     assert offending_labels_match(case) is True
 

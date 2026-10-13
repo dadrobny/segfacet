@@ -142,10 +142,10 @@ class CoverageRule(Rule):
     # Specification mode 10 (skipped level label), item 188 (2026-09-28):
     # re-homed off mode 6. RemoveLevelPerturbation
     # (src/segfacet/synth/coverage_border_overlap.py) still designates
-    # "coverage" for mode 6's remove_level case via its
-    # Expectation(failure_mode=6, expected_rule_ids={"coverage"}), but that
-    # firing is now a recorded co-detection of mode 10's detector, not mode
-    # 6's own evidence -- mode 6 carries no rule since item 188.
+    # "coverage" for mode 6's remove_level case until item 218 (2026-10-13);
+    # remove_level now designates "centroid_spacing" (mode 6 carries a rule
+    # again), and coverage's firing there is a recorded co-detection of mode
+    # 10's detector, not mode 6's own evidence.
     mode_declaration = RuleModeDeclaration(
         modes=(10,),
         evidence=(

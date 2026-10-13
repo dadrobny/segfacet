@@ -346,7 +346,9 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
         # Item 189 (2026-09-28): ("mislabel", 1) left the set -- the
         # spline_offset detector that co-detected displace moved to its own
         # mode-less spline_offset rule.
-        ("coverage", 6),  # coverage now declares mode 10, not mode 6
+        # Item 218 (2026-10-13): ("coverage", 6) left the set -- remove_level now
+        # designates centroid_spacing, so the corpus map no longer attributes
+        # mode 6 to coverage (its expected_firing there is still recorded).
         ("fragmentation", 2),  # item 206: fuse_separate co-detects it
     }
 

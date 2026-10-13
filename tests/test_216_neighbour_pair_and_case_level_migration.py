@@ -28,7 +28,8 @@ from segfacet.cli import main
 from segfacet.config import bundled_default_config
 from segfacet.features.centroids import compute_centroid
 from segfacet.features.relationships import compute_spine_relationships
-from segfacet.heuristics.fused_label import FusedLabelRule
+# item 218 (2026-10-13): FusedLabelRule is now CentroidSpacingRule.
+from segfacet.heuristics.centroid_spacing import CentroidSpacingRule
 from segfacet.labels import CANONICAL_ORDER
 from segfacet.heuristics.overlap import OverlapRule
 from segfacet.pipeline import extract_feature_record, run_qc
@@ -148,7 +149,12 @@ def _variant(case_id: str, remap: dict) -> nib.Nifti1Image:
 
 def _fused_label_sets(img) -> list:
     result, _ = run_qc(img, bundled_default_config())
-    return [f.labels for f in result.findings if f.rule_id == "fused_label"]
+    # item 218 (2026-10-13): rule centroid_spacing, detector fused_label.
+    return [
+        f.labels
+        for f in result.findings
+        if f.rule_id == "centroid_spacing" and f.detector_id == "fused_label"
+    ]
 
 
 def _containers(paths) -> set:
@@ -319,7 +325,7 @@ def test_stage3_unavailable_not_judged():
     img = loaded_seg_image(_case("fuse_adjacent"))
     record = extract_feature_record(img, bundled_default_config())
     config = bundled_default_config()
-    assert [f.labels for f in FusedLabelRule().evaluate(record, config)] == [
+    assert [f.labels for f in CentroidSpacingRule().evaluate(record, config)] == [
         frozenset({22})
     ]
     stripped = copy.deepcopy(record)
@@ -331,7 +337,7 @@ def test_stage3_unavailable_not_judged():
     ):
         _delete(stripped, _new(old))
     assert _resolve(stripped, _new("relationships.neighbour_spacings_mm[]"))
-    assert FusedLabelRule().evaluate(stripped, config) == []
+    assert CentroidSpacingRule().evaluate(stripped, config) == []
 
 
 def test_tangent_arrays_on_their_own_label():

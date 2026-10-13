@@ -490,7 +490,8 @@ def test_ac12_every_intended_rule_edge_carries_a_valid_rung():
         for edge in mode.intended_rules:
             assert edge.evidence_rung in fm.EVIDENCE_RUNGS
             total_edges += 1
-    assert total_edges == 16, total_edges
+    # 16 -> 17: item 218 (2026-10-13) adds mode 6's centroid_spacing/missing_level edge.
+    assert total_edges == 17, total_edges
 
 
 # =========================================================================== #

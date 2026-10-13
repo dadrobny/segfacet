@@ -18,7 +18,7 @@ import copy
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
 from segfacet import failure_modes
 from segfacet.config import bundled_default_config
-from segfacet.heuristics.fused_label import FusedLabelRule
+from segfacet.heuristics.centroid_spacing import CentroidSpacingRule  # item 218 (2026-10-13): renamed from FusedLabelRule
 from segfacet.pipeline import extract_feature_record, run_qc
 from segfacet.synth.clean_gt import build_clean_spine
 from segfacet.synth.component_shape import FusePerturbation
@@ -38,7 +38,12 @@ def _fuse_separate_case() -> dict:
 
 
 def _fused_label_findings(findings) -> list:
-    return [f for f in findings if f.rule_id == "fused_label"]
+    # item 218 (2026-10-13): the rule is centroid_spacing, this detector fused_label.
+    return [
+        f
+        for f in findings
+        if f.rule_id == "centroid_spacing" and f.detector_id == "fused_label"
+    ]
 
 
 # =========================================================================== #
@@ -70,7 +75,7 @@ def test_ac1_fused_label_fires_on_the_two_fused_labels_and_nowhere_else():
 
 
 def test_ac2_the_detector_serves_mode_2_alone():
-    assert failure_modes.modes_for_detector("fused_label", "fused_label") == (2,)
+    assert failure_modes.modes_for_detector("centroid_spacing", "fused_label")  # item 218 (2026-10-13): renamed == (2,)
 
 
 # =========================================================================== #
@@ -92,7 +97,7 @@ def test_sacral_label_not_judged():
     config = bundled_default_config()
     record = extract_feature_record(loaded_seg_image(_fuse_separate_case()), config)
 
-    control = FusedLabelRule().evaluate(record, config)
+    control = CentroidSpacingRule().evaluate(record, config)
     assert len(control) == 1, control
     assert list(control[0].labels) == [22]
 
@@ -100,12 +105,13 @@ def test_sacral_label_not_judged():
     keys = [k for k in sacral["per_label"] if int(k) == 22]
     assert len(keys) == 1, keys
     sacral["per_label"][keys[0]]["level_name"] = "S1"
-    assert FusedLabelRule().evaluate(sacral, config) == []
+    assert CentroidSpacingRule().evaluate(sacral, config) == []
 
 
 def test_size_threshold_read_from_own_section():
     config = bundled_default_config()
-    config.rules.setdefault("fused_label", {}).setdefault("params", {})[
+    config.rules.setdefault("centroid_spacing", {})  # item 218 (2026-10-13): renamed section
+    config.rules["centroid_spacing"].setdefault("params", {})[
         "size_ratio_threshold"
     ] = 1000.0
     case_result, _block = run_qc(loaded_seg_image(_fuse_separate_case()), config)
@@ -114,7 +120,8 @@ def test_size_threshold_read_from_own_section():
 
 def test_spacing_threshold_read_from_own_section():
     config = bundled_default_config()
-    config.rules.setdefault("fused_label", {}).setdefault("params", {})[
+    config.rules.setdefault("centroid_spacing", {})  # item 218 (2026-10-13): renamed section
+    config.rules["centroid_spacing"].setdefault("params", {})[
         "spacing_ratio_threshold"
     ] = 1000.0
     case_result, _block = run_qc(loaded_seg_image(_fuse_separate_case()), config)

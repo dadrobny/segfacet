@@ -998,7 +998,9 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     # Item 205 (2026-09-30): 4 -> 5 -- the contact_fraction leaf joins mode 2.
     # Item 206 (2026-09-30): 5 -> 10 -- fuse_separate co-detects fragmentation.
     # Item 207 (2026-09-30): 10 -> 11 -- spacings_mm[] joins mode 2.
-    assert mode2_count == 11
+    # Item 218 (2026-10-13): 11 -> 12 -- spacings_mm[] leaves, and path_u and
+    # centroid_mm[] join (centroid_spacing now declares modes 2 and 6).
+    assert mode2_count == 12
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
@@ -1028,10 +1030,14 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
-        ("rule_mode_map", "rule_declaration"): 12,  # item 208 (2026-09-30): 11 -> 12
+        # Item 218 (2026-10-13): 12 -> 11 -- spacings_mm[] and
+        # case.sequence.missing_levels[] leave, path_u joins.
+        ("rule_mode_map", "rule_declaration"): 11,  # item 208 (2026-09-30): 11 -> 12
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
         # Item 220 (2026-10-13): 2 -> 3.
-        ("rule_declaration",): 3,
+        # Item 218 (2026-10-13): 3 -> 4 -- case.sequence.missing_levels[] joins
+        # (no failure case designates coverage any more).
+        ("rule_declaration",): 4,
         # Item 195 (2026-09-28): 3 -> 2 -- overlaps[].overlap_voxels lost
         # its rule_mode_map source (the "overlap" key of _RULE_MODE_MAP,
         # which force_overlap alone scanned to, is gone).
@@ -1048,9 +1054,11 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # ("rule_declaration",) or ("rule_declaration", "rule_not_read"))
         # join here now both consuming rules are mode-less.
         ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 5,  # item 215: 8 -> 5
+        # Item 218 (2026-10-13): the five-source bucket (1 -> 0, removed) was
+        # case.sequence.present_levels[]; it moves to the bucket below, because
+        # its mode 6 now comes from its anchor alone.
         (
             "per_mode_metric",
-            "rule_mode_map",
             "rule_declaration",
             "rule_mode_less",
             "rule_bookkeeping",

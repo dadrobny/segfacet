@@ -839,9 +839,11 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     # Item 206 (2026-09-30): fuse_separate adds a mode-2 case: 9 -> 10.
     # Item 207 (2026-09-30): fuse_adjacent now expects a flag
     # (fused_label) and becomes an expected-failure record: 10 -> 11.
-    assert sum(m.n_cases for m in metrics.per_mode) == 11
+    # Item 218 (2026-10-13): remove_level_relabel now expects a flag
+    # (centroid_spacing) and becomes an expected-failure record: 11 -> 12.
+    assert sum(m.n_cases for m in metrics.per_mode) == 12
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
-    assert mode_six.n_cases == 1
+    assert mode_six.n_cases == 2
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)
 
 

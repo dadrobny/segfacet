@@ -438,12 +438,13 @@ separate record from the one above: it lives in :data:`MODE_SIGN_OFFS`, not
 in this docstring.
 
 Item 207 (2026-09-30) gave mode 2 a detector for a label over two whole
-vertebrae: the ``fused_label`` rule (``heuristics/fused_label.py``) fires on
+vertebrae: the ``fused_label`` detector (now of the ``centroid_spacing`` rule,
+``heuristics/centroid_spacing.py``) fires on
 a label both large against its adjacent labels and flanked by wide centroid
 spacing. ``fuse_adjacent`` and ``fuse_separate`` now expect it, and the
 mechanism clauses of modes 6 and 10 that said no rule reads the spacing
-path describe the spacing in words instead, since ``fused_label`` reads it
-(only beside a doubled size) and neither mode's own rules do.
+path describe the spacing in words instead, since ``centroid_spacing`` reads
+it (only beside a doubled size) and neither mode's own rules do.
 
 Item 208 (2026-09-30) gave mode 3 a detector of its own: the
 ``split_fragment`` rule (``heuristics/split_fragment.py``) fires on a label
@@ -458,6 +459,15 @@ names and on every other pair of centroids within 2.0 mm. Mode 13 is
 re-authored ``proposed`` -> ``specified`` with one ``needs-real-data`` edge
 (no corpus case expresses it) and derives ``implemented``; the rule opts in to
 ``fov_truncation``.
+
+Item 218 (2026-10-13) renamed ``fused_label`` to ``centroid_spacing`` and gave
+it a second detector, ``missing_level``, serving mode 6: one gap of about two
+pitches between labels of normal size. Both detectors read the spacing along
+the spine curve (``per_label.{label}.curve.path_u`` order over
+``per_label.{label}.centroid.centroid_mm[]``), not the anatomical label order.
+Mode 6 gains its edge (``centroid_spacing/missing_level``,
+synthetic-demonstrable), derives ``validated``, and is no longer
+rule-less; ``remove_level`` and ``remove_level_relabel`` designate the rule.
 """
 
 from __future__ import annotations
@@ -1177,10 +1187,12 @@ _MODE_2 = ModeSpec(
         "(L3) bridged -- one connected label over two bodies, with L5 "
         "renumbered 23 so the sequence stays continuous. Its label is a "
         "single component with no stray component to measure, so "
-        "neighbour_contact is silent; fused_label (item 207) decides it from "
+        "neighbour_contact is silent; centroid_spacing's fused_label detector "
+        "(items 207, 218) decides it from "
         "two signals together: per_label.{label}.geometry.physical_volume_mm3 "
         "(the label's volume over its larger adjacent label's, about 2x) and "
-        "pairs.adjacent.spacings_mm[] (the mean of the "
+        "the path-ordered spacing over per_label.{label}.centroid.centroid_mm[] "
+        "and per_label.{label}.curve.path_u (the mean of the "
         "label's adjacent spacings over the median of the other spacings, "
         "about 1.5x, whichever side the fused centroid falls on), "
         "firing only when both strictly exceed their thresholds "
@@ -1191,7 +1203,7 @@ _MODE_2 = ModeSpec(
         "second is a stray component with no contact and neighbour_contact "
         "is silent; fragmentation fires on "
         "per_label.{label}.components.fragmentation_index as a co-detection, "
-        "and fused_label fires on the label's doubled size and the widened "
+        "and centroid_spacing's fused_label detector fires on the label's doubled size and the widened "
         "spacings around it. A secondary, needs-real-data proxy: a "
         "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3)."
@@ -1247,7 +1259,7 @@ _MODE_2 = ModeSpec(
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
-            rule_id="fused_label",
+            rule_id="centroid_spacing",
             detector_ids=("fused_label",),
             evidence_rung="synthetic-demonstrable",
         ),
@@ -1256,11 +1268,13 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_adjacent",
             corpus="geometric",
-            expected_firing=("fused_label",),
+            expected_firing=("centroid_spacing",),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
-                "item 207): the bridged, renumbered map (item 176) is one "
+                "item 207; rule renamed centroid_spacing and the spacing "
+                "re-read along the spine curve, item 218, 2026-10-13): the "
+                "bridged, renumbered map (item 176) is one "
                 "connected label 22 over two bodies with a continuous label "
                 "sequence, and carries this mode's own fused_label finding "
                 "alone: volume 45043 mm^3 against 19375 (label 21) and 19344 "
@@ -1297,7 +1311,7 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_separate",
             corpus="geometric",
-            expected_firing=("fragmentation", "fused_label"),
+            expected_firing=("centroid_spacing", "fragmentation"),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
@@ -1310,10 +1324,11 @@ _MODE_2 = ModeSpec(
                 "two parts are two whole vertebrae, so the case is not a "
                 "mode-1 case. neighbour_contact is silent because the second "
                 "body touches nothing (stray_contact_area_mm2 0.0). Mode 2's "
-                "own signal is fused_label's (item 207): label 22's volume "
+                "own signal is centroid_spacing's fused_label detector (item "
+                "207): label 22's volume "
                 "(38781 mm^3) reads 2.0016x its larger neighbour, and the "
-                "spacings around it (pairs.adjacent.spacings_mm "
-                "[33.49, 49.46, 53.50], mean adjacent spacing over the baseline) "
+                "path-ordered centroid spacings around it "
+                "([33.49, 49.46, 53.50], mean adjacent spacing over the baseline) "
                 "read 1.5371x (re-measured 2026-10-05, item 211), strictly "
                 "above 1.5 and 1.25 respectively; fragmentation stays a "
                 "co-detection."
@@ -1589,24 +1604,28 @@ _MODE_6 = ModeSpec(
     ),
     mechanism=(
         "Defined against ground truth (the Stage-18 metric counts GT levels "
-        "with no candidate voxels). No registered rule decides this mode "
-        "since item 188 (2026-09-28): coverage's interior-gap detector "
-        "fires on the label gap in case.sequence.missing_levels[] that "
-        "remove_level leaves -- the vertebra is deleted without renumbering "
-        "and the remaining labels are kept -- but that detector serves mode "
-        "10 (skipped level label), because it cannot tell a missed vertebra "
-        "from a skipped label on a segmented one; so remove_level's firing "
-        "(coverage and, since item 192, sequence's skip detector, both mode-10 "
-        "detectors) is a recorded co-detection, not this mode's own evidence. "
-        "remove_level_relabel fires nothing: it deletes L3 and renumbers "
-        "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
-        "inter-centroid spacing (the spacings_mm array of the pairs.adjacent block) that no mode-6 rule reads; fused_label "
-        "reads spacing only beside a doubled size, so it is silent there. "
-        "That doubled spacing is this mode's own "
-        "label-map signal -- it would also catch remove_level -- and its "
-        "rule is decided in a later per-mode queue (roadmap Stage 33 scope "
-        "decisions). Two further hypothesised signals cover a missing "
-        "vertebra at the FOV end: extrapolating the centroid sequence "
+        "with no candidate voxels). Decided on the label map since item 218 "
+        "(2026-10-13) by centroid_spacing's missing_level detector: a "
+        "missed vertebra leaves one gap of about two pitches between labels "
+        "of normal size, whether or not the labels were renumbered. The "
+        "detector orders the labels by per_label.{label}.curve.path_u and "
+        "takes each spacing between consecutive labels' "
+        "per_label.{label}.centroid.centroid_mm[] (so a swapped or "
+        "relabelled vertebra, which still sits at a regular pitch along the "
+        "curve, reads no gap); it fires when a gap exceeds 1.5x the mean of "
+        "the spacings beside it and both flanking labels' "
+        "per_label.{label}.geometry.physical_volume_mm3 are at most 1.5x "
+        "their larger neighbour's. remove_level (the vertebra is deleted "
+        "and the remaining labels are kept) and remove_level_relabel (L3 is "
+        "deleted and L4/L5 renumbered to L3/L4, leaving a continuous label "
+        "sequence) both read 1.887x. On remove_level, coverage's "
+        "interior-gap detector and sequence's skip detector fire on the "
+        "label gap in case.sequence.missing_levels[]; both serve mode 10 "
+        "(skipped level label) because they cannot tell a missed vertebra "
+        "from a skipped label on a segmented one, so those firings are "
+        "recorded co-detections, not this mode's own evidence. Two further "
+        "hypothesised signals cover a missing vertebra at the FOV end, "
+        "which the gap cannot see: extrapolating the centroid sequence "
         "toward the image face, and checking that no label touches a scan "
         "boundary that lacks a terminal label."
     ),
@@ -1637,40 +1656,49 @@ _MODE_6 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(),
+    intended_rules=(
+        IntendedRule(
+            rule_id="centroid_spacing",
+            detector_ids=("missing_level",),
+            evidence_rung="synthetic-demonstrable",
+        ),
+    ),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="remove_level",
             corpus="geometric",
-            expected_firing=("coverage", "sequence"),
+            expected_firing=("centroid_spacing", "coverage", "sequence"),
             reason=(
-                "pipeline-detected; coverage (Missing interior level(s): L3 "
-                "absent within the observed present-level span) and, since "
-                "item 192 (2026-09-28), sequence's skip detector (reading "
-                "the same gap from per_label level names) both fire, "
-                "measured live via segfacet.synth.regression.pipeline_findings. "
-                "The vertebra is deleted and the remaining labels are kept, "
-                "so this is a missed vertebra, not a skipped label (mode 10). "
-                "coverage and sequence's skip both serve mode 10, not this "
-                "mode, since item 188/192: this firing is a recorded "
-                "co-detection that does not validate mode 6."
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-10-12, "
+                "item 218): centroid_spacing's missing_level detector fires "
+                "on labels 21 and 23, the gap reading 1.887x the spacing "
+                "beside it (spacings [33.49, 66.38, 36.84] mm in path order) "
+                "between flanking labels of size ratio 0.997 and 0.998, "
+                "against thresholds 1.5 and 1.5. The vertebra is deleted and "
+                "the remaining labels are kept, so this is a missed "
+                "vertebra, not a skipped label (mode 10). coverage (Missing "
+                "interior level(s): L3 absent within the observed "
+                "present-level span) and, since item 192, sequence's skip "
+                "detector also fire: both serve mode 10, so those two are "
+                "recorded co-detections that do not validate mode 6."
             ),
         ),
         CorpusCaseExpectation(
             case_id="remove_level_relabel",
             corpus="geometric",
-            expected_firing=(),
+            expected_firing=("centroid_spacing",),
             reason=(
-                "not detected today: label 22 (L3) is deleted and labels "
-                "23/24 (L4/L5) are renumbered to 22/23, so the label "
-                "sequence stays continuous while the centroid spacing "
-                "between L2 and the renumbered L3 doubles; no mode-6 rule "
-                "reads that spacing (fused_label reads it only beside a "
-                "doubled size, so it is silent here), measured "
-                "live via segfacet.synth.regression.pipeline_findings "
-                "(2026-09-14). Recorded so the hypothesised spacing-gap "
-                "signal has its fixture; an empty expected set never "
-                "validates a mode."
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-10-12, "
+                "item 218): label 22 (L3) is deleted and labels 23/24 "
+                "(L4/L5) are renumbered to 22/23, so the label sequence "
+                "stays continuous while the centroid spacing between L2 and "
+                "the renumbered L3 doubles. centroid_spacing's missing_level "
+                "detector fires on labels 21 and 22: spacings [33.49, 66.38, "
+                "36.84] mm in path order, the gap 1.887x the spacing beside "
+                "it, flanking size ratios 0.997 and 0.998. No other rule "
+                "fires."
             ),
         ),
     ),
@@ -1943,8 +1971,11 @@ _MODE_10 = ModeSpec(
         "needs-real-data: a skip-relabel fixture (renumber the labels "
         "caudal to a level down by one without deleting a vertebra) is not "
         "authored. The separating signal is an ordinary inter-centroid "
-        "spacing across the label gap (the spacings_mm array of the pairs.adjacent block); as for mode 6, no mode-10 rule reads it "
-        "-- fused_label reads spacing only beside a doubled size."
+        "spacing across the label gap (the distance between consecutive "
+        "centroids along the spine curve); no mode-10 rule reads it, and "
+        "centroid_spacing reads that spacing only as a doubled gap "
+        "(missing_level, mode 6) or beside a doubled size (fused_label, "
+        "mode 2)."
     ),
     observability="single-channel-observable",
     candidate_features=(

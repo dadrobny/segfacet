@@ -318,11 +318,11 @@ class FusePerturbation(Perturbation):
     bridged form -- one label over two full, separate bodies. ``renumber``
     defaults to ``bridged``; ``bridged=True, renumber=False`` raises.
 
-    Item 207 (2026-09-30): the bridged form designates ``fused_label`` alone
+    Item 207 (2026-09-30): the bridged form designates ``centroid_spacing`` alone
     (flagged-for-review on the target label); the unbridged-renumbered form
-    designates ``fragmentation`` and ``fused_label``. The default unbridged
+    designates ``fragmentation`` and ``centroid_spacing``. The default unbridged
     form keeps its ``{coverage, fragmentation}`` designation (it now also
-    fires ``fused_label``, like ``sequence``, which it already omits).
+    fires ``centroid_spacing``, like ``sequence``, which it already omits).
     """
 
     name = "fuse"
@@ -399,7 +399,7 @@ class FusePerturbation(Perturbation):
             _require_next_higher(labels, target, neighbour)
             data[orig == neighbour] = target
             renumbered = _renumber_caudal(data, orig, labels, neighbour)
-            rule_ids = frozenset({"fragmentation", "fused_label"})
+            rule_ids = frozenset({"fragmentation", "centroid_spacing"})
             offending = frozenset({target})
             verdict = "flagged-for-review"
             detail = (
@@ -408,7 +408,7 @@ class FusePerturbation(Perturbation):
                 f"gap, so {target} covers two full, separate bodies; "
                 f"renumbered (old, new) {renumbered}. Mode 2's own signal "
                 "(label size and the spacings around it) is read by "
-                "fused_label (item 207); fragmentation on the two components "
+                "centroid_spacing's fused_label detector (items 207, 218); fragmentation on the two components "
                 "is a co-detection (mode 1's detector), not a mode-1 case."
             )
         else:
@@ -451,7 +451,7 @@ class FusePerturbation(Perturbation):
             data[orig == neighbour] = target
             renumbered = _renumber_caudal(data, orig, labels, neighbour)
 
-            rule_ids = frozenset({"fused_label"})
+            rule_ids = frozenset({"centroid_spacing"})
             offending = frozenset({target})
             verdict = "flagged-for-review"
             detail = (
@@ -460,7 +460,7 @@ class FusePerturbation(Perturbation):
                 f"{n_columns} columns along the stacking axis (array axis "
                 f"{axis}); renumbered (old, new) {renumbered}. Mode 2's own "
                 "signal, the label's size and the inter-centroid spacing around "
-                "it, is read by fused_label (item 207), which is designated."
+                "it, is read by centroid_spacing's fused_label detector (items 207, 218), which is designated."
             )
 
         out_img = _new_image(data, labelmap)

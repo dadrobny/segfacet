@@ -734,7 +734,12 @@ _PRE_129_FINDINGS = {
     # 2026-09-28 (item 192): sequence's swap detector now also fires.
     "relabel_swap": {("mislabel", (21, 22)), ("sequence", (21, 22))},
     # 2026-09-28 (item 192): sequence's skip detector now co-detects.
-    "remove_level": {("coverage", ()), ("sequence", ())},
+    # 2026-10-13 (item 218): centroid_spacing's missing_level detector fires.
+    "remove_level": {
+        ("centroid_spacing", (21, 23)),
+        ("coverage", ()),
+        ("sequence", ()),
+    },
     # Item 189 (2026-09-28): the co-firing offset detector moved to
     # spline_offset.
     # Item 191 (2026-09-28): the runner gates spline_offset's finding on the

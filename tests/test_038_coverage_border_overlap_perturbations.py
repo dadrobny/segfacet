@@ -121,20 +121,19 @@ def _designated_rule_fires(operator_name, labelmap, clean_data, expectation):
     """Return True iff *operator_name*'s designated rule fires for the
     entity actually recorded in *expectation* (self-consistency check used
     by AC27/AC28 and the different-seeds adversarial test)."""
-    if operator_name == "remove_level":
-        findings = _findings(labelmap)
+    if operator_name in ("remove_level", "remove_level_relabel"):
+        # Item 218 (2026-10-13): both remove-level operators designate
+        # centroid_spacing, so the self-consistency check is a missing_level
+        # finding on exactly the expected labels (it was a coverage finding
+        # for remove_level, and the negative "nothing fires" check for
+        # remove_level_relabel, which item 150 recorded as undetected).
+        assert expectation.expected_rule_ids == frozenset({"centroid_spacing"})
         return any(
-            f.rule_id == "coverage" and f.reason.startswith("Missing interior level(s):")
-            for f in findings
+            f.rule_id == "centroid_spacing"
+            and f.detector_id == "missing_level"
+            and f.labels == expectation.expected_labels
+            for f in _findings(labelmap)
         )
-    if operator_name == "remove_level_relabel":
-        # Item 150: this operator's expectation designates NO rule -- the
-        # renumbering hides the gap from every shipped rule, and the
-        # recorded outcome is "nothing fires, verdict pass". Its
-        # self-consistency check is therefore the negative one; an
-        # expectation that started naming a rule would fail here.
-        assert expectation.expected_rule_ids == frozenset()
-        return not _findings(labelmap)
     if operator_name == "crop_at_border":
         findings = _findings(labelmap)
         (target,) = expectation.expected_labels
@@ -199,6 +198,10 @@ def test_ac5_remove_level_only_fired_rule_is_coverage_and_case_level():
     """AC5: every finding has rule_id in {"coverage", "sequence"} and every
     finding.labels is empty (case-level).
 
+    Item 218 (2026-10-13): centroid_spacing's missing_level also fires, on
+    the two labels either side of the gap (labels {21, 23}); the other two
+    stay case-level.
+
     Item 192 (2026-09-28): sequence's skip detector now co-detects this gap
     (case-level, like coverage's missing_interior), so the fired-rule set is
     admitted rather than pinned to {"coverage"} alone."""
@@ -207,9 +210,13 @@ def test_ac5_remove_level_only_fired_rule_is_coverage_and_case_level():
     findings = _findings(result.labelmap)
     assert findings
     for f in findings:
-        assert f.rule_id in {"coverage", "sequence"}
-        assert f.labels == frozenset()
-    assert {f.rule_id for f in findings} == {"coverage", "sequence"}
+        assert f.rule_id in {"centroid_spacing", "coverage", "sequence"}
+        if f.rule_id == "centroid_spacing":
+            assert f.detector_id == "missing_level"
+            assert f.labels == frozenset({21, 23})
+        else:
+            assert f.labels == frozenset()
+    assert {f.rule_id for f in findings} == {"centroid_spacing", "coverage", "sequence"}
 
 
 def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():
@@ -222,15 +229,19 @@ def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():
     ``coverage`` rule sees the label gap and co-detects it (item 188,
     2026-09-28: ``coverage`` declares mode 10, not mode 6, so this firing is
     a recorded co-detection rather than mode 6's own rule).
-    ``remove_level_relabel`` (Group A2 below) is its undetected form."""
+    Item 218 (2026-10-13): mode 6's own rule is centroid_spacing's
+    missing_level, which this case designates on the two labels either side
+    of the gap; ``remove_level_relabel`` (Group A2 below) is the same rule's
+    renumbered form."""
     clean = _clean()
     result = RemoveLevelPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     exp = result.expectation
     assert exp.failure_mode == 6
     assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
     assert exp.condition == ""
-    assert exp.expected_rule_ids == frozenset({"coverage"})
-    assert exp.expected_labels == frozenset()
+    # Item 218 (2026-10-13): was {"coverage"} / frozenset().
+    assert exp.expected_rule_ids == frozenset({"centroid_spacing"})
+    assert exp.expected_labels == frozenset({21, 23})
     assert exp.expected_verdict == "flagged-for-review"
     case_result, _block = run_qc(result.labelmap, bundled_default_config())
     assert case_result.verdict.overall.label == "flagged-for-review"
@@ -238,7 +249,8 @@ def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():
 
 def test_ac7_remove_level_unspecified_target_removes_interior_level():
     """AC7: an unspecified target removes a non-terminal level (not in
-    {20, 24}), expected_labels stays empty, and a coverage finding fires."""
+    {20, 24}), expected_labels names the present labels either side of it
+    (item 218, 2026-10-13: it was empty), and a coverage finding fires."""
     clean = _clean()
     result = RemoveLevelPerturbation().apply(clean.seg_img, seed=0)
     data = np.asanyarray(result.labelmap.dataobj)
@@ -247,7 +259,9 @@ def test_ac7_remove_level_unspecified_target_removes_interior_level():
     assert len(removed) == 1
     (removed_label,) = removed
     assert removed_label not in (20, 24)
-    assert result.expectation.expected_labels == frozenset()
+    assert result.expectation.expected_labels == frozenset(
+        {removed_label - 1, removed_label + 1}
+    )
     case_result, block = run_qc(result.labelmap, bundled_default_config())
     relationships = block["case"].get("sequence")
     assert relationships is not None
@@ -339,8 +353,10 @@ def test_remove_level_relabel_leaves_no_missing_level_for_coverage_to_see():
 
 
 def test_remove_level_relabel_expectation_well_formed_and_pipeline_agrees():
-    """Expectation fields are pinned -- mode 6, no designated rule, verdict
-    "pass" -- and the pipeline agrees: no finding at all fires."""
+    """Expectation fields are pinned -- mode 6, centroid_spacing designated on
+    the label before the target and the target number, verdict
+    "flagged-for-review" -- and the pipeline agrees (item 218, 2026-10-13: it
+    designated no rule and "pass", honestly recording "not detected")."""
     clean = _clean()
     result = RemoveLevelRelabelPerturbation(target_label=22).apply(
         clean.seg_img, seed=0
@@ -349,13 +365,15 @@ def test_remove_level_relabel_expectation_well_formed_and_pipeline_agrees():
     assert exp.failure_mode == 6
     assert exp.failure_mode_name == FAILURE_MODE_NAMES[6]
     assert exp.condition == ""
-    assert exp.expected_rule_ids == frozenset()
-    assert exp.expected_labels == frozenset()
-    assert exp.expected_verdict == "pass"
+    assert exp.expected_rule_ids == frozenset({"centroid_spacing"})
+    assert exp.expected_labels == frozenset({21, 22})
+    assert exp.expected_verdict == "flagged-for-review"
 
     case_result, _block = run_qc(result.labelmap, bundled_default_config())
-    assert list(case_result.findings) == []
-    assert case_result.verdict.overall.label == "pass"
+    assert [
+        (f.rule_id, f.detector_id, f.labels) for f in case_result.findings
+    ] == [("centroid_spacing", "missing_level", frozenset({21, 22}))]
+    assert case_result.verdict.overall.label == "flagged-for-review"
 
 
 def test_remove_level_relabel_unspecified_target_picks_an_interior_level():

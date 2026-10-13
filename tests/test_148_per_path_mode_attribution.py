@@ -883,7 +883,8 @@ _AC16_CASES = (
     # Item 187 (2026-09-28): neighbour_contact fires on the split case alone.
     ("split", "geo", ("neighbour_contact",)),
     # Item 207 (2026-09-30): fused_label fires on fuse_adjacent alone.
-    ("fuse_adjacent", "geo", ("fused_label",)),
+    # Item 218 (2026-10-13): the rule is renamed centroid_spacing.
+    ("fuse_adjacent", "geo", ("centroid_spacing",)),
     # Item 208 (2026-09-30): split_fragment fires on split_own_label alone.
     ("split_own_label", "geo", ("split_fragment",)),
 )

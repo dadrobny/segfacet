@@ -952,9 +952,23 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     },
     # 2026-09-28 (item 192): sequence's skip detector now also fires on this
     # case, co-detecting alongside coverage; verdict is unchanged.
+    # 2026-10-13 (item 218): centroid_spacing's missing_level detector now
+    # fires on the gap too, at its sorted position; verdict is unchanged.
     "remove_level": {
         "verdict": "flagged-for-review",
         "findings": [
+            {
+                "rule_id": "centroid_spacing",
+                "detector_id": "missing_level",
+                "severity": "flagged-for-review",
+                "labels": [21, 23],
+                "reason": (
+                    "Missing level: The gap between label 21 and label 23 "
+                    "reads 1.887x the spacing beside it, strictly above 1.5, "
+                    "between labels of normal size (at most 1.5x their "
+                    "larger neighbour): a vertebra may be missing."
+                ),
+            },
             {
                 "rule_id": "coverage",
                 "detector_id": "missing_interior",

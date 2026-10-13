@@ -356,7 +356,7 @@ def test_ac14_deciding_detector_is_the_new_rule():
     # Item 207 (2026-09-30): fused_label/fused_label joins mode 2's deciding
     # detectors.
     assert condition_4[0].subjects == (
-        "fused_label/fused_label",
+        "centroid_spacing/fused_label",  # item 218 (2026-10-13): rule renamed
         "neighbour_contact/stray_contact",
     )
 

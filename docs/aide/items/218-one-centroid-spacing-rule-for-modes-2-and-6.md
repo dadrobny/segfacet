@@ -883,7 +883,62 @@ exception).
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Built as specified (2026-10-13).** `fused_label.py` was renamed with
+  `git mv` to `centroid_spacing.py`. Both detectors share one pass: labels
+  sorted by `(path_u, int(label))`, spacings from `math.dist` of the first
+  three centroid components, and a `size_ratio` helper (volume over the larger
+  path neighbour's) used by both. `missing_level` runs after the `fused_label`
+  loop, so a record's findings list the fused label first.
+- **Live re-measurement matched the predictions.** `build_catalogue(strict=True)`
+  gives 159 entries, 104 with empty `mode_evidence`, mode 2 on 12 entries.
+  `path_u` reads `(2, 6)` with evidence `("rule_mode_map", "rule_declaration")`;
+  `centroid_mm[]` reads `(2, 6, 9, 10, 11, 13)` with consumers
+  `centroid_spacing`, `collapsed_labels`, `sequence`; `missing_levels[]` reads
+  `(10,)` with `("rule_declaration",)`; `present_levels[]` reads `(6, 10)` with
+  `("per_mode_metric", "rule_declaration", "rule_mode_less", "rule_bookkeeping")`.
+  The catalogue pins that follow are in the test edits: test_137's
+  `("rule_mode_map", "rule_declaration")` 12 -> 11, `("rule_declaration",)`
+  3 -> 4, and the five-source bucket (1 -> 0) replaced by the four-source one.
+  test_136's 159 and 104 held.
+- **Derived counts after this item** (live, `failure_modes`): status validated 7,
+  implemented 4, specified 1, proposed 4; mode rungs synthetic-demonstrable 7,
+  needs-real-data 3, structurally-unobservable 1, none 5; 17 edges,
+  synthetic-demonstrable 8, needs-real-data 8, structurally-unobservable 1.
+- **`remove_level`'s measured firing** is `centroid_spacing` (`missing_level`,
+  labels 21 and 23), `coverage` (`missing_interior`) and `sequence` (`skip`);
+  `_MODE_6`'s `remove_level` `expected_firing` is `("centroid_spacing",
+  "coverage", "sequence")`, and its mechanism names `coverage` and `sequence`
+  as the co-detections. Item 219 re-measures this if it retires `sequence`'s
+  `skip` first.
+- **Mode 10's mechanism** no longer names `per_label.{label}.curve.path_u` or
+  `centroid_mm[]`: `tests/test_138_traceability_matrix.py` AC31 requires a path
+  a mechanism names to be read by one of the mode's declared or co-detecting
+  rules, and mode 10's are `coverage` and `sequence`. The clause describes the
+  spacing in words instead.
+- **test_211 reconciliation.** `_with_pair` sets label 22 at `a·p` and label 23
+  at `(a+b)·p` beyond label 21's centroid; the shared helper `_fused_labels`
+  filters to `detector_id == "fused_label"`. That filter is needed beyond
+  `test_missing_vertebra_not_fused`: in the `(2/3, 4/3)` and `(4/3, 2/3)` rows
+  the edit leaves the 20-21 gap at 1.5x the spacing beside it, which
+  `missing_level` reads as a gap, and those rows test `fused_label` only. The
+  expected `fused_label` outcomes are unchanged.
+- **test_040 / test_041.** `remove_level` now designates labels `{21, 23}` and
+  `remove_level_relabel` `{21, 22}`, so the two assertions that
+  `remove_level`'s `expected_labels` is `[]` moved with them (test_040
+  `test_adv_remove_level_case_level_labels_stay_schema_valid`, test_041
+  `test_adv_mode5_remove_level_case_level_labels_no_crash_on_empty_union`).
+  test_040's `..._honestly_fires_nothing` keeps its name and now asserts the
+  case fires `missing_level`, so the traceability lint finds it. test_041's
+  `test_ac5_undetected_failure_case_fires_nothing_and_verifies` and its
+  `_UNDETECTED_PIPELINE_CASES` list are retired, as the spec authorised: the
+  list is empty.
+- **`traceability.py` `_NOTE`** now names mode 8 as the one `specified` entry
+  with no rule, and records that mode 6 was the other until this item.
+- **Validation.** Step 1: `segfacet run --no-reference` on
+  `remove_level_relabel_seg.nii.gz` reports the `Missing level:` finding in
+  both report files. Step 2: **❓ Unverified (VerSe19 absent)**:
+  `SEGFACET_VERSE_COHORT` is not set on this machine, so A7's path-order
+  measurement was not replayed with the rule itself.
 
 - **Left open:** mode 6's `observability` stays `needs-ground-truth`. The
   rule sees an interior miss from the label map alone, but a miss at either

@@ -591,7 +591,8 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
 #: declaring rule and no derived rung.
 #: Item 220 (2026-10-13): mode 13 leaves this set -- collapsed_labels declares
 #: it, deriving "implemented" with a needs-real-data rung.
-_DEGENERATE_MODES = (5, 6, 7, 8, 12, 14)
+# Item 218 (2026-10-13): mode 6 gains the centroid_spacing edge, so it leaves.
+_DEGENERATE_MODES = (5, 7, 8, 12, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)

@@ -493,7 +493,8 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     # Item 193 (2026-09-28): mode 8 joins this edgeless set -- reference_delta,
     # its only rule, becomes mode-less (no mode's own detector).
     # item 220 (2026-10-13): mode 13 gains the collapsed_labels edge.
-    assert {mode.id for mode in edgeless} == {5, 6, 7, 8, 12, 14}, [
+    # item 218 (2026-10-13): mode 6 gains the centroid_spacing edge.
+    assert {mode.id for mode in edgeless} == {5, 7, 8, 12, 14}, [
         mode.id for mode in edgeless
     ]
 
@@ -1237,7 +1238,9 @@ _EXPECTED_DERIVED_STATUS = {
                          # stray_contact_label), 2026-09-20
     4: "validated",
     5: "proposed",
-    6: "specified",     # item 188 (2026-09-28): coverage re-homed to mode 10;
+    6: "validated",     # item 218 (2026-10-13): was "specified" -- centroid_spacing's
+                         # missing_level is mode 6's own validated edge.
+                         # Was, item 188 (2026-09-28): coverage re-homed to mode 10;
                          # remove_level's coverage finding is now a recorded
                          # co-detection, and mode 6 has no declaring rule
     7: "proposed",

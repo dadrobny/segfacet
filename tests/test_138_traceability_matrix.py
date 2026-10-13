@@ -141,7 +141,8 @@ PROPOSED_MODES = _proposed_mode_ids()
 #: Item 193 (2026-09-28): mode 8 (semantic mislabelling) joins mode 6 -- its
 #: only rule, ``reference_delta``, becomes mode-less (no mode's own detector),
 #: leaving mode 8 with no declaring rule either.
-RULELESS_SPECIFIED_MODES = frozenset({6, 8})
+# Item 218 (2026-10-13): {6, 8} -> {8}; mode 6 gains centroid_spacing's missing_level.
+RULELESS_SPECIFIED_MODES = frozenset({8})
 
 #: The mode used by the "named anchor path is not consumed by any declared
 #: rule" adversarial pair (fixture + test). Mode 8 (semantic mislabelling)
@@ -1023,7 +1024,9 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
     # item 220 (2026-10-13): mode 13 gains the collapsed_labels edge, so "13"
     # leaves both sets.
     assert proposed_mode_ids == {"5", "7", "12", "14"}
-    assert no_rule_mode_ids == {"5", "6", "7", "8", "12", "14"}
+    # item 218 (2026-10-13): mode 6 gains centroid_spacing's missing_level
+    # edge, so "6" leaves the rule-less set.
+    assert no_rule_mode_ids == {"5", "7", "8", "12", "14"}
 
 
 # =========================================================================== #

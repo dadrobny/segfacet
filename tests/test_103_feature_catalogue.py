@@ -621,7 +621,8 @@ _RULE_MODE_MAP = {
     # Item 206 (2026-09-30): fuse_separate (mode 2) fires fragmentation as a
     # co-detection, so (1, 4) -> (1, 2, 4).
     "fragmentation": (1, 2, 4),  # fragment (1), fuse_separate (2), islands (4)
-    "coverage": (6,),  # remove_level (6)
+    # Item 218 (2026-10-13): "coverage": (6,) dropped -- remove_level now
+    # designates centroid_spacing, so no failure case designates coverage.
     "sequence": (9,),  # sequence_break
     # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the
     # only case that scanned to "overlap") was removed.
@@ -629,7 +630,9 @@ _RULE_MODE_MAP = {
     "bounds": (3,),  # split_own_label (3)
     "neighbour_contact": (2,),  # split (2); item 205 (2026-09-30) moved from mode 3
     # Item 207 (2026-09-30): fuse_adjacent and fuse_separate (mode 2) designate it.
-    "fused_label": (2,),
+    # Item 218 (2026-10-13): renamed centroid_spacing (was "fused_label": (2,)),
+    # and remove_level / remove_level_relabel (mode 6) designate it too.
+    "centroid_spacing": (2, 6),  # fuse_adjacent, fuse_separate (2), remove_level (+ relabel) (6)
     # Item 208 (2026-09-30): split_own_label (mode 3) designates it.
     "split_fragment": (3,),
 }
@@ -691,8 +694,10 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
         for e in full_catalogue.entries
         # item 220 (2026-10-13): collapsed_labels also consumes centroid_mm[] as
         # signal, so a path shared with it still counts as this rule's.
+        # item 218 (2026-10-13): so does centroid_spacing, which makes it the
+        # third consumer of centroid_mm[] beside sequence and collapsed_labels.
         if rule_id in e.consuming_rules
-        and set(e.consuming_rules) <= {rule_id, "collapsed_labels"}
+        and set(e.consuming_rules) <= {rule_id, "collapsed_labels", "centroid_spacing"}
         and dict(e.mode_roles).get(rule_id) == "signal"
     }
     assert signal_paths, f"expected at least one signal-classified entry consumed only by {rule_id!r}"
@@ -706,6 +711,9 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
         # consumes the entry as signal too.
         if dict(entry.mode_roles).get("collapsed_labels") == "signal":
             expected |= set(rule_declarations["collapsed_labels"].modes)
+        # item 218 (2026-10-13): likewise centroid_spacing's declared modes.
+        if dict(entry.mode_roles).get("centroid_spacing") == "signal":
+            expected |= set(rule_declarations["centroid_spacing"].modes)
         assert set(entry.failure_modes) == expected, (entry.path, entry.failure_modes)
         # The corpus map's own contribution, which is what AC13 is about.
         assert set(modes).issubset(set(entry.failure_modes)), entry.path

@@ -1236,7 +1236,7 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]
         derived = fm.derive_status(mode)
-        if mode_id in (6, 8):
+        if mode_id in (8,):  # item 218 (2026-10-13): (6, 8) -> (8,)
             # Item 188 (2026-09-28), maintainer decision of 2026-09-25: mode
             # 6 lost its declaring rule (coverage moved to mode 10) and its
             # own rule is left to a later per-mode queue, so it derives no
@@ -1880,7 +1880,9 @@ def test_review_mode_to_rule_holes_are_exactly_the_proposed_modes():
     # mode losing its rule still fails this test.
     # Item 193 (2026-09-28): mode 8 joins mode 6 -- reference_delta, its only
     # rule, becomes mode-less. `traceability._NOTE` is revised to name both.
-    assert hole_mode_ids == sorted(proposed_mode_ids + [6, 8]), (
+    # Item 218 (2026-10-13): mode 6 leaves the exception -- centroid_spacing
+    # declares it -- so `+ [6, 8]` -> `+ [8]`.
+    assert hole_mode_ids == sorted(proposed_mode_ids + [8]), (
         hole_mode_ids,
         proposed_mode_ids,
     )

@@ -104,7 +104,9 @@ _PROPOSED_MODE_IDS = (5, 7, 12, 14)  # item 220 (2026-10-13): 13 leaves
 #: corpus cases and its candidate features.
 #: Item 193 (2026-09-28): mode 8 joins mode 6 -- ``reference_delta``, its
 #: only rule, becomes mode-less (no mode's own detector).
-_RULELESS_SPECIFIED_MODE_IDS = (6, 8)
+# Item 218 (2026-10-13): mode 6 leaves -- centroid_spacing's missing_level
+#: declares it. (6, 8) -> (8,).
+_RULELESS_SPECIFIED_MODE_IDS = (8,)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
@@ -128,7 +130,7 @@ _EXPECTED_DERIVED_STATUS = {
     3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
-    6: "specified",  # item 188 (2026-09-28): coverage re-homed to mode 10
+    6: "validated",  # item 218 (2026-10-13): was "specified" (item 188); centroid_spacing
     7: "proposed",
     8: "specified",  # item 193 (2026-09-28): reference_delta becomes mode-less
     9: "validated",
@@ -906,7 +908,8 @@ def test_ac13_co_detection_alone_does_not_validate():
     mode = dataclasses.replace(
         live,
         corpus_cases=tuple(c for c in live.corpus_cases if c.case_id == "fuse_adjacent"),
-        intended_rules=tuple(e for e in live.intended_rules if e.rule_id != "fused_label"),
+        # item 218 (2026-10-13): the rule is renamed centroid_spacing.
+        intended_rules=tuple(e for e in live.intended_rules if e.rule_id != "centroid_spacing"),
     )
     assert len(mode.corpus_cases) == 1
     assert mode.corpus_cases

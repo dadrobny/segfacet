@@ -512,7 +512,9 @@ def test_fuse_adjacent_case_records_mode_2_bridged_and_fires_nothing():
     assert case["condition"] == ""
     assert case["detection"] == "pipeline"
     # Item 207 (2026-09-30): fused_label now designates this case.
-    assert case["expected_rule_ids"] == ["fused_label"]
+    # Item 218 (2026-10-13): the rule is renamed centroid_spacing (detector
+    # fused_label).
+    assert case["expected_rule_ids"] == ["centroid_spacing"]
     assert case["expected_labels"] == [22]
     assert case["expected_verdict"] == "flagged-for-review"
 
@@ -520,29 +522,33 @@ def test_fuse_adjacent_case_records_mode_2_bridged_and_fires_nothing():
     case_result, _block = run_qc(seg_img, bundled_default_config())
     assert [
         (f.rule_id, f.detector_id, sorted(f.labels)) for f in case_result.findings
-    ] == [("fused_label", "fused_label", [22])]
+    ] == [("centroid_spacing", "fused_label", [22])]  # item 218 (2026-10-13): renamed
     assert case_result.verdict.overall == Severity.FLAG
 
 
-def test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing():
+def test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing():  # item 218 (2026-10-13): name kept, it now asserts the case fires centroid_spacing
     """``remove_level_relabel`` is mode 6's ("vertebra not segmented")
-    fixture and the corpus's first deliberately *undetected* case: the
-    caudal labels are renumbered, so no shipped rule sees anything. Its
-    expectation records that honestly -- no rule, a "pass" verdict -- and
-    the pipeline must agree, which is what makes it a regression guard for
-    the day a rule does detect it."""
+    fixture. The caudal labels are renumbered, so no label gap shows; item
+    218 (2026-10-13) gave it a detector -- ``centroid_spacing``'s
+    ``missing_level`` -- and the case now designates it with a
+    flagged-for-review verdict (it was the corpus's first deliberately
+    undetected case, expecting no rule and a "pass"). The pipeline must
+    agree."""
     case = _case("remove_level_relabel")
     assert case["failure_mode"] == 6
     assert case["condition"] == ""
     assert case["detection"] == "pipeline"
-    assert case["expected_rule_ids"] == []
-    assert case["expected_labels"] == []
-    assert case["expected_verdict"] == "pass"
+    # Item 218 (2026-10-13): was [] / [] / "pass".
+    assert case["expected_rule_ids"] == ["centroid_spacing"]
+    assert case["expected_labels"] == [21, 22]
+    assert case["expected_verdict"] == "flagged-for-review"
 
     seg_img = _seg_nifti_from_case(case)
     case_result, _block = run_qc(seg_img, bundled_default_config())
-    assert list(case_result.findings) == []
-    assert case_result.verdict.overall == Severity.PASS
+    assert [
+        (f.rule_id, f.detector_id, sorted(f.labels)) for f in case_result.findings
+    ] == [("centroid_spacing", "missing_level", [21, 22])]
+    assert case_result.verdict.overall == Severity.FLAG
 
 
 def test_condition_case_is_not_a_clean_control_despite_failure_mode_zero():
@@ -570,14 +576,14 @@ def test_condition_case_is_not_a_clean_control_despite_failure_mode_zero():
 
 
 def test_adv_remove_level_case_level_labels_stay_schema_valid():
-    """Adversarial: the case-level ``remove_level`` case
-    (expected_labels == []) still loads without crashing and is
-    schema-valid. Its mode moved from 5 to 6, "vertebra not segmented", at
+    """Adversarial: the ``remove_level`` case still loads without crashing
+    and is schema-valid. Item 218 (2026-10-13): it now names the two labels
+    either side of the gap (it was case-level, ``expected_labels == []``). Its mode moved from 5 to 6, "vertebra not segmented", at
     item 150's catalogue revision (2026-09-15) -- a missed vertebra
     segmentation is mode 6 whether or not the labels hide the gap -- while
     the case id is historical and deliberately unchanged."""
     case = _case("remove_level")
-    assert case["expected_labels"] == []
+    assert case["expected_labels"] == [21, 23]  # item 218 (2026-10-13): was []
     assert case["failure_mode"] == 6
     assert case["condition"] == ""
     loaded = _loaded_case(case)

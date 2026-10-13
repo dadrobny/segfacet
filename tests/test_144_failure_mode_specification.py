@@ -1268,7 +1268,7 @@ def test_ac16_proposed_entries_are_the_empty_ones():
         assert mode.intended_rules == (), mode.id
         assert mode.corpus_cases == (), mode.id
     for mode in specified:
-        if mode.id in (6, 8):
+        if mode.id in (8,):  # item 218 (2026-10-13): (6, 8) -> (8,)
             assert mode.intended_rules == (), mode.id
             continue
         assert mode.intended_rules, mode.id
