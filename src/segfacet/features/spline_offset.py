@@ -49,17 +49,26 @@ measuring each level against a curve it did not shape:
 1. Fit once through all present centroids at equal weight (the "reference
    fit"), and identify the single most-deviant level under that fit -- the
    **dominant outlier**, chosen as the largest in-sample ``offset_mm``, ties
-   broken by **ascending label**.
+   broken by **ascending label**. Its held-out readings are the **first
+   pass**. (In-sample offsets cannot find outliers: the smoothing spline
+   absorbs displacements, so every in-sample offset stays small.)
 2. For each level in turn, refit through **the same chord-length
    parameterisation** (``u``) as the reference fit, but with that level's own
-   weight and the dominant outlier's weight both driven to a negligible
-   constant. Withholding by **down-weighting instead of dropping** keeps
-   every level in the curve's parameter domain -- terminal levels are still
-   measured against curve interior, not against a truncated endpoint -- while
-   a negligible weight keeps the withheld level from pulling the fit toward
-   itself. Withholding the case's dominant outlier too prevents one broken
-   vertebra from bending its neighbours' held-out curves (outlier
-   cross-talk).
+   weight and every withheld level's weight driven to a negligible constant.
+   Withholding by **down-weighting instead of dropping** keeps every level in
+   the curve's parameter domain -- terminal levels are still measured against
+   curve interior, not against a truncated endpoint -- while a negligible
+   weight keeps the withheld level from pulling the fit toward itself.
+   Withholding every outlier prevents broken vertebrae from bending their
+   neighbours' held-out curves (outlier cross-talk). The withheld set comes
+   from an add-then-remove search over held-out readings (item 221): start
+   with every **interior** level whose first-pass reading is at least
+   ``_OUTLIER_CUTOFF_MM`` (10.0 mm), refit, and put back, lowest first, any
+   withheld level that now reads below the cutoff. Then withhold the largest
+   interior level outside the set that now reads at or above it and repeat,
+   each level entering by an add step at most once. Terminal levels are never
+   candidates. If the set ends empty, the first pass is the result (the
+   in-sample dominant stays withheld in that case).
 3. Below **five** levels the held-out path falls back to the in-sample
    measurement (item 129, D5). The floor is five, not four, for a reason
    specific to this fit: at exactly four points the spline is a **cubic**
@@ -86,24 +95,31 @@ interpolate four points) -- a change to the curve formulation the
 approved, and therefore not this module's (or any agent's) call to make.
 
 **Documented limitation.** A displaced *terminal* level on a short spine is
-not reliably separable: withholding a terminal level and the dominant outlier
+not reliably separable: withholding a terminal level and an outlier
 leaves only three points to constrain a cubic at five levels (the committed
 corpus's level count), so the held-out offset under-reports the true
 displacement there. Real fields of view carry far more than five levels, and
 this is measurably resolved by level count alone -- not worked around here.
 
-**Documented limitation: only the single dominant outlier is withheld.**
-Step 1 identifies and withholds one outlier per refit. With **two or more**
-genuinely displaced levels, every un-withheld displaced level still pulls
-every *other* level's held-out curve toward itself, which can both under-report
-a real displacement and over-report a clean level as displaced. Measured on
-the adversarial two-opposite-displacements case (two levels displaced in
-opposite directions): a genuinely **clean** level reads **31.96 mm** while one
-of the **displaced** levels reads only **19.31 mm** -- the clean level can be
-named an offender ahead of an actual one. This is accepted as a known, shipped
-limitation (not fixed by this item); the natural follow-up is withholding
-every level above some outlier cutoff, not just the single dominant one, and
-is left to future work.
+**Documented limitation: some multi-outlier cases still miss (item 221).**
+The add-then-remove search separates both displaced levels from every clean
+level in most, not all, pairs. Measured over every pair of interior levels
+displaced +-15 mm on clean thoracic spines (pairs fully separated, today's
+shipped scheme before this item -> now):
+
+======  =====  ======================  ======================
+Levels  Pairs  Opposite (was -> now)   Same-side (was -> now)
+======  =====  ======================  ======================
+6       6      0 -> 3                  0 -> 1
+8       15     0 -> 11                 0 -> 6
+10      28     0 -> 27                 0 -> 19
+12      45     2 -> 43                 0 -> 35
+======  =====  ======================  ======================
+
+Two shortfalls remain. Same-side displacements one or two levels apart read
+under the cutoff on the first pass, because the smoothing spline follows
+them as a bend, so nothing is withheld. And spines of six levels or fewer
+carry too few full-weight points to separate two displaced interior levels.
 
 Terminal-vertebra exclusion (item 123, 2026-08-29 human decision)
 ------------------------------------------------------------------
@@ -152,7 +168,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
-from typing import List, Optional, Sequence, Tuple
+from typing import FrozenSet, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -177,6 +193,13 @@ __all__ = [
 # negligible relative to the uniform 1.0 weight on every other point, but
 # strictly positive -- make_splprep rejects a zero weight.
 _WITHHELD_WEIGHT: float = 1e-6
+
+# A held-out reading at or above this (mm) marks an interior level as an
+# outlier to withhold (item 221, owner decision 2026-10-12). The workable
+# window measured on the synthetic fixtures is (6.92, 12.76) mm: lower also
+# withholds the corpus `displace` case's neighbour (6.92 mm), higher misses
+# the second displaced level of a two-opposite case (12.76 mm).
+_OUTLIER_CUTOFF_MM: float = 10.0
 
 # Below this many levels, the held-out refit cannot mean anything -- fall
 # back to the in-sample measurement (item 120, AC7). Five, not four (item
@@ -364,6 +387,95 @@ def compute_spline_offsets(
 # --------------------------------------------------------------------------- #
 
 
+def _held_out_records(
+    centroids: Sequence[LabelCentroid],
+    withheld: Iterable[int],
+    reference_fit: SplineFit,
+    spacing_mm: Optional[Tuple[float, float, float]],
+    backend: Backend,
+) -> List[VertebralSplineOffset]:
+    """Held-out record per level, with every index in *withheld* down-weighted.
+
+    Each level ``i`` is refit through ``reference_fit.u`` with
+    ``_WITHHELD_WEIGHT`` on ``i`` and on every withheld index, ``1.0``
+    elsewhere. ``is_terminal`` comes from the outer sequence.
+    """
+    n_points = len(centroids)
+    withheld = set(withheld)
+    records: List[VertebralSplineOffset] = []
+    for i in range(n_points):
+        weights = [1.0] * n_points
+        for j in withheld | {i}:
+            weights[j] = _WITHHELD_WEIGHT
+
+        refit = fit_centroid_spline(
+            centroids, u=reference_fit.u, weights=weights, backend=backend
+        )
+        record = compute_spline_offsets(
+            [centroids[i]], refit, spacing_mm=spacing_mm, backend=backend
+        )[0]
+        # compute_spline_offsets reads is_terminal from the length-1 list it
+        # was given (always True) -- the terminality that matters is the
+        # position in the OUTER sequence, substituted here.
+        is_terminal = n_points <= 2 or i == 0 or i == n_points - 1
+        if record.is_terminal != is_terminal:
+            record = replace(record, is_terminal=is_terminal)
+        records.append(record)
+    return records
+
+
+def _withhold_outliers(
+    centroids: Sequence[LabelCentroid],
+    first_pass: List[VertebralSplineOffset],
+    reference_fit: SplineFit,
+    spacing_mm: Optional[Tuple[float, float, float]],
+    backend: Backend,
+) -> Tuple[FrozenSet[int], List[VertebralSplineOffset]]:
+    """Add-then-remove search for the interior levels to withhold (item 221).
+
+    Returns ``(withheld indices, records under that set)``. The set is empty
+    and the records are *first_pass* itself when nothing survives. Interior
+    indices only. Each index enters through an add step at most once, which
+    bounds the search.
+    """
+    n = len(centroids)
+    cutoff = _OUTLIER_CUTOFF_MM
+    interior = range(1, n - 1)
+
+    def held(w):
+        return _held_out_records(centroids, w, reference_fit, spacing_mm, backend)
+
+    def lab(j):
+        return centroids[j].label
+
+    w = {i for i in interior if first_pass[i].offset_mm >= cutoff}
+    if not w:
+        return frozenset(), first_pass
+    added: set = set()
+    cur = held(w)
+    while True:
+        # Remove phase: put back the lowest-reading withheld level below cutoff.
+        while any(cur[j].offset_mm < cutoff for j in w):
+            j = min(
+                (j for j in w if cur[j].offset_mm < cutoff),
+                key=lambda j: (cur[j].offset_mm, lab(j)),
+            )
+            w.remove(j)
+            cur = held(w) if w else first_pass
+        # Add phase: withhold the largest reading at or above the cutoff.
+        cand = [
+            i for i in interior
+            if i not in w and i not in added and cur[i].offset_mm >= cutoff
+        ]
+        if not cand:
+            break
+        k = min(cand, key=lambda i: (-cur[i].offset_mm, lab(i)))
+        added.add(k)
+        w.add(k)
+        cur = held(w)
+    return (frozenset(w), cur) if w else (frozenset(), first_pass)
+
+
 def compute_leave_one_out_spline_offsets(
     centroids: Sequence[LabelCentroid],
     spacing_mm: Optional[Tuple[float, float, float]] = None,
@@ -376,12 +488,14 @@ def compute_leave_one_out_spline_offsets(
     See the module docstring's "Held-out evaluation (item 120)" section for
     the full definition. In short: a reference fit through all centroids at
     equal weight identifies the case's dominant outlier (the largest
-    in-sample ``offset_mm``, ties broken by **ascending label**); then, for
-    each level, a refit through the reference fit's own chord-length ``u``
-    down-weights that level and the dominant outlier to a negligible
-    constant (never zero -- ``make_splprep`` rejects that), so the level
-    under test cannot pull the curve toward itself while the curve's
-    parameter domain never shrinks.
+    in-sample ``offset_mm``, ties broken by **ascending label**). Its
+    held-out readings are the first pass, from which an add-then-remove
+    search (item 221) picks every interior level reading at least
+    ``_OUTLIER_CUTOFF_MM`` to withhold. Each level is then refit through the
+    reference fit's own chord-length ``u`` with that level and every
+    withheld level down-weighted to a negligible constant (never zero --
+    ``make_splprep`` rejects that), so the level under test cannot pull the
+    curve toward itself while the curve's parameter domain never shrinks.
 
     Parameters
     ----------
@@ -480,26 +594,7 @@ def compute_leave_one_out_spline_offsets(
         key=lambda i: (-in_sample[i].offset_mm, centroids[i].label),
     )
 
-    records: List[Optional[VertebralSplineOffset]] = [None] * n_points
-    for i in range(n_points):
-        weights = [1.0] * n_points
-        weights[i] = _WITHHELD_WEIGHT
-        weights[worst_idx] = _WITHHELD_WEIGHT
-
-        refit = fit_centroid_spline(
-            centroids, u=reference_fit.u, weights=weights, backend=backend
-        )
-        record = compute_spline_offsets(
-            [centroids[i]], refit, spacing_mm=spacing_mm, backend=backend
-        )[0]
-        # compute_spline_offsets always reads is_terminal from the length-1
-        # list it was just given (so it always reports True there) -- the
-        # terminality that actually matters is the position in the OUTER
-        # (full-cohort) sequence this function was given, so it is recomputed
-        # here and substituted onto the returned record.
-        is_terminal = n_points <= 2 or i == 0 or i == n_points - 1
-        if record.is_terminal != is_terminal:
-            record = replace(record, is_terminal=is_terminal)
-        records[i] = record
-
-    return records  # type: ignore[return-value]
+    first = _held_out_records(
+        centroids, {worst_idx}, reference_fit, spacing_mm, backend
+    )
+    return _withhold_outliers(centroids, first, reference_fit, spacing_mm, backend)[1]
