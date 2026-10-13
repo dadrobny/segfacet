@@ -2406,13 +2406,15 @@
             "render_feature_table"
           ],
           "consuming_rules": [
+            "collapsed_labels",
             "sequence"
           ],
           "documented": true,
           "failure_modes": [
             9,
             10,
-            11
+            11,
+            13
           ],
           "measures": "Physical-space centroid.",
           "mode_evidence": [
@@ -2420,6 +2422,10 @@
             "rule_declaration"
           ],
           "mode_roles": [
+            [
+              "collapsed_labels",
+              "signal"
+            ],
             [
               "sequence",
               "signal"
@@ -2461,6 +2467,14 @@
           "origin": "record",
           "path": "per_label.{label}.centroid.centroid_mm[]",
           "rule_evidence": [
+            [
+              "collapsed_labels",
+              "observed"
+            ],
+            [
+              "collapsed_labels",
+              "static"
+            ],
             [
               "sequence",
               "observed"
@@ -2646,6 +2660,7 @@
           "consuming_rules": [
             "border",
             "bounds",
+            "collapsed_labels",
             "coverage",
             "fragmentation",
             "fused_label",
@@ -2678,6 +2693,10 @@
             ],
             [
               "bounds",
+              "bookkeeping"
+            ],
+            [
+              "collapsed_labels",
               "bookkeeping"
             ],
             [
@@ -2775,6 +2794,14 @@
             ],
             [
               "bounds",
+              "static"
+            ],
+            [
+              "collapsed_labels",
+              "observed"
+            ],
+            [
+              "collapsed_labels",
               "static"
             ],
             [
@@ -8523,6 +8550,290 @@
     {
       "entries": [
         {
+          "computation": "The shared (x, y, z) centroid coordinate of the pair, as find_coincident_centroid_pair reports it.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The exact centroid mm-coordinate the two labels share.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": 3,
+              "covered": true,
+              "informative": true,
+              "magnitude": 19.5,
+              "maximum": 19.5,
+              "minimum": 9.5,
+              "population": "corpus",
+              "source": [
+                "stage3_unavailable"
+              ],
+              "span": 10.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "stage3_unavailable.coordinate_mm[]",
+          "rule_evidence": [],
+          "scale_sensitivity": "scales with spacing",
+          "status": "unwired",
+          "units": "mm"
+        },
+        {
+          "computation": "Message built in pipeline.extract_feature_record naming both levels, both labels and the shared coordinate.",
+          "consumers": [],
+          "consuming_rules": [
+            "collapsed_labels"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "Human-readable account of the coincident pair that made Stage 3 unavailable.",
+          "mode_evidence": [
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "collapsed_labels",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "stage3_unavailable"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
+          "path": "stage3_unavailable.detail",
+          "rule_evidence": [
+            [
+              "collapsed_labels",
+              "observed"
+            ],
+            [
+              "collapsed_labels",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "identifier",
+          "status": "keep",
+          "units": ""
+        },
+        {
+          "computation": "label_a and label_b of the first coincident pair found by find_coincident_centroid_pair, in ascending label order.",
+          "consumers": [],
+          "consuming_rules": [
+            "collapsed_labels"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The two integer labels whose centroids coincide.",
+          "mode_evidence": [
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "collapsed_labels",
+              "bookkeeping"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 2,
+              "covered": true,
+              "informative": true,
+              "magnitude": 22.0,
+              "maximum": 22.0,
+              "minimum": 21.0,
+              "population": "corpus",
+              "source": [
+                "stage3_unavailable"
+              ],
+              "span": 1.0
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "stage3_unavailable.labels[]",
+          "rule_evidence": [
+            [
+              "collapsed_labels",
+              "observed"
+            ],
+            [
+              "collapsed_labels",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "identifier",
+          "status": "keep",
+          "units": ""
+        },
+        {
+          "computation": "level_a and level_b of the first coincident pair found by find_coincident_centroid_pair, in ascending label order.",
+          "consumers": [],
+          "consuming_rules": [],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "The two anatomical level names whose centroids coincide.",
+          "mode_evidence": [],
+          "mode_roles": [],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "stage3_unavailable"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
+          "path": "stage3_unavailable.levels[]",
+          "rule_evidence": [],
+          "scale_sensitivity": "identifier",
+          "status": "unwired",
+          "units": ""
+        },
+        {
+          "computation": "Literal \"coincident_centroids\", written by pipeline.extract_feature_record when features.spline.find_coincident_centroid_pair finds two labels with an exactly equal centroid mm-coordinate.",
+          "consumers": [],
+          "consuming_rules": [
+            "collapsed_labels"
+          ],
+          "documented": true,
+          "failure_modes": [
+            13
+          ],
+          "measures": "Why the Stage 3 block was not computed.",
+          "mode_evidence": [
+            "rule_declaration"
+          ],
+          "mode_roles": [
+            [
+              "collapsed_labels",
+              "signal"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "corpus",
+              "source": [
+                "stage3_unavailable"
+              ],
+              "span": null
+            },
+            "numeric": false,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "non-numeric"
+          },
+          "origin": "record",
+          "path": "stage3_unavailable.reason",
+          "rule_evidence": [
+            [
+              "collapsed_labels",
+              "observed"
+            ],
+            [
+              "collapsed_labels",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "categorical",
+          "status": "keep",
+          "units": ""
+        }
+      ],
+      "intro": "Present only when two or more labels' centroids share one exact mm-coordinate, so the Stage 3 spline fit is not attempted (item 129); the record then carries this block instead of case.curve.",
+      "module": "segfacet.pipeline",
+      "stage": "Stage 3 · item 129",
+      "title": "Stage 3 Availability"
+    },
+    {
+      "entries": [
+        {
           "computation": "Literal \"0.2\" (no Stage 3 present) or \"0.3\" (Stage 3 present), stamped by build_features_block (items 215, 216).",
           "consumers": [
             "render_feature_table"
@@ -8580,6 +8891,7 @@
           "consuming_rules": [
             "border",
             "bounds",
+            "collapsed_labels",
             "coverage",
             "fragmentation",
             "fused_label",
@@ -8608,6 +8920,10 @@
             ],
             [
               "bounds",
+              "bookkeeping"
+            ],
+            [
+              "collapsed_labels",
               "bookkeeping"
             ],
             [
@@ -8699,6 +9015,10 @@
               "static"
             ],
             [
+              "collapsed_labels",
+              "static"
+            ],
+            [
               "coverage",
               "static"
             ],
@@ -8762,10 +9082,10 @@
   "observed_summary": {
     "constant-synthetic": 7,
     "degenerate": 0,
-    "non-numeric": 37,
+    "non-numeric": 40,
     "placeholder": 26,
     "unobserved": 0,
-    "varies": 84
+    "varies": 86
   },
   "schema_version": "1.2"
 }

@@ -501,6 +501,19 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     seqbreak_img, _ = sequence_break_cls().apply(clean.seg_img, seed=0)
     yield "sequence_break", extract_feature_record(seqbreak_img, config)
 
+    # stage3_unavailable (item 220): two concentric boxes share one exact
+    # centroid, so Stage 3 is skipped. A partial record, like the
+    # image_features and reference_delta drivers below, so no other path's
+    # observed range moves.
+    concentric = np.zeros((20, 20, 40), dtype=np.uint16)
+    concentric[5:15, 5:15, 10:30] = 21
+    concentric[8:12, 8:12, 17:23] = 22
+    concentric_img = nib.Nifti1Image(concentric, np.eye(4))
+    concentric_record = extract_feature_record(concentric_img, config)
+    yield "stage3_unavailable", {
+        "stage3_unavailable": concentric_record["stage3_unavailable"]
+    }
+
     # Two augmented drivers, realised through the existing converters over
     # hand-constructed placeholder dataclass instances -- no PyRadiomics, no
     # reference artifact, no scan, fully deterministic (item 103 Assumptions

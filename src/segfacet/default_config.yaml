@@ -286,6 +286,26 @@ rules:
   #     severity: flagged-for-review
 
   # ------------------------------------------------------------------ #
+  # collapsed_labels (item 220) -- coincident / near-coincident centroid
+  # detector, mode 13 (collapsed labels). Reads stage3_unavailable and
+  # per_label.{label}.centroid.centroid_mm. Registered enabled-by-default
+  # with NO active section here, same section-less-by-design rationale as
+  # `split_fragment` above: an active `rules.collapsed_labels` section would
+  # change this file's parsed `rules` dict and hence `config_hash`. Values
+  # below are DOCUMENTATION ONLY, copied verbatim from
+  # heuristics/collapsed_labels.py's code defaults.
+  #
+  # collapsed_labels:
+  #   enabled: true
+  #   params:
+  #     # Two labels whose centroids lie within this distance (mm) are
+  #     # collapsed. Closest legitimate pairs measured 2026-10-12: 12.54 mm
+  #     # (geometric corpus), 32.70 mm (intensity corpus), 11.08 mm
+  #     # (VerSe19 GT).
+  #     max_centroid_distance_mm: 2.0
+  #     severity: flagged-for-review
+
+  # ------------------------------------------------------------------ #
   # intensity (item 062) -- implausible-intensity (absolute-band) rule.
   # Registered enabled-by-default with NO active section here (mirroring
   # reference_delta's own precedent, item 065's pivotal design decision):

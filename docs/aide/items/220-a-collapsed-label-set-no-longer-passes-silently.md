@@ -533,7 +533,20 @@ clauses live for that reason.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implemented as specified (2026-10-13).** `collapsed_labels` reads `severity`
+  and `max_centroid_distance_mm` through `config.rule_param`, as `split_fragment`
+  does. The rule's evidence tuple is `("analytic", <prose>)`.
+- **Catalogue driver** builds the item-129 concentric boxes (labels 21 and 22,
+  shell and core) in-function with NumPy and an identity affine, so no tests
+  path is named. Strict build refuses nothing: the five `stage3_unavailable.*`
+  leaves are `reason`, `detail`, `levels[]`, `labels[]`, `coordinate_mm[]`.
+- **Measured live after the change:** catalogue 159 entries, of which 104 have
+  empty mode evidence; observed summary non-numeric 40, varies 86, others
+  unchanged. Derived status counts: validated 6, implemented 4, specified 2,
+  proposed 4. Rungs: synthetic-demonstrable 6, needs-real-data 3,
+  structurally-unobservable 1, none 6. Edges: 16, with needs-real-data 8.
+- **Validation step 1 (VerSe19 replay):** ❓ Unverified, not run in this
+  build step. A3's recorded measurement stands.
 
 - **Left open:** A mode-13 detector on a *fraction* of the expected spacing,
   through the candidate feature `pairs.adjacent.spacings_mm[]`. It would

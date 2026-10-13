@@ -195,7 +195,7 @@ def test_ac1_iter_rule_declarations_ascending_by_rule_id():
     # (mislabel's moved Detector A) brings it to twelve. Item 207
     # (2026-09-30): the new fused_label rule brings it to thirteen.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 14  # item 208 (2026-09-30): 13 -> 14
+    assert len(pairs) == 15  # item 220 (2026-10-13): 14 -> 15
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -258,7 +258,7 @@ def test_ac3_ten_rules_registered():
     # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
     # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
     # thirteen.
-    assert len(list(iter_rules())) == 14  # item 208 (2026-09-30): 13 -> 14
+    assert len(list(iter_rules())) == 15  # item 220 (2026-10-13): 14 -> 15
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
@@ -881,7 +881,7 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
+    assert len(entries) == 159  # item 220 (2026-10-13): 154 -> 159 (five stage3_unavailable.* leaves)
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
@@ -891,7 +891,8 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     # item 215 (2026-10-06): 89 -> 103 (-4 merged, +16 new, +2 survivors);
     # item 216 (2026-10-06): 103 -> 102 (-1 survivor, -1 mean_spacing_mm,
     # +1 new row).
-    assert stayed_empty == 102
+    # item 220 (2026-10-13): 102 -> 104, re-measured live.
+    assert stayed_empty == 104
 
 
 # =========================================================================== #

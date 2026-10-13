@@ -363,7 +363,7 @@ def test_ac4_every_declaring_rule_classifies_exactly_what_it_consumes(shipped_ca
     # Item 187 (2026-09-27): neighbour_contact registered an eleventh
     # declaring rule. Item 189 (2026-09-28): spline_offset registers a
     # twelfth. Item 207 (2026-09-30): fused_label registers a thirteenth.
-    assert checked == 14  # item 208 (2026-09-30): 13 -> 14
+    assert checked == 15  # item 220 (2026-10-13): 14 -> 15
 
 
 # =========================================================================== #
@@ -690,7 +690,7 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
     }
     # Item 192 (2026-09-28): mode 11 gains an intended-rule edge (sequence's
     # transitional detector), so it leaves this unreachable set.
-    assert unreachable == {5, 7, 12, 13, 14}, unreachable
+    assert unreachable == {5, 7, 12, 14}, unreachable  # item 220 (2026-10-13): 13 now has a rule
     assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
 
     # Mode 16 ("implausible tissue under a label", entered as mode 9 by item
@@ -1118,7 +1118,7 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
     # Item 187 (2026-09-27): neighbour_contact was an eleventh matrix row.
     # Item 189 (2026-09-28): spline_offset is a twelfth. Item 207
     # (2026-09-30): fused_label is a thirteenth.
-    assert checked == 14  # item 208 (2026-09-30): 13 -> 14
+    assert checked == 15  # item 220 (2026-10-13): 14 -> 15
 
 
 # =========================================================================== #

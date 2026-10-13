@@ -1041,8 +1041,10 @@ def test_ac27_mode13_present_as_unimplemented_entry():
 
     mode = fm.SPECIFICATION[13]
     assert mode.short_name == "collapsed labels", mode.short_name
-    assert mode.status == "proposed"
-    assert mode.intended_rules == ()
+    # Re-stated (item 220, 2026-10-13): mode 13 is `specified` with the one
+    # collapsed_labels edge; mode 14 is now the proposed exemplar.
+    assert mode.status == "specified"
+    assert [e.rule_id for e in mode.intended_rules] == ["collapsed_labels"]
     assert mode.corpus_cases == ()
     # The sign-off added two further hypothesised inputs beside the one this
     # item authored; what AC27 claims is that they are all hypothesised (an
@@ -1078,10 +1080,13 @@ def test_ac27_collapsed_or_duplicated_pair_is_split_into_two_proposed_entries():
     duplicated = fm.SPECIFICATION[14]
     assert duplicated.short_name == "duplicated label", duplicated.short_name
     assert collapsed.parent == duplicated.parent == 8
+    # Re-stated (item 220, 2026-10-13): mode 13 now carries its rule's edge;
+    # mode 14 stays `proposed`.
+    assert duplicated.status == "proposed"
+    assert fm.derive_status(duplicated) == "proposed"
+    assert duplicated.intended_rules == ()
+    assert [e.rule_id for e in collapsed.intended_rules] == ["collapsed_labels"]
     for mode, other in ((collapsed, duplicated), (duplicated, collapsed)):
-        assert mode.status == "proposed", mode.id
-        assert fm.derive_status(mode) == "proposed", mode.id
-        assert mode.intended_rules == (), mode.id
         assert mode.corpus_cases == (), mode.id
         tokens = {int(t) for t in re.findall(r"\d+", mode.discriminator)}
         assert other.id in tokens, (mode.id, mode.discriminator)
@@ -1098,8 +1103,9 @@ def test_ac28_mode13_status_and_rung_are_derived_not_authored():
     import segfacet.failure_modes as fm
 
     mode = fm.SPECIFICATION[13]
-    assert fm.derive_status(mode) == "proposed"
-    assert fm.derive_mode_rung(mode) is None
+    # Re-stated (item 220, 2026-10-13): the rule derives `implemented`.
+    assert fm.derive_status(mode) == "implemented"
+    assert fm.derive_mode_rung(mode) == "needs-real-data"
 
 
 # =========================================================================== #
@@ -1112,7 +1118,7 @@ def test_ac29_mode13_empty_sections_render_as_none():
 
     md = fm.render_markdown()
     lines = md.splitlines()
-    start = _mode_heading_index(lines, 13)
+    start = _mode_heading_index(lines, 14)
     # A section runs to the next `## ` heading of any kind: the conditions
     # and vision-seed-disposition sections are `## ` headings too.
     end = next(
@@ -1173,30 +1179,30 @@ def test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported(isolated_reg
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import _RULES, Rule, RuleModeDeclaration, register_rule
 
-    assert fm.SPECIFICATION[13].status == "proposed", fm.SPECIFICATION[13].status
+    assert fm.SPECIFICATION[14].status == "proposed", fm.SPECIFICATION[14].status
 
     before = fm.specification_conflicts()
     assert before == ()
 
-    class _FakeMode13Detector(Rule):
-        rule_id = "__item146_fake_mode13_detector__"
-        mode_declaration = RuleModeDeclaration(modes=(13,), evidence=("analytic", "AC30 probe"))
+    class _FakeMode14Detector(Rule):
+        rule_id = "__item146_fake_mode14_detector__"
+        mode_declaration = RuleModeDeclaration(modes=(14,), evidence=("analytic", "AC30 probe"))
 
         def evaluate(self, record, config):
             return []
 
-    register_rule(_FakeMode13Detector)
+    register_rule(_FakeMode14Detector)
 
     conflicts = fm.specification_conflicts()
-    assert conflicts, "expected >=1 conflict once mode 13 acquires a declaring rule"
+    assert conflicts, "expected >=1 conflict once mode 14 acquires a declaring rule"
     assert any(
-        "mode 13" in msg and "proposed" in msg and "implemented" in msg for msg in conflicts
+        "mode 14" in msg and "proposed" in msg and "implemented" in msg for msg in conflicts
     ), conflicts
 
     # Retract the stub and confirm the conflict retracts with it -- the
     # transition is attributed to the stub in both directions, not to a
     # `specification_conflicts()` default-argument artefact.
-    del _RULES[_FakeMode13Detector.rule_id]
+    del _RULES[_FakeMode14Detector.rule_id]
     assert fm.specification_conflicts() == ()
 
 
@@ -1223,7 +1229,7 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     # Reconciled (item 192, 2026-09-28): mode 11 left the `proposed` set and
     # joined `specified` (sequence's `transitional` detector declares it, now
     # `implemented`); the five remaining proposed ids are 5, 7, 12, 13, 14.
-    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 11, 15, 16], specified_ids
+    assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 11, 13, 15, 16], specified_ids  # item 220 (2026-10-13): 13 joins
 
     for mode_id in specified_ids:
         mode = fm.SPECIFICATION[mode_id]
@@ -1565,28 +1571,28 @@ def test_adv_mode13_with_intended_rules_is_legal_at_construction_but_flagged(iso
     import segfacet.failure_modes as fm
     from segfacet.heuristics.rule import Rule, RuleModeDeclaration, register_rule
 
-    mode13 = fm.SPECIFICATION[13]
+    mode14 = fm.SPECIFICATION[14]
     fake_edge = fm.IntendedRule(
-        rule_id="__item146_adv_mode13_edge__", detector_ids=(), evidence_rung="needs-real-data"
+        rule_id="__item146_adv_mode14_edge__", detector_ids=(), evidence_rung="needs-real-data"
     )
-    contradictory = dataclasses.replace(mode13, intended_rules=(fake_edge,))  # must not raise
+    contradictory = dataclasses.replace(mode14, intended_rules=(fake_edge,))  # must not raise
     assert contradictory.intended_rules == (fake_edge,)
     assert contradictory.status == "proposed"
 
-    class _FakeMode13Detector(Rule):
-        rule_id = "__item146_adv_mode13_edge__"
+    class _FakeMode14Detector(Rule):
+        rule_id = "__item146_adv_mode14_edge__"
         mode_declaration = RuleModeDeclaration(
-            modes=(13,), evidence=("analytic", "adversarial probe")
+            modes=(14,), evidence=("analytic", "adversarial probe")
         )
 
         def evaluate(self, record, config):
             return []
 
-    register_rule(_FakeMode13Detector)
+    register_rule(_FakeMode14Detector)
 
     conflicts = fm.specification_conflicts((contradictory,))
     assert conflicts, "expected the proposed-drift check to fire"
-    assert any("mode 13" in msg for msg in conflicts), conflicts
+    assert any("mode 14" in msg for msg in conflicts), conflicts
 
 
 def test_adv_render_markdown_twice_equal():
@@ -1602,12 +1608,12 @@ def test_adv_specification_to_dict_twice_equal_and_mode13_lists_not_shared():
     second = fm.specification_to_dict()
     assert first == second
 
-    mode13_first = next(m for m in first["modes"] if m["id"] == 13)
-    mode13_second = next(m for m in second["modes"] if m["id"] == 13)
-    assert mode13_first["intended_rules"] == []
-    assert mode13_first["intended_rules"] is not mode13_second["intended_rules"]
-    mode13_first["intended_rules"].append({"sneaky": "mutation"})
-    assert mode13_second["intended_rules"] == []
+    mode14_first = next(m for m in first["modes"] if m["id"] == 14)
+    mode14_second = next(m for m in second["modes"] if m["id"] == 14)
+    assert mode14_first["intended_rules"] == []
+    assert mode14_first["intended_rules"] is not mode14_second["intended_rules"]
+    mode14_first["intended_rules"].append({"sneaky": "mutation"})
+    assert mode14_second["intended_rules"] == []
 
 
 def test_adv_isolated_registry_fixture_restores_shipped_registry():

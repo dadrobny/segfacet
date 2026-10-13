@@ -405,14 +405,14 @@ Corpus cases:
 - Short name (corpus manifests): collapsed labels
 - Parent: 8
 - Scope: spine
-- Definition: Decidable on centroids alone: two or more labels' centroids lie closer together than a fraction of the expected inter-vertebral spacing, so distinct levels are placed on (nearly) the same vertebra. When centroids coincide exactly the Stage 3 spline fit cannot be computed, the record carries a stage3_unavailable reason instead of a stage3 block, every stage3-reading rule short-circuits and no finding of any kind is raised: the case passes silently (carried defect, item 129, 2026-08-31).
+- Definition: Decidable on centroids alone: two or more labels' centroids lie closer together than a fraction of the expected inter-vertebral spacing, so distinct levels are placed on (nearly) the same vertebra. When centroids coincide exactly the Stage 3 spline fit cannot be computed, the record carries a stage3_unavailable reason instead of a stage3 block, every stage3-reading rule short-circuits and no finding of any kind is raised: the case passes silently (carried defect, item 129, 2026-08-31). Closed 2026-10-13 (item 220): the collapsed_labels rule reads stage3_unavailable and the centroids, so a collapsed pair now raises a flagged-for-review finding.
 - Discriminator: Mode 14 is the converse (one label on two vertebrae rather than two labels on one); mode 2 when one of the labels still covers its own vertebra and takes only part of the other; mode 15 needs a shared voxel, which a collapsed pair of disjoint labels never has.
 - Observability: single-channel-observable
 - Severity: flagged-for-review
 - Provenance: hypothesised
-- Status, authored: proposed
-- Status, derived (live): proposed
-- Derived rung (strongest edge, live): none
+- Status, authored: specified
+- Status, derived (live): implemented
+- Derived rung (strongest edge, live): needs-real-data
 - Maintainer sign-off: (none recorded)
 
 Candidate features:
@@ -420,11 +420,11 @@ Candidate features:
 - `hypothesised` candidate path: `stage3_unavailable.reason`
 - `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 
-Mechanism: No rule exists for this mode yet, which is what proposed means. The candidate inputs are the minimum inter-label centroid distance relative to the expected spacing (pairs.adjacent.spacings_mm[]) and the stage3_unavailable.reason field the degenerate case populates (item 129), which no rule reads.
+Mechanism: collapsed_labels (item 220, 2026-10-13) judges every pair of labels, not only anatomical neighbours. Its coincident_centroids detector fires once on the pair stage3_unavailable.reason names (the exact-coincidence case, where Stage 3 is absent); its near_coincident_centroids detector fires on every other pair whose per_label.{label}.centroid.centroid_mm[] lie within max_centroid_distance_mm, default 2.0 mm. The tolerance is absolute, because the collapsed pair's own spacing is the one that shrinks and a short record has no robust reference spacing; the closest legitimate pair measured is 11.082 mm (VerSe19 GT). No committed corpus case expresses the mode, so the edge is needs-real-data.
 
 Intended rules:
 
-- (none)
+- `collapsed_labels` (detector: coincident_centroids, near_coincident_centroids) -- evidence rung: needs-real-data
 
 Corpus cases:
 
@@ -552,7 +552,7 @@ Corpus cases:
 - Scope: vertebra
 - Definition: A vertebra at the edge of the imaging field of view is only partially captured: its label touches an image face, its geometry is impacted to a varying degree (overall size, connectedness, shape), and the missing region displaces its measured centroid. Many rules cannot be applied to such a vertebra unless the missing region has little impact. A vertebra at a cranio-caudal FOV end is the expected form; an in-plane (left/right/anterior/posterior) clip is the unexpected form. Retired as failure mode 6 at the item-150 sign-off (2026-09-14): a condition on the case, not a defect of the segmentation.
 - Recording rules: border
-- Opting-in rules: border
+- Opting-in rules: border, collapsed_labels
 
 Candidate features:
 

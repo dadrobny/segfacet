@@ -433,14 +433,14 @@ def test_adv_monkeypatch_undo_restores_the_baseline_exactly(monkeypatch):
 
 
 def test_adv_stub_rule_declaring_a_proposed_mode_is_reported(isolated_registry):
-    """A stub rule registered under ``isolated_registry`` declares mode 13
+    """A stub rule registered under ``isolated_registry`` declares mode 14  # item 220 (2026-10-13): re-pointed from 13
     (a ``proposed`` mode, per AC13, with no ``IntendedRule`` edge for any
     rule) -- the new direction must name the stub and the mode."""
 
     class _Item156StubRule(Rule):
         rule_id = "__item156_stub__"
         mode_declaration = RuleModeDeclaration(
-            modes=(13,),
+            modes=(14,),
             evidence=("item156-adversarial-stub",),
         )
 
@@ -451,5 +451,5 @@ def test_adv_stub_rule_declaring_a_proposed_mode_is_reported(isolated_registry):
 
     messages = catalogue_module.rule_declaration_conflicts()
     assert any(
-        "__item156_stub__" in msg and re.search(r"\b13\b", msg) for msg in messages
+        "__item156_stub__" in msg and re.search(r"\b14\b", msg) for msg in messages
     ), messages

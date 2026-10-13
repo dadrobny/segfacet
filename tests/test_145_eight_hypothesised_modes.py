@@ -95,7 +95,7 @@ _MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 #: onto it (it now derives ``"implemented"``). Item 192 (2026-09-28): mode 11
 #: left this set when ``sequence``'s ``transitional`` detector declared it
 #: (it now derives ``"implemented"``).
-_PROPOSED_MODE_IDS = (5, 7, 12, 13, 14)
+_PROPOSED_MODE_IDS = (5, 7, 12, 14)  # item 220 (2026-10-13): 13 leaves
 
 #: Item 188 (2026-09-28): the one entry authored ``"specified"`` that carries
 #: no declaring rule -- ``coverage`` moved off mode 6 onto mode 10, and mode
@@ -135,7 +135,7 @@ _EXPECTED_DERIVED_STATUS = {
     10: "implemented",  # item 188 (2026-09-28): coverage's new home
     11: "implemented",  # item 192 (2026-09-28): sequence's new home
     12: "proposed",
-    13: "proposed",
+    13: "implemented",  # item 220 (2026-10-13): collapsed_labels
     14: "proposed",
     15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",

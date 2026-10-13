@@ -1333,7 +1333,8 @@ def test_ac19_every_mode_to_rule_edge_is_attributed_from_the_specification(matri
     # Re-pointed (item 192, 2026-09-28): mode 11 leaves `PROPOSED_MODES` --
     # `sequence`'s `transitional` detector now declares it, so it derives
     # `implemented`.
-    assert PROPOSED_MODES == {5, 7, 12, 13, 14}, PROPOSED_MODES
+    # Re-pointed (item 220, 2026-10-13): mode 13 leaves `PROPOSED_MODES`.
+    assert PROPOSED_MODES == {5, 7, 12, 14}, PROPOSED_MODES
     no_rule_modes = PROPOSED_MODES | RULELESS_SPECIFIED_MODES
     for no_rule_mode in sorted(no_rule_modes):
         record = modes[no_rule_mode]

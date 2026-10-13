@@ -43,7 +43,7 @@ along the spine::
        10 Skipped level label                             spine     single-channel; severity fail; proposed
        11 Unprompted numbering variant                    spine     single-channel; proposed
        12 Shifted label sequence                          spine     needs-external-classifier; proposed
-       13 Collapsed labels                                spine     single-channel; proposed
+       13 Collapsed labels                                spine     single-channel
        14 Duplicated label                                spine     single-channel; proposed
     15 Overlapping segments                               vertebra  structurally-unobservable
     16 Implausible tissue under a label                   vertebra  needs-paired-scan
@@ -451,6 +451,13 @@ that both touches a neighbouring label over more than a tenth of its surface
 and is less than half the median volume of its neighbouring labels.
 ``split_own_label`` now expects it beside ``bounds``, and mode 3's derived
 rung moves from needs-real-data to synthetic-demonstrable.
+
+Item 220 (2026-10-13) gave mode 13 its rule: ``collapsed_labels``
+(``heuristics/collapsed_labels.py``) fires on the pair ``stage3_unavailable``
+names and on every other pair of centroids within 2.0 mm. Mode 13 is
+re-authored ``proposed`` -> ``specified`` with one ``needs-real-data`` edge
+(no corpus case expresses it) and derives ``implemented``; the rule opts in to
+``fov_truncation``.
 """
 
 from __future__ import annotations
@@ -2074,7 +2081,10 @@ _MODE_13 = ModeSpec(
         "cannot be computed, the record carries a stage3_unavailable reason "
         "instead of a stage3 block, every stage3-reading rule "
         "short-circuits and no finding of any kind is raised: the case "
-        "passes silently (carried defect, item 129, 2026-08-31)."
+        "passes silently (carried defect, item 129, 2026-08-31). "
+        "Closed 2026-10-13 (item 220): the collapsed_labels rule reads "
+        "stage3_unavailable and the centroids, so a collapsed pair now "
+        "raises a flagged-for-review finding."
     ),
     discriminator=(
         "Mode 14 is the converse (one label on two vertebrae rather than two "
@@ -2083,12 +2093,18 @@ _MODE_13 = ModeSpec(
         "voxel, which a collapsed pair of disjoint labels never has."
     ),
     mechanism=(
-        "No rule exists for this mode yet, which is what proposed means. "
-        "The candidate inputs are the minimum inter-label centroid distance "
-        "relative to the expected spacing "
-        "(pairs.adjacent.spacings_mm[]) and the "
-        "stage3_unavailable.reason field the degenerate case populates "
-        "(item 129), which no rule reads."
+        "collapsed_labels (item 220, 2026-10-13) judges every pair of "
+        "labels, not only anatomical neighbours. Its coincident_centroids "
+        "detector fires once on the pair stage3_unavailable.reason names "
+        "(the exact-coincidence case, where Stage 3 is absent); its "
+        "near_coincident_centroids detector fires on every other pair "
+        "whose per_label.{label}.centroid.centroid_mm[] lie within "
+        "max_centroid_distance_mm, default 2.0 mm. The tolerance is "
+        "absolute, because the collapsed pair's own spacing is the one that "
+        "shrinks and a short record has no robust reference spacing; the "
+        "closest legitimate pair measured is 11.082 mm (VerSe19 GT). No "
+        "committed corpus case expresses the mode, so the edge is "
+        "needs-real-data."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -2101,10 +2117,16 @@ _MODE_13 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(),
+    intended_rules=(
+        IntendedRule(
+            rule_id="collapsed_labels",
+            detector_ids=("coincident_centroids", "near_coincident_centroids"),
+            evidence_rung="needs-real-data",
+        ),
+    ),
     corpus_cases=(),
     severity="flagged-for-review",
-    status="proposed",
+    status="specified",
     provenance="hypothesised",
 )
 
@@ -2387,7 +2409,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("border",),
-    opting_in_rules=("border",),
+    opting_in_rules=("border", "collapsed_labels"),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="crop_at_border",

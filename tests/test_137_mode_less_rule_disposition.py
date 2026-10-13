@@ -239,7 +239,7 @@ def test_ac1_all_ten_rules_declared_and_not_pending():
     # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
     # thirteen.
     rules = list(iter_rules())
-    assert len(rules) == 14  # item 208 (2026-09-30): 13 -> 14
+    assert len(rules) == 15  # item 220 (2026-10-13): 14 -> 15
     for rule in rules:
         decl = rule.mode_declaration
         assert decl is not None, rule.rule_id

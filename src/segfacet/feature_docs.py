@@ -245,6 +245,12 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.reference.delta",
     ),
     (
+        "stage3_unavailable",
+        "Stage 3 Availability",
+        "Stage 3 · item 129",
+        "segfacet.pipeline",
+    ),
+    (
         "",
         "Record Envelope",
         "Stage 2 · item 016",
@@ -259,6 +265,11 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
 
 GROUP_INTROS: Mapping[str, str] = MappingProxyType(
     {
+        "Stage 3 Availability": (
+            "Present only when two or more labels' centroids share one exact "
+            "mm-coordinate, so the Stage 3 spline fit is not attempted (item "
+            "129); the record then carries this block instead of case.curve."
+        ),
         "Per-Label Geometry": (
             "For every present integer label, computed directly from the voxel "
             "mask (NumPy/CuPy) with spacing read from the NIfTI header."
@@ -939,6 +950,36 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             computation='Literal "0.2" (no Stage 3 present) or "0.3" (Stage 3 present), stamped by build_features_block (items 215, 216).',
             units='',
             scale_sensitivity='categorical',
+        ),
+        'stage3_unavailable.reason': FeatureDoc(
+            measures='Why the Stage 3 block was not computed.',
+            computation='Literal "coincident_centroids", written by pipeline.extract_feature_record when features.spline.find_coincident_centroid_pair finds two labels with an exactly equal centroid mm-coordinate.',
+            units='',
+            scale_sensitivity='categorical',
+        ),
+        'stage3_unavailable.detail': FeatureDoc(
+            measures='Human-readable account of the coincident pair that made Stage 3 unavailable.',
+            computation='Message built in pipeline.extract_feature_record naming both levels, both labels and the shared coordinate.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'stage3_unavailable.levels[]': FeatureDoc(
+            measures='The two anatomical level names whose centroids coincide.',
+            computation='level_a and level_b of the first coincident pair found by find_coincident_centroid_pair, in ascending label order.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'stage3_unavailable.labels[]': FeatureDoc(
+            measures='The two integer labels whose centroids coincide.',
+            computation='label_a and label_b of the first coincident pair found by find_coincident_centroid_pair, in ascending label order.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'stage3_unavailable.coordinate_mm[]': FeatureDoc(
+            measures='The exact centroid mm-coordinate the two labels share.',
+            computation='The shared (x, y, z) centroid coordinate of the pair, as find_coincident_centroid_pair reports it.',
+            units='mm',
+            scale_sensitivity='scales with spacing',
         ),
         'case.intensity.available': FeatureDoc(
             measures='Whether intensity/radiomics features were attempted and succeeded for this case.',

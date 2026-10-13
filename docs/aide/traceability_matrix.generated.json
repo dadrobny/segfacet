@@ -251,7 +251,6 @@
       "complete": false,
       "holes": [
         "12",
-        "13",
         "14",
         "5",
         "6",
@@ -403,6 +402,15 @@
         "reason_modes": [],
         "rule_id": "bounds",
         "state": "exercised"
+      },
+      "collapsed_labels": {
+        "exercised_by": [],
+        "reason": "needs-real-data",
+        "reason_modes": [
+          13
+        ],
+        "rule_id": "collapsed_labels",
+        "state": "unexercised"
       },
       "coverage": {
         "exercised_by": [
@@ -573,6 +581,7 @@
     "by_rule": {
       "border": 10,
       "bounds": 6,
+      "collapsed_labels": 6,
       "coverage": 5,
       "fragmentation": 7,
       "fused_label": 5,
@@ -587,13 +596,13 @@
       "split_fragment": 4
     },
     "read_by_no_rule": {
-      "count": 104,
+      "count": 106,
       "qualifier": "a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.",
       "required": false
     },
-    "read_by_rule": 50,
-    "total_paths": 154,
-    "unwired": 43
+    "read_by_rule": 53,
+    "total_paths": 159,
+    "unwired": 45
   },
   "modes": {
     "1": {
@@ -734,19 +743,35 @@
     },
     "13": {
       "anchor_paths": [],
-      "authored_status": "proposed",
+      "authored_status": "specified",
       "cases": [],
-      "edge_rungs": [],
+      "edge_rungs": [
+        [
+          "collapsed_labels",
+          [
+            "coincident_centroids",
+            "near_coincident_centroids"
+          ],
+          "needs-real-data"
+        ]
+      ],
       "granularity": "signal",
-      "mechanism": "No rule exists for this mode yet, which is what proposed means. The candidate inputs are the minimum inter-label centroid distance relative to the expected spacing (pairs.adjacent.spacings_mm[]) and the stage3_unavailable.reason field the degenerate case populates (item 129), which no rule reads.",
+      "mechanism": "collapsed_labels (item 220, 2026-10-13) judges every pair of labels, not only anatomical neighbours. Its coincident_centroids detector fires once on the pair stage3_unavailable.reason names (the exact-coincidence case, where Stage 3 is absent); its near_coincident_centroids detector fires on every other pair whose per_label.{label}.centroid.centroid_mm[] lie within max_centroid_distance_mm, default 2.0 mm. The tolerance is absolute, because the collapsed pair's own spacing is the one that shrinks and a short record has no robust reference spacing; the closest legitimate pair measured is 11.082 mm (VerSe19 GT). No committed corpus case expresses the mode, so the edge is needs-real-data.",
       "mode": 13,
       "pipeline_detected": false,
-      "read_paths": [],
+      "read_paths": [
+        "per_label.{label}.centroid.centroid_mm[]",
+        "stage3_unavailable.reason"
+      ],
       "read_paths_qualifier": "mode -> read_paths is signal-classified: a path's presence in a mode row's read_paths means a rule declaring this mode classifies that path \"signal\" (segfacet.heuristics.rule.RuleModeDeclaration.consumed_paths, item 148), not that this path alone evidences this mode. The Stage-18 metric anchor (anchor_paths) is a separate column that is never merged in.",
-      "rule_attribution": {},
-      "rules": [],
-      "rung": null,
-      "status": "proposed",
+      "rule_attribution": {
+        "collapsed_labels": "analytic"
+      },
+      "rules": [
+        "collapsed_labels"
+      ],
+      "rung": "needs-real-data",
+      "status": "implemented",
       "title": "Collapsed labels"
     },
     "14": {
@@ -1198,6 +1223,27 @@
         4
       ],
       "rule_id": "bounds"
+    },
+    "collapsed_labels": {
+      "declaration_state": "declared",
+      "evidence": [
+        "analytic",
+        "item 220 (2026-10-12). The coincident map of item 129 (labels 21 and 22 as concentric boxes, both centroids at (9.5, 9.5, 19.5) mm) makes Stage 3 absent. Closest legitimate centroid pairs: 12.542 mm (geometric corpus), 32.695 mm (intensity corpus), 11.082 mm (VerSe19 GT), against the 2.0 mm default tolerance. No committed corpus case expresses the mode."
+      ],
+      "feature_path_count": 6,
+      "feature_paths": [
+        "per_label",
+        "per_label.{label}.centroid.centroid_mm[]",
+        "per_label.{label}.level_name",
+        "stage3_unavailable.detail",
+        "stage3_unavailable.labels[]",
+        "stage3_unavailable.reason"
+      ],
+      "mode_less_reason": "",
+      "modes": [
+        13
+      ],
+      "rule_id": "collapsed_labels"
     },
     "coverage": {
       "declaration_state": "declared",
