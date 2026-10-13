@@ -554,6 +554,10 @@ None.
 
 To be updated during implementation.
 
+- **Implemented (2026-10-13), commit `704c4eea`.** `_held_out_records`, `_withhold_outliers` and `_OUTLIER_CUTOFF_MM` follow A1 and A6 exactly. Module and function docstrings and the `feature_docs.py` group note are updated, and the catalogue JSON is regenerated (two runs byte-identical; the `.md` rendering did not change).
+- **VerSe19 validation (Validation steps 1-2): verified.** The rebuild exited 0 on 80 masks. `P = 12.90577608928562` mm at T10 (count 37), threshold 13.0. Every `spline_offset_mm` percentile at or above p25 equals the committed artifact's. `L3` p1 and `L4` p1 and p5 differ by 1e-15 or less, and `mean`, `std` and `min` by float-summation noise (at most 1e-8 relative). No behavioural difference, so the artifact is not re-committed. Strict bit-equality of those cells does not hold.
+- The full suite (`-n auto`, ignoring `.aide`) was green: 11787 passed, 74 skipped.
+
 - **Decision (owner, 2026-10-12): add-then-remove, not backward-only.**
   - The owner first chose the backward-only search on an eight-case probe,
     where it recovered every displaced set.
