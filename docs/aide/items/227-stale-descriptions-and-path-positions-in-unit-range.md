@@ -164,11 +164,17 @@ until the regenerated manifest carries the new `detail`.
    - the comment at the top of `_crop_at_border_ladder`;
    - that function's `rationale` string.
 5. Regenerate the committed corpus:
-   `.venv/bin/python -m segfacet.synth.corpus`. The only expected diff is the
-   `relabel_swap` `detail` in `tests/corpus/manifest.json`. The fixtures
-   should be byte-identical, so `git status` shows no `.nii.gz` change. If
-   another queue-030 item has already landed a manifest change, regenerate
-   on top of it.
+   `.venv/bin/python -m segfacet.synth.corpus`. In the corpus itself, the
+   only expected diff is the `relabel_swap` `detail` in
+   `tests/corpus/manifest.json`. The fixtures should be byte-identical, so
+   `git status` shows no `.nii.gz` change. If another queue-030 item has
+   already landed a manifest change, regenerate on top of it.
+6. Regenerate the corpus sheet:
+   `.venv/bin/python -m segfacet.synth.corpus_sheet`. Item 222 uses the same
+   command. test_178 AC7 requires the digest embedded in
+   `docs/aide/corpus_sheet.png` to equal sha256(manifest bytes + fixtures).
+   Step 5 changes the manifest bytes, so the PNG changes too, even though
+   nothing the sheet renders has moved.
 
 ## Authorised paths
 
@@ -179,6 +185,7 @@ until the regenerated manifest carries the new `detail`.
 - `src/segfacet/synth/corpus.py` — the module docstring's `relabel_swap` paragraph
 - `src/segfacet/eval/severity_ladder.py` — the three `crop_depth` passages
 - `tests/corpus/manifest.json` — regenerated to carry the new `detail`
+- `docs/aide/corpus_sheet.png` — regenerated, because its embedded digest covers the manifest bytes (test_178 AC7, step 6)
 - `tests/test_227_path_position_normalisation.py` — this item's tests
 - `tests/test_220_collapsed_labels_rule.py` — only if red. Item 220 pins the manifest, which this item regenerates after it (Dependencies). It is expected to stay unedited, because no firing moves.
 
@@ -253,6 +260,9 @@ and records a one-line verdict per passage.
    the branch. The `relabel_swap` `detail` must be the only changed text it
    shows that this item introduced, and it must equal the string in
    `identity_ordering_alignment.py` with labels 21 and 22 substituted.
+   Outside `tests/corpus/`, the other regenerated artefact this item
+   expects is `docs/aide/corpus_sheet.png` (step 6). The validator confirms
+   that it changed, and that test_178 AC7 passes on the regenerated pair.
 
 ## Dependencies
 
