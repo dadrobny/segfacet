@@ -222,6 +222,15 @@ change.
   Under the simulated change, exactly AC10's three tuples remain. Every
   verdict is unchanged: the three cases stay `flagged-for-review`. The
   intensity corpus fires none of these rules either before or after.
+  - **Re-checked 2026-10-13, after items 220 (`ef48313`) and 218
+    (`ca12774`) merged: agrees.** Re-measured on `aide/queue-030` at
+    `ca12774` over both corpora. The order rules fire exactly the six
+    findings above. `remove_level` now also fires
+    `centroid_spacing`/`missing_level` on {21, 23} (item 218), which is not
+    an order rule, so AC10's set is unaffected. With `swap`/`shift`/`skip`
+    removed (a scratch-worktree prototype of steps 1–5, below), exactly
+    AC10's three tuples remain and every verdict is unchanged.
+    `collapsed_labels` fires on no corpus case.
 - **A2 (measured: the z-sort fails on correctly labelled spines).** For each
   geometry, `sequence` today, then the label-free path:
   - The curved spine: `shift` on L5. `non_monotonic_pairs == ()`.
@@ -233,6 +242,14 @@ change.
   Rotating the clean-control map's affine fires neither, because five
   near-straight lumbar levels never break the z-sort. That is why AC8 and
   AC9 use spine records rather than a label map.
+  - **Re-checked 2026-10-13, after items 220 and 218 merged: agrees.** Both
+    spine records were run through `run_rules` with the full registry on
+    `ca12774`. The curved spine fires only `sequence`/`shift` on L5; the
+    reclined spine fires only `sequence`/`shift` on L5 and `sequence`/`swap`
+    on L1/L4. `non_monotonic_pairs == ()` for both. Neither new rule fires or
+    raises: `centroid_spacing` returns `[]` because the record has no
+    `pairs.adjacent.mean_spacing_mm`, and `collapsed_labels` finds no pair
+    within 2.0 mm.
 - **A3 (measured: why `transitional` needs a new exclusion).** With
   `swap`/`shift` gone and nothing in their place, `sequence_break` fires
   `transitional` on T13 (label 28): T13 is an uncorroborated thoracic count
@@ -248,6 +265,12 @@ change.
   `coverage`/`missing_interior`. Target 21 also fires `spline_offset` on 20.
   The pair is always (T13, the next present level after T13 in
   `CANONICAL_ORDER`), which is how step 5 computes `expected_labels`.
+  - **Re-checked 2026-10-13, after item 218 merged: agrees.** On the
+    prototype, targets 21, 22, 23 and 24 each fire `mislabel`/`ordering` on
+    {20, 28}, with `coverage`/`missing_interior` beside it for 21–23 and
+    `spline_offset` on 20 for target 21. `centroid_spacing` fires on none:
+    the relabelled vertebra stays at a regular pitch along the path (item
+    218's A2).
 - **A5 (pins the interface item 218 reads; this item is its producer of
   record).** This item keeps both of these unchanged:
   - `mislabel`/`ordering`: what it fires on and its `detector_id`.
@@ -258,6 +281,12 @@ change.
   `transitional` reads that field as bookkeeping, through
   `record["pairs"]["adjacent"]["non_monotonic_pairs"]`. A record without it
   (no `pairs`, or no `adjacent`) excludes nothing.
+  - **Re-checked 2026-10-13, after item 218 merged (`ca12774`): agrees.**
+    Item 218's `centroid_spacing` does not read
+    `pairs.adjacent.non_monotonic_pairs[]`. On the committed catalogue its
+    only consumer is `mislabel` (signal). `mislabel`/`ordering` is unchanged
+    by both items. `centroid_spacing` orders labels by `curve.path_u`, which
+    this item does not touch.
 - **A6 (decided: `sequence` stops reading centroids).** The kept-entry gate
   drops its `centroid.centroid_mm` requirement. An entry is kept when it is
   a mapping, its `level_name` is a recognised vertebra name, and its `label`
@@ -268,6 +297,23 @@ change.
     not a numbering variant".
   - If item 218 has not landed, `centroid_mm[]` is then read by no rule.
     The regenerated catalogue records whichever is true.
+  - **Re-checked 2026-10-13, after items 220 and 218 merged: corrected.**
+    The bullets above stand as written at `2a1491d`. The last one is
+    superseded. Item 220 made `collapsed_labels` a signal consumer of
+    `per_label.{label}.centroid.centroid_mm[]`, and item 218 made
+    `centroid_spacing` one. Today the entry's consumers are
+    `{centroid_spacing, collapsed_labels, sequence}`, with modes
+    (2, 6, 9, 10, 11, 13).
+    - **After this item** (measured on the regenerated catalogue of the
+      prototype): consumers `{centroid_spacing, collapsed_labels}`, modes
+      (2, 6, 13), and `mode_evidence` unchanged.
+    - `pairs.adjacent.non_monotonic_pairs[]` gains `sequence` as a
+      bookkeeping consumer. Its modes stay (9,), and its `mode_evidence`
+      gains `rule_bookkeeping`.
+    - `per_label.{label}.level_name` goes from modes (9, 10, 11) to (11,), and
+      its `mode_evidence` loses `rule_mode_map`.
+    - The entry count stays 159 and the leaf-path set is unchanged. The
+      empty-evidence count stays 104.
 - **A7 (decided: the `mode_less_reason` texts).**
   - `count_shortfall`: "opt-in curation check against a configured minimum
     level count (expected_count); off by default and judges the dataset's
@@ -282,12 +328,21 @@ change.
   mode-less rule, so the builder confirms that `aide check` and the
   regenerated traceability matrix accept it. The builder hands back if a
   validator rejects it.
+  - **Re-checked 2026-10-13 on the prototype: agrees.**
+    `segfacet.traceability` and `segfacet.rule_table` regenerate without
+    error. `rules.generated.md` renders both opt-in detectors' mode as
+    `none`, while `missing_interior` keeps 10. `tests/test_164_detector_ids.py`
+    and `tests/test_202_rule_table.py` pass.
 - **A8 (decided: the catalogue's mode attribution moves only through
   declarations).** The catalogue attributes modes per rule, not per
   detector. So `case.sequence.present_levels[]`, a `coverage` signal path
   read only by the two now mode-less detectors, keeps mode 10 through
   `coverage`'s rule-level declaration. This is recorded, not changed
   (Left open).
+  - **Re-checked 2026-10-13, after item 218 merged: agrees.**
+    `case.sequence.present_levels[]` carries (6, 10) before and after this
+    item. Its mode 6 now comes from `MODE_ANCHOR_PATHS[6]` alone (item 218's
+    A4 re-check), and its mode 10 from `coverage`'s rule-level declaration.
 - **A9 (decided: test_103 AC13's witness filter).** `sequence` now consumes
   `pairs.adjacent.non_monotonic_pairs[]` as bookkeeping. So `mislabel`'s
   only signal path is no longer consumed by `mislabel` alone.
@@ -300,6 +355,30 @@ change.
     it does not.
   - `feature_docs.py`'s module docstring sentence calling it "the *only*
     leaf path exclusively consumed by `mislabel`" is corrected to match.
+  - **Re-checked 2026-10-13, after items 220 and 218 merged: corrected.**
+    The bullets above stand. The test they describe has moved since
+    `2a1491d`.
+    - Items 220 and 218 already widened test_103 AC13's match filter
+      (`test_ac13_rule_mode_map_effect_on_failure_modes`). It now admits
+      entries whose `consuming_rules` are a subset of
+      `{rule_id, "collapsed_labels", "centroid_spacing"}`, and it adds those
+      two rules' declared modes to `expected` where they read the entry as
+      signal.
+    - This item removes `"sequence": (9,)` from `_RULE_MODE_MAP`, because no
+      failure case designates `sequence` any more. So the `[sequence]`
+      parametrisation disappears and its precondition is moot. On the
+      prototype, `test_ac13_rule_mode_map_matches_the_corpus_scan` fails until
+      the key is dropped.
+    - **`[mislabel]` goes red.** `non_monotonic_pairs[]`'s consumers become
+      `{mislabel, sequence}`, which is not a subset, so the match set is
+      empty. The prototype measured this.
+    - **The restatement, composed with the two widenings:** an entry matches
+      when this rule reads it as signal and every other consumer that reads
+      it as signal is in `{"collapsed_labels", "centroid_spacing"}`.
+      Consumers that read it as bookkeeping are ignored. The two
+      `expected |=` additions stay, and equality stays exact.
+    - The bookkeeping read contributes no mode: on the prototype's catalogue
+      `non_monotonic_pairs[]` keeps `failure_modes == (9,)`.
 - **A10: no human gate and no environment-gated capability.** No mode
   sign-off covers modes 9, 10 or 11 (`MODE_SIGN_OFFS` holds 2, 3 and 4), so
   nothing is re-signed.
@@ -319,6 +398,24 @@ change.
   - Siblings 218 and 220 move these counts too, so step 10 re-measures live
     and writes whatever the tree holds. The test_151 AC12 literal is
     reconciled to the live count.
+  - **Re-checked 2026-10-13, after items 220 and 218 merged (`ca12774`):
+    corrected.** The figures above are true of `2a1491d` and stand as that
+    record. Measured live on `ca12774`:
+    - **The base:** derived status validated 7, implemented 4, specified 1,
+      proposed 4, with a validated split of 7 pipeline and 0 reconstructed.
+      Mode rungs: synthetic-demonstrable 7, needs-real-data 3,
+      structurally-unobservable 1, none 5. Edges: 17, at 8 / 8 / 1. test_151
+      AC12 pins `total_edges == 17`.
+    - **After this item (prototype):** edges 15, at 8 / 6 / 1. Derived status,
+      the validated split and mode rungs are unchanged. Modes 9, 10 and 11
+      derive validated, implemented and implemented, as before. The edgeless
+      set stays {5, 7, 8, 12, 14}.
+    - **So test_151 AC12 moves 17 → 15.** Of step 10's three amends, only
+      `amend 30 --criterion 3` should find its last clause differing (the
+      per-edge counts). Criteria 30.1 and 20.5 already carry item 218's live
+      values, which this item does not move. test_151
+      `test_ac35_rung_counts_note_matches_live_derivation` stays red until
+      that amend lands (prototype: `17 == 15`).
 
 ## Implementation Steps
 
@@ -441,6 +538,49 @@ No dependency is added. Every helper is already in the tree:
 `compute_monotonic_consistency`, `anatomical_order`, `DEFAULT_LABEL_MAP`,
 `resolve_section_counts` and `expected_level_sequence`.
 
+**Correction (2026-10-13, re-check after items 220 (`ef48313`) and 218
+(`ca12774`) merged).** The steps above stand. This adds what the two merges
+moved.
+
+**The prototype the re-checks cite.** A throwaway `git worktree` of
+`ca12774` was set up under the session scratchpad. It applied steps 1, 2, 4
+(edges, expected sets, the condition, and mode 9's mechanism), 5 and 6's
+override line, then ran step 8's generators. Its corpus fixtures and
+`golden_evidence.generated.json` came out byte-identical. The product suite
+(`tests/`) then ran against it with `PYTHONPATH` pointing at the worktree's
+`src` (confirmed by `segfacet.__file__`), and the git-gated test_116 ran
+because the worktree shares `.git`. The result was 64 failed, 8035 passed and
+73 skipped. Every failure is listed under Testing Strategy's correction of
+this date. The prototype is not the builder's implementation, and the builder
+re-measures on the real change.
+
+- **Step 4, `_MODE_6`.** Item 218 left `remove_level`'s `expected_firing`
+  as `("centroid_spacing", "coverage", "sequence")`. Dropping `"sequence"`
+  leaves `("centroid_spacing", "coverage")`.
+  - In the mechanism's sentence "coverage's interior-gap detector and
+    sequence's skip detector fire on the label gap in
+    case.sequence.missing_levels[]; both serve mode 10", name `coverage`
+    alone.
+  - **Keep the dotted path `case.sequence.missing_levels[]` in that
+    sentence.** It is consumed by the co-detecting `coverage` and not by the
+    declared `centroid_spacing`. That makes it a witness for
+    `tests/test_138_traceability_matrix.py`'s AC31
+    `checked_any_co_detection`. The prototype kept it, and AC31 passed.
+  - In the `remove_level` reason, drop "and, since item 192, sequence's skip
+    detector also fire: both serve mode 10, so those two are". `coverage`
+    alone is recorded as the co-detection.
+- **Step 4, `_MODE_10`.** Item 218 rewrote the mechanism. Remove its
+  `sequence` sentence ("sequence's skip detector reads the same gap ... like
+  coverage"). Item 218's closing clause about `centroid_spacing` stays.
+- **Step 4, `_MODE_9`'s rewritten mechanism must keep five tokens.**
+  `CANONICAL_ORDER` and `T13` are needed for test_138 AC17.
+  `tests/test_145_eight_hypothesised_modes.py::test_ac10b_sequence_case_records_the_single_rank_descent_correction`
+  also needs `t12`, `l1` and `l2`, matched case-insensitively. Neither test
+  file needs an edit for these tokens. The prototype's terse mechanism
+  dropped `T12`, and AC10b went red.
+- **Step 10.** Only Stage 30 criterion 3 is predicted to move (A11's
+  re-check).
+
 ## Authorised paths
 
 **May change:**
@@ -484,6 +624,14 @@ No dependency is added. Every helper is already in the tree:
 - `tests/test_192_sequence_sub_types.py` — reconcile (the retired sub-types).
 - `tests/test_220_collapsed_labels_rule.py` — only if red: item 220 pins the manifest and test_129 as unmoved, and this item, landing after it, moves both (Dependencies).
 
+**Correction (2026-10-13, re-check after items 220 and 218 merged).** The
+list above stands. On the prototype suite, one red fell outside it:
+
+- `tests/test_041_regression_suite.py` — `test_ac11_offending_label_drift_is_caught`'s precondition `drifted["expected_labels"] == [28]` becomes `[20, 28]` (AC12).
+
+`tests/test_220_collapsed_labels_rule.py` stayed green on the prototype. Its
+bullet stays, conditional as written.
+
 **Asserts against:**
 
 - `tests/corpus/fixtures/**` — AC10 reads the committed fixtures; step 8 must not change them.
@@ -495,6 +643,16 @@ No dependency is added. Every helper is already in the tree:
 - `tests/test_104_feature_catalogue_drift.py` — must stay green unedited once step 8 regenerates the catalogue.
 - `tests/test_178_corpus_sheet.py` — must stay green unedited: AC7 checks the regenerated sheet's digest against the manifest and fixtures.
 - `tests/test_210_label_free_monotonic_reference.py` — must stay green unedited: `ordering` and `non_monotonic_pairs[]` keep their meaning (A5), and AC8 reuses its `ARC`.
+
+Added 2026-10-13 by the re-check after items 220 and 218. Each of the first
+three goes red on the prototype only because it imports a constant that this
+item reconciles in another file. Each goes green with no edit of its own once
+that constant is reconciled.
+
+- `tests/test_102_stage18_validation.py` — AC5 imports test_098's `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS` (`relabel_swap`, `remove_level`, `sequence_break`).
+- `tests/test_131_tangent_direction_normalisation.py` — AC19 iterates test_129's `_PRE_129_FINDINGS`.
+- `tests/test_143_s_axis_correction.py` — AC9 imports test_098's `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`.
+- `tests/test_218_centroid_spacing_rule.py` — must stay green unedited: AC1's `centroid_spacing` firing set, `remove_level` included, does not move (A1 re-check).
 
 ## Testing Strategy
 
@@ -623,6 +781,106 @@ that compare a committed generated document with a fresh render
 (`test_104`, `test_202`, and the failure-mode and traceability drift
 tests).
 
+**Correction (2026-10-13, re-check after items 220 and 218 merged).** The
+list above stands. It was a lower bound, and the prototype suite
+(Implementation Steps, correction of this date) gives the measured red set:
+64 failures. Each is named below under the file that owns it. The fence is
+unchanged. Each edit carries a dated `# Item 219 (YYYY-MM-DD): ...` comment.
+
+- **Already listed above, with every red the prototype showed:**
+  - test_030 AC3–AC6 and the three-offenders adversarial; test_035 AC25 and
+    `test_ac27_each_of_eight_modes_fires_its_mapped_rule`; test_038 AC5,
+    whose set is now `{"centroid_spacing", "coverage"}`, since item 218 has
+    landed; test_039 AC16–AC18 and the interior-target adversarial; and
+    test_132 AC13 and AC30.
+  - test_192: AC1, AC2, AC3, AC7, AC8, AC9, AC10 and
+    `test_sacral_labels_share_one_rank`.
+  - test_116 AC7, three cases: `relabel_swap`, `remove_level` and
+    `sequence_break`. The item-218 map
+    `_ITEM_218_ADDED_CENTROID_SPACING_PAIRS` now sits beside the item-198
+    one. It stays, because `remove_level`'s `centroid_spacing` finding is
+    unaffected.
+  - test_098 AC15, three cases. Item 218 added `remove_level`'s
+    `centroid_spacing` entry to `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`, and
+    that entry stays. Only the three `sequence` entries go.
+  - test_129 AC29 (`_PRE_129_FINDINGS`). `remove_level` keeps
+    `("centroid_spacing", (21, 23))` and `("coverage", ())`.
+  - test_103: AC10's `centroid_mm[]` row, re-pointed to `centroid_spacing`,
+    which is now definite because item 218 has landed;
+    `test_ac13_rule_mode_map_matches_the_corpus_scan`; and AC13's
+    `[mislabel]` and `[sequence]` parametrisations (A9 re-check).
+  - test_136 AC4 `[sequence]`.
+  - test_138: AC17 (the mode-9 rung test), AC20 (the analytic witness) and
+    `test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable`.
+  - test_145: AC10a, and AC21 (`test_ac21_sequence_mode_severity_leads_its_rules`,
+    mode 10's rule set → `{"coverage"}`). AC10b is fixed in `src` (the
+    mode-9 tokens), not in the test.
+  - test_147 AC11, test_148 AC16, test_149 AC9 (both tests read the one
+    `_AC9_SPLIT_COLUMN_MODES` read path), test_151 AC12, and test_188 AC2
+    and AC4.
+- **test_030, beyond the list above.** Also red:
+  `test_ac11_default_severity_is_flag`,
+  `test_ac11_severity_param_fail_overrides_default` and
+  `test_ac13_reason_names_offenders_in_out_of_order_labels_order`.
+  - **AC11 ×2 is re-pointed, not retired.** The severity claim survives on
+    `transitional`. Use the `unrelated-pair-does-not-silence-transitional`
+    record without its pairs block: T10, T11, L1, L2 and L3 (labels 17, 18,
+    20, 21 and 22). Measured on the prototype, it yields one `transitional`
+    finding on {18} at `Severity.FLAG` by default. The `severity: fail` arm
+    asserts `Severity.FAIL` on the same record.
+  - **AC13 is retired.** Its subject is the `swap` reason's offender order.
+  - The "L730–745 test" above is `test_adv_three_offenders_all_named_and_attributed`.
+- **test_035_failure_modes, beyond the list above.**
+  - `test_ac27_union_of_all_modes_covers_every_mapped_rule_id`: drop
+    `"sequence"` from its `expected` set, because no seed record fires it
+    any more.
+  - AC25: re-point the name and docstring to `mislabel`. Measured on the
+    branch: the mode-7 record, given `pairs.adjacent.non_monotonic_pairs`
+    from `compute_monotonic_consistency` over its centroids in anatomical
+    order, reads `(("T12", "L1"),)`. `mislabel`/`ordering` fires on
+    {19, 20}, so `{_L1, _T12} <= f.labels` holds.
+  - Since item 220, the same record also fires three
+    `collapsed_labels`/`near_coincident_centroids` findings, because its
+    centroids sit 1 mm apart. AC25 and AC27 check containment, so they are
+    unaffected and nothing is edited for it.
+- **test_039, beyond the list above.**
+  `test_ac24_spacing_aware_under_anisotropic_spacing[sequence_break]` raises
+  `ValueError` at `_designated_rule_fires_run_qc`'s
+  `(target,) = expectation.expected_labels`. The helper's listed
+  re-pointing fixes it: match `mislabel` on the whole `expected_labels`, and
+  remove the single-element unpack. The interior-target adversarial (L709)
+  is the listed one.
+- **test_132, beyond the list above.**
+  `test_ac26_item_098_shared_golden_constant_reconciled` pins
+  `len(expected["findings"]) == 2` and `findings[1]["rule_id"] == "sequence"`
+  for `relabel_swap`. Both become one finding, `mislabel`. AC25's pinned set
+  becomes `{("mislabel", (21, 22))}`, as listed.
+- **test_137, `test_adv_measured_artifact_movement_counts_from_spec`.**
+  This is no longer conditional. Measured on the prototype's regenerated
+  catalogue, `mode_evidence` buckets:
+  - `("rule_mode_map", "rule_declaration")`: 11 → 10.
+    `non_monotonic_pairs[]` leaves.
+  - `("rule_mode_map", "rule_declaration", "rule_bookkeeping")`: 1 → 2.
+    `non_monotonic_pairs[]` joins.
+  - `("rule_mode_map", "rule_declaration", "rule_mode_less", "rule_bookkeeping")`:
+    1 → 0, removed from the exhaustive table. `level_name` leaves.
+  - `("rule_declaration", "rule_mode_less", "rule_bookkeeping")`: new, 1.
+    `level_name` joins.
+  - Unchanged: `()` 104, a total of 159, and `mode2_count` 12. Per-mode
+    path counts for modes 9, 10 and 11 go 4 → 2, 4 → 2 and 2 → 1, and
+    test_137 pins none of them.
+- **test_041** (Authorised paths, correction of this date): AC11's
+  precondition `[28]` → `[20, 28]`.
+- **test_151 `test_ac35_rung_counts_note_matches_live_derivation`** is red
+  until step 10's `amend 30 --criterion 3`, with no test edit.
+- **Green on the prototype with no edit:** test_163, test_164, test_191,
+  test_202, test_104, test_178, test_210, test_218, test_220, test_171 and
+  test_126. The last two read `sequence_break` through test_041's AC9/AC10
+  and golden-decision-table digests only.
+- **Red only through a constant reconciled elsewhere:** test_102 AC5 and
+  test_143 AC9 (test_098's constant) and test_131 AC19 (test_129's). They
+  are listed under Asserts against and get no edit.
+
 ## Validation
 
 Replay the two mode-9 cases and the mode-6 case through the CLI.
@@ -642,6 +900,15 @@ Replay the two mode-9 cases and the mode-6 case through the CLI.
   218's rule if it has landed. No `sequence` finding.
 
 Record the three outcomes with the commit in Decisions & Trade-offs.
+
+**Correction (2026-10-13, re-check after item 218 merged).** Item 218 has
+landed. So `<tmp3>`'s expected findings are definite:
+
+- `centroid_spacing`'s `Missing level:` finding on labels 21 and 23;
+- `coverage`'s `Missing interior level(s):` finding;
+- no `sequence` finding.
+
+The verdict is `flagged-for-review`.
 
 ## Dependencies
 
