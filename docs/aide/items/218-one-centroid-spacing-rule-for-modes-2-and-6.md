@@ -58,7 +58,8 @@ This item makes three changes.
 
 - No record field is added, removed or reordered, and `features/` is not
   touched (A4).
-- `mislabel`, `sequence`, `coverage` and their detectors are unchanged.
+- This item changes none of `mislabel`, `sequence`, `coverage` or their
+  detectors.
   Modes 9 and 10 are item 219's.
 - `MODE_SIGN_OFFS` is not touched (A8). Mode 6's `observability`, its
   authored `status` and its candidate features are unchanged.
@@ -365,12 +366,16 @@ builder re-measures on the real change.
    - `_MODE_6`:
      - Add `IntendedRule(rule_id="centroid_spacing", detector_ids=("missing_level",), evidence_rung="synthetic-demonstrable")`.
      - Rewrite the mechanism. Keep the two whole-word case ids, name the
-       rule, the detector and its dotted signal paths, and record that
-       `coverage` and `sequence`'s `skip` still co-detect on
-       `remove_level`. This is the form
-       `tests/test_138_traceability_matrix.py` AC31 checks.
-     - `remove_level`'s `expected_firing` becomes
-       `("centroid_spacing", "coverage", "sequence")`.
+       rule, the detector and its dotted signal paths. Record whatever the
+       other rules fire on `remove_level`, re-measured on the tree as built,
+       as co-detections. Do not name a rule there that the re-measurement
+       does not show; item 219 retires `sequence`'s `skip` and may land
+       first. This is the form `tests/test_138_traceability_matrix.py` AC31
+       checks.
+     - Add `centroid_spacing` to `remove_level`'s `expected_firing`, kept
+       ascending, beside whatever rules the tree's set already holds. Then
+       re-measure the whole set with `measured_firing`; it must equal the
+       result.
      - `remove_level_relabel`'s becomes `("centroid_spacing",)`.
      - Both reasons quote A2/A6, measured 2026-10-12, item 218.
    - Replace every other prose mention of `fused_label` as a *rule*
@@ -410,13 +415,38 @@ builder re-measures on the real change.
    - `-m segfacet.catalogue`
    - `-m segfacet.rule_table`
    - `-m segfacet.golden_evidence`
+   - `.venv/bin/python -m segfacet.synth.corpus_sheet`, after the manifest.
+     `docs/aide/corpus_sheet.png` embeds a digest of the manifest bytes and
+     fixtures, which `tests/test_178_corpus_sheet.py` AC7 compares.
 
-   The last may be byte-identical.
+   `golden_evidence` may be byte-identical.
 8. **Reconcile the existing tests** listed under Testing Strategy. Add a
-   dated `# Item 218 (2026-10-12): ...` line beside each changed value, the
+   dated `# Item 218 (YYYY-MM-DD): ...` line beside each changed value, the
    house style.
-9. Run `python .aide/scripts/aide.py scope 218` and
-   `python .aide/scripts/aide.py check`. Neither may report an error.
+9. **Amend the count clauses.** Use
+   `python .aide/scripts/aide.py progress amend` in the shape item 220's
+   step 9 uses (the item-208 format), re-measuring every number live first.
+   - This item moves the counts again:
+     - Mode 6's derived status goes from `specified` to `validated`.
+     - Its derived rung goes from none to `synthetic-demonstrable`.
+     - One edge is added (`centroid_spacing/missing_level`, at
+       `synthetic-demonstrable`).
+     - The validated split shifts.
+   - The three amends:
+     - `amend 30 --criterion 1`: derived status counts over 16 modes, plus
+       the validated split.
+     - `amend 30 --criterion 3`: derived mode rung counts, plus per-edge
+       rung counts over N edges.
+     - `amend 20 --criterion 5`: derived status counts and derived mode rung
+       counts.
+   - Each `--evidence` starts `Item 218 (<date>): mode 6 gains
+     centroid_spacing's missing_level edge (synthetic-demonstrable) and
+     derives validated. Re-measured live:`.
+   - These clauses are what `tests/test_151_stage30_validation.py` AC35 and
+     `tests/test_169_stage32_validation.py` AC6/AC7 compare with the live
+     derivation.
+10. Run `python .aide/scripts/aide.py scope 218` and
+    `python .aide/scripts/aide.py check`. Neither may report an error.
 
 No dependency is added. `math.dist` and `statistics.mean` are stdlib. The
 size-ratio and severity helpers already in the module are reused.
@@ -443,6 +473,7 @@ size-ratio and severity helpers already in the module are reused.
 - `docs/aide/feature_catalogue.generated.md` — rendering of the same.
 - `docs/aide/rules.generated.md` — regenerated (step 7).
 - `docs/aide/golden_evidence.generated.json` — regenerated if it moves (step 7).
+- `docs/aide/corpus_sheet.png` — regenerated after the manifest; it embeds the manifest digest (step 7).
 - `tests/test_218_centroid_spacing_rule.py` — **new**: this item's test module.
 - `tests/test_207_fused_label_rule.py` — reconcile (rename).
 - `tests/test_211_fused_label_spacing_pair.py` — reconcile (rename; spacing edits on centroids).
@@ -464,7 +495,8 @@ size-ratio and severity helpers already in the module are reused.
 - `tests/test_147_specification_is_the_record.py` — reconcile (mode 6 derived status).
 - `tests/test_148_per_path_mode_attribution.py` — reconcile (rename; per-path modes).
 - `tests/test_149_conformance_report.py` — reconcile (rule-less set).
-- `tests/test_151_stage30_validation.py` — reconcile (edge count).
+- `tests/test_151_stage30_validation.py` — reconcile (edge count); AC35 only if red after step 9's amends.
+- `tests/test_169_stage32_validation.py` — only if red after step 9's amends (AC6/AC7 read the count clauses).
 - `tests/test_166_split_operator.py` — reconcile (mode 2 edge rule ids).
 - `tests/test_167_mode_3_detector.py` — reconcile (mode 2 condition-4 subject).
 - `tests/test_176_fuse_bridged.py` — reconcile (measured firing).
@@ -621,8 +653,9 @@ Stale prose that asserts nothing is left alone: comments naming
    `--no-reference` is needed for the reason `CLAUDE.md` gives.
    - `<tmp1>`: one `centroid_spacing` finding with reason starting
      `Missing level:` on labels 21 and 22, and verdict `flagged-for-review`.
-   - `<tmp2>`: the same finding on 21 and 23, beside `coverage` and
-     `sequence`.
+   - `<tmp2>`: the same finding on 21 and 23. Any other rule's findings
+     there are co-detections; compare them with `remove_level`'s re-measured
+     expected set.
    - `<tmp3>`: `centroid_spacing`'s `Fused label:` finding on 22.
 2. Where `SEGFACET_VERSE_COHORT` points at a VerSe19 checkout, replay A7's
    path-order measurement with the rule itself. Run `run_qc` (no reference)
@@ -641,7 +674,9 @@ Stale prose that asserts nothing is left alone: comments naming
 **Downstream:**
 
 - Item 219 also edits `src/segfacet/failure_modes.py` (modes 9 and 10, and
-  `remove_level`'s expected set, which carries `sequence`). It also keeps
+  `remove_level`'s expected set, from which it retires `sequence`'s `skip`).
+  Step 4 adds `centroid_spacing` to that set rather than writing a literal,
+  so either order works. It also keeps
   `per_label.{label}.curve.path_u` and `centroid.centroid_mm[]`, which this
   rule reads. Whichever of the two lands later re-measures the shared
   expected sets and the mode-10 mechanism.
