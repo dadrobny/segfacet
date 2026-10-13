@@ -169,6 +169,14 @@ builder re-measures on the real change.
     - Any label lacks a numeric `geometry.physical_volume_mm3`.
   - `path_u` is absent whenever Stage 3 is (for example under
     `stage3_unavailable`), so such a record is never judged.
+  - **Re-checked 2026-10-13, after item 220 merged (`ef48313`): agrees.**
+    Item 220 changed no extractor. It added the `collapsed_labels` rule and
+    catalogued the five `stage3_unavailable.*` leaves. On the item-129
+    coincident map (`tests/test_129_coincident_centroids_and_held_out_floor.py::_coincident_label_map`),
+    `extract_feature_record` writes `stage3_unavailable`, and neither label
+    carries `curve.path_u`. `pairs.adjacent` holds only `spacings_mm`, with
+    no `mean_spacing_mm`. So this rule returns `[]` on every collapsed record,
+    and `collapsed_labels` (mode 13) is the rule that judges it.
 - **A2 (measured: the path order silences an order break).** The spacings
   below are in mm, in path order. Path order and anatomical order agree on
   every other case, and every other case reads a largest local gap ratio of
@@ -185,6 +193,11 @@ builder re-measures on the real change.
     and `sequence_break` read 134.16 at T13–L1. Both would fire a
     spacing-only reading.
   - The four intensity-corpus cases read clean spacing (largest 1.088).
+  - **Re-checked 2026-10-13, after item 220 merged (`ef48313`): agrees.**
+    The same scratch probe was re-run over both corpora on this branch. It
+    gives the path orders, spacings and gap ratios in the table above,
+    exactly. All four intensity cases read 1.088 at most. Item 220 pinned the
+    manifest and every case's firing as unmoved, and the probe confirms that.
 - **A3 (measured: `fused_label` holds on the path-ordered spacing).** With
   item 207/211's statistic unchanged, the detector fires on exactly the
   labels it fires on today:
@@ -202,6 +215,12 @@ builder re-measures on the real change.
   because path order reads it 1.0999. The size gate's role is unchanged: it
   alone keeps a missed level's neighbours silent on `fused_label`, as item
   211 recorded.
+
+  **Re-checked 2026-10-13, after item 220 merged (`ef48313`): agrees.** On
+  both fuse cases the path order is still 20, 21, 22, 23, which equals
+  anatomical order. The path-ordered spacings are 33.49 / 49.51 / 53.52
+  (`fuse_adjacent`) and 33.49 / 49.46 / 53.50 (`fuse_separate`). Label 22's
+  size ratios read 2.325 and 2.002. So the readings above stand.
 - **A4 (decided: no record change).**
   - `pairs.adjacent.spacings_mm[]` keeps its item-216 meaning (anatomical
     order) and is no longer read by any rule.
@@ -215,6 +234,39 @@ builder re-measures on the real change.
   - The net count of paths read by at least one rule is unchanged: one
     leaves (`spacings_mm[]`) and one joins (`path_u`). The builder confirms
     this on the regenerated catalogue.
+  - **Re-checked 2026-10-13, after item 220 merged (`ef48313`): corrected.**
+    The original bullets above stand as written at `2a1491d`. Item 220 made
+    `collapsed_labels` a signal consumer of
+    `per_label.{label}.centroid.centroid_mm[]`. That path's consumers are now
+    `sequence` and `collapsed_labels`, so this rule becomes its **third**
+    consumer, not its second. After this item the entry is read as signal by
+    `{centroid_spacing, collapsed_labels, sequence}`.
+    - **Measured live on the committed catalogue (`build_catalogue(strict=True)`):**
+      159 entries, 104 with empty `mode_evidence`.
+    - `centroid_mm[]` carries modes (9, 10, 11, 13).
+    - `pairs.adjacent.spacings_mm[]` is read by `fused_label` alone, as
+      signal, with modes (2,).
+    - `per_label.{label}.curve.path_u` is read by no rule, with modes ().
+    - `case.sequence.missing_levels[]` carries (6, 10), and its evidence is
+      `("rule_mode_map", "rule_declaration")`.
+    - `case.sequence.present_levels[]` carries (6, 10). It is mode 6's only
+      `MODE_ANCHOR_PATHS` entry.
+    - 11 entries carry mode 2.
+  - **What this item therefore moves in the catalogue.** This is predicted
+    from the measurement above. The builder re-measures it on the
+    regenerated catalogue.
+    - The entry count stays 159, and the leaf-path set is unchanged. No
+      leaf is added or renamed, because a rule's consumption does not
+      create a leaf. So `tests/corpus/119_pre_119_digests.json` (test_119
+      AC27, test_120 AC12, test_123 AC49), test_131's
+      `_PRE_ITEM_TOTAL_LEAF_PATH_COUNT`, and test_124 / test_132's 159 stay.
+    - The empty-evidence count stays 104: `spacings_mm[]` joins it and
+      `path_u` leaves it.
+    - `centroid_mm[]` gains modes 2 and 6. `path_u` and
+      `geometry.physical_volume_mm3` gain mode 6. `missing_levels[]` loses
+      mode 6, because no failure case designates `coverage` any more.
+    - The mode-2 count goes 11 → 12: `spacings_mm[]` leaves, and `path_u`
+      and `centroid_mm[]` join.
 - **A5 (pins `features/consistency.py`, item 227's interface).** The rule
   reads `path_u` only to order labels. That needs three properties:
   - `path_u` is a number per label, written by
@@ -258,6 +310,22 @@ builder re-measures on the real change.
     - Highest silent gap that passes the size gate: 1.386
       (`split_own_label` L2–L3).
     - Both fuse cases read at most 1.138.
+  - **Re-checked 2026-10-13, after item 220 merged (`ef48313`): agrees.**
+    The re-run probe gives every margin above unchanged: 1.887 at
+    0.997/0.998, 2.269 gated off by 4.800, 1.386, and 1.138.
+    - **One interaction with item 220 was measured, and no AC rests on it.**
+      Take a near-coincident pair with Stage 3 present: test_220's
+      `_near_record()`. Its spacings are 0.80 and 15.24 mm, so the second
+      gap reads 19.05 over its one-spacing baseline.
+    - There, `missing_level` is silent only because the size gate fails.
+      Label 22 reads 1000 / 600 = 1.667.
+    - With equal volumes it would fire on the pair beyond the collapsed one,
+      beside `collapsed_labels`. That reads as a co-detection: two labels on
+      one body leave a level out of the label sequence. Neither corpus
+      carries such a case, so AC1 is unaffected. test_220 runs that record
+      through `collapsed_labels` alone (AC4, AC5), so it stays green.
+      test_148 AC16's `planted_collapsed` row is a two-label record, which
+      this rule does not judge.
 - **A7 (measured: why the local baseline, on VerSe19 ground truth).**
   Measured 2026-10-12 on 157 VerSe19 ground-truth masks with at least three
   spacings, of 160 under
@@ -451,6 +519,38 @@ builder re-measures on the real change.
 No dependency is added. `math.dist` and `statistics.mean` are stdlib. The
 size-ratio and severity helpers already in the module are reused.
 
+**Correction (2026-10-13, re-check after item 220 merged at `ef48313`).**
+The steps above stand. This adds the figures item 220 moved and one stale
+string the original list missed.
+
+- **Step 9's base, measured live on this branch.** Item 220's amends are
+  already in `progress.md` (Stage 20 criterion 5, Stage 30 criteria 1 and
+  3).
+  - Derived status over 16 modes: validated 6, implemented 4, specified 2,
+    proposed 4. Validated through a pipeline-detected case 6, through a
+    reconstructed record only 0.
+  - Mode rungs: synthetic-demonstrable 6, needs-real-data 3,
+    structurally-unobservable 1, none 6.
+  - Edges: 16, of which synthetic-demonstrable 7, needs-real-data 8,
+    structurally-unobservable 1.
+- **What this item should leave, before the step-9 re-measurement.**
+  - Derived status: validated 7, implemented 4, specified 1, proposed 4.
+    The validated split is 7 through a pipeline-detected case and 0 through
+    a reconstructed record.
+  - Mode rungs: synthetic-demonstrable 7, needs-real-data 3,
+    structurally-unobservable 1, none 5.
+  - Edges: 17, of which synthetic-demonstrable 8, needs-real-data 8,
+    structurally-unobservable 1.
+  - The amends use the live numbers, not these.
+- **Step 4 addition: `src/segfacet/traceability.py` `_NOTE`.** It says
+  "modes 6 and 8 are the two such entries" (specified with no rule). It is
+  rendered into both committed traceability documents. After this item only
+  mode 8 is such an entry. Reword that clause to name mode 8 alone, with a
+  dated item-218 mention in the module's own style, then regenerate in step
+  7. The two code comments that say the same (near L1043 and L1309) get the
+  same edit. No test pins the clause. test_146 checks only that `_NOTE` contains
+  `complete` and `holes`.
+
 ## Authorised paths
 
 **May change:**
@@ -504,6 +604,22 @@ size-ratio and severity helpers already in the module are reused.
 - `tests/test_188_coverage_rehomed.py` — reconcile (its mode-6-has-no-rule ACs are superseded).
 - `tests/test_220_collapsed_labels_rule.py` — only if red: item 220 pins the manifest and test_129 as unmoved, and this item, landing after it, moves both (Dependencies).
 
+**Correction (2026-10-13, re-check after item 220 merged at `ef48313`).**
+The list above stands. Item 220's round 1 went red in tests whose catalogue
+pins moved. This item adds no leaf, so the leaf-path pins do not move (A4
+re-check), and those files are declared under Asserts against below. It does
+move `centroid_mm[]`'s consumers and the corpus rule-mode map. The pins that
+follow from that, and the line numbers that moved since 2026-10-12, are named
+in Testing Strategy's correction. Every file they touch is already listed
+above, except this one:
+
+- `src/segfacet/traceability.py` — `_NOTE`'s "modes 6 and 8" clause and two comments (step 4 correction).
+
+`tests/test_220_collapsed_labels_rule.py` is expected to stay green unedited.
+Item 220 pinned the manifest and test_129 only as diff-time claims of its
+own branch. Its tests read neither file's content, and nothing this item
+changes reaches them: every collapsed record lacks `path_u` (A1 re-check).
+
 **Asserts against:**
 
 - `tests/corpus/fixtures/**` — AC1, AC9 and every adversarial case read the committed fixtures; step 7 must not change them.
@@ -511,6 +627,14 @@ size-ratio and severity helpers already in the module are reused.
 - `tests/test_163_specificity_ratchet.py` — must stay green unedited: no case fires a rule it does not expect.
 - `tests/test_202_rule_table.py` — must stay green unedited once step 7 regenerates `rules.generated.md`.
 - `tests/test_104_feature_catalogue_drift.py` — must stay green unedited once step 7 regenerates the catalogue.
+
+Added 2026-10-13 by the re-check after item 220. These are the leaf-path
+pins item 220 had to bump. This item adds no leaf, so they hold unedited.
+
+- `tests/corpus/119_pre_119_digests.json` — `catalogue_leaf_path_set_sha256` stays `82f9a70d…f21`; test_119 AC27, test_120 AC12 and test_123 AC49 read it.
+- `tests/test_131_tangent_direction_normalisation.py` — `_PRE_ITEM_TOTAL_LEAF_PATH_COUNT` stays 159.
+- `tests/test_124_observed_range.py` — L566's catalogue entry count stays 159.
+- `tests/test_132_monotonicity_against_traversal_order.py` — L739's leaf count stays 159, and `_PRE_ITEM_OBSERVED_SUMMARY` does not move.
 
 ## Testing Strategy
 
@@ -639,6 +763,77 @@ the ones item 211 lists, plus `test_104` and `test_202`.
 Stale prose that asserts nothing is left alone: comments naming
 `fused_label` in `test_120`, `test_136`, `test_137`, `test_145` and
 `test_151`.
+
+**Correction (2026-10-13, re-check after item 220 merged at `ef48313`).**
+The list above stands. Item 220 moved several of its literals and line
+numbers, and its own test_103 reconciliation goes red again under this item.
+Each file below is already under May change, and the same fence holds: a
+moved literal, a re-pointed exemplar, or a row in an existing table's own
+shape, each with a dated item-218 comment, and none retired, skipped,
+`xfail`ed or loosened (test_041 AC5's retirement above is the one stated
+exception).
+
+- **test_103, `test_ac13_rule_mode_map_effect_on_failure_modes[sequence]`
+  (new; red without this edit).**
+  - Item 220 widened the match set to signal entries whose
+    `consuming_rules` are a subset of `{rule_id, "collapsed_labels"}`
+    (L689–697). After this item, `centroid_mm[]` is consumed by
+    `{centroid_spacing, collapsed_labels, sequence}`. `sequence`'s match set
+    is then empty again, and the precondition fails.
+  - Widen the subset to `{rule_id, "collapsed_labels", "centroid_spacing"}`.
+  - Where `centroid_spacing` consumes the entry as signal, add its declared
+    modes to `expected`, beside item 220's `collapsed_labels` addition
+    (L705–708).
+  - Equality stays exact. `sequence`'s expected set should become the
+    entry's live `failure_modes`, predicted `{2, 6, 9, 10, 11, 13}`.
+  - The new `centroid_spacing` parametrisation's match set should be
+    `{per_label.{label}.curve.path_u}`. No other rule reads it, and
+    `centroid_mm[]` and `physical_volume_mm3` are shared.
+  - The `_RULE_MODE_MAP` edit above is unchanged.
+- **test_147.**
+  - L1240: `_EXPECTED_DERIVED_STATUS[6]` becomes `"validated"`. That is the
+    line the original list gave as L1239.
+  - **AC8 at L496 (new):** the edgeless-mode set goes
+    `{5, 6, 7, 8, 12, 14}` → `{5, 7, 8, 12, 14}`. Mode 6 gains its edge.
+    Item 220 had already dropped 13.
+- **test_149 L594** (was L582): `_DEGENERATE_MODES` goes
+  `(5, 6, 7, 8, 12, 14)` → `(5, 7, 8, 12, 14)`.
+- **test_151 L493** (was L485): `total_edges == 16` → `17`. Item 220 moved
+  it 15 → 16.
+- **test_146:**
+  - L1239: `(6, 8)` → `(8,)`. That is the "L1231" above.
+  - L1883: `proposed_mode_ids + [6, 8]` → `+ [8]`. That is the "L1868"
+    above.
+  - L1234's authored `specified_ids` list is unchanged, because mode 6's
+    authored status stays `specified` (A8).
+- **test_148 L886** (was L883): `fuse_adjacent`'s row becomes
+  `("centroid_spacing",)`. Item 220's `planted_collapsed` row and the
+  `remove_level` row's `("coverage",)` hold. AC16 checks containment, and
+  `coverage` still co-detects on `remove_level`.
+- **test_137 `test_adv_measured_artifact_movement_counts_from_spec`.**
+  These are predicted from the A4 re-check. Re-measure them on the
+  regenerated catalogue.
+  - `mode2_count` goes 11 → 12.
+  - `("rule_mode_map", "rule_declaration")` goes 12 → 11. `spacings_mm[]`
+    leaves, `path_u` joins, and `case.sequence.missing_levels[]` leaves.
+  - `("rule_declaration",)` goes 3 → 4, as `missing_levels[]` joins.
+  - `case.sequence.present_levels[]` leaves the five-source bucket, which
+    goes 1 → 0 and is removed from the exhaustive table. It enters a new
+    bucket, `("per_mode_metric", "rule_declaration", "rule_mode_less", "rule_bookkeeping")`,
+    which gets a row of 1. Its mode 6 now comes from its anchor alone, and
+    no failure case designates `coverage`.
+  - `()` stays 104, and the total stays 159.
+- **test_136 L894:** `stayed_empty` is predicted to stay 104. L884's 159 and
+  the rule counts of 15 (L198, L261) hold, because this is a rename.
+- **Unmoved by this item, despite item 220 having moved them:**
+  - test_137 L242, test_148 L366 / L1137 and test_187 L252: the rule count
+    of 15.
+  - test_189 L190: `fov_truncation`'s `opting_in_rules`. `fused_label` opts
+    in to no condition, and this item adds none.
+  - test_138 AC20's analytic-edge witness: the new mode-6 edge is
+    corpus-designated by `remove_level`.
+  - test_216 AC1's `stored` set: no leaf moves.
+  - The leaf-path pins under Asserts against.
 
 ## Validation
 
