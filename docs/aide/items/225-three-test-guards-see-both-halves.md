@@ -274,8 +274,31 @@ Test module: `tests/test_225_guard_blind_spots.py`. It imports
 `test_105_golden_decision_table as t105`. Write one test per AC, except AC4,
 which is the existing `test_127::test_ac15_…`. AC11 parses the live rows
 with `t105._split_sections` and `t105._parse_first_pipe_table` on
-`t105._DOC_PATH`'s bytes decoded as UTF-8, taking the
+`t105._DOC_PATH.read_text(encoding="utf-8")`, taking the
 `"Section 1 — Committed test fixtures"` section.
+
+**This module must carry none of the OS-sensitivity signals
+`tests/test_213_windows_ci_subset.py`'s `_signals` detects** (amended
+2026-10-13, cross-spec review). Any one of them would make test_213 AC5
+require `tests/test_225_*` in `.github/workflows/ci.yml`'s `WINDOWS_TESTS`,
+and this item does not authorise `ci.yml`. In the module's own code there
+must be:
+- no `.read_bytes` attribute (read with `read_text(encoding="utf-8")`);
+- no `.as_posix` attribute;
+- no `os.sep` or `os.path.sep`;
+- no `PureWindowsPath` or `PurePosixPath`;
+- no `newline=` keyword (write planted modules with
+  `write_text(source, encoding="utf-8")`);
+- no import of `subprocess`, `run_process` or `segfacet.cli`, and no
+  `sys.executable`;
+- no string constant starting `segfacet.cli` or containing `.gitattributes`;
+- no parameter named `regenerated_failure_modes`, `regenerated_traceability`
+  or `aide_check_result`.
+
+Inside a planted snippet's source string, `read_bytes` is only a string
+constant, not an attribute, so the `parsed-read-bytes` and
+`module-level-raw-read` snippets below stay signal-free. Build expected module
+paths with an f-string (`f"tests/{name}"`), not `.as_posix()`.
 
 Adversarial cases, each with the failure mode it guards:
 
