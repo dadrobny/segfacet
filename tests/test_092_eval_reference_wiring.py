@@ -46,8 +46,12 @@ def _clean_case(case_id="c-clean"):
 
 def _outlier_case(case_id="c-outlier"):
     """Engineered to sit far outside the bundled default reference (mirrors
-    test_049_reference_integration.py's ``_far_outlier_seg_and_reference``)."""
-    spine = build_clean_spine(levels=("L1", "L2", "L3"), spacing=(20.0, 20.0, 20.0))
+    test_049_reference_integration.py's ``_far_outlier_seg_and_reference``).
+
+    item 218 (2026-10-13): 10 mm voxels, not 20 mm. At 20 mm the 3-label map is
+    a coarse grid whose centroid gaps read a genuine two-pitch end gap, which
+    ``missing_level`` correctly fires on."""
+    spine = build_clean_spine(levels=("L1", "L2", "L3"), spacing=(10.0, 10.0, 10.0))
     return EvaluationCase(
         case_id=case_id,
         gt=spine.seg_img,

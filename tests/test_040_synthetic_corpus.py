@@ -526,7 +526,7 @@ def test_fuse_adjacent_case_records_mode_2_bridged_and_fires_nothing():
     assert case_result.verdict.overall == Severity.FLAG
 
 
-def test_remove_level_relabel_case_records_mode_6_and_honestly_fires_nothing():  # item 218 (2026-10-13): name kept, it now asserts the case fires centroid_spacing
+def test_remove_level_relabel_case_records_mode_6_and_fires_missing_level():  # item 218 (2026-10-13): renamed, the case now fires missing_level
     """``remove_level_relabel`` is mode 6's ("vertebra not segmented")
     fixture. The caudal labels are renumbered, so no label gap shows; item
     218 (2026-10-13) gave it a detector -- ``centroid_spacing``'s

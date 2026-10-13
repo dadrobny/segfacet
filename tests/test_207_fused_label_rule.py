@@ -75,7 +75,8 @@ def test_ac1_fused_label_fires_on_the_two_fused_labels_and_nowhere_else():
 
 
 def test_ac2_the_detector_serves_mode_2_alone():
-    assert failure_modes.modes_for_detector("centroid_spacing", "fused_label")  # item 218 (2026-10-13): renamed == (2,)
+    # item 218 (2026-10-13): detector renamed fused_label -> centroid_spacing
+    assert failure_modes.modes_for_detector("centroid_spacing", "fused_label") == (2,)
 
 
 # =========================================================================== #

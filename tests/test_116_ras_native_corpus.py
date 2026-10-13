@@ -441,6 +441,12 @@ _ITEM_212_ADDED_BORDER_PAIRS = {
     "crop_at_border": (("border", (20,)), ("border", (21,))),
 }
 
+# item 218 (2026-10-13): the one centroid-spacing rule reads remove_level's
+# gap as a (21, 23) finding that the aeb2f55 golden does not carry.
+_ITEM_218_ADDED_CENTROID_SPACING_PAIRS = {
+    "remove_level": (("centroid_spacing", (21, 23)),),
+}
+
 
 @pytest.mark.skipif(
     _REFERENCE_SHA is None,
@@ -465,7 +471,8 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
     from the fresh side before comparing so the rest of each case's
     rule/label identity is still pinned exactly. Item 212 (2026-10-05)
     re-authors ``crop_at_border`` as an anterior volume crop, which adds
-    ``border`` findings on labels (20,) and (21,)."""
+    ``border`` findings on labels (20,) and (21,). Item 218 (2026-10-13)
+    adds ``remove_level``'s ``centroid_spacing`` finding on (21, 23)."""
     fresh = build_report_for_case(case)
     historical_case_id = _OLD_CASE_ID_AT_REFERENCE_SHA.get(
         case["case_id"], case["case_id"]
@@ -501,6 +508,13 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
         assert added_pair in fresh_pairs, (
             f"case {case['case_id']!r}: expected item 212's deliberate "
             f"border finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    # item 218 (2026-10-13): strip the deliberate centroid_spacing finding.
+    for added_pair in _ITEM_218_ADDED_CENTROID_SPACING_PAIRS.get(case["case_id"], ()):
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 218's deliberate "
+            f"centroid_spacing finding {added_pair!r}, but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (
