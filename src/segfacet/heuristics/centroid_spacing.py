@@ -46,6 +46,10 @@ sizes 0.997 / 0.998); highest silent 2.269 (``split_own_label`` L4-L5, gated
 off by size 4.800); highest silent past the size gate 1.386; VerSe19 ground
 truth reads at most 1.378 on 157 masks (A7).
 
+Known blind spot: two misses with exactly one vertebra between them read about
+1.33 (each gap is the other's baseline: 2p / 1.5p), below the default 1.5, so
+neither fires.
+
 Absence-tolerant; an unrecognised severity raises ``ValueError`` before any
 work; the record is never mutated. No active ``rules.centroid_spacing``
 section in ``default_config.yaml`` (it would move ``config_hash``).
@@ -337,7 +341,7 @@ class CentroidSpacingRule(Rule):
             if baseline <= 0:
                 continue
             gap_ratio = sp / baseline
-            if gap_ratio <= gap_thr:
+            if not gap_ratio > gap_thr:  # NaN-safe: NaN compares False, so skip
                 continue
             ratios = [size_ratio(j)[0] for j in (i, i + 1)]
             if any(r is None or r > size_thr for r in ratios):
