@@ -62,7 +62,7 @@
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
 | 33    | Corpus & Rule Re-grounding: modes 2 and 3 to the bar                    | G2, G7, G8      | ✅     |
-| 34    | Maintenance                                                             | —               | 📋     |
+| 34    | Maintenance                                                             | —               | 🚧     |
 | 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
@@ -2010,7 +2010,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 
 ---
 
-## Stage 34 — Maintenance — 📋
+## Stage 34 — Maintenance — 🚧
 
 **Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
 `automation` entries in maintenance queues.
@@ -2019,7 +2019,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 
 - 📋 One inter-centroid-spacing rule for modes 2 and 6. *(Item 218)*
 - 📋 One check per failure mode for label order and label-set gaps. *(Item 219)*
-- 📋 A collapsed label set no longer passes silently. *(Item 220)*
+- 🚧 A collapsed label set no longer passes silently. *(Item 220)*
 - 📋 Held-out spline offset with every outlier withheld. *(Item 221)*
 - 📋 Held-out spline offset at the ends of the sequence. *(Item 222)*
 - 📋 Path-aware rule-read attribution in the catalogue. *(Item 223)*
