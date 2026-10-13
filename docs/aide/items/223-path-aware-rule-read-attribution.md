@@ -211,7 +211,9 @@ committed catalogue and traceability documents are regenerated.
     "mechanism B last-path-segment match only". Under the path-aware scan
     each rule demonstrably indexes `record["per_label"]`, so `not-read` would
     be false. `bookkeeping` ("containers iterated") is the role every other
-    rule already gives that read.
+    rule already gives that read. Owner-approved at the queue-030 spec
+    review (2026-10-13). The cross-spec review found no sibling in queue 030
+    that declares `per_label` as `not-read`.
 - **A7: siblings scanned on landing.** Item 218 renames `fused_label` to
   `centroid_spacing`. Item 219 retires `sequence`'s swap, shift and skip
   detectors. Item 220 adds `collapsed_labels`. Item 222 adds
