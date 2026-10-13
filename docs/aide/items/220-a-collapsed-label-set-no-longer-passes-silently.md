@@ -324,6 +324,12 @@ The ACs:
      - Do not use the `(measured: findings == [...])` idiom.
    - **Unchanged:** `candidate_features`, `discriminator`, `severity`,
      `observability`, `corpus_cases` and `MODE_SIGN_OFFS`.
+   - **`CONDITIONS["fov_truncation"].opting_in_rules`:** `("border",)` →
+     `("border", "collapsed_labels")`. `tests/test_191_condition_gate.py` AC10 requires this
+     tuple to match the rules in the registry whose `condition_opt_ins` name
+     `fov_truncation`, and step 1's opt-in adds `collapsed_labels` to that
+     set. This is the only edit to `CONDITIONS`. The amendment was approved
+     by the owner on 2026-10-13 after the cross-spec review, finding B7.
    - **Module docstring:** remove "; proposed" from mode 13's row in the
      taxonomy table, and add an item-220 paragraph to the history in
      item 208's shape.
@@ -387,7 +393,7 @@ The ACs:
 - `src/segfacet/heuristics/collapsed_labels.py` — **new**: the rule (step 1).
 - `src/segfacet/heuristics/__init__.py` — one import line (step 2).
 - `src/segfacet/default_config.yaml` — one comment block (step 3).
-- `src/segfacet/failure_modes.py` — mode 13's status, edge, definition note and mechanism; the docstring (step 4).
+- `src/segfacet/failure_modes.py` — mode 13's status, edge, definition note and mechanism; `fov_truncation`'s `opting_in_rules`; the docstring (step 4).
 - `src/segfacet/feature_docs.py` — five `FEATURE_DOCS` entries, one `BLOCK_OWNERS` row, one `GROUP_INTROS` entry (step 5).
 - `src/segfacet/catalogue.py` — one driver record in `iter_driver_records` (step 6).
 - `docs/aide/failure_modes.generated.json` — regenerated (step 7).
@@ -408,6 +414,9 @@ The ACs:
 - `tests/test_151_stage30_validation.py` — the edge count 15 → 16.
 - `tests/test_156_conformance_seams.py` — only if red: its stub's exemplar mode 13 → 14.
 - `tests/test_187_neighbour_contact_rule.py` — the rule count 14 → 15.
+- `tests/test_124_observed_range.py` — L566's catalogue entry count `len(paths) == 154` gains the five `stage3_unavailable.*` entries (cross-spec review B6, 2026-10-13).
+- `tests/test_132_monotonicity_against_traversal_order.py` — L735's `leaf_count == 154` and `_PRE_ITEM_OBSERVED_SUMMARY` move for the same five entries (B6).
+- `tests/test_189_spline_offset_condition.py` — AC12's `opting_in_rules` set `{"border"}` → `{"border", "collapsed_labels"}` (B7).
 - `tests/test_126_golden_retirement.py` — only if step 7 moves it: AC22's pinned `(30, 95)` unwired/total pair, which is counted per corpus record, not over the catalogue union, so it is expected to stay.
 
 **The reconciliation fence.** Every edit to an existing test is one of two
@@ -452,6 +461,9 @@ loudly instead of passing vacuously.
   volume face. Precondition: `segfacet.heuristics.fov.border_touching_labels(record)`
   contains 21. Through `run_rules(record, bundled_default_config())`, the
   surviving findings include the `collapsed_labels` finding on {21, 22}.
+  The runner reads the rule's own `condition_opt_ins`, so the test needs
+  nothing beyond that. The `CONDITIONS` mirror that step 4 updates is
+  checked by `tests/test_191_condition_gate.py` AC10, not by this test.
 - `triple-coincidence-one-finding-per-pair`: guards a pair reported twice,
   or the second and third exact pairs going unreported. Use
   `_triple_coincident_label_map()` (test_129). The rule returns exactly three
@@ -479,6 +491,9 @@ pins:
   test_145:98, test_146 (AC27–AC31 and `test_adv_mode13_*`) and
   test_148:693;
 - the catalogue entry count and `stayed_empty` in test_136;
+- the catalogue entry and leaf counts of 154 in test_124:566 and
+  test_132:735, and test_132's `_PRE_ITEM_OBSERVED_SUMMARY`;
+- the `fov_truncation` `opting_in_rules` set in test_189 AC12;
 - the golden-evidence pair in test_126, which is expected to stay.
 
 The sweep is a lower bound: it lists each pin once, at its first sight, so
