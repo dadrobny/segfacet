@@ -39,8 +39,12 @@ the spec-time measurement in A2.
   vertebra on `terminal_offset_mm` and an interior one on `offset_mm`. Both
   use the existing `spline_offset.max_offset_mm` (13.0 mm, inclusive). There
   is no new parameter.
-- **Two corpus cases gain a finding.** The owner accepted both, and their
-  expectations are re-measured:
+- **Two corpus cases gain a finding.** The owner accepted both. Each is
+  recorded as a **co-detection only**: `spline_offset` joins the case's
+  `expected_firing` in `src/segfacet/failure_modes.py`. The case's
+  designated `Expectation` in `src/segfacet/synth/` is not touched,
+  `coverage` on `remove_level` already works this way, and
+  `verify_case` checks only the designated rules.
   - `sequence_break`: L5 is relabelled T13 (label 28), which puts it first
     in anatomical order although it sits at the caudal end. It reads
     33.83 mm.
@@ -163,16 +167,18 @@ Why each is written:
 - **AC10** guards the wrong-vector reason. The direction code would
   otherwise run unchanged.
 - **AC11** is the queue's "judged and flagged".
-- **AC12 and AC13** pin the two firings the owner accepted. The expectation
-  edits that record them are checked by the corpus-agreement tests below.
+- **AC12 and AC13** pin the two firings the owner accepted. The co-detection
+  entries that record them are checked by the corpus-agreement tests below.
 
 Not written, because an existing test already fails without it:
 
 - **"Every corpus case's measured firing equals its expected set."**
-  `tests/test_041_regression_suite.py` and
   `tests/test_147_specification_is_the_record.py::test_ac26_every_corpus_case_agrees_and_status_derives_correctly`
-  assert it for every case. The `Expectation` and `CorpusCaseExpectation`
-  edits (steps 6–7) are what keep them green.
+  and `tests/test_163_specificity_ratchet.py` compare each case's measured
+  firing with its `CorpusCaseExpectation.expected_firing`. Step 7's
+  co-detection entries keep them green.
+  `tests/test_041_regression_suite.py` (`verify_case`) checks only the
+  designated rules, which this item does not change.
 - **"A terminal entry with no `terminal_offset_mm` fires nothing."**
   `tests/test_123_recalibrate_and_regenerate.py::test_ac39_terminal_entry_never_fires_even_at_forty_mm_over_a_thirteen_mm_threshold`
   and `test_adv_terminal_entry_with_astronomically_large_offset_never_fires`
@@ -202,7 +208,10 @@ three questions on 2026-10-12:
 - **Q1 (method):** one-sided straight-line extrapolation, judged at the
   existing 13.0 mm, with withheld neighbours skipped.
 - **Q2:** accept the new terminal findings on `sequence_break` and
-  `split_own_label`, and re-measure both expected sets.
+  `split_own_label`, and re-measure both expected sets. On 2026-10-13 the
+  cross-spec review narrowed the recording, and the owner approved it:
+  co-detection in `failure_modes.py` only, with the designated synth
+  `Expectation`s unchanged (Decisions & Trade-offs).
 - **Q3:** a new field, `curve.terminal_offset_mm`, with `offset_mm` and the
   direction components unchanged. Reference ingest and delta keep excluding
   terminals.
@@ -387,20 +396,17 @@ re-measures on the real change.
      AC46 reads.
    - Adjust the Spline Offset group intro if it says terminals are not
      judged.
-6. **Synthetic expectations.** Each is an *addition*, so it composes with
-   items 218 and 219's edits to the same cases:
-   - `src/segfacet/synth/identity_ordering_alignment.py`,
-     `SequenceBreakPerturbation`: add `"spline_offset"` to
-     `expected_rule_ids`. Label 28 is already in `expected_labels`. Extend
-     `detail` by one sentence.
-   - `src/segfacet/synth/component_shape.py`, the `split_own_label`
-     operator: add `"spline_offset"` to `expected_rule_ids` and label 24 to
-     `expected_labels`, with a dated comment.
+6. **No synthetic `Expectation` changes.**
+   - `SequenceBreakPerturbation` (`synth/identity_ordering_alignment.py`)
+     and the `split_own_label` operator (`synth/component_shape.py`) keep
+     their designated `expected_rule_ids` and `expected_labels`.
+   - So `tests/corpus/manifest.json` does not move. Item 219's designated
+     `["mislabel"]` for `sequence_break` stays true in either landing order.
 7. **`src/segfacet/failure_modes.py`.**
    - Add `"spline_offset"` to `expected_firing` of the `sequence_break` and
-     `split_own_label` `CorpusCaseExpectation`s, with a dated
-     reason sentence. This records each as a co-detection, so
-     `catalogue.rule_declaration_conflicts` stays clean.
+     `split_own_label` `CorpusCaseExpectation`s, with a dated reason
+     sentence: a co-detection, not a designation. `test_147` AC26 and
+     `test_163` read this field.
    - Add `per_label.{label}.curve.terminal_offset_mm` to
      `_CONDITION_DISPLACED_VERTEBRA.candidate_features`.
    - Rewrite the `fov_truncation` mechanism sentence "spline_offset's
@@ -412,13 +418,17 @@ re-measures on the real change.
      Decisions.
 8. **Regenerate, each twice into scratch and byte-compared, then onto the
    committed copy:**
-   - `.venv/bin/python -m segfacet.synth.corpus`. The manifest moves; the
-     fixtures must stay byte-identical, and a moved fixture is a hand-back.
    - `.venv/bin/python -m segfacet.catalogue`
    - `.venv/bin/python -m segfacet.traceability`
    - `.venv/bin/python -m segfacet.rule_table`
    - `.venv/bin/python -m segfacet.failure_modes`
-   - `.venv/bin/python -m segfacet.synth.corpus_sheet`
+   - `.venv/bin/python -m segfacet.golden_evidence`. Each case's
+     `total_leaf_paths` moves by the new path: 96 on a case of five or more
+     levels, 95 on a four-level case.
+
+   `segfacet.synth.corpus` and `segfacet.synth.corpus_sheet` are not
+   regenerated. Neither the designated expectations nor the fixtures change,
+   and a diff in either is a hand-back.
 9. **Run the Validation replay** and write step 3's calibration section from
    it.
 10. **Reconcile the existing tests** (Testing Strategy), each with a dated
@@ -438,10 +448,8 @@ generators are reused.
 - `src/segfacet/heuristics/spline_offset.py` — the terminal branch, declaration and docstring record (step 3).
 - `src/segfacet/report_schema_v0.json` — the optional curve property (step 4).
 - `src/segfacet/feature_docs.py` — the new `FeatureDoc`, `is_terminal`'s text (step 5).
-- `src/segfacet/synth/identity_ordering_alignment.py` — `sequence_break` expectation (step 6).
-- `src/segfacet/synth/component_shape.py` — `split_own_label` expectation (step 6).
 - `src/segfacet/failure_modes.py` — co-detections, candidate feature, `fov_truncation` mechanism text (step 7).
-- `tests/corpus/manifest.json` — regenerated expectations (step 8).
+- `docs/aide/golden_evidence.generated.json` — regenerated leaf-path counts (step 8).
 - `docs/aide/feature_catalogue.generated.json` — regenerated (step 8).
 - `docs/aide/feature_catalogue.generated.md` — regenerated (step 8).
 - `docs/aide/traceability_matrix.generated.json` — regenerated (step 8).
@@ -449,10 +457,15 @@ generators are reused.
 - `docs/aide/rules.generated.md` — regenerated (step 8).
 - `docs/aide/failure_modes.generated.json` — regenerated (step 8).
 - `docs/aide/failure_modes.generated.md` — regenerated (step 8).
-- `docs/aide/corpus_sheet.png` — regenerated; it renders each case's expected rules (step 8).
 - `tests/test_222_terminal_spline_offset.py` — **new**: this item's test module.
 - `tests/test_120_leave_one_out_offset.py` — AC12's exact curve key set (reconcile).
-- `tests/test_039_identity_ordering_alignment_perturbations.py` — the terminal-aware `displace` branch (reconcile).
+- `tests/test_039_identity_ordering_alignment_perturbations.py` — the terminal-aware `displace` branch and `sequence_break`'s exact fired-rule set (reconcile).
+- `tests/test_098_stray_components.py` — `sequence_break`'s pinned findings (reconcile).
+- `tests/test_102_stage18_validation.py` — parametrised over test_098's constant; only if it goes red (reconcile).
+- `tests/test_126_golden_retirement.py` — per-case leaf-path counts (reconcile).
+- `tests/test_136_rule_mode_declarations.py` — the catalogue entry count (reconcile).
+- `tests/test_137_mode_less_rule_disposition.py` — the catalogue entry count and `mode_evidence` buckets (reconcile).
+- `tests/test_221_withhold_every_outlier.py` — item 221's element-for-element record comparisons (reconcile).
 - `tests/test_103_feature_catalogue.py` — the leaf-path count (reconcile).
 - `tests/test_124_observed_range.py` — the leaf-path count (reconcile).
 - `tests/test_132_monotonicity_against_traversal_order.py` — the leaf-path count and observed summary (reconcile).
@@ -537,6 +550,45 @@ lower bound: a spec-time grep lists each failure once, at its first assert
   **`tests/test_186_expected_level_sequence.py:268`.**
   `measured_firing(split_own_label)` becomes
   `{"bounds", "split_fragment", "spline_offset"}`.
+- **`tests/test_039_identity_ordering_alignment_perturbations.py::test_ac17_sequence_break_only_fired_rule_is_sequence_no_coverage`.**
+  The exact fired-rule set gains `"spline_offset"`. The "no coverage"
+  assertion stands.
+  - `test_ac18_sequence_break_expectation_well_formed_and_pipeline_agrees`
+    reads the designated `Expectation`, which this item leaves alone, and
+    the verdict, which stays `flagged-for-review`. Reconcile it only if it
+    goes red.
+- **`tests/test_098_stray_components.py`, `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS["sequence_break"]`.**
+  The case gains the `spline_offset` finding on label 28: severity
+  `flagged-for-review`, detector `spline_offset`, and step 3's terminal
+  reason with the measured value. Its position is the runner's order,
+  rules by ascending `rule_id`. The verdict is unchanged.
+  - `tests/test_102_stage18_validation.py` is parametrised over that
+    constant. Reconcile it only if it goes red.
+  - Item 224 also edits test_098, but not this constant.
+- **`tests/test_126_golden_retirement.py`, AC22** (the `(30, 95)` pin per
+  case). Pin it per case: `m` is 96 on a case of five or more levels and
+  95 on a four-level case (`fuse_adjacent`, `fuse_separate`, `remove_level`,
+  `remove_level_relabel`). `n` stays 30, because the new path is read by
+  `spline_offset` and so is not unwired. Step 8 regenerates the companion
+  this test reads.
+- **`tests/test_136_rule_mode_declarations.py`** (`len(entries) == 154`, about
+  line 884) and **`tests/test_137_mode_less_rule_disposition.py`** (the two
+  `154` pins, about lines 986 and 1071). Each gains +1 over the base at
+  claim. test_137's `mode_evidence` distribution gains one entry in whichever
+  bucket the new consumed path takes; read it from the regenerated
+  catalogue, never assume it.
+- **`tests/test_221_withhold_every_outlier.py`.** Three of item 221's tests
+  compare `compute_leave_one_out_spline_offsets` records element for element
+  with the item-120 computation on 8-level spines. Terminal records now
+  carry `terminal_offset_mm`, so these fail. Strip the field on the actual
+  side with `dataclasses.replace(r, terminal_offset_mm=None)`, as AC5 does,
+  in:
+  - the single-outlier test ("a single outlier reads as before");
+  - the terminal-never-withheld test (the index-0 +18.0 case);
+  - the adversarial `emptied-set-returns-first-pass` test.
+
+  Name them by function at claim time. Item 221's AC numbering may have
+  moved in a parallel amendment.
 
 Checked and expected to stay green unedited:
 
@@ -592,18 +644,20 @@ Checked and expected to stay green unedited:
   add-then-remove search and provides `_withhold_outliers`, whose returned set this item's
   neighbour rule skips (A1). Its measured readings are the base this item's
   numbers are re-measured on.
-- **Item 220.** Its Asserts against pins `tests/corpus/manifest.json` and
-  `tests/test_129_coincident_centroids_and_held_out_floor.py`. This item
-  moves both, by adding `spline_offset` to `sequence_break`. So item 220
-  builds first, and this item lists
-  `tests/test_220_collapsed_labels_rule.py` under May change, in case its
-  corpus-wide firing check pins a set this item moves.
+- **Item 220.** Its Asserts against pins
+  `tests/test_129_coincident_centroids_and_held_out_floor.py`, whose
+  `sequence_break` finding set this item moves by adding `spline_offset`.
+  So item 220 builds first. This item lists
+  `tests/test_220_collapsed_labels_rule.py` under May change, in case that
+  module's corpus-wide firing check pins a set this item moves.
 
 **Downstream:**
 
-- Items 218 and 219 also edit `sequence_break`'s expectation and regenerate
-  `tests/corpus/manifest.json`. This item's edits are additions, so they
-  compose in either order. Whichever lands later re-measures on top.
+- Items 218 and 219 edit `sequence_break`'s designated expectation and
+  regenerate `tests/corpus/manifest.json`. This item leaves both alone and
+  adds only a `failure_modes.py` co-detection. Item 219's designated
+  `["mislabel"]` stays true whichever lands first, and whichever lands later
+  re-measures `expected_firing` on top.
 - Stage 35's development-role reference rebuild (queue 031) decides whether
   terminal readings ever enter the reference.
 
@@ -611,6 +665,15 @@ Checked and expected to stay green unedited:
 
 To be updated during implementation.
 
+- **Decision (owner, 2026-10-13, cross-spec review): co-detection only.**
+  - `spline_offset` on `sequence_break` and `split_own_label` is recorded
+    in `failure_modes.py`'s `expected_firing` alone. The designated synth
+    `Expectation`s are not touched.
+  - Why: item 219 pins `sequence_break`'s designated rules as `["mislabel"]`.
+    A designation added here would make one of the two specs false
+    depending on landing order. A co-detection keeps both true, and
+    `coverage` on `remove_level` already works this way.
+  - The manifest and the corpus contact sheet therefore do not move.
 - **Left open:** whether `sequence_break`'s and `split_own_label`'s new
   findings are the condition or cross-talk.
   - On `sequence_break`, the reading comes from a label-order defect.
