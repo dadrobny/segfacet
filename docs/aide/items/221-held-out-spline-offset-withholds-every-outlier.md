@@ -108,10 +108,10 @@ The criteria:
   displaced levels.** `_withhold_outliers(...)`, called as Implementation
   step 3 defines, returns a withheld set equal to `frozenset({2, 5})` on the
   two-opposite case.
-- [ ] **AC4: the helper reproduces the item-120 computation for any withheld
-  set.** On the two-opposite case,
-  `_held_out_records(centroids, {2, 5}, fit_centroid_spline(centroids), None, None)`
-  equals the item-120 computation for S = {2, 5}, element for element.
+- **AC4: withdrawn 2026-10-13** (cross-spec review M3, owner-approved). It
+  pinned `_held_out_records` for item 222, which never calls it. AC2 already
+  checks the helper's per-level computation through the public function. The
+  number is kept free so AC5–AC7 keep their names.
 - [ ] **AC5: the cutoff is 10.0 mm.** `segfacet.features.spline_offset._OUTLIER_CUTOFF_MM == 10.0`.
 - [ ] **AC6: a terminal level is never withheld.** Take the 8-level spine
   with index 0 displaced by +18.0. That terminal's first-pass reading is
@@ -134,8 +134,11 @@ Why each is written:
 
 - **AC1** is the queue's headline claim, and it fails today (12.76 < 27.74).
 - **AC2** is the queue's "a single-outlier case reads as before".
-- **AC3 and AC4** pin the two helpers item 222 reads.
-- **AC5** pins the owner's cutoff, which item 222 reads.
+- **AC3** pins the withheld set, element 0 of `_withhold_outliers`' return,
+  which is the one thing item 222 reads (A6).
+- **AC5** is the only pin of the owner's chosen cutoff. A3 measured 8 and 10
+  identically on every probed case, so no behavioural test tells them apart.
+  Item 222 does not read the constant.
 - **AC6** pins the owner's interior-only decision (Q2). Without it, a
   terminal's extrapolation reading enters the set. Measured, that raises the
   VerSe19 interior p99 to about 17 mm (A4).
@@ -286,7 +289,10 @@ real change.
     at a repeated set. It measured the same or one pair fewer in every cell
     (opposite 10 levels 26, same-side 12 levels 35). A1's bounded rule was
     kept because it terminates within `n-2` add steps.
-- **A6 (pins the interface item 222 reads).** All three names live in
+- **A6 (the interface; item 222 reads one part of it).** Item 222 reads only
+  element 0 of `_withhold_outliers`' return, the withheld set. It never calls
+  `_held_out_records`, and it does not read `_OUTLIER_CUTOFF_MM` directly.
+  The other names below are this item's own structure. All of them live in
   `src/segfacet/features/spline_offset.py`.
   - **The public function.**
     `compute_leave_one_out_spline_offsets(centroids, spacing_mm=None, *, fit=None, backend=None) -> List[VertebralSplineOffset]`.
@@ -411,7 +417,7 @@ per AC. Spines are built with `segfacet.synth.clean_gt.build_clean_spine` and
 `compute_centroid`, exactly as the AC terms define. The item-120 computation
 is written out in the test from `fit_centroid_spline` and
 `compute_spline_offsets`. It never calls `_held_out_records`; otherwise AC2
-and AC4 would compare the helper with itself.
+would compare the helper with itself. AC4 is withdrawn and gets no test.
 
 Adversarial cases, each with the failure mode it guards, and no others:
 
@@ -509,8 +515,8 @@ None.
 **Downstream:**
 
 - Item 222 changes the same estimator for terminal vertebrae and lands after
-  this item. It reads `_held_out_records`, `_withhold_outliers` and
-  `_OUTLIER_CUTOFF_MM` as A6 pins them.
+  this item. It reads element 0 of `_withhold_outliers`' return (the
+  withheld set), as A6 states.
 - Stage 35's reference rebuild (queue 031) reads the estimator, so this
   queue goes first.
 
