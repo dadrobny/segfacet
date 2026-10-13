@@ -2024,7 +2024,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 - ✅ One inter-centroid-spacing rule for modes 2 and 6. *(Item 218)*
 - ✅ One check per failure mode for label order and label-set gaps. *(Item 219)*
 - ✅ A collapsed label set no longer passes silently. *(Item 220)*
-- 🚧 Held-out spline offset with every outlier withheld. *(Item 221)*
+- 🔍 Held-out spline offset with every outlier withheld. *(Item 221)*
 - 📋 Held-out spline offset at the ends of the sequence. *(Item 222)*
 - 📋 Path-aware rule-read attribution in the catalogue. *(Item 223)*
 - 📋 Platform-sensitive comparisons tolerant, determinism checks exact. *(Item 224)*
