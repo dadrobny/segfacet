@@ -50,8 +50,9 @@ measuring each level against a curve it did not shape:
    fit"), and identify the single most-deviant level under that fit -- the
    **dominant outlier**, chosen as the largest in-sample ``offset_mm``, ties
    broken by **ascending label**. Its held-out readings are the **first
-   pass**. (In-sample offsets cannot find outliers: the smoothing spline
-   absorbs displacements, so every in-sample offset stays small.)
+   pass**. (In-sample offsets are poor at finding outliers: in the probed synthetic
+   cases the smoothing spline absorbed displacements, so every in-sample
+   offset stayed small, at most 1.65 mm.)
 2. For each level in turn, refit through **the same chord-length
    parameterisation** (``u``) as the reference fit, but with that level's own
    weight and every withheld level's weight driven to a negligible constant.
