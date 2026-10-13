@@ -884,7 +884,7 @@ unchanged. Each edit carries a dated `# Item 219 (YYYY-MM-DD): ...` comment.
 ## Review findings
 
 - `sequence-break-expectation-matches-pipeline-for-both-targets`:
-  (blocking, fixed 2026-10-13): `SequenceBreakPerturbation(target_label=20)`
+  (minor, fixed 2026-10-13): `SequenceBreakPerturbation(target_label=20)`
   stated `mislabel`/{20, 28} while the pipeline fires only `sequence`/{28}
   there. Fix: the expectation is derived from whether the relabel leaves
   canonical order. Test: the default target still states and fires
