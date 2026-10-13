@@ -104,7 +104,7 @@ def test_ac3_mode_6_carries_no_edge():
 # =========================================================================== #
 
 
-def test_ac4_every_coverage_detector_serves_mode_10_alone():
+def test_ac4_coverage_detectors_serve_mode_10_or_declare_mode_less():
     import segfacet.failure_modes as fm
 
     # item 219 (2026-10-13): restated -- missing_interior serves (10,), and

@@ -12,13 +12,19 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 import segfacet.failure_modes as fm
 from segfacet.config import bundled_default_config
 from segfacet.feature_docs import STATUS_OVERRIDES
 from segfacet.features.centroids import LabelCentroid
 from segfacet.features.consistency import compute_monotonic_consistency
 from segfacet.heuristics import get_rule, run_rules
+from segfacet.io import FacetInputError
+from segfacet.pipeline import run_qc
+from segfacet.synth import build_clean_spine
 from segfacet.synth.corpus import load_manifest
+from segfacet.synth.identity_ordering_alignment import SequenceBreakPerturbation
 from segfacet.synth.intensity import load_intensity_manifest
 from segfacet.synth.regression import intensity_pipeline_findings, pipeline_findings
 
@@ -193,9 +199,57 @@ def test_unrelated_pair_does_not_silence_transitional():
     ]
 
 
-def test_pair_member_excluded_from_transitional():
+# item 219 (2026-10-13): parametrised over the transitional level's position in
+# the pair; it was only ever tested as the first element.
+@pytest.mark.parametrize("pair", [["T13", "L1"], ["L1", "T13"]], ids=str)
+def test_pair_member_excluded_from_transitional(pair):
     record = _levels_record(
         [("L1", 20), ("L2", 21), ("L3", 22), ("L4", 23), ("T13", 28)],
-        pairs=[["T13", "L1"]],
+        pairs=[pair],
     )
     assert list(get_rule("sequence").evaluate(record, _CFG)) == []
+
+
+# =========================================================================== #
+# Review-fix round (2026-10-13)
+# =========================================================================== #
+
+
+def _fired(labelmap) -> set:
+    case_result, _block = run_qc(labelmap, _CFG)
+    return {(f.rule_id, f.labels) for f in case_result.findings}
+
+
+# item 219 (2026-10-13): the expectation follows the pipeline for both targets.
+def test_sequence_break_expectation_matches_pipeline_for_both_targets():
+    seg = build_clean_spine().seg_img
+    default = SequenceBreakPerturbation().apply(seg, seed=0)
+    assert default.expectation.expected_rule_ids == frozenset({"mislabel"})
+    assert default.expectation.expected_labels == frozenset({20, 28})
+    assert ("mislabel", frozenset({20, 28})) in _fired(default.labelmap)
+
+    head = SequenceBreakPerturbation(target_label=20).apply(seg, seed=0)
+    assert head.expectation.expected_rule_ids == frozenset({"sequence"})
+    assert head.expectation.expected_labels == frozenset({28})
+    assert ("sequence", frozenset({28})) in _fired(head.labelmap)
+
+
+# item 219 (2026-10-13): a new_label with no canonical rank is an input error.
+def test_sequence_break_unranked_new_label_raises_facet_input_error():
+    with pytest.raises(FacetInputError):
+        SequenceBreakPerturbation(new_label=99).apply(
+            build_clean_spine().seg_img, seed=0
+        )
+
+
+# item 219 (2026-10-13): sequence tolerates a malformed pair read.
+@pytest.mark.parametrize("pairs", [[None], 5, ["T13"], [["T13", None]]], ids=repr)
+def test_sequence_tolerates_malformed_pairs(pairs):
+    record = _levels_record(
+        [("L1", 20), ("L2", 21), ("L3", 22), ("L4", 23), ("T13", 28)],
+        pairs=pairs,
+    )
+    findings = get_rule("sequence").evaluate(record, _CFG)
+    assert [(f.detector_id, f.labels) for f in findings] == [
+        ("transitional", frozenset({28}))
+    ]

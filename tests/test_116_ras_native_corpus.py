@@ -414,15 +414,6 @@ _ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace"})
 _ITEM_132_ADDED_MISLABEL_PAIR = ("mislabel", (21, 22))
 _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 
-#: Item 192 (2026-09-28): sequence's rewritten rule reads per_label centroids
-#: instead of relationships.out_of_order_labels[], adding a new finding to
-#: relabel_swap (swap, labels 21/22) and remove_level (skip, case-level).
-#: sequence_break's pair, ("sequence", (28,)), is unchanged against the
-#: aeb2f55 golden.
-#: Item 219 (2026-10-13): both entries dropped, the swap and skip detectors
-#: were retired.
-_ITEM_192_ADDED_SEQUENCE_PAIRS: dict = {}
-
 #: Item 219 (2026-10-13): sequence's shift detector was retired, so
 #: sequence_break no longer fires the ("sequence", (28,)) pair that the
 #: aeb2f55 golden carries. The pair is put back on the fresh side before
@@ -471,12 +462,12 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
 
     Except for ``displace`` and ``crop_at_border``, where item
     120 deliberately adds a ``mislabel`` finding on label 22 (AC18/AC23),
-    ``relabel_swap``, where item 132 deliberately adds a
-    ``mislabel`` finding on labels (21, 22), and ``relabel_swap`` /
-    ``remove_level``, where item 192 (2026-09-28) deliberately adds a
-    ``sequence`` finding: those added pairs are stripped
+    and ``relabel_swap``, where item 132 deliberately adds a
+    ``mislabel`` finding on labels (21, 22): those added pairs are stripped
     from the fresh side before comparing so the rest of each case's
-    rule/label identity is still pinned exactly. Item 212 (2026-10-05)
+    rule/label identity is still pinned exactly. Item 219 (2026-10-13)
+    puts back the ``sequence`` pair on ``sequence_break`` that the retired
+    shift detector no longer fires. Item 212 (2026-10-05)
     re-authors ``crop_at_border`` as an anterior volume crop, which adds
     ``border`` findings on labels (20,) and (21,). Item 218 (2026-10-13)
     adds ``remove_level``'s ``centroid_spacing`` finding on (21, 23)."""
@@ -498,13 +489,6 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
             "mislabel finding on labels (21, 22), but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != _ITEM_132_ADDED_MISLABEL_PAIR]
-    if case["case_id"] in _ITEM_192_ADDED_SEQUENCE_PAIRS:
-        added_pair = _ITEM_192_ADDED_SEQUENCE_PAIRS[case["case_id"]]
-        assert added_pair in fresh_pairs, (
-            f"case {case['case_id']!r}: expected item 192's deliberate "
-            f"sequence finding {added_pair!r}, but it did not fire"
-        )
-        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     for added_pair in _ITEM_198_ADDED_MISLABEL_PAIRS.get(case["case_id"], ()):
         assert added_pair in fresh_pairs, (
             f"case {case['case_id']!r}: expected item 198's deliberate "

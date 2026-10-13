@@ -1034,7 +1034,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # case.sequence.missing_levels[] leave, path_u joins.
         # item 219 (2026-10-13): 11 -> 10 -- non_monotonic_pairs[] leaves for
         # the bookkeeping bucket below (sequence now reads it as bookkeeping).
-        ("rule_mode_map", "rule_declaration"): 10,  # item 208 (2026-09-30): 11 -> 12
+        ("rule_mode_map", "rule_declaration"): 10,  # item 219 (2026-10-13): was 11
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
         # Item 220 (2026-10-13): 2 -> 3.
         # Item 218 (2026-10-13): 3 -> 4 -- case.sequence.missing_levels[] joins

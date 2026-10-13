@@ -698,7 +698,11 @@ def test_ac9_the_analytic_only_bounds_edges_are_needs_real_data_and_undemonstrat
 
 
 def test_ac10a_sequence_edge_is_needs_real_data_while_its_case_measurably_fires(measured):
-    """The divergence is a property of the **edge**, and it survives the
+    """item 219 (2026-10-13): the name is historical (it traces to AC10a);
+    ``sequence``'s edge was retired, and this now asserts mode 9's single
+    ``mislabel`` edge at ``synthetic-demonstrable`` and that its case fires.
+
+    The divergence was a property of the **edge**, and it survived the
     re-homing intact: ``sequence`` sits at ``needs-real-data`` although
     ``sequence_break`` demonstrably fires it, because a multi-relabel
     scramble is not expressible by the fixture generator.

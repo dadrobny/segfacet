@@ -496,7 +496,7 @@ def test_ac16_sequence_break_fires_continuity_finding_via_run_qc():
     assert matches
 
 
-def test_ac17_sequence_break_only_fired_rule_is_sequence_no_coverage():
+def test_ac17_sequence_break_only_fired_rule_is_mislabel_no_coverage():
     """AC17: the fired rules are exactly {"mislabel"} (item 219, 2026-10-13:
     was "sequence" and "mislabel", sequence's shift being retired) -- in
     particular no "coverage" finding (the surviving span stays canonically

@@ -881,6 +881,28 @@ unchanged. Each edit carries a dated `# Item 219 (YYYY-MM-DD): ...` comment.
   test_143 AC9 (test_098's constant) and test_131 AC19 (test_129's). They
   are listed under Asserts against and get no edit.
 
+## Review findings
+
+- `sequence-break-expectation-matches-pipeline-for-both-targets`:
+  (blocking, fixed 2026-10-13): `SequenceBreakPerturbation(target_label=20)`
+  stated `mislabel`/{20, 28} while the pipeline fires only `sequence`/{28}
+  there. Fix: the expectation is derived from whether the relabel leaves
+  canonical order. Test: the default target still states and fires
+  `mislabel`/{20, 28}; `target_label=20` states and fires `sequence`/{28}.
+- `sequence-break-unranked-new-label-raises-facet-input-error`:
+  (minor, fixed 2026-10-13): `new_label=99` (no canonical rank) escaped as a
+  bare `ValueError`. Fix: raise `FacetInputError`. Test: that call raises it.
+- `sequence-tolerates-malformed-pairs`: (minor, fixed 2026-10-13):
+  `sequence` raised on malformed `pairs.adjacent.non_monotonic_pairs`
+  entries. Fix: the pair read is guarded. Test: `[None]`, `5`, `['T13']` and
+  `[['T13', None]]` raise nothing and the T13 transitional finding fires.
+- `pair-member-excluded-from-transitional`: (weak test, 2026-10-13): the
+  case only put the transitional level first in the pair. Test now also
+  covers it second (`["L1", "T13"]`).
+- `transitional-fires-without-centroids`: (weak test, 2026-10-13):
+  test_192's no-centroid test used a T12+L1 record that can never fire
+  `transitional`. Re-targeted to a T13 record with no centroids that fires.
+
 ## Validation
 
 Replay the two mode-9 cases and the mode-6 case through the CLI.
