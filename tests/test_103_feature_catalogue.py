@@ -689,7 +689,10 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     signal_paths = {
         e.path
         for e in full_catalogue.entries
-        if set(e.consuming_rules) == {rule_id}
+        # item 220 (2026-10-13): collapsed_labels also consumes centroid_mm[] as
+        # signal, so a path shared with it still counts as this rule's.
+        if rule_id in e.consuming_rules
+        and set(e.consuming_rules) <= {rule_id, "collapsed_labels"}
         and dict(e.mode_roles).get(rule_id) == "signal"
     }
     assert signal_paths, f"expected at least one signal-classified entry consumed only by {rule_id!r}"
@@ -699,6 +702,10 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     for path in sorted(signal_paths):
         entry = _entry(full_catalogue, path)
         expected = set(modes) | declared | anchor_modes_by_path.get(path, set())
+        # item 220 (2026-10-13): add collapsed_labels' declared modes where it
+        # consumes the entry as signal too.
+        if dict(entry.mode_roles).get("collapsed_labels") == "signal":
+            expected |= set(rule_declarations["collapsed_labels"].modes)
         assert set(entry.failure_modes) == expected, (entry.path, entry.failure_modes)
         # The corpus map's own contribution, which is what AC13 is about.
         assert set(modes).issubset(set(entry.failure_modes)), entry.path

@@ -180,6 +180,16 @@ def test_ac1_catalogue_paths_are_exactly_the_tables_stored_paths():
     assert catalogue
     stored = {new for _, new, change, _ in rows if change in ("kept", "moved")}
     stored.add("case.sequence.order[]")
+    # item 220 (2026-10-13): the five stage3_unavailable.* leaves are stored paths no mapping row covers.
+    stored.update(
+        {
+            "stage3_unavailable.reason",
+            "stage3_unavailable.detail",
+            "stage3_unavailable.levels[]",
+            "stage3_unavailable.labels[]",
+            "stage3_unavailable.coordinate_mm[]",
+        }
+    )
     assert catalogue == stored
 
 

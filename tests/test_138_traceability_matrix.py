@@ -1020,8 +1020,10 @@ def test_ac10_mode_to_rule_direction_complete_and_every_mode_has_a_rule(matrix):
     # loses its only rule (``reference_delta`` becomes mode-less) and joins
     # the rule-less set, still authored ``specified`` (not ``proposed`` --
     # the corpus/definition/discriminator sign-off at item 150 stands).
-    assert proposed_mode_ids == {"5", "7", "12", "13", "14"}
-    assert no_rule_mode_ids == {"5", "6", "7", "8", "12", "13", "14"}
+    # item 220 (2026-10-13): mode 13 gains the collapsed_labels edge, so "13"
+    # leaves both sets.
+    assert proposed_mode_ids == {"5", "7", "12", "14"}
+    assert no_rule_mode_ids == {"5", "6", "7", "8", "12", "14"}
 
 
 # =========================================================================== #
@@ -1457,6 +1459,7 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
         (10, "coverage"),
         (10, "sequence"),
         (11, "sequence"),
+        (13, "collapsed_labels"),  # item 220 (2026-10-13): no corpus case designates it
         (15, "overlap"),
     }
     assert actual_analytic == witness

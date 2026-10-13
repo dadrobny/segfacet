@@ -432,8 +432,9 @@ def test_adv_monkeypatch_undo_restores_the_baseline_exactly(monkeypatch):
     assert catalogue_module.rule_declaration_conflicts() == baseline
 
 
+# item 220 (2026-10-13): the exemplar proposed mode is re-pointed from 13 to 14.
 def test_adv_stub_rule_declaring_a_proposed_mode_is_reported(isolated_registry):
-    """A stub rule registered under ``isolated_registry`` declares mode 14  # item 220 (2026-10-13): re-pointed from 13
+    """A stub rule registered under ``isolated_registry`` declares mode 14
     (a ``proposed`` mode, per AC13, with no ``IntendedRule`` edge for any
     rule) -- the new direction must name the stub and the mode."""
 

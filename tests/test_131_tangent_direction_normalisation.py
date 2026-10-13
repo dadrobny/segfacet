@@ -705,7 +705,7 @@ _PRE_ITEM_STAGE3_CURVATURE_LEAF_PATHS = (
 # overlaps[].name_a and .name_b, stage3.spacing_consistency.spacings_mm[]),
 # every other 216 row moves or stays 1:1, and case.sequence.order[] (a stored
 # field with no table row, the note's Deviation 11) joins (+1).
-_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 154
+_PRE_ITEM_TOTAL_LEAF_PATH_COUNT = 159  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
 
 
 def test_ac16_catalogue_leaf_path_set_unchanged():

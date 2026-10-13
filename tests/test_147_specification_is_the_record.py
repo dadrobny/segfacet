@@ -492,7 +492,8 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     # transitional detector now gives it an intended-rule edge.
     # Item 193 (2026-09-28): mode 8 joins this edgeless set -- reference_delta,
     # its only rule, becomes mode-less (no mode's own detector).
-    assert {mode.id for mode in edgeless} == {5, 6, 7, 8, 12, 13, 14}, [
+    # item 220 (2026-10-13): mode 13 gains the collapsed_labels edge.
+    assert {mode.id for mode in edgeless} == {5, 6, 7, 8, 12, 14}, [
         mode.id for mode in edgeless
     ]
 
@@ -1245,7 +1246,7 @@ _EXPECTED_DERIVED_STATUS = {
     10: "implemented",   # item 188 (2026-09-28): coverage's new home, still no case
     11: "implemented",   # item 192 (2026-09-28): sequence's new home, still no case
     12: "proposed",
-    13: "proposed",
+    13: "implemented",   # item 220 (2026-10-13): collapsed_labels' edge
     14: "proposed",
     15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",

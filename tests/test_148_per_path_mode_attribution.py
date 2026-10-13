@@ -875,6 +875,9 @@ _AC16_CASES = (
     # so the overlap-rule row is now driven by a hand-built record instead
     # of a corpus case key.
     ("planted_overlap", "overlap", ("overlap",)),
+    # Item 220 (2026-10-13): no corpus case expresses mode 13 (item 220 AC7),
+    # so collapsed_labels is driven by a planted record too.
+    ("planted_collapsed", "collapsed", ("collapsed_labels",)),
     ("clean_hu", "intensity", ("bounds", "reference_delta", "intensity_reference_delta")),
     ("implausible_metal", "intensity", ("intensity",)),
     # Item 187 (2026-09-28): neighbour_contact fires on the split case alone.
@@ -915,6 +918,17 @@ def _overlap_reconstructed_record():
     }
 
 
+def _collapsed_labels_record():
+    """A hand-built record of two labels whose centroids coincide (item 220,
+    2026-10-13): ``run_rules`` yields one ``collapsed_labels`` finding."""
+    return {
+        "per_label": {
+            "21": {"label": 21, "level_name": "L1", "centroid": {"centroid_mm": [9.5, 9.5, 19.5]}},
+            "22": {"label": 22, "level_name": "L2", "centroid": {"centroid_mm": [9.5, 9.5, 19.5]}},
+        },
+    }
+
+
 def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference):
     from segfacet.heuristics.runner import run_rules
     from segfacet.synth.regression import intensity_pipeline_findings, pipeline_findings
@@ -930,6 +944,8 @@ def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference
         # there is no corpus case behind it any more.
         record = _overlap_reconstructed_record()
         return list(run_rules(record, config))
+    if kind == "collapsed":
+        return list(run_rules(_collapsed_labels_record(), config))
     raise AssertionError(kind)  # pragma: no cover -- closed vocabulary above
 
 
@@ -1135,7 +1151,7 @@ def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_c
     # report-only reference_delta rows catalogued).
     cat = shipped_catalogue
     # Item 216 (2026-10-06): 156 -> 154 (-3 merged rows, +1 case.sequence.order[]).
-    assert len(cat.entries) == 154
+    assert len(cat.entries) == 159  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}

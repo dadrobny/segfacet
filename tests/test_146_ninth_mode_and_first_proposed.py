@@ -70,7 +70,7 @@ entry, AC32-AC36 artifacts and the record):
 - AC27: test_ac27_mode13_present_as_unimplemented_entry,
         test_ac27_collapsed_or_duplicated_pair_is_split_into_two_proposed_entries
 - AC28: test_ac28_mode13_status_and_rung_are_derived_not_authored
-- AC29: test_ac29_mode13_empty_sections_render_as_none,
+- AC29: test_ac29_mode14_empty_sections_render_as_none,
         test_ac29_probe_mode_with_empty_candidate_features_renders_none,
         test_ac29_no_heading_immediately_followed_by_blank_then_heading
 - AC30: test_ac30_proposed_entry_acquiring_a_declaring_rule_is_reported
@@ -1113,7 +1113,7 @@ def test_ac28_mode13_status_and_rung_are_derived_not_authored():
 # =========================================================================== #
 
 
-def test_ac29_mode13_empty_sections_render_as_none():
+def test_ac29_mode14_empty_sections_render_as_none():
     import segfacet.failure_modes as fm
 
     md = fm.render_markdown()
@@ -1228,7 +1228,9 @@ def test_ac31_specified_entry_deriving_further_is_not_reported():
     # six remaining proposed ids are 5, 7, 11, 12, 13, 14.
     # Reconciled (item 192, 2026-09-28): mode 11 left the `proposed` set and
     # joined `specified` (sequence's `transitional` detector declares it, now
-    # `implemented`); the five remaining proposed ids are 5, 7, 12, 13, 14.
+    # `implemented`); the five remaining proposed ids were 5, 7, 12, 13, 14.
+    # Item 220 (2026-10-13): mode 13 left the `proposed` set (collapsed_labels
+    # declares it, now `implemented`); the four remaining are 5, 7, 12, 14.
     assert specified_ids == [1, 2, 3, 4, 6, 8, 9, 10, 11, 13, 15, 16], specified_ids  # item 220 (2026-10-13): 13 joins
 
     for mode_id in specified_ids:
@@ -1601,7 +1603,7 @@ def test_adv_render_markdown_twice_equal():
     assert fm.render_markdown() == fm.render_markdown()
 
 
-def test_adv_specification_to_dict_twice_equal_and_mode13_lists_not_shared():
+def test_adv_specification_to_dict_twice_equal_and_mode14_lists_not_shared():
     import segfacet.failure_modes as fm
 
     first = fm.specification_to_dict()

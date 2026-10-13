@@ -983,7 +983,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
+    assert len(entries) == 159  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
 
     # The two analytic rules' own declared modes ...
     # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
@@ -1014,21 +1014,24 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # pairs.adjacent.spacings_mm[] leaves for the fused_label consumer,
         # -1; pairs.adjacent.mean_spacing_mm leaves for the fused_label gate
         # it is declared bookkeeping for, -1; case.sequence.order[] joins, +1).
-        (): 102,
+        # Item 220 (2026-10-13): 102 -> 104.
+        (): 104,
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
         # item 215 (2026-10-06): 10 -> 8; item 216 (2026-10-06): 8 -> 7
         # (overlaps[].name_a and .name_b merge onto per_label.{label}.level_name,
         # -2; pairs.adjacent.mean_spacing_mm joins from the empty bucket, +1).
-        ("rule_bookkeeping",): 7,
+        # Item 220 (2026-10-13): 7 -> 9.
+        ("rule_bookkeeping",): 9,
         # Item 193 (2026-09-28): entries consumed only by reference_delta
         # empty into rule_mode_less buckets below.
         ("rule_mode_less", "rule_condition_signal"): 7,
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
         ("rule_mode_map", "rule_declaration"): 12,  # item 208 (2026-09-30): 11 -> 12
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
-        ("rule_declaration",): 2,
+        # Item 220 (2026-10-13): 2 -> 3.
+        ("rule_declaration",): 3,
         # Item 195 (2026-09-28): 3 -> 2 -- overlaps[].overlap_voxels lost
         # its rule_mode_map source (the "overlap" key of _RULE_MODE_MAP,
         # which force_overlap alone scanned to, is gone).
@@ -1068,7 +1071,7 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 154  # item 216 (2026-10-06): 156 -> 154
+    assert sum(distribution.values()) == 159  # item 220 (2026-10-13): 154 -> 159
 
 
 # =========================================================================== #
