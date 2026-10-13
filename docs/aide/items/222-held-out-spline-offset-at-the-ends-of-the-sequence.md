@@ -146,6 +146,9 @@ The criteria:
   `run_qc(<its labelmap>, bundled_default_config())` gives a findings list
   that contains a finding with `rule_id == "spline_offset"` and
   `labels == frozenset({24})`.
+  - *Correction 2026-10-13:* `run_qc` returns `(CaseResult, features_block)`.
+    "The findings list" is `run_qc(...)[0].findings`. The same applies to
+    AC12, AC13 and `cranial-terminal-flagged`.
 - [ ] **AC12: `sequence_break` fires `spline_offset` on T13.** `run_qc` over
   the committed `sequence_break` fixture, loaded the way
   `tests/test_041_regression_suite.py` loads it, under
@@ -250,6 +253,35 @@ re-measures on the real change.
   On VerSe19 and the corpus, the probe's approximate set gives the same
   sets item 221 records (`{2}` on `displace`, `{T10}` on verse406). So A2–A4
   are expected to hold within re-measurement.
+
+  **Re-check 2026-10-13 (item 221 merged; checked at `063bf22f` on
+  `aide/queue-030`): agrees.** Read against the real
+  `src/segfacet/features/spline_offset.py`:
+  - `_withhold_outliers(centroids, first_pass, reference_fit, spacing_mm, backend) -> Tuple[FrozenSet[int], List[VertebralSplineOffset]]`
+    is as pinned. Its candidates are `range(1, n - 1)`, so the set is
+    interior-only. It returns `(frozenset(), first_pass)` when nothing
+    survives.
+  - In that empty case the returned records are the first pass, in which
+    the in-sample dominant is still down-weighted. The neighbour rule reads
+    element 0 only (A6), so such a level is an eligible neighbour. That is
+    what A6 says, and nothing here changes it.
+  - `_held_out_records(centroids, withheld, reference_fit, spacing_mm, backend)`
+    and `_OUTLIER_CUTOFF_MM = 10.0` are as pinned. Item 221 withdrew its own
+    AC4, which had pinned `_held_out_records` for this item. AC5 here never
+    calls it, so nothing moves.
+  - `compute_leave_one_out_spline_offsets` keeps its signature. At
+    `n >= _MIN_LEVELS_FOR_HELD_OUT` (5) it returns
+    `_withhold_outliers(centroids, first, reference_fit, spacing_mm, backend)[1]`.
+  - The two sets this spec relies on, measured on a prototype of this item
+    over the real 221 code: the two-opposite case gives `{2, 5}` (AC2), and
+    the `every-interior-withheld` case gives `{1, 2, 3}` (Testing Strategy).
+  - **One constraint this re-check adds.** Item 221's
+    `test_add_step_bounded` counts `_held_out_records` calls made by
+    `_withhold_outliers`. Its `test_emptied_set_returns_first_pass` compares
+    `_withhold_outliers`'s own records with the item-120 computation. So the
+    terminal reading is set in `compute_leave_one_out_spline_offsets`,
+    **after** `_withhold_outliers` returns (step 1 as written), never inside
+    `_withhold_outliers` or `_held_out_records`.
 - **A2 (measured: why this method).** The probe re-ran four candidates on
   the 80 VerSe19 GT masks:
   - **The cohort.** Centroids are taken in `anatomical_order`, as the
@@ -279,6 +311,13 @@ re-measures on the real change.
     the record states it.
   - **Not judged.** The five subjects with fewer than five levels have no
     terminal reading.
+
+  **Re-check 2026-10-13: not re-measured.** The spec-time probe on the real
+  item-221 code did not read VerSe19. A3 still stands on the approximate
+  withheld set, so the Validation replay is its measurement. Item 221
+  records only `sub-verse406_split-verse261`'s set as changed (`{T10}`). A
+  terminal reading there moves only if T10 is one of a terminal's two
+  nearest levels, which this re-check did not look up.
 - **A4 (measured: the corpus under the chosen method).** Clean terminal
   readings: `clean_control` 5.05 / 8.51 mm. `displace` reads 7.58 / 11.15,
   because the displaced L3 is skipped as withheld; with it as a neighbour
@@ -298,6 +337,28 @@ re-measures on the real change.
     14.466 mm with no face touched: 1.47 mm over the threshold, close to
     `displace`'s own 1.62 mm margin. Its held-out `offset_mm` reads
     0.262 mm.
+
+  **Re-check 2026-10-13: agrees.** Re-measured on a prototype of this item
+  over the real item-221 withholding, at `063bf22f`. Every figure above
+  holds to the precision given:
+  - `clean_control` 5.047 / 8.513;
+  - `displace` 7.581 / 11.153, with `spline_offset` firing on label 22 only;
+  - `relabel_swap` 5.047 / 11.153;
+  - `sequence_break` T13 (label 28) 33.835;
+  - `split_own_label` L5 (label 24) 17.275;
+  - `crop_at_border` L1 3.253, `crop_fov_si` L5 9.856;
+  - AC11's case 14.466, with held-out `offset_mm` 0.262.
+
+  Three readings A4 did not state:
+  - `sequence_break`'s other terminal is L4 (label 23), at 5.110.
+  - `split_own_label` has six levels (T12–L5), and its cranial terminal T12
+    (label 19) reads 5.047.
+  - `cranial-terminal-flagged`'s L1 reads 14.000, with held-out `offset_mm`
+    0.319.
+
+  The four four-level cases carry no reading. Across the 14 geometric
+  corpus cases, `spline_offset` fires on exactly three: `displace` {22},
+  `sequence_break` {28} and `split_own_label` {24}.
 - **A5 (decided: absent, not null, on a label not judged).** The key is
   present exactly where a terminal was judged, matching how `curve` blocks
   already omit what was not computed. The schema property is
@@ -319,6 +380,9 @@ re-measures on the real change.
     every record's field is `None`. The floor matches
     `_MIN_LEVELS_FOR_HELD_OUT` and leaves the four-level cases unjudged
     (A4).
+
+  **Re-check 2026-10-13: agrees.** `_MIN_LEVELS_FOR_HELD_OUT` is still 5,
+  and `W` is element 0 of the merged `_withhold_outliers` (A1's re-check).
 - **A7: no human gate and no environment-gated capability.**
   - `gate-fac1` (the interior 13.0 mm) is untouched and stays ⏳.
   - VerSe19 is read only by the Validation replay, under the existing
@@ -416,6 +480,13 @@ re-measures on the real change.
    - If the specification tests require the two cases to be listed under
      `displaced_vertebra`'s corpus cases, add them, and record that in
      Decisions.
+   - *Correction 2026-10-13 (spec-time probe):* `expected_firing` tuples are
+     kept ascending
+     (`tests/test_145_eight_hypothesised_modes.py::test_adv_all_expected_firing_tuples_are_ascending`).
+     So `split_own_label` reads `("bounds", "spline_offset", "split_fragment")`,
+     not with `spline_offset` appended. `sequence_break` reads
+     `("mislabel", "spline_offset")`. The probe found no specification test
+     that needs either case under `displaced_vertebra`.
 8. **Regenerate, each twice into scratch and byte-compared, then onto the
    committed copy:**
    - `.venv/bin/python -m segfacet.catalogue`
@@ -474,6 +545,11 @@ generators are reused.
 - `tests/test_174_split_sub_types.py` — `split_own_label`'s measured firing (reconcile).
 - `tests/test_186_expected_level_sequence.py` — `split_own_label`'s measured firing (reconcile).
 - `tests/test_220_collapsed_labels_rule.py` — item 220's corpus-wide firing check, if it pins `sequence_break`'s or `split_own_label`'s set (reconcile; Dependencies).
+- `tests/corpus/119_pre_119_digests.json` — added 2026-10-13: the catalogue leaf-path-set digest that test_119 AC27, test_120's catalogue test and test_123 AC49 read (reconcile).
+- `tests/test_131_tangent_direction_normalisation.py` — added 2026-10-13: `_PRE_ITEM_TOTAL_LEAF_PATH_COUNT` (reconcile).
+- `tests/test_148_per_path_mode_attribution.py` — added 2026-10-13: the catalogue entry count in AC19 (reconcile).
+- `tests/test_216_neighbour_pair_and_case_level_migration.py` — added 2026-10-13: AC1's stored-path set gains the new path (reconcile).
+- `tests/test_138_traceability_matrix.py` — added 2026-10-13: mode 9's co-detecting rule set in the AC31 adversarial test (reconcile).
 
 **Asserts against:**
 
@@ -590,6 +666,84 @@ lower bound: a spec-time grep lists each failure once, at its first assert
   Name them by function at claim time. Item 221's AC numbering may have
   moved in a parallel amendment.
 
+**Re-check 2026-10-13: the fence, measured.** A prototype of steps 1–5, 7
+and 8 ran in a throwaway `git worktree` of `063bf22f`, with `segfacet.__file__`
+resolving into it. The full `tests/` suite gave 36 failed / 8083 passed /
+73 skipped. After the reconciliations below it gave 8119 passed / 73
+skipped. The skips are VerSe19, Docker, CuPy, PyRadiomics and the SPINEPS
+fixture, none of them this item's. The worktree carried `.git`, so the
+git-gated test_116 AC7 ran. The prototype regenerated exactly the eight
+`docs/aide/*.generated.*` files under May change, and nothing else.
+
+Corrections to the list above:
+
+- **test_039.** AC17 was renamed by item 219. It is
+  `test_ac17_sequence_break_only_fired_rule_is_mislabel_no_coverage`, and
+  its set becomes `{"mislabel", "spline_offset"}`. The `displace` branch
+  turns red for both seeded tests, as predicted.
+- **The count literals moved with item 220.** The base reads 159, not 154,
+  so each moves 159 → 160:
+  - `test_124` (line 566);
+  - `test_132` (line 737);
+  - `test_136` (line 886);
+  - `test_137`, at lines 986 and 1088 (not 1071). Both are in
+    `test_adv_measured_artifact_movement_counts_from_spec`.
+
+  `test_103` moves 95 → 96.
+- **test_132's `_PRE_ITEM_OBSERVED_SUMMARY`.** `"varies"` moves 86 → 87; the
+  new path's verdict is `varies`.
+- **test_137's bucket.** The new path's `mode_evidence` is
+  `("rule_mode_less", "rule_condition_signal")`, so that bucket moves 7 → 8.
+  test_136's `stayed_empty` stays 104.
+- **test_126 AC22.** Measured: `m` is 96 on the ten cases of five or more
+  levels and 95 on the four four-level cases. `n` stays 30.
+- **test_221.** The three tests are `test_ac2_single_outlier_reads_as_before`
+  (line 84), `test_ac6_terminal_level_is_never_withheld` (line 101) and
+  `test_emptied_set_returns_first_pass` (line 134 only).
+  - Line 135 compares `_withhold_outliers`'s own records. They carry no
+    terminal reading, so it stays green (A1's re-check).
+  - Every other test in the module stays green, `test_add_step_bounded`
+    and `test_withheld_set_is_interior_indices` included. This item changes
+    no withholding, and the terminal pin those two hold is about
+    withholding, not judging.
+- **test_102, test_131 AC19, test_132 AC25 and test_143 AC9** turn red
+  only through the shared constants:
+  - test_102 and test_143 AC9 read test_098's
+    `_PRE_098_GOLDEN_VERDICT_AND_FINDINGS`;
+  - test_131 AC19 and test_132 AC25 read test_129's `_PRE_129_FINDINGS`.
+
+  Reconciling those two constants turns all four green unedited. So
+  test_102 needs no edit, and the test_098 / test_129 entries above stand.
+  test_098's new finding reason, from step 3's wording, reads
+  `"Vertebra misaligned from spinal curve: label 28 (T13) centroid lies 33.8 mm off the spinal curve extrapolated from its two nearest neighbours (terminal vertebra) (threshold 13.0 mm)."`,
+  placed after the `mislabel` finding.
+- **Five reds outside the original fence**, each now under May change:
+  - **`tests/corpus/119_pre_119_digests.json`.** It turns
+    `test_119_curve_formulation.py::test_ac27_catalogue_leaf_path_set_unchanged_from_pre_119`,
+    `test_120_leave_one_out_offset.py::test_ac12_catalogue_leaf_path_set_unchanged_from_pre_119`
+    and
+    `test_123_recalibrate_and_regenerate.py::test_ac49_pre_119_digest_matches_the_live_catalogue_leaf_path_set`
+    red. The fix is the digest alone, which item 220 also moved:
+    `catalogue_leaf_path_set_sha256` becomes
+    `59f9e7d844f48128ab054b09b0aef967178eb9e06eb3f55e2cceede6e66b592a`.
+    It is a hash of the leaf-path set, so any build adding exactly this one
+    path reproduces it. test_119 and test_123 stay unedited.
+  - **`test_131::test_ac16_catalogue_leaf_path_set_unchanged`.**
+    `_PRE_ITEM_TOTAL_LEAF_PATH_COUNT` moves 159 → 160.
+  - **`test_148::test_ac19_realised_universe_unchanged_and_item104_reports_no_drift`.**
+    `len(cat.entries)` moves 159 → 160.
+  - **`test_216::test_ac1_catalogue_paths_are_exactly_the_tables_stored_paths`.**
+    `stored` gains `per_label.{label}.curve.terminal_offset_mm`, a stored
+    path no mapping row covers.
+  - **`test_138::test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable`.**
+    Mode 9's `co_detecting_rules` becomes `{"mislabel", "spline_offset"}`.
+    The test's premise still holds: `spline_offset` does not read mode 9's
+    anchor `relationships.is_continuous`, so a co-detecting rule still
+    cannot rescue the bogus claim.
+- **No red in `tests/test_220_collapsed_labels_rule.py`.** Its bullet under
+  May change is kept, but the probe needed no edit there.
+- **Not run by the probe:** the VerSe19-gated tests (Validation).
+
 Checked and expected to stay green unedited:
 
 - **`test_123`:** AC16 (tokens kept), AC35–AC42 (no `terminal_offset_mm`
@@ -637,6 +791,26 @@ Checked and expected to stay green unedited:
    Where the cohort is absent, record **❓ Unverified (VerSe19 absent)**
    against steps 1–2 in Decisions & Trade-offs, rather than a pass. Step 3's
    record cannot then be written from a measurement, so **hand back**.
+
+4. **Added 2026-10-13: the VerSe19-gated tests the spec-time probe skipped.**
+   With the cohort mounted, run
+   `tests/test_125_stage28_validation.py::test_ac11_scoliotic_cases_mislabel_flagging_is_measured_and_recorded`.
+   It is a `run_qc` pass over 17 subjects, not a rebuild.
+   - It asserts that every subject on which `spline_offset` fires has a max
+     **`offset_mm`** above 13.0. A subject flagged only on
+     `terminal_offset_mm` could break that.
+   - Step 2's false-positive count of 0 means no such subject exists. A red
+     here is the same hand-back as a non-zero count, never a test edit.
+
+   The other VerSe-gated tests pin no `spline_offset` firing set:
+   - test_088 resolves the cohort without running the rules;
+   - test_118 AC6 reproduces the curve-formulation script's own
+     measurements;
+   - test_125 AC10 counts selected subjects;
+   - test_084 AC5 and test_091 AC12 assert only that a measured rate is
+     well-formed and self-consistent.
+
+   No reference rebuild is needed: the reference is out of scope.
 
 ## Dependencies
 
