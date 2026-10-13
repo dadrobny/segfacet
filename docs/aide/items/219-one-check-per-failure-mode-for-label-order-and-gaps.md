@@ -979,3 +979,23 @@ Implemented 2026-10-13 on `aide/219-one-check-per-failure-mode`.
 - **Left open:** the `case.curve.is_monotonic` override keeps status
   `retune` beside a note that now reads "Done". The status is the
   maintainer's signed text, and the owner's line asked only for the note.
+- **2026-10-13 (review fix): `SequenceBreakPerturbation`'s expectation follows
+  what the pipeline fires.** `mislabel`/`{new_label, next level}` holds only
+  when the relabel moves the level out of canonical order (the target's index
+  among the present labels differs from `new_label`'s index in the canonical
+  order). When the relabel keeps its position (e.g. `target_label=20`, the
+  head, relabelled to T13) `non_monotonic_pairs` is empty and only
+  `sequence`/`transitional` fires on `{new_label}`, so the expectation is
+  `sequence`/`{new_label}` as before the item, not a construction error: such a
+  target is a valid, if weaker, break. The default target (28) is out of order,
+  so corpus output is unchanged.
+- **2026-10-13 (review fix): a `new_label` outside `DEFAULT_LABEL_MAP` is
+  rejected with `FacetInputError`.** It has no canonical rank, so the item's
+  `order.index` raised a bare `ValueError`; and the pipeline treats such a label
+  inconsistently (probe: `mislabel` on a pair naming it), so no honest
+  expectation exists to fall back to. Failing clearly at `apply` beats a
+  guessed expectation. No test or caller passed such a label.
+- **2026-10-13 (review fix): `sequence` guards `non_monotonic_pairs` as
+  `mislabel` does.** A non-list value, a non-pair entry, or a non-string member
+  is skipped silently (the retired rule tolerated malformed records, test_030
+  AC9), so a bare string no longer contributes its characters as level names.

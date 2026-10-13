@@ -233,8 +233,13 @@ class SequenceRule(Rule):
             adjacent.get("non_monotonic_pairs") if isinstance(adjacent, dict) else None
         )
         ordering_names = set()
-        for pair in raw_pairs or ():
-            ordering_names.update(pair)
+        for pair in raw_pairs if isinstance(raw_pairs, list) else ():
+            if (
+                isinstance(pair, (list, tuple))
+                and len(pair) == 2
+                and all(isinstance(n, str) for n in pair)
+            ):
+                ordering_names.update(pair)
 
         present_names = [name for _, name in entries]
         transitional_names = self._transitional_names(present_names, ordering_names)
