@@ -420,7 +420,7 @@ Candidate features:
 - `hypothesised` candidate path: `stage3_unavailable.reason`
 - `hypothesised` candidate path: `pairs.adjacent.spacings_mm[]`
 
-Mechanism: collapsed_labels (item 220, 2026-10-13) judges every pair of labels, not only anatomical neighbours. Its coincident_centroids detector fires once on the pair stage3_unavailable.reason names (the exact-coincidence case, where Stage 3 is absent); its near_coincident_centroids detector fires on every other pair whose per_label.{label}.centroid.centroid_mm[] lie within max_centroid_distance_mm, default 2.0 mm. The tolerance is absolute, because the collapsed pair's own spacing is the one that shrinks and a short record has no robust reference spacing; the closest legitimate pair measured is 11.082 mm (VerSe19 GT). No committed corpus case expresses the mode, so the edge is needs-real-data.
+Mechanism: collapsed_labels (item 220, 2026-10-13) judges every pair of labels, not only anatomical neighbours. Its coincident_centroids detector fires once, on the pair stage3_unavailable.labels[] names, and quotes stage3_unavailable.reason and stage3_unavailable.detail in its reason (the exact-coincidence case, where Stage 3 is absent); its near_coincident_centroids detector fires on every other pair whose per_label.{label}.centroid.centroid_mm[] lie within max_centroid_distance_mm, default 2.0 mm. The tolerance is absolute, because the collapsed pair's own spacing is the one that shrinks and a short record has no robust reference spacing; the closest legitimate pair measured is 11.082 mm (VerSe19 GT). No committed corpus case expresses the mode, so the edge is needs-real-data.
 
 Intended rules:
 
