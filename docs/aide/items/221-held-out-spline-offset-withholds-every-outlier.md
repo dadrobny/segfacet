@@ -257,6 +257,14 @@ real change.
     `displace` gets `W = {2}`, which is today's dominant. So no golden, no
     expected set and no threshold margin in `heuristics/spline_offset.py`'s
     docstring moves.
+  - **Correction (2026-10-13, re-checked at `79ae4964` after items 218, 219
+    and 220 merged into `aide/queue-030`).** `tests/corpus/manifest.json`
+    holds **14** cases, not 15, and held 14 at `f60e512` too. Items 218 and
+    219 changed the synth generators, so the claim was re-measured with a
+    prototype of A1 in a throwaway worktree: every one of the 14 cases'
+    whole `pipeline.extract_feature_record` output is identical to the
+    shipped code's. `displace` label 22 still reads 14.615923 mm and its
+    neighbour label 21 6.918745 mm (A3). The conclusion stands.
 - **A5 (measured: what each method fixes).** The sweep displaced every pair
   of interior levels, ±15 mm on axis 0, on clean thoracic spines of 6, 8, 10
   and 12 levels (`build_clean_spine`, `curve_amplitude_mm=6.0`). A pair
@@ -475,6 +483,28 @@ Checked and expected to stay green unedited:
   tokens are kept (step 5).
 - **`test_130`**: fit counts on a clean spine.
 - **`test_072`**: CPU-fallback text.
+
+**Re-check (2026-10-13, at `79ae4964`, after items 218, 219 and 220 merged
+into `aide/queue-030`).** None of the three touched
+`src/segfacet/features/spline_offset.py`. A1 plus Implementation step 6
+(the group note, then the catalogue regenerated) was prototyped in a
+throwaway `git worktree`, since removed, and the whole `tests/` suite was
+run against it: 8180 collected, 8106 passed, 73 skipped, 1 failed. The one
+failure is `test_adv_two_opposite_displacements_both_separate`, at
+`1.3855 > 14.9609`, so the fence above is complete as written. Every
+figure in the Acceptance Criteria, A3, A5's worked example and the
+adversarial cases above re-measured the same: 27.74, 19.36 and 12.76 mm
+today; 14.99 and 14.96 against at most 2.65 mm after; AC6's 19.40 mm; the
+11.39 and 0.80 mm of `emptied-set-returns-first-pass`; the cutoff-6, 10 and
+13 sets `{1, 5, 6}`, `{5}` and empty; `{1, 2, 3}` on five levels. AC7's `P`
+recomputes to `12.90577608928562` at T10, count 37. Two limits on this
+probe. The VerSe19-gated tests in `test_084`, `086`, `087`, `088`, `091`,
+`118`, `123` and `125` skip when `SEGFACET_VERSE_COHORT` is unset, which
+is how the suite runs by default, so they were not compared; Validation
+steps 1–2 measure VerSe19 directly. And regenerating the catalogue changes
+only `docs/aide/feature_catalogue.generated.json`, one `intro` string:
+the `.md` rendering does not carry group notes, so its **May change**
+entry will normally stay unused.
 
 ## Validation
 
