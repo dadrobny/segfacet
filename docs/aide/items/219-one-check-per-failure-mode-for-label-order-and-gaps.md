@@ -303,6 +303,22 @@ change.
 - **A10: no human gate and no environment-gated capability.** No mode
   sign-off covers modes 9, 10 or 11 (`MODE_SIGN_OFFS` holds 2, 3 and 4), so
   nothing is re-signed.
+- **A11 (measured: the progress count clauses this item moves).**
+  `tests/test_151_stage30_validation.py` AC35 and
+  `tests/test_169_stage32_validation.py` AC6/AC7 compare the last count
+  clauses in `progress.md`'s Stage 30 and Stage 20 sections with the live
+  derivation. test_151 AC12 pins `total_edges == 15`.
+  - This item alone removes two `needs-real-data` edges: mode 9's
+    `sequence` edge and mode 10's `sequence` edge.
+  - Before this item, at `2a1491d`, there were 15 edges at 7 / 7 / 1
+    (item 220's A9). This item alone moves that to 13 edges, with
+    needs-real-data 5.
+  - No mode's derived status or rung moves. Mode 9 keeps `mislabel`'s
+    `synthetic-demonstrable` edge, mode 10 keeps `coverage`'s
+    `needs-real-data` edge, and mode 11 keeps `sequence`'s.
+  - Siblings 218 and 220 move these counts too, so step 10 re-measures live
+    and writes whatever the tree holds. The test_151 AC12 literal is
+    reconciled to the live count.
 
 ## Implementation Steps
 
@@ -347,8 +363,12 @@ change.
        the tokens `CANONICAL_ORDER` and `T13`, which
        `tests/test_138_traceability_matrix.py` checks, and records that the
        z-sort detectors were retired by item 219 and why (A2).
-     - Both corpus cases' `expected_firing` becomes `("mislabel",)`. Their
-       reasons are re-measured and dated 2026-10-12, item 219.
+     - In each corpus case's `expected_firing` (`relabel_swap`,
+       `sequence_break`), **drop `"sequence"`** and leave every other member
+       as it stands. Do not replace the tuple with `("mislabel",)`: item 222
+       adds `spline_offset` to `sequence_break`'s set as a co-detection, and
+       a replacement would erase it if 222 lands first. Re-measure the
+       reasons and date them 2026-10-12, item 219.
    - `_MODE_10`:
      - The `coverage` edge's `detector_ids` becomes `("missing_interior",)`.
      - Drop the `sequence` edge.
@@ -365,7 +385,10 @@ change.
      as live. Add one item-219 paragraph.
 5. **`src/segfacet/synth/identity_ordering_alignment.py`**, in
    `SequenceBreakPerturbation` only:
-   - `expected_rule_ids=frozenset({"mislabel"})`.
+   - `expected_rule_ids=frozenset({"mislabel"})`. This is the designated
+     rule, so it is replaced outright. Item 222's `spline_offset` is a
+     co-detection in `failure_modes.py`, not a designated rule, and is not
+     added here.
    - `expected_labels` is `{new_label, n}`, where `n` is the label right
      after `new_label` in
      `segfacet.labels.anatomical_order({l: DEFAULT_LABEL_MAP[l] for l in <labels after the relabel>})`
@@ -392,9 +415,26 @@ change.
    - `-m segfacet.catalogue`
    - `-m segfacet.rule_table`
    - `-m segfacet.golden_evidence`, which may be byte-identical.
+   - `.venv/bin/python -m segfacet.synth.corpus_sheet`, after the manifest:
+     `docs/aide/corpus_sheet.png` renders each case's expected rules, and
+     test_178 AC7 checks its digest against the manifest and fixtures.
 9. **Reconcile the existing tests** listed under Testing Strategy. Add a
    dated `# Item 219 (2026-10-12): ...` line beside each changed value.
-10. Run `python .aide/scripts/aide.py scope 219` and
+10. **Amend the count clauses** (A11) with
+    `python .aide/scripts/aide.py progress amend`, in item 220's step-9
+    format. Re-measure all three clauses live first, and amend each one
+    whose last recorded value differs from the tree:
+    - `amend 30 --criterion 1`: derived status counts over 16 modes, plus
+      the validated split;
+    - `amend 30 --criterion 3`: derived mode rung counts, plus per-edge rung
+      counts over N edges;
+    - `amend 20 --criterion 5`: derived status counts and derived mode rung
+      counts.
+
+    Each `--evidence` starts `Item 219 (<date>): mode 9 loses sequence's
+    swap/shift edge and mode 10 its skip edge, both needs-real-data.
+    Re-measured live:`.
+11. Run `python .aide/scripts/aide.py scope 219` and
     `python .aide/scripts/aide.py check`. Neither may report an error.
 
 No dependency is added. Every helper is already in the tree:
@@ -421,6 +461,8 @@ No dependency is added. Every helper is already in the tree:
 - `docs/aide/feature_catalogue.generated.md` — rendering of the same.
 - `docs/aide/rules.generated.md` — regenerated (step 8).
 - `docs/aide/golden_evidence.generated.json` — regenerated if it moves (step 8).
+- `docs/aide/corpus_sheet.png` — regenerated after the manifest; it renders each case's expected rules (step 8).
+- `tests/test_151_stage30_validation.py` — reconcile AC12's `total_edges` literal to the live count (A11).
 - `tests/test_219_one_check_per_mode.py` — **new**: this item's test module.
 - `tests/test_030_sequence_continuity.py` — reconcile (swap/shift/skip assertions).
 - `tests/test_035_failure_modes.py` — reconcile (the mode-7 seed record fired `sequence`'s swap).
@@ -451,6 +493,7 @@ No dependency is added. Every helper is already in the tree:
 - `tests/test_191_condition_gate.py` — must stay green unedited: the condition's opt-ins match the registry.
 - `tests/test_202_rule_table.py` — must stay green unedited once step 8 regenerates `rules.generated.md`.
 - `tests/test_104_feature_catalogue_drift.py` — must stay green unedited once step 8 regenerates the catalogue.
+- `tests/test_178_corpus_sheet.py` — must stay green unedited: AC7 checks the regenerated sheet's digest against the manifest and fixtures.
 - `tests/test_210_label_free_monotonic_reference.py` — must stay green unedited: `ordering` and `non_monotonic_pairs[]` keep their meaning (A5), and AC8 reuses its `ARC`.
 
 ## Testing Strategy
@@ -564,6 +607,9 @@ gets the same treatment, or a hand-back.
   `_overlap_reconstructed_record`, from the
   `unrelated-pair-does-not-silence-transitional` record. Without it, AC16's
   every-rule-is-driven check loses `sequence`.
+- **`test_151`** AC12: `total_edges` moves to the live count, which is 13
+  for this item alone (A11), with a dated comment in the house style. AC35
+  needs no edit once step 10 has amended the clauses.
 - **`test_149`** AC9: mode 9's read path becomes
   `pairs.adjacent.non_monotonic_pairs[]`.
 - **`test_188`**:
