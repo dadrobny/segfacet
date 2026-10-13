@@ -386,6 +386,47 @@ The ACs:
    collapsed_labels' needs-real-data edge and derives implemented.
    Re-measured live:`.
 
+**Correction to step 4's `mechanism` (2026-10-13, review finding, minor).**
+The shipped mechanism says `coincident_centroids` "fires once on the pair
+stage3_unavailable.reason names". That is wrong:
+
+- the pair is named by `stage3_unavailable.labels[]`;
+- `reason` is only the literal `coincident_centroids`, which the finding's
+  reason quotes.
+
+The clause is reworded in `src/segfacet/failure_modes.py`, and the four
+`failure_modes` / `traceability_matrix` generated files are regenerated.
+Each of those paths is already authorised.
+
+**The constraint is `tests/test_138_traceability_matrix.py` AC31 check
+(1).** Every record path the mechanism names, matched as a verbatim
+substring, must be one of `collapsed_labels`' consumed paths:
+
+- `per_label`
+- `per_label.{label}.centroid.centroid_mm[]`
+- `per_label.{label}.level_name`
+- `stage3_unavailable.detail`
+- `stage3_unavailable.labels[]`
+- `stage3_unavailable.reason`
+
+Naming `stage3_unavailable.labels[]` is therefore allowed. The mechanism
+must still not name:
+
+- `pairs.adjacent.spacings_mm[]`;
+- `stage3_unavailable.levels[]`;
+- `stage3_unavailable.coordinate_mm[]`.
+
+No rule consumes the last two.
+
+**The allowed wording for the clause:**
+
+> its coincident_centroids detector fires once, on the pair
+> stage3_unavailable.labels[] names, and quotes stage3_unavailable.reason
+> and stage3_unavailable.detail in its reason (the exact-coincidence case,
+> where Stage 3 is absent)
+
+The rest of the mechanism stands.
+
 ## Authorised paths
 
 **May change:**
@@ -433,6 +474,32 @@ they are.
 Each edit carries a dated item-220 comment. No test is retired, skipped,
 `xfail`-marked or loosened. A red test in a file not listed here is a
 hand-back to spec-author.
+
+**Correction (2026-10-13, validation round 1).** The round-1 suite run went
+red on 14 tests outside the list above. Every one is a pin this item
+legitimately moves, and none is a behaviour regression in `src/`. Each
+failure traces to one of three facts the item creates:
+
+1. The catalogue gains the five `stage3_unavailable.*` leaves (154 → 159).
+2. Mode 13 leaves the proposed and edgeless sets. It gains one
+   `needs-real-data` edge and derives `implemented`.
+3. `per_label.{label}.centroid.centroid_mm[]` gains `collapsed_labels` as a
+   second signal consumer.
+
+The original list above stands. The bullets below widen it. Each edit falls
+under the same fence: a moved literal, a re-pointed exemplar, or a row added
+in an existing table's own shape. Each carries a dated item-220 comment, and
+none retires, skips, `xfail`s or loosens a test. Further pins in test_137,
+test_138 and test_148, which are already listed, are named in Testing
+Strategy's round-1 correction. So are the test_103 reconciliation and why it
+keeps equality exact.
+
+- `tests/corpus/119_pre_119_digests.json` — `catalogue_leaf_path_set_sha256` moves to the live leaf-path digest (round 1 measured `82f9a70d90cc64e86c40976c0ed61b26fce3a13157da3d47c393872f88164f21`); the one fixture behind test_119 AC27, test_120 AC12 and test_123 AC49, which are not edited; items 167, 187, 215 and 216 bumped it the same way; a JSON test pin, not a corpus fixture.
+- `tests/test_131_tangent_direction_normalisation.py` — `_PRE_ITEM_TOTAL_LEAF_PATH_COUNT` 154 → 159 (AC16).
+- `tests/test_216_neighbour_pair_and_case_level_migration.py` — AC1's `stored` set gains the five `stage3_unavailable.*` paths, which items 215 and 216 never migrated and the mapping table has no row for; the precedent is `case.sequence.order[]`, added in the same place. `docs/feature-taxonomy.md` is not edited.
+- `tests/test_103_feature_catalogue.py` — AC13's effect test, `sequence` parametrisation (Testing Strategy, round-1 correction).
+- `tests/test_147_specification_is_the_record.py` — AC26's `_EXPECTED_DERIVED_STATUS[13]` `"proposed"` → `"implemented"`; AC8's edgeless-mode set drops 13, to `{5, 6, 7, 8, 12, 14}`.
+- `tests/test_149_conformance_report.py` — `_DEGENERATE_MODES` drops 13, as it dropped 10 (item 188) and 11 (item 192); this removes the `[13]` case of both AC7 tests.
 
 **Asserts against:**
 
@@ -498,6 +565,46 @@ pins:
 
 The sweep is a lower bound: it lists each pin once, at its first sight, so
 the fence above governs the rest.
+
+**Correction (2026-10-13, validation round 1): further pins to reconcile.**
+Authorised paths names the files. The edits that need more than a line:
+
+- **test_103, `test_ac13_rule_mode_map_effect_on_failure_modes[sequence]`.**
+  - **Why it fails:** the test matches each rule against the signal
+    entries that rule consumes *alone*. `sequence`'s only such entry was
+    `centroid_mm[]`, and `collapsed_labels` now consumes it as signal too.
+    The match set is therefore empty, and the precondition fails.
+  - **The change:** widen the match set to the signal entries whose
+    `consuming_rules` contain the rule and are a subset of
+    `{rule_id, "collapsed_labels"}`. Where `collapsed_labels` consumes such
+    an entry as signal, add its declared modes to the exact `expected` set.
+  - **Equality stays exact.** For `sequence` the expected set is
+    `{9, 10, 11, 13}`, which is the entry's live `failure_modes`.
+  - **Measured on the committed catalogue, 2026-10-13:** the widening adds
+    `centroid_mm[]` to `sequence`'s match set and changes no other
+    parametrisation's set.
+- **test_137, `test_adv_measured_artifact_movement_counts_from_spec`.**
+  - `len(entries)` moves 154 → 159.
+  - Every `mode_evidence` bucket that the five new entries and
+    `centroid_mm[]`'s new consumer move is updated. The new counts are read
+    live off the regenerated catalogue and recorded in the docstring's
+    "Re-measured (item NNN)" style.
+  - `mode1_count`, `mode2_count` and `mode16_count` are expected to stay.
+- **test_138.**
+  - AC10's literal `proposed_mode_ids == {"5", "7", "12", "13", "14"}`
+    drops `"13"`.
+  - AC20's analytic-edge `witness` gains `(13, "collapsed_labels")`. The
+    edge is analytic because no corpus case designates it.
+- **test_148.**
+  - AC19's `len(cat.entries) == 154` moves to 159.
+  - AC16's `_AC16_CASES` gains one row driving `collapsed_labels`. AC7 rules
+    out a corpus case, so the row is a planted record run through
+    `run_rules`, in the shape of item 195's `planted_overlap` row and its
+    `_overlap_reconstructed_record`.
+  - The record may be a hand-built one carrying `stage3_unavailable` and the
+    two labels' `per_label` entries. It may instead be
+    `extract_feature_record` of the item-129 coincident map.
+  - The row expects `("collapsed_labels",)`.
 
 ## Validation
 
