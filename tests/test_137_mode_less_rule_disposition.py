@@ -1032,7 +1032,9 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
         # Item 218 (2026-10-13): 12 -> 11 -- spacings_mm[] and
         # case.sequence.missing_levels[] leave, path_u joins.
-        ("rule_mode_map", "rule_declaration"): 11,  # item 208 (2026-09-30): 11 -> 12
+        # item 219 (2026-10-13): 11 -> 10 -- non_monotonic_pairs[] leaves for
+        # the bookkeeping bucket below (sequence now reads it as bookkeeping).
+        ("rule_mode_map", "rule_declaration"): 10,  # item 208 (2026-09-30): 11 -> 12
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
         # Item 220 (2026-10-13): 2 -> 3.
         # Item 218 (2026-10-13): 3 -> 4 -- case.sequence.missing_levels[] joins
@@ -1066,10 +1068,14 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # Item 192 (2026-09-28): new -- per_label.{label}.level_name, read by
         # sequence (mode-declaring, signal) and also as bookkeeping by a
         # mode-less rule.
-        ("rule_mode_map", "rule_declaration", "rule_mode_less", "rule_bookkeeping"): 1,
+        # item 219 (2026-10-13): 1 -> 0 (removed from the table) -- sequence no
+        # longer designates a failure case, so level_name loses its
+        # rule_mode_map source and moves to the bucket below.
+        ("rule_declaration", "rule_mode_less", "rule_bookkeeping"): 1,
         # Item 187 (2026-09-28): new -- component_contacts[].neighbour_label,
         # bookkeeping for neighbour_contact but still corpus-mapped.
-        ("rule_mode_map", "rule_declaration", "rule_bookkeeping"): 1,
+        # item 219 (2026-10-13): 1 -> 2 -- non_monotonic_pairs[] joins.
+        ("rule_mode_map", "rule_declaration", "rule_bookkeeping"): 2,
     }
     # The table is exhaustive: no bucket may appear that it does not name.
     assert set(distribution) == set(expected), sorted(set(distribution) ^ set(expected))

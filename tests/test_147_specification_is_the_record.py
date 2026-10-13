@@ -653,26 +653,9 @@ def _sequence_record(levels):
     }
 
 
-def test_ac11_sequence_rule_caps_nothing():
-    """Item 192 (2026-09-28): 'one descent' and 'two descents' are now
-    expressed as per_label-centroid orderings rather than
-    out_of_order_labels[] lists. Measured: one swap on frozenset({19, 20})
-    for the one-descent record, and one swap on frozenset({19, 20, 22, 23}),
-    reason 'Non-continuous label sequence: swap of L1, T12, L4, L3.', for the
-    two-descent record -- every offender still lands in one finding."""
-    from segfacet.config import default_config
-    from segfacet.heuristics.sequence import SequenceRule
-
-    rule = SequenceRule()
-    config = default_config()
-
-    one_descent = rule.evaluate(_sequence_record(["L1", "T12", "L2"]), config)
-    assert len(one_descent) == 1, one_descent
-
-    two_descent = rule.evaluate(
-        _sequence_record(["L1", "T12", "L2", "L4", "L3", "L5"]), config
-    )
-    assert len(two_descent) == 1, two_descent
+# item 219 (2026-10-13): test_ac11_sequence_rule_caps_nothing retired -- its
+# subject, one swap finding folding every offender, is gone with the swap
+# detector.
 
 
 # =========================================================================== #

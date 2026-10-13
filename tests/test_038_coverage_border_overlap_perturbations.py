@@ -210,13 +210,14 @@ def test_ac5_remove_level_only_fired_rule_is_coverage_and_case_level():
     findings = _findings(result.labelmap)
     assert findings
     for f in findings:
-        assert f.rule_id in {"centroid_spacing", "coverage", "sequence"}
+        # item 219 (2026-10-13): "sequence" dropped, its skip detector was retired.
+        assert f.rule_id in {"centroid_spacing", "coverage"}
         if f.rule_id == "centroid_spacing":
             assert f.detector_id == "missing_level"
             assert f.labels == frozenset({21, 23})
         else:
             assert f.labels == frozenset()
-    assert {f.rule_id for f in findings} == {"centroid_spacing", "coverage", "sequence"}
+    assert {f.rule_id for f in findings} == {"centroid_spacing", "coverage"}
 
 
 def test_ac6_remove_level_expectation_well_formed_and_pipeline_agrees():

@@ -1,8 +1,11 @@
 """Incomplete-coverage / missing-level rule (item 029).
 
-Implements a **coverage rule family** targeting failure mode 10 (skipped
-level label) in ``failure_modes.SPECIFICATION`` — every vertebra is
-segmented but the labels skip a level. Item 188 (2026-09-28) re-homed the
+Implements a **coverage rule family** whose ``missing_interior`` detector
+alone serves failure mode 10 (skipped level label) in
+``failure_modes.SPECIFICATION`` — every vertebra is segmented but the labels
+skip a level. Since item 219 (2026-10-12) the two opt-in detectors
+(``incomplete_span``, ``count_shortfall``) are mode-less curation checks, and
+``sequence``'s retired ``skip`` no longer reports the same gap. Item 188 (2026-09-28) re-homed the
 rule off mode 6 (vertebra not segmented): the rule reads
 ``case.sequence.missing_levels[]``/``case.sequence.present_levels[]``, lists
 of *labels*, so it can see a missing label in the sequence but not whether
@@ -160,7 +163,9 @@ class CoverageRule(Rule):
             "validation of mode 10: no committed case expresses mode 10 "
             "itself (item 188, 2026-09-28). The two opt-in checks (expected "
             "span, expected count) over case.sequence.present_levels[] "
-            "moved with the rule and serve the same mode, needs-real-data.",
+            "are mode-less (item 219, 2026-10-12): curation checks against a "
+            "configured expectation, each with a detector-level "
+            "mode_less_reason.",
         ),
         consumed_paths=(
             ConsumedPath(
@@ -211,6 +216,11 @@ class CoverageRule(Rule):
                 ),
                 params=(("expected_count", None),),
                 signal_paths=("case.sequence.present_levels[]",),
+                mode_less_reason=(
+                    "opt-in curation check against a configured minimum "
+                    "level count (expected_count); off by default and judges "
+                    "the dataset's coverage, not a label-map failure mode"
+                ),
             ),
             RuleDetector(
                 detector_id="incomplete_span",
@@ -227,6 +237,12 @@ class CoverageRule(Rule):
                 ),
                 params=(("expected_levels", ()), ("border_aware", DEFAULT_BORDER_AWARE)),
                 signal_paths=("case.sequence.present_levels[]",),
+                mode_less_reason=(
+                    "opt-in curation check against configured expected "
+                    "levels beyond the present span; off by default and "
+                    "judges field-of-view coverage, not a label-map failure "
+                    "mode"
+                ),
             ),
             RuleDetector(
                 detector_id="missing_interior",

@@ -118,7 +118,7 @@ _CORROBORATED = {
     "overlap": (15,),
     # Item 192 (2026-09-28): sequence's skip and transitional detectors serve
     # modes 10 and 11 respectively, alongside swap/shift on mode 9.
-    "sequence": (9, 10, 11),
+    "sequence": (11,),  # item 219 (2026-10-13): was (9, 10, 11)
 }
 _CONTESTED = ("bounds", "intensity", "reference_delta", "intensity_reference_delta")
 

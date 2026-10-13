@@ -294,13 +294,14 @@
       },
       "case_id": "sequence_break",
       "condition": "",
-      "detail": "sequence_break: relabelled 24 to 28 (a transitional label whose canonical rank diverges from its integer value), producing a genuine non-continuous label sequence caught directly by run_qc's sequence rule.",
+      "detail": "sequence_break: relabelled 24 to 28 (a transitional label whose canonical rank diverges from its integer value), producing a genuine non-continuous label sequence caught directly by run_qc's mislabel rule (ordering detector, item 219).",
       "detection": "pipeline",
       "expected_labels": [
+        20,
         28
       ],
       "expected_rule_ids": [
-        "sequence"
+        "mislabel"
       ],
       "expected_verdict": "flagged-for-review",
       "failure_mode": 9,

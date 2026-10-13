@@ -554,7 +554,9 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.geometry.touches_posterior", "border"),
         # Item 192 (2026-09-28): sequence reads per_label centroids, not
         # case.sequence.out_of_order_labels[].
-        ("per_label.{label}.centroid.centroid_mm[]", "sequence"),
+        # item 219 (2026-10-13): re-pointed from "sequence" (it no longer
+        # reads centroids) to centroid_spacing, which does.
+        ("per_label.{label}.centroid.centroid_mm[]", "centroid_spacing"),
         ("case.sequence.missing_levels[]", "coverage"),
         # Item 189 (2026-09-28): the offset detector moved to spline_offset.
         ("per_label.{label}.curve.offset_mm", "spline_offset"),
@@ -623,7 +625,8 @@ _RULE_MODE_MAP = {
     "fragmentation": (1, 2, 4),  # fragment (1), fuse_separate (2), islands (4)
     # Item 218 (2026-10-13): "coverage": (6,) dropped -- remove_level now
     # designates centroid_spacing, so no failure case designates coverage.
-    "sequence": (9,),  # sequence_break
+    # item 219 (2026-10-13): "sequence": (9,) dropped -- no failure case
+    # designates sequence any more (sequence_break designates mislabel).
     # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the
     # only case that scanned to "overlap") was removed.
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
@@ -696,9 +699,18 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
         # signal, so a path shared with it still counts as this rule's.
         # item 218 (2026-10-13): so does centroid_spacing, which makes it the
         # third consumer of centroid_mm[] beside sequence and collapsed_labels.
+        # item 219 (2026-10-13): restated -- an entry this rule classifies
+        # "signal" and every other consuming rule classifies "bookkeeping"
+        # (sequence reads non_monotonic_pairs[] as bookkeeping, which adds no
+        # mode), bar the two signal consumers named above.
         if rule_id in e.consuming_rules
-        and set(e.consuming_rules) <= {rule_id, "collapsed_labels", "centroid_spacing"}
         and dict(e.mode_roles).get(rule_id) == "signal"
+        and all(
+            r == rule_id
+            or r in {"collapsed_labels", "centroid_spacing"}
+            or dict(e.mode_roles).get(r) == "bookkeeping"
+            for r in e.consuming_rules
+        )
     }
     assert signal_paths, f"expected at least one signal-classified entry consumed only by {rule_id!r}"
     if not signal_paths - set(anchor_modes_by_path):

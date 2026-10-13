@@ -1265,13 +1265,14 @@ def test_ac17_label_sequence_mode_mechanism_records_the_corrected_rank_claim(mat
     for token in ("CANONICAL_ORDER", "T13"):
         assert token in record["mechanism"], (token, record["mechanism"])
 
-    # The cap itself, on the one edge that still carries it.
+    # item 219 (2026-10-13): the needs-real-data cap sat on sequence's swap
+    # and shift edge, which was retired; mode 9 keeps mislabel's
+    # synthetic-demonstrable edge alone, so the cap assertions are dropped.
     edge_rungs = {
         edge.rule_id: edge.evidence_rung
         for edge in failure_modes_module.SPECIFICATION[9].intended_rules
     }
-    assert edge_rungs["sequence"] == "needs-real-data", edge_rungs
-    assert "needs-real-data" in record["mechanism"], record["mechanism"]
+    assert edge_rungs == {"mislabel": "synthetic-demonstrable"}, edge_rungs
 
 
 # =========================================================================== #
@@ -1460,7 +1461,7 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
         (2, "bounds"),
         (4, "bounds"),
         (10, "coverage"),
-        (10, "sequence"),
+        # item 219 (2026-10-13): (10, "sequence") leaves, skip was retired.
         (11, "sequence"),
         (13, "collapsed_labels"),  # item 220 (2026-10-13): no corpus case designates it
         (15, "overlap"),
@@ -1498,7 +1499,10 @@ def test_ac20_analytic_edges_equal_edges_the_specification_never_designates_corp
     # 2026-09-28, item 194: bounds no longer declares mode 1 at all -- it is
     # corpus-attributed for mode 3 (split_own_label) and analytic for modes
     # 2 and 4.
-    assert mixed == {"bounds", "sequence"}, by_rule
+    # item 219 (2026-10-13): sequence no longer has a corpus-attributed mode 9
+    # edge, so it is analytic alone (mode 11); {"bounds", "sequence"} ->
+    # {"bounds"}.
+    assert mixed == {"bounds"}, by_rule
 
 
 def test_adv_ac20_mistagged_corpus_evidence_changes_no_attribution(matrix_bounds_mistagged_evidence):
@@ -2107,7 +2111,7 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
     rule (``reference_delta`` becomes mode-less) and joins
     ``RULELESS_SPECIFIED_MODES``, so it no longer fits "a mode with a
     declared rule that just doesn't consume its anchor". Mode 9's declared
-    rules are ``mislabel`` and ``sequence``; its anchor
+    rules are ``mislabel`` alone (item 219, 2026-10-13: ``sequence`` left); its anchor
     (``relationships.is_continuous``) is consumed by neither -- and, since
     check (1) also permits a co-detecting rule's paths, is consumed by none
     of mode 9's co-detecting rules (every rule id in its corpus cases'
@@ -2120,14 +2124,14 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
     mode = _ANCHOR_NOT_CONSUMED_MODE
     before = _mode_record(matrix, mode)
     declared_rules = set(before["rules"])
-    assert declared_rules == {"mislabel", "sequence"}, declared_rules
+    assert declared_rules == {"mislabel"}, declared_rules  # item 219 (2026-10-13)
 
     co_detecting_rules = {
         rule_id
         for case in failure_modes_module.SPECIFICATION[mode].corpus_cases
         for rule_id in case.expected_firing
     }
-    assert co_detecting_rules == {"mislabel", "sequence"}, co_detecting_rules
+    assert co_detecting_rules == {"mislabel"}, co_detecting_rules  # item 219 (2026-10-13)
 
     assert before["anchor_paths"], mode
     bogus_path = before["anchor_paths"][0]

@@ -248,7 +248,7 @@ def test_ac11_offending_label_drift_is_caught():
     case = _case("sequence_break")
     assert case["failure_mode"] != 0
     drifted = copy.deepcopy(case)
-    assert drifted["expected_labels"] == [28]
+    assert drifted["expected_labels"] == [20, 28]  # item 219 (2026-10-13): was [28]
     drifted["expected_labels"] = [999]
 
     assert offending_labels_match(drifted) is False

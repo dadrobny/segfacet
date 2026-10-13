@@ -2408,16 +2408,12 @@
           ],
           "consuming_rules": [
             "centroid_spacing",
-            "collapsed_labels",
-            "sequence"
+            "collapsed_labels"
           ],
           "documented": true,
           "failure_modes": [
             2,
             6,
-            9,
-            10,
-            11,
             13
           ],
           "measures": "Physical-space centroid.",
@@ -2432,10 +2428,6 @@
             ],
             [
               "collapsed_labels",
-              "signal"
-            ],
-            [
-              "sequence",
               "signal"
             ]
           ],
@@ -2489,14 +2481,6 @@
             ],
             [
               "collapsed_labels",
-              "static"
-            ],
-            [
-              "sequence",
-              "observed"
-            ],
-            [
-              "sequence",
               "static"
             ]
           ],
@@ -2691,13 +2675,10 @@
           ],
           "documented": true,
           "failure_modes": [
-            9,
-            10,
             11
           ],
           "measures": "Anatomical vertebra name, e.g. \"T8\", \"L3\".",
           "mode_evidence": [
-            "rule_mode_map",
             "rule_declaration",
             "rule_mode_less",
             "rule_bookkeeping"
@@ -5014,7 +4995,8 @@
           "computation": "Consecutive (level_a, level_b) pairs, taken in CANONICAL_ORDER order (item 198), where u[i] >= u[i+1] on the label-free traversal path through the centroids (item 210); equal u values count as a violation too.",
           "consumers": [],
           "consuming_rules": [
-            "mislabel"
+            "mislabel",
+            "sequence"
           ],
           "documented": true,
           "failure_modes": [
@@ -5023,12 +5005,17 @@
           "measures": "Level-name pairs whose position along the label-free path does not advance.",
           "mode_evidence": [
             "rule_mode_map",
-            "rule_declaration"
+            "rule_declaration",
+            "rule_bookkeeping"
           ],
           "mode_roles": [
             [
               "mislabel",
               "signal"
+            ],
+            [
+              "sequence",
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -5072,6 +5059,14 @@
             ],
             [
               "mislabel",
+              "static"
+            ],
+            [
+              "sequence",
+              "observed"
+            ],
+            [
+              "sequence",
               "static"
             ]
           ],

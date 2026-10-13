@@ -47,6 +47,10 @@ Design decisions (recorded per item 033 spec):
   (the pipeline hands ``compute_monotonic_consistency`` the centroids in
   anatomical order), so a correctly placed T13 or ``Cocc`` no longer reads
   as out of order.
+- Item 219 (2026-10-12): mode 9 is this rule's alone. ``sequence``'s z-sorted
+  ``swap``/``shift`` detectors, which read the same failure from
+  ``centroid_mm[2]``, were retired: they fired on correctly labelled curved and
+  reclined spines where this path-based check reads nothing.
 """
 
 from __future__ import annotations
@@ -157,7 +161,8 @@ class MislabelRule(Rule):
         modes=(9,),
         evidence=(
             "corpus-manifest",
-            "tests/corpus/manifest.json's relabel_swap designates "
+            "tests/corpus/manifest.json's relabel_swap and sequence_break "
+            "(item 219, 2026-10-12) designate "
             "this rule for mode 9 (out-of-order label sequence) of the "
             "catalogue signed off at item 150 (2026-09-14, revised "
             "2026-09-15) via Detector B (ordering). Item 189 (2026-09-28) "

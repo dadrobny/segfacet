@@ -941,13 +941,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "centroids does not advance)."
                 ),
             },
-            {
-                "rule_id": "sequence",
-                "detector_id": "swap",
-                "severity": "flagged-for-review",
-                "labels": [21, 22],
-                "reason": "Non-continuous label sequence: swap of L3, L2.",
-            },
+            # item 219 (2026-10-13): sequence's swap finding dropped (the
+            # detector was retired).
         ],
     },
     # 2026-09-28 (item 192): sequence's skip detector now also fires on this
@@ -979,13 +974,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "observed present-level span."
                 ),
             },
-            {
-                "rule_id": "sequence",
-                "detector_id": "skip",
-                "severity": "flagged-for-review",
-                "labels": [],
-                "reason": "Skipped level label: L3 absent between present levels.",
-            },
+            # item 219 (2026-10-13): sequence's skip finding dropped (the
+            # detector was retired).
         ],
     },
     "crop_at_border": {
@@ -1054,13 +1044,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "does not advance)."
                 ),
             },
-            {
-                "rule_id": "sequence",
-                "detector_id": "shift",
-                "severity": "flagged-for-review",
-                "labels": [28],
-                "reason": "Non-continuous label sequence: shift of T13.",
-            }
+            # item 219 (2026-10-13): sequence's shift finding dropped (the
+            # detector was retired).
         ],
     },
     # "force_overlap" key dropped by item 195, 2026-09-28.

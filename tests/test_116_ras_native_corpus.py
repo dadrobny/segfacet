@@ -419,9 +419,16 @@ _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 #: relabel_swap (swap, labels 21/22) and remove_level (skip, case-level).
 #: sequence_break's pair, ("sequence", (28,)), is unchanged against the
 #: aeb2f55 golden.
-_ITEM_192_ADDED_SEQUENCE_PAIRS = {
-    "relabel_swap": ("sequence", (21, 22)),
-    "remove_level": ("sequence", ()),
+#: Item 219 (2026-10-13): both entries dropped, the swap and skip detectors
+#: were retired.
+_ITEM_192_ADDED_SEQUENCE_PAIRS: dict = {}
+
+#: Item 219 (2026-10-13): sequence's shift detector was retired, so
+#: sequence_break no longer fires the ("sequence", (28,)) pair that the
+#: aeb2f55 golden carries. The pair is put back on the fresh side before
+#: comparing, so the rest of the case's identity is still pinned exactly.
+_ITEM_219_REMOVED_SEQUENCE_PAIRS = {
+    "sequence_break": (("sequence", (28,)),),
 }
 
 #: Item 198 (2026-09-29): mislabel's ordering detector judges the pairs in
@@ -517,6 +524,10 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
             f"centroid_spacing finding {added_pair!r}, but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    # item 219 (2026-10-13): re-add the retired sequence pair the golden has.
+    fresh_pairs = sorted(
+        fresh_pairs + list(_ITEM_219_REMOVED_SEQUENCE_PAIRS.get(case["case_id"], ()))
+    )
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (
         f"case {case['case_id']!r}: designated rule/labels changed relative "
         "to the pre-migration reference golden (aeb2f55)"

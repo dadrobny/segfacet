@@ -869,7 +869,10 @@ _AC16_CASES = (
     ("relabel_swap", "geo", ("mislabel",)),
     ("fragment", "geo", ("fragmentation",)),
     ("remove_level", "geo", ("coverage",)),
-    ("sequence_break", "geo", ("sequence",)),
+    # Item 219 (2026-10-13): sequence_break drives mislabel now (sequence's
+    # shift detector was retired), and sequence is driven by a planted record.
+    ("sequence_break", "geo", ("mislabel",)),
+    ("planted_sequence", "sequence", ("sequence",)),
     # Item 195 (2026-09-28): force_overlap (and its corpus case) was
     # removed -- a single-channel label map cannot express an overlap --
     # so the overlap-rule row is now driven by a hand-built record instead
@@ -919,6 +922,20 @@ def _overlap_reconstructed_record():
     }
 
 
+def _sequence_record():
+    """A hand-built record driving the sequence rule (item 219, 2026-10-13):
+    T10, T11, L1, L2, L3 (labels 17, 18, 20, 21, 22) with an unrelated
+    non-monotonic pair. ``run_rules`` yields exactly one ``transitional``
+    finding, on label 18."""
+    names = {17: "T10", 18: "T11", 20: "L1", 21: "L2", 22: "L3"}
+    return {
+        "per_label": {
+            str(k): {"label": k, "level_name": v} for k, v in names.items()
+        },
+        "pairs": {"adjacent": {"non_monotonic_pairs": [["L2", "L3"]]}},
+    }
+
+
 def _collapsed_labels_record():
     """A hand-built record of two labels whose centroids coincide (item 220,
     2026-10-13): ``run_rules`` yields one ``collapsed_labels`` finding."""
@@ -947,6 +964,8 @@ def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference
         return list(run_rules(record, config))
     if kind == "collapsed":
         return list(run_rules(_collapsed_labels_record(), config))
+    if kind == "sequence":
+        return list(run_rules(_sequence_record(), config))
     raise AssertionError(kind)  # pragma: no cover -- closed vocabulary above
 
 

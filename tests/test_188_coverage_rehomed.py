@@ -76,7 +76,9 @@ def test_ac2_mode_10_carries_the_coverage_edge_at_needs_real_data():
     assert edges == [
         fm.IntendedRule(
             rule_id="coverage",
-            detector_ids=_coverage_detector_ids(),
+            # item 219 (2026-10-13): missing_interior alone; the two opt-in
+            # detectors are mode-less.
+            detector_ids=("missing_interior",),
             evidence_rung="needs-real-data",
         )
     ]
@@ -105,10 +107,18 @@ def test_ac3_mode_6_carries_no_edge():
 def test_ac4_every_coverage_detector_serves_mode_10_alone():
     import segfacet.failure_modes as fm
 
+    # item 219 (2026-10-13): restated -- missing_interior serves (10,), and
+    # the two opt-in detectors serve () with a mode_less_reason.
     detector_ids = _coverage_detector_ids()
     assert detector_ids, "expected coverage to declare at least one detector"
+    detectors = {d.detector_id: d for d in CoverageRule.mode_declaration.detectors}
     for detector_id in detector_ids:
-        assert fm.modes_for_detector("coverage", detector_id) == (10,), detector_id
+        if detector_id == "missing_interior":
+            assert fm.modes_for_detector("coverage", detector_id) == (10,), detector_id
+        else:
+            assert fm.modes_for_detector("coverage", detector_id) == (), detector_id
+            assert detectors[detector_id].mode_less_reason, detector_id
+    assert set(detector_ids) == {"count_shortfall", "incomplete_span", "missing_interior"}
 
 
 # =========================================================================== #

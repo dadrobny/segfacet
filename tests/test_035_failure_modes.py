@@ -20,6 +20,8 @@ import pytest
 
 from segfacet.aggregate import build_case_result
 from segfacet.config import bundled_default_config
+from segfacet.features.centroids import LabelCentroid
+from segfacet.features.consistency import compute_monotonic_consistency
 from segfacet.heuristics import run_rules
 from segfacet.pipeline import run_qc
 from segfacet.verdict import Severity
@@ -232,11 +234,23 @@ def test_ac24_mode6_border_partial_fires_border():
 
 
 def _mode7_record() -> dict:
-    """Item 192 (2026-09-28): the rewritten sequence rule reads per_label
-    centroids, not out_of_order_labels[]; each entry gains a synthetic
-    centroid, and a third, in-order L2 tail level is added (a two-label
-    record is never out of order under the rule's inversion-count
-    tie-break)."""
+    """Item 192 (2026-09-28): each entry gains a synthetic centroid, and a
+    third, in-order L2 tail level is added (a two-label record is never out
+    of order).
+
+    Item 219 (2026-10-13): the out-of-order check is mislabel's ordering
+    detector, which reads ``pairs.adjacent.non_monotonic_pairs``. That block
+    is the producer's output over the record's own centroids in anatomical
+    order (T12, L1, L2), which reads ``(("T12", "L1"),)``."""
+    centroids = [
+        LabelCentroid(label=_T12, level_name="T12", centroid_voxel=(0.0, 0.0, 2.0), centroid_mm=(0.0, 0.0, 2.0)),
+        LabelCentroid(label=_L1, level_name="L1", centroid_voxel=(0.0, 0.0, 3.0), centroid_mm=(0.0, 0.0, 3.0)),
+        LabelCentroid(label=_L2, level_name="L2", centroid_voxel=(0.0, 0.0, 1.0), centroid_mm=(0.0, 0.0, 1.0)),
+    ]
+    non_monotonic = [
+        list(pair)
+        for pair in compute_monotonic_consistency(centroids, None).non_monotonic_pairs
+    ]
     return {
         "per_label": {
             _L1: {"label": _L1, "level_name": "L1", "centroid": {"centroid_mm": [0.0, 0.0, 3.0]}},
@@ -249,15 +263,20 @@ def _mode7_record() -> dict:
             "is_continuous": False,
             "out_of_order_labels": ["L1", "T12"],
         }},
-        "pairs": {"overlaps": []},
+        "pairs": {
+            "overlaps": [],
+            "adjacent": {"non_monotonic_pairs": non_monotonic},
+        },
     }
 
 
-def test_ac25_mode7_non_continuous_sequence_fires_sequence():
-    """AC25: mode 7 (non-continuous sequence) fires 'sequence' attributing
-    both L1 (20) and T12 (19)."""
+def test_ac25_mode7_non_continuous_sequence_fires_mislabel():
+    """AC25: mode 7 (non-continuous sequence) fires 'mislabel' attributing
+    both L1 (20) and T12 (19).
+
+    Item 219 (2026-10-13): was 'sequence' (its swap detector was retired)."""
     findings = run_rules(_mode7_record(), _cfg())
-    hits = [f for f in findings if f.rule_id == "sequence"]
+    hits = [f for f in findings if f.rule_id == "mislabel"]
     assert hits
     assert any({_L1, _T12} <= f.labels for f in hits)
 
@@ -309,7 +328,7 @@ _MODE_RECORDS_AND_RULE_IDS = [
     (4, _mode4_record, "mislabel"),
     (5, _mode5_record, "coverage"),
     (6, _mode6_record, "border"),
-    (7, _mode7_record, "sequence"),
+    (7, _mode7_record, "mislabel"),  # item 219 (2026-10-13): was "sequence"
     (8, _mode8_record, "overlap"),
 ]
 
@@ -339,9 +358,8 @@ def test_ac27_union_of_all_modes_covers_every_mapped_rule_id():
         "fragmentation",
         "coverage",
         "border",
-        "sequence",
         "overlap",
-    }
+    }  # item 219 (2026-10-13): "sequence" dropped, no seed record fires it now
     assert expected <= union
 
 

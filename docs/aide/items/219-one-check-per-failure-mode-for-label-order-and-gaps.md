@@ -934,7 +934,34 @@ The verdict is `flagged-for-review`.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented 2026-10-13 on `aide/219-one-check-per-failure-mode`.
+
+- **Built to the spec's steps 1-10.** `sequence` keeps only `transitional`,
+  reads level names and `pairs.adjacent.non_monotonic_pairs[]` (bookkeeping),
+  and no longer opts in to `displaced_vertebra`. `consumed_paths` is listed in
+  ascending path order, which `RuleModeDeclaration` enforces. `coverage`'s two
+  opt-in detectors carry A7's `mode_less_reason` texts, and the traceability
+  matrix and rule table regenerate and render them as mode `none`.
+- **Regeneration.** Every generator ran twice into scratch paths and the two
+  runs were byte-identical before the committed copies were written. The
+  corpus run changed the manifest only (the `sequence_break` entry:
+  `expected_rule_ids ["mislabel"]`, `expected_labels [20, 28]`, new `detail`);
+  no fixture moved and `golden_evidence.generated.json` came out unchanged.
+- **Reconciliations.** Each edit carries a dated `item 219 (2026-10-13)`
+  note: test_030, 035, 038, 039, 041, 098, 103, 116, 129, 132, 136, 137,
+  138, 145, 147, 148, 149, 151, 188 and 192, as the Testing Strategy lists.
+  test_137's four buckets were re-measured live and agree with the spec's
+  figures. test_220, 102, 131, 143 and 218 needed no edit.
+- **Stage 30 criterion 3** was amended with live numbers: derived mode rungs
+  7 / 3 / 1 / 5, per-edge rungs over 15 edges at 8 / 6 / 1. Criteria 30.1 and
+  20.5 were already current and not amended.
+- **Validation replays** (`segfacet run ... --no-reference`):
+  `sequence_break` gives one `mislabel` finding, `Vertebra ordering
+  inconsistent with label:` on labels 28 and 20, verdict
+  flagged-for-review. `relabel_swap` gives one `mislabel` finding on 21 and
+  22. `remove_level` gives `centroid_spacing`'s `Missing level:` on 21 and 23
+  plus `coverage`'s `Missing interior level(s):`. No run has a `sequence`
+  finding.
 
 - **Left open:** the mode-10/11 double report. On 2026-10-12 the label-set
   sweep found 1,183 of 16,368 sets where they differ, and every difference

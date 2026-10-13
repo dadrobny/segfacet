@@ -65,9 +65,10 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
   (rather than ``non_monotonic_pairs[]``) is deliberately the anchor so
   ``non_monotonic_pairs[]`` -- the field Detector B actually reads and the
-  *only* leaf path exclusively consumed by ``mislabel`` -- stays a plain,
-  code-derived (mechanism A) attribution rather than being absorbed into the
-  anchor set; item 103's AC13 test asserts such an exclusively-consumed,
+  leaf path ``mislabel`` alone reads as signal (``sequence`` reads it as
+  bookkeeping since item 219, 2026-10-12, which adds no mode) -- stays a
+  plain, code-derived (mechanism A) attribution rather than being absorbed
+  into the anchor set; item 103's AC13 test asserts such a signal-only,
   non-anchor witness exists per mapped rule.
 - **Mode 6** (vertebra not segmented; ``missing_level_count``,
   candidate-vs-GT) is anchored on
@@ -79,10 +80,10 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   above.
 - **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
   anchored on ``case.sequence.is_continuous``. That flag stays the metric
-  anchor no rule reads; since item 192 (2026-09-28)
-  ``heuristics.sequence.SequenceRule`` reads ``per_label`` instead (each
-  entry's ``centroid.centroid_mm`` and ``level_name``), not the
-  ``case.sequence`` sub-block at all.
+  anchor no rule reads. Since item 219 (2026-10-12)
+  ``heuristics.sequence.SequenceRule`` no longer reads ``per_label``
+  centroids (its z-sorted swap/shift detectors were retired) and
+  ``mislabel`` reads ``pairs.adjacent.non_monotonic_pairs[]``.
 
 ``MetricSpec`` (``segfacet.eval.per_mode``) carries no record-path field, so
 this transcription cannot be read off it mechanically; a future item that adds
@@ -646,7 +647,9 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "retune",
             "Should be wired into the sequence rule directly; "
             "sequence-related checks should typically verify order along the "
-            "spline parameter, not only label order."
+            "spline parameter, not only label order. "
+            "2026-10-12: Done: order is judged along the label-free path by "
+            "`mislabel`, items 210/219."
         ),
         "per_label.{label}.curve.path_u": (
             "retune",

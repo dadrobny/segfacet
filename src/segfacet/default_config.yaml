@@ -144,9 +144,9 @@ rules:
       severity: flagged-for-review
 
   # ------------------------------------------------------------------ #
-  # sequence (item 030, rewritten item 192) -- reports which label-sequence
-  # sub-type it saw: swap, shift, skip or transitional, from per-label
-  # centroids and level names. No numeric threshold.
+  # sequence (item 030, rewritten item 192, narrowed item 219) -- reports the
+  # transitional sub-type only (an uncorroborated numbering variant), from
+  # per-label level names. No numeric threshold.
   # ------------------------------------------------------------------ #
   sequence:
     enabled: true

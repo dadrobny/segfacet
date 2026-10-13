@@ -732,13 +732,14 @@ _PRE_129_FINDINGS = {
     # 2026-08-31 (item 132): traversal-ordered monotonicity now surfaces the
     # swap through plain run_qc, moved from set().
     # 2026-09-28 (item 192): sequence's swap detector now also fires.
-    "relabel_swap": {("mislabel", (21, 22)), ("sequence", (21, 22))},
+    # item 219 (2026-10-13): ("sequence", (21, 22)) dropped, swap retired.
+    "relabel_swap": {("mislabel", (21, 22))},
     # 2026-09-28 (item 192): sequence's skip detector now co-detects.
     # 2026-10-13 (item 218): centroid_spacing's missing_level detector fires.
     "remove_level": {
         ("centroid_spacing", (21, 23)),
         ("coverage", ()),
-        ("sequence", ()),
+        # item 219 (2026-10-13): ("sequence", ()) dropped, skip retired.
     },
     # Item 189 (2026-09-28): the co-firing offset detector moved to
     # spline_offset.
@@ -751,7 +752,8 @@ _PRE_129_FINDINGS = {
     # CANONICAL_ORDER order and fires on the lumbar pairs beside T13's shift.
     # 2026-10-05 (item 210): the label-free order names the misplaced level,
     # so the three lumbar findings become one, on (20, 28).
-    "sequence_break": {("mislabel", (20, 28)), ("sequence", (28,))},
+    # item 219 (2026-10-13): ("sequence", (28,)) dropped, shift retired.
+    "sequence_break": {("mislabel", (20, 28))},
     # "force_overlap" key dropped by item 195, 2026-09-28: the case was
     # removed.
 }

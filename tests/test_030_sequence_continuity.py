@@ -142,6 +142,19 @@ def _seq_findings(findings):
     return [f for f in findings if f.rule_id == "sequence"]
 
 
+def _transitional_record() -> dict:
+    """T10, T11, L1, L2, L3 (labels 17, 18, 20, 21, 22): an uncorroborated
+    short thoracic section, which fires one ``transitional`` finding on T11.
+
+    item 219 (2026-10-13): the AC11 severity claim is re-pointed here from the
+    retired swap detector."""
+    names = {17: "T10", 18: "T11", 20: "L1", 21: "L2", 22: "L3"}
+    return {
+        "per_label": {k: _make_per_label_entry(k, v) for k, v in names.items()},
+        "pairs": {"overlaps": {}},
+    }
+
+
 _DISCONTINUITY_TAG = "Non-continuous label sequence:"
 
 
@@ -202,25 +215,9 @@ def test_ac2_in_order_fixture_no_finding():
 # =========================================================================== #
 
 
-def test_ac3_single_reversal_fires_exactly_one_finding():
-    """AC3: out_of_order_labels == ['T12'] emits exactly one Finding naming T12.
-
-    Item 192 (2026-09-28): a two-label record is never out of order under the
-    rewritten rule's inversion-count tie-break, so L2 is added as a third,
-    in-order tail level (measured: still one swap finding on L1, T12)."""
-    entries = [
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-    ]
-    record = _make_record(
-        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    assert findings[0].rule_id == "sequence"
-    assert findings[0].reason.startswith(_DISCONTINUITY_TAG)
-    assert "T12" in findings[0].reason
+# item 219 (2026-10-13): retired -- sequence's AC3 subject was retired (its
+# swap/shift/skip detectors duplicated mislabel's ordering and
+# coverage's missing_interior), so there is nothing left to assert.
 
 
 # =========================================================================== #
@@ -228,24 +225,9 @@ def test_ac3_single_reversal_fires_exactly_one_finding():
 # =========================================================================== #
 
 
-def test_ac4_offending_vertebra_attributed_by_integer_label():
-    """AC4: T12 present in per_label as label 19 => finding.labels ==
-    frozenset({19, 20}).
-
-    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
-    two-label record is never out of order); a swap names both exchanged
-    labels, so the finding now names L1 (20) too."""
-    entries = [
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-    ]
-    record = _make_record(
-        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    assert findings[0].labels == frozenset({_LABEL_T12, _LABEL_L1})
+# item 219 (2026-10-13): retired -- sequence's AC4 subject was retired (its
+# swap/shift/skip detectors duplicated mislabel's ordering and
+# coverage's missing_interior), so there is nothing left to assert.
 
 
 # =========================================================================== #
@@ -253,33 +235,9 @@ def test_ac4_offending_vertebra_attributed_by_integer_label():
 # =========================================================================== #
 
 
-def test_ac5_two_offenders_one_finding_in_order():
-    """AC5: L2, T12, L1 fires a single swap finding naming both T12 and L1,
-    with labels == frozenset of both integer labels.
-
-    Item 192 (2026-09-28): the rewritten rule chooses whichever traversal
-    direction (ascending/descending centroid_mm) has fewer rank inversions.
-    Measured: ascending has fewer, so the reported order is L1 before T12
-    (the reverse of the pre-192 out_of_order_labels-order assertion)."""
-    entries = [
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-    ]
-    record = _make_record(
-        ["L2", "T12", "L1"],
-        ["T12", "L1"],
-        is_continuous=False,
-        label_entries=entries,
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1, "Both offenders must be named in one finding"
-    reason = findings[0].reason
-    assert "T12" in reason and "L1" in reason
-    assert reason.index("L1") < reason.index("T12"), (
-        f"L1 must precede T12 in the chosen traversal order; reason={reason!r}"
-    )
-    assert findings[0].labels == frozenset({_LABEL_T12, _LABEL_L1})
+# item 219 (2026-10-13): retired -- sequence's AC5 subject was retired (its
+# swap/shift/skip detectors duplicated mislabel's ordering and
+# coverage's missing_interior), so there is nothing left to assert.
 
 
 # =========================================================================== #
@@ -287,36 +245,9 @@ def test_ac5_two_offenders_one_finding_in_order():
 # =========================================================================== #
 
 
-def test_ac6_canonical_non_anatomical_jump_l1_t12_l2_l5():
-    """AC6: L1 -> T12 -> L2 -> L5 emits two findings: a skip (L3, L4 absent
-    between present levels) and a swap of L1, T12.
-
-    Item 192 (2026-09-28): the rewritten rule reads per_label centroids, not
-    out_of_order_labels[]. Measured: descending has fewer inversions (1 vs
-    5), so L1/T12 swap and the L2..L5 gap is reported as a skip. Findings are
-    emitted in ascending detector_id order (shift, skip, swap, transitional)."""
-    entries = [
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-        _make_per_label_entry(_LABEL_L5, "L5"),
-    ]
-    record = _make_record(
-        ["L1", "T12", "L2", "L5"],
-        ["T12"],
-        is_continuous=False,
-        label_entries=entries,
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 2
-    assert findings[0].detector_id == "skip"
-    assert findings[0].labels == frozenset()
-    assert findings[0].reason == (
-        "Skipped level label: L3, L4 absent between present levels."
-    )
-    assert findings[1].detector_id == "swap"
-    assert findings[1].labels == frozenset({_LABEL_T12, _LABEL_L1})
-    assert findings[1].reason == "Non-continuous label sequence: swap of L1, T12."
+# item 219 (2026-10-13): retired -- sequence's AC6 subject was retired (its
+# swap/shift/skip detectors duplicated mislabel's ordering and
+# coverage's missing_interior), so there is nothing left to assert.
 
 
 # =========================================================================== #
@@ -457,18 +388,10 @@ def test_ac10_mixed_mappable_and_unmappable_offenders():
 def test_ac11_default_severity_is_flag():
     """AC11: With no severity param, an emitted finding has Severity.FLAG.
 
-    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
-    two-label record is never out of order)."""
-    entries = [
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-    ]
-    record = _make_record(
-        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert findings
+    item 219 (2026-10-13): re-pointed to the ``transitional`` detector."""
+    findings = _seq_findings(run_rules(_transitional_record(), default_config()))
+    assert [f.detector_id for f in findings] == ["transitional"]
+    assert findings[0].labels == frozenset({18})
     assert all(f.severity is Severity.FLAG for f in findings)
 
 
@@ -476,20 +399,11 @@ def test_ac11_severity_param_fail_overrides_default(tmp_path):
     """AC11: With params.severity = 'fail', the emitted finding has
     Severity.FAIL.
 
-    Item 192 (2026-09-28): L2 is added as a third, in-order tail level (a
-    two-label record is never out of order)."""
-    entries = [
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-    ]
-    record = _make_record(
-        ["L1", "T12", "L2"], ["T12"], is_continuous=False, label_entries=entries
-    )
+    item 219 (2026-10-13): re-pointed to the ``transitional`` detector."""
     content = _sequence_yaml_header() + "      severity: fail\n"
     cfg = load_config(_write_yaml(tmp_path, content))
-    findings = _seq_findings(run_rules(record, cfg))
-    assert findings
+    findings = _seq_findings(run_rules(_transitional_record(), cfg))
+    assert [f.detector_id for f in findings] == ["transitional"]
     assert all(f.severity is Severity.FAIL for f in findings)
 
 
@@ -563,28 +477,9 @@ def test_ac13_two_runs_return_equal_lists():
     assert run1 == run2, f"Non-deterministic output:\nrun1={run1}\nrun2={run2}"
 
 
-def test_ac13_reason_names_offenders_in_out_of_order_labels_order():
-    """AC13: Within the single emitted finding, offending level names appear
-    in the chosen traversal order.
-
-    Item 192 (2026-09-28): L3 is added as a third, in-order tail level (a
-    two-label record is never out of order). Measured: one swap on
-    frozenset({20, 21}), reason 'swap of L2, L1.', preserving the L2-before-L1
-    order this test pins."""
-    entries = [
-        _make_per_label_entry(_LABEL_L2, "L2"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L3, "L3"),
-    ]
-    record = _make_record(
-        ["L2", "L1", "L3"], ["L2", "L1"], is_continuous=False, label_entries=entries
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 1
-    reason = findings[0].reason
-    assert reason.index("L2") < reason.index("L1"), (
-        f"L2 must precede L1 (out_of_order_labels order); reason={reason!r}"
-    )
+# item 219 (2026-10-13): retired -- sequence's AC13 subject was retired (its
+# swap/shift/skip detectors duplicated mislabel's ordering and
+# coverage's missing_interior), so there is nothing left to assert.
 
 
 # =========================================================================== #
@@ -715,35 +610,9 @@ def test_adv_out_of_order_labels_absent_key_treated_as_continuous():
     assert findings == []
 
 
-def test_adv_three_offenders_all_named_and_attributed():
-    """Adversarial: L5, T12, L1, L2 emits two findings: a shift of L5 and a
-    skip (L3, L4 absent between present levels).
-
-    Item 192 (2026-09-28): the rewritten rule reads per_label centroids.
-    Measured: the inversion counts for the ascending/descending traversal
-    tie (3 and 3), so descending (anatomical head-to-tail) is kept."""
-    entries = [
-        _make_per_label_entry(_LABEL_T12, "T12"),
-        _make_per_label_entry(_LABEL_L1, "L1"),
-        _make_per_label_entry(_LABEL_L2, "L2"),
-        _make_per_label_entry(_LABEL_L5, "L5"),
-    ]
-    record = _make_record(
-        ["L5", "T12", "L1", "L2"],
-        ["T12", "L1", "L2"],
-        is_continuous=False,
-        label_entries=entries,
-    )
-    findings = _seq_findings(run_rules(record, default_config()))
-    assert len(findings) == 2
-    assert findings[0].detector_id == "shift"
-    assert findings[0].labels == frozenset({_LABEL_L5})
-    assert findings[0].reason == "Non-continuous label sequence: shift of L5."
-    assert findings[1].detector_id == "skip"
-    assert findings[1].labels == frozenset()
-    assert findings[1].reason == (
-        "Skipped level label: L3, L4 absent between present levels."
-    )
+# item 219 (2026-10-13): retired -- sequence's three-offenders subject was retired (its
+# swap/shift/skip detectors duplicated mislabel's ordering and
+# coverage's missing_interior), so there is nothing left to assert.
 
 
 def test_adv_determinism_with_unmappable_offender(tmp_path):

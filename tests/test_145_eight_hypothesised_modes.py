@@ -711,14 +711,17 @@ def test_ac10a_sequence_edge_is_needs_real_data_while_its_case_measurably_fires(
     """
     import segfacet.failure_modes as fm
 
+    # item 219 (2026-10-13): sequence's swap/shift edge was retired. Mode 9
+    # keeps the single mislabel edge at synthetic-demonstrable, and
+    # sequence_break is measured firing mislabel.
     mode = _mode(fm, 9)
-    sequence_edges = [edge for edge in mode.intended_rules if edge.rule_id == "sequence"]
-    assert len(sequence_edges) == 1, mode.intended_rules
-    assert sequence_edges[0].evidence_rung == "needs-real-data"
+    assert [(e.rule_id, e.evidence_rung) for e in mode.intended_rules] == [
+        ("mislabel", "synthetic-demonstrable")
+    ], mode.intended_rules
     assert fm.derive_mode_rung(mode) == "synthetic-demonstrable"
 
     case = _case(mode, "sequence_break")
-    assert "sequence" in measured(case)
+    assert "mislabel" in measured(case)
 
 
 def test_ac10a_shifted_label_sequence_mode_is_proposed_with_no_rule(measured):
@@ -1381,10 +1384,11 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
 
     skipped = _mode(fm, 10)
     assert skipped.status == "specified", skipped.status
-    # Item 192 (2026-09-28): sequence's skip detector also declares mode 10.
-    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage", "sequence"}
+    # Item 192 (2026-09-28): sequence's skip detector also declared mode 10.
+    # item 219 (2026-10-13): retired; coverage's missing_interior alone.
+    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage"}
     assert skipped.corpus_cases == (), skipped.corpus_cases
-    assert _live_declared_rule_ids(10) == {"coverage", "sequence"}
+    assert _live_declared_rule_ids(10) == {"coverage"}
 
 
 # =========================================================================== #
