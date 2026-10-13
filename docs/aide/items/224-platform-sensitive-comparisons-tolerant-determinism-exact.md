@@ -110,15 +110,26 @@ The tests for this item go in a new module, `tests/test_224_platform_tolerant_sn
 - **AC7:** call test_102's `test_ac5_report_verdict_and_findings_match_pre_098_snapshot(block_b, "displace")` directly, with a hand-built `block_b = {"displace": {"verdict": ..., "findings": [...]}}`. This avoids the nine-CLI-run fixture.
 - **AC8:** monkeypatch the `displace` entry as in AC1, then call test_123's AC28 function.
 - **AC9:**
-  - `monkeypatch.setattr` replaces test_082's module-level `_run_build_reference` with a wrapper. The wrapper calls the original and, on its second call, appends `b"\n"` to the file it wrote.
+  - `monkeypatch.setattr` replaces test_082's module-level `_run_build_reference` with a wrapper. The wrapper calls the original and, on its second call, appends `b"\n"` to the file it wrote, using `open(path, "ab")`.
   - The test calls `test_adv_determinism_two_builds_produce_equal_parsed_artifacts(tmp_path)` under `pytest.raises(AssertionError)`.
-  - It also asserts that the two files' `json.loads` results are equal, which shows the mutation is invisible to the old `reports_close` comparison.
+  - It also asserts that the two files' `json.loads(p.read_text(encoding="utf-8"))` results are equal, which shows the mutation is invisible to the old `reports_close` comparison.
+
+**Keep `tests/test_224_platform_tolerant_snapshots.py` off the Windows subset.** `tests/test_213_windows_ci_subset.py` walks the AST of every `tests/test_*.py` module. A module that shows any of its signals must be listed in `ci.yml`'s `WINDOWS_TESTS`, and this item does not authorise `ci.yml`. So the new module must not contain any of the following:
+
+- `.read_bytes`, a `newline=` keyword, or a `.gitattributes` string;
+- an import of `segfacet.cli`, or a string starting with `segfacet.cli`;
+- `subprocess`, `run_process` or `sys.executable`;
+- `.as_posix`, `os.sep` or `PureWindowsPath`.
+
+It reaches the CLI only indirectly, by importing `test_082_verse_build_recipe` and calling its function. That leaves test_224 with no signal in its own AST.
 
 **Adversarial cases:**
 
 - **pinned-precision width:** in the `fragment` reason, `0.52579` → `0.52581` (two units at `d=5`) makes AC15 raise. This guards against a width fixed at `0.1`, or one derived from the coarsest token.
 - **integer-stands-in-for-decimal:** in the `displace` reason, the pinned `14.6` replaced by the integer `15` makes AC15 raise. This guards against a placeholder substitution that lets an integer token fill a decimal slot.
-- **extra-finding:** appending a copy of the pinned `relabel_swap` finding (so the pinned list has three findings and the fresh one two) makes AC15 raise. This guards against a pairwise `zip` that silently truncates to the shorter list.
+- **extra-finding:** appending a copy of the first pinned `relabel_swap` finding makes AC15 raise. After the append the pinned list has `len(pinned) + 1` findings and the fresh one has `len(pinned)`, where `len(pinned)` is the length of the entry as it stands when the test runs. Item 219 changes that length, so the test computes it and hard-codes no count. This guards against a pairwise `zip` that silently truncates to the shorter list.
+
+No other adversarial case, and no AC, depends on a count taken from the constant. Each one mutates a single named token or field of an entry (`displace`, `fragment`) that neither item 218 nor item 219 changes.
 
 **Existing tests to reconcile** (each found by grep, and none expected to need an edit):
 
@@ -130,6 +141,7 @@ The tests for this item go in a new module, `tests/test_224_platform_tolerant_sn
   - `tests/test_132_monotonicity_against_traversal_order.py` AC26, which calls `test_ac15_…("relabel_swap")` directly
 - **No golden marker is introduced.** `_GOLDEN_MARKERS_WITH_PATH` covers `GOLDEN_DIR`, `load_golden`, `read_golden_text`, `check_case_golden` and `tests/corpus/golden`. The new helpers are called from AC15 and test_123 AC28, so their bodies and call sites must use none of these.
 - **The new byte comparison in test_082 is not a fence.** It compares `tmp_path` files with `read_bytes()` and uses no `sha256`, so `tests/test_115_stage26_validation.py`'s fence scanner does not see it. `tests/committed_artifact_guard.py` does not see it either, because neither path is committed.
+- **The Windows CI subset is unchanged (checked 2026-10-13).** `tests/test_213_windows_ci_subset.py::test_ac5_list_is_exactly_the_os_sensitive_set` scans existing modules too. Once this item lands, test_082 contains `read_bytes()`, which is a `bytes` signal. But test_082 is already in `WINDOWS_TESTS` (`.github/workflows/ci.yml` line 122), because its `from segfacet.cli import main` gives the `cli` signal. So its membership does not change. test_098, test_102 and test_123 are already listed too, and none of them loses a signal. The comparison therefore stays in its plain `read_bytes()` form, and `ci.yml` is not authorised.
 - **Items 218 and 219 also edit test_098's constant.** Whichever item merges later rebases its constant edits onto the other's. This item changes no entry of the constant.
 
 ## Dependencies
