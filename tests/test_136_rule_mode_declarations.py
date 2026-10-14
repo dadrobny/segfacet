@@ -895,7 +895,9 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     # item 216 (2026-10-06): 103 -> 102 (-1 survivor, -1 mean_spacing_mm,
     # +1 new row).
     # item 220 (2026-10-13): 102 -> 104, re-measured live.
-    assert stayed_empty == 104
+    # Item 223 (2026-10-14): 104 -> 94 -- the ten reference_delta out-of-range
+    # value/percentile_rank paths gain a consumer and leave the () bucket.
+    assert stayed_empty == 94
 
 
 # =========================================================================== #

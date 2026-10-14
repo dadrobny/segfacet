@@ -563,9 +563,9 @@ def test_ac9_mode_roles_rendered_in_json_and_markdown(shipped_catalogue):
     path_col = header_cells.index("path")
 
     # A path shared between an analytic "bookkeeping" declarer
-    # (reference_delta) and a mechanism-B-only "not-read" declarer
-    # (intensity_reference_delta): item 148's Description/Implementation
-    # Steps table.
+    # (reference_delta): item 148's Description/Implementation Steps table.
+    # Item 223 (2026-10-14): intensity_reference_delta no longer declares
+    # this path, so it has one declarer.
     known_path = "reference_delta.lower_pct"
     entry = _entry(cat, known_path)
     assert entry.mode_roles, "adversarial precondition: expected >=1 role on this path"
@@ -584,7 +584,6 @@ def test_ac9_mode_roles_rendered_in_json_and_markdown(shipped_catalogue):
 def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_catalogue):
     cat = shipped_catalogue
     checked_bookkeeping = 0
-    checked_not_read = 0
     for entry in cat.entries:
         roles = {role for _rid, role in entry.mode_roles}
         has_bookkeeping = "bookkeeping" in roles
@@ -593,8 +592,6 @@ def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_cat
         assert ("rule_not_read" in entry.mode_evidence) == has_not_read, entry.path
         if has_bookkeeping:
             checked_bookkeeping += 1
-        if has_not_read:
-            checked_not_read += 1
 
         if entry.mode_evidence == ("rule_unmapped",):
             continue
@@ -603,7 +600,9 @@ def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_cat
         assert len(set(entry.mode_evidence)) == len(entry.mode_evidence), entry.path
 
     assert checked_bookkeeping > 0, "expected >=1 entry tagged rule_bookkeeping"
-    assert checked_not_read > 0, "expected >=1 entry tagged rule_not_read"
+    # Item 223 (2026-10-14): the checked_not_read > 0 floor is gone -- after
+    # the path-aware scan no shipped declaration uses "not-read". The
+    # per-entry equivalence above still holds for any that does.
 
 
 # =========================================================================== #

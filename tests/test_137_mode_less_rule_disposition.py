@@ -1018,7 +1018,9 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # -1; pairs.adjacent.mean_spacing_mm leaves for the fused_label gate
         # it is declared bookkeeping for, -1; case.sequence.order[] joins, +1).
         # Item 220 (2026-10-13): 102 -> 104.
-        (): 104,
+        # Item 223 (2026-10-14): 104 -> 94 (the ten reference_delta
+        # value/percentile_rank paths gain a consumer).
+        (): 94,
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
@@ -1031,7 +1033,12 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # empty into rule_mode_less buckets below.
         # Item 222 (2026-10-14): 7 -> 8 (per_label.{label}.curve.terminal_offset_mm
         # joins, read by spline_offset as a condition signal).
-        ("rule_mode_less", "rule_condition_signal"): 8,
+        # Item 223 (2026-10-14): 8 -> 6 (the two coverage touch flags move to
+        # the bookkeeping+condition_signal bucket below).
+        ("rule_mode_less", "rule_condition_signal"): 6,
+        # Item 223 (2026-10-14): new -- the coverage touch flags, bookkeeping
+        # for coverage and a condition signal for a mode-less rule.
+        ("rule_mode_less", "rule_bookkeeping", "rule_condition_signal"): 2,
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
         # Item 218 (2026-10-13): 12 -> 11 -- spacings_mm[] and
         # case.sequence.missing_levels[] leave, path_u joins.
@@ -1053,12 +1060,16 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("per_mode_metric",): 2,
         # Item 193 (2026-09-28): 6 -> 9 -- reference_delta's three
         # re-classified signal paths join here.
-        ("rule_mode_less", "rule_bookkeeping"): 11,  # item 215 (2026-10-06): 9 -> 11
+        # item 215 (2026-10-06): 9 -> 11; item 223 (2026-10-14): 11 -> 26 (+10
+        # reference_delta paths from the empty bucket, +4 paths losing
+        # intensity_reference_delta's not-read, +1 per_label).
+        ("rule_mode_less", "rule_bookkeeping"): 26,
         # Item 193 (2026-09-28): 1 -> 8 -- the seven reference_delta.*
         # entries shared with intensity_reference_delta (previously
         # ("rule_declaration",) or ("rule_declaration", "rule_not_read"))
         # join here now both consuming rules are mode-less.
-        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 5,  # item 215: 8 -> 5
+        # item 215: 8 -> 5; item 223 (2026-10-14): 5 -> 0 (removed from the
+        # table -- no shipped declaration uses not-read any more).
         # Item 218 (2026-10-13): the five-source bucket (1 -> 0, removed) was
         # case.sequence.present_levels[]; it moves to the bucket below, because
         # its mode 6 now comes from its anchor alone.
