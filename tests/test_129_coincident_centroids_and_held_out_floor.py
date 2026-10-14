@@ -753,7 +753,9 @@ _PRE_129_FINDINGS = {
     # 2026-10-05 (item 210): the label-free order names the misplaced level,
     # so the three lumbar findings become one, on (20, 28).
     # item 219 (2026-10-13): ("sequence", (28,)) dropped, shift retired.
-    "sequence_break": {("mislabel", (20, 28))},
+    # Item 222 (2026-10-14): the misplaced T13 is a terminal, now judged on its
+    # one-sided line reading; ("spline_offset", (28,)) joins.
+    "sequence_break": {("mislabel", (20, 28)), ("spline_offset", (28,))},
     # "force_overlap" key dropped by item 195, 2026-09-28: the case was
     # removed.
 }

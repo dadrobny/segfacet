@@ -1046,6 +1046,21 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
             },
             # item 219 (2026-10-13): sequence's shift finding dropped (the
             # detector was retired).
+            # Item 222 (2026-10-14): the misplaced T13 is a terminal, now judged
+            # on its one-sided line reading; spline_offset adds a finding after
+            # mislabel's (runner order: ascending rule_id). Verdict unchanged.
+            {
+                "rule_id": "spline_offset",
+                "detector_id": "spline_offset",
+                "severity": "flagged-for-review",
+                "labels": [28],
+                "reason": (
+                    "Vertebra misaligned from spinal curve: label 28 (T13) "
+                    "centroid lies 33.8 mm off the spinal curve extrapolated "
+                    "from its two nearest neighbours (terminal vertebra, "
+                    "threshold 13.0 mm)."
+                ),
+            },
         ],
     },
     # "force_overlap" key dropped by item 195, 2026-09-28.

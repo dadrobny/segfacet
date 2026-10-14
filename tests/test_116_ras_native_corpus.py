@@ -445,6 +445,13 @@ _ITEM_218_ADDED_CENTROID_SPACING_PAIRS = {
     "remove_level": (("centroid_spacing", (21, 23)),),
 }
 
+# Item 222 (2026-10-14): a terminal vertebra is judged on its one-sided line
+# reading, so sequence_break's misplaced T13 adds a spline_offset finding on
+# (28,) that the aeb2f55 golden does not carry.
+_ITEM_222_ADDED_SPLINE_OFFSET_PAIRS = {
+    "sequence_break": (("spline_offset", (28,)),),
+}
+
 
 @pytest.mark.skipif(
     _REFERENCE_SHA is None,
@@ -506,6 +513,13 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
         assert added_pair in fresh_pairs, (
             f"case {case['case_id']!r}: expected item 218's deliberate "
             f"centroid_spacing finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    # Item 222 (2026-10-14): strip the deliberate terminal spline_offset finding.
+    for added_pair in _ITEM_222_ADDED_SPLINE_OFFSET_PAIRS.get(case["case_id"], ()):
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 222's deliberate "
+            f"spline_offset finding {added_pair!r}, but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     # item 219 (2026-10-13): re-add the retired sequence pair the golden has.

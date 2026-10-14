@@ -983,7 +983,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 159  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
+    assert len(entries) == 160  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
     # The two analytic rules' own declared modes ...
     # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
@@ -1028,7 +1029,9 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("rule_bookkeeping",): 9,
         # Item 193 (2026-09-28): entries consumed only by reference_delta
         # empty into rule_mode_less buckets below.
-        ("rule_mode_less", "rule_condition_signal"): 7,
+        # Item 222 (2026-10-14): 7 -> 8 (per_label.{label}.curve.terminal_offset_mm
+        # joins, read by spline_offset as a condition signal).
+        ("rule_mode_less", "rule_condition_signal"): 8,
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
         # Item 218 (2026-10-13): 12 -> 11 -- spacings_mm[] and
         # case.sequence.missing_levels[] leave, path_u joins.
@@ -1085,7 +1088,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 159  # item 220 (2026-10-13): 154 -> 159
+    assert sum(distribution.values()) == 160  # item 220 (2026-10-13): 154 -> 159
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
 
 # =========================================================================== #

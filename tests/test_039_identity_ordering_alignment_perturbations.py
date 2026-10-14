@@ -155,10 +155,12 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
         (target,) = expectation.expected_labels
         loo = _loo_offset(labelmap, target)
         target_is_terminal = False
+        terminal_reading = None
         for entry in record["per_label"].values():
             if entry["label"] == target:
                 entry["curve"]["offset_mm"] = loo
                 target_is_terminal = bool(entry["curve"].get("is_terminal"))
+                terminal_reading = entry["curve"].get("terminal_offset_mm")
         # Item 189 (2026-09-28): the offset detector moved to its own
         # spline_offset rule.
         findings = SplineOffsetRule().evaluate(record, cfg)
@@ -171,10 +173,18 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
         if target_is_terminal:
             # AC39 (docs/aide/items/123-recalibrate-and-regenerate-
             # downstream-artifacts.md): the offset detector never fires on a
-            # terminal vertebra, regardless of magnitude -- the designated
-            # rule NOT firing here is the exclusion working as designed, not
-            # a self-consistency failure (AC55).
-            return not fires
+            # terminal vertebra on its in-sample offset_mm (AC55).
+            # Item 222 (2026-10-14): a terminal is judged on its one-sided
+            # line reading instead, so the designated rule fires on a
+            # terminal target exactly when the reconstructed record's
+            # curve.terminal_offset_mm is at least the configured
+            # max_offset_mm.
+            max_offset = float(
+                cfg.rule_param("spline_offset", "max_offset_mm", default=13.0)
+            )
+            return fires == (
+                terminal_reading is not None and terminal_reading >= max_offset
+            )
         return fires
     if operator_name == "relabel_swap":
         pairs = _reconstruct_mono_pairs(labelmap)
@@ -507,7 +517,9 @@ def test_ac17_sequence_break_only_fired_rule_is_mislabel_no_coverage():
     result = SequenceBreakPerturbation().apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
     assert findings
-    assert {f.rule_id for f in findings} == {"mislabel"}  # item 219 (2026-10-13)
+    # Item 222 (2026-10-14): {"mislabel"} -> {"mislabel", "spline_offset"}; the
+    # displaced T13 is a terminal, now judged on its one-sided line reading.
+    assert {f.rule_id for f in findings} == {"mislabel", "spline_offset"}
     assert not any(f.rule_id == "coverage" for f in findings)
 
 

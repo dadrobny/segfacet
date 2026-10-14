@@ -2131,7 +2131,10 @@ def test_adv_ac31_named_anchor_path_not_consumed_by_declared_rule_is_detectable(
         for case in failure_modes_module.SPECIFICATION[mode].corpus_cases
         for rule_id in case.expected_firing
     }
-    assert co_detecting_rules == {"mislabel"}, co_detecting_rules  # item 219 (2026-10-13)
+    # Item 222 (2026-10-14): sequence_break's misplaced T13 is a terminal now
+    # judged by spline_offset, which joins the co-detecting rules; it does not
+    # read mode 9's anchor either, so the premise holds.
+    assert co_detecting_rules == {"mislabel", "spline_offset"}, co_detecting_rules  # item 219 (2026-10-13); item 222 (2026-10-14)
 
     assert before["anchor_paths"], mode
     bogus_path = before["anchor_paths"][0]

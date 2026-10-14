@@ -491,8 +491,14 @@ def test_ac12_per_label_offsets_entry_field_set_exact():
         "dz_mm",
         "is_terminal",
     }
+    # Item 222 (2026-10-14): the exact eight-key set holds for interior
+    # entries only; a terminal entry (is_terminal True) carries
+    # ``terminal_offset_mm`` as a ninth key.
     for entry in entries:
-        assert set(entry.keys()) == expected_fields
+        if entry["is_terminal"]:
+            assert set(entry.keys()) == expected_fields | {"terminal_offset_mm"}
+        else:
+            assert set(entry.keys()) == expected_fields
 
 
 # =========================================================================== #

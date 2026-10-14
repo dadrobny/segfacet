@@ -883,7 +883,8 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 159  # item 220 (2026-10-13): 154 -> 159 (five stage3_unavailable.* leaves)
+    assert len(entries) == 160  # item 220 (2026-10-13): 154 -> 159 (five stage3_unavailable.* leaves)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())

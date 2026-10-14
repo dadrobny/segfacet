@@ -563,7 +563,8 @@ def test_ac18_entry_set_has_138_paths(full_catalogue):
     # 1:1, and case.sequence.order[], a stored field with no table row (the
     # note's Deviation 11), joins (+1).
     paths = {e.path for e in full_catalogue.entries}
-    assert len(paths) == 159  # item 220 (2026-10-13): 154 -> 159 (five stage3_unavailable.* entries)
+    assert len(paths) == 160  # item 220 (2026-10-13): 154 -> 159 (five stage3_unavailable.* entries)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
 
 def test_ac18_committed_entry_set_matches_regenerated(full_catalogue, committed_json_dict):

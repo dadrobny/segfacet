@@ -396,7 +396,9 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # record (stage3.spacing_consistency.spacings_mm[] onto
     # pairs.adjacent.spacings_mm[], -1) and stores one new field with no row,
     # case.sequence.order[] (+1). Every other 216 row it carries is a 1:1 move.
-    assert len(paths) == 95
+    # Item 222 (2026-10-14): 95 -> 96, one leaf path,
+    # per_label.{label}.curve.terminal_offset_mm.
+    assert len(paths) == 96
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):

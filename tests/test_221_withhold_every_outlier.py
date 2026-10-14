@@ -57,6 +57,12 @@ def _item120(centroids, withheld):
     return records
 
 
+# Item 222 (2026-10-14): terminal records now carry terminal_offset_mm, which
+# the item-120 computation below has no analogue of; strip it on the actual side.
+def _without_terminal_reading(records):
+    return [dataclasses.replace(r, terminal_offset_mm=None) for r in records]
+
+
 def _dominant(centroids):
     in_sample = compute_spline_offsets(centroids, fit_centroid_spline(centroids))
     return min(range(len(centroids)), key=lambda i: (-in_sample[i].offset_mm, centroids[i].label))
@@ -81,7 +87,7 @@ def test_ac1_displaced_levels_outread_every_clean_level():
 def test_ac2_single_outlier_reads_as_before():
     c = _displaced(_spine(), {3: 15.0})
     assert _dominant(c) == 3
-    assert compute_leave_one_out_spline_offsets(c) == _item120(c, {3})
+    assert _without_terminal_reading(compute_leave_one_out_spline_offsets(c)) == _item120(c, {3})
 
 
 def test_ac3_withheld_set_is_the_two_displaced_levels():
@@ -98,7 +104,7 @@ def test_ac6_terminal_level_is_never_withheld():
     withheld, _ = _withhold(c)
     assert withheld == frozenset()
     dominant = _dominant(c)
-    assert compute_leave_one_out_spline_offsets(c) == _item120(c, {dominant})
+    assert _without_terminal_reading(compute_leave_one_out_spline_offsets(c)) == _item120(c, {dominant})
 
 
 def test_ac7_reverified_verse19_ceiling_is_recorded():
@@ -131,7 +137,7 @@ def test_emptied_set_returns_first_pass():
     c = _displaced(_spine(), {2: 15.0, 3: 15.0})
     withheld, records = _withhold(c)
     assert withheld == frozenset()
-    assert compute_leave_one_out_spline_offsets(c) == _item120(c, {_dominant(c)})
+    assert _without_terminal_reading(compute_leave_one_out_spline_offsets(c)) == _item120(c, {_dominant(c)})
     assert records == _item120(c, {_dominant(c)})
 
 

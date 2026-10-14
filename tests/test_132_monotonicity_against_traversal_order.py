@@ -709,13 +709,16 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # Item 220 (2026-10-13): 154 -> 159, "non-numeric" 37 -> 40, "varies" 84 -> 86:
 # the five new stage3_unavailable.* leaves (reason, detail, levels[] non-numeric;
 # labels[], coordinate_mm[] varies).
+#
+# Item 222 (2026-10-14): 159 -> 160, "varies" 86 -> 87: the new
+# per_label.{label}.curve.terminal_offset_mm leaf (varies).
 _PRE_ITEM_OBSERVED_SUMMARY = {
     "constant-synthetic": 7,
     "degenerate": 0,
     "non-numeric": 40,
     "placeholder": 26,
     "unobserved": 0,
-    "varies": 86,
+    "varies": 87,
 }
 
 
@@ -734,7 +737,8 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     # report-only reference_delta rows; 156 -> 154 (item 216, 2026-10-06):
     # -3 merged rows, +1 case.sequence.order[]; see the summary comment above.
     # 154 -> 159 (item 220, 2026-10-13): five stage3_unavailable.* leaves.
-    assert leaf_count == 159, f"leaf-path count {leaf_count} != 159"
+    # 159 -> 160 (item 222, 2026-10-14): per_label.{label}.curve.terminal_offset_mm.
+    assert leaf_count == 160, f"leaf-path count {leaf_count} != 160"
     assert fresh["observed_summary"] == _PRE_ITEM_OBSERVED_SUMMARY
 
     is_mono = entries_by_path["case.curve.is_monotonic"]

@@ -196,6 +196,8 @@ def test_ac1_catalogue_paths_are_exactly_the_tables_stored_paths():
             "stage3_unavailable.coordinate_mm[]",
         }
     )
+    # Item 222 (2026-10-14): the terminal vertebra's line reading is a stored path no mapping row covers.
+    stored.add("per_label.{label}.curve.terminal_offset_mm")
     assert catalogue == stored
 
 

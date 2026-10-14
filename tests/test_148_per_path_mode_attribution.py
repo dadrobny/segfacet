@@ -1171,7 +1171,8 @@ def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_c
     # report-only reference_delta rows catalogued).
     cat = shipped_catalogue
     # Item 216 (2026-10-06): 156 -> 154 (-3 merged rows, +1 case.sequence.order[]).
-    assert len(cat.entries) == 159  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
+    assert len(cat.entries) == 160  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}
