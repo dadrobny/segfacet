@@ -581,14 +581,12 @@ def test_adv_shared_reference_delta_and_intensity_entry_is_mode_less():
         and "reference_delta" in e.consuming_rules
         and "intensity_reference_delta" in e.consuming_rules
     ]
-    assert candidates, (
-        "expected at least one reference_delta.* entry shared between "
-        "reference_delta and intensity_reference_delta"
-    )
-    for entry in candidates:
-        assert "rule_mode_less" in entry.mode_evidence, entry.path
-        assert "rule_declaration" not in entry.mode_evidence, entry.path
-        assert entry.failure_modes == (), entry.path
+    # Item 223 (2026-10-14): path-aware attribution removed the four pairs
+    # (AC2 / A4) through which a reference_delta.* entry was consumed by both
+    # rules, so the shared entry this test sampled no longer exists. Rewritten
+    # to assert the new truth: no such shared entry, hence nothing to be
+    # mode-less about.
+    assert candidates == [], [e.path for e in candidates]
 
 
 def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last():
@@ -626,7 +624,11 @@ def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last()
     assert "rule_declaration" not in entry.mode_evidence, entry.mode_evidence
     assert "rule_mode_less" in entry.mode_evidence, entry.mode_evidence
     assert "rule_bookkeeping" in entry.mode_evidence, entry.mode_evidence
-    assert "rule_not_read" in entry.mode_evidence, entry.mode_evidence
+    # Item 223 (2026-10-14): per A6 ``per_label`` moved from ``not-read`` to
+    # ``bookkeeping`` for the three differently-named-block rules, so the
+    # evidence is now ('rule_mode_less', 'rule_bookkeeping') with no
+    # ``rule_not_read`` tag.
+    assert "rule_not_read" not in entry.mode_evidence, entry.mode_evidence
     positions = [_CANONICAL_TAG_ORDER.index(t) for t in entry.mode_evidence]
     assert positions == sorted(positions), entry.mode_evidence
 
