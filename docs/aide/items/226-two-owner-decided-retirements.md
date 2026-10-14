@@ -141,7 +141,9 @@ None.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- The QC placeholder now reads "QC overlay images populate here when the generator is pointed at a folder of them with `--qc-images <dir>`", keeping the `Extension point.` prefix.
+- `ci.yml` lines 25-94 (comment block, `scope-check` job and the blank line before `test:`) were removed; no other job or comment changed.
+- `CLAUDE.md` changed only in Assumption A1's two hunks; the Branching heading is untouched. The hunk-2 paragraph names `aide scope` and the validator, which satisfies AC7.
 
 - **Left open:** whether a CI scope check comes back if the repo ever moves to `[git] mode = "pr"`. The owner's 2026-10-09 decision retires the job under `auto-merge` only. A switch of mode is its own decision, and the retired job can be restored from git history then.
 - No AC covers the docstring of `tests/test_aide_check_no_errors.py` (step 8). It is prose inside a test, nothing reads it, and the validator reads the diff.

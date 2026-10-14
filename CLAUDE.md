@@ -202,9 +202,8 @@ already written down there rather than in `docs/aide/`.
   every session by `.aide/AGENT-CONTEXT.md` (imported below) and
   `.claude/rules/aide-command-hygiene.md` — this file does not restate them.
 - **Document templates** — [`.aide/templates/`](.aide/templates/).
-- **One project-specific note on `aide scope`:** the CI `scope-check` job in
-  [`.github/workflows/ci.yml`](.github/workflows/ci.yml) invokes it directly —
-  see "Branching" below for why it is currently no signal.
+- **One project-specific note on `aide scope`:** it runs in the item loop, at
+  the validator's step 3, and CI runs no scope check — see "Branching" below.
 - **Skills / commands** — `/aide-*` (create-vision … feedback-loop, spec-queue),
   the `/aide-run-{item,queue,roadmap}` orchestrators, the
   `/aide-review-{permissions,instructions}` boundary reviews, and
@@ -452,22 +451,13 @@ until it is fixed there; warnings never block.
 (`.aide/conventions/4-git-modes.md`) and §1 → status-icons; this file only
 records which mode this repo runs.
 
-**The consequence for CI.** The `scope-check` job in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) fires only on a
-`pull_request` whose `head_ref` is an `aide/NNN-` claim branch. Under **`pr`**
-mode that is exactly what appears, and the job works as designed — including
-against a queue branch, since it passes `origin/${{ github.base_ref }}`. Under
-**`auto-merge`** (and `local`) no item branch ever becomes a PR, so the job
-matches nothing: a queue PR's head is `aide/queue-NNN`, which the anchored
-`sed` resolves to nothing **by design**, because a queue branch legitimately
-aggregates many items' authorised paths.
-
-So *while this repo stays on `auto-merge`*, a green `item scope check` means
-**skipped, not passed** — treat it as no signal. Per-item scope is still
-enforced, by `validator.md` step 3 running `aide scope` in-loop. Evidence and
-the three options are recorded in
-[`docs/aide/insights.md`](docs/aide/insights.md) (2026-08-20, item 117);
-switching to `pr` mode is one of the things that would resolve it.
+**The consequence for CI.** The per-item scope gate is the in-loop validator
+running `aide scope` on the claim branch before `aide merge` (`validator.md`
+step 3). CI runs no scope check: under `auto-merge` no claim branch becomes a
+PR, so the job item 107 built and item 117 retargeted matched nothing, and it
+was retired by owner decision 2026-10-09 (item 226). Switching `[git] mode` to
+`pr` would make a CI scope job meaningful again; the retired job is in git
+history.
 
 ## Code review
 

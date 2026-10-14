@@ -1,8 +1,8 @@
 """``aide check`` must report zero errors, always -- the one standing
 mechanical guard over the living AIDE documents this suite keeps.
 
-Nothing else in CI plays this role: the `scope-check` job only runs
-`aide scope`. `aide merge` does run `run_checks` beside the post-merge suite
+Nothing else in CI plays this role: the workflow invokes no
+`aide` verb directly, so this test is how `aide check` runs there. `aide merge` does run `run_checks` beside the post-merge suite
 (engine 1.53.0), but only for an item landing through the loop; a document
 edited on a maintenance or framework-update branch reaches `main` through a PR
 this suite gates. So without this test, a document malformed badly enough for
