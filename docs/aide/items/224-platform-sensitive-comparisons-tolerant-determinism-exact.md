@@ -150,6 +150,6 @@ None.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- Implemented as specified; no production code changed. `_assert_findings_match` zips the reason check after `reports_close` has fixed list length and order, so a length mismatch fails before the pairwise loop. `_assert_reason_matches` normalises decimal tokens to a placeholder, which makes an integer standing in for a decimal fail the exact-text step.
 
 - **Left open:** whether a real 0.1 mm move of the `displace` offset should be caught by a test that pins the offset value directly. Under A1 the reason comparison tolerates one unit in the last place, and no test pins the number today outside its reason string. The verdict, rule and labels stay exact. A direct pin on the value is a new assertion that no recorded defect asks for.

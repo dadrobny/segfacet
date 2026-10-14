@@ -49,7 +49,7 @@ from segfacet.synth.clean_gt import build_clean_spine
 from test_098_stray_components import (
     _FACE_NAME_SENSITIVE_CASES,
     _PRE_098_GOLDEN_VERDICT_AND_FINDINGS,
-    _finding_summary,
+    _assert_findings_match,
 )
 
 _TESTS_DIR = Path(__file__).resolve().parent
@@ -239,11 +239,7 @@ def test_ac5_report_verdict_and_findings_match_pre_098_snapshot(block_b, case_id
     assert report["verdict"] == expected["verdict"]
 
     include_reason = case_id not in _FACE_NAME_SENSITIVE_CASES
-    got_findings = [_finding_summary(f, include_reason=include_reason) for f in report["findings"]]
-    expected_findings = [
-        _finding_summary(f, include_reason=include_reason) for f in expected["findings"]
-    ]
-    assert got_findings == expected_findings
+    _assert_findings_match(report["findings"], expected["findings"], include_reason=include_reason)
 
 
 # =========================================================================== #

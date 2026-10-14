@@ -31,8 +31,9 @@ Covers Acceptance Criteria AC1-AC19:
 - AC14: every committed golden's per-label ``components`` block carries the
         four new keys and the whole file still validates.
 - AC15: the goldens' ``verdict``/``findings`` are unchanged (frozen snapshot).
-- AC16: intra-run determinism (``write_goldens`` into two dirs) and
-        ``reports_close`` against the committed goldens still hold.
+- AC16: intra-run byte-determinism (``write_goldens`` into two dirs) holds;
+        the committed goldens and their ``reports_close`` check were retired
+        by item 126.
 - AC17: the reference vocabulary (``INGESTED_MORPHOLOGY_FEATURES``) is
         unaffected; no ``stray_*`` key appears in a morphology-delta output.
 - AC18: the ``reference_verse_v1.json`` integrity pin and its load-and-score
@@ -57,6 +58,8 @@ from __future__ import annotations
 
 import copy
 import json
+import re
+from decimal import Decimal
 
 import jsonschema
 import numpy as np
@@ -86,7 +89,7 @@ from segfacet.reference import (
 from segfacet.reference.delta import compute_morphology_reference_delta
 from segfacet.reference.ingest import INGESTED_MORPHOLOGY_FEATURES
 from segfacet.synth.corpus import load_manifest
-from segfacet.synth.golden import build_report_for_case, write_goldens
+from segfacet.synth.golden import build_report_for_case, reports_close, write_goldens
 from segfacet.synth.regression import loaded_seg_image
 
 
@@ -1091,6 +1094,29 @@ def _finding_summary(f, *, include_reason: bool) -> dict:
     return summary
 
 
+# Item 224: rendered decimals in a pinned reason can move one digit between
+# platforms (spline-fit last-ULP). Decimal tokens match within one unit of the
+# pinned token's last place; everything else is exact.
+_DECIMAL_TOKEN = re.compile(r"\d+\.\d+")
+
+
+def _assert_reason_matches(got: str, pinned: str) -> None:
+    msg = f"reason differs:\n  got:    {got!r}\n  pinned: {pinned!r}"
+    assert _DECIMAL_TOKEN.sub("#", got) == _DECIMAL_TOKEN.sub("#", pinned), msg
+    for g, p in zip(_DECIMAL_TOKEN.findall(got), _DECIMAL_TOKEN.findall(pinned)):
+        tol = Decimal(1).scaleb(-len(p.split(".")[1]))
+        assert abs(Decimal(g) - Decimal(p)) <= tol, f"{msg}\n  token: got {g} vs pinned {p}"
+
+
+def _assert_findings_match(got_findings, pinned_findings, *, include_reason: bool) -> None:
+    got = [_finding_summary(f, include_reason=False) for f in got_findings]
+    pinned = [_finding_summary(f, include_reason=False) for f in pinned_findings]
+    assert reports_close(got, pinned), f"findings differ:\n  got:    {got}\n  pinned: {pinned}"
+    if include_reason:
+        for g, p in zip(got_findings, pinned_findings):
+            _assert_reason_matches(g["reason"], p["reason"])
+
+
 @pytest.mark.parametrize(
     "case_id", sorted(_PRE_098_GOLDEN_VERDICT_AND_FINDINGS.keys())
 )
@@ -1114,11 +1140,7 @@ def test_ac15_golden_verdict_and_findings_unchanged(case_id):
     assert fresh["verdict"] == expected["verdict"]
 
     include_reason = case_id not in _FACE_NAME_SENSITIVE_CASES
-    got_findings = [_finding_summary(f, include_reason=include_reason) for f in fresh["findings"]]
-    expected_findings = [
-        _finding_summary(f, include_reason=include_reason) for f in expected["findings"]
-    ]
-    assert got_findings == expected_findings
+    _assert_findings_match(fresh["findings"], expected["findings"], include_reason=include_reason)
 
 
 # =========================================================================== #
