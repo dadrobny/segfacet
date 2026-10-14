@@ -86,3 +86,4 @@ _One row per item, newest last._
 | 218 | 030 | 34 | maintenance | merged | 9 | 16 | 50 | 2 | 0 | 2 | 4 | 2.47.3 | 2026-10-13 | 394 (reused) | 0 |
 | 219 | 030 | 34 | maintenance | merged | 13 | 18 | 39 | 2 | 0 | 4 | 5 | 2.47.3 | 2026-10-13 | 414 (reused) | 0 |
 | 221 | 030 | 34 | maintenance | merged | 9 | 10 | 9 | 2 | 0 | 2 | 1 | 2.47.3 | 2026-10-13 | 400 (reused) | 0 |
+| 222 | 030 | 34 | maintenance | merged | 13 | 16 | 36 | 3 | 0 | 1 | 3 | 2.47.3 | 2026-10-14 | 415 (reused) | 0 |
