@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -189,6 +190,17 @@ def test_render_html_is_self_contained_and_escaped():
         assert anchor in doc
     # Extension-point placeholders render when no images are supplied.
     assert "Extension point" in doc
+
+
+def test_ac3_qc_placeholder_names_no_retired_deliverable():
+    doc = asr.render_html(_model())
+    paragraphs = [
+        p for p in re.findall(r'<p class="placeholder">(.*?)</p>', doc, re.DOTALL)
+        if "--qc-images" in p
+    ]
+    assert len(paragraphs) == 1, "expected exactly one QC placeholder paragraph"
+    assert "sagittal" not in paragraphs[0].lower()
+    assert "021" not in paragraphs[0]
 
 
 def test_render_html_deterministic():
