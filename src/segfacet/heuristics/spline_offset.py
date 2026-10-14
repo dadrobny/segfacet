@@ -50,7 +50,8 @@ per item 189 spec A1-A3):
   rule has no companion detector to gate against, so there is nothing for a
   second flag to disable.
 
-Scope fence: no change to the offset feature (``features/spline_offset.py``
+Scope fence (item 189; item 222 extends the rule and the offset feature
+beyond it, see "Terminal calibration" below): no change to the offset feature (``features/spline_offset.py``
 code) or to the threshold value; no re-calibration; no change to what
 ``mislabel``'s ``ordering`` detector reads. The condition gate itself lives in
 the runner (``segfacet.heuristics.runner.run_rules``, item 191); this rule
@@ -111,8 +112,8 @@ non-withheld neighbours), judged at the existing 13.0 mm, inclusive. The
 interior ``max_offset_mm`` stays 13.0 and ``gate-fac1`` is unchanged.
 
 Measured 2026-10-14 on the 80-subject VerSe19 training cohort at the working
-tree built on commit ``fd20d0b9`` (this branch; the item-222 implementation
-commit follows it), centroids in ``anatomical_order`` as the pipeline takes
+tree built on commit ``5373c58e`` (this branch; the item-222 implementation
+commit), centroids in ``anatomical_order`` as the pipeline takes
 them: 75 subjects with five or more levels, 150 terminals judged (the other
 five subjects carry no terminal reading), 26 of them touching an image face.
 One terminal reads 13.0 mm or more (``sub-verse014``, caudal L5, 17.707 mm);
@@ -452,7 +453,7 @@ class SplineOffsetRule(Rule):
                 direction_clause = f", predominantly {direction}" if direction else ""
                 curve = (
                     "spinal curve extrapolated from its two nearest "
-                    "neighbours (terminal vertebra)"
+                    "neighbours"
                     if terminal
                     else "fitted spinal curve"
                 )
@@ -464,7 +465,8 @@ class SplineOffsetRule(Rule):
                             f"{_MISALIGN_TAG} label {label} ({name}) centroid "
                             f"lies {offset:.1f} mm off the {curve}"
                             f"{direction_clause} "
-                            f"(threshold {max_offset:.1f} mm)."
+                            f"({'terminal vertebra, ' if terminal else ''}"
+                            f"threshold {max_offset:.1f} mm)."
                         ),
                         labels=frozenset({label}),
                         detector_id="spline_offset",

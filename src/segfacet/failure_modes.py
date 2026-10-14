@@ -1437,7 +1437,7 @@ _MODE_3 = ModeSpec(
         CorpusCaseExpectation(
             case_id="split_own_label",
             corpus="geometric",
-            expected_firing=("bounds", "split_fragment", "spline_offset"),
+            expected_firing=("bounds", "spline_offset", "split_fragment"),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
@@ -2431,15 +2431,17 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "fires on the truncated remnant's volume and extent, but bounds "
         "does not opt in either, so the gate drops both findings and "
         "nothing fires on crop_fov_si at all. Border's own finding always "
-        "survives the gate (it opts in to the condition it records). The "
-        "exemption the condition still grants today, unmoved by the gate "
-        "because it is rule logic rather than a case-level exclusion: "
+        "survives the gate (it opts in to the condition it records). "
         "spline_offset's detector judges terminal entries "
         "(per_label.{label}.curve.is_terminal) on terminal_offset_mm "
-        "rather than the extrapolating offset_mm; coverage's border-aware "
-        "span check resolves the covered span through the FOV-end labels, "
-        "which the gate cannot do because coverage's findings are "
-        "case-level and carry no labels for the gate to match."
+        "rather than the extrapolating offset_mm (item 222), and a "
+        "terminal vertebra touching an image face is a member of the "
+        "condition, so the runner's gate drops its finding like any other "
+        "label-bearing one. The exemption the condition still grants as "
+        "rule logic rather than a case-level exclusion is coverage's: its "
+        "border-aware span check resolves the covered span through the "
+        "FOV-end labels, which the gate cannot do because coverage's "
+        "findings are case-level and carry no labels for the gate to match."
     ),
     candidate_features=(
         "per_label.{label}.geometry.touches_anterior",
