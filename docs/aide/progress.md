@@ -361,7 +361,7 @@ mislabelling heuristics.
 - ✅ Per-vertebra offset from the spline. *(Item 018)*
 - ✅ Orientation / rotation estimate per vertebra + global curvature descriptors. *(Item 019)*
 - ✅ Neighbour-consistency metrics (spacing regularity, monotonic progression). *(Item 020)*
-- ✅ Optional sagittal projection of centroids + spline for the human report. *(Item 021)*
+- ✅ Optional sagittal projection of centroids + spline for the human report; retired by owner decision 2026-10-09. *(Item 021)*
 - ✅ Stage 3 feature serialisation & GT-vs-perturbed regression tests. *(Item 022)*
 - ✅ Local vertebra neighbourhood comparison (sliding window, n=3–5): per-vertebra deviation from neighbourhood mean/median of centroid spacing, spline offset, and volume, plus a deviation score and outlier flag. *(Item 024)* ⚠️ **Correction, 2026-08-11:** the module (`features/neighbourhood.py`) was implemented in full but **wired into nothing** — absent from `pipeline.py`, `feature_report.py` and all 10 rules, which is why it never appeared in item 103's 111-entry catalogue. ✅ **Wired, 2026-08-14 (Item 110):** the module was generalised to an arbitrary named-feature API and wired into `extract_feature_record`/`feature_report.py` as `stage3.per_label_neighbourhood[]` (computed and serialised for every case with ≥ 2 labels). It is **consumed by no rule** — `status == "unwired"` in the regenerated feature catalogue, confirmed by Item 110's AC11 (every corpus case's verdict and findings are unchanged by the wiring). No outlier this module computes is ever flagged to a verdict; that remains Stage 20's call, same as any other unwired feature. *(Item 024)*
 
