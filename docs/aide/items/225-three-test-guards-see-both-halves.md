@@ -354,6 +354,16 @@ pins and `_module_level_paths` callers.
 This sweep is a lower bound (see CLAUDE.md, "A spec-time probe … is a lower
 bound"), so the builder's full suite run is the check.
 
+## Review findings
+
+- `ac11-live-check-not-vacuous` (minor): the live AC11 check asserted only
+  that the rows were non-empty and that the helper returned `[]`, so a change
+  in the table's fixture-cell shape could filter every row out and still pass.
+  Fix: the same test now strips `tests/test_135_stage29_validation.py` from the
+  live `report_format_contract.json` row and asserts the helper then reports
+  exactly that module. Test:
+  `test_ac11_every_reader_of_live_golden_fixture_is_named`.
+
 ## Dependencies
 
 None.

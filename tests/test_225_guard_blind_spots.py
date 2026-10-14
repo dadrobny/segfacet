@@ -97,6 +97,35 @@ def test_both_sides_parsed_same_path():
     assert _classify(body) == []
 
 
+def test_parse_of_bound_read_name_is_flagged():
+    body = (
+        "def test_x():\n"
+        "    fresh = 1\n"
+        f"    raw = Path({_REF}).read_text()\n"
+        "    data = json.loads(raw)\n"
+        "    assert data[\"x\"] == fresh\n"
+    )
+    _one_violation(_classify(body))
+    module_level = (
+        f"RAW = Path({_REF}).read_text()\n"
+        "DATA = json.loads(RAW)\n"
+        "def test_x():\n"
+        "    assert DATA[\"x\"] == 1\n"
+    )
+    _one_violation(_classify(module_level))
+
+
+def test_store_context_shadow_clears_module_read():
+    body = (
+        f"DATA = json.loads(Path({_REF}).read_text())\n"
+        "def test_x():\n"
+        "    for DATA in [1]:\n"
+        "        pass\n"
+        "    assert DATA == 1\n"
+    )
+    assert _classify(body) == []
+
+
 def test_local_rebind_shadows_module_read():
     body = (
         f"DATA = json.loads(Path({_REF}).read_text())\n"
@@ -202,6 +231,16 @@ def test_ac11_every_reader_of_live_golden_fixture_is_named():
     _, rows = t105._parse_first_pipe_table(section, where="Section 1")
     assert rows
     assert t105._unnamed_golden_readers(rows, _REPO_ROOT) == []
+    live = next(r["fixture"] for r in rows if "report_format_contract" in r["fixture"])
+    stripped = [
+        {**r, "asserted by": r["asserted by"].replace("tests/test_135_stage29_validation.py", "")}
+        if r["fixture"] == live
+        else r
+        for r in rows
+    ]
+    assert t105._unnamed_golden_readers(stripped, _REPO_ROOT) == [
+        (live, "tests/test_135_stage29_validation.py")
+    ]
 
 
 def test_ac12_string_constant_reader_is_reported(tmp_path):
@@ -288,3 +327,20 @@ def test_unnumbered_module_not_a_reader(tmp_path):
         },
     )
     assert t105._unnamed_golden_readers([_row()], root) == []
+
+
+def test_from_import_alias_counts_as_reader(tmp_path):
+    root = _plant(
+        tmp_path,
+        {
+            "helper_mod.py": _HELPER,
+            "test_905_from_import.py": (
+                "from helper_mod import GOLDEN_PATH\n"
+                "def test_x():\n"
+                "    GOLDEN_PATH.read_text()\n"
+            ),
+        },
+    )
+    assert t105._unnamed_golden_readers([_row()], root) == [
+        (_FIXTURE, "tests/test_905_from_import.py")
+    ]
