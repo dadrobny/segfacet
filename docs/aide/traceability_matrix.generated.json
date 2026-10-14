@@ -147,11 +147,13 @@
         "case_id": "sequence_break",
         "corpus": "geometric",
         "expected_firing": [
-          "mislabel"
+          "mislabel",
+          "spline_offset"
         ],
         "expected_source": "specification",
         "measured_firing": [
-          "mislabel"
+          "mislabel",
+          "spline_offset"
         ],
         "mode": 9
       },
@@ -174,11 +176,13 @@
         "corpus": "geometric",
         "expected_firing": [
           "bounds",
-          "split_fragment"
+          "split_fragment",
+          "spline_offset"
         ],
         "expected_source": "specification",
         "measured_firing": [
           "bounds",
+          "spline_offset",
           "split_fragment"
         ],
         "mode": 3
@@ -552,6 +556,14 @@
           [
             "geometric",
             "displace"
+          ],
+          [
+            "geometric",
+            "sequence_break"
+          ],
+          [
+            "geometric",
+            "split_own_label"
           ]
         ],
         "reason": "",
@@ -588,7 +600,7 @@
       "overlap": 6,
       "reference_delta": 12,
       "sequence": 4,
-      "spline_offset": 8,
+      "spline_offset": 9,
       "split_fragment": 4
     },
     "read_by_no_rule": {
@@ -596,8 +608,8 @@
       "qualifier": "a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.",
       "required": false
     },
-    "read_by_rule": 53,
-    "total_paths": 159,
+    "read_by_rule": 54,
+    "total_paths": 160,
     "unwired": 45
   },
   "modes": {
@@ -1436,7 +1448,7 @@
     "spline_offset": {
       "declaration_state": "mode_less",
       "evidence": [],
-      "feature_path_count": 8,
+      "feature_path_count": 9,
       "feature_paths": [
         "per_label",
         "per_label.{label}.curve.dx_mm",
@@ -1444,6 +1456,7 @@
         "per_label.{label}.curve.dz_mm",
         "per_label.{label}.curve.is_terminal",
         "per_label.{label}.curve.offset_mm",
+        "per_label.{label}.curve.terminal_offset_mm",
         "per_label.{label}.label",
         "per_label.{label}.level_name"
       ],

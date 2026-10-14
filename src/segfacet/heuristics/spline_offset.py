@@ -20,11 +20,13 @@ per item 189 spec A1-A3):
   ``"spline_offset"`` instead of ``"mislabel"``.
 - Fires on ``offset_mm >= max_offset_mm`` (default ``13.0``, inclusive) and
   is label-attributed (single offending label).
-- Never fires on a **terminal** entry (``is_terminal`` truthy, item 123) --
-  an entry with no ``is_terminal`` key, or one carrying ``None``, is interior
-  and still fires. See "Threshold calibration (item 123)" below for why, and
-  ``features/spline_offset.py``'s "Terminal-vertebra exclusion" section for
-  the mechanism.
+- A **terminal** entry (``is_terminal`` truthy, item 123) is never judged on
+  its extrapolating ``offset_mm``. Since item 222 it is judged on
+  ``terminal_offset_mm`` (a one-sided line reading), and an entry without that
+  key fires nothing. An entry with no ``is_terminal`` key, or one carrying
+  ``None``, is interior and is judged on ``offset_mm``. See "Threshold
+  calibration (item 123)" below for why, and ``features/spline_offset.py``'s
+  "Terminal-vertebra exclusion" section for the mechanism.
 - Reads ``dx_mm``/``dy_mm``/``dz_mm`` when all three are present and finite
   (item 120), naming the dominant displacement direction as one of
   ``"left-right"``, ``"anterior-posterior"`` or ``"cranio-caudal"`` -- the
@@ -67,15 +69,17 @@ strictly above ``P``, floored at ``6.0`` mm, where ``P`` is the maximum
 (non-terminal, see below) occurrences. The measured ceiling is
 ``P = 12.91`` mm at level ``T10``, giving ``_DEFAULT_MAX_OFFSET_MM = 13.0``.
 
-**Terminal vertebrae are excluded from this measurement and from this
-detector itself** (item 123, human decision 2026-08-29): the first
+**Terminal vertebrae are excluded from this measurement** (item 123, human
+decision 2026-08-29; since item 222 the detector judges them on
+``terminal_offset_mm`` instead, see "Terminal calibration" below): the first
 calibration run measured `P = 21.209` mm at `L5`, driven entirely by the
 held-out estimator's terminal-extrapolation artefact
 (`features/spline_offset.py`'s "Terminal-vertebra exclusion" section)
 rather than real anatomy -- `L5`'s *interior* offset never exceeds `1.00` mm
-in the same cohort. Excluding terminal entries from both the reference
-distribution (`reference/ingest.py`) and this detector brought the
-measurement back inside the approved corpus window.
+in the same cohort. Excluding terminal entries from the reference
+distribution (`reference/ingest.py`) brought the measurement back inside the
+approved corpus window. The interior ``max_offset_mm`` stays 13.0 and
+``gate-fac1`` is unchanged.
 
 Corpus margins (from `tests/corpus/manifest.json`'s cases, each measured via
 a freshly built `extract_feature_record`, all on **interior** entries only,
@@ -91,6 +95,31 @@ re-measured 2026-09-28 against the lordotic base fixture, item 189):
 - `displace`'s label-22 reading is `14.615923` mm and **must** fire --
   1.62 mm above the threshold (item 177's lateral form lowered it from item
   173's 17.615126).
+
+Corpus terminal margins (item 222, ``terminal_offset_mm``): `clean_control`
+5.05 / 8.51 mm; `displace` 7.58 / 11.15 (the displaced L3 is skipped as
+withheld); `relabel_swap` 5.05 / 11.15; `crop_at_border` L1 3.25 and
+`crop_fov_si` L5 9.86 (face-touching). Two co-detections: `sequence_break`
+T13 (label 28) 33.83 mm and `split_own_label` L5 (label 24) 17.27 mm. The
+four-level cases carry no terminal reading.
+
+Terminal calibration (item 222, 2026-10-13)
+-------------------------------------------
+Method: ``terminal_offset_mm``, the one-sided straight-line extrapolation
+(distance from the terminal centroid to the line through its two nearest
+non-withheld neighbours), judged at the existing 13.0 mm, inclusive. The
+interior ``max_offset_mm`` stays 13.0 and ``gate-fac1`` is unchanged.
+
+Measured 2026-10-14 on the 80-subject VerSe19 training cohort at the working
+tree built on commit ``fd20d0b9`` (this branch; the item-222 implementation
+commit follows it), centroids in ``anatomical_order`` as the pipeline takes
+them: 75 subjects with five or more levels, 150 terminals judged (the other
+five subjects carry no terminal reading), 26 of them touching an image face.
+One terminal reads 13.0 mm or more (``sub-verse014``, caudal L5, 17.707 mm);
+it touches a face, so the ``fov_truncation`` gate drops its finding. False
+positives through the shipped pipeline: 0. The largest non-face reading is
+12.288 mm (``sub-verse107``, caudal L5), 0.71 mm under the threshold -- a
+narrow margin that a larger cohort could cross.
 
 Distribution calibrated against: `src/segfacet/reference/reference_verse_v1.json`.
 """
@@ -177,6 +206,7 @@ class SplineOffsetRule(Rule):
                 "per_label.{label}.curve.dy_mm",
                 "per_label.{label}.curve.dz_mm",
                 "per_label.{label}.curve.offset_mm",
+                "per_label.{label}.curve.terminal_offset_mm",
             ),
             reason=(
                 "the offset and its axis components are the "
@@ -239,8 +269,9 @@ class SplineOffsetRule(Rule):
                 path="per_label.{label}.curve.is_terminal",
                 role="bookkeeping",
                 reason=(
-                    "gate: the terminal exemption, which suppresses a "
-                    "finding rather than evidencing one"
+                    "selector: decides whether a label is judged on "
+                    "`terminal_offset_mm` (terminal) or `offset_mm` "
+                    "(interior); it evidences nothing itself"
                 ),
             ),
             ConsumedPath(
@@ -249,6 +280,15 @@ class SplineOffsetRule(Rule):
                 reason=(
                     "evidence of the displaced_vertebra CONDITION this rule "
                     "records (item 150/189), which is not a failure mode"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.curve.terminal_offset_mm",
+                role="condition-signal",
+                reason=(
+                    "evidence of the displaced_vertebra CONDITION on a "
+                    "terminal vertebra (item 222): the distance to the line "
+                    "through its two nearest neighbours"
                 ),
             ),
             ConsumedPath(
@@ -277,9 +317,10 @@ class SplineOffsetRule(Rule):
                     "fitted through its neighbours?"
                 ),
                 fires_when=(
-                    "a non-terminal label's `offset_mm` >= `max_offset_mm` "
-                    "(inclusive); terminal (sequence-first/last) labels are "
-                    "skipped"
+                    "a non-terminal label's `offset_mm`, or a terminal "
+                    "(sequence-first/last) label's `terminal_offset_mm`, is "
+                    ">= `max_offset_mm` (inclusive); a terminal without a "
+                    "`terminal_offset_mm` is skipped"
                 ),
                 params=(("max_offset_mm", _DEFAULT_MAX_OFFSET_MM),),
                 mode_less_reason=(
@@ -379,35 +420,49 @@ class SplineOffsetRule(Rule):
             entry = label_entry.get("curve")
             if not isinstance(entry, dict):
                 continue
-            if entry.get("is_terminal"):
-                # A terminal (sequence-first/last) entry's held-out offset
-                # extrapolates past the end of the estimator's own parameter
-                # domain rather than measuring a genuine displacement -- item
-                # 123, see this module's docstring. A missing key or `None`
-                # is falsy and therefore interior, unchanged from before.
-                continue
+            terminal = bool(entry.get("is_terminal"))
+            if terminal:
+                # A terminal entry's held-out offset_mm extrapolates past the
+                # end of the estimator's own parameter domain (item 123), so
+                # it is judged on terminal_offset_mm instead (item 222); no
+                # reading means not judged. A missing is_terminal key or
+                # `None` is falsy and therefore interior.
+                if entry.get("terminal_offset_mm") is None:
+                    continue
+                offset = float(entry["terminal_offset_mm"])
+            else:
+                offset = float(entry.get("offset_mm", 0.0) or 0.0)
             try:
                 label = int(label_entry["label"])
             except (TypeError, ValueError):
                 continue
-            offset = float(entry.get("offset_mm", 0.0) or 0.0)
             name = label_entry.get("level_name")
-            direction = SplineOffsetRule._dominant_direction(entry)
-            normalised.append((label, name, offset, direction))
+            # The dx/dy/dz components describe the held-out vector, not the
+            # line reading, so a terminal names no axis.
+            direction = (
+                None if terminal else SplineOffsetRule._dominant_direction(entry)
+            )
+            normalised.append((label, name, offset, direction, terminal))
 
         normalised.sort(key=lambda t: t[0])
 
         findings: List[Finding] = []
-        for label, name, offset, direction in normalised:
+        for label, name, offset, direction, terminal in normalised:
             if offset >= max_offset:
                 direction_clause = f", predominantly {direction}" if direction else ""
+                curve = (
+                    "spinal curve extrapolated from its two nearest "
+                    "neighbours (terminal vertebra)"
+                    if terminal
+                    else "fitted spinal curve"
+                )
                 findings.append(
                     Finding(
                         rule_id="spline_offset",
                         severity=severity,
                         reason=(
                             f"{_MISALIGN_TAG} label {label} ({name}) centroid "
-                            f"lies {offset:.1f} mm off the fitted spinal curve"
+                            f"lies {offset:.1f} mm off the {curve}"
                             f"{direction_clause} "
                             f"(threshold {max_offset:.1f} mm)."
                         ),

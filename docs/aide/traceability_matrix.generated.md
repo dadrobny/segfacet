@@ -48,14 +48,14 @@ Direction complete: True. Holes: none.
 | overlap | 15 | declared | analytic · needs multi-channel input: pairs.overlaps[] is non-empty only when two labels claim one voxel, which a single-channel integer label map cannot express, so the pipeline's one-hot mask stack yields no overlap on any input FACET accepts today. Mode 15 (overlapping segments) of the catalogue signed off at item 150; the per-edge rung in segfacet.failure_modes.SPECIFICATION[15] is structurally-unobservable, and no committed corpus case designates this rule (item 195, 2026-09-28). | pairs.overlaps[], pairs.overlaps[].label_a, pairs.overlaps[].label_b, pairs.overlaps[].overlap_voxels, per_label, per_label.{label}.level_name |
 | reference_delta |  | mode_less: general outlier detector, not a failure mode's own signal: this rule thresholds a label's deviation from its level's cohort reference distribution (item 193, 2026-09-28, superseding item 137's modes-1/2/3/4/8 declaration). The rule still runs and fires exactly as before -- no threshold, condition, severity or evaluate line changed. failure_modes.SPECIFICATION carries no IntendedRule edge naming this rule for any mode. |  | per_label, per_label.{label}.level_name, reference_delta.lower_pct, reference_delta.upper_pct, reference_delta.{label}.available, reference_delta.{label}.distribution_distance, reference_delta.{label}.features.extent_x_mm.robust_z, reference_delta.{label}.features.extent_y_mm.robust_z, reference_delta.{label}.features.extent_z_mm.robust_z, reference_delta.{label}.features.physical_volume_mm3.robust_z, reference_delta.{label}.features.spline_offset_mm.robust_z, reference_delta.{label}.out_of_range_features[] |
 | sequence | 11 | declared | analytic: no committed corpus case designates this rule. Mode 11 (a non-default section reading the field of view does not corroborate) has no corpus case. Item 219 (2026-10-12) retired swap, shift and skip, which duplicated mislabel's ordering (mode 9) and coverage's missing_interior (mode 10); measured then, without the pairs exclusion sequence_break fires transitional on T13 (label 28), and with it sequence fires on no corpus case. | pairs.adjacent.non_monotonic_pairs[], per_label, per_label.{label}.label, per_label.{label}.level_name |
-| spline_offset |  | mode_less: records the displaced_vertebra CONDITION (failure_modes.CONDITIONS['displaced_vertebra']), not a failure mode: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement), not a defect of the segmentation -- item-150 sign-off, moved here from mislabel.py's Detector A at item 189 (2026-09-28). tests/corpus/manifest.json's displace is that condition's fixture. |  | per_label, per_label.{label}.curve.dx_mm, per_label.{label}.curve.dy_mm, per_label.{label}.curve.dz_mm, per_label.{label}.curve.is_terminal, per_label.{label}.curve.offset_mm, per_label.{label}.label, per_label.{label}.level_name |
+| spline_offset |  | mode_less: records the displaced_vertebra CONDITION (failure_modes.CONDITIONS['displaced_vertebra']), not a failure mode: the offset from the spinal curve is an anatomy-classification signal (spondylolisthesis, scoliosis, a rigid misplacement), not a defect of the segmentation -- item-150 sign-off, moved here from mislabel.py's Detector A at item 189 (2026-09-28). tests/corpus/manifest.json's displace is that condition's fixture. |  | per_label, per_label.{label}.curve.dx_mm, per_label.{label}.curve.dy_mm, per_label.{label}.curve.dz_mm, per_label.{label}.curve.is_terminal, per_label.{label}.curve.offset_mm, per_label.{label}.curve.terminal_offset_mm, per_label.{label}.label, per_label.{label}.level_name |
 | split_fragment | 3 | declared | corpus-manifest · tests/corpus/manifest.json's split_own_label designates this rule for mode 3 (split vertebra segment); item 208 (2026-09-30). Measured: label 23 reads contact 0.3317 and size 0.2083 on split_own_label, against thresholds 0.1 / 0.5; every other case in both corpora is silent. | per_label, per_label.{label}.components.label_contact_fraction, per_label.{label}.geometry.physical_volume_mm3, per_label.{label}.level_name |
 
 Corpus-designated rule ids that no rule registers: none.
 
 ## Features -> rules
 
-Total catalogued paths: 159. Read by >=1 rule: 53. Read by no rule: 106. Unwired: 45.
+Total catalogued paths: 160. Read by >=1 rule: 54. Read by no rule: 106. Unwired: 45.
 
 a leaf path no rule reads is inventory, not a gap: the feature record is a deliberately over-broad vector rules select from, and full consumption is never an expected end state.
 
@@ -80,9 +80,9 @@ Agree: 18. Disagree: 0. Conformant: True.
 | geometric | relabel_swap | 9 | mislabel | mislabel | True | specification |
 | geometric | remove_level | 6 | centroid_spacing, coverage | centroid_spacing, coverage | True | specification |
 | geometric | remove_level_relabel | 6 | centroid_spacing | centroid_spacing | True | specification |
-| geometric | sequence_break | 9 | mislabel | mislabel | True | specification |
+| geometric | sequence_break | 9 | mislabel, spline_offset | mislabel, spline_offset | True | specification |
 | geometric | split | 2 | neighbour_contact | neighbour_contact | True | specification |
-| geometric | split_own_label | 3 | bounds, split_fragment | bounds, split_fragment | True | specification |
+| geometric | split_own_label | 3 | bounds, split_fragment, spline_offset | bounds, spline_offset, split_fragment | True | specification |
 | intensity | clean_hu | 0 | (none) | (none) | True | manifest-clean-control |
 | intensity | degenerate_uniform | 16 | intensity | intensity | True | specification |
 | intensity | implausible_metal | 16 | intensity | intensity | True | specification |
@@ -115,7 +115,7 @@ Direction complete: True. Holes: none.
 | overlap | unexercised | (none) | structurally-unobservable | 15 |
 | reference_delta | unexercised | (none) | needs-real-data | (none) |
 | sequence | unexercised | (none) | needs-real-data | 11 |
-| spline_offset | exercised | geometric/displace | (none) | (none) |
+| spline_offset | exercised | geometric/displace, geometric/sequence_break, geometric/split_own_label | (none) | (none) |
 | split_fragment | exercised | geometric/split_own_label | (none) | (none) |
 
 ## Operator corpus exercise

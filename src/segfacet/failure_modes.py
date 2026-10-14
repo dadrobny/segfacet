@@ -1437,7 +1437,7 @@ _MODE_3 = ModeSpec(
         CorpusCaseExpectation(
             case_id="split_own_label",
             corpus="geometric",
-            expected_firing=("bounds", "split_fragment"),
+            expected_firing=("bounds", "split_fragment", "spline_offset"),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
@@ -1457,7 +1457,10 @@ _MODE_3 = ModeSpec(
                 "L1, unlike the CANONICAL_ORDER slice it replaced). "
                 "neighbour_contact does not fire (item 187): the cap is its "
                 "own label's only component, so it has no stray component "
-                "to measure."
+                "to measure. spline_offset also fires on L5 (label 24) "
+                "since item 222 (2026-10-13): a co-detection, not a "
+                "designation -- the terminal reading of 17.27 mm is "
+                "extrapolated from the split fragment and its neighbour."
             ),
         ),
     ),
@@ -1922,10 +1925,14 @@ _MODE_9 = ModeSpec(
         CorpusCaseExpectation(
             case_id="sequence_break",
             corpus="geometric",
-            expected_firing=("mislabel",),
+            expected_firing=("mislabel", "spline_offset"),
             reason=(
                 "pipeline-detected; measured live via segfacet.synth."
-                "regression.pipeline_findings (2026-10-12, item 219). The "
+                "regression.pipeline_findings (2026-10-12, item 219). "
+                "spline_offset also fires on T13 (label 28) since item 222 "
+                "(2026-10-13): a co-detection, not a designation -- the "
+                "relabelled caudal vertebra sits first in anatomical order, "
+                "and its terminal reading is 33.83 mm. The "
                 "tail vertebra is relabelled to T13; with the pairs judged "
                 "in CANONICAL_ORDER order against the label-free path "
                 "through the centroids, mislabel's ordering detector fires "
@@ -2427,8 +2434,9 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "survives the gate (it opts in to the condition it records). The "
         "exemption the condition still grants today, unmoved by the gate "
         "because it is rule logic rather than a case-level exclusion: "
-        "spline_offset's detector skips terminal entries "
-        "(per_label.{label}.curve.is_terminal); coverage's border-aware "
+        "spline_offset's detector judges terminal entries "
+        "(per_label.{label}.curve.is_terminal) on terminal_offset_mm "
+        "rather than the extrapolating offset_mm; coverage's border-aware "
         "span check resolves the covered span through the FOV-end labels, "
         "which the gate cannot do because coverage's findings are "
         "case-level and carry no labels for the gate to match."
@@ -2532,6 +2540,7 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "per_label.{label}.curve.dy_mm",
         "per_label.{label}.curve.dz_mm",
         "per_label.{label}.curve.is_terminal",
+        "per_label.{label}.curve.terminal_offset_mm",
     ),
     scope="vertebra",
     recording_rules=("spline_offset",),

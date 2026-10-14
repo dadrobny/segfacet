@@ -516,7 +516,8 @@
         "dy_mm": {"type": "number", "description": "y-component of the displacement vector (mm)."},
         "dz_mm": {"type": "number", "description": "z-component of the displacement vector (mm)."},
         "is_terminal": {"type": "boolean", "description": "True for the first/last entry of the ordered centroid sequence it was measured in (item 123). Optional -- an entry omitting it is treated as interior (False) by every consumer."},
-        "path_u": {"type": "number", "description": "This label's u: its normalised arc length in [0, 1] along the label-free minimum-spanning-tree longest path through the vertebra centroids (item 210), directed to have the fewest inversions against the anatomical order; a different quantity from closest_u, the position on the fitted spline. One element of the former stage3.monotonic_consistency.u_values array."}
+        "terminal_offset_mm": {"type": "number", "minimum": 0, "description": "Item 222. Present only on a terminal entry of a sequence of five or more levels: the distance (mm) from its centroid to the straight line through its two nearest non-withheld neighbours. The spline_offset rule judges a terminal on it."},
+        "path_u": {"type": "number", "description": "This label's u:its normalised arc length in [0, 1] along the label-free minimum-spanning-tree longest path through the vertebra centroids (item 210), directed to have the fewest inversions against the anatomical order; a different quantity from closest_u, the position on the fitted spline. One element of the former stage3.monotonic_consistency.u_values array."}
       }
     },
     "stage3OrientationEntry": {

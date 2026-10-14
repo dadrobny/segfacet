@@ -142,15 +142,17 @@ Measured on the real VerSe19 cohort while calibrating this module's
 item 189): the caudal-terminal level (`L5` in most
 of the cohort) reached a `p99` of `21.209` mm against an *interior* maximum
 of `1.00` mm at the same level -- a purely positional artefact, not
-deformity. `heuristics/spline_offset.py`, `reference/ingest.py` and
-`reference/delta.py` all read this flag and exclude a terminal entry from
-their respective offset judgements (never ``mislabel``'s ordering check, which
-does not use per-vertebra offsets at all). This is a stop-gap accepted
-knowingly, not a model of the true uncertainty: a genuinely displaced
-terminal vertebra is not detected by this rule at all until a smarter
-treatment (a separate terminal-aware calibration, an extrapolation-aware
-estimator, or a curvature model that does not need both neighbours) replaces
-it.
+deformity. ``reference/ingest.py`` and ``reference/delta.py`` still read this
+flag and exclude a terminal entry's ``offset_mm`` (never ``mislabel``'s
+ordering check, which does not use per-vertebra offsets at all).
+
+Terminal reading (item 222, 2026-10-13 owner decision): the extrapolating
+``offset_mm`` of a terminal is kept unchanged but is no longer what judges
+it. ``terminal_offset_mm`` is a one-sided straight-line extrapolation -- the
+perpendicular distance from the terminal's centroid to the line through its
+two nearest neighbours, skipping any neighbour item 221's outlier search
+withholds. It is present only on a terminal of a case with five or more
+levels, and ``heuristics/spline_offset.py`` judges a terminal on it.
 
 RAS axis contract for the direction components (item 120)
 -------------------------------------------------------------
@@ -252,6 +254,13 @@ class VertebralSplineOffset:
         existing hand-built records (an entry with no key, or ``None``) read
         as interior -- item 123's ``spline_offset``/reference consumers rely
         on this default (the detector moved to that rule at item 189).
+    terminal_offset_mm : Optional[float]
+        Item 222. On a terminal level of a sequence of at least five levels:
+        the perpendicular distance (mm) from its centroid to the straight line
+        through its two nearest non-withheld neighbours. ``None`` everywhere
+        else (interior levels, sequences below five levels, or fewer than two
+        eligible neighbours). The ``spline_offset`` rule judges a terminal on
+        this reading, never on its extrapolated ``offset_mm``.
     """
 
     label: int
@@ -263,6 +272,7 @@ class VertebralSplineOffset:
     dy_mm: float
     dz_mm: float
     is_terminal: bool = False
+    terminal_offset_mm: Optional[float] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -423,6 +433,42 @@ def _held_out_records(
             record = replace(record, is_terminal=is_terminal)
         records.append(record)
     return records
+
+
+def _terminal_line_offset(point, a, b) -> float:
+    """Distance (mm) from *point* to the line through *a* (nearer) and *b*."""
+    p, a, b = (np.asarray(x, dtype=np.float64) for x in (point, a, b))
+    t = (a - b) / np.linalg.norm(a - b)
+    d = p - a
+    return float(np.linalg.norm(d - (d @ t) * t))
+
+
+def _with_terminal_readings(
+    centroids: Sequence[LabelCentroid],
+    withheld: FrozenSet[int],
+    records: List[VertebralSplineOffset],
+) -> List[VertebralSplineOffset]:
+    """Set ``terminal_offset_mm`` on both terminals (item 222, spec A6).
+
+    Walks outward from the terminal, skipping withheld levels; the first two
+    eligible levels give the line. Fewer than two leaves the field ``None``.
+    """
+    n = len(centroids)
+    out = list(records)
+    for i in (0, n - 1):
+        others = sorted((j for j in range(n) if j != i and j not in withheld),
+                        key=lambda j: abs(j - i))
+        if len(others) < 2:
+            continue
+        a, b = others[:2]
+        out[i] = replace(
+            out[i],
+            terminal_offset_mm=_terminal_line_offset(
+                centroids[i].centroid_mm, centroids[a].centroid_mm,
+                centroids[b].centroid_mm,
+            ),
+        )
+    return out
 
 
 def _withhold_outliers(
@@ -598,4 +644,7 @@ def compute_leave_one_out_spline_offsets(
     first = _held_out_records(
         centroids, {worst_idx}, reference_fit, spacing_mm, backend
     )
-    return _withhold_outliers(centroids, first, reference_fit, spacing_mm, backend)[1]
+    withheld, records = _withhold_outliers(
+        centroids, first, reference_fit, spacing_mm, backend
+    )
+    return _with_terminal_readings(centroids, withheld, records)

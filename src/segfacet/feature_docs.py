@@ -311,12 +311,13 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
             "anterior-posterior, axis 2 cranio-caudal -- only because "
             "io.load_volume reorients every volume to axis codes (R, A, S) and "
             "centroid_mm carries no affine of its own. is_terminal (item 123) "
-            "marks the first/last vertebra of the sequence; the spline_offset "
-            "rule (item 189, moved off mislabel) "
-            "and the reference distribution both treat offset_mm as an "
-            "interior-only feature, excluding a terminal entry from their "
-            "judgement, because the held-out refit extrapolates past the end "
-            "of its parameter domain there."
+            "marks the first/last vertebra of the sequence; the reference "
+            "distribution treats offset_mm as an interior-only feature, "
+            "excluding a terminal entry, because the held-out refit "
+            "extrapolates past the end of its parameter domain there. The "
+            "spline_offset rule (item 189, moved off mislabel) judges a "
+            "terminal on terminal_offset_mm instead (item 222): its distance "
+            "to the line through its two nearest neighbours."
         ),
         "Orientation & Curvature": (
             "Per-vertebra orientation (PCA of the mean-centred, spacing-scaled "
@@ -1845,15 +1846,30 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             ),
             computation=(
                 'True for index 0 and index n-1 of the sequence (and every entry '
-                'when n <= 2); false otherwise. The spline_offset rule (item 189, '
-                'moved off mislabel) and the '
-                'reference distribution both exclude a terminal entry from their '
-                'offset judgement, because the held-out refit must extrapolate '
+                'when n <= 2); false otherwise. The reference distribution '
+                'excludes a terminal entry from its offset statistics, and the '
+                'spline_offset rule (item 189, moved off mislabel) judges a '
+                'terminal on terminal_offset_mm instead of offset_mm (item 222), '
+                'because the held-out refit must extrapolate '
                 'past the end of its own parameter domain there, which reads an '
                 'implausibly large offset unrelated to real displacement.'
             ),
             units='',
             scale_sensitivity='boolean',
+        ),
+        'per_label.{label}.curve.terminal_offset_mm': FeatureDoc(
+            measures=(
+                'How far a terminal (first or last) vertebra sits off the '
+                'straight line through its two nearest neighbours (item 222).'
+            ),
+            computation=(
+                'Perpendicular distance from the terminal centroid to the line '
+                'through the two nearest levels, skipping any level the '
+                'held-out outlier search withholds. Absent on interior labels '
+                'and on cases of fewer than five levels.'
+            ),
+            units='mm',
+            scale_sensitivity='scales with spacing',
         ),
         'per_label.{label}.orientation.eigenvalue_ratio': FeatureDoc(
             measures='Anisotropy of the per-vertebra voxel cloud.',

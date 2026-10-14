@@ -839,6 +839,25 @@ Checked and expected to stay green unedited:
 
 To be updated during implementation.
 
+- **Built (2026-10-14).** Steps 1-8 landed as specified. The terminal
+  reading is set by `_with_terminal_readings` in
+  `compute_leave_one_out_spline_offsets`, after `_withhold_outliers`
+  returns, so neither `_withhold_outliers` nor `_held_out_records` changed.
+  The five generators were run onto the committed copies, and the diff was
+  exactly the eight `docs/aide/*.generated.*` files; `failure_modes` reports
+  both co-detecting corpus cases as agreeing with live measurement.
+  The `ConsumedPath` entry for `terminal_offset_mm` sits after `offset_mm`
+  because `RuleModeDeclaration` requires ascending paths. No case needed
+  listing under `displaced_vertebra`'s corpus cases.
+- **VerSe19 replay (Validation 1-2), measured 2026-10-14:** 75 subjects of
+  five or more levels / 150 terminals judged / 26 touch a face / 1 at or
+  above 13.0 (`sub-verse014` L5, 17.707 mm, face-touching, so gated) / 0
+  false positives / largest non-face reading 12.288 mm (`sub-verse107` L5).
+  Identical to A3. The calibration record is in
+  `src/segfacet/heuristics/spline_offset.py`'s docstring, naming base commit
+  `fd20d0b9`. Step 10 (test reconciliation) and Validation 4 (test_125 AC11)
+  were not run by the builder, which writes no tests and runs no pytest.
+
 - **Decision (owner, 2026-10-13, cross-spec review): co-detection only.**
   - `spline_offset` on `sequence_break` and `split_own_label` is recorded
     in `failure_modes.py`'s `expected_firing` alone. The designated synth

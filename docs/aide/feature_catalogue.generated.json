@@ -3830,7 +3830,7 @@
           "units": "mm"
         },
         {
-          "computation": "True for index 0 and index n-1 of the sequence (and every entry when n <= 2); false otherwise. The spline_offset rule (item 189, moved off mislabel) and the reference distribution both exclude a terminal entry from their offset judgement, because the held-out refit must extrapolate past the end of its own parameter domain there, which reads an implausibly large offset unrelated to real displacement.",
+          "computation": "True for index 0 and index n-1 of the sequence (and every entry when n <= 2); false otherwise. The reference distribution excludes a terminal entry from its offset statistics, and the spline_offset rule (item 189, moved off mislabel) judges a terminal on terminal_offset_mm instead of offset_mm (item 222), because the held-out refit must extrapolate past the end of its own parameter domain there, which reads an implausibly large offset unrelated to real displacement.",
           "consumers": [],
           "consuming_rules": [
             "spline_offset"
@@ -4084,9 +4084,75 @@
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
+        },
+        {
+          "computation": "Perpendicular distance from the terminal centroid to the line through the two nearest levels, skipping any level the held-out outlier search withholds. Absent on interior labels and on cases of fewer than five levels.",
+          "consumers": [],
+          "consuming_rules": [
+            "spline_offset"
+          ],
+          "documented": true,
+          "failure_modes": [],
+          "measures": "How far a terminal (first or last) vertebra sits off the straight line through its two nearest neighbours (item 222).",
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_condition_signal"
+          ],
+          "mode_roles": [
+            [
+              "spline_offset",
+              "condition-signal"
+            ]
+          ],
+          "observed": {
+            "corpus": {
+              "count": 8,
+              "covered": true,
+              "informative": true,
+              "magnitude": 33.8345,
+              "maximum": 33.8345,
+              "minimum": 5.04706,
+              "population": "corpus",
+              "source": [
+                "clean",
+                "fragmented",
+                "overlaps",
+                "sequence_break"
+              ],
+              "span": 28.7875
+            },
+            "numeric": true,
+            "reference": {
+              "count": null,
+              "covered": false,
+              "informative": false,
+              "magnitude": null,
+              "maximum": null,
+              "minimum": null,
+              "population": "reference",
+              "source": [],
+              "span": null
+            },
+            "verdict": "varies"
+          },
+          "origin": "record",
+          "path": "per_label.{label}.curve.terminal_offset_mm",
+          "rule_evidence": [
+            [
+              "spline_offset",
+              "observed"
+            ],
+            [
+              "spline_offset",
+              "static"
+            ]
+          ],
+          "scale_sensitivity": "scales with spacing",
+          "status": "keep",
+          "units": "mm"
         }
       ],
-      "intro": "A cubic (degree clamped to n_points-1 when the sequence is short) smoothing B-spline is fit through the ordered centroids' mm-coordinates (scipy.interpolate.make_splprep, s = n_points by default); this spline underlies the per-vertebra offset measured here and the orientation/curvature/consistency families below. offset_mm is a held-out (leave-one-out, down-weighted) measurement (item 120): a level's offset is its closest-approach distance to a curve refit with that level, and every interior level that still reads 10 mm or more once its fellow outliers are withheld, down-weighted to a negligible constant (item 221), so the level under test cannot pull the curve toward itself. dx_mm/dy_mm/dz_mm are anatomically readable -- array axis 0 left-right, axis 1 anterior-posterior, axis 2 cranio-caudal -- only because io.load_volume reorients every volume to axis codes (R, A, S) and centroid_mm carries no affine of its own. is_terminal (item 123) marks the first/last vertebra of the sequence; the spline_offset rule (item 189, moved off mislabel) and the reference distribution both treat offset_mm as an interior-only feature, excluding a terminal entry from their judgement, because the held-out refit extrapolates past the end of its parameter domain there.",
+      "intro": "A cubic (degree clamped to n_points-1 when the sequence is short) smoothing B-spline is fit through the ordered centroids' mm-coordinates (scipy.interpolate.make_splprep, s = n_points by default); this spline underlies the per-vertebra offset measured here and the orientation/curvature/consistency families below. offset_mm is a held-out (leave-one-out, down-weighted) measurement (item 120): a level's offset is its closest-approach distance to a curve refit with that level, and every interior level that still reads 10 mm or more once its fellow outliers are withheld, down-weighted to a negligible constant (item 221), so the level under test cannot pull the curve toward itself. dx_mm/dy_mm/dz_mm are anatomically readable -- array axis 0 left-right, axis 1 anterior-posterior, axis 2 cranio-caudal -- only because io.load_volume reorients every volume to axis codes (R, A, S) and centroid_mm carries no affine of its own. is_terminal (item 123) marks the first/last vertebra of the sequence; the reference distribution treats offset_mm as an interior-only feature, excluding a terminal entry, because the held-out refit extrapolates past the end of its parameter domain there. The spline_offset rule (item 189, moved off mislabel) judges a terminal on terminal_offset_mm instead (item 222): its distance to the line through its two nearest neighbours.",
       "module": "segfacet.features.spline_offset",
       "stage": "Stage 3 · item 018",
       "title": "Spline Offset"
@@ -9094,7 +9160,7 @@
     "non-numeric": 40,
     "placeholder": 26,
     "unobserved": 0,
-    "varies": 86
+    "varies": 87
   },
   "schema_version": "1.2"
 }
