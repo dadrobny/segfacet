@@ -419,3 +419,15 @@ None.
   scan attributes only paths a rule indexes. The role is kept because
   `path_classification_conflicts()` and its adversarial tests still exercise
   it. Retiring it is a vocabulary change, outside a fix to attribution.
+- Fix round 1 (review): `build_catalogue` now catches only `OSError`,
+  `SyntaxError` and `TypeError` around the mechanism B scan (an unreadable
+  or unparsable rule source; `_ModuleInfo` raises `OSError` when no source
+  file is found). A scan bug propagates instead of silently dropping a
+  rule's static evidence. Call-following in `_PathScan._call` is capped at
+  depth 20 so a helper recursing on a growing path terminates
+  deterministically, attributing nothing past the cap. The scan's
+  unresolved constructs (nested defs, lambdas, comprehensions, module-attribute
+  calls, relative imports, inherited helpers) and its flow-insensitive
+  over-approximation are listed in the `catalogue.py` docstring. When a
+  module holds several same-named classes, `run_rule` prefers the one at the
+  rule class's own source line.

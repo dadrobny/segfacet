@@ -27,6 +27,16 @@ Four derivation mechanisms, each carrying its own evidence tag
   string key in the module against the last path segment of leaf paths, when
   exactly one leaf ended in it; that missed shared-last-segment reads and
   invented reads through blocks no driver realises.
+
+  Limits (unresolved reads attribute nothing). Resolved: same-module and
+  ``from segfacet.x import f`` helpers, followed to a depth cap. Not resolved:
+  nested ``def`` helpers and lambdas inside ``evaluate``; comprehension results
+  (and a comprehension variable leaks into the enclosing ``env``);
+  ``from segfacet.heuristics import fov`` then ``fov.f(...)``; relative
+  imports; helper methods inherited from a base class. The scan is
+  flow-insensitive: bindings are unioned into ``env`` (like tuple unpacking),
+  so reusing one variable name for two values attributes both values' reads to
+  both -- an over-approximation, not a missed read.
 - **C. The committed geometric corpus manifest** — ``rule_id -> failure
   mode(s)``, read from every failure-kind case of
   ``tests/corpus/manifest.json`` (item 182; via
@@ -682,6 +692,7 @@ def trace_record_access(record: Mapping[str, Any], fn) -> Set[str]:
 _WILD = None
 _ITER = "[]"
 _ELEMS = "<elems>"  # marks a local list whose elements sit at the preceding path
+_MAX_CALL_DEPTH = 20  # call-following cap; deeper calls attribute nothing
 _Paths = frozenset  # frozenset of token tuples
 
 
@@ -694,9 +705,15 @@ class _ModuleInfo:
         import sys
 
         self.name = module_name
-        origin = getattr(sys.modules.get(module_name), "__file__", None) or (
-            importlib.util.find_spec(module_name).origin
-        )
+        origin = getattr(sys.modules.get(module_name), "__file__", None)
+        if not origin:
+            try:
+                spec = importlib.util.find_spec(module_name)
+            except (ImportError, ValueError):
+                spec = None
+            origin = spec.origin if spec else None
+        if not origin:
+            raise OSError(f"no readable source for module {module_name!r}")
         self.tree = ast.parse(Path(origin).read_text(encoding="utf-8"))
         self.funcs: Dict[Tuple[Optional[str], str], Any] = {}
         self.imports: Dict[str, Tuple[str, str]] = {}
@@ -728,6 +745,7 @@ class _PathScan:
         self.modules: Dict[str, _ModuleInfo] = {}
         self.reads: Set[Tuple[Any, ...]] = set()
         self._memo: Dict[Any, _Paths] = {}
+        self._depth = 0
 
     def module(self, name: str) -> _ModuleInfo:
         if name not in self.modules:
@@ -738,13 +756,19 @@ class _PathScan:
         import ast
 
         info = self.module(type(rule).__module__)
+        import inspect
+
+        named = [
+            n
+            for n in ast.walk(info.tree)
+            if isinstance(n, ast.ClassDef) and n.name == type(rule).__name__
+        ]
+        # Same-named classes in one module: prefer the one at the rule class's
+        # own source line (decorators included); else the first.
+        start = inspect.getsourcelines(type(rule))[1] if len(named) > 1 else None
         cls = next(
-            (
-                n
-                for n in ast.walk(info.tree)
-                if isinstance(n, ast.ClassDef) and n.name == type(rule).__name__
-            ),
-            None,
+            (n for n in named if min([n.lineno] + [d.lineno for d in n.decorator_list]) == start),
+            named[0] if named else None,
         )
         fn = next(
             (
@@ -774,9 +798,15 @@ class _PathScan:
         key = (info.name, cls_name, fn.name, tuple(sorted(env.items(), key=lambda kv: kv[0])))
         if key in self._memo:
             return self._memo[key]
+        if self._depth >= _MAX_CALL_DEPTH:  # growing-path recursion: stop, attribute nothing
+            return frozenset()
         self._memo[key] = frozenset()  # recursion guard
         ret: Set[Tuple[Any, ...]] = set()
-        self._block(fn.body, env, info, cls_name, ret)
+        self._depth += 1
+        try:
+            self._block(fn.body, env, info, cls_name, ret)
+        finally:
+            self._depth -= 1
         self._memo[key] = frozenset(ret)
         return self._memo[key]
 
@@ -1190,11 +1220,12 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
     for rule in rules:
         try:
             reads = _rule_read_paths(rule)
-        except Exception:
-            # A rule registered from a module with no readable source (e.g.
-            # a rule class defined ad hoc in a test/adversarial context) --
-            # mechanism B simply contributes nothing for it, never aborting
-            # the build.
+        except (OSError, SyntaxError, TypeError):
+            # Only an unreadable source: a rule class with no source file
+            # (defined ad hoc in a test/adversarial context; OSError from
+            # _ModuleInfo / inspect, TypeError from inspect on a builtin) or
+            # unparsable source. Mechanism B contributes nothing for it. Any
+            # other error is a scan bug and propagates.
             continue
         for read in {_collapse_per_label(r) for r in reads}:
             for path, tokens in leaf_tokens.items():
