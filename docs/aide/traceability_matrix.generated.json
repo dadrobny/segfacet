@@ -176,8 +176,8 @@
         "corpus": "geometric",
         "expected_firing": [
           "bounds",
-          "split_fragment",
-          "spline_offset"
+          "spline_offset",
+          "split_fragment"
         ],
         "expected_source": "specification",
         "measured_firing": [

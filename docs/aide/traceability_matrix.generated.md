@@ -82,7 +82,7 @@ Agree: 18. Disagree: 0. Conformant: True.
 | geometric | remove_level_relabel | 6 | centroid_spacing | centroid_spacing | True | specification |
 | geometric | sequence_break | 9 | mislabel, spline_offset | mislabel, spline_offset | True | specification |
 | geometric | split | 2 | neighbour_contact | neighbour_contact | True | specification |
-| geometric | split_own_label | 3 | bounds, split_fragment, spline_offset | bounds, spline_offset, split_fragment | True | specification |
+| geometric | split_own_label | 3 | bounds, spline_offset, split_fragment | bounds, spline_offset, split_fragment | True | specification |
 | intensity | clean_hu | 0 | (none) | (none) | True | manifest-clean-control |
 | intensity | degenerate_uniform | 16 | intensity | intensity | True | specification |
 | intensity | implausible_metal | 16 | intensity | intensity | True | specification |
