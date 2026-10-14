@@ -59,9 +59,9 @@ incomplete:
   `cli.py` module level, `backend.py` caching its CuPy probe;
 - an item's diff stepping outside its spec's authorised paths — under
   CI runs no scope check, so the in-loop validator's `aide scope` and a
-  reviewer reading the queue PR are the only enforcement. Inside the item loop the check is the validator's alone
-  (`.aide/conventions.md` §9, engine 2.38.0): the in-loop `reviewer`
-  agent names such an edit in its report, unranked, and the validator's
+  reviewer reading the queue PR are the only enforcement. Inside the item
+  loop the check is the validator's alone (`.aide/conventions.md` §9, engine
+  2.38.0): the in-loop `reviewer` agent names such an edit in its report, unranked, and the validator's
   `aide scope` fails it.
 
 Style, naming, and refactoring suggestions are Nit at most.

@@ -3,10 +3,9 @@ of the framework verb ``aide scope``.
 
 Covers AC1-AC3, AC12, AC16-AC18. Item 226 (2026-10-13): AC5-AC9, which
 pinned the shape of the CI ``scope-check`` job, were retired with the job.
-AC4's two inbox-tick tests were
-retired on 2026-09-29: they read the live docs/aide/insights.md, which
-conventions §6 forbids (engine 2.10.0+); the tick is a diff-time claim the
-validator checked at merge. AC10/AC11 (the shape of
+AC4's two inbox-tick tests were retired on 2026-09-29: they read the live
+docs/aide/insights.md, which conventions §6 forbids (engine 2.10.0+); the
+tick is a diff-time claim the validator checked at merge. AC10/AC11 (the shape of
 ``tests/test_107_item_scope_check.py`` after the split) and AC13-AC15 (the
 ``tests/test_115_stage26_validation.py`` retarget) are asserted by the edits
 to those two modules directly, not here.
