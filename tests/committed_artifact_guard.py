@@ -78,7 +78,11 @@ read shapes ``.read_bytes()``, ``.read_text(...)`` and
 ``hashlib.sha256(<path>.read_bytes()).hexdigest()`` -- including a local
 variable that was itself assigned from one of those read shapes earlier in
 the same function (the "unchanged fence" idiom: read once, do something,
-read again, compare to the stored value). A one-step root
+read again, compare to the stored value). Item 225 widens this: a read
+wrapped in ``json.loads(...)``, with any chain of subscripts and ``.get()``
+calls on top, counts as the read, inline or through a bound name, and a
+module-level name bound to such a read is seen from every function unless a
+parameter or a local rebind shadows it. A one-step root
 (``Path(__file__).resolve().parent``/``.parents[0]`` or
 ``os.path.dirname(os.path.abspath(__file__))``, named or not) is deliberately
 not "the repo root" -- see :func:`_is_file_root_chain`.
@@ -221,6 +225,13 @@ ALLOWLIST: Tuple[AllowlistEntry, ...] = (
         reason="A released production artifact compared against a recorded "
         "digest; there is no freshly computed side, so a change must be "
         "deliberate.",
+    ),
+    AllowlistEntry(
+        path="tests/corpus/119_pre_119_digests.json",
+        ground="integrity-pin",
+        reason="Item 119's recorded pre-change digest: the payload is one "
+        "sha256 hex digest compared as a string against the same digest "
+        "recomputed.",
     ),
     AllowlistEntry(
         path="docs/aide/traceability_matrix.generated.json",
@@ -473,6 +484,60 @@ def _module_level_paths(tree: ast.Module) -> Tuple[Dict[str, str], Dict[str, int
     return known, depths
 
 
+def _unwrap_parsed(node):
+    """Strip any chain of subscripts and ``<x>.get(...)`` calls. If what
+    remains is ``json.loads(<arg>)`` with one positional argument, return
+    ``<arg>``, otherwise return what remains (item 225)."""
+    while True:
+        if isinstance(node, ast.Subscript):
+            node = node.value
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+        ):
+            node = node.func.value
+        else:
+            break
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "loads"
+        and _is_name(node.func.value, "json")
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        return node.args[0]
+    return node
+
+
+def _read_target(value, known, depths) -> Optional[str]:
+    """Committed path read by *value* (a direct or json-parsed read), or None."""
+    path_expr = _extract_path_expr_from_read(_unwrap_parsed(value))
+    if path_expr is None:
+        return None
+    return _resolve_expr(path_expr, known, depths)
+
+
+def _module_level_reads(tree: ast.Module, known, depths) -> Dict[str, str]:
+    """Module-level single-name assignments bound to a (parsed) read of a
+    committed path. A later module-level rebind drops the name."""
+    reads: Dict[str, str] = {}
+    for stmt in tree.body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and len(stmt.targets) == 1
+            and isinstance(stmt.targets[0], ast.Name)
+        ):
+            name = stmt.targets[0].id
+            resolved = _read_target(stmt.value, known, depths)
+            if resolved is not None:
+                reads[name] = resolved
+            else:
+                reads.pop(name, None)
+    return reads
+
+
 def _resolve_operand(
     operand: ast.expr,
     known: Dict[str, str],
@@ -484,6 +549,13 @@ def _resolve_operand(
     path_expr = _extract_path_expr_from_read(operand)
     if path_expr is not None:
         return _resolve_expr(path_expr, known, depths)
+    inner = _unwrap_parsed(operand)
+    if inner is not operand:
+        path_expr = _extract_path_expr_from_read(inner)
+        if path_expr is not None:
+            return _resolve_expr(path_expr, known, depths)
+        if isinstance(inner, ast.Name) and inner.id in read_results:
+            return read_results[inner.id]
     if isinstance(operand, ast.Name) and operand.id in read_results:
         return read_results[operand.id]
     return None
@@ -494,10 +566,16 @@ def _classify_function(
     module_known: Dict[str, str],
     module_path: str,
     module_depths: Optional[Dict[str, int]] = None,
+    module_reads: Optional[Dict[str, str]] = None,
 ) -> List[Violation]:
     local_known: Dict[str, str] = dict(module_known)
     local_depths: Dict[str, int] = dict(module_depths) if module_depths else {}
-    local_reads: Dict[str, str] = {}
+    a = func.args
+    params = {x.arg for x in a.posonlyargs + a.args + a.kwonlyargs}
+    params.update(x.arg for x in (a.vararg, a.kwarg) if x is not None)
+    local_reads: Dict[str, str] = {
+        k: v for k, v in (module_reads or {}).items() if k not in params
+    }
 
     for stmt in _walk_stmts(func.body):
         if not (
@@ -518,12 +596,10 @@ def _classify_function(
             local_reads.pop(name, None)
             continue
         local_known.pop(name, None)
-        path_expr = _extract_path_expr_from_read(stmt.value)
-        if path_expr is not None:
-            read_resolved = _resolve_expr(path_expr, local_known, local_depths)
-            if read_resolved is not None:
-                local_reads[name] = read_resolved
-                continue
+        read_resolved = _read_target(stmt.value, local_known, local_depths)
+        if read_resolved is not None:
+            local_reads[name] = read_resolved
+            continue
         local_reads.pop(name, None)
 
     violations: List[Violation] = []
@@ -565,11 +641,14 @@ def classify_module(source: str, module_path: str) -> List[Violation]:
         return []
 
     module_known, module_depths = _module_level_paths(tree)
+    module_reads = _module_level_reads(tree, module_known, module_depths)
 
     violations: List[Violation] = []
     for stmt in tree.body:
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            violations.extend(_classify_function(stmt, module_known, module_path, module_depths))
+            violations.extend(
+                _classify_function(stmt, module_known, module_path, module_depths, module_reads)
+            )
     return violations
 
 

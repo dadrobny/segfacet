@@ -65,6 +65,7 @@ line rather than raising ``IndexError``.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -361,6 +362,73 @@ def test_ac6_asserted_by_cells_resolve_to_real_tests(section1_rows, section2_row
             assert re.search(rf"def {re.escape(func)}\b", source), (
                 f"{func!r} not found in {module!r} (row: {row})"
             )
+
+
+_TEST_MODULE_FILE_RE = re.compile(r"test_\d+\w*\.py")
+
+
+def _docstring_constants(tree) -> set:
+    """ids of the ``str`` Constant nodes that are module/class/function docstrings."""
+    ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            first = node.body[0] if node.body else None
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                ids.add(id(first.value))
+    return ids
+
+
+def _unnamed_golden_readers(rows, repo_root) -> list:
+    """Item 225: for each row whose fixture is an on-disk ``tests/golden/``
+    file, the ``tests/test_NNN*.py`` modules that read it (a code string
+    constant naming the file, an attribute or ``setattr`` string naming a
+    module-level name bound to such a constant) but are not named in the
+    row's ``asserted by`` cell. Sorted ``(fixture, module)`` tuples."""
+    repo_root = Path(repo_root)
+    tests_dir = repo_root / "tests"
+    trees = {}
+    for path in sorted(tests_dir.glob("*.py")):
+        trees[path.name] = ast.parse(path.read_text(encoding="utf-8"))
+    unnamed = []
+    for row in rows:
+        fixture = row["fixture"]
+        if not fixture.startswith("tests/golden/") or not (repo_root / fixture).is_file():
+            continue
+        fname = Path(fixture).name
+        named = set(_MODULE_NAME_RE.findall(row["asserted by"]))
+        bound = set()
+        for tree in trees.values():
+            for stmt in tree.body:
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and len(stmt.targets) == 1
+                    and isinstance(stmt.targets[0], ast.Name)
+                    and any(
+                        isinstance(n, ast.Constant) and isinstance(n.value, str) and fname in n.value
+                        for n in ast.walk(stmt.value)
+                    )
+                ):
+                    bound.add(stmt.targets[0].id)
+        for name, tree in trees.items():
+            module = f"tests/{name}"
+            if not _TEST_MODULE_FILE_RE.fullmatch(name) or module in named:
+                continue
+            docs = _docstring_constants(tree)
+            for node in ast.walk(tree):
+                hit = (
+                    isinstance(node, ast.Constant)
+                    and isinstance(node.value, str)
+                    and id(node) not in docs
+                    and (fname in node.value or node.value in bound)
+                ) or (isinstance(node, ast.Attribute) and node.attr in bound)
+                if hit:
+                    unnamed.append((fixture, module))
+                    break
+    return sorted(unnamed)
 
 
 # =========================================================================== #

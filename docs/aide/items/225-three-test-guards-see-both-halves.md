@@ -365,7 +365,16 @@ edited, so neither item touches the other's paths. Sibling 226 deletes
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- `_unwrap_parsed` strips subscripts and `.get()` calls, then unwraps a
+  one-argument `json.loads`; a shared `_read_target` serves both the function
+  pre-scan and the new `_module_level_reads`, so the direct-read and parsed-read
+  binding rules cannot drift apart. `_module_level_paths` keeps its return shape.
+- Module-level reads seed `local_reads` minus the function's parameters; a local
+  rebind pops the name through the existing pre-scan rule.
+- `_unnamed_golden_readers` matches a bound name by `ast.Attribute.attr` or an
+  exact `str` constant, per A3; docstrings are excluded by node identity.
+- A throwaway script (not pytest) confirmed `iter_violations(tests)` and the
+  live Section-1 reverse check both return `[]`.
 
 - **Left open:** whether the reverse check should extend to keep rows outside
   `tests/golden/`. Measured 2026-10-12, it would demand roughly 200 more
