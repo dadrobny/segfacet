@@ -393,7 +393,26 @@ None.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Scan shape (item 223).** `catalogue._PathScan` is a flow-insensitive,
+  union-on-rebind abstract interpreter over the rule's `evaluate`
+  (paths as token tuples: key, `"[]"` iteration, wildcard). A same-class
+  `self.`/`cls.` call, a same-module call and a `from segfacet.<m> import f`
+  call are followed context-sensitively, memoised on the bound argument
+  paths, with a recursion guard. Calls with no traced argument are skipped.
+  A local list built by `.append(...)` remembers its elements' paths, so
+  `reference_delta`'s `normalised` list of `(label, key, entry)` tuples still
+  resolves; tuple targets over a non-tuple value take the union (an
+  over-approximation that only adds paths under the record).
+- **Measured on the branch (base `6e3de213`).** Catalogue `consuming_rules`
+  pairs: lost exactly A4's four `intensity_reference_delta` pairs; gained
+  exactly A4's twelve (AC1's ten and `coverage`'s two touch flags). The
+  traceability line reads `Total catalogued paths: 160. Read by >=1 rule: 64.`
+  (spec-time 60; the difference is the sibling items 218-222 landed since).
+  `path_classification_conflicts()` and `rule_declaration_conflicts()` are
+  empty.
+- **Declarations.** `consumed_paths` tuples must be ascending by path, so the
+  ten new `reference_delta` and two new `coverage` entries sit in sorted
+  position, not appended.
 
 - **Left open:** whether to retire the `not-read` role from `PATH_ROLES`.
   After this item no shipped declaration uses it, because the path-aware

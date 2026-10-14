@@ -145,12 +145,11 @@ class ReferenceDeltaRule(Rule):
         consumed_paths=(
             ConsumedPath(
                 path="per_label",
-                role="not-read",
+                role="bookkeeping",
                 reason=(
-                    "mechanism B last-path-segment match only: the container "
-                    "is not itself a feature -- this rule reads the "
-                    "identity of record['per_label'][key] and the "
-                    "per-label entries of record['reference_delta']"
+                    "containers iterated: the identity of "
+                    "record['per_label'][key] is read for the level name "
+                    "(item 223, 2026-10-12)"
                 ),
             ),
             ConsumedPath(
@@ -196,12 +195,39 @@ class ReferenceDeltaRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="reference_delta.{label}.features.extent_x_mm.percentile_rank",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
                 path="reference_delta.{label}.features.extent_x_mm.robust_z",
                 role="bookkeeping",
                 reason=(
                     "this mode-less rule's own firing value (item 193, "
                     "2026-09-28): a signal path needs a mode, and this "
                     "rule declares none"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.extent_x_mm.value",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.extent_y_mm.percentile_rank",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
                 ),
             ),
             ConsumedPath(
@@ -214,12 +240,48 @@ class ReferenceDeltaRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="reference_delta.{label}.features.extent_y_mm.value",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.extent_z_mm.percentile_rank",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
                 path="reference_delta.{label}.features.extent_z_mm.robust_z",
                 role="bookkeeping",
                 reason=(
                     "this mode-less rule's own firing value (item 193, "
                     "2026-09-28): a signal path needs a mode, and this "
                     "rule declares none"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.extent_z_mm.value",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
                 ),
             ),
             ConsumedPath(
@@ -232,12 +294,39 @@ class ReferenceDeltaRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="reference_delta.{label}.features.physical_volume_mm3.value",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.spline_offset_mm.percentile_rank",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
+                ),
+            ),
+            ConsumedPath(
                 path="reference_delta.{label}.features.spline_offset_mm.robust_z",
                 role="bookkeeping",
                 reason=(
                     "this mode-less rule's own firing value (item 193, "
                     "2026-09-28): a signal path needs a mode, and this "
                     "rule declares none"
+                ),
+            ),
+            ConsumedPath(
+                path="reference_delta.{label}.features.spline_offset_mm.value",
+                role="bookkeeping",
+                reason=(
+                    "message interpolation: printed in the out-of-range "
+                    "finding; the firing decision is "
+                    "out_of_range_features[]'s membership"
                 ),
             ),
             ConsumedPath(

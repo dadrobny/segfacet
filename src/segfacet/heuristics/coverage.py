@@ -193,6 +193,24 @@ class CoverageRule(Rule):
                 ),
             ),
             ConsumedPath(
+                path="per_label.{label}.geometry.touches_inferior",
+                role="bookkeeping",
+                reason=(
+                    "gate: border-aware exemption in the opt-in "
+                    "expected-span check (read in fov.derive_fov_coverage); "
+                    "never mode-10 evidence"
+                ),
+            ),
+            ConsumedPath(
+                path="per_label.{label}.geometry.touches_superior",
+                role="bookkeeping",
+                reason=(
+                    "gate: border-aware exemption in the opt-in "
+                    "expected-span check (read in fov.derive_fov_coverage); "
+                    "never mode-10 evidence"
+                ),
+            ),
+            ConsumedPath(
                 path="per_label.{label}.level_name",
                 role="bookkeeping",
                 reason=(

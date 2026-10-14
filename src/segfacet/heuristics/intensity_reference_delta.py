@@ -154,13 +154,10 @@ class IntensityReferenceDeltaRule(Rule):
         consumed_paths=(
             ConsumedPath(
                 path="per_label",
-                role="not-read",
+                role="bookkeeping",
                 reason=(
-                    "mechanism B last-path-segment match only: the container "
-                    "is not itself a feature -- this rule reads "
-                    "record['intensity_reference_delta'] and takes each "
-                    "label's level_name from record['per_label'] "
-                    "(item 215)"
+                    "containers iterated: takes each label's level_name "
+                    "from record['per_label'] (items 215, 223)"
                 ),
             ),
             ConsumedPath(
@@ -169,45 +166,6 @@ class IntensityReferenceDeltaRule(Rule):
                 reason=(
                     "identity and message interpolation: names the level "
                     "in the finding"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.lower_pct",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: the rule "
-                    "reads "
-                    "record['intensity_reference_delta']['lower_pct'], a "
-                    "block no driver realises, so it has no catalogued "
-                    "leaf path of its own"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.upper_pct",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: the rule "
-                    "reads "
-                    "record['intensity_reference_delta']['upper_pct'], not "
-                    "record['reference_delta']"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.distribution_distance",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: read from "
-                    "the intensity_reference_delta block, not from "
-                    "reference_delta"
-                ),
-            ),
-            ConsumedPath(
-                path="reference_delta.{label}.out_of_range_features[]",
-                role="not-read",
-                reason=(
-                    "mechanism B last-path-segment match only: read from "
-                    "the intensity_reference_delta block, not from "
-                    "reference_delta"
                 ),
             ),
         ),

@@ -66,8 +66,9 @@ _DETECTOR_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 #:   CONDITIONS``). Allowed only on a mode-less declaration, requires a
 #:   reason naming the condition, and contributes no mode anywhere.
 #: - ``"not-read"`` — the rule does **not** read this path at all; the
-#:   catalogue attributes it by mechanism B's last-path-segment name match
-#:   (see :mod:`segfacet.catalogue`). ``segfacet.catalogue.
+#:   catalogue's path-aware mechanism B attributes only paths a rule indexes
+#:   (item 223; see :mod:`segfacet.catalogue`), so a ``"not-read"`` claim is
+#:   for a path some other mechanism attributes anyway. ``segfacet.catalogue.
 #:   path_classification_conflicts()`` refuses a ``"not-read"`` claim on a
 #:   pair carrying mechanism-A ``"observed"`` evidence, so it cannot be used
 #:   as an escape hatch.

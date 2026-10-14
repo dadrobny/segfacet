@@ -172,12 +172,10 @@ class IntensityRule(Rule):
             ),
             ConsumedPath(
                 path="per_label",
-                role="not-read",
+                role="bookkeeping",
                 reason=(
-                    "mechanism B attributes it by last-path-segment name "
-                    "match only: the container is not itself a feature -- "
-                    "this rule reads the intensity entries beneath "
-                    "record['per_label'] (item 215)"
+                    "containers iterated: this rule reads the intensity "
+                    "entries beneath record['per_label'] (items 215, 223)"
                 ),
             ),
             ConsumedPath(

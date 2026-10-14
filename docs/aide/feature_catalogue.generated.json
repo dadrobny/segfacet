@@ -890,10 +890,6 @@
               "observed"
             ],
             [
-              "centroid_spacing",
-              "static"
-            ],
-            [
               "split_fragment",
               "observed"
             ],
@@ -978,19 +974,25 @@
             "compute_per_mode_metrics"
           ],
           "consuming_rules": [
-            "border"
+            "border",
+            "coverage"
           ],
           "documented": true,
           "failure_modes": [],
           "measures": "Whether the label touches the inferior image face.",
           "mode_evidence": [
             "rule_mode_less",
+            "rule_bookkeeping",
             "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
               "condition-signal"
+            ],
+            [
+              "coverage",
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -1032,6 +1034,14 @@
             [
               "border",
               "observed"
+            ],
+            [
+              "border",
+              "static"
+            ],
+            [
+              "coverage",
+              "static"
             ]
           ],
           "scale_sensitivity": "boolean",
@@ -1242,19 +1252,25 @@
             "compute_per_mode_metrics"
           ],
           "consuming_rules": [
-            "border"
+            "border",
+            "coverage"
           ],
           "documented": true,
           "failure_modes": [],
           "measures": "Whether the label touches the superior image face.",
           "mode_evidence": [
             "rule_mode_less",
+            "rule_bookkeeping",
             "rule_condition_signal"
           ],
           "mode_roles": [
             [
               "border",
               "condition-signal"
+            ],
+            [
+              "coverage",
+              "bookkeeping"
             ]
           ],
           "observed": {
@@ -1296,6 +1312,14 @@
             [
               "border",
               "observed"
+            ],
+            [
+              "border",
+              "static"
+            ],
+            [
+              "coverage",
+              "static"
             ]
           ],
           "scale_sensitivity": "boolean",
@@ -2472,10 +2496,6 @@
               "observed"
             ],
             [
-              "centroid_spacing",
-              "static"
-            ],
-            [
               "collapsed_labels",
               "observed"
             ],
@@ -3249,6 +3269,10 @@
             [
               "border",
               "observed"
+            ],
+            [
+              "border",
+              "static"
             ],
             [
               "coverage",
@@ -4075,10 +4099,6 @@
             [
               "centroid_spacing",
               "observed"
-            ],
-            [
-              "centroid_spacing",
-              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -6172,6 +6192,10 @@
             [
               "intensity",
               "observed"
+            ],
+            [
+              "intensity",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -6604,6 +6628,10 @@
             [
               "intensity",
               "observed"
+            ],
+            [
+              "intensity",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -6768,6 +6796,10 @@
             [
               "intensity",
               "observed"
+            ],
+            [
+              "intensity",
+              "static"
             ]
           ],
           "scale_sensitivity": "boolean",
@@ -6918,7 +6950,6 @@
           "computation": "Default 1 (segfacet.reference.delta.DEFAULT_LOWER_PCT).",
           "consumers": [],
           "consuming_rules": [
-            "intensity_reference_delta",
             "reference_delta"
           ],
           "documented": true,
@@ -6926,14 +6957,9 @@
           "measures": "The lower percentile bound defining the reference in-range band.",
           "mode_evidence": [
             "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
             [
               "reference_delta",
               "bookkeeping"
@@ -6970,10 +6996,6 @@
           "origin": "record",
           "path": "reference_delta.lower_pct",
           "rule_evidence": [
-            [
-              "intensity_reference_delta",
-              "static"
-            ],
             [
               "reference_delta",
               "observed"
@@ -7167,7 +7189,6 @@
           "computation": "Default 99 (segfacet.reference.delta.DEFAULT_UPPER_PCT).",
           "consumers": [],
           "consuming_rules": [
-            "intensity_reference_delta",
             "reference_delta"
           ],
           "documented": true,
@@ -7175,14 +7196,9 @@
           "measures": "The upper percentile bound defining the reference in-range band.",
           "mode_evidence": [
             "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
             [
               "reference_delta",
               "bookkeeping"
@@ -7219,10 +7235,6 @@
           "origin": "record",
           "path": "reference_delta.upper_pct",
           "rule_evidence": [
-            [
-              "intensity_reference_delta",
-              "static"
-            ],
             [
               "reference_delta",
               "observed"
@@ -7289,6 +7301,10 @@
             [
               "reference_delta",
               "observed"
+            ],
+            [
+              "reference_delta",
+              "static"
             ]
           ],
           "scale_sensitivity": "boolean",
@@ -7299,7 +7315,6 @@
           "computation": "RMS of the defined robust_z values across that label's tracked-and-present features.",
           "consumers": [],
           "consuming_rules": [
-            "intensity_reference_delta",
             "reference_delta"
           ],
           "documented": true,
@@ -7307,14 +7322,9 @@
           "measures": "Per-label aggregate anomaly score against the reference.",
           "mode_evidence": [
             "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
             [
               "reference_delta",
               "bookkeeping"
@@ -7351,10 +7361,6 @@
           "origin": "record",
           "path": "reference_delta.{label}.distribution_distance",
           "rule_evidence": [
-            [
-              "intensity_reference_delta",
-              "static"
-            ],
             [
               "reference_delta",
               "observed"
@@ -7415,12 +7421,22 @@
         {
           "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7451,7 +7467,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.extent_x_mm.percentile_rank",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7509,6 +7530,10 @@
             [
               "reference_delta",
               "observed"
+            ],
+            [
+              "reference_delta",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -7518,12 +7543,22 @@
         {
           "computation": "Read directly from the case's features_block for this label.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7554,7 +7589,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.extent_x_mm.value",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7650,12 +7690,22 @@
         {
           "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7686,7 +7736,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.extent_y_mm.percentile_rank",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7744,6 +7799,10 @@
             [
               "reference_delta",
               "observed"
+            ],
+            [
+              "reference_delta",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -7753,12 +7812,22 @@
         {
           "computation": "Read directly from the case's features_block for this label.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7789,7 +7858,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.extent_y_mm.value",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7885,12 +7959,22 @@
         {
           "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -7921,7 +8005,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.extent_z_mm.percentile_rank",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -7979,6 +8068,10 @@
             [
               "reference_delta",
               "observed"
+            ],
+            [
+              "reference_delta",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -7988,12 +8081,22 @@
         {
           "computation": "Read directly from the case's features_block for this label.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -8024,7 +8127,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.extent_z_mm.value",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -8120,12 +8228,22 @@
         {
           "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -8156,7 +8274,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.physical_volume_mm3.percentile_rank",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -8214,6 +8337,10 @@
             [
               "reference_delta",
               "observed"
+            ],
+            [
+              "reference_delta",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -8223,12 +8350,22 @@
         {
           "computation": "Read directly from the case's features_block for this label.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -8259,7 +8396,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.physical_volume_mm3.value",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -8355,12 +8497,22 @@
         {
           "computation": "Piecewise-linear interpolation over the reference's stored percentile grid, anchored at min/max.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "Where the case's value falls in the reference's percentile grid.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -8391,7 +8543,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.spline_offset_mm.percentile_rank",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -8449,6 +8606,10 @@
             [
               "reference_delta",
               "observed"
+            ],
+            [
+              "reference_delta",
+              "static"
             ]
           ],
           "scale_sensitivity": "dimensionless",
@@ -8458,12 +8619,22 @@
         {
           "computation": "Read directly from the case's features_block for this label.",
           "consumers": [],
-          "consuming_rules": [],
+          "consuming_rules": [
+            "reference_delta"
+          ],
           "documented": true,
           "failure_modes": [],
           "measures": "The case's own value for this tracked feature.",
-          "mode_evidence": [],
-          "mode_roles": [],
+          "mode_evidence": [
+            "rule_mode_less",
+            "rule_bookkeeping"
+          ],
+          "mode_roles": [
+            [
+              "reference_delta",
+              "bookkeeping"
+            ]
+          ],
           "observed": {
             "corpus": {
               "count": 1,
@@ -8494,7 +8665,12 @@
           },
           "origin": "record",
           "path": "reference_delta.{label}.features.spline_offset_mm.value",
-          "rule_evidence": [],
+          "rule_evidence": [
+            [
+              "reference_delta",
+              "static"
+            ]
+          ],
           "scale_sensitivity": "dimensionless",
           "status": "retune",
           "units": ""
@@ -8547,7 +8723,6 @@
           "computation": "Every FeatureDelta with out_of_range True, sorted by feature name.",
           "consumers": [],
           "consuming_rules": [
-            "intensity_reference_delta",
             "reference_delta"
           ],
           "documented": true,
@@ -8555,14 +8730,9 @@
           "measures": "Feature names whose case value falls outside the reference's percentile band.",
           "mode_evidence": [
             "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
-            [
-              "intensity_reference_delta",
-              "not-read"
-            ],
             [
               "reference_delta",
               "bookkeeping"
@@ -8599,10 +8769,6 @@
           "origin": "record",
           "path": "reference_delta.{label}.out_of_range_features[]",
           "rule_evidence": [
-            [
-              "intensity_reference_delta",
-              "static"
-            ],
             [
               "reference_delta",
               "observed"
@@ -8985,8 +9151,7 @@
           "measures": "The per-label feature map, keyed by integer label.",
           "mode_evidence": [
             "rule_mode_less",
-            "rule_bookkeeping",
-            "rule_not_read"
+            "rule_bookkeeping"
           ],
           "mode_roles": [
             [
@@ -9015,11 +9180,11 @@
             ],
             [
               "intensity",
-              "not-read"
+              "bookkeeping"
             ],
             [
               "intensity_reference_delta",
-              "not-read"
+              "bookkeeping"
             ],
             [
               "mislabel",
@@ -9035,7 +9200,7 @@
             ],
             [
               "reference_delta",
-              "not-read"
+              "bookkeeping"
             ],
             [
               "sequence",
