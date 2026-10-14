@@ -2029,7 +2029,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 - ✅ Path-aware rule-read attribution in the catalogue. *(Item 223)*
 - ✅ Platform-sensitive comparisons tolerant, determinism checks exact. *(Item 224)*
 - ✅ Three test guards that see only half of what they guard. *(Item 225)*
-- 📋 Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
+- 🚧 Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
 - 📋 Stale descriptions of shipped behaviour, and the path-position end clamp. *(Item 227)*
 
 ---
