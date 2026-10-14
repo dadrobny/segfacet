@@ -2026,7 +2026,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 - ✅ A collapsed label set no longer passes silently. *(Item 220)*
 - ✅ Held-out spline offset with every outlier withheld. *(Item 221)*
 - ✅ Held-out spline offset at the ends of the sequence. *(Item 222)*
-- 📋 Path-aware rule-read attribution in the catalogue. *(Item 223)*
+- 🚧 Path-aware rule-read attribution in the catalogue. *(Item 223)*
 - 📋 Platform-sensitive comparisons tolerant, determinism checks exact. *(Item 224)*
 - 📋 Three test guards that see only half of what they guard. *(Item 225)*
 - 📋 Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
