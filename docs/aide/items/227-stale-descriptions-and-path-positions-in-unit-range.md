@@ -76,6 +76,14 @@ backward branch). The result no longer depends on how `sum()` rounds.
   `sum` patched to `math.fsum` equals, element for element with `==`, the
   list it returns unpatched. Before this item, four of the five values
   differ.
+  - *Correction (2026-10-14):* re-measured on `aide/queue-030` HEAD
+    `94364da8` (items 218–226 merged), three of the five `OVERSHOOT_SPINE`
+    values differ between the patched and unpatched runs (indices 1, 2 and
+    4), not four. Four of five differ on `BACKWARD_OVERSHOOT_SPINE`. The
+    criterion itself, element-wise equality, is unchanged. Neither AC1 nor
+    AC2 is satisfied or contradicted by the merged items, because
+    `src/segfacet/features/consistency.py` is unchanged since this spec was
+    written.
 
 The three wording fixes have no criterion (see Decisions). The validator
 reads them under Validation. The existing test_040 test that compares a fresh
@@ -99,6 +107,12 @@ until the regenerated manifest carries the new `detail`.
   report, and every corpus case's firing is unchanged. The existing corpus
   and eval suites keep asserting the firing, so the item writes no new
   criterion for it.
+  - **Re-checked 2026-10-14** on `aide/queue-030` HEAD `94364da8`, items
+    218–226 merged: agrees. `src/segfacet/features/consistency.py` is
+    unchanged since this spec was written (`_path_positions` still sets
+    `total = float(sum(seg_len))`, line 192), and the unpatched
+    `OVERSHOOT_SPINE` output re-measured on the project venv (Python
+    3.11.15) is the same five values.
 - **A3 (the order of `u` is preserved: the interface items 218 and 219
   read).** Item 218's A5 reads `path_u` only to order labels. Item 219's A5
   keeps `pairs.adjacent.non_monotonic_pairs[]` meaning "`path_u` does not
@@ -115,6 +129,20 @@ until the regenerated manifest carries the new `detail`.
     `0.24495063470379494` became `0.2449506347037949`.
   - A strict order could only become a tie for two `s` values within about
     one ulp of each other, which happens the same way under either divisor.
+  - **Re-checked 2026-10-14** (same base): the interface agrees. Item 218's
+    `centroid_spacing` (`src/segfacet/heuristics/centroid_spacing.py`) reads
+    `path_u` only as a sort key, `rows.sort(key=lambda r: (r[0], r[1]))`,
+    ties broken by label. `pairs.adjacent.non_monotonic_pairs[]` is still
+    built from `u_values[i] >= u_values[i + 1]` in
+    `compute_monotonic_consistency`, and item 219's readers (`mislabel`'s
+    ordering detector, `sequence`'s transitional detector) read the pair
+    list, never `u`. Item 222's terminal spline offset reads no path
+    position. **Correction to the third bullet:** re-measured, the patched
+    forward output moves two interior values (indices 1 and 2,
+    `0.24495063470379494` and `0.48653093333213593`) plus the end value.
+    Index 3 reads `0.7407204414427608` either way. So two interior values
+    move, not three. The bullet's conclusion, that interior values can
+    change in the last ulp, stands.
 - **A4 (the replacement wording).** These replacements are defaults the
   builder may reword, provided each passage reads true against the code:
   - **`relabel_swap` `detail`:** the check reads each label's position
@@ -133,6 +161,22 @@ until the regenerated manifest carries the new `detail`.
   not contain "reconstructed" or "Not surfaced by plain run_qc", because
   `tests/test_132_monotonicity_against_traversal_order.py` lines 476–479
   assert all three.
+
+  **Re-checked 2026-10-14** (same base): the wording defaults agree, and
+  the line numbers are corrected.
+  - The stale passages are unchanged: the `detail` at
+    `identity_ordering_alignment.py` lines 423–429, the `corpus.py`
+    docstring lines 44–48, and `severity_ladder.py` lines 69–70, 842 and
+    866. The committed manifest still carries the old `detail` (line 173).
+    Outside `docs/aide/`'s own records, a grep for "geometric traversal
+    order" over `src`, `tests` and `docs` finds only those two source files
+    and the manifest, so no other generated artifact carries the text.
+  - Item 219 edited `SequenceBreakPerturbation` in the same module, a
+    separate hunk, and dropped its "unlike ``displace`` and
+    ``relabel_swap``" aside. Nothing there contradicts the defaults above.
+  - **Correction:** test_132's three token checks are now lines 475–477,
+    in `test_ac17_committed_manifest_mode4_detail_names_mislabel_not_pipeline_miss`.
+    Item 219's edits above them moved them. The three checks are unchanged.
 - **A5 (a test on Python 3.11 needs the patch).** On 3.11 no input
   reproduces the defect, because `sum()` and the `cum[]` loop round
   identically. The tests patch the module-global `sum` with
@@ -140,6 +184,10 @@ until the regenerated manifest carries the new `detail`.
   `math.fsum` is exactly rounded. It is not bit-identical to 3.12's
   compensated `sum()`, but it overshoots the same way, and that is the
   defect. The patch has no effect once the code stops calling `sum()`.
+  - **Re-checked 2026-10-14** (same base): agrees. `_path_positions` still
+    calls the module-global `sum`. With it patched to `math.fsum`, the
+    forward fifth value re-measured `1.0000000000000002` and the backward
+    second value `-2.220446049250313e-16`.
 
 ## Implementation Steps
 
@@ -242,6 +290,15 @@ all three of its token checks true. The stale comments in
 `tests/test_039_*` (line 401) and `tests/test_040_*` (lines 102 and 314) are
 left alone (insight `2026-10-13-cc62`).
 
+**Re-checked 2026-10-14** (`aide/queue-030` HEAD `94364da8`): still no test
+calls `_path_positions` or patches `sum`, so there is still nothing to
+reconcile. Some line numbers moved. test_132's token checks are now lines
+475–477 (A4). The stale comment in `tests/test_039_*` is now line 413, not
+401. The `tests/test_040_*` comments are still at lines 102 and 314. The
+manifest byte check is
+`test_ac16_regeneration_is_byte_identical_across_runs_and_vs_committed`
+(assertion at line 425).
+
 ## Validation
 
 The validator reads each corrected passage against the code it describes,
@@ -283,6 +340,16 @@ and records a one-line verdict per passage.
   also regenerates `tests/corpus/manifest.json`. Whichever of the two lands
   later regenerates on top of the other. This item does not pin the
   manifest.
+- **Re-checked 2026-10-14** (`aide/queue-030` HEAD `94364da8`): item 220
+  is merged, so the declared order holds. Items 218 and 219 have also
+  landed manifest changes, so step 5 regenerates on top of both. Item 222
+  did not touch `tests/corpus/manifest.json`: its new `spline_offset`
+  expectations are the `expected_firing` tuples of `sequence_break` and
+  `split_own_label` in `src/segfacet/failure_modes.py`, not this case.
+  `relabel_swap`'s manifest expectation is still `mislabel` on {21, 22}.
+  Item 219 reduced its plain `run_qc` findings from two to one (test_132
+  AC13) and its `expected_firing` to `("mislabel",)`. `aide check --queue
+  030` reports no error.
 
 ## Decisions & Trade-offs
 
