@@ -371,6 +371,18 @@ over the driver records, so each case asserts on the
 - Items 218, 219 and 220 move these same literals. Whichever lands later
   re-measures on top.
 
+## Review findings
+
+- **unresolved-read-no-fallback-control (minor):** the positive control in
+  `unresolved-read-no-fallback` read `reference_delta.lower_pct`, the same
+  leaf as the unresolved local-dict read `local["lower_pct"]`, and
+  `reference_delta.lower_pct` is the only catalogue leaf ending in
+  `lower_pct`, so a last-segment fallback would attribute the same path and
+  the test could not discriminate. Fixed: the control now reads the different
+  realised key `record["reference_delta"]["upper_pct"]` and the test asserts
+  the attributed set is exactly `{"reference_delta.upper_pct"}`. Test:
+  `test_unresolved_read_no_fallback`.
+
 ## Validation
 
 1. On the claim branch, run `.venv/bin/python -m segfacet.catalogue` and

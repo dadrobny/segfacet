@@ -85,15 +85,14 @@ def test_unresolved_read_no_fallback():
         def evaluate(self, record, config):
             local = {"lower_pct": 1.0}
             _ = local["lower_pct"]
-            _ = record.get("reference_delta", {}).get("lower_pct")
+            _ = record["reference_delta"]["upper_pct"]
             return []
 
     paths = _static_paths({_LocalDictRule.rule_id: _LocalDictRule})
-    # Positive control: the resolvable read is attributed, so the scan ran;
-    # the unresolved local-dict read adds nothing beyond it.
-    attributed = paths[_LocalDictRule.rule_id]
-    assert "reference_delta.lower_pct" in attributed, "precondition"
-    assert attributed == {p for p in attributed if p.startswith("reference_delta")}
+    # Positive control: a different realised key read through the record is
+    # attributed, so the scan ran; the local-dict `lower_pct` read must not
+    # fall back to the catalogue leaf of the same name.
+    assert paths[_LocalDictRule.rule_id] == {"reference_delta.upper_pct"}
 
 
 def test_seed_is_the_registered_class_only():
