@@ -376,6 +376,14 @@ edited, so neither item touches the other's paths. Sibling 226 deletes
 - A throwaway script (not pytest) confirmed `iter_violations(tests)` and the
   live Section-1 reverse check both return `[]`.
 
+- Review-fix round: `_read_target` takes the read map, so `json.loads(raw)` on a
+  name already bound to a read binds the new name to the same path (function
+  pre-scan and `_module_level_reads`). Any `Store`-context name or `except ... as`
+  name in a function now shadows a module-level read, not only a single-name
+  assignment or parameter. `_unnamed_golden_readers` also counts an
+  `ast.ImportFrom` alias whose name is a bound name. The throwaway script again
+  returned `[]` for the live tree.
+
 - **Left open:** whether the reverse check should extend to keep rows outside
   `tests/golden/`. Measured 2026-10-12, it would demand roughly 200 more
   names, most of them incidental mentions (`tests/corpus/manifest.json`

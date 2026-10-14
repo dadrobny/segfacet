@@ -511,9 +511,13 @@ def _unwrap_parsed(node):
     return node
 
 
-def _read_target(value, known, depths) -> Optional[str]:
-    """Committed path read by *value* (a direct or json-parsed read), or None."""
-    path_expr = _extract_path_expr_from_read(_unwrap_parsed(value))
+def _read_target(value, known, depths, reads=None) -> Optional[str]:
+    """Committed path read by *value* (a direct or json-parsed read, or a
+    parse of a name already bound to a read via *reads*), or None."""
+    inner = _unwrap_parsed(value)
+    if isinstance(inner, ast.Name) and inner is not value and reads and inner.id in reads:
+        return reads[inner.id]
+    path_expr = _extract_path_expr_from_read(inner)
     if path_expr is None:
         return None
     return _resolve_expr(path_expr, known, depths)
@@ -530,7 +534,7 @@ def _module_level_reads(tree: ast.Module, known, depths) -> Dict[str, str]:
             and isinstance(stmt.targets[0], ast.Name)
         ):
             name = stmt.targets[0].id
-            resolved = _read_target(stmt.value, known, depths)
+            resolved = _read_target(stmt.value, known, depths, reads)
             if resolved is not None:
                 reads[name] = resolved
             else:
@@ -577,6 +581,14 @@ def _classify_function(
         k: v for k, v in (module_reads or {}).items() if k not in params
     }
 
+    # Any other binding of a module-level read's name shadows it; the
+    # single-name Assign loop below re-adds the ones that are reads.
+    for node in ast.walk(func):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            local_reads.pop(node.id, None)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            local_reads.pop(node.name, None)
+
     for stmt in _walk_stmts(func.body):
         if not (
             isinstance(stmt, ast.Assign)
@@ -596,7 +608,7 @@ def _classify_function(
             local_reads.pop(name, None)
             continue
         local_known.pop(name, None)
-        read_resolved = _read_target(stmt.value, local_known, local_depths)
+        read_resolved = _read_target(stmt.value, local_known, local_depths, local_reads)
         if read_resolved is not None:
             local_reads[name] = read_resolved
             continue

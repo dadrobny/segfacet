@@ -424,7 +424,12 @@ def _unnamed_golden_readers(rows, repo_root) -> list:
                     and isinstance(node.value, str)
                     and id(node) not in docs
                     and (fname in node.value or node.value in bound)
-                ) or (isinstance(node, ast.Attribute) and node.attr in bound)
+                ) or (
+                    isinstance(node, ast.Attribute) and node.attr in bound
+                ) or (
+                    isinstance(node, ast.ImportFrom)
+                    and any(al.name in bound for al in node.names)
+                )
                 if hit:
                     unnamed.append((fixture, module))
                     break
