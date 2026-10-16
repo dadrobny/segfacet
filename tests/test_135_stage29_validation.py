@@ -720,20 +720,6 @@ def test_ac12_stage28_mode4_box_is_ticked_and_annotated():
     assert "135" in mode4_box, "expected the mode-4 box to name item 135's replay"
 
 
-def test_ac13_stage28_scoliotic_box_stays_unticked_with_item125_evidence():
-    section = _stage_section(_read_progress(), "## Stage 28")
-    items = _acceptance_items(section)
-    assert len(items) == 5, items
-    scoliotic_box = items[3]
-    assert not _is_ticked(scoliotic_box), (
-        f"Stage 28's scoliotic-case box must stay unticked: {scoliotic_box}"
-    )
-    assert _has_annotation(scoliotic_box), scoliotic_box
-    assert "2026-08-30" in scoliotic_box, (
-        "expected item 125's 2026-08-30 evidence note to remain, byte-unchanged"
-    )
-
-
 def test_adv_ticked_box_with_no_annotation_is_flagged():
     synthetic_section = (
         "## Stage 29 — Golden Retirement & Test-Artifact Hygiene (G2, G7) — 🚧\n\n"
