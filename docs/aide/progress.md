@@ -276,7 +276,7 @@ may resolve one._
 
 | Gate | Blocks | Status | Decision / evidence |
 |------|--------|--------|---------------------|
-| Real segmenter output on real CT handed over to this repo — SPINEPS (primary) and/or TotalSegmentator label maps + manifest, produced in the programme repo, sufficient to build the real candidate-vs-GT cohort | stage 16 | ⏳ Awaiting | see trail |
+| Has spinelab handed over the four-part bundle (candidate descriptor, run manifest, rl1 review labels, split manifest) for the SPINEPS VerSe passes? | stage 16 | ⏳ Awaiting | see trail |
 | Access approved for the curated challenging-case source data — real pathology / post-op / atypical anatomy ([`vision.md`](vision.md) §8), `VerSe_fracture_grading.xlsx` a natural seed, plus any clinical cohort requiring an ethics/data-sharing sign-off | stage 16 | ⏳ Awaiting | see trail |
 | §6 failure-mode taxonomy — the modes need a specification before the rest of Stage 20 can be built. Six decisions are owed, listed in [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §10: the anchor semantics for modes 4 and 7, whether mode 6's `mislabel` firing is a true positive or cross-talk, whether the evidence rung attaches to the mode or the edge, the per-mode schema and lifecycle, whether this becomes a new stage or a Stage 20 rescope, and the `vision.md` §6 wording that currently forbids a `proposed` mode | 139, 140, 141, 142 | ✅ Approved (2026-09-03) | see trail |
 | Spinal curve model — the deformity envelope the fit must represent without flagging it. How much scoliotic / kyphotic curvature is normal anatomy the model must follow, versus deviation it must report; and the accepted false-negative cost of a stiffer fit | 119, 120, 121, 123, 125 | ✅ Approved (2026-08-27) | see trail |
@@ -297,6 +297,7 @@ may resolve one._
 - gate-51da — Neither yet (2026-09-30). Mode 2/3 boundary re-drawn: mode 2 keeps the paired case (a label overreaching onto a neighbour, sub-type (a) today); mode 3 becomes the own-label fragment case only (sub-type (b)). Mode 3 needs its own detector: high label contact fraction plus small volume. Mode 4 needs re-definition: more than one connected component, with small components, or larger components further from the main body; to be refined. Re-planned as new queue-027 items before a fresh sign-off gate.
 - gate-0080 — Signed 2026-10-06 after review: one anatomical element order stored as case.sequence.order[]; per-label values stored per label whatever computed them; intensity enters the persisted record (Option A). Scope axis unchanged, items 215/216 not re-cut. docs/feature-taxonomy.md @ 2364df4.
 - gate-fac1 — 2026-10-16: neither scoliotic curve anatomy nor a GT labelling error. T10 (label 17) of sub-verse406_split-verse261 is a rare wedge vertebra: its body is minuscule and posterior only, so the neighbouring bodies touch anteriorly. Its 18.51 mm held-out offset is a genuine anatomical outlier and is to be ignored.
+- gate-9776 — reworded 2026-10-16, was: Real segmenter output on real CT handed over to this repo — SPINEPS (primary) and/or TotalSegmentator label maps + manifest, produced in the programme repo, sufficient to build the real candidate-vs-GT cohort
 
 ---
 
