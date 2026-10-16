@@ -67,8 +67,9 @@ their designated metric. Four of the five get a genuine ladder from the
   are removed one at a time; ``missing_level_count`` steps 0 -> 1 -> 2 -> 3.
 * **``crop_at_border``** -- *its* metric (``fov_clipped_label_count``)
   is a **count of labels**, invariant to clip depth; ``crop_depth`` is
-  therefore held at the ladder's own ``5`` (no corpus case carries it) and the severity axis sweeps the
-  *number of clipped labels* (20, then +21, then +22) instead.
+  therefore held at the ladder's own ``5`` (no corpus case carries it) and
+  the severity axis sweeps the *number of clipped labels* (20, then +21,
+  then +22) instead.
 * **``sequence_break``** -- **degenerate**, 2 rungs, from its single default
   step, not from any cap on how many rungs it could have:
   item 154 corrected the premise the earlier draft rested on (there is no
