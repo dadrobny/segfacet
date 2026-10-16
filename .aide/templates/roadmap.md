@@ -14,7 +14,7 @@
   read then replace. Delete this comment in the generated file,
   and keep the aide-template line below it.
 -->
-<!-- aide-template: roadmap 2 -->
+<!-- aide-template: roadmap 3 -->
 # {{project-name}} — Development Roadmap
 
 > **Status:** Draft v1 · **Created:** {{yyyy-mm-dd}}
@@ -50,9 +50,15 @@ _Optional ASCII graph of stage dependencies._
 
 **Goal.** {{one paragraph: the demonstrable capability this stage delivers}}
 
+_The section holds the blocks below and nothing else. Text that arrives once
+the stage has started has a route of its own: `.aide/conventions.md` §1 →
+roadmap.md._
+
 **Deliverables.**
 
-_One bullet per concrete artifact or capability._
+_One bullet per concrete artifact or capability, saying what lands and how
+it is checked. The item spec carries the design; §1 → roadmap.md says what
+stays out of a bullet._
 
 - {{deliverable}}
 

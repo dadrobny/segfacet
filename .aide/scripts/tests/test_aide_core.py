@@ -112,7 +112,9 @@ def test_load_config_merges_over_defaults(tmp_path: Path):
     assert cfg["git"]["mode"] == "pr"
     # Unspecified keys fall back to defaults.
     assert cfg["git"]["main_branch"] == "main"
-    assert cfg["python"]["venv"] == ".venv"
+    assert cfg["python"]["test_command"] == "python -m pytest"
+    # `venv` has no default to merge: unset follows the tree (#450).
+    assert "venv" not in cfg["python"]
 
 
 def test_load_config_missing_file_is_defaults(tmp_path: Path):

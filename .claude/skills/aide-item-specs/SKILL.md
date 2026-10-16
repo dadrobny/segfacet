@@ -128,8 +128,17 @@ Prefer the narrowest form that covers the work. **Asserts against** — files or
 derived artifacts this item's tests read and **pin** without changing. Include
 derived artifacts recomputed live, not just files compared byte-for-byte.
 
-Three paths are authorised for every item without being listed —
-`progress.md`, `insights.md`, and the item's own spec — and **never list an
+**A text search for the paths and tokens an item changes finds the files that
+mention them: it lower-bounds the list, it does not complete it.** When the
+item changes a shape that generated files or static checks are computed from,
+apply a draft of the change in a scratch copy, run the project's generators and
+its conflict or drift checks, and list every file they move or flag — which
+commands those are, the project's README, CI or build configuration says.
+
+Four paths are authorised for every item without being listed —
+`progress.md`, `insights.md`, `insights/archive-*.md` and the item's own spec.
+The stage archives are not among them: `aide progress archive` and `unarchive`
+run on the main or queue branch alone, so no item lists them. **Never list an
 always-authorised path under Asserts against**. **Asserts against means
 pinned-not-changed**, so never list the same path under both **May change** and
 **Asserts against**, and never write a pin glob that covers a path **May
@@ -159,7 +168,7 @@ so two additive mechanisms record whether the gated path was ever run for
 real — the item template's optional **Environment / Hardware Dependencies**
 section, naming the package or tool, its declaration and the required fallback;
 and `progress.md`'s optional verification table, one row per capability,
-starting `❓ Unverified` and flipped to `✅ Verified (date, host/CI)` only when
+starting `❓ Unverified` and flipped to `✅ Verified (date)` only when
 something that actually has the dependency has run the gated path, **never
 inferred from the stage's own ✅ status**. **The queue-end item's
 Implementation Steps must add/update the row(s) for any capability its stage
@@ -175,7 +184,11 @@ updates the capability table** — ✅ Verified where the profile is satisfied, 
 explicit ❓ Unverified with the reason: **a row still `❓ Unverified` once its
 stage is ✅ records why in its Notes cell**, and **a row names the
 `[validation]` profile that would verify it in its Package / Tool cell, as
-`` `<name>` profile ``**. `queue-planner` names it; this role writes its
+`` `<name>` profile ``**. **The cells are labels; the table's trail is the
+record**: the host or CI run, and a note longer than a line, go on a bullet
+under the table keyed by the Capability cell, and **whoever writes the row
+writes its trail line** — the queue-end item's builder, so say so in its
+Implementation Steps. `queue-planner` names it; this role writes its
 spec.
 
 ## The vision's build posture

@@ -18,7 +18,7 @@ Mandatory, in order (consumer in brackets):
    cell starts with a `G<n>` code, `Status` a single icon. *(aide check, status
    report, validator)*
 3. **One section per stage**, headed with the stage number, its title and its
-   rolled-up icon. Inside it:
+   rolled-up icon — an archived stage's in its own file (below). Inside it:
    - a **Deliverables** block of **flat** bullets, each
      `- <icon> <text>. *(Item NNN)*` — one status icon, one item ref, no nested
      status-bearing sub-bullets (keep rollup unambiguous). *(builder, validator,
@@ -33,7 +33,8 @@ Mandatory, in order (consumer in brackets):
 **The Stage summary table is complete.** Every stage section has its row, a
 ⏸️ or ❌ stage too: a ❌ summary row is what excludes a stage, and a ⏸️ one
 records its deferral where the table is read. `aide check` warns on a section
-with no row, as it does on a row with no section.
+with no row, as it does on a row with no section that does not link to its
+archive.
 
 **A table row its reader cannot use is an `aide check` error** in each of the
 four tables the engine reads: the two above, Outcome targets (below) and §1 →
@@ -207,7 +208,8 @@ Acceptance box. Such goals go in the **Outcome targets** table below.
 `## Outcome targets` section, one row per measured goal, its Target cell never
 empty and its Objective cell naming the `G<n>` objectives it gates — one
 naming none gates none. Status is table-local (like the env-gated verification table's): `❓ Unverified` until
-measured, then `✅ Met (date, evidence)` or `❌ Not met (result → follow-up)`.
+measured, then `✅ Met (date)` or `❌ Not met (date)`, the evidence — or the
+measured result and its follow-up — on the table's trail.
 Semantics
 *(aide progress, aide check, aide status)*:
 
@@ -221,6 +223,72 @@ Semantics
   deliverables then enter through the queue, never by retro-editing a closed
   stage's deliverable list; a maintenance queue adding its items under the
   maintenance stage (§1 → `roadmap.md`) is that route, not a retro-edit.
+
+**The three optional tables hold labels; each one's trail is the record.**
+Outcome targets, Human gates (§1 → Human gates) and Environment-Gated
+Capability Verification (§1 → Environment-gated capabilities) keep every cell
+a short label or a pointer, and put the detail on a **trail**: bullets
+directly under the table, one entry each, keyed to a row.
+
+- **The key.** A gate's line is keyed by its ID, `- gate-3fa1 — …`. A
+  target's or a capability's is keyed by the row's first cell, exactly as
+  written: `- <Target cell> — ✅ Met 2026-10-12: <evidence>`.
+- **A Status cell keeps its leading icon**, which is all any reader decides
+  on, and the date: `✅ Met (2026-10-12)`. The evidence, the host, the
+  measured result go on the trail line.
+- **A correction appends a line**, and the earlier one stays as written.
+- **The width of every row stays.** A trail is bullets, never a column, so
+  an old table reads as it did, and a row with no trail line is read from
+  its cells.
+- **A long cell is over 150 characters.** `aide check` warns on a long
+  Gate, Capability or Target cell in a live row — ⏳ Awaiting, ❓ Unverified,
+  or a Status no reader knows — and names the fix. A settled row's is not
+  warned on. Every row whose Status, evidence or Notes cell is long counts
+  toward one warning per table, which names `aide progress compact`; `aide
+  progress -h` states what it moves.
+- **A label changed by hand re-keys nothing.** Trail lines under the old
+  first cell stay as written; write the next one under the new label. A
+  gate is restated with `aide gate reword`, which keeps its ID.
+
+**A settled stage can be archived, and the overview keeps its row.** `aide
+progress archive [--stage N]` moves a stage's section, verbatim but for its
+relative links, to `progress/stage-N.md` beside this file — one file per
+archived stage, N unpadded as the heading writes it — and the stage's summary
+row's Title cell becomes a link to that file, the title its text; its Status
+cell keeps the icon. The Stage summary, Objective coverage and the three
+optional tables stay here. The section's relative links are rebased so they
+resolve from the archive file, and `aide progress unarchive` reverses it.
+**The same verb archives the stage's `roadmap.md` section with it**, to
+`roadmap/stage-N.md`, and §1 → `roadmap.md` says what stays there. It is the
+verb's move, never a hand edit, and a stage is eligible only when all of these
+hold:
+
+- no `progress/stage-N.md` or `roadmap/stage-N.md` exists for it already, and
+  its `roadmap.md` section is not an archive stub already;
+- its summary row is ✅ or ❌;
+- it is not the maintenance stage;
+- no deliverable bullet in its section is 📋, 🚧, 🔍 or ⏸️, and no
+  acceptance box is unticked;
+- no Human gates row is one no reader can use, and no human gate but a ✅
+  Approved one reaches it, in any reach form — `stage N`, `stage N+` or
+  `stage N–M`;
+- no item its bullets name has a bullet anywhere else;
+- every queue listing its items is settled, and neither those queues'
+  branches nor its items' claim branches are unmerged.
+
+**An archived stage is a record: read everywhere, written nowhere.** Every
+reader of an item's status reads the archived bullets as well, and the stage
+rolls up to its summary row, so `claim`, `status`, `check` and the Objective
+rows read it as they did before it moved. Nothing writes into the archive,
+neither a verb nor a hand edit: a correction (`amend`, `retract`, `reword`) or
+a reopen first moves the stage back with `aide progress unarchive --stage N`,
+and every writer that meets an archived stage refuses and names that verb.
+**`archive` and `unarchive` run on the main or queue branch alone** — no item's
+Authorised paths name the files they write, so on a claim branch both refuse.
+`aide check` errors wherever `progress.md` and the archive disagree about a
+stage — a link to a file that is not there, a file no row links to, one stage
+in both places. `aide progress unarchive --stage N` moves the stage's
+`roadmap.md` section back with it.
 
 #### Rationale
 
@@ -420,3 +488,76 @@ Semantics
   living only in one commit's diff. `aide progress -h` states all of this.
 - **A range spanning more than 50** is read as a typo and contributes only
   its endpoints.
+- **Why a trail, not a longer cell or a linked file (#474, from #170).** The
+  overview had stopped reading at a glance: Gate cells up to 1.8 KB, and
+  capability Notes and target Evidence cells up to 2.3 KB, in the two
+  consumers. A cell is read across a row, so its length is the table's; a
+  bullet under the table is read down the page, where length costs nothing
+  the table pays for. A sidecar file was the other option, and moves the
+  record away from the row it qualifies.
+- **Why the first cell keys a target and a capability.** No verb writes
+  their rows and nothing cites them by an ID, so a hash would be an ID with
+  nothing to resolve it; the first cell is what the reader already sees.
+  It costs a re-key when a label is reworded, which is rare and is a hand
+  edit to the row anyway.
+- **Why 150 characters.** Measured over both consumers' tables (66 rows,
+  2026-10-12): every Capability cell was 26–53 characters and every Target
+  92–142 bar one of 290, while every Gate cell was 201–1781; among the cells
+  `compact` moves, one-line notes ran 28–142 and prose from 166 to 2347. The
+  threshold sits above every label and below every prose cell.
+- **Why settled rows are counted, not warned on.** A decided gate or a met
+  target is a record, and #338 keeps a record out of the warnings it cannot
+  act on. Compacting it is mechanical and changes no identity cell, so one
+  line per table names the verb; one per row would bury the live warnings.
+- **Why an archive, one file per stage, and only settled stages (#475, from
+  #170).** About 80% of a consumer's 189 KB `progress.md` was settled stages,
+  sections nothing writes again but a correction, and they buried the overview
+  a person opens the file for. One file per stage keeps a stage findable by
+  its number and an archive one file's worth of diff; a single archive file
+  was the alternative, and grows the way `progress.md` did. Live stages stay:
+  the overview is for them, and splitting them out was declined on #170.
+- **Why readers skip an archived stage, and what that took.** The audit of a
+  scratch copy with its 22 eligible stages archived took `check` from 8
+  warnings to 96 and gave `claim` and `status` wrong answers: an item no
+  bullet names reads 📋 to every caller, so a shipped item was offered again,
+  25 done queues read open, and the records of #338 lost their exemption.
+  Item status reading the archive is the one change under all of that; the
+  rollup reads the summary row because the section is no longer there to
+  derive from, and the row was settled when it moved.
+- **Why each eligibility condition.** A gate short of ✅ Approved reaching an
+  archived stage read as a declined gate still blocking, and a later
+  `stage N` gate as a typo. The maintenance stage is ✅ between batches and
+  written to again at the next. A CI fix round (#332) and an owner reopen
+  (#446) reach only live work, so nothing on an unmerged branch may still need
+  the section. An item with bullets on both sides would have its status split
+  between the two files. A file already there is a stale copy `check` errors
+  on, and writing over it would lose whichever of the two was the record. A
+  gate row no reader can use may reach any stage, so it holds every one, as it
+  holds every item from `claim`.
+- **Why the link sits in the Title cell.** The Status cell keeps the icon
+  every reader decides on — "dependency met only once ✅" reads it there — and
+  the Title is the cell a person follows to the record. The file is what item
+  status is read from and the link is what the rollup and the structural
+  checks read, so `check` holds the two together, as an error: each without
+  the other leaves a stage read from one place by one reader and from the
+  other by the next.
+- **Why no verb writes into the archive.** A writer reaching into it would
+  make the file a second live copy, and every reader of the stage two places
+  to look; moving the stage back keeps one. The correction trails move with
+  the section, verbatim, so the record reads as it did.
+- **Why the filename is unpadded.** It matches the heading, and a zero-pad
+  would read as a position, which #338 rules out.
+- **Why relative links are rebased (#476).** A moved section sits one folder
+  deeper than the file it left, so a link written there to `vision.md` or
+  `items/150-….md` would point at a file that is not there — one consumer's
+  stage sections held about 40 such links — and nothing would say so, since
+  `aide check` never follows a link. Rebasing is the one edit the move
+  makes to the text, and `unarchive` reverses it, so the round trip is
+  byte for byte; links in code are examples, and stay as written.
+- **Why one verb moves both documents' sections (#476).** A roadmap stage is
+  archived exactly when its `progress.md` stage is, so the two archives
+  cannot disagree about which stages are settled, and the eligibility rule
+  above — written for the record `progress.md` keeps — is the only one to
+  keep. A roadmap section already moved, or a stub with nothing behind it,
+  holds the stage for the reason a `progress/stage-N.md` already there does:
+  writing over it would lose whichever copy was the record.

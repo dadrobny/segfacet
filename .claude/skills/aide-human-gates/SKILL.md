@@ -29,6 +29,14 @@ since what the row blocks is unknown):
 | Golden-file retirement approved | 106 | ⏳ Awaiting | — |
 ```
 
+**The cells are labels; the trail is the record.** The Gate cell asks one
+question in one line, and the Decision / evidence cell holds a pointer, not
+the evidence. A question that needs more than a line is asked in the cell, and
+the rest goes on the table's trail — a bullet under the table, keyed by the
+gate's ID as `aide gate list` prints it once the row is written:
+`- gate-3fa1 — context: <what the question leaves out>`. A trail line is
+never edited or removed; a correction is a later line.
+
 **Blocks** — item numbers (any §1 reference form, or bare: `106`, `110, 111`,
 `106–108`), `stage N`, `stage N+`, `stage N–M`, or `all`. **Status** —
 `⏳ Awaiting`, then `✅ Approved (date)` or `❌ Declined (date)`. **Reach is per
@@ -71,8 +79,12 @@ re-pointed at it.
 `aide gate list` prints, in an item spec, a queue file, a roadmap stage or
 another `progress.md` row; a merge renumbers the rows, and `aide check` errors
 on a cited ID that names no gate. **The Gate cell is the gate's identity**:
-the ID is a hash of it, so rewording it makes a different gate, and every
-citation of the old one must be re-pointed.
+the ID is a hash of it, so rewording it by hand makes a different gate, and
+every citation of the old one must be re-pointed. **Restating the same
+question keeps its ID: `aide gate reword`** — it writes the shorter question
+and a `reworded` trail line, and the old ID names the row while that line
+stands. It is for a live gate; a decided gate's question is the record of what
+was decided, and is not reworded.
 
 **The plan gate is raised by `aide queue gate`**, as often as `[loop]
 plan_review` says — over every queue, over a queue that opens a stage, or
@@ -81,5 +93,6 @@ prints its ID. A gate the roadmap declares applies whatever the setting says,
 and is still yours to add.
 
 Adding any other row is a hand edit because it has no verb. Everything after it does:
-**resolving is a CLI operation, never a hand edit** (`aide gate` only lists,
-approves and declines), and no agent runs it.
+**resolving is a CLI operation, never a hand edit** (`aide gate approve`
+and `decline`, which write the decision's evidence to the trail), and no agent
+runs it.

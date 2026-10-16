@@ -258,6 +258,7 @@ def test_a_profile_whose_interpreter_cannot_start_is_not_satisfied(
     """A venv interpreter that exists but cannot be executed — a stale tree,
     a non-executable file — reports, rather than crashing `status`."""
     repo = _repo(tmp_path, _progress(ROW))
+    (repo / "pyproject.toml").write_text("", encoding="utf-8")  # keeps a venv
     broken = tmp_path / "not-an-interpreter.txt"
     broken.write_text("not a program\n", encoding="utf-8")
     monkeypatch.setattr(aide, "venv_python", lambda root, config: broken)

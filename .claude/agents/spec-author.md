@@ -91,7 +91,8 @@ the setting and follow it; nothing ever hangs waiting for input.
 5. **Fill `## Authorised paths` concretely** — the actual files this item
    touches, not a placeholder and not a whole subtree you only partly need.
    §1 → authorised paths is preloaded above and fixes the two lists, the
-   narrowness rule, and what belongs in neither. Proving the declaration once
+   narrowness rule, how the list is derived past a text search, and what
+   belongs in neither. Proving the declaration once
    the branch exists is §1 → authorised-paths-proof, the validator's and the
    spec-reviewer's; write the list the diff will actually match.
 6. **Raise a human gate if this item needs one.** When the item cannot honestly

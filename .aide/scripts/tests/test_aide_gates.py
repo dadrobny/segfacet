@@ -394,11 +394,14 @@ def test_breadth_still_counts_live_work_in_a_withdrawn_stage():
 # set_gate_status
 # --------------------------------------------------------------------------- #
 def test_approve_writes_mark_date_and_note():
+    """The note is the trail's (issue #474); the cell keeps a dated pointer."""
     out = aide.set_gate_status(_progress(AWAITING), 1, "approved",
                                "reviewed with maintainer", today="2026-08-18")
     row = next(l for l in out.splitlines() if "Golden retirement" in l and "|" in l)
-    assert "✅ Approved (2026-08-18)" in row
-    assert "reviewed with maintainer" in row
+    assert row.endswith("| ✅ Approved (2026-08-18) | see trail (2026-08-18) |")
+    gid = aide.gate_ids(aide.human_gates(out.splitlines()))[0]
+    assert (f"- {gid} — ✅ Approved 2026-08-18: reviewed with maintainer"
+            in out.splitlines())
     assert aide.blocking_gates(out.splitlines()) == []
 
 
@@ -769,12 +772,19 @@ def test_an_unpublished_claim_behind_a_gate_exits_1_with_no_early_line(
     assert "early ready:" not in out
 
 
-def test_a_note_containing_a_pipe_is_refused():
+def test_a_note_containing_a_pipe_is_refused_where_it_would_enter_a_cell():
     """`|` would add a column; a wrong-arity row is skipped by the parser, so a
-    still-blocking gate would silently disappear."""
+    still-blocking gate would silently disappear. Since #474 a note goes on
+    the trail, where a `|` is prose — so only a gate with no ID, whose note
+    still goes into its cell, refuses one."""
     import pytest
+    out = aide.set_gate_status(_progress(AWAITING), 1, "approved", "a | b",
+                               today="2026-08-18")
+    assert aide.unreadable_row_errors(out.splitlines()) == []
+    assert "Approved 2026-08-18: a | b" in out
+    no_id = "| | 028 | ⏳ Awaiting | — |"
     with pytest.raises(ValueError, match="may not contain"):
-        aide.set_gate_status(_progress(AWAITING), 1, "approved", "a | b")
+        aide.set_gate_status(_progress(no_id), 1, "approved", "a | b")
 
 
 MALFORMED = "| G | 028 | ⏳ Awaiting | note with | a pipe |"

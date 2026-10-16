@@ -11,7 +11,7 @@ the code**, never by a second prose copy to quote against.
 `test_progress_help_states_the_rollup_the_code_applies` (issue #192) is the
 model and the seventh entry below: it transcribes the help sentence as a
 predicate and compares it to `rollup_status` over the whole input space.
-`HELP_PINS` is the register for all seven verbs. Each entry is
+`HELP_PINS` is the register for every pinned verb. Each entry is
 ``(sentence, "module::function")``:
 
 * the **sentence** is a load-bearing clause quoted from the help `argparse`
@@ -209,6 +209,18 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "line is left out, and --bootstrap refuses",
          ("test_aide_env_report::test_an_empty_venv_setting_leaves_the_venv_line_out",
           "test_aide_env_report::test_bootstrap_refuses_when_no_venv_is_kept")),
+        # `venv_setting`: unset follows `has_python_manifest` (issue #450).
+        ("Unset, [python] venv is .venv where the repository root holds a "
+         "Python dependency manifest (pyproject.toml, setup.py, setup.cfg, "
+         "Pipfile or a requirements*.txt) or a .venv directory, or aide.toml "
+         "sets [python] bootstrap, and no venv otherwise; a value that is set "
+         "is checked whatever the root holds",
+         ("test_aide_env_report::test_an_unset_venv_with_no_manifest_keeps_no_venv",
+          "test_aide_env_report::test_an_unset_venv_beside_a_manifest_is_dot_venv_and_checked",
+          "test_aide_env_report::test_an_unset_venv_beside_an_existing_dot_venv_is_kept",
+          "test_aide_env_report::test_an_unset_venv_with_a_written_bootstrap_is_kept",
+          "test_aide_env_report::test_env_help_names_every_python_manifest",
+          "test_aide_env_report::test_a_kept_venv_that_is_missing_is_refused")),
         # `cmd_env`: `--bootstrap` returns on `env_report` / `_bootstrap_venv`
         # and never reaches `_print_dependency_report`.
         ("--bootstrap builds the venv where it is missing or stale and "
@@ -230,6 +242,12 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "neither is a failed bootstrap that names it",
          ("test_aide_git::test_a_bootstrap_command_runs_with_the_venv_active",
           "test_aide_git::test_a_bootstrap_command_found_nowhere_is_a_failed_bootstrap_that_names_it")),
+        # `_bootstrap_precheck` runs before `-m venv --clear` (#400, #401).
+        ("The command is looked up before the venv is touched: a [tools] git "
+         "or gh that names nothing refuses, and so does a command found "
+         "nowhere while a venv is there, which is left as it was",
+         ("test_aide_git::test_a_bootstrap_command_found_nowhere_leaves_an_existing_venv_as_it_was",
+          "test_aide_git::test_a_misconfigured_tools_bootstrap_refuses_before_the_venv_is_touched")),
         # `_bootstrap_venv` skips `bootstrap_argv` for an empty value.
         ("An empty bootstrap builds the venv and installs nothing",
          "test_aide_git::test_an_empty_bootstrap_builds_the_venv_and_installs_nothing"),
@@ -418,6 +436,29 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "section",
          "test_aide_help_pins::"
          "test_check_errors_on_each_missing_table_and_on_missing_stage_sections"),
+        # `if not sections and not archived` (issue #475).
+        ("a stage archived to progress/stage-N.md counting as a section",
+         "test_aide_progress_archive::test_every_stage_archived_still_passes_the_section_check"),
+        # `archive_consistency_errors`, one arm per clause.
+        ("Progress.md disagreeing with its archive about a stage is an error "
+         "too: a summary row's Title cell linking to a progress/stage-N.md "
+         "that does not exist, such a file no summary row links to or "
+         "holding no `## Stage N` section, and a stage archived there that "
+         "still has a section in progress.md",
+         "test_aide_progress_archive::test_progress_and_its_archive_disagreeing_is_an_error"),
+        # `roadmap_archive_findings`, one arm per clause (issue #476).
+        ("So is roadmap.md disagreeing with its archive or with "
+         "progress.md's: a stub linking to a roadmap/stage-N.md that does not "
+         "exist, such a file roadmap.md has no stub for, holding no `## Stage "
+         "N` section or beside a whole section, a stub whose heading is not "
+         "the one in its file, a stub holding anything but its heading and "
+         "its line linking to the file, and a roadmap section "
+         "archived while its progress.md section is live",
+         "test_aide_progress_archive::test_roadmap_and_its_archive_disagreeing_is_an_error"),
+        # `roadmap_archive_findings`' warnings, cleared by `roadmap_catch_up`.
+        ("a stage archived to progress/stage-N.md whose roadmap.md section is "
+         "still whole is a warning, which `aide progress archive` clears",
+         "test_aide_progress_archive::test_a_stage_archived_without_its_roadmap_section_is_caught_up"),
         # `derived_cell_findings`' `over` list — the measure is
         # `rollup_status`, under which a ❌ bullet counts toward ✅.
         ("a stage summary row marked ✅ over a stage whose deliverables do "
@@ -510,11 +551,14 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "test_a_stage_header_disagreeing_with_its_summary_row_is_a_warning"),
         # `if nums and not any(n in section_nums for n in nums)`.
         ("an Objective row whose Delivered by cell names no stage with a "
-         "section",
-         "test_aide_defer::test_an_objective_naming_no_stage_section_is_a_warning"),
-        # `for num in summary_status: if num not in section_nums`.
-        ("a summary row with no stage section",
-         "test_aide_help_pins::test_a_summary_row_with_no_stage_section_is_a_warning"),
+         "section or an archive",
+         ("test_aide_defer::test_an_objective_naming_no_stage_section_is_a_warning",
+          "test_aide_progress_archive::test_every_stage_archived_still_passes_the_section_check")),
+        # `for num in summary_status: if num not in section_nums and num not
+        # in archived`.
+        ("a summary row with no stage section and no link to its archive",
+         ("test_aide_help_pins::test_a_summary_row_with_no_stage_section_is_a_warning",
+          "test_aide_progress_archive::test_every_stage_archived_still_passes_the_section_check")),
         # `elif t.kind != "met"` — unverified, or unrecognised.
         ("an objective marked ✅ over a target not yet ✅ Met",
          "test_aide_core::test_check_warns_objective_complete_over_unverified_target"),
@@ -695,6 +739,49 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          ("test_aide_maintenance_stage::test_criteria_on_a_maintenance_stage_not_started_are_named",
           "test_aide_maintenance_stage::test_criteria_with_no_progress_section_are_named",
           "test_aide_maintenance_stage::test_criteria_on_a_started_maintenance_stage_are_grandfathered")),
+        # `roadmap_shape_warnings` (issue #483), called from run_checks on the
+        # warnings side: `roadmap_shape_findings` emits one finding per
+        # signal per stage, at its first line.
+        ("a roadmap.md stage section whose shape is not the plan's, named "
+         "once per stage and signal at its first line",
+         ("test_aide_roadmap_shape::test_all_four_are_named_on_a_planned_stage_at_their_first_lines",
+          "test_aide_roadmap_shape::test_one_warning_per_stage_counts_its_blockquotes",
+          "test_aide_roadmap_shape::test_several_long_bullets_share_one_warning",
+          "test_aide_roadmap_shape::test_check_reports_them_as_warnings_and_never_errors")),
+        # `roadmap_stage_statuses`: the summary row, the header where the row
+        # is missing or 📋 under a started header, absent (read 📋) else.
+        ("scoped by the stage's status in progress.md — its Stage "
+         "summary row, or its header where the row is missing or reads "
+         "\U0001f4cb while the header does not, \U0001f4cb where it has "
+         "neither",
+         ("test_aide_roadmap_shape::test_the_status_is_the_summary_row_or_a_started_header",
+          "test_aide_roadmap_shape::test_a_stage_with_no_status_reads_as_planned",
+          "test_aide_roadmap_shape::test_the_warnings_follow_the_stage_status_in_progress")),
+        # The four signals on a 📋 stage: `_BLOCKQUOTE_RE`, the Goal's
+        # paragraph runs, `_ROADMAP_BLOCK_END_RE` minus `_ROADMAP_LABEL_RE`
+        # at a paragraph start, and `LONG_DELIVERABLE` over the joined text.
+        ("on a \U0001f4cb stage, a blockquote line, a Goal of more than one "
+         "blank-line-separated paragraph, a paragraph opening in bold whose "
+         "bold is not Goal, Deliverables, Dependencies, Human gate or "
+         "Validation / acceptance, and a top-level Deliverables bullet "
+         "whose text, its continuation lines joined, is longer than 800 "
+         "characters",
+         ("test_aide_roadmap_shape::test_each_signal_alone_is_named_once_on_a_planned_stage",
+          "test_aide_roadmap_shape::test_a_template_label_is_read_with_or_without_its_dot",
+          "test_aide_roadmap_shape::test_bold_inside_a_bullet_is_not_a_bold_block",
+          "test_aide_roadmap_shape::test_the_threshold_is_exclusive_and_continuation_lines_count",
+          "test_aide_roadmap_shape::test_the_threshold_is_the_one_the_rule_and_help_state")),
+        # `if not planned: continue` after the blockquote; the settled
+        # statuses are skipped before any signal is read.
+        ("on a \U0001f6a7, \U0001f50d or ⏸️ stage, a blockquote "
+         "line alone; on a ✅ or ❌ stage, nothing",
+         ("test_aide_roadmap_shape::test_a_started_stage_is_named_for_its_blockquote_alone",
+          "test_aide_roadmap_shape::test_a_started_stage_without_a_blockquote_is_silent",
+          "test_aide_roadmap_shape::test_a_settled_stage_is_silent")),
+        # `markdown_prose_lines` returns None for both.
+        ("a fenced code block and an HTML comment are never read",
+         ("test_aide_roadmap_shape::test_a_fenced_code_block_is_never_read",
+          "test_aide_roadmap_shape::test_an_html_comment_is_never_read")),
         # `forward_dependency_warnings` (issue #282), called from run_checks
         # on the warnings side; `blocking_dependency_stages` cuts the slot at
         # `_DEPS_SLOT_END_RE` and reads numbers by `_DEPS_STAGE_LIST_RE` or
@@ -1130,10 +1217,186 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
           "test_aide_maintenance_stage::test_the_verb_commits_progress_alone",
           "test_aide_maintenance_stage::test_a_rollup_whose_commit_fails_is_put_back_and_exits_1",
           "test_aide_maintenance_stage::test_the_verb_is_a_no_op_exit_0_when_nothing_changes")),
-        ("It refuses, exit 1, a stage with no section in progress.md, and, "
-         "exit 2, any argument but --stage and --no-commit",
+        ("It refuses, exit 1, a stage with neither a section in progress.md "
+         "nor a summary row linking to its archive, and, exit 2, any "
+         "argument but --stage and --no-commit",
          ("test_aide_maintenance_stage::test_the_verb_refuses_a_stage_with_no_section",
           "test_aide_maintenance_stage::test_the_verb_refuses_any_argument_but_stage_and_no_commit")),
+        # `compact_progress` over `_COMPACT_COLUMNS` (issue #474): the long
+        # cells of the three trail tables, `append_trail` under each.
+        ("compact: move each long cell of the Human gates, "
+         "Environment-Gated Capability Verification and Outcome targets "
+         "tables to a trail line under its table",
+         "test_aide_progress_trail::test_compact_moves_long_cells_verbatim_and_leaves_pointers"),
+        # `_row_compacts` (`LONG_CELL`), `table_trail`'s two key shapes, and
+        # `_short_status` / `TRAIL_POINTER` for what the cell keeps. The
+        # number is `LONG_CELL`, written into the help from the constant.
+        ("compact moves every Status, Decision / evidence, Notes or "
+         "Evidence / follow-up cell longer than 150 characters, verbatim, "
+         "onto a trail line under its table keyed to its row \u2014 a "
+         "gate's by its gate-<hex> ID, a capability's or a target's by its "
+         "first cell \u2014 and leaves the cell `see trail`, or for a "
+         "Status cell its leading mark and the first date it names",
+         "test_aide_progress_trail::test_compact_moves_long_cells_verbatim_and_leaves_pointers"),
+        # `_COMPACT_COLUMNS` names no identity column; `_row_compacts`
+        # returns nothing for a row with no key.
+        ("It never changes a Gate, Capability or Target cell, and skips a "
+         "gate row with an empty Gate cell",
+         ("test_aide_progress_trail::test_compact_never_touches_an_identity_cell",
+          "test_aide_progress_trail::test_compact_skips_a_gate_row_with_no_id_and_is_idempotent")),
+        # `_cmd_progress_compact`: one line per message, `_commit_or_restore`,
+        # and the early `return 0` with no message.
+        ("It prints each cell it moves and commits progress.md as set does; "
+         "with no cell that long it writes nothing and exits 0",
+         ("test_aide_progress_trail::test_compact_cli_prints_what_moved_and_refuses_other_arguments",
+          "test_aide_progress_trail::test_compact_commits_progress_alone",
+          "test_aide_progress_trail::test_a_compaction_whose_commit_fails_is_put_back")),
+        ("It refuses, exit 2, any argument but --no-commit",
+         "test_aide_progress_trail::test_compact_cli_prints_what_moved_and_refuses_other_arguments"),
+        # `_cmd_progress_archive` / `_cmd_progress_unarchive` (issue #475):
+        # `archive_stage_text` writes the file and links the row,
+        # `unarchive_stage_text` undoes it.
+        ("archive: move each settled stage's section to progress/stage-N.md "
+         "beside progress.md, its summary row's Title cell linking there "
+         "(--stage N for one stage)",
+         ("test_aide_progress_archive::test_archive_moves_the_section_verbatim_and_links_the_summary_row",
+          "test_aide_progress_archive::test_archive_with_no_stage_takes_every_eligible_one_and_names_the_rest")),
+        ("unarchive: move stage N's section back from its archive file "
+         "(--stage N)",
+         "test_aide_progress_archive::test_unarchive_moves_the_stage_back_and_removes_the_file"),
+        # `archive_roadmap_text` / `unarchive_roadmap_text` (issue #476).
+        ("its roadmap.md section goes with it, to roadmap/stage-N.md",
+         "test_aide_progress_archive::test_archive_moves_the_roadmap_section_with_the_progress_section"),
+        ("and its roadmap.md section with it",
+         "test_aide_progress_archive::test_unarchive_moves_both_halves_back"),
+        # `archive_refusal` calls `roadmap_archive_refusal` after its own
+        # file test.
+        ("It refuses a stage whose roadmap/stage-N.md already exists, or "
+         "whose roadmap.md section is a stub already, as well",
+         "test_aide_progress_archive::test_a_roadmap_half_already_moved_holds_the_stage"),
+        ("The stage's roadmap.md section moves with it, verbatim but for its "
+         "relative links and heading included, less the `---` after it, to roadmap/stage-N.md under one "
+         "line pointing back at roadmap.md, and in roadmap.md its heading "
+         "stays with one line under it linking to the file",
+         ("test_aide_progress_archive::test_archive_roadmap_text_leaves_a_stub_and_moves_the_section",
+          "test_aide_progress_archive::test_archive_moves_the_roadmap_section_with_the_progress_section")),
+        ("where roadmap.md has no section for the stage, progress.md's moves "
+         "alone",
+         "test_aide_progress_archive::test_a_roadmap_with_no_section_for_the_stage_lets_progress_move_alone"),
+        # `roadmap_catch_up`, read with --stage and without.
+        ("A stage whose progress.md section is archived and whose roadmap.md "
+         "section is still whole has its roadmap half archived alone, with "
+         "--stage N or without",
+         "test_aide_progress_archive::test_a_stage_archived_without_its_roadmap_section_is_caught_up"),
+        # `_cmd_progress_unarchive`: each half on its own file.
+        ("It moves back whichever of progress/stage-N.md and "
+         "roadmap/stage-N.md exists, the roadmap section in place of its "
+         "stub, and refuses, exit 1, a roadmap.md with no stub for the stage",
+         ("test_aide_progress_archive::test_unarchive_moves_back_whichever_half_is_archived",
+          "test_aide_progress_archive::test_unarchive_roadmap_text_puts_back_exactly_what_archive_took",
+          "test_aide_progress_archive::test_unarchive_refuses_a_roadmap_with_no_stub_to_replace",
+          "test_aide_progress_archive::test_unarchive_refuses_a_roadmap_with_no_section_for_the_stage",
+          "test_aide_progress_archive::test_unarchive_refuses_when_there_is_no_roadmap_md")),
+        # `archive_refusal`, condition by condition, in its order; the
+        # branch half through `_BranchView`.
+        ("archive takes a stage only when its summary row is \u2705 or "
+         "\u274c; no deliverable bullet in its section is \U0001f4cb, "
+         "\U0001f6a7, \U0001f50d or \u23f8\ufe0f and no acceptance box is "
+         "unticked; it is not the maintenance stage; no human gate but a "
+         "\u2705 Approved one reaches it, as `stage N`, `stage N+` or "
+         "`stage N\u2013M`; no item its bullets name has a bullet outside "
+         "it; and every queue file listing one of those items is settled, "
+         "with neither that queue's branch nor a claim branch of the items "
+         "unmerged into main_branch",
+         ("test_aide_progress_archive::test_each_eligibility_condition_refuses_on_its_own",
+          "test_aide_progress_archive::test_an_approved_gate_reaching_the_stage_does_not_hold_it",
+          "test_aide_progress_archive::test_an_open_queue_listing_its_items_holds_the_stage",
+          "test_aide_progress_archive::test_an_unmerged_queue_branch_of_its_queue_holds_the_stage",
+          "test_aide_progress_archive::test_an_unmerged_claim_branch_of_its_items_holds_the_stage",
+          "test_aide_progress_archive::test_a_gate_whose_reach_misses_the_stage_does_not_hold_it",
+          "test_aide_progress_archive::test_an_item_with_a_bullet_already_in_the_archive_holds_the_stage")),
+        # `archive_refusal`'s first test once the section is found.
+        ("It also refuses a stage whose progress/stage-N.md already exists, "
+         "a second copy `aide check` reports",
+         "test_aide_progress_archive::test_a_stage_whose_archive_file_exists_already_is_refused"),
+        # `archive_refusal`: `unreadable_gate_rows`, before the reach walk.
+        ("takes no stage while a Human gates row no reader can use stands, "
+         "since that row could reach any",
+         "test_aide_progress_archive::test_an_unreadable_gate_row_holds_every_stage"),
+        # `archive_stage_text`: `_without_trailing_separators`,
+        # `_archive_header`, `_replace_cell` on the Title cell alone.
+        ("The section moves verbatim but for its relative links, less the "
+         "`---` after it, under one "
+         "line pointing back at progress.md, and the summary row's Title "
+         "cell becomes a link to the file while its Status cell stays",
+         "test_aide_progress_archive::test_archive_moves_the_section_verbatim_and_links_the_summary_row"),
+        # `ProgressLines.archive_status` folded in by `_parse_item_status`;
+        # `stage_rollups` reads `archived_summary_stages`.
+        ("From then on every reader of item status reads the archived "
+         "bullets too, and the stage rolls up to its summary row",
+         ("test_aide_progress_archive::test_item_status_reads_the_archived_bullets_and_a_slice_does_not",
+          "test_aide_progress_archive::test_an_archived_stage_rolls_up_to_its_summary_row",
+          "test_aide_progress_archive::test_check_reads_an_archived_tree_as_it_read_the_live_one",
+          "test_aide_progress_archive::test_claim_offers_an_item_whose_dependencies_are_archived",
+          "test_aide_progress_archive::test_status_reads_an_archived_queue_as_done",
+          "test_aide_progress_archive::test_gc_deletes_the_landed_branch_of_an_archived_item")),
+        ("With --stage N it refuses, exit 1, a stage that is not eligible, "
+         "naming the first condition it fails",
+         "test_aide_progress_archive::test_archive_of_an_ineligible_stage_writes_nothing"),
+        ("without, it archives every eligible stage and prints each \u2705 "
+         "or \u274c stage it keeps, with why, and with none eligible it "
+         "writes nothing and exits 0",
+         "test_aide_progress_archive::test_archive_with_no_stage_takes_every_eligible_one_and_names_the_rest"),
+        # `rebase_links`, applied in all four text functions (issue #476).
+        ("In either moved section every relative link target \u2014 inline, "
+         "image or reference definition, outside code \u2014 is rebased with "
+         "a leading ../ so it resolves from the archive file, and unarchive "
+         "strips it again",
+         ("test_aide_progress_archive::test_archive_rebases_relative_links_in_both_sections",
+          "test_aide_progress_archive::test_rebase_links_moves_only_relative_targets_outside_code")),
+        ("It commits progress.md, roadmap.md and the files it writes as set "
+         "does",
+         ("test_aide_progress_archive::test_archive_and_unarchive_commit_both_files",
+          "test_aide_progress_archive::test_archive_and_unarchive_commit_the_roadmap_half_too",
+          "test_aide_progress_archive::test_an_archive_whose_commit_fails_is_put_back",
+          "test_aide_progress_archive::test_a_failed_archive_commit_puts_the_roadmap_back")),
+        ("unarchive puts the section back before the first stage section "
+         "numbered above it, or after the last one, takes the link off the "
+         "Title cell, removes the file and commits both as archive does",
+         ("test_aide_progress_archive::test_unarchive_puts_back_exactly_what_archive_took",
+          "test_aide_progress_archive::test_two_stages_archived_come_back_in_number_order",
+          "test_aide_progress_archive::test_archive_and_unarchive_commit_both_files",
+          "test_aide_progress_archive::test_an_unarchive_whose_commit_fails_is_put_back")),
+        # `_is_tracked` decides whether the file's path is committed.
+        ("or progress.md alone where the file was never committed",
+         "test_aide_progress_archive::test_an_uncommitted_archive_is_unarchived_and_committed"),
+        ("It refuses, exit 1, a stage with no archive file, and one "
+         "progress.md has a section of as well",
+         ("test_aide_progress_archive::test_unarchive_refuses_a_stage_that_is_not_archived",
+          "test_aide_progress_archive::test_unarchive_refuses_a_stage_progress_md_still_has")),
+        ("archive and unarchive refuse, exit 2, any argument but --stage and "
+         "--no-commit, and unarchive one without --stage",
+         "test_aide_progress_archive::test_both_verbs_refuse_any_argument_but_stage_and_no_commit"),
+        # `_archive_claim_branch_refusal`, read through `_branch_item_number`
+        # and `_is_queue_branch` (issue #481).
+        ("Both run on the main or queue branch alone: on a claim branch they "
+         "refuse, exit 1 and writing nothing",
+         ("test_aide_progress_archive::test_both_verbs_refuse_on_a_claim_branch",
+          "test_aide_progress_archive::test_both_verbs_run_on_a_queue_branch")),
+        # `_archived_target_refusal` at the top of `cmd_progress`, the
+        # back-fill's own arm, and `cmd_merge`'s check before the merge.
+        ("No verb writes into the archive: set, reopen, reword, accept, "
+         "amend and retract refuse, exit 1 and writing nothing, an item "
+         "whose bullets or a stage whose section is archived, naming `aide "
+         "progress unarchive --stage N` on the main or queue branch, and "
+         "`aide merge` refuses such an item before it merges anything",
+         ("test_aide_progress_archive::test_no_writer_reaches_into_the_archive",
+          "test_aide_progress_archive::test_a_back_fill_into_an_archived_stage_is_refused",
+          "test_aide_progress_archive::test_merge_refuses_an_item_of_an_archived_stage")),
+        # `rollup_progress` takes an archived stage into `targets`.
+        ("An archived stage has no section and rolls up to its summary row, "
+         "so rolling it up writes the Objective rows naming it",
+         "test_aide_progress_archive::test_rollup_of_an_archived_stage_writes_the_objective_rows_naming_it"),
         ("an objective linked to an Outcome target that is not \u2705 Met "
          "never rolls up",
          "test_aide_core::test_unmet_target_blocks_objective_rollup_not_stage"),
@@ -1477,6 +1740,54 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
     ],
 
     # ------------------------------------------------------------- insights --
+    "gate": [
+        # `gate_trail_record`: the latest decision note or plain line, the
+        # latest `context:` line, else the fourth cell (issue #474).
+        ("under it the latest context and evidence its trail records, else "
+         "its Decision / evidence cell",
+         ("test_aide_progress_trail::test_gate_list_prints_context_and_evidence",
+          "test_aide_progress_trail::test_the_record_reads_the_trail_and_falls_back_to_the_cell")),
+        # `set_gate_status`: `cells[2]`.
+        ("approve: \u2705 Approved (date) in the Status cell",
+         "test_aide_gates::test_approve_writes_mark_date_and_note"),
+        ("decline: \u274c Declined (date) in the Status cell",
+         "test_aide_gates::test_decline_is_recorded_distinctly"),
+        # `set_gate_status`: the trail lines, `append_trail`, and the
+        # `TRAIL_POINTER` cell; a held cell's text goes first.
+        ("approve and decline with --evidence write the note on a trail line "
+         "under the table, `- gate-<hex> \u2014 \u2705 Approved <date>: "
+         "<note>`, and leave the Decision / evidence cell `see trail "
+         "(<date>)`",
+         ("test_aide_progress_trail::test_evidence_goes_on_a_trail_line_under_the_table",
+          "test_aide_progress_trail::test_a_second_decision_appends_and_keeps_the_first",
+          "test_aide_gates::test_approve_writes_mark_date_and_note")),
+        ("text the cell held is first moved to a trail line of its own, "
+         "verbatim",
+         "test_aide_progress_trail::test_text_the_cell_held_is_moved_to_the_trail_first_verbatim"),
+        ("Without --evidence the cell is left as it reads",
+         "test_aide_progress_trail::test_without_evidence_the_cell_is_left_as_it_reads"),
+        # `reword_gate` writes the cell and the `reworded` line.
+        ("reword writes the new question into the Gate cell, which gives the "
+         "gate a new ID, and appends `- gate-<new> \u2014 reworded <date>, "
+         "was: <old question>` to the trail",
+         "test_aide_progress_trail::test_reword_restates_the_question_and_keeps_the_old_id_resolving"),
+        # `_gate_aliases` into `HumanGate.aliases`, read by
+        # `resolve_gate_ref` — which every reader of an ID calls.
+        ("Every reader of a gate ID takes the old ID for the row while that "
+         "line stands",
+         ("test_aide_progress_trail::test_reword_restates_the_question_and_keeps_the_old_id_resolving",
+          "test_aide_progress_trail::test_two_rewords_in_a_row_still_lead_to_the_gate",
+          "test_aide_progress_trail::test_the_alias_stands_only_while_its_trail_line_does",
+          "test_aide_progress_trail::test_a_citation_of_the_old_id_passes_check_after_a_reword",
+          "test_aide_progress_trail::test_a_decision_line_written_under_the_old_id_still_reads_as_the_gate_s")),
+        # `reword_gate`'s ValueErrors, raised before `_cmd_gate_reword` writes.
+        ("It refuses, writing nothing, a \u2705 or \u274c gate, an empty "
+         "question, one holding '|', and one this row or another already asks",
+         ("test_aide_progress_trail::test_reword_refuses",
+          "test_aide_progress_trail::test_reword_refuses_a_decided_gate",
+          "test_aide_progress_trail::test_gate_reword_cli_refuses_writing_nothing")),
+    ],
+
     "insights": [
         # `insight_capture_line` builds the line from today's date and
         # `_engine_stamp()` (`.aide/VERSION`), dropping an absent provenance
@@ -1934,6 +2245,11 @@ HELP_PINS: Dict[str, List[Tuple[str, str]]] = {
          "Met, every retracted acceptance criterion and every progress.md "
          "table row no reader can use is printed too",
          "test_aide_help_pins::test_status_prints_the_four_states_it_promises"),
+        # `gate_trail_record` in `cmd_status`'s gate loop (issue #474).
+        ("A declined gate is printed with the evidence its trail records, "
+         "else its Decision / evidence cell",
+         ("test_aide_progress_trail::test_status_prints_a_declined_gate_s_evidence_from_the_trail",
+          "test_aide_progress_trail::test_status_reads_an_old_row_s_evidence_from_its_cell")),
         # The `reopened_items` loop in `cmd_status` (issue #271), and the
         # `; re-accepted` / `; completed again` suffix both loops carry (#273).
         ("So is every item `aide progress reopen` sent back",

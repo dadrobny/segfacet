@@ -35,12 +35,13 @@ def _git(args, cwd: Path) -> None:
 
 
 def _repo(tmp_path: Path, *, mode: str = "local", origin: bool = False,
-          test_command: str = "git --version", venv: str = "",
+          test_command: str = "git --version", venv: Optional[str] = "",
           gh: Optional[str] = None, python: str = PYTHON,
           init: bool = True) -> Path:
     """A repository whose every requirement is met unless a keyword says
     otherwise: `local`, no venv kept, a test command that is git, and the
-    running interpreter as the one the engine prints."""
+    running interpreter as the one the engine prints. ``venv=None`` leaves
+    `[python] venv` unset."""
     repo = tmp_path / "repo"
     repo.mkdir()
     if init:
@@ -50,7 +51,8 @@ def _repo(tmp_path: Path, *, mode: str = "local", origin: bool = False,
         _git(["remote", "add", "origin", (tmp_path / "origin.git").as_posix()],
              repo)
     (repo / "aide.toml").write_text(
-        f'[python]\ntest_command = "{test_command}"\nvenv = "{venv}"\n'
+        f'[python]\ntest_command = "{test_command}"\n'
+        + (f'venv = "{venv}"\n' if venv is not None else "") +
         f'[git]\nmode = "{mode}"\n', encoding="utf-8")
     (repo / ".aide").mkdir()
     tools = f"[tools]\npython = '{python}'\n"
@@ -241,7 +243,9 @@ def test_an_empty_venv_setting_leaves_the_venv_line_out(tmp_path: Path, capsys):
 
 
 def test_a_kept_venv_that_is_missing_is_refused(tmp_path: Path, capsys):
+    """Set, the value decides: no dependency manifest is in this root (#450)."""
     repo = _repo(tmp_path, venv=".venv")
+    assert not aide.has_python_manifest(repo)
     code, out = _env(repo, capsys)
     assert code == 1
     assert "aide env: the venv is missing" in out
@@ -274,6 +278,110 @@ def test_no_venv_kept_leaves_a_leading_python_unbound(tmp_path: Path):
     repo = _repo(tmp_path, venv="", test_command="python -m pytest")
     config = aide.load_config(repo)
     assert aide.resolve_test_command(repo, config)[0] == "python"
+
+
+# --------------------------------------------------------------------------- #
+# venv unset — it follows the tree (issue #450)
+# --------------------------------------------------------------------------- #
+def test_an_unset_venv_with_no_manifest_keeps_no_venv(tmp_path: Path, capsys):
+    """A project in another language is not refused on a venv nobody meant
+    to build, and need not write `venv = ""` to say so."""
+    repo = _repo(tmp_path, venv=None, test_command="python -m pytest")
+    config = aide.load_config(repo)
+    assert aide.venv_setting(repo, config) == ""
+    assert aide.resolve_test_command(repo, config)[0] == "python"
+    other = tmp_path / "other"
+    other.mkdir()
+    code, out = _env(_repo(other, venv=None), capsys)
+    assert code == 0, out
+    assert "  venv " not in out
+
+
+def test_bootstrap_refuses_an_unset_venv_with_no_manifest(tmp_path: Path, capsys):
+    repo = _repo(tmp_path, venv=None)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "env", "--bootstrap"]) == 1
+    assert "[python] venv is unset" in capsys.readouterr().err
+    assert not (repo / ".venv").exists()
+
+
+@pytest.mark.parametrize("manifest", ["pyproject.toml", "setup.py", "setup.cfg",
+                                      "Pipfile", "requirements.txt",
+                                      "requirements-dev.txt"])
+def test_an_unset_venv_beside_a_manifest_is_dot_venv_and_checked(
+        tmp_path: Path, capsys, manifest: str):
+    repo = _repo(tmp_path, venv=None)
+    (repo / manifest).write_text("", encoding="utf-8")
+    assert aide.venv_setting(repo, aide.load_config(repo)) == ".venv"
+    code, out = _env(repo, capsys)
+    assert code == 1
+    assert "aide env: the venv is missing" in out
+
+
+def test_an_unset_venv_beside_an_existing_dot_venv_is_kept(tmp_path: Path, capsys):
+    """A venv built by hand, with no manifest at the root, stays the venv: a
+    leading `python` binds to it and `env` checks it, as under the old
+    `.venv` default."""
+    repo = _repo(tmp_path, venv=None, test_command="python -m pytest")
+    vpy = (repo / ".venv" / "Scripts" / "python.exe" if os.name == "nt"
+           else repo / ".venv" / "bin" / "python")
+    vpy.parent.mkdir(parents=True)
+    vpy.write_text("", encoding="utf-8")
+    config = aide.load_config(repo)
+    assert not aide.has_python_manifest(repo)
+    assert aide.venv_setting(repo, config) == ".venv"
+    assert aide.resolve_test_command(repo, config)[0] == str(vpy)
+    code, out = _env(repo, capsys)
+    assert code == 1  # checked: no bootstrap record, so not OK
+    assert "  venv " in out
+
+
+def test_an_unset_venv_with_a_written_bootstrap_is_kept(tmp_path: Path, capsys,
+                                                       monkeypatch):
+    """No manifest at the root and no `.venv` yet — a fresh clone — but a
+    bootstrap written in aide.toml: the venv is `.venv`, checked, and
+    `--bootstrap` goes to build it rather than refusing."""
+    repo = _repo(tmp_path, venv=None)
+    text = (repo / "aide.toml").read_text(encoding="utf-8").replace(
+        "[python]\n",
+        '[python]\nbootstrap = "pip install -r tools/requirements.txt"\n')
+    (repo / "aide.toml").write_text(text, encoding="utf-8")
+    config = aide.load_config(repo)
+    assert not aide.has_python_manifest(repo) and not (repo / ".venv").exists()
+    assert aide.venv_setting(repo, config) == ".venv"
+    assert aide.bootstrap_setting(config) == "pip install -r tools/requirements.txt"
+    code, out = _env(repo, capsys)
+    assert code == 1
+    assert "aide env: the venv is missing" in out
+    built = []
+    monkeypatch.setattr(aide, "_bootstrap_venv",
+                        lambda root, cfg: built.append(root) or 0)
+    capsys.readouterr()
+    assert aide.main(["--repo", str(repo), "env", "--bootstrap"]) == 0
+    assert built == [repo]
+    assert "keeps no venv" not in capsys.readouterr().err
+
+
+def test_an_unset_bootstrap_reads_as_the_default():
+    assert aide.bootstrap_setting({"python": {}}) == aide.DEFAULT_BOOTSTRAP
+
+
+def test_env_help_names_every_python_manifest():
+    """`aide env -h` lists the manifests by hand; adding one to
+    `PYTHON_MANIFESTS` without the help fails here."""
+    parser = aide.build_parser()
+    env = next(a for a in parser._subparsers._group_actions
+               if hasattr(a, "choices")).choices["env"]
+    text = " ".join(env.format_help().split())
+    for name in aide.PYTHON_MANIFESTS:
+        assert name in text, name
+
+
+def test_a_manifest_below_the_root_is_not_one(tmp_path: Path):
+    repo = _repo(tmp_path, venv=None)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "requirements.txt").write_text("", encoding="utf-8")
+    assert aide.venv_setting(repo, aide.load_config(repo)) == ""
 
 
 # --------------------------------------------------------------------------- #

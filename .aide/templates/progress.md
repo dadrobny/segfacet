@@ -19,12 +19,14 @@
   capabilities. Read them there; nothing here restates them.
   Optional sections, each deleted if the project has no use for it:
   Environment-Gated Capability Verification, Outcome targets, Human gates.
+  Each of the three keeps its cells short and its detail in a trail of
+  "- <key> — <entry>" bullets below it; the trail is §1 → progress.md.
 
   Fill-in conventions: `{{slot}}` = literal value; _italic line_ = guidance to
   read then replace. Delete this comment in the generated file,
   and keep the aide-template line below it.
 -->
-<!-- aide-template: progress 1 -->
+<!-- aide-template: progress 2 -->
 # {{project-name}} — Progress Tracker
 
 > **Status:** Draft v1 · **Created:** {{yyyy-mm-dd}}
@@ -64,24 +66,31 @@ _One row per vision objective._
 _One row per environment-gated capability (conventions.md §1 →
 Environment-gated capabilities says which, and what counts as verified).
 Status is `❓ Unverified` until the gated path has run with the dependency
-present, then `✅ Verified (YYYY-MM-DD, host/CI description)`. Keep the
+present, then `✅ Verified (YYYY-MM-DD)`. Keep the
 `` (`name` profile) `` part only when a `[validation]` profile checks for
-the dependency._
+the dependency. The host or CI run, and a note longer than a line, belong in
+a bullet below the table that starts with the Capability cell._
 
 | Capability | Package / Tool | Introduced by | Status | Notes |
 |------------|-----------------|----------------|--------|-------|
 | {{capability}} | {{package or tool name}} (`{{profile}}` profile) | Stage {{n}} *(Item {{nnn}})* | ❓ Unverified | {{notes}} |
 
+- {{capability}} — {{yyyy-mm-dd}}: {{host or CI run, or note}}
+
 ## Outcome targets  <!-- OPTIONAL: delete if no roadmap stage commits to a measured result -->
 
 _One row per measured outcome the roadmap commits to. Status is
-`❓ Unverified` until measured, then `✅ Met (YYYY-MM-DD, evidence)` or
-`❌ Not met (measured result → follow-up)`. What a target gates, and what a
-`❌ Not met` obliges, is conventions.md §1 → progress.md._
+`❓ Unverified` until measured, then `✅ Met (YYYY-MM-DD)` or
+`❌ Not met (YYYY-MM-DD)`. What a target gates, and what a
+`❌ Not met` obliges, is conventions.md §1 → progress.md. What was measured,
+and on what basis, goes in a bullet below the table that starts with the
+Target cell._
 
 | Target | Objective | Attempted by | Status | Evidence / follow-up |
 |--------|-----------|--------------|--------|----------------------|
 | {{measurable target}} | G{{n}} | Stage {{n}} | ❓ Unverified | {{notes}} |
+
+- {{measurable target}} — {{yyyy-mm-dd}}: {{evidence, or result and follow-up}}
 
 ---
 
@@ -93,11 +102,15 @@ _One row per decision only a person can make. **Blocks** is a stage reach
 then `✅ Approved (YYYY-MM-DD)` or `❌ Declined (YYYY-MM-DD)`.
 What each reach holds and why a queue is never one, who may raise and resolve
 a gate and how, and why a decline keeps blocking: conventions.md §1 → Human
-gates._
+gates. **Gate** is one line; its context, and every decision's evidence, sit
+in bullets below the table that start with the gate's ID, as `aide gate list`
+prints it._
 
 | Gate | Blocks | Status | Decision / evidence |
 |------|--------|--------|---------------------|
 | {{what must be decided}} | {{item numbers, stage N, or all}} | ⏳ Awaiting | {{notes}} |
+
+- gate-{{hex}} — context: {{what the one-line question leaves out}}
 
 ---
 

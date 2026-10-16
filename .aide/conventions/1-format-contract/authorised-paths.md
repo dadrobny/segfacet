@@ -46,9 +46,22 @@ the bullet is the whole fix, and `aide check` warns at spec time.
   files compared byte-for-byte: a live recomputation is *more* coupled to the
   underlying state, not less.
 
-Three paths are authorised for every item without being listed — `progress.md`
+**Derive the list from what the change moves, not only from what names it.** A
+text search for the paths and tokens an item changes finds the files that
+mention them: it lower-bounds the list, it does not complete it. When an item
+changes a shape that generated files or static checks are computed from, apply
+a draft of the change in a scratch copy, run the project's generators and its
+conflict or drift checks, and list every file they move or flag. Which commands
+those are is the project's own knowledge — its README, its CI, its build
+configuration.
+
+Four paths are authorised for every item without being listed — `progress.md`
 and `insights.md`, which the CLI and the roles are mandated to write on any
-item, and the item's own spec, where the builder records decisions.
+item, `insights/archive-*.md`, where `aide insights archive` moves closed
+entries, and the item's own spec, where the builder records decisions. The
+stage archives are not among them: `aide progress archive` and `unarchive`,
+which write `progress/stage-N.md`, `roadmap.md` and `roadmap/stage-N.md`, run
+on the main or queue branch alone and refuse on a claim branch.
 
 **Never list an always-authorised path under Asserts against.** A read-only
 content check against one of them (a human-gate row's `Blocks` cell, say)
@@ -87,6 +100,21 @@ pin from the later item.
   authorised edit changes.*
 - **Why the narrowing warns at spec time.** Left to surface later, it arrives
   as an `aide scope` FAIL against a path the spec's own prose authorised.
+- **Why a token search is not the whole derivation.** A consumer's item moved
+  record paths and wrote its list by searching the tree for them; the build
+  then had to touch rule modules a generated catalogue's static scan
+  attributed a key to, and a generated JSON file counting record leaf paths.
+  Neither mentions a moved path, so no search for one could find them; the
+  project's generators and drift checks, run against the changed record,
+  named each (issue #477). No `aide.toml` key names those commands: what they
+  are differs per project, and the spec author can read them where the
+  project keeps them.
+- **Why the stage archives are not always authorised.** A writer that meets an
+  archived stage names `aide progress unarchive`, and a role on a claim branch
+  that followed the advice produced a diff `aide scope` reported out of scope
+  (issue #481). Widening the set would have let every item move a stage in or
+  out of the archive unremarked — a write no item is about — so the verbs are
+  held to the branches where the loop's bookkeeping already lands instead.
 - **Why an always-authorised path cannot be pinned.** The loop itself edits
   those files on every item — the mandatory status flip alone touches
   `progress.md` — so the pin can never hold, and `aide scope` would report the

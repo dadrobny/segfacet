@@ -106,6 +106,15 @@ capture a `gap` with `aide insights add` alongside the edit.** Write the
 row with care: **a table row its reader cannot use is an `aide check`
 error** — a `|` inside a cell, usually.
 
+**The three optional tables hold labels; each one's trail is the record.**
+Outcome targets, Human gates and the capability table keep each cell short and
+put the detail on bullets directly under the table, keyed to a row: a target
+by its Target cell as written, `- <Target cell> — ✅ Met 2026-10-12:
+<evidence>`. **A Status cell keeps its leading icon** and the date — `✅ Met
+(2026-10-12)` — and the evidence or the measured result goes on the trail
+line. **A correction appends a line**; the earlier one stays. Long cells an
+older table already holds move with `aide progress compact`.
+
 **Correcting an attestation has verbs too, so it is never a hand edit either.**
 **The attestation is immutable; what is recorded about it is not** — the rule
 `insights.md` already runs on. **Three verbs, and none of them edits the
@@ -122,3 +131,13 @@ carries a correction trail**, and it **writes both documents or neither
 wherever `roadmap.md` mirrors the stage** — **a stage with no Validation /
 acceptance block in `roadmap.md` has no mirror to drift from**, so there it
 writes `progress.md` alone.
+
+**An archived stage is a record: read everywhere, written nowhere.** A stage
+whose summary row's Title cell links to `progress/stage-N.md` has its section
+in that file. **Nothing writes into the archive, neither a verb nor a hand
+edit**: **a correction (`amend`, `retract`, `reword`) or a reopen first moves
+the stage back with `aide progress unarchive --stage N`**. **The same verb
+archives the stage's `roadmap.md` section with it**, to `roadmap/stage-N.md`,
+and `unarchive` brings both back. **`archive` and `unarchive` run on the main or
+queue branch alone**: on a claim branch both refuse, since no item's Authorised
+paths name the files they write.
