@@ -2294,7 +2294,11 @@ development role only.
 - **Development-role reference**: the VerSe reference rebuilt from the VerSe19
   and VerSe20 training splits. This replaces today's VerSe19-training-only
   `reference_verse_v1.json`, which is out of date for any subject with a T13
-  (insight 2026-10-06-f318).
+  (insight 2026-10-06-f318). `spline_offset.max_offset_mm` is re-derived from the
+  rebuilt offset distribution with `sub-verse406_split-verse261` T10 (label 17)
+  excluded. That label is a rare wedge vertebra, and its 18.51 mm offset is an
+  anatomical outlier that set today's 13.0 mm (owner decision 2026-10-16,
+  `gate-fac1`).
 
 **Dependencies.** Stages 13, 14, 17 and 27.
 
@@ -2311,6 +2315,8 @@ development role only.
   suite (**G7**).
 - The rebuilt reference draws only on development-role cases, and no
   calibration-role or test-role case contributes to it (**G3**).
+- `spline_offset.max_offset_mm` is re-derived from the rebuilt distribution, and
+  the excluded wedge-vertebra label contributes nothing to it (**G3**).
 
 ---
 
