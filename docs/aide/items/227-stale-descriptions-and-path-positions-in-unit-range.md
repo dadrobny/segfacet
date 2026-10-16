@@ -364,6 +364,14 @@ To be updated during implementation.
   wrong (§1 → items). The validator reads the passages under Validation
   instead, and test_040's byte-identity check keeps the regenerated manifest
   in step with the source string.
+- **Implementation (2026-10-16).** `_path_positions` builds `cum[]` first,
+  then `total = cum[-1]`, keeping the zero-length early return after it; both
+  return branches share `total`. The A4 default wordings were used, with the
+  `detail` dropping the "(item 132)" tag. `severity_ladder.py` now says
+  `crop_depth` is "held at the ladder's own 5" in all three passages. The
+  regenerated manifest differs only in the `relabel_swap` `detail`; no
+  `.nii.gz` changed. `docs/aide/corpus_sheet.png` was regenerated for its
+  embedded digest.
 - **Left open:** whether CI should gain a Python 3.12+ leg. Without one,
   nothing exercises the compensated `sum()` path for real, and AC1 and AC2
   stand in through the patch. The maintainer declined the leg on 2026-10-07

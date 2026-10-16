@@ -170,7 +170,7 @@
       },
       "case_id": "relabel_swap",
       "condition": "",
-      "detail": "relabel_swap: exchanged the voxel identities of adjacent labels 21 and 22. Caught by plain run_qc: the monotonicity check judges against a curve fitted in geometric traversal order rather than the ordering under test, so the swap reads out of order and MislabelRule's ordering detector fires directly (item 132).",
+      "detail": "relabel_swap: exchanged the voxel identities of adjacent labels 21 and 22. Caught by plain run_qc: the monotonicity check reads each label's position along a label-free path through the centroids (item 210), never the ordering under test, so the swap reads out of order and MislabelRule's ordering detector fires directly.",
       "detection": "pipeline",
       "expected_labels": [
         21,

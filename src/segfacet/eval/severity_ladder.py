@@ -67,7 +67,7 @@ their designated metric. Four of the five get a genuine ladder from the
   are removed one at a time; ``missing_level_count`` steps 0 -> 1 -> 2 -> 3.
 * **``crop_at_border``** -- *its* metric (``fov_clipped_label_count``)
   is a **count of labels**, invariant to clip depth; ``crop_depth`` is
-  therefore pinned at the corpus's ``5`` and the severity axis sweeps the
+  therefore held at the ladder's own ``5`` (no corpus case carries it) and the severity axis sweeps the
   *number of clipped labels* (20, then +21, then +22) instead.
 * **``sequence_break``** -- **degenerate**, 2 rungs, from its single default
   step, not from any cap on how many rungs it could have:
@@ -839,7 +839,7 @@ def _remove_level_ladder() -> LadderSpec:
 
 
 def _crop_at_border_ladder() -> LadderSpec:
-    # Cumulative crops (anterior face, crop_depth pinned at the corpus's 5):
+    # Cumulative crops (anterior face, crop_depth held at the ladder's own 5):
     # 20, then +21, then +22 -- fov_clipped_label_count is a count of labels,
     # invariant to crop_depth, so the severity axis is the number cropped.
     crop20 = ("crop_at_border", {"target_label": 20, "face": "anterior", "crop_depth": 5})
@@ -863,7 +863,7 @@ def _crop_at_border_ladder() -> LadderSpec:
         rungs=tuple(rungs),
         rationale=(
             "fov_clipped_label_count is a count of labels, invariant to "
-            "crop_depth (pinned at the corpus's 5); the severity axis is "
+            "crop_depth (held at the ladder's own 5); the severity axis is "
             "the number of clipped labels instead."
         ),
     )

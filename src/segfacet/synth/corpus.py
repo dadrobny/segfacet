@@ -42,10 +42,9 @@ fixture never expressed the mode it was attributed to. Mode 1 (``displace``)
 was reconstructed_record before item 120 promoted a held-out per-label
 spline offset into the pipeline itself; it is now ``detection == "pipeline"``.
 The mode-9 ``relabel_swap`` case was reconstructed_record before item 132 (2026-08-31)
-made ``compute_monotonic_consistency`` judge against a curve fitted in
-geometric traversal order rather than the ordering under test, so the swap
-now reads out of order through plain ``run_qc``; it is now
-``detection == "pipeline"``. See the item 040 spec's Assumptions for the
+made the monotonicity check read out of order through plain ``run_qc``; it is
+now ``detection == "pipeline"``. Since item 210 that check fits no curve: it
+reads each label's position along a label-free path through the centroids. See the item 040 spec's Assumptions for the
 full rationale.
 
 Item 157 (2026-09-17) dropped the ``modeN_`` prefixes above; the mapping is
