@@ -700,49 +700,6 @@ detected only on *synthetically perturbed* GT: the corpus proves each mode is
 *detectable in principle*, not that real tools produce it or that we catch it
 when they do.
 
-> **Retargeted in place 2026-07-25** (this stage was `📋`, never started). **SPINEPS**
-> is now the primary reference segmenter rather than TotalSegmentator, and this stage is
-> **rung 3** of the realism ladder introduced in Stage 21 — the *validation* corpus of
-> real segmenter failures, distinct from Stage 21's rung 2 (real GT + scripted
-> perturbation, used for calibration). Depends on Stage 21, which supplies the
-> per-mode metrics and the specificity harness this stage's sensitivity claims rest on.
-
-> **Dependency on Stage 21 lifted 2026-10-07** (queue-029 boundary, maintainer decision —
-> see the run order at the top). The per-mode metrics and the specificity harness the
-> note above attributes to Stage 21 were in fact delivered by Stages 18 and 20, both ✅.
-> What Stage 21 would have added — thresholds calibrated on perturbed real GT — is not a
-> prerequisite for *measuring* what a real segmenter produces; it is deferred, and every
-> sensitivity figure this stage records is labelled with the rung its thresholds were
-> calibrated at (rung 1). The first queue of this stage carries the real candidate
-> cohort, the per-mode sensitivity and Dice-vs-flag correlation, and the account of
-> which §6 modes SPINEPS actually produces; the curated challenging-case corpus waits for
-> gate `gate-2f91`.
-
-> **Restated 2026-10-12 against the programme interface** (maintainer decision, on the
-> maintenance branch after the queue-029 boundary). The owner adopted `spine-failure-lab`'s
-> `docs/project/facet-interface.md` at commit `7436b0f` ([`vision.md`](vision.md) v4.2,
-> §7.5 and §8). Five things follow.
->
-> - SPINEPS is the only reference segmenter, and TotalSegmentator is dropped.
-> - The candidate descriptor is written by `spinelab` from its run manifest and pinned
->   here by commit. That **reverses** insight 2026-10-09-b91d, which had this repository
->   writing it.
-> - The first real-failure reference is `spinelab`'s manual review. Its first pass
->   (2026-10-06) looked for exactly modes 2 and 3, the two modes signed at the bar on
->   2026-10-02. It covers 40 sampled VerSe cases (20 VerSe19, 20 VerSe20, each half
->   ranked by post-processing change and half random), and it reaches FACET as the
->   `rl1` label table.
-> - Every number is reported against the dataset role of its cases.
-> - **This repository's side of the interface moves to Stage 35**, which is not gated.
->   This stage keeps the real measurement. It sits behind gate `gate-ae46`, which now
->   asks for the four-part hand-off bundle, and behind Stage 35. That is a forward
->   dependency, so this stage is ⏸️ until Stage 35 closes.
->
-> Further decision: **Dice-vs-flag is measured on per-mode findings.** The
-> verdict-level figure is dominated by `reference_delta`, which flags held-out real GT
-> at 0.90–0.95 (Stage 14). It is reported beside the per-mode figure and labelled as
-> such.
-
 **Deliverables.**
 
 - **Real candidate cohort**: the SPINEPS VerSe passes, ingested through
@@ -1086,16 +1043,6 @@ state, not a defect.
 ---
 
 ## Stage 21 — Real-GT Perturbation Corpus (G3, G7)
-
-> **Build posture, 2026-09-18.** The acceptance below stands as written. Under the
-> `prototype` posture the stage's first queue calibrates the rules that serve the modes
-> Stage 32 refined, on a rung-2 corpus sized for that. Rules serving modes left as
-> documented drafts are calibrated when their mode is picked up, not ahead of it.
-
-> **Deferred 2026-10-07** (queue-029 boundary, maintainer decision — see the run order at
-> the top). Stage 16 runs first; this stage resumes when a Stage 16 measurement needs
-> rung-2 calibration. Its four deliverables read ⏸️ in [`progress.md`](progress.md) with
-> the reason on each.
 
 **Goal.** Move calibration off hand-crafted geometry. The current corpus is built from
 synthetic fixtures (`synth/clean_gt.py`) — five stacked lumbar blocks at 1 mm isotropic.
