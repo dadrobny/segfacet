@@ -44,7 +44,7 @@
 | 13    | Dataset Ingestion Adapters & Harmonization Schema                       | (G3/G7 enabler) | ✅     |
 | 14    | Real-Data Grounding & Heuristic Recalibration                           | G3, G7          | ✅     |
 | 15    | Real-XNAT Deployment Validation                                         | G5              | ❌     |
-| 16    | Real Failure Corpus & Sensitivity Validation*(retargeted to SPINEPS)* | G2, G7          | 📋     |
+| 16    | Real Failure Corpus & Sensitivity Validation*(retargeted to SPINEPS)* | G2, G7          | ⏸️     |
 | 17    | Foreign-Convention Interop & Orientation-Safe Image Layer               | G2, G6          | ✅     |
 | 18    | Failure-Mode-Specific Metric Surface                                    | G2, G7          | ✅     |
 | 19    | Generated Feature & Rule Catalogue + Steering Review                    | G7, G8          | ✅     |
@@ -62,7 +62,8 @@
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
 | 33    | Corpus & Rule Re-grounding: modes 2 and 3 to the bar                    | G2, G7, G8      | ✅     |
-| 34    | Maintenance                                                             | —               | 📋     |
+| 34    | Maintenance                                                             | —               | ✅     |
+| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -165,12 +166,12 @@ shipped"). See "Two kinds of done" above._
 | Objective                                    | Delivered by                                             | Status |
 | -------------------------------------------- | -------------------------------------------------------- | ------ |
 | G1 Detect empty / trivially-failed           | Stage 1                                                  | ✅     |
-| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16)* | 🚧     |
-| G3 Distinguish failure from variation        | Stages 6, 7, 12*(real grounding: Stage 14)*            | 🚧     |
+| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16, read through the programme interface of Stage 35)* | 🚧     |
+| G3 Distinguish failure from variation        | Stages 6, 7, 12*(real grounding: Stage 14; development-role reference: Stage 35)* | 🚧     |
 | G4 Per-case and cohort reports               | Stage 1 (ext. 2–4); cohort characterisation: Stage 18   | ✅     |
 | G5 Deploy on XNAT*(removed from scope 2026-07-25)* | Stage 9 shipped the artefacts; validation was Stage 15 ❌ | ❌     |
 | G6 Portable / GPU*(deferred)*              | Stage 10                                                 | ✅     |
-| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16)* | 🚧     |
+| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16; dataset roles and artefact versioning: Stage 35)* | 🚧     |
 | G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | ⏸️     |
 
 **Why each 🚧 objective is not yet ✅** _(one line each — the detail lives in the
@@ -216,7 +217,7 @@ item, or doc where the detail already lives, not a prose copy of it._
 | Radiomics feature extraction                    | `pyradiomics` (extra: `segqc[radiomics]`)                                            | Stage 8*(Item 060)*                                                                                                             | ✅ Verified (2026-07-14, GitHub Actions CI)                                                  | CI`verify-environment-gated` (`ci.yml`) installs the extra and runs the radiomics tests, failing on any skip (`assert_no_skips.py`). First real run found + fixed a degenerate-mask bug (item 076); green since PR #33.                                                                                                          |
 | Containerised pipeline (Docker build + run)     | Docker (external tool, no pip dependency)                                                | Stage 9*(Items 066, 069, 070)*                                                                                                  | ✅ Verified (2026-07-14, GitHub Actions CI)                                                  | Same CI job does a real`docker build` + `docker run` smoke test (`test_066/069/070`); item 080 gated it to a Linux daemon (skip, not error, on Windows-container hosts).                                                                                                                                                         |
 | XNAT Container Service command on a real server | XNAT server + Container Service (external environment)                                   | Stage 9*(Items 067, 068, 070)*; **Stage 15 ❌ Excluded**                                                                  | ❓ Unverified (out of scope since 2026-07-25)                                                | The container itself is verified (Docker row). Installing`command.json` on a real XNAT server never happened and now never will *here*: deployment left scope in [`vision.md`](vision.md) §0 and G5 was removed. Row retained so the artefacts' unverified status stays on the record rather than vanishing with the stage.      |
-| Real automatic-segmentation failure corpus      | **SPINEPS** (primary) / TotalSegmentator outputs on real CT (external tool + data) | Stages 5, 7*(Items 041, 053, 057)*; to be closed by Stage 16                                                                    | ❓ Unverified                                                                                | §6 modes are detected only on synthetically perturbed GT; no real-failure output has run, so item 057's per-mode sensitivities are synthetic-only. Curated challenging cases ([`vision.md`](vision.md) §8) unbuilt. → Stage 16 (rung 3); its dependency on Stage 21 (rung 2) was lifted 2026-10-07, Stage 21 deferred.                                                   |
+| Real automatic-segmentation failure corpus      | **SPINEPS** outputs on real CT (external tool + data) | Stages 5, 7*(Items 041, 053, 057)*; to be closed by Stage 16                                                                    | ❓ Unverified                                                                                | §6 modes are detected only on synthetically perturbed GT; no real-failure output has run, so item 057's per-mode sensitivities are synthetic-only. Curated challenging cases ([`vision.md`](vision.md) §8) unbuilt. → Stage 16 (rung 3); its dependency on Stage 21 (rung 2) was lifted 2026-10-07, Stage 21 deferred.                                                   |
 | GPU-accelerated feature extraction              | `cupy` (extra: `segqc[gpu]`)                                                         | Stage 10*(Items 071–075)*; closed by *(Item 085)*                                                                            | ✅ Verified (2026-07-16, Quadro P6000 sm_61, CuPy`cupy-cuda12x` 14.1.1, driver 580.159.04) | Verified on a Pascal sm_61 workstation (2× P6000) with the CPU/GPU equivalence tests executing; first CuPy run found + fixed a NEP-50 regression (item 085). Install`cupy-cuda12x` (**not** `cupy-cuda13x` — drops Pascal). No CI GPU coverage — see [`docs/gpu-verification.md`](../gpu-verification.md).               |
 | Real SPINEPS-output label-convention round-trip | Real SPINEPS-produced label map (external tool + data), via `SEGFACET_SPINEPS_FIXTURE` | Stage 17 (Item 097)                                                                                                                | ❓ Unverified                                                                                | No committed real-SPINEPS fixture; requires `SEGFACET_SPINEPS_FIXTURE` pointing at a directory of real SPINEPS output. Narrower than the "Real automatic-segmentation failure corpus" row above (Stage 16 sensitivity/DICE scope) — this row is level-**naming** correctness only. Mechanics unconditionally covered by a committed synthetic TPTBox-labeled fixture (`tests/test_097_stage17_validation.py::test_ac4_*`); the real-data path (`test_ac6_real_spineps_fixture_level_names_correct`) is a genuine, cleanly-skipping `skipif` not yet exercised for real. |
 | Real segmentation-tool run-vs-run per-mode comparison | Two real runs of a real segmenter over the same cohort (e.g. a post-processing step on vs. off), external tool + data | Stage 18 *(Items 101, 102)*                                                                                                       | ❓ Unverified                                                                                | Only ever exercised on the synthetic corpus and on in-memory perturbed clean spines (item 101's API tests, item 102's CLI replay); no two real segmenter runs exist in this repo. Narrower than the "Real automatic-segmentation failure corpus" row above (that row is Stage 16's per-mode **sensitivity** scope; this row is run-vs-run **attribution** scope). |
@@ -262,7 +263,7 @@ may resolve one._
 
 | Gate | Blocks | Status | Decision / evidence |
 |------|--------|--------|---------------------|
-| Real segmenter output on real CT handed over to this repo — SPINEPS (primary) and/or TotalSegmentator label maps + manifest, produced in the programme repo, sufficient to build the real candidate-vs-GT cohort | stage 16 | ⏳ Awaiting | Blocks the whole of Stage 16, and transitively Stage 25, whose deliverables are "deliberately unspecified until Stage 16 has characterised real failures". Closes the "Real automatic-segmentation failure corpus" Environment-Gated row and the G2 Outcome target. Not the same prerequisite as the Stage 21 rung-2 corpus, which needs only real VerSe GT — already ✅ Verified and **not** gated. |
+| Real segmenter output on real CT handed over to this repo — SPINEPS (primary) and/or TotalSegmentator label maps + manifest, produced in the programme repo, sufficient to build the real candidate-vs-GT cohort | stage 16 | ⏳ Awaiting | **What satisfies it (restated 2026-10-12):** the four-part hand-off bundle in `spine-failure-lab`'s `docs/project/facet-interface.md` (adopted at `7436b0f`). It holds a `role: candidate` descriptor written by `spinelab` from a run manifest, that run manifest, this repository's ground-truth descriptors (unchanged), and the `spinelab` commit the descriptor and the `rl1` review-label table were written at. SPINEPS alone satisfies it, and TotalSegmentator is no longer sought. Blocks the whole of Stage 16, and transitively Stage 25, whose deliverables are "deliberately unspecified until Stage 16 has characterised real failures". Closes the "Real automatic-segmentation failure corpus" Environment-Gated row and the G2 Outcome target. Not the same prerequisite as the Stage 21 rung-2 corpus, which needs only real VerSe GT — already ✅ Verified and **not** gated. |
 | Access approved for the curated challenging-case source data — real pathology / post-op / atypical anatomy ([`vision.md`](vision.md) §8), `VerSe_fracture_grading.xlsx` a natural seed, plus any clinical cohort requiring an ethics/data-sharing sign-off | stage 16 | ⏳ Awaiting | Independent of the row above: real *segmenter output* does not supply the *challenging cases*, and either arriving alone leaves a Stage 16 deliverable unbuildable. Kept a separate row so approving one does not silently read as approving both. |
 | §6 failure-mode taxonomy — the modes need a specification before the rest of Stage 20 can be built. Six decisions are owed, listed in [`failure-mode-taxonomy-handover.md`](failure-mode-taxonomy-handover.md) §10: the anchor semantics for modes 4 and 7, whether mode 6's `mislabel` firing is a true positive or cross-talk, whether the evidence rung attaches to the mode or the edge, the per-mode schema and lifecycle, whether this becomes a new stage or a Stage 20 rescope, and the `vision.md` §6 wording that currently forbids a `proposed` mode | 139, 140, 141, 142 | ✅ Approved (2026-09-03) | Adopted failure-mode-taxonomy-handover.md section 12 (2026-09-03) in full. (1) Modes 4 and 7 keep the Stage-18 metric path as anchor and the rule's read path as a separate, separately-labelled column. (2) Mode 6 firing mislabel is a true co-detection: expected_firing = {border, mislabel} for mode6_crop_at_border, with the mode-1 / mode-6 discriminator (a border-touching face) written into the specification. (3) The evidence rung attaches to each mode-to-rule edge, authored; the mode's rung is derived as the strongest edge. (4) The section 6 schema and four-state lifecycle are adopted, with expected_firing authored per corpus case and implemented / validated derived from live state. (5) A new Stage 30 authors the specification and runs before the remainder of Stage 20; items 139-142 are re-specced against it in the queue after Stage 30's. (6) vision.md section 6 is reworded as part of a re-issued vision v3 now, not a point edit: a mode is claimed covered only with the rule(s) that detect it, and a proposed mode is not a claim of coverage. Items 139-142 remain held until Stage 30's specification is signed off. |
 | Spinal curve model — the deformity envelope the fit must represent without flagging it. How much scoliotic / kyphotic curvature is normal anatomy the model must follow, versus deviation it must report; and the accepted false-negative cost of a stiffer fit | 119, 120, 121, 123, 125 | ✅ Approved (2026-08-27) | Adopt item 118's proposal: smoothing_spline at s = n_points, chord-length u, leave-one-out evaluation, and max_offset_mm raised 15.0 -> 25.0. Envelope set above the 21.073357 mm leave-one-out ceiling measured across VerSe19 GT including the most coronally-deviated cases, and below the ~5 mm leave-one-out separation a small displacement produces. Accepted cost: a genuine displacement smaller than the envelope may be missed. Expected to be revised into separate normal and scoliotic envelopes later -- see docs/spinal-curve-model.md. *(Superseded 2026-08-29 by a second human decision during item 123: terminal vertebrae (first/last of each subject's ordered sequence) are excluded from the mislabel rule and threshold derivation, and the shipped threshold is `max_offset_mm = 13.0` (interior-only p99 12.91 mm at T10, real 80-subject VerSe19 cohort). Full record in `docs/reference-build.md`'s rebuild records and item 123's spec Decisions log.)* |
@@ -360,7 +361,7 @@ mislabelling heuristics.
 - ✅ Per-vertebra offset from the spline. *(Item 018)*
 - ✅ Orientation / rotation estimate per vertebra + global curvature descriptors. *(Item 019)*
 - ✅ Neighbour-consistency metrics (spacing regularity, monotonic progression). *(Item 020)*
-- ✅ Optional sagittal projection of centroids + spline for the human report. *(Item 021)*
+- ✅ Optional sagittal projection of centroids + spline for the human report; retired by owner decision 2026-10-09. *(Item 021)*
 - ✅ Stage 3 feature serialisation & GT-vs-perturbed regression tests. *(Item 022)*
 - ✅ Local vertebra neighbourhood comparison (sliding window, n=3–5): per-vertebra deviation from neighbourhood mean/median of centroid spacing, spline offset, and volume, plus a deviation score and outlier flag. *(Item 024)* ⚠️ **Correction, 2026-08-11:** the module (`features/neighbourhood.py`) was implemented in full but **wired into nothing** — absent from `pipeline.py`, `feature_report.py` and all 10 rules, which is why it never appeared in item 103's 111-entry catalogue. ✅ **Wired, 2026-08-14 (Item 110):** the module was generalised to an arbitrary named-feature API and wired into `extract_feature_record`/`feature_report.py` as `stage3.per_label_neighbourhood[]` (computed and serialised for every case with ≥ 2 labels). It is **consumed by no rule** — `status == "unwired"` in the regenerated feature catalogue, confirmed by Item 110's AC11 (every corpus case's verdict and findings are unchanged by the wiring). No outlier this module computes is ever flagged to a verdict; that remains Stage 20's call, same as any other unwired feature. *(Item 024)*
 
@@ -783,7 +784,7 @@ measurable outcome actually requires. Scoped 2026-07-17 by the over-claim audit.
 
 ---
 
-## Stage 16 — Real Failure Corpus & Sensitivity Validation (G2, G7) — 📋
+## Stage 16 — Real Failure Corpus & Sensitivity Validation (G2, G7) — ⏸️
 
 **Goal.** Establish that the heuristics catch failures **that a real segmenter
 actually makes**, and build the curated challenging-case corpus
@@ -791,27 +792,50 @@ actually makes**, and build the curated challenging-case corpus
 Scoped 2026-07-17 by the over-claim audit. Depends on Stage 14 (calibrate first,
 then measure sensitivity against the calibrated rules).
 
+> **Restated 2026-10-12** against the programme interface the owner adopted
+> (`spine-failure-lab`'s `docs/project/facet-interface.md` at `7436b0f`;
+> [`roadmap.md`](roadmap.md) Stage 16 and Stage 35):
+> - SPINEPS is the only reference segmenter.
+> - The candidate descriptor and the `rl1` review labels arrive from `spinelab` as
+>   gate `gate-ae46`'s bundle.
+> - This repository's side of the interface is Stage 35, a forward dependency, so
+>   this stage is ⏸️ until Stage 35 closes.
+
 **Deliverables.**
 
-- 📋 Run **TotalSegmentator** (the vision's reference segmenter) and/or **SPINEPS**
-  over real VerSe CT to produce a **real candidate-vs-GT cohort**, ingested as
-  `role: candidate` through the Stage-13 adapter.
-- 📋 Real per-mode **sensitivity** + **DICE-vs-flag correlation** measured on that
-  cohort, replacing the synthetic-only figures in Stage 7's metrics block.
-- 📋 **Curated challenging-case corpus** — real pathology / post-op / atypical
-  anatomy (`VerSe_fracture_grading.xlsx` is a natural seed), with expected
-  verdicts, to test failure-vs-variation on the cases that actually matter.
-- 📋 A documented account of which §6 modes real segmenters produce, and at what
-  rate — the synthetic corpus asserts all 8 are *possible*, not that they occur.
-- 📋 Verification row flipped with tool version + cohort + date.
+- ⏸️ **Real candidate cohort**: the SPINEPS VerSe passes, ingested through
+  `spinelab`'s candidate descriptor at a recorded `spinelab` commit, and scored
+  against real GT.
+  - **2026-10-12** → deferred: Waits for Stage 35 (this repository's side of the programme interface, a forward dependency) and for gate-ae46's hand-off bundle from spine-failure-lab; owner decision 2026-10-12. Resumed when Stage 35 closes
+- ⏸️ **Modes 2 and 3 against review**: per-level sensitivity and specificity
+  against the `rl1` labels on calibration-role cases, reported separately for the
+  ranked and random sampling streams. Test-role labels are read once, at the stage
+  validation.
+  - **2026-10-12** → deferred: Waits for Stage 35 (this repository's side of the programme interface, a forward dependency) and for gate-ae46's hand-off bundle from spine-failure-lab; owner decision 2026-10-12. Resumed when Stage 35 closes
+- ⏸️ **Dice-vs-flag correlation** on per-mode findings, which replaces the
+  synthetic-only figures in Stage 7's metrics block. The verdict-level figure is
+  reported beside it and labelled as dominated by `reference_delta`.
+  - **2026-10-12** → deferred: Waits for Stage 35 (this repository's side of the programme interface, a forward dependency) and for gate-ae46's hand-off bundle from spine-failure-lab; owner decision 2026-10-12. Resumed when Stage 35 closes
+- ⏸️ A documented account of **which §6 modes SPINEPS produces**, and at what rate,
+  with each mode labelled adjudicated, fired but not adjudicated, or untested.
+  - **2026-10-12** → deferred: Waits for Stage 35 (this repository's side of the programme interface, a forward dependency) and for gate-ae46's hand-off bundle from spine-failure-lab; owner decision 2026-10-12. Resumed when Stage 35 closes
+- ⏸️ **Interface asserted on this side**: a test reads `spinelab`'s committed
+  descriptor and `rl1` table at the pinned commit and refuses on version drift.
+  - **2026-10-12** → deferred: Waits for Stage 35 (this repository's side of the programme interface, a forward dependency) and for gate-ae46's hand-off bundle from spine-failure-lab; owner decision 2026-10-12. Resumed when Stage 35 closes
+- ⏸️ **Curated challenging-case corpus** (behind `gate-2f91`) — real pathology /
+  post-op / atypical anatomy (`VerSe_fracture_grading.xlsx` is a natural seed),
+  with expected verdicts, to test failure-vs-variation on the cases that actually
+  matter.
+  - **2026-10-12** → deferred: Waits for gate-2f91 (curated challenging-case source data) and for Stage 35, a forward dependency; owner decision 2026-10-12. Resumed when both are in place
+- ⏸️ Verification row flipped with tool version + cohort + date.
+  - **2026-10-12** → deferred: Waits for Stage 35 (this repository's side of the programme interface, a forward dependency) and for gate-ae46's hand-off bundle from spine-failure-lab; owner decision 2026-10-12. Resumed when Stage 35 closes
 
 **Acceptance.**
 
 - [ ] ≥1 heuristic fires on a **real** instance of each §6 failure mode that the
   real cohort actually contains; modes absent from real data are recorded as such
   rather than silently credited (**G2**).
-- [ ] Real DICE-vs-flag correlation is measured and correctly signed (**G7**,
-  Success Criterion 6).
+- [ ] Real Dice-vs-flag correlation is measured on per-mode findings and correctly signed, with the verdict-level figure reported beside it and labelled as dominated by reference_delta (**G7**, Success Criterion 6).
 - [ ] Curated challenging cases run through the pipeline with recorded outcomes;
   legitimate variation is not flagged at the Stage-14 FPR bar.
 - [ ] The "Real automatic-segmentation failure corpus" verification row reads
@@ -1138,6 +1162,8 @@ rule(s) and any features they need; features may be added alone, modes and rules
   - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed; mode 15 derives implemented. Re-measured live: derived status counts over 16 modes: validated 5, implemented 4, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
   - **2026-09-30** → Item 205 (2026-09-30): mode 2/3 boundary re-drawn at gate-51da; split and neighbour_contact's stray_contact moved to mode 2, which derives validated. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7.
   - **2026-09-30** → Item 208 (2026-09-30): mode 3 gains split_fragment's synthetic-demonstrable edge, moving its derived rung from needs-real-data to synthetic-demonstrable and adding one edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7.
+  - **2026-10-13** → Item 220 (2026-10-13): mode 13 gains collapsed_labels' needs-real-data edge and derives implemented. Re-measured live: derived status counts over 16 modes: validated 6, implemented 4, specified 2, proposed 4. derived mode rung counts: synthetic-demonstrable 6, needs-real-data 3, structurally-unobservable 1, none 6.
+  - **2026-10-13** → Item 218 (2026-10-13): mode 6 gains centroid_spacing's missing_level edge (synthetic-demonstrable) and derives validated. Re-measured live: derived status counts over 16 modes: validated 7, implemented 4, specified 1, proposed 4. derived mode rung counts: synthetic-demonstrable 7, needs-real-data 3, structurally-unobservable 1, none 5.
 
 > **Not required:** feature→rule completeness. Unwired features are a designed state.
 
@@ -1673,6 +1699,8 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   - **2026-09-28** → Item 193 (2026-09-28): reference_delta and intensity_reference_delta made mode-less; mode 8 derives specified with no rule, mode 16 keeps its intensity edge. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 1.
   - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed; mode 15 keeps the overlap rule's declaration and carries no corpus case, so it derives implemented. Re-measured live: derived status counts over 16 modes: validated 5, implemented 4, specified 2, proposed 5; validated through a pipeline-detected case 5, through a reconstructed record only 0.
   - **2026-09-30** → Item 205 (2026-09-30): mode 2/3 boundary re-drawn at gate-51da; split and neighbour_contact's stray_contact moved to mode 2, which derives validated. Re-measured live: derived status counts over 16 modes: validated 6, implemented 3, specified 2, proposed 5; validated through a pipeline-detected case 6, through a reconstructed record only 0.
+  - **2026-10-13** → Item 220 (2026-10-13): mode 13 gains collapsed_labels' needs-real-data edge and derives implemented. Re-measured live: derived status counts over 16 modes: validated 6, implemented 4, specified 2, proposed 4; validated through a pipeline-detected case 6, through a reconstructed record only 0.
+  - **2026-10-13** → Item 218 (2026-10-13): mode 6 gains centroid_spacing's missing_level edge (synthetic-demonstrable) and derives validated. Re-measured live: derived status counts over 16 modes: validated 7, implemented 4, specified 1, proposed 4; validated through a pipeline-detected case 7, through a reconstructed record only 0.
 - [x] For every corpus case across both committed corpora, the measured firing set equals *(AC8 measured all 15 manifest cases (11 geometric + 4 intensity) in clone 6464b2e: every measured firing set equals expected; matrix.conformance.agree_count=15, unspecified_cases=(), disagreements=(); AC10/AC11 mode6_crop_at_border expects {border, mislabel} with reason, measured label 22 touches_anterior=True, offset_mm=17.507 (>13.0 max), is_terminal=False; clean_control label 22 touches_anterior=False. Reading D2 (clean, condition-less cases scored against the empty set) and D3 (mode6_crop_at_border is the fov_truncation condition's fixture, no longer a Stage 20 gate-3 co-detection claim))*
   the specification's expected firing set, and `mode6_crop_at_border` expects
   `{border, mislabel}` with a recorded reason (**G2**).
@@ -1687,6 +1715,9 @@ sources onto it, and closes with a maintainer sign-off that gates the remainder 
   - **2026-09-28** → Item 195 (2026-09-28): force_overlap removed. Mode 15 keeps its overlap edge at structurally-unobservable and carries no corpus case; the AC15/AC16 force_overlap evidence above is history. test_151's AC16 now asserts that mode 15 carries no corpus case and that no committed geometric case yields an overlap through the pipeline.
   - **2026-09-30** → Item 207 (2026-09-30): mode 2 gains fused_label's synthetic-demonstrable edge, adding one edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 5, needs-real-data 3, structurally-unobservable 1, none 7; per-edge rung counts over 14 edges: synthetic-demonstrable 6, needs-real-data 7, structurally-unobservable 1.
   - **2026-09-30** → Item 208 (2026-09-30): mode 3 gains split_fragment's synthetic-demonstrable edge, moving its derived rung from needs-real-data to synthetic-demonstrable and adding one edge. Re-measured live: derived mode rung counts: synthetic-demonstrable 6, needs-real-data 2, structurally-unobservable 1, none 7; per-edge rung counts over 15 edges: synthetic-demonstrable 7, needs-real-data 7, structurally-unobservable 1.
+  - **2026-10-13** → Item 220 (2026-10-13): mode 13 gains collapsed_labels' needs-real-data edge and derives implemented. Re-measured live: derived mode rung counts: synthetic-demonstrable 6, needs-real-data 3, structurally-unobservable 1, none 6; per-edge rung counts over 16 edges: synthetic-demonstrable 7, needs-real-data 8, structurally-unobservable 1.
+  - **2026-10-13** → Item 218 (2026-10-13): mode 6 gains centroid_spacing's missing_level edge (synthetic-demonstrable) and derives validated. Re-measured live: derived mode rung counts: synthetic-demonstrable 7, needs-real-data 3, structurally-unobservable 1, none 5; per-edge rung counts over 17 edges: synthetic-demonstrable 8, needs-real-data 8, structurally-unobservable 1.
+  - **2026-10-13** → Item 219 (2026-10-13): mode 9 loses sequence's swap/shift edge and mode 10 its skip edge, both needs-real-data. Re-measured live: derived mode rung counts: synthetic-demonstrable 7, needs-real-data 3, structurally-unobservable 1, none 5; per-edge rung counts over 15 edges: synthetic-demonstrable 8, needs-real-data 6, structurally-unobservable 1.
 - [x] `failure_modes.generated.{md,json}` and the traceability matrix regenerate *(AC2/AC7 clean-clone regeneration in clone 6464b2e: failure_modes.generated.{json,md} and traceability_matrix.generated.{json,md} cmp exit 0 against committed copies, a second independent regeneration cmp-identical to the first; feature_catalogue.generated.md cmp-identical, .json accepted by assert_matches_committed_artifact and also byte-identical; AC3 matrix primary_source == src/segfacet/failure_modes.py, resolves to the loaded module, per-mode title/authored_status/edge_rungs match SPECIFICATION, row key set == set(SPECIFICATION); AC4 JSON/Markdown notes name the module, modes/conditions lists equal specification_to_dict() live; AC5 matrix header carries both 'Stage-18 metric anchor paths' and 'Rule signal read paths', anchor_paths equals MODE_ANCHOR_PATHS, columns differ for modes 6/8/9/16; AC6 every stage18-metric-anchor candidate renders under the anchor label only, no rule read path under it. Reading D4 (matrix renders the two labelled columns; the specification's own rendering labels anchors only and its 'primary source' reading is via its note + specification_to_dict() equality))*
   byte-identically from a clean tree, name the specification as their primary source, and
   render the metric anchor path and the rule's read paths as separately labelled columns.
@@ -1983,9 +2014,60 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 
 ---
 
-## Stage 34 — Maintenance — 📋
+## Stage 34 — Maintenance — ✅
 
 **Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
 `automation` entries in maintenance queues.
 
-**Deliverables.** None yet: each maintenance queue adds one bullet per item.
+**Deliverables.** Each maintenance queue adds one bullet per item.
+
+- ✅ One inter-centroid-spacing rule for modes 2 and 6. *(Item 218)*
+- ✅ One check per failure mode for label order and label-set gaps. *(Item 219)*
+- ✅ A collapsed label set no longer passes silently. *(Item 220)*
+- ✅ Held-out spline offset with every outlier withheld. *(Item 221)*
+- ✅ Held-out spline offset at the ends of the sequence. *(Item 222)*
+- ✅ Path-aware rule-read attribution in the catalogue. *(Item 223)*
+- ✅ Platform-sensitive comparisons tolerant, determinism checks exact. *(Item 224)*
+- ✅ Three test guards that see only half of what they guard. *(Item 225)*
+- ✅ Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
+- ✅ Stale descriptions of shipped behaviour, and the path-position end clamp. *(Item 227)*
+
+---
+
+## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — 📋
+
+**Goal.** FACET can read everything the programme repository will hand it for
+Stage 16, and writes reports that repository can pin. Scoped 2026-10-12, when the
+owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
+`7436b0f`. It needs no hand-off and runs before Stage 16.
+
+**Deliverables.**
+
+- 📋 **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
+  ids as well as a directory root. *(Item 228)*
+- 📋 **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
+  carry `development`, `calibration` and `test` subsets over the release splits. *(Item 229)*
+- 📋 **Real-label expectation**: the evaluation cohort accepts a per-label
+  expectation with several modes per case, read from `spinelab`'s `rl1` table
+  against a vendored schema pinned at a `spinelab` commit. Any other version is
+  refused. *(Items 230, 231)*
+- 📋 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
+  the FACET commit written into every per-case and evaluation report, and a
+  report `schema_version` that moves whenever a feature path moves. *(Items 232, 233)*
+- 📋 **Development-role reference**: the VerSe reference rebuilt from the VerSe19
+  and VerSe20 training splits. *(Item 234)*
+- 📋 Stage validation from a clean clone. *(Item 235)*
+
+**Acceptance.**
+
+- [ ] A descriptor whose subsets are case-id lists resolves exactly those cases,
+  and the VerSe19 and VerSe20 descriptors resolve the three role subsets over the
+  release splits (**G7**).
+- [ ] An `rl1` table at the pinned version becomes a per-label,
+  several-modes-per-case expectation the evaluation harness scores against, and a
+  table at any other version is refused (**G2**).
+- [ ] Every per-case and evaluation report carries the FACET commit and a schema
+  version, and a feature path that moves without a schema-version change fails
+  the suite (**G7**).
+- [ ] The rebuilt reference draws only on development-role cases, and no
+  calibration-role or test-role case contributes to it (**G3**).

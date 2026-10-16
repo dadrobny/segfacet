@@ -187,7 +187,7 @@ def test_ac12_terminal_skip_exemption_moves_with_detector():
     # no longer belongs (its findings are case-level, so the gate never
     # reaches them -- A3), leaving only the recording rule, which now opts in.
     condition = failure_modes.CONDITIONS["fov_truncation"]
-    assert set(condition.opting_in_rules) == {"border"}
+    assert set(condition.opting_in_rules) == {"border", "collapsed_labels"}  # item 220 (2026-10-13)
 
 
 # =========================================================================== #

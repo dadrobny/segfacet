@@ -28,7 +28,8 @@ from segfacet.cli import main
 from segfacet.config import bundled_default_config
 from segfacet.features.centroids import compute_centroid
 from segfacet.features.relationships import compute_spine_relationships
-from segfacet.heuristics.fused_label import FusedLabelRule
+# item 218 (2026-10-13): FusedLabelRule is now CentroidSpacingRule.
+from segfacet.heuristics.centroid_spacing import CentroidSpacingRule
 from segfacet.labels import CANONICAL_ORDER
 from segfacet.heuristics.overlap import OverlapRule
 from segfacet.pipeline import extract_feature_record, run_qc
@@ -148,7 +149,12 @@ def _variant(case_id: str, remap: dict) -> nib.Nifti1Image:
 
 def _fused_label_sets(img) -> list:
     result, _ = run_qc(img, bundled_default_config())
-    return [f.labels for f in result.findings if f.rule_id == "fused_label"]
+    # item 218 (2026-10-13): rule centroid_spacing, detector fused_label.
+    return [
+        f.labels
+        for f in result.findings
+        if f.rule_id == "centroid_spacing" and f.detector_id == "fused_label"
+    ]
 
 
 def _containers(paths) -> set:
@@ -180,6 +186,18 @@ def test_ac1_catalogue_paths_are_exactly_the_tables_stored_paths():
     assert catalogue
     stored = {new for _, new, change, _ in rows if change in ("kept", "moved")}
     stored.add("case.sequence.order[]")
+    # item 220 (2026-10-13): the five stage3_unavailable.* leaves are stored paths no mapping row covers.
+    stored.update(
+        {
+            "stage3_unavailable.reason",
+            "stage3_unavailable.detail",
+            "stage3_unavailable.levels[]",
+            "stage3_unavailable.labels[]",
+            "stage3_unavailable.coordinate_mm[]",
+        }
+    )
+    # Item 222 (2026-10-14): the terminal vertebra's line reading is a stored path no mapping row covers.
+    stored.add("per_label.{label}.curve.terminal_offset_mm")
     assert catalogue == stored
 
 
@@ -309,7 +327,7 @@ def test_stage3_unavailable_not_judged():
     img = loaded_seg_image(_case("fuse_adjacent"))
     record = extract_feature_record(img, bundled_default_config())
     config = bundled_default_config()
-    assert [f.labels for f in FusedLabelRule().evaluate(record, config)] == [
+    assert [f.labels for f in CentroidSpacingRule().evaluate(record, config)] == [
         frozenset({22})
     ]
     stripped = copy.deepcopy(record)
@@ -321,7 +339,7 @@ def test_stage3_unavailable_not_judged():
     ):
         _delete(stripped, _new(old))
     assert _resolve(stripped, _new("relationships.neighbour_spacings_mm[]"))
-    assert FusedLabelRule().evaluate(stripped, config) == []
+    assert CentroidSpacingRule().evaluate(stripped, config) == []
 
 
 def test_tangent_arrays_on_their_own_label():

@@ -66,6 +66,7 @@ import nibabel as nib
 
 from segfacet.failure_modes import CONDITIONS
 from segfacet.io import FacetInputError
+from segfacet.labels import DEFAULT_LABEL_MAP, anatomical_order
 from segfacet.synth.axes import non_stacking_axes, resolve_face
 from segfacet.synth.perturbation import (
     CLEAN_CONTROL_MODE,
@@ -422,10 +423,10 @@ class RelabelSwapPerturbation(Perturbation):
             detail=(
                 f"relabel_swap: exchanged the voxel identities of adjacent "
                 f"labels {target} and {neighbour}. Caught by plain run_qc: "
-                "the monotonicity check judges against a curve fitted in "
-                "geometric traversal order rather than the ordering under "
-                "test, so the swap reads out of order and MislabelRule's "
-                "ordering detector fires directly (item 132)."
+                "the monotonicity check reads each label's position along a "
+                "label-free path through the centroids (item 210), never the "
+                "ordering under test, so the swap reads out of order and "
+                "MislabelRule's ordering detector fires directly."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)
@@ -445,10 +446,12 @@ class SequenceBreakPerturbation(Perturbation):
     a transitional label whose canonical rank (19, below L1) diverges from
     its integer value under the default convention. Relabelling the tail of
     a contiguous lumbar span produces a genuine non-monotonic label sequence
-    that :class:`~segfacet.heuristics.sequence.SequenceRule` catches directly
-    through the real ``run_qc`` pipeline (specification mode 9, out-of-order
-    label sequence) -- unlike ``displace``
-    and ``relabel_swap`` in this module. Rejects a map with fewer than 2
+    that :class:`~segfacet.heuristics.mislabel.MislabelRule`'s ``ordering``
+    detector catches directly through the real ``run_qc`` pipeline
+    (specification mode 9, out-of-order label sequence), on the pair (the
+    relabelled level, the next present level after it in canonical order) --
+    item 219 (2026-10-12) retired ``sequence``'s z-sorted ``shift`` detector,
+    which used to fire here too. Rejects a map with fewer than 2
     present labels (no ordering to break), an explicit target not present,
     or a ``new_label`` already present in the map.
     """
@@ -483,6 +486,13 @@ class SequenceBreakPerturbation(Perturbation):
             # canonically contiguous (see item 039 Assumptions).
             target = max(labels)
 
+        if self._new_label not in DEFAULT_LABEL_MAP:
+            raise FacetInputError(
+                f"SequenceBreakPerturbation: new_label={self._new_label!r} "
+                "has no canonical rank in DEFAULT_LABEL_MAP, so no ordering "
+                "expectation can be stated; choose a label in the map."
+            )
+
         if self._new_label in labels:
             raise FacetInputError(
                 f"SequenceBreakPerturbation: new_label={self._new_label!r} "
@@ -494,17 +504,45 @@ class SequenceBreakPerturbation(Perturbation):
         data[data == target] = self._new_label
         out_img = _new_image(data, labelmap)
 
+        # Item 219: the ordering pair is (the relabelled level, the next
+        # present level after it in canonical order) -- but only when the
+        # relabel moves the level out of canonical order. If it keeps its
+        # position (or new_label has no canonical rank), no order is broken
+        # and only ``sequence`` flags the transitional label.
+        after = (set(labels) - {target}) | {self._new_label}
+        order = anatomical_order(
+            {l: DEFAULT_LABEL_MAP[l] for l in after if l in DEFAULT_LABEL_MAP}
+        )
+        out_of_order = order.index(self._new_label) != sorted(labels).index(
+            target
+        )
+        if out_of_order:
+            i = order.index(self._new_label)
+            rule_ids = frozenset({"mislabel"})
+            expected_labels = frozenset(
+                {self._new_label} | set(order[i + 1 : i + 2])
+            )
+        else:
+            rule_ids = frozenset({"sequence"})
+            expected_labels = frozenset({self._new_label})
+
         expectation = Expectation(
             failure_mode=9,
             failure_mode_name=FAILURE_MODE_NAMES[9],
-            expected_rule_ids=frozenset({"sequence"}),
-            expected_labels=frozenset({self._new_label}),
+            expected_rule_ids=rule_ids,
+            expected_labels=expected_labels,
             expected_verdict="flagged-for-review",
             detail=(
                 f"sequence_break: relabelled {target} to {self._new_label} "
                 "(a transitional label whose canonical rank diverges from "
                 "its integer value), producing a genuine non-continuous "
-                "label sequence caught directly by run_qc's sequence rule."
+                + (
+                    "label sequence caught directly by run_qc's mislabel rule "
+                    "(ordering detector, item 219)."
+                    if out_of_order
+                    else "label (the relabel keeps canonical order), "
+                    "caught by run_qc's sequence rule (transitional detector)."
+                )
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)

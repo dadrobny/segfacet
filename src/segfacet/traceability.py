@@ -268,8 +268,10 @@ _NOTE = (
     "Since item 188 (2026-09-28) a `specified` entry may also carry no rule "
     "-- its rule is named but not yet written, or (item 193, 2026-09-28) no "
     "rule decides it itself once its only rule became mode-less -- and that "
-    "is a recorded gap, not an excused one: modes 6 and 8 are the two such "
-    "entries, and each appears as a mode -> rule hole. "
+    "is a recorded gap, not an excused one: mode 8 is the one such entry "
+    "(mode 6 was the other until item 218, 2026-10-13, gave it "
+    "centroid_spacing's missing_level), and it appears as a mode -> rule "
+    "hole. "
     "feature -> rule is deliberately incomplete -- see "
     "the `features.read_by_no_rule.qualifier` field. "
     "The `conformance` section (item 149) drives every corpus case in both "
@@ -1040,9 +1042,9 @@ def build_matrix() -> TraceabilityMatrix:
         # substitute either and see the matrix follow.
         mode_spec = specification[mode]
         derived_rung = failure_modes_module.derive_mode_rung(mode_spec)
-        # ``None`` is a legitimate answer -- modes 6 and 8, `specified`
-        # entries with no rule declaring them since items 188 and 193
-        # (2026-09-28), have no edges to derive a rung from. It is carried
+        # ``None`` is a legitimate answer -- mode 8, a `specified`
+        # entry with no rule declaring it since item 193 (2026-09-28; mode
+        # 6 was one too until item 218, 2026-10-13), has no edges to derive a rung from. It is carried
         # as "" through the frozen record
         # and rendered as an explicit absence by both serialisers, never as a
         # blank indistinguishable from a failed lookup.
@@ -1306,9 +1308,9 @@ def matrix_to_dict(matrix: TraceabilityMatrix) -> dict:
                 "status": m.status,
                 "authored_status": m.authored_status,
                 "edge_rungs": [list(edge) for edge in m.edge_rungs],
-                # An absent rung is `null`, not `""` (item 147 AC8): modes 6
-                # and 8 legitimately have no edges to derive one from since
-                # items 188 and 193 (2026-09-28), and a JSON reader must be
+                # An absent rung is `null`, not `""` (item 147 AC8): mode 8
+                # legitimately has no edges to derive one from since item 193
+                # (2026-09-28; mode 6 too until item 218, 2026-10-13), and a JSON reader must be
                 # able to tell that apart from a rung whose lookup failed.
                 "rung": m.rung or None,
                 "mechanism": m.mechanism,

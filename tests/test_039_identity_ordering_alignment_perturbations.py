@@ -155,10 +155,12 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
         (target,) = expectation.expected_labels
         loo = _loo_offset(labelmap, target)
         target_is_terminal = False
+        terminal_reading = None
         for entry in record["per_label"].values():
             if entry["label"] == target:
                 entry["curve"]["offset_mm"] = loo
                 target_is_terminal = bool(entry["curve"].get("is_terminal"))
+                terminal_reading = entry["curve"].get("terminal_offset_mm")
         # Item 189 (2026-09-28): the offset detector moved to its own
         # spline_offset rule.
         findings = SplineOffsetRule().evaluate(record, cfg)
@@ -171,10 +173,18 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
         if target_is_terminal:
             # AC39 (docs/aide/items/123-recalibrate-and-regenerate-
             # downstream-artifacts.md): the offset detector never fires on a
-            # terminal vertebra, regardless of magnitude -- the designated
-            # rule NOT firing here is the exclusion working as designed, not
-            # a self-consistency failure (AC55).
-            return not fires
+            # terminal vertebra on its in-sample offset_mm (AC55).
+            # Item 222 (2026-10-14): a terminal is judged on its one-sided
+            # line reading instead, so the designated rule fires on a
+            # terminal target exactly when the reconstructed record's
+            # curve.terminal_offset_mm is at least the configured
+            # max_offset_mm.
+            max_offset = float(
+                cfg.rule_param("spline_offset", "max_offset_mm", default=13.0)
+            )
+            return fires == (
+                terminal_reading is not None and terminal_reading >= max_offset
+            )
         return fires
     if operator_name == "relabel_swap":
         pairs = _reconstruct_mono_pairs(labelmap)
@@ -193,14 +203,16 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
 
 
 def _designated_rule_fires_run_qc(labelmap, expectation):
-    """Self-consistency check for sequence_break: the "sequence" rule fires
-    via plain run_qc for exactly the label(s) recorded in *expectation*."""
+    """Self-consistency check for sequence_break: the "mislabel" rule fires
+    via plain run_qc for exactly the label(s) recorded in *expectation*.
+
+    item 219 (2026-10-13): was the "sequence" rule on the single relabelled
+    label; mislabel's ordering detector names the pair (T13, next level)."""
     findings = _findings(labelmap)
-    (target,) = expectation.expected_labels
     return any(
-        f.rule_id == "sequence"
-        and f.reason.startswith("Non-continuous label sequence:")
-        and f.labels == frozenset({target})
+        f.rule_id == "mislabel"
+        and f.reason.startswith("Vertebra ordering inconsistent with label:")
+        and f.labels == expectation.expected_labels
         for f in findings
     )
 
@@ -475,24 +487,28 @@ def test_ac15_sequence_break_relabels_tail_vertebra_to_transitional_label():
 
 
 def test_ac16_sequence_break_fires_continuity_finding_via_run_qc():
-    """AC16: run_qc emits a "sequence" finding tagged "Non-continuous label
-    sequence:" naming "T13", labels == {28}."""
+    """AC16: run_qc emits a "mislabel" ordering finding naming "T13", labels
+    == {20, 28}.
+
+    item 219 (2026-10-13): was a "sequence" finding on {28}; sequence's
+    shift detector was retired."""
     clean = _clean()
     result = SequenceBreakPerturbation().apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
     matches = [
         f
         for f in findings
-        if f.rule_id == "sequence"
-        and f.reason.startswith("Non-continuous label sequence:")
+        if f.rule_id == "mislabel"
+        and f.reason.startswith("Vertebra ordering inconsistent with label:")
         and "T13" in f.reason
-        and f.labels == frozenset({28})
+        and f.labels == frozenset({20, 28})
     ]
     assert matches
 
 
-def test_ac17_sequence_break_only_fired_rule_is_sequence_no_coverage():
-    """AC17: the fired rules are exactly "sequence" and "mislabel" -- in
+def test_ac17_sequence_break_only_fired_rule_is_mislabel_no_coverage():
+    """AC17: the fired rules are exactly {"mislabel"} (item 219, 2026-10-13:
+    was "sequence" and "mislabel", sequence's shift being retired) -- in
     particular no "coverage" finding (the surviving span stays canonically
     contiguous). Item 198 (2026-09-29): mislabel's ordering detector now also
     fires, because the misplaced T13 sits below L4 in the anatomical order
@@ -501,7 +517,9 @@ def test_ac17_sequence_break_only_fired_rule_is_sequence_no_coverage():
     result = SequenceBreakPerturbation().apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
     assert findings
-    assert {f.rule_id for f in findings} == {"mislabel", "sequence"}
+    # Item 222 (2026-10-14): {"mislabel"} -> {"mislabel", "spline_offset"}; the
+    # displaced T13 is a terminal, now judged on its one-sided line reading.
+    assert {f.rule_id for f in findings} == {"mislabel", "spline_offset"}
     assert not any(f.rule_id == "coverage" for f in findings)
 
 
@@ -515,8 +533,9 @@ def test_ac18_sequence_break_expectation_well_formed_and_pipeline_agrees():
     assert exp.failure_mode == 9
     assert exp.failure_mode_name == FAILURE_MODE_NAMES[9]
     assert exp.condition == ""
-    assert exp.expected_rule_ids == frozenset({"sequence"})
-    assert exp.expected_labels == frozenset({28})
+    # item 219 (2026-10-13): {"sequence"} / {28} -> {"mislabel"} / {20, 28}.
+    assert exp.expected_rule_ids == frozenset({"mislabel"})
+    assert exp.expected_labels == frozenset({20, 28})
     assert exp.expected_verdict == "flagged-for-review"
     case_result, _block = run_qc(result.labelmap, bundled_default_config())
     assert case_result.verdict.overall.label == "flagged-for-review"
@@ -701,10 +720,11 @@ def test_adv_different_seeds_unspecified_target_stay_self_consistent(
 
 def test_adv_sequence_break_interior_target_still_fires_sequence_with_coverage_cofire():
     """Adversarial: an explicit interior target (label 22) still fires
-    "sequence" but is expected to co-fire a case-level "coverage" finding
-    (documented divergence from the clean default's no-cofire case)."""
+    "mislabel" (item 219, 2026-10-13: was "sequence") but is expected to
+    co-fire a case-level "coverage" finding (documented divergence from the
+    clean default's no-cofire case)."""
     clean = _clean()
     result = SequenceBreakPerturbation(target_label=22).apply(clean.seg_img, seed=0)
     findings = _findings(result.labelmap)
-    assert any(f.rule_id == "sequence" for f in findings)
+    assert any(f.rule_id == "mislabel" for f in findings)
     assert any(f.rule_id == "coverage" for f in findings)

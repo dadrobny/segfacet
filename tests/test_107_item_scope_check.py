@@ -13,12 +13,13 @@ What remains is item 107's original *fence-retirement* half: AC1/AC2/AC3
 assert (grep-style, over ``tests/`` source text) that the byte-hash
 ``_PRE_NNN_*`` scope fences item 107 replaced are gone and stay gone --
 matching the pattern ``test_106_stage19_validation.py`` uses for its own
-non-fence structural checks. AC11/AC12/AC13 assert the surrounding
-bookkeeping: the CI job runs some scope check on pull requests (AC11,
-retargeted by item 117 at the new command), item 107's spec and queue-016
-document the convention as provenance (AC12), and the other item-098/104/042
-determinism tests it retired the fences in favour of are still present
-(AC13).
+non-fence structural checks. AC12/AC13 assert the surrounding
+bookkeeping: item 107's spec and queue-016 document the convention as
+provenance (AC12), and the other item-098/104/042 determinism tests it
+retired the fences in favour of are still present (AC13).
+
+Item 226 (2026-10-13): AC11 (the CI job runs a scope check on pull requests)
+was retired with the ``scope-check`` job itself.
 """
 
 from __future__ import annotations
@@ -87,26 +88,6 @@ def test_ac3_no_combined_hash_or_tracked_files_helper_remains_in_fence_modules()
             text = path.read_text(encoding="utf-8")
             assert "def _combined_hash(" not in text, f"orphaned _combined_hash in {path.name}"
             assert "def _tracked_files(" not in text, f"orphaned _tracked_files in {path.name}"
-
-
-# --------------------------------------------------------------------------- #
-# AC11: CI runs the check on pull requests.
-# --------------------------------------------------------------------------- #
-
-
-def test_ac11_ci_workflow_runs_the_checker_on_pull_requests():
-    ci_yml = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
-    text = ci_yml.read_text(encoding="utf-8")
-    assert "pull_request" in text
-    # Retargeted by item 117 (AC6): the job now invokes the framework verb
-    # rather than the deleted project script.
-    assert ".aide/scripts/aide.py scope" in text
-
-
-def test_ac11_ci_workflow_scope_job_uses_the_pr_base_ref():
-    ci_yml = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
-    text = ci_yml.read_text(encoding="utf-8")
-    assert "base_ref" in text
 
 
 # --------------------------------------------------------------------------- #

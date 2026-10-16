@@ -589,7 +589,10 @@ def test_ac7_rung_field_equals_derive_mode_rung_or_none(mode, matrix):
 #: Item 193 (2026-09-28): mode 8 joins this set -- reference_delta, its only
 #: rule, becomes mode-less, leaving mode 8 authored "specified" with no
 #: declaring rule and no derived rung.
-_DEGENERATE_MODES = (5, 6, 7, 8, 12, 13, 14)
+#: Item 220 (2026-10-13): mode 13 leaves this set -- collapsed_labels declares
+#: it, deriving "implemented" with a needs-real-data rung.
+# Item 218 (2026-10-13): mode 6 gains the centroid_spacing edge, so it leaves.
+_DEGENERATE_MODES = (5, 7, 8, 12, 14)
 
 
 @pytest.mark.parametrize("mode", _DEGENERATE_MODES)
@@ -654,7 +657,9 @@ _AC9_SPLIT_COLUMN_MODES = (
     # Item 192 (2026-09-28): sequence reads per_label centroids, not
     # relationships.out_of_order_labels[]; relationships.is_continuous stays
     # the metric anchor no rule reads.
-    (9, "case.sequence.is_continuous", "per_label.{label}.centroid.centroid_mm[]"),
+    # item 219 (2026-10-13): the read path is now mislabel's
+    # pairs.adjacent.non_monotonic_pairs[], since sequence stopped reading centroids.
+    (9, "case.sequence.is_continuous", "pairs.adjacent.non_monotonic_pairs[]"),
 )
 
 

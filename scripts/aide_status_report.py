@@ -1226,9 +1226,8 @@ def _render_highlights_section(model: ReportModel) -> str:
     else:
         qc_block = (
             '<p class="placeholder"><strong>Extension point.</strong> QC overlay images '
-            "populate here once cases have been run and their sagittal projections "
-            "(roadmap item 021) are written out. Point the generator at an output "
-            "folder with <code>--qc-images &lt;dir&gt;</code>.</p>"
+            "populate here when the generator is pointed at a folder of them with "
+            "<code>--qc-images &lt;dir&gt;</code>.</p>"
         )
 
     if model.distributions:

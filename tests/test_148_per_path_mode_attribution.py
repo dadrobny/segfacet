@@ -363,7 +363,7 @@ def test_ac4_every_declaring_rule_classifies_exactly_what_it_consumes(shipped_ca
     # Item 187 (2026-09-27): neighbour_contact registered an eleventh
     # declaring rule. Item 189 (2026-09-28): spline_offset registers a
     # twelfth. Item 207 (2026-09-30): fused_label registers a thirteenth.
-    assert checked == 14  # item 208 (2026-09-30): 13 -> 14
+    assert checked == 15  # item 220 (2026-10-13): 14 -> 15
 
 
 # =========================================================================== #
@@ -563,9 +563,9 @@ def test_ac9_mode_roles_rendered_in_json_and_markdown(shipped_catalogue):
     path_col = header_cells.index("path")
 
     # A path shared between an analytic "bookkeeping" declarer
-    # (reference_delta) and a mechanism-B-only "not-read" declarer
-    # (intensity_reference_delta): item 148's Description/Implementation
-    # Steps table.
+    # (reference_delta): item 148's Description/Implementation Steps table.
+    # Item 223 (2026-10-14): intensity_reference_delta no longer declares
+    # this path, so it has one declarer.
     known_path = "reference_delta.lower_pct"
     entry = _entry(cat, known_path)
     assert entry.mode_roles, "adversarial precondition: expected >=1 role on this path"
@@ -584,7 +584,6 @@ def test_ac9_mode_roles_rendered_in_json_and_markdown(shipped_catalogue):
 def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_catalogue):
     cat = shipped_catalogue
     checked_bookkeeping = 0
-    checked_not_read = 0
     for entry in cat.entries:
         roles = {role for _rid, role in entry.mode_roles}
         has_bookkeeping = "bookkeeping" in roles
@@ -593,8 +592,6 @@ def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_cat
         assert ("rule_not_read" in entry.mode_evidence) == has_not_read, entry.path
         if has_bookkeeping:
             checked_bookkeeping += 1
-        if has_not_read:
-            checked_not_read += 1
 
         if entry.mode_evidence == ("rule_unmapped",):
             continue
@@ -603,7 +600,9 @@ def test_ac10_evidence_gains_bookkeeping_and_not_read_tags_correctly(shipped_cat
         assert len(set(entry.mode_evidence)) == len(entry.mode_evidence), entry.path
 
     assert checked_bookkeeping > 0, "expected >=1 entry tagged rule_bookkeeping"
-    assert checked_not_read > 0, "expected >=1 entry tagged rule_not_read"
+    # Item 223 (2026-10-14): the checked_not_read > 0 floor is gone -- after
+    # the path-aware scan no shipped declaration uses "not-read". The
+    # per-entry equivalence above still holds for any that does.
 
 
 # =========================================================================== #
@@ -690,7 +689,7 @@ def test_ac12_every_declared_mode_keeps_a_signal_path(shipped_catalogue):
     }
     # Item 192 (2026-09-28): mode 11 gains an intended-rule edge (sequence's
     # transitional detector), so it leaves this unreachable set.
-    assert unreachable == {5, 7, 12, 13, 14}, unreachable
+    assert unreachable == {5, 7, 12, 14}, unreachable  # item 220 (2026-10-13): 13 now has a rule
     assert set(paths_by_mode) == catalogued - unreachable, sorted(paths_by_mode)
 
     # Mode 16 ("implausible tissue under a label", entered as mode 9 by item
@@ -869,18 +868,25 @@ _AC16_CASES = (
     ("relabel_swap", "geo", ("mislabel",)),
     ("fragment", "geo", ("fragmentation",)),
     ("remove_level", "geo", ("coverage",)),
-    ("sequence_break", "geo", ("sequence",)),
+    # Item 219 (2026-10-13): sequence_break drives mislabel now (sequence's
+    # shift detector was retired), and sequence is driven by a planted record.
+    ("sequence_break", "geo", ("mislabel",)),
+    ("planted_sequence", "sequence", ("sequence",)),
     # Item 195 (2026-09-28): force_overlap (and its corpus case) was
     # removed -- a single-channel label map cannot express an overlap --
     # so the overlap-rule row is now driven by a hand-built record instead
     # of a corpus case key.
     ("planted_overlap", "overlap", ("overlap",)),
+    # Item 220 (2026-10-13): no corpus case expresses mode 13 (item 220 AC7),
+    # so collapsed_labels is driven by a planted record too.
+    ("planted_collapsed", "collapsed", ("collapsed_labels",)),
     ("clean_hu", "intensity", ("bounds", "reference_delta", "intensity_reference_delta")),
     ("implausible_metal", "intensity", ("intensity",)),
     # Item 187 (2026-09-28): neighbour_contact fires on the split case alone.
     ("split", "geo", ("neighbour_contact",)),
     # Item 207 (2026-09-30): fused_label fires on fuse_adjacent alone.
-    ("fuse_adjacent", "geo", ("fused_label",)),
+    # Item 218 (2026-10-13): the rule is renamed centroid_spacing.
+    ("fuse_adjacent", "geo", ("centroid_spacing",)),
     # Item 208 (2026-09-30): split_fragment fires on split_own_label alone.
     ("split_own_label", "geo", ("split_fragment",)),
 )
@@ -915,6 +921,31 @@ def _overlap_reconstructed_record():
     }
 
 
+def _sequence_record():
+    """A hand-built record driving the sequence rule (item 219, 2026-10-13):
+    T10, T11, L1, L2, L3 (labels 17, 18, 20, 21, 22) with an unrelated
+    non-monotonic pair. ``run_rules`` yields exactly one ``transitional``
+    finding, on label 18."""
+    names = {17: "T10", 18: "T11", 20: "L1", 21: "L2", 22: "L3"}
+    return {
+        "per_label": {
+            str(k): {"label": k, "level_name": v} for k, v in names.items()
+        },
+        "pairs": {"adjacent": {"non_monotonic_pairs": [["L2", "L3"]]}},
+    }
+
+
+def _collapsed_labels_record():
+    """A hand-built record of two labels whose centroids coincide (item 220,
+    2026-10-13): ``run_rules`` yields one ``collapsed_labels`` finding."""
+    return {
+        "per_label": {
+            "21": {"label": 21, "level_name": "L1", "centroid": {"centroid_mm": [9.5, 9.5, 19.5]}},
+            "22": {"label": 22, "level_name": "L2", "centroid": {"centroid_mm": [9.5, 9.5, 19.5]}},
+        },
+    }
+
+
 def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference):
     from segfacet.heuristics.runner import run_rules
     from segfacet.synth.regression import intensity_pipeline_findings, pipeline_findings
@@ -930,6 +961,10 @@ def _ac16_findings(case_key, kind, geo_by_id, intensity_by_id, config, reference
         # there is no corpus case behind it any more.
         record = _overlap_reconstructed_record()
         return list(run_rules(record, config))
+    if kind == "collapsed":
+        return list(run_rules(_collapsed_labels_record(), config))
+    if kind == "sequence":
+        return list(run_rules(_sequence_record(), config))
     raise AssertionError(kind)  # pragma: no cover -- closed vocabulary above
 
 
@@ -1118,7 +1153,7 @@ def test_ac18_traceability_untouched_and_paths_derived_from_consuming_rules(
     # Item 187 (2026-09-27): neighbour_contact was an eleventh matrix row.
     # Item 189 (2026-09-28): spline_offset is a twelfth. Item 207
     # (2026-09-30): fused_label is a thirteenth.
-    assert checked == 14  # item 208 (2026-09-30): 13 -> 14
+    assert checked == 15  # item 220 (2026-10-13): 14 -> 15
 
 
 # =========================================================================== #
@@ -1135,7 +1170,8 @@ def test_ac19_realised_universe_unchanged_and_item104_reports_no_drift(shipped_c
     # report-only reference_delta rows catalogued).
     cat = shipped_catalogue
     # Item 216 (2026-10-06): 156 -> 154 (-3 merged rows, +1 case.sequence.order[]).
-    assert len(cat.entries) == 154
+    assert len(cat.entries) == 160  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
     committed = json.loads(_COMMITTED_CATALOGUE_JSON.read_text(encoding="utf-8"))
     committed_paths = {e["path"] for group in committed["groups"] for e in group["entries"]}

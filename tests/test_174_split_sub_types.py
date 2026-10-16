@@ -232,7 +232,13 @@ def test_ac8_split_own_label_fires_bounds_and_coverage():
     ]
     assert len(matches) == 1, matches
     case = matches[0]
-    assert set(failure_modes.measured_firing(case)) == {"bounds", "split_fragment"}  # item 208 (2026-09-30)
+    # Item 222 (2026-10-14): the cap's misplaced terminal is judged on its
+    # one-sided line reading, so spline_offset joins.
+    assert set(failure_modes.measured_firing(case)) == {
+        "bounds",
+        "split_fragment",
+        "spline_offset",
+    }  # item 208 (2026-09-30); item 222 (2026-10-14)
 
 
 # =========================================================================== #

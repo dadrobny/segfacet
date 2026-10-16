@@ -14,19 +14,29 @@ Four derivation mechanisms, each carrying its own evidence tag
   a non-invasive ``dict``-subclass proxy (:func:`trace_record_access`) that
   records every leaf path actually read, then run every registered rule
   (:func:`segfacet.heuristics.rule.iter_rules`) over the traced record.
-- **B. Static AST scan of ``heuristics/*.py``** (``static``) — string
-  constants used as a subscript key or as ``.get(...)``'s first positional
-  argument in *each rule's own module file*, matched to catalogue paths by
-  last path segment -- but **only when that last segment names exactly one**
-  leaf path (item 110, AC11b). Catches branches the driver set never realises
-  (e.g. ``pairs.overlaps[].overlap_voxels`` when the driver set happens not to
-  populate it). A name shared by >1 leaf path's last segment (e.g. ``label``,
-  ``level_name``, ``mean``, ``median``, ``std``) carries no positional
-  information tying it to a specific block, so it contributes no evidence for
-  *any* of its candidates rather than guessing "keep" for all of them
-  (the pre-item-110 behaviour, tagged ``static-ambiguous``, produced exactly
-  this false-positive shape whenever an unrelated block reused a generic key
-  name).
+- **B. Path-aware static AST scan** (``static``) — item 223 (insight
+  ``2026-10-06-1935``). Each registered rule's own ``evaluate`` is followed from
+  its record parameter, through variables, loops and calls to same-module or
+  ``segfacet.*``-imported helpers, to the path every string-key read
+  (``x["k"]`` / ``x.get("k")``) indexes (:func:`_rule_read_paths`). The read
+  is attributed to the catalogue leaf paths that path names and to nothing
+  else; a read whose base cannot be traced to the record contributes nothing --
+  there is **no last-segment fallback**. Catches branches the driver set never
+  realises (e.g. ``reference_delta``'s out-of-range reads, whose driver record
+  has an empty ``out_of_range_features[]``). History: item 110 matched every
+  string key in the module against the last path segment of leaf paths, when
+  exactly one leaf ended in it; that missed shared-last-segment reads and
+  invented reads through blocks no driver realises.
+
+  Limits (unresolved reads attribute nothing). Resolved: same-module and
+  ``from segfacet.x import f`` helpers, followed to a depth cap. Not resolved:
+  nested ``def`` helpers and lambdas inside ``evaluate``; comprehension results
+  (and a comprehension variable leaks into the enclosing ``env``);
+  ``from segfacet.heuristics import fov`` then ``fov.f(...)``; relative
+  imports; helper methods inherited from a base class. The scan is
+  flow-insensitive: bindings are unioned into ``env`` (like tuple unpacking),
+  so reusing one variable name for two values attributes both values' reads to
+  both -- an over-approximation, not a missed read.
 - **C. The committed geometric corpus manifest** — ``rule_id -> failure
   mode(s)``, read from every failure-kind case of
   ``tests/corpus/manifest.json`` (item 182; via
@@ -501,6 +511,19 @@ def iter_driver_records() -> Iterator[Tuple[str, dict]]:
     seqbreak_img, _ = sequence_break_cls().apply(clean.seg_img, seed=0)
     yield "sequence_break", extract_feature_record(seqbreak_img, config)
 
+    # stage3_unavailable (item 220): two concentric boxes share one exact
+    # centroid, so Stage 3 is skipped. A partial record, like the
+    # image_features and reference_delta drivers below, so no other path's
+    # observed range moves.
+    concentric = np.zeros((20, 20, 40), dtype=np.uint16)
+    concentric[5:15, 5:15, 10:30] = 21
+    concentric[8:12, 8:12, 17:23] = 22
+    concentric_img = nib.Nifti1Image(concentric, np.eye(4))
+    concentric_record = extract_feature_record(concentric_img, config)
+    yield "stage3_unavailable", {
+        "stage3_unavailable": concentric_record["stage3_unavailable"]
+    }
+
     # Two augmented drivers, realised through the existing converters over
     # hand-constructed placeholder dataclass instances -- no PyRadiomics, no
     # reference artifact, no scan, fully deterministic (item 103 Assumptions
@@ -664,39 +687,352 @@ def trace_record_access(record: Mapping[str, Any], fn) -> Set[str]:
 # =========================================================================== #
 
 
-def _scan_literal_string_keys(source: str) -> Set[str]:
-    """String constants used as a ``Subscript`` slice or as ``.get(...)``'s
-    first positional argument, anywhere in *source*."""
-    import ast
+# Item 223: path-aware mechanism B. A path is a tuple of tokens: a key string,
+# ``"[]"`` for "an element of the list", or ``None`` for "some one key/index".
+_WILD = None
+_ITER = "[]"
+_ELEMS = "<elems>"  # marks a local list whose elements sit at the preceding path
+_MAX_CALL_DEPTH = 20  # call-following cap; deeper calls attribute nothing
+_Paths = frozenset  # frozenset of token tuples
 
-    tree = ast.parse(source)
-    found: Set[str] = set()
-    for node in ast.walk(tree):
+
+class _ModuleInfo:
+    """Parsed module: functions by (class, name), and ``from segfacet.x import n``."""
+
+    def __init__(self, module_name: str):
+        import ast
+        import importlib.util
+        import sys
+
+        self.name = module_name
+        origin = getattr(sys.modules.get(module_name), "__file__", None)
+        if not origin:
+            try:
+                spec = importlib.util.find_spec(module_name)
+            except (ImportError, ValueError):
+                spec = None
+            origin = spec.origin if spec else None
+        if not origin:
+            raise OSError(f"no readable source for module {module_name!r}")
+        self.tree = ast.parse(Path(origin).read_text(encoding="utf-8"))
+        self.funcs: Dict[Tuple[Optional[str], str], Any] = {}
+        self.imports: Dict[str, Tuple[str, str]] = {}
+        for cls_name, node in self._functions(self.tree, None):
+            self.funcs.setdefault((cls_name, node.name), node)
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("segfacet."):
+                for alias in node.names:
+                    self.imports[alias.asname or alias.name] = (node.module, alias.name)
+
+    def _functions(self, node, cls_name):
+        import ast
+
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                yield from self._functions(child, child.name)
+            elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                yield cls_name, child
+                yield from self._functions(child, cls_name)
+            else:
+                yield from self._functions(child, cls_name)
+
+
+class _PathScan:
+    """Follows the record from a rule's ``evaluate`` parameter and collects the
+    paths of every string-key read (``x["k"]`` / ``x.get("k")``)."""
+
+    def __init__(self):
+        self.modules: Dict[str, _ModuleInfo] = {}
+        self.reads: Set[Tuple[Any, ...]] = set()
+        self._memo: Dict[Any, _Paths] = {}
+        self._depth = 0
+
+    def module(self, name: str) -> _ModuleInfo:
+        if name not in self.modules:
+            self.modules[name] = _ModuleInfo(name)
+        return self.modules[name]
+
+    def run_rule(self, rule) -> Set[Tuple[Any, ...]]:
+        import ast
+
+        info = self.module(type(rule).__module__)
+        import inspect
+
+        named = [
+            n
+            for n in ast.walk(info.tree)
+            if isinstance(n, ast.ClassDef) and n.name == type(rule).__name__
+        ]
+        # Same-named classes in one module: prefer the one at the rule class's
+        # own source line (decorators included); else the first.
+        start = inspect.getsourcelines(type(rule))[1] if len(named) > 1 else None
+        cls = next(
+            (n for n in named if min([n.lineno] + [d.lineno for d in n.decorator_list]) == start),
+            named[0] if named else None,
+        )
+        fn = next(
+            (
+                n
+                for n in (cls.body if cls else [])
+                if isinstance(n, ast.FunctionDef) and n.name == "evaluate"
+            ),
+            None,
+        )
+        if fn is None:
+            return set()
+        self.reads = set()
+        self._call(info, cls.name, fn, [frozenset({()})], {}, skip_self=True)
+        return self.reads
+
+    # -- calls ------------------------------------------------------------
+    def _call(self, info, cls_name, fn, args, kwargs, skip_self=False) -> _Paths:
+        params = [a.arg for a in fn.args.posonlyargs + fn.args.args]
+        if skip_self and params and params[0] in ("self", "cls"):
+            params = params[1:]
+        env: Dict[str, _Paths] = {}
+        for name, paths in list(zip(params, args)) + list(kwargs.items()):
+            if paths:
+                env[name] = paths
+        if not env:
+            return frozenset()
+        key = (info.name, cls_name, fn.name, tuple(sorted(env.items(), key=lambda kv: kv[0])))
+        if key in self._memo:
+            return self._memo[key]
+        if self._depth >= _MAX_CALL_DEPTH:  # growing-path recursion: stop, attribute nothing
+            return frozenset()
+        self._memo[key] = frozenset()  # recursion guard
+        ret: Set[Tuple[Any, ...]] = set()
+        self._depth += 1
+        try:
+            self._block(fn.body, env, info, cls_name, ret)
+        finally:
+            self._depth -= 1
+        self._memo[key] = frozenset(ret)
+        return self._memo[key]
+
+    # -- statements -------------------------------------------------------
+    def _block(self, stmts, env, info, cls, ret) -> None:
+        import ast
+
+        for st in stmts:
+            if isinstance(st, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(st, ast.Assign):
+                v = self.ev(st.value, env, info, cls)
+                for t in st.targets:
+                    self._bind(t, v, st.value, env, info, cls)
+            elif isinstance(st, ast.AnnAssign):
+                if st.value is not None:
+                    self._bind(st.target, self.ev(st.value, env, info, cls), st.value, env, info, cls)
+            elif isinstance(st, ast.Return):
+                if st.value is not None:
+                    ret |= self.ev(st.value, env, info, cls)
+            elif isinstance(st, (ast.For, ast.AsyncFor)):
+                self._bind_iter(st.target, st.iter, env, info, cls)
+                for _ in range(2):  # loop-carried bindings settle in two passes
+                    self._block(st.body, env, info, cls, ret)
+                self._block(st.orelse, env, info, cls, ret)
+            elif isinstance(st, ast.While):
+                self.ev(st.test, env, info, cls)
+                for _ in range(2):
+                    self._block(st.body, env, info, cls, ret)
+                self._block(st.orelse, env, info, cls, ret)
+            elif isinstance(st, ast.If):
+                self.ev(st.test, env, info, cls)
+                self._block(st.body, env, info, cls, ret)
+                self._block(st.orelse, env, info, cls, ret)
+            elif isinstance(st, (ast.With, ast.AsyncWith)):
+                for item in st.items:
+                    v = self.ev(item.context_expr, env, info, cls)
+                    if item.optional_vars is not None:
+                        self._bind(item.optional_vars, v, item.context_expr, env, info, cls)
+                self._block(st.body, env, info, cls, ret)
+            elif isinstance(st, ast.Try):
+                self._block(st.body, env, info, cls, ret)
+                for h in st.handlers:
+                    self._block(h.body, env, info, cls, ret)
+                self._block(st.orelse, env, info, cls, ret)
+                self._block(st.finalbody, env, info, cls, ret)
+            else:
+                for child in ast.iter_child_nodes(st):
+                    if isinstance(child, ast.expr):
+                        self.ev(child, env, info, cls)
+
+    def _bind(self, target, paths, value_node, env, info, cls) -> None:
+        import ast
+
+        if isinstance(target, ast.Name):
+            env[target.id] = env.get(target.id, frozenset()) | paths
+        elif isinstance(target, (ast.Tuple, ast.List)):
+            if isinstance(value_node, (ast.Tuple, ast.List)) and len(value_node.elts) == len(target.elts):
+                for t, v in zip(target.elts, value_node.elts):
+                    self._bind(t, self.ev(v, env, info, cls), v, env, info, cls)
+            else:
+                for t in target.elts:
+                    self._bind(t, paths, value_node, env, info, cls)
+
+    def _bind_iter(self, target, it, env, info, cls) -> None:
+        """Bind a loop/comprehension target to the elements of *it*."""
+        import ast
+
+        if isinstance(it, ast.Call):
+            f = it.func
+            if isinstance(f, ast.Name) and f.id in ("sorted", "list", "reversed", "tuple") and it.args:
+                for extra in list(it.args[1:]) + [k.value for k in it.keywords]:
+                    self.ev(extra, env, info, cls)
+                return self._bind_iter(target, it.args[0], env, info, cls)
+            if isinstance(f, ast.Attribute) and f.attr in ("items", "values") and not it.args:
+                base = self.ev(f.value, env, info, cls)
+                wild = frozenset(p + (_WILD,) for p in base)
+                if f.attr == "items" and isinstance(target, ast.Tuple) and len(target.elts) == 2:
+                    self._bind(target.elts[1], wild, it, env, info, cls)
+                else:
+                    self._bind(target, wild, it, env, info, cls)
+                return
+            if isinstance(f, ast.Name) and f.id == "enumerate" and it.args:
+                inner = self.ev(it.args[0], env, info, cls)
+                elems = frozenset(p + (_ITER,) for p in inner)
+                if isinstance(target, ast.Tuple) and len(target.elts) == 2:
+                    self._bind(target.elts[1], elems, it, env, info, cls)
+                return
+        paths = self.ev(it, env, info, cls)
+        elems = frozenset(p[:-1] if p and p[-1] == _ELEMS else p + (_ITER,) for p in paths)
+        self._bind(target, elems, it, env, info, cls)
+
+    # -- expressions ------------------------------------------------------
+    def ev(self, node, env, info, cls) -> _Paths:
+        import ast
+
+        ev = lambda n: self.ev(n, env, info, cls)  # noqa: E731
+        if node is None:
+            return frozenset()
+        if isinstance(node, ast.Name):
+            return env.get(node.id, frozenset())
         if isinstance(node, ast.Subscript):
-            slice_node = node.slice
-            if slice_node.__class__.__name__ == "Index":  # pragma: no cover - py3.8
-                slice_node = slice_node.value  # type: ignore[attr-defined]
-            if isinstance(slice_node, ast.Constant) and isinstance(slice_node.value, str):
-                found.add(slice_node.value)
-        elif isinstance(node, ast.Call):
-            func = node.func
-            if (
-                isinstance(func, ast.Attribute)
-                and func.attr == "get"
-                and node.args
-                and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)
-            ):
-                found.add(node.args[0].value)
-    return found
+            base = ev(node.value)
+            sl = node.slice
+            if isinstance(sl, ast.Slice):
+                for part in (sl.lower, sl.upper, sl.step):
+                    ev(part)
+                return base
+            ev(sl)
+            if isinstance(sl, ast.Constant) and isinstance(sl.value, str):
+                out = frozenset(p + (sl.value,) for p in base)
+                self.reads |= out
+                return out
+            return frozenset(p + (_WILD,) for p in base)
+        if isinstance(node, ast.BoolOp):
+            out: Set[Tuple[Any, ...]] = set()
+            for v in node.values:
+                out |= ev(v)
+            return frozenset(out)
+        if isinstance(node, ast.IfExp):
+            ev(node.test)
+            return ev(node.body) | ev(node.orelse)
+        if isinstance(node, ast.NamedExpr):
+            v = ev(node.value)
+            self._bind(node.target, v, node.value, env, info, cls)
+            return v
+        if isinstance(node, ast.Call):
+            return self._ev_call(node, env, info, cls)
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+            for gen in node.generators:
+                self._bind_iter(gen.target, gen.iter, env, info, cls)
+                for cond in gen.ifs:
+                    ev(cond)
+            for part in ("elt", "key", "value"):
+                ev(getattr(node, part, None))
+            return frozenset()
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.expr):
+                ev(child)
+        return frozenset()
+
+    def _ev_call(self, node, env, info, cls) -> _Paths:
+        import ast
+
+        ev = lambda n: self.ev(n, env, info, cls)  # noqa: E731
+        f = node.func
+        args = [ev(a) for a in node.args]
+        kwargs = {k.arg: ev(k.value) for k in node.keywords if k.arg}
+        if isinstance(f, ast.Attribute):
+            if f.attr == "get" and node.args:
+                base = ev(f.value)
+                a0 = node.args[0]
+                if isinstance(a0, ast.Constant) and isinstance(a0.value, str):
+                    out = frozenset(p + (a0.value,) for p in base)
+                    self.reads |= out
+                    return out
+                return frozenset(p + (_WILD,) for p in base)
+            if f.attr in ("copy",):
+                return ev(f.value)
+            if f.attr == "append" and len(args) == 1 and isinstance(f.value, ast.Name):
+                # ``lst.append(x)``: remember where the list's elements come from.
+                node_arg = node.args[0]
+                elems = set().union(*(self.ev(e, env, info, cls) for e in node_arg.elts)) if isinstance(node_arg, ast.Tuple) else set(args[0])
+                env[f.value.id] = env.get(f.value.id, frozenset()) | frozenset(p + (_ELEMS,) for p in elems)
+                return frozenset()
+            if isinstance(f.value, ast.Name) and f.value.id in ("self", "cls"):
+                fn = info.funcs.get((cls, f.attr))
+                if fn is not None:
+                    return self._call(info, cls, fn, args, kwargs, skip_self=True)
+            else:
+                ev(f.value)
+            return frozenset()
+        if isinstance(f, ast.Name):
+            if f.id in ("dict", "list", "sorted", "tuple", "reversed") and args:
+                return args[0]
+            fn = info.funcs.get((None, f.id))
+            if fn is not None:
+                return self._call(info, None, fn, args, kwargs)
+            if f.id in info.imports:
+                mod_name, orig = info.imports[f.id]
+                try:
+                    other = self.module(mod_name)
+                except Exception:
+                    return frozenset()
+                fn = other.funcs.get((None, orig))
+                if fn is not None:
+                    return self._call(other, None, fn, args, kwargs)
+        return frozenset()
 
 
-def _rule_module_literal_keys(rule) -> Set[str]:
-    import sys
+def _rule_read_paths(rule) -> Set[Tuple[Any, ...]]:
+    """Resolved string-key read paths of one registered rule (item 223)."""
+    return _PathScan().run_rule(rule)
 
-    module = sys.modules[type(rule).__module__]
-    source = Path(module.__file__).read_text(encoding="utf-8")
-    return _scan_literal_string_keys(source)
+
+def _leaf_tokens(path: str) -> Tuple[str, ...]:
+    out: List[str] = []
+    for seg in path.split("."):
+        n = 0
+        while seg.endswith("[]"):
+            seg, n = seg[:-2], n + 1
+        out.append(seg)
+        out.extend([_ITER] * n)
+    return tuple(out)
+
+
+def _collapse_per_label(read: Tuple[Any, ...]) -> Tuple[Any, ...]:
+    """A wildcard right after ``per_label`` is ``{label}`` (cf. normalise_leaf_path)."""
+    out: List[Any] = []
+    i = 0
+    while i < len(read):
+        if read[i] == "per_label" and i + 1 < len(read) and read[i + 1] is _WILD:
+            if out[-1:] != ["reference_delta"]:  # ``reference_delta.per_label.<k>`` -> ``reference_delta.{label}``
+                out.append("per_label")
+            out.append("{label}")
+            i += 2
+            continue
+        out.append(read[i])
+        i += 1
+    return tuple(out)
+
+
+def _read_matches(read: Tuple[Any, ...], leaf: Tuple[str, ...]) -> bool:
+    if leaf[-1:] == (_ITER,) and len(leaf) == len(read) + 1:
+        leaf = leaf[:-1]  # a read of ``p`` also matches the scalar-list leaf ``p[]``
+    return len(read) == len(leaf) and all(r is _WILD or r == t for r, t in zip(read, leaf))
 
 
 def _scan_synth_rule_mode_map() -> Dict[str, Tuple[int, ...]]:
@@ -867,47 +1203,34 @@ def build_catalogue(*, strict: bool = True, reference: Any = None) -> FeatureCat
             for path in sink:
                 attributions[path][rule.rule_id].add("observed")
 
-    # Mechanism B: static AST scan of each rule's own module file.
-    # A path that is the dotted prefix of another leaf (an empty container
-    # in one driver record, e.g. ``case.sequence`` on ``zero_label``) is a
-    # container, not a field: a bare key literal must not attribute to it
-    # (item 216, D18).
+    # Mechanism B: path-aware static AST scan (item 223; insight 2026-10-06-1935).
+    # Each rule's ``evaluate`` is followed from its record parameter through
+    # variables, loops and helper calls to the path every string-key read
+    # indexes; the read is attributed to the leaf paths that path names and to
+    # nothing else. A read whose base cannot be traced to the record
+    # contributes nothing -- there is no last-segment fallback. A path that is
+    # the dotted prefix of another leaf (an empty container in one driver
+    # record, e.g. ``case.sequence`` on ``zero_label``) is a container, not a
+    # field, and is never attributed (item 216, D18).
     containers = {p.rsplit(".", 1)[0] for p in leaf_union if "." in p}
-    by_last_segment: Dict[str, List[str]] = defaultdict(list)
-    for path in leaf_union:
-        if path in containers:
-            continue
-        by_last_segment[_last_segment(path)].append(path)
+    leaf_tokens = {
+        path: _leaf_tokens(path) for path in leaf_union if path not in containers
+    }
 
     for rule in rules:
         try:
-            literal_keys = _rule_module_literal_keys(rule)
-        except Exception:
-            # A rule registered from a module with no readable source (e.g.
-            # a rule class defined ad hoc in a test/adversarial context) --
-            # mechanism B simply contributes nothing for it, never aborting
-            # the build.
+            reads = _rule_read_paths(rule)
+        except (OSError, SyntaxError, TypeError):
+            # Only an unreadable source: a rule class with no source file
+            # (defined ad hoc in a test/adversarial context; OSError from
+            # _ModuleInfo / inspect, TypeError from inspect on a builtin) or
+            # unparsable source. Mechanism B contributes nothing for it. Any
+            # other error is a scan bug and propagates.
             continue
-        for name in literal_keys:
-            candidates = by_last_segment.get(name)
-            if not candidates:
-                continue
-            if len(candidates) > 1:
-                # Item 110 (AC11b): a name shared by >1 leaf path's last
-                # segment (e.g. "label", "level_name", "mean", "median",
-                # "std") is exactly the case this scan cannot disambiguate --
-                # it has no notion of *which* block the literal key was read
-                # from, only that the bare string appears somewhere in the
-                # rule's module. Silently guessing "keep" for every candidate
-                # (the pre-fix behaviour, tagged "static-ambiguous") produced
-                # false positives whenever an unrelated block happened to
-                # reuse a generic key name. Contribute no mechanism-B
-                # evidence for an ambiguous name at all; an unambiguous
-                # last-segment match (below) or another mechanism (A/D) still
-                # attributes it correctly.
-                continue
-            for path in candidates:
-                attributions[path][rule.rule_id].add("static")
+        for read in {_collapse_per_label(r) for r in reads}:
+            for path, tokens in leaf_tokens.items():
+                if _read_matches(read, tokens):
+                    attributions[path][rule.rule_id].add("static")
 
     # Mechanism C: rule_id -> failure mode(s), from the committed geometric
     # corpus manifest's failure-kind cases (item 182).

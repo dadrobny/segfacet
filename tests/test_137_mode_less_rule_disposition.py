@@ -239,7 +239,7 @@ def test_ac1_all_ten_rules_declared_and_not_pending():
     # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
     # thirteen.
     rules = list(iter_rules())
-    assert len(rules) == 14  # item 208 (2026-09-30): 13 -> 14
+    assert len(rules) == 15  # item 220 (2026-10-13): 14 -> 15
     for rule in rules:
         decl = rule.mode_declaration
         assert decl is not None, rule.rule_id
@@ -581,14 +581,12 @@ def test_adv_shared_reference_delta_and_intensity_entry_is_mode_less():
         and "reference_delta" in e.consuming_rules
         and "intensity_reference_delta" in e.consuming_rules
     ]
-    assert candidates, (
-        "expected at least one reference_delta.* entry shared between "
-        "reference_delta and intensity_reference_delta"
-    )
-    for entry in candidates:
-        assert "rule_mode_less" in entry.mode_evidence, entry.path
-        assert "rule_declaration" not in entry.mode_evidence, entry.path
-        assert entry.failure_modes == (), entry.path
+    # Item 223 (2026-10-14): path-aware attribution removed the four pairs
+    # (AC2 / A4) through which a reference_delta.* entry was consumed by both
+    # rules, so the shared entry this test sampled no longer exists. Rewritten
+    # to assert the new truth: no such shared entry, hence nothing to be
+    # mode-less about.
+    assert candidates == [], [e.path for e in candidates]
 
 
 def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last():
@@ -626,7 +624,11 @@ def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last()
     assert "rule_declaration" not in entry.mode_evidence, entry.mode_evidence
     assert "rule_mode_less" in entry.mode_evidence, entry.mode_evidence
     assert "rule_bookkeeping" in entry.mode_evidence, entry.mode_evidence
-    assert "rule_not_read" in entry.mode_evidence, entry.mode_evidence
+    # Item 223 (2026-10-14): per A6 ``per_label`` moved from ``not-read`` to
+    # ``bookkeeping`` for the three differently-named-block rules, so the
+    # evidence is now ('rule_mode_less', 'rule_bookkeeping') with no
+    # ``rule_not_read`` tag.
+    assert "rule_not_read" not in entry.mode_evidence, entry.mode_evidence
     positions = [_CANONICAL_TAG_ORDER.index(t) for t in entry.mode_evidence]
     assert positions == sorted(positions), entry.mode_evidence
 
@@ -983,7 +985,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
+    assert len(entries) == 160  # item 220 (2026-10-13): 154 -> 159 (+5 stage3_unavailable.*)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
     # The two analytic rules' own declared modes ...
     # Item 193 (2026-09-28): 12 -> 9 -- reference_delta's three signal paths
@@ -998,7 +1001,9 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     # Item 205 (2026-09-30): 4 -> 5 -- the contact_fraction leaf joins mode 2.
     # Item 206 (2026-09-30): 5 -> 10 -- fuse_separate co-detects fragmentation.
     # Item 207 (2026-09-30): 10 -> 11 -- spacings_mm[] joins mode 2.
-    assert mode2_count == 11
+    # Item 218 (2026-10-13): 11 -> 12 -- spacings_mm[] leaves, and path_u and
+    # centroid_mm[] join (centroid_spacing now declares modes 2 and 6).
+    assert mode2_count == 12
 
     # ... and the intensity rules' own declared mode, 9 before the item-150
     # sign-off re-assigned the ids, 10 after, 16 after its 2026-09-15 revision.
@@ -1014,21 +1019,39 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # pairs.adjacent.spacings_mm[] leaves for the fused_label consumer,
         # -1; pairs.adjacent.mean_spacing_mm leaves for the fused_label gate
         # it is declared bookkeeping for, -1; case.sequence.order[] joins, +1).
-        (): 102,
+        # Item 220 (2026-10-13): 102 -> 104.
+        # Item 223 (2026-10-14): 104 -> 94 (the ten reference_delta
+        # value/percentile_rank paths gain a consumer).
+        (): 94,
         # Item 193 (2026-09-28): 13 -> 10 (the three re-classified
         # reference_delta signal paths and the movement out of
         # ("rule_declaration",) net into the mode-less buckets below).
         # item 215 (2026-10-06): 10 -> 8; item 216 (2026-10-06): 8 -> 7
         # (overlaps[].name_a and .name_b merge onto per_label.{label}.level_name,
         # -2; pairs.adjacent.mean_spacing_mm joins from the empty bucket, +1).
-        ("rule_bookkeeping",): 7,
+        # Item 220 (2026-10-13): 7 -> 9.
+        ("rule_bookkeeping",): 9,
         # Item 193 (2026-09-28): entries consumed only by reference_delta
         # empty into rule_mode_less buckets below.
-        ("rule_mode_less", "rule_condition_signal"): 7,
+        # Item 222 (2026-10-14): 7 -> 8 (per_label.{label}.curve.terminal_offset_mm
+        # joins, read by spline_offset as a condition signal).
+        # Item 223 (2026-10-14): 8 -> 6 (the two coverage touch flags move to
+        # the bookkeeping+condition_signal bucket below).
+        ("rule_mode_less", "rule_condition_signal"): 6,
+        # Item 223 (2026-10-14): new -- the coverage touch flags, bookkeeping
+        # for coverage and a condition signal for a mode-less rule.
+        ("rule_mode_less", "rule_bookkeeping", "rule_condition_signal"): 2,
         # Item 207 (2026-09-30): 10 -> 11 (spacings_mm[] joins).
-        ("rule_mode_map", "rule_declaration"): 12,  # item 208 (2026-09-30): 11 -> 12
+        # Item 218 (2026-10-13): 12 -> 11 -- spacings_mm[] and
+        # case.sequence.missing_levels[] leave, path_u joins.
+        # item 219 (2026-10-13): 11 -> 10 -- non_monotonic_pairs[] leaves for
+        # the bookkeeping bucket below (sequence now reads it as bookkeeping).
+        ("rule_mode_map", "rule_declaration"): 10,  # item 219 (2026-10-13): was 11
         # Unmoved by item 193 (A6: "the other buckets ... do not move").
-        ("rule_declaration",): 2,
+        # Item 220 (2026-10-13): 2 -> 3.
+        # Item 218 (2026-10-13): 3 -> 4 -- case.sequence.missing_levels[] joins
+        # (no failure case designates coverage any more).
+        ("rule_declaration",): 4,
         # Item 195 (2026-09-28): 3 -> 2 -- overlaps[].overlap_voxels lost
         # its rule_mode_map source (the "overlap" key of _RULE_MODE_MAP,
         # which force_overlap alone scanned to, is gone).
@@ -1039,15 +1062,21 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         ("per_mode_metric",): 2,
         # Item 193 (2026-09-28): 6 -> 9 -- reference_delta's three
         # re-classified signal paths join here.
-        ("rule_mode_less", "rule_bookkeeping"): 11,  # item 215 (2026-10-06): 9 -> 11
+        # item 215 (2026-10-06): 9 -> 11; item 223 (2026-10-14): 11 -> 26 (+10
+        # reference_delta paths from the empty bucket, +4 paths losing
+        # intensity_reference_delta's not-read, +1 per_label).
+        ("rule_mode_less", "rule_bookkeeping"): 26,
         # Item 193 (2026-09-28): 1 -> 8 -- the seven reference_delta.*
         # entries shared with intensity_reference_delta (previously
         # ("rule_declaration",) or ("rule_declaration", "rule_not_read"))
         # join here now both consuming rules are mode-less.
-        ("rule_mode_less", "rule_bookkeeping", "rule_not_read"): 5,  # item 215: 8 -> 5
+        # item 215: 8 -> 5; item 223 (2026-10-14): 5 -> 0 (removed from the
+        # table -- no shipped declaration uses not-read any more).
+        # Item 218 (2026-10-13): the five-source bucket (1 -> 0, removed) was
+        # case.sequence.present_levels[]; it moves to the bucket below, because
+        # its mode 6 now comes from its anchor alone.
         (
             "per_mode_metric",
-            "rule_mode_map",
             "rule_declaration",
             "rule_mode_less",
             "rule_bookkeeping",
@@ -1055,10 +1084,14 @@ def test_adv_measured_artifact_movement_counts_from_spec():
         # Item 192 (2026-09-28): new -- per_label.{label}.level_name, read by
         # sequence (mode-declaring, signal) and also as bookkeeping by a
         # mode-less rule.
-        ("rule_mode_map", "rule_declaration", "rule_mode_less", "rule_bookkeeping"): 1,
+        # item 219 (2026-10-13): 1 -> 0 (removed from the table) -- sequence no
+        # longer designates a failure case, so level_name loses its
+        # rule_mode_map source and moves to the bucket below.
+        ("rule_declaration", "rule_mode_less", "rule_bookkeeping"): 1,
         # Item 187 (2026-09-28): new -- component_contacts[].neighbour_label,
         # bookkeeping for neighbour_contact but still corpus-mapped.
-        ("rule_mode_map", "rule_declaration", "rule_bookkeeping"): 1,
+        # item 219 (2026-10-13): 1 -> 2 -- non_monotonic_pairs[] joins.
+        ("rule_mode_map", "rule_declaration", "rule_bookkeeping"): 2,
     }
     # The table is exhaustive: no bucket may appear that it does not name.
     assert set(distribution) == set(expected), sorted(set(distribution) ^ set(expected))
@@ -1068,7 +1101,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
     assert distribution.get(("rule_mode_less",), 0) == 0
     assert distribution.get(("rule_declaration", "rule_mode_less"), 0) == 0
     assert distribution.get(("rule_mode_map", "rule_declaration", "rule_mode_less"), 0) == 0
-    assert sum(distribution.values()) == 154  # item 216 (2026-10-06): 156 -> 154
+    assert sum(distribution.values()) == 160  # item 220 (2026-10-13): 154 -> 159
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
 
 # =========================================================================== #

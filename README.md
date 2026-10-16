@@ -70,7 +70,7 @@ https://github.com/dadrobny/segfacet
 
 ## Development setup
 
-`segfacet` is a Python 3.9+ package using a `src/` layout and a `pyproject.toml`
+`segfacet` is a Python 3.11+ package using a `src/` layout and a `pyproject.toml`
 build (hatchling). Develop against a clean virtual environment:
 
 ```bash

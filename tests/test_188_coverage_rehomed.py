@@ -76,7 +76,9 @@ def test_ac2_mode_10_carries_the_coverage_edge_at_needs_real_data():
     assert edges == [
         fm.IntendedRule(
             rule_id="coverage",
-            detector_ids=_coverage_detector_ids(),
+            # item 219 (2026-10-13): missing_interior alone; the two opt-in
+            # detectors are mode-less.
+            detector_ids=("missing_interior",),
             evidence_rung="needs-real-data",
         )
     ]
@@ -88,9 +90,13 @@ def test_ac2_mode_10_carries_the_coverage_edge_at_needs_real_data():
 
 
 def test_ac3_mode_6_carries_no_edge():
+    """Superseded by item 218 (2026-10-13): mode 6 now carries one edge,
+    ``centroid_spacing/missing_level`` (it carried none after item 188)."""
     import segfacet.failure_modes as fm
 
-    assert fm.SPECIFICATION[6].intended_rules == ()
+    assert [
+        (e.rule_id, e.detector_ids) for e in fm.SPECIFICATION[6].intended_rules
+    ] == [("centroid_spacing", ("missing_level",))]
 
 
 # =========================================================================== #
@@ -98,13 +104,21 @@ def test_ac3_mode_6_carries_no_edge():
 # =========================================================================== #
 
 
-def test_ac4_every_coverage_detector_serves_mode_10_alone():
+def test_ac4_coverage_detectors_serve_mode_10_or_declare_mode_less():
     import segfacet.failure_modes as fm
 
+    # item 219 (2026-10-13): restated -- missing_interior serves (10,), and
+    # the two opt-in detectors serve () with a mode_less_reason.
     detector_ids = _coverage_detector_ids()
     assert detector_ids, "expected coverage to declare at least one detector"
+    detectors = {d.detector_id: d for d in CoverageRule.mode_declaration.detectors}
     for detector_id in detector_ids:
-        assert fm.modes_for_detector("coverage", detector_id) == (10,), detector_id
+        if detector_id == "missing_interior":
+            assert fm.modes_for_detector("coverage", detector_id) == (10,), detector_id
+        else:
+            assert fm.modes_for_detector("coverage", detector_id) == (), detector_id
+            assert detectors[detector_id].mode_less_reason, detector_id
+    assert set(detector_ids) == {"count_shortfall", "incomplete_span", "missing_interior"}
 
 
 # =========================================================================== #
@@ -113,7 +127,9 @@ def test_ac4_every_coverage_detector_serves_mode_10_alone():
 
 
 def test_ac5_no_registered_rule_declares_mode_6():
-    assert _declared_set(6) == set()
+    """Superseded by item 218 (2026-10-13): ``centroid_spacing`` declares
+    mode 6 (no rule did after item 188)."""
+    assert _declared_set(6) == {"centroid_spacing"}
 
 
 # =========================================================================== #
@@ -134,9 +150,11 @@ def test_ac6_both_remove_level_cases_stay_attributed_to_mode_6():
 
 
 def test_ac7_mode_6_derives_specified():
+    """Superseded by item 218 (2026-10-13): mode 6 derives ``validated``
+    (``specified`` after item 188)."""
     import segfacet.failure_modes as fm
 
-    assert fm.derive_status(fm.SPECIFICATION[6]) == "specified"
+    assert fm.derive_status(fm.SPECIFICATION[6]) == "validated"
 
 
 # =========================================================================== #
@@ -145,9 +163,11 @@ def test_ac7_mode_6_derives_specified():
 
 
 def test_ac8_mode_6_derived_rung_is_none():
+    """Superseded by item 218 (2026-10-13): mode 6's derived rung is
+    ``synthetic-demonstrable`` (``None`` after item 188)."""
     import segfacet.failure_modes as fm
 
-    assert fm.derive_mode_rung(fm.SPECIFICATION[6]) is None
+    assert fm.derive_mode_rung(fm.SPECIFICATION[6]) == "synthetic-demonstrable"
 
 
 # =========================================================================== #
@@ -192,4 +212,5 @@ def test_declared_set_reads_the_registry(isolated_registry):
             return []
 
     register_rule(_Item188StubRule)
-    assert _declared_set(6) == {"__item188_stub_declares_mode_6__"}
+    # Item 218 (2026-10-13): centroid_spacing also declares mode 6 now.
+    assert _declared_set(6) == {"centroid_spacing", "__item188_stub_declares_mode_6__"}

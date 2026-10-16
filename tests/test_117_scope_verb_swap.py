@@ -1,10 +1,11 @@
 """Tests for item 117 -- retire the project-local scope-check script in favour
 of the framework verb ``aide scope``.
 
-Covers AC1-AC3, AC5-AC9, AC12, AC16-AC18. AC4's two inbox-tick tests were
-retired on 2026-09-29: they read the live docs/aide/insights.md, which
-conventions §6 forbids (engine 2.10.0+); the tick is a diff-time claim the
-validator checked at merge. AC10/AC11 (the shape of
+Covers AC1-AC3, AC12, AC16-AC18. Item 226 (2026-10-13): AC5-AC9, which
+pinned the shape of the CI ``scope-check`` job, were retired with the job.
+AC4's two inbox-tick tests were retired on 2026-09-29: they read the live
+docs/aide/insights.md, which conventions §6 forbids (engine 2.10.0+); the
+tick is a diff-time claim the validator checked at merge. AC10/AC11 (the shape of
 ``tests/test_107_item_scope_check.py`` after the split) and AC13-AC15 (the
 ``tests/test_115_stage26_validation.py`` retarget) are asserted by the edits
 to those two modules directly, not here.
@@ -38,7 +39,6 @@ _TESTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _TESTS_DIR.parent
 _THIS_FILE = Path(__file__).resolve()
 _SCRIPT = _REPO_ROOT / "scripts" / "check_item_scope.py"
-_CI_YML = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
 _CLAUDE_MD = _REPO_ROOT / "CLAUDE.md"
 _ITEM_117_SPEC = _REPO_ROOT / "docs" / "aide" / "items" / "117-retire-check-item-scope-script.md"
 
@@ -118,70 +118,6 @@ def test_ac2_no_executable_reference_to_the_retired_script_survives():
 def test_ac3_claude_md_does_not_name_the_retired_script():
     text = _CLAUDE_MD.read_text(encoding="utf-8")
     assert _RETIRED_SCRIPT_TOKEN not in text
-
-
-# --------------------------------------------------------------------------- #
-# AC5-AC9: the retargeted `scope-check` CI job's shape.
-# --------------------------------------------------------------------------- #
-
-_JOB_KEY_RE = re.compile(r"^  [A-Za-z0-9_-]+:\s*$")
-
-
-def _scope_check_job_text() -> str:
-    text = _CI_YML.read_text(encoding="utf-8")
-    lines = text.splitlines()
-    start = None
-    for i, line in enumerate(lines):
-        if line == "  scope-check:":
-            start = i
-            break
-    assert start is not None, "no 'scope-check:' job found in ci.yml"
-    end = len(lines)
-    for i in range(start + 1, len(lines)):
-        if _JOB_KEY_RE.match(lines[i]):
-            end = i
-            break
-    job_text = "\n".join(lines[start:end])
-    assert job_text.strip(), "scope-check job text unexpectedly empty"
-    return job_text
-
-
-def test_ac5_ci_resolves_an_item_number_with_the_anchored_expression():
-    job = _scope_check_job_text()
-    assert r"s|^aide/\([0-9]\{3\}\)-.*|\1|p" in job
-    assert "docs/aide/items/" not in job
-
-
-def test_ac6_ci_invokes_the_scope_verb_with_an_origin_base():
-    job = _scope_check_job_text()
-    assert ".aide/scripts/aide.py scope" in job
-    assert '--base "origin/' in job
-
-
-def test_ac7_ci_always_passes_a_positional_item_number():
-    job = _scope_check_job_text()
-    lines = [ln for ln in job.splitlines() if ".aide/scripts/aide.py scope" in ln]
-    assert lines, "no line invokes '.aide/scripts/aide.py scope'"
-    for line in lines:
-        after = line.split(".aide/scripts/aide.py scope", 1)[1].strip()
-        assert after, "the scope invocation has no argument after the verb"
-        assert not after.startswith("--"), (
-            f"expected a positional item number, found a flag first: {after!r}"
-        )
-
-
-def test_ac8_ci_keeps_full_history():
-    job = _scope_check_job_text()
-    assert "fetch-depth: 0" in job
-
-
-def test_ac9_ci_pins_a_python_with_tomllib():
-    job = _scope_check_job_text()
-    assert "setup-python" in job, "no actions/setup-python step in the scope-check job"
-    versions = re.findall(r'python-version:\s*["\']?(\d+)\.(\d+)', job)
-    assert versions, "no python-version pinned in the scope-check job"
-    major, minor = (int(v) for v in versions[0])
-    assert (major, minor) >= (3, 11), f"pinned Python {major}.{minor} lacks tomllib"
 
 
 # --------------------------------------------------------------------------- #

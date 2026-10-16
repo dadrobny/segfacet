@@ -491,8 +491,14 @@ def test_ac12_per_label_offsets_entry_field_set_exact():
         "dz_mm",
         "is_terminal",
     }
+    # Item 222 (2026-10-14): the exact eight-key set holds for interior
+    # entries only; a terminal entry (is_terminal True) carries
+    # ``terminal_offset_mm`` as a ninth key.
     for entry in entries:
-        assert set(entry.keys()) == expected_fields
+        if entry["is_terminal"]:
+            assert set(entry.keys()) == expected_fields | {"terminal_offset_mm"}
+        else:
+            assert set(entry.keys()) == expected_fields
 
 
 # =========================================================================== #
@@ -839,9 +845,11 @@ def test_ac24_corpus_pipeline_detection_is_nine_of_nine():
     # Item 206 (2026-09-30): fuse_separate adds a mode-2 case: 9 -> 10.
     # Item 207 (2026-09-30): fuse_adjacent now expects a flag
     # (fused_label) and becomes an expected-failure record: 10 -> 11.
-    assert sum(m.n_cases for m in metrics.per_mode) == 11
+    # Item 218 (2026-10-13): remove_level_relabel now expects a flag
+    # (centroid_spacing) and becomes an expected-failure record: 11 -> 12.
+    assert sum(m.n_cases for m in metrics.per_mode) == 12
     mode_six = next(m for m in metrics.per_mode if m.failure_mode == 6)
-    assert mode_six.n_cases == 1
+    assert mode_six.n_cases == 2
     assert all(m.n_cases == 0 for m in metrics.per_mode if m.failure_mode == 10)
 
 
@@ -1033,17 +1041,10 @@ def test_adv_two_opposite_displacements_both_separate():
     """Both displaced levels exceed a working threshold and are named --
     the spec's literal claim (item 120's Description/Testing Strategy).
 
-    This does *not* assert either displaced level is the maximum reading:
-    only a single dominant outlier is withheld per refit (Decisions log,
-    "Weight construction"), so with two genuinely displaced levels the
-    un-withheld one still pulls every other level's held-out curve toward
-    itself. Shipped as a known, documented limitation (human decision,
-    2026-08-28; ``spline_offset.py``'s module docstring, "Documented
-    limitation: only the single dominant outlier is withheld") -- not fixed
-    here. That limitation is pinned below, not just narrated around: on this
-    exact scenario a genuinely clean level (T8) reads ~31.96 mm, strictly
-    above one of the two displaced levels' ~19.31 mm reading, so a clean
-    vertebra can be named an offender ahead of an actual one."""
+    Item 221 (2026-10-12): the multi-outlier limitation item 120 shipped
+    (a clean terminal T8 reading above a displaced level) is removed by the
+    add-then-remove search over held-out readings, so the clean level now
+    reads below the displaced one."""
     centroids = _eight_level_thoracic_spine()
     idx_a, idx_b = 2, 5
     scenario = list(centroids)
@@ -1057,17 +1058,10 @@ def test_adv_two_opposite_displacements_both_separate():
     assert records[idx_a].offset_mm > 5.0
     assert records[idx_b].offset_mm > 5.0
 
-    # The multi-outlier limitation itself, pinned: a clean level (the
-    # terminal T8, index 7, never displaced) reads higher than one of the
-    # two genuinely displaced levels -- a clean vertebra can outrank an
-    # actual offender under the single-dominant-outlier withholding scheme.
+    # Item 221 (2026-10-12): a clean level no longer outranks a displaced one.
     clean_idx = 7
     assert clean_idx not in (idx_a, idx_b)
-    clean_offset = records[clean_idx].offset_mm
-    assert clean_offset > records[idx_b].offset_mm, (
-        "expected the documented multi-outlier limitation: a clean level "
-        "reading higher than one of the two genuinely displaced levels"
-    )
+    assert records[clean_idx].offset_mm < records[idx_b].offset_mm
 
 
 def test_adv_terminal_displacement_five_levels_not_separable():

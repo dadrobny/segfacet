@@ -283,3 +283,29 @@ spot-checked HU ranges are physiologically plausible. Anything measuring or
 re-deriving thresholds from `reference_verse_v1.json`'s `intensity_*`
 statistics (e.g. `heuristics/intensity_reference_delta.py` defaults) should
 know a pre-123 baseline undercounted every level.
+
+## Rebuild record — 2026-10-13 (item 221, every interior outlier withheld)
+
+Item 221 changed the held-out spline-offset estimator to withhold every
+interior level reading `10.0` mm or more (an add-then-remove search), not
+only the in-sample dominant outlier. To check the effect on real data,
+`scripts/rebuild_verse_reference.py --verse-cohort dataset-verse19training`
+was run on the 80-subject VerSe19 training cohort at commit `704c4eea`
+(item 221's branch `aide/221-held-out-spline-offset-with`). It exited `0`.
+
+The interior ceiling is unchanged: P = 12.905776 mm at level `T10`
+(`count = 37`), measured from `reference_verse_v1.json` with
+`_p99_by_level` (`12.90577608928562` unrounded), which derives a threshold of
+`13.0` mm. P was computed from the committed `reference_verse_v1.json`
+(item 221's test reads that file); the rebuilt artifact was compared with it
+but P was not read from it. The per-mask `spline_offset_mm` readings are
+identical; nine statistic cells differ between the rebuilt and the committed
+artifact: the `p1` and `p5` percentiles of `L3` and `L4` (by at most about
+`1e-15`), `mean` and `std` (by at most about `1e-8` relative) and `min` (past
+the 8th significant digit). The cause was not isolated: no rebuild at the base
+commit was run, and a numpy, scipy or platform difference from the build of
+the committed artifact is plausible. None of it changes a verdict, so
+`reference_verse_v1.json` is **not** re-committed.
+
+`spline_offset.max_offset_mm` stays `13.0`, and `gate-fac1` (verse406 T10,
+`18.51` mm) is unchanged and still open.

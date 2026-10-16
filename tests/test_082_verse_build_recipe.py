@@ -70,7 +70,6 @@ from segfacet.reference.ingest import (
     INGESTED_MORPHOLOGY_FEATURES,
 )
 from segfacet.synth.clean_gt import build_clean_spine
-from segfacet.synth.golden import reports_close
 from segfacet.synth.intensity import paint_clean_scan
 
 VERSE_SEG_SUFFIX = "_seg-vert_msk.nii.gz"
@@ -397,12 +396,9 @@ def test_adv_determinism_two_builds_produce_equal_parsed_artifacts(tmp_path):
     assert code1 == 0
     assert code2 == 0
 
-    parsed1 = json.loads(out_path1.read_text(encoding="utf-8"))
-    parsed2 = json.loads(out_path2.read_text(encoding="utf-8"))
-    # eigenvalue_ratio (item 081) is a platform-sensitive PCA float --
-    # compare with numeric tolerance rather than requiring byte-identity
-    # across separate build invocations (mirrors item 081/078).
-    assert reports_close(parsed1, parsed2)
+    # Two builds in one process must be byte-identical (the item 078
+    # tolerance is for comparisons across platforms).
+    assert out_path1.read_bytes() == out_path2.read_bytes()
 
 
 def test_adv_scope_guard_default_reference_artifact_untouched():

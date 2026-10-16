@@ -14,18 +14,19 @@ carrying a machine-readable record of *what* was broken, scores cases against
 reference distributions built from ground truth, and applies an explainable
 heuristic rule set that emits JSON + human-readable reports.
 
-> **⚠️ Pivot in progress (2026-07-25).** This repo was `SegQC-xnat`, an
-> XNAT-deployed QC gate. It is being refocused as the torch-free library half of
-> a failure-mode-driven segmentation-improvement research programme; the GPU /
-> SPINEPS / GSTT half lives in a separate private repo. **This rename landed
-> first; the AIDE re-vision has not happened yet** — so `docs/aide/` (vision,
-> roadmap, progress, 88 item specs, 12 queues) still describes the XNAT project
-> and still says `segqc` throughout. That is deliberate: those documents are the
-> provenance trail and are annotated, not rewritten. Treat them as history until
-> the re-vision lands. XNAT artefacts (`command.json`, `docker/`,
-> `docs/deployment.md`) are retained pending relocation to the programme repo.
+> **History.** Until 2026-07-25 this repo was `SegQC-xnat`, an XNAT-deployed QC
+> gate. It is now the torch-free library half of a failure-mode-driven
+> segmentation-improvement programme. The GPU / SPINEPS / GSTT half is
+> `spine-failure-lab` (package `spinelab`), and the artefacts that cross between
+> the two are listed in that repository's `docs/project/facet-interface.md`
+> (`vision.md` §7.5). The root documents were re-issued for FACET: `vision.md` v3 on
+> 2026-09-03, then v4, and `roadmap.md` against v3. Stages, item specs and queues
+> written before then still say `segqc` and describe the XNAT project. They are the
+> provenance trail, annotated rather than rewritten. The XNAT artefacts
+> (`command.json`, `docker/`, `docs/deployment.md`) are retained pending relocation
+> to the programme repository.
 
-CPU-only, cross-platform (Windows/macOS/Linux), Python 3.9+.
+CPU-only, cross-platform (Windows/macOS/Linux), Python 3.11+.
 
 ## Project configuration
 
@@ -201,9 +202,8 @@ already written down there rather than in `docs/aide/`.
   every session by `.aide/AGENT-CONTEXT.md` (imported below) and
   `.claude/rules/aide-command-hygiene.md` — this file does not restate them.
 - **Document templates** — [`.aide/templates/`](.aide/templates/).
-- **One project-specific note on `aide scope`:** the CI `scope-check` job in
-  [`.github/workflows/ci.yml`](.github/workflows/ci.yml) invokes it directly —
-  see "Branching" below for why it is currently no signal.
+- **One project-specific note on `aide scope`:** it runs in the item loop, at
+  the validator's step 3, and CI runs no scope check — see "Branching" below.
 - **Skills / commands** — `/aide-*` (create-vision … feedback-loop, spec-queue),
   the `/aide-run-{item,queue,roadmap}` orchestrators, the
   `/aide-review-{permissions,instructions}` boundary reviews, and
@@ -385,7 +385,23 @@ from a local checkout):
   checkout's `src/` and every "pre-fix" result is invalid with no error at
   all. `git switch --detach` in the working checkout avoids the shadowing but
   detaches HEAD mid-item. Item 135's per-defect verification rig (fresh clone
-  plus its own venv) is the worked example (2026-08-31).
+  plus its own venv) is the worked example (2026-08-31). **The shadowing holds
+  for a finder-based editable install only** (re-measured 2026-10-12, insight
+  `2026-10-05-ec3b`): this repo builds with hatchling, whose editable install
+  is a plain path entry (`_editable_impl_segfacet.pth`, no `__editable__`
+  finder), and on that Linux venv `PYTHONPATH=<tree>/src` takes precedence. A
+  `PYTHONPATH` probe is valid here once it prints `segfacet.__file__` and sees
+  the second tree; a Windows venv is unmeasured, and the separate clone needs
+  no such check.
+- **A spec-time probe on a scratch copy of the tree is a lower bound, and it
+  can pass what it never ran** (item 212, insights `2026-10-05-da43` and
+  `2026-10-05-dc87`). It lists each failing test once, at its first failing
+  assert, so a later assert in the same test and a prose-only step the probe
+  skipped stay invisible: a reconciliation fence names more than the probe's
+  failure list. And a copy made without `.git` skips every git-gated
+  `skipif` test (test_116 AC7 needs commit `aeb2f55` reachable), which a
+  pass/fail tally reads as green. Probe from a real clone or a `git
+  worktree`, or name each test in the `-ra` skip list.
 
 ## What is committed vs. per-machine
 
@@ -435,22 +451,13 @@ until it is fixed there; warnings never block.
 (`.aide/conventions/4-git-modes.md`) and §1 → status-icons; this file only
 records which mode this repo runs.
 
-**The consequence for CI.** The `scope-check` job in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) fires only on a
-`pull_request` whose `head_ref` is an `aide/NNN-` claim branch. Under **`pr`**
-mode that is exactly what appears, and the job works as designed — including
-against a queue branch, since it passes `origin/${{ github.base_ref }}`. Under
-**`auto-merge`** (and `local`) no item branch ever becomes a PR, so the job
-matches nothing: a queue PR's head is `aide/queue-NNN`, which the anchored
-`sed` resolves to nothing **by design**, because a queue branch legitimately
-aggregates many items' authorised paths.
-
-So *while this repo stays on `auto-merge`*, a green `item scope check` means
-**skipped, not passed** — treat it as no signal. Per-item scope is still
-enforced, by `validator.md` step 3 running `aide scope` in-loop. Evidence and
-the three options are recorded in
-[`docs/aide/insights.md`](docs/aide/insights.md) (2026-08-20, item 117);
-switching to `pr` mode is one of the things that would resolve it.
+**The consequence for CI.** The per-item scope gate is the in-loop validator
+running `aide scope` on the claim branch before `aide merge` (`validator.md`
+step 3). CI runs no scope check: under `auto-merge` no claim branch becomes a
+PR, so the job item 107 built and item 117 retargeted matched nothing, and it
+was retired by owner decision 2026-10-09 (item 226). Switching `[git] mode` to
+`pr` would make a CI scope job meaningful again; the retired job is in git
+history.
 
 ## Code review
 

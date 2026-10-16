@@ -118,7 +118,7 @@ _CORROBORATED = {
     "overlap": (15,),
     # Item 192 (2026-09-28): sequence's skip and transitional detectors serve
     # modes 10 and 11 respectively, alongside swap/shift on mode 9.
-    "sequence": (9, 10, 11),
+    "sequence": (11,),  # item 219 (2026-10-13): was (9, 10, 11)
 }
 _CONTESTED = ("bounds", "intensity", "reference_delta", "intensity_reference_delta")
 
@@ -195,7 +195,7 @@ def test_ac1_iter_rule_declarations_ascending_by_rule_id():
     # (mislabel's moved Detector A) brings it to twelve. Item 207
     # (2026-09-30): the new fused_label rule brings it to thirteen.
     pairs = list(rule_mod.iter_rule_declarations())
-    assert len(pairs) == 14  # item 208 (2026-09-30): 13 -> 14
+    assert len(pairs) == 15  # item 220 (2026-10-13): 14 -> 15
     ids = [rule_id for rule_id, _decl in pairs]
     assert ids == sorted(ids)
 
@@ -258,7 +258,7 @@ def test_ac3_ten_rules_registered():
     # registry to eleven. Item 189 (2026-09-28): the new spline_offset rule
     # brings it to twelve. Item 207 (2026-09-30): fused_label brings it to
     # thirteen.
-    assert len(list(iter_rules())) == 14  # item 208 (2026-09-30): 13 -> 14
+    assert len(list(iter_rules())) == 15  # item 220 (2026-10-13): 14 -> 15
 
 
 def test_ac3_every_registered_rule_has_a_declaration_instance():
@@ -346,7 +346,9 @@ def test_ac4_corroborated_modes_are_covered_by_the_measured_corpus_map():
         # Item 189 (2026-09-28): ("mislabel", 1) left the set -- the
         # spline_offset detector that co-detected displace moved to its own
         # mode-less spline_offset rule.
-        ("coverage", 6),  # coverage now declares mode 10, not mode 6
+        # Item 218 (2026-10-13): ("coverage", 6) left the set -- remove_level now
+        # designates centroid_spacing, so the corpus map no longer attributes
+        # mode 6 to coverage (its expected_firing there is still recorded).
         ("fragmentation", 2),  # item 206: fuse_separate co-detects it
     }
 
@@ -881,7 +883,8 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     catalogue = _catalogue()
     cat = catalogue.build_catalogue(strict=True)
     entries = cat.entries
-    assert len(entries) == 154  # item 216 (2026-10-06): 156 -> 154
+    assert len(entries) == 160  # item 220 (2026-10-13): 154 -> 159 (five stage3_unavailable.* leaves)
+    # Item 222 (2026-10-14): 159 -> 160 (+1 per_label.{label}.curve.terminal_offset_mm)
 
     stayed_rule_unmapped = sum(1 for e in entries if e.mode_evidence == ("rule_unmapped",))
     stayed_empty = sum(1 for e in entries if e.mode_evidence == ())
@@ -891,7 +894,10 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     # item 215 (2026-10-06): 89 -> 103 (-4 merged, +16 new, +2 survivors);
     # item 216 (2026-10-06): 103 -> 102 (-1 survivor, -1 mean_spacing_mm,
     # +1 new row).
-    assert stayed_empty == 102
+    # item 220 (2026-10-13): 102 -> 104, re-measured live.
+    # Item 223 (2026-10-14): 104 -> 94 -- the ten reference_delta out-of-range
+    # value/percentile_rank paths gain a consumer and leave the () bucket.
+    assert stayed_empty == 94
 
 
 # =========================================================================== #

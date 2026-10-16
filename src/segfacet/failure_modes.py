@@ -43,7 +43,7 @@ along the spine::
        10 Skipped level label                             spine     single-channel; severity fail; proposed
        11 Unprompted numbering variant                    spine     single-channel; proposed
        12 Shifted label sequence                          spine     needs-external-classifier; proposed
-       13 Collapsed labels                                spine     single-channel; proposed
+       13 Collapsed labels                                spine     single-channel
        14 Duplicated label                                spine     single-channel; proposed
     15 Overlapping segments                               vertebra  structurally-unobservable
     16 Implausible tissue under a label                   vertebra  needs-paired-scan
@@ -281,6 +281,19 @@ its place in that order unless it moves past a neighbour. ``mislabel``
 still does not opt in to ``fov_truncation``: the crop spoils a truncated
 label's measured centroid, and the ordering is read from centroids.
 
+One check per failure mode for label order and label-set gaps (item 219, 2026-10-12)
+------------------------------------------------------------------------------------
+Modes 9 and 10 each had two rules reading one failure. Mode 9 belongs to
+``mislabel``'s ``ordering`` detector, which reads the label-free path
+position (``pairs.adjacent.non_monotonic_pairs[]``, item 210); ``sequence``'s
+z-sorted ``swap`` and ``shift`` detectors fired on correctly labelled curved
+and reclined spines and were retired. Mode 10 belongs to ``coverage``'s
+``missing_interior``; ``sequence``'s ``skip`` was retired, and ``coverage``'s
+``count_shortfall`` and ``incomplete_span`` became mode-less curation checks.
+``sequence`` now declares mode 11 only, no longer opts in to
+``displaced_vertebra``, and its ``transitional`` detector skips the levels
+``non_monotonic_pairs[]`` names. ``sequence_break`` designates ``mislabel``.
+
 ``reference_delta`` and ``intensity_reference_delta`` become mode-less
 (item 193, 2026-09-28)
 ------------------------------------------------------------------------
@@ -438,12 +451,13 @@ separate record from the one above: it lives in :data:`MODE_SIGN_OFFS`, not
 in this docstring.
 
 Item 207 (2026-09-30) gave mode 2 a detector for a label over two whole
-vertebrae: the ``fused_label`` rule (``heuristics/fused_label.py``) fires on
+vertebrae: the ``fused_label`` detector (now of the ``centroid_spacing`` rule,
+``heuristics/centroid_spacing.py``) fires on
 a label both large against its adjacent labels and flanked by wide centroid
 spacing. ``fuse_adjacent`` and ``fuse_separate`` now expect it, and the
 mechanism clauses of modes 6 and 10 that said no rule reads the spacing
-path describe the spacing in words instead, since ``fused_label`` reads it
-(only beside a doubled size) and neither mode's own rules do.
+path describe the spacing in words instead, since ``centroid_spacing`` reads
+it (only beside a doubled size) and neither mode's own rules do.
 
 Item 208 (2026-09-30) gave mode 3 a detector of its own: the
 ``split_fragment`` rule (``heuristics/split_fragment.py``) fires on a label
@@ -451,6 +465,22 @@ that both touches a neighbouring label over more than a tenth of its surface
 and is less than half the median volume of its neighbouring labels.
 ``split_own_label`` now expects it beside ``bounds``, and mode 3's derived
 rung moves from needs-real-data to synthetic-demonstrable.
+
+Item 220 (2026-10-13) gave mode 13 its rule: ``collapsed_labels``
+(``heuristics/collapsed_labels.py``) fires on the pair ``stage3_unavailable``
+names and on every other pair of centroids within 2.0 mm. Mode 13 is
+re-authored ``proposed`` -> ``specified`` with one ``needs-real-data`` edge
+(no corpus case expresses it) and derives ``implemented``; the rule opts in to
+``fov_truncation``.
+
+Item 218 (2026-10-13) renamed ``fused_label`` to ``centroid_spacing`` and gave
+it a second detector, ``missing_level``, serving mode 6: one gap of about two
+pitches between labels of normal size. Both detectors read the spacing along
+the spine curve (``per_label.{label}.curve.path_u`` order over
+``per_label.{label}.centroid.centroid_mm[]``), not the anatomical label order.
+Mode 6 gains its edge (``centroid_spacing/missing_level``,
+synthetic-demonstrable), derives ``validated``, and is no longer
+rule-less; ``remove_level`` and ``remove_level_relabel`` designate the rule.
 """
 
 from __future__ import annotations
@@ -1170,10 +1200,12 @@ _MODE_2 = ModeSpec(
         "(L3) bridged -- one connected label over two bodies, with L5 "
         "renumbered 23 so the sequence stays continuous. Its label is a "
         "single component with no stray component to measure, so "
-        "neighbour_contact is silent; fused_label (item 207) decides it from "
+        "neighbour_contact is silent; centroid_spacing's fused_label detector "
+        "(items 207, 218) decides it from "
         "two signals together: per_label.{label}.geometry.physical_volume_mm3 "
         "(the label's volume over its larger adjacent label's, about 2x) and "
-        "pairs.adjacent.spacings_mm[] (the mean of the "
+        "the path-ordered spacing over per_label.{label}.centroid.centroid_mm[] "
+        "and per_label.{label}.curve.path_u (the mean of the "
         "label's adjacent spacings over the median of the other spacings, "
         "about 1.5x, whichever side the fused centroid falls on), "
         "firing only when both strictly exceed their thresholds "
@@ -1184,7 +1216,7 @@ _MODE_2 = ModeSpec(
         "second is a stray component with no contact and neighbour_contact "
         "is silent; fragmentation fires on "
         "per_label.{label}.components.fragmentation_index as a co-detection, "
-        "and fused_label fires on the label's doubled size and the widened "
+        "and centroid_spacing's fused_label detector fires on the label's doubled size and the widened "
         "spacings around it. A secondary, needs-real-data proxy: a "
         "fused segment reads over its level's volume/extent range (bounds, "
         "per_label.{label}.geometry.physical_volume_mm3)."
@@ -1240,7 +1272,7 @@ _MODE_2 = ModeSpec(
             evidence_rung="synthetic-demonstrable",
         ),
         IntendedRule(
-            rule_id="fused_label",
+            rule_id="centroid_spacing",
             detector_ids=("fused_label",),
             evidence_rung="synthetic-demonstrable",
         ),
@@ -1249,11 +1281,13 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_adjacent",
             corpus="geometric",
-            expected_firing=("fused_label",),
+            expected_firing=("centroid_spacing",),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
-                "item 207): the bridged, renumbered map (item 176) is one "
+                "item 207; rule renamed centroid_spacing and the spacing "
+                "re-read along the spine curve, item 218, 2026-10-13): the "
+                "bridged, renumbered map (item 176) is one "
                 "connected label 22 over two bodies with a continuous label "
                 "sequence, and carries this mode's own fused_label finding "
                 "alone: volume 45043 mm^3 against 19375 (label 21) and 19344 "
@@ -1290,7 +1324,7 @@ _MODE_2 = ModeSpec(
         CorpusCaseExpectation(
             case_id="fuse_separate",
             corpus="geometric",
-            expected_firing=("fragmentation", "fused_label"),
+            expected_firing=("centroid_spacing", "fragmentation"),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
@@ -1303,10 +1337,11 @@ _MODE_2 = ModeSpec(
                 "two parts are two whole vertebrae, so the case is not a "
                 "mode-1 case. neighbour_contact is silent because the second "
                 "body touches nothing (stray_contact_area_mm2 0.0). Mode 2's "
-                "own signal is fused_label's (item 207): label 22's volume "
+                "own signal is centroid_spacing's fused_label detector (item "
+                "207): label 22's volume "
                 "(38781 mm^3) reads 2.0016x its larger neighbour, and the "
-                "spacings around it (pairs.adjacent.spacings_mm "
-                "[33.49, 49.46, 53.50], mean adjacent spacing over the baseline) "
+                "path-ordered centroid spacings around it "
+                "([33.49, 49.46, 53.50], mean adjacent spacing over the baseline) "
                 "read 1.5371x (re-measured 2026-10-05, item 211), strictly "
                 "above 1.5 and 1.25 respectively; fragmentation stays a "
                 "co-detection."
@@ -1402,7 +1437,7 @@ _MODE_3 = ModeSpec(
         CorpusCaseExpectation(
             case_id="split_own_label",
             corpus="geometric",
-            expected_firing=("bounds", "split_fragment"),
+            expected_firing=("bounds", "spline_offset", "split_fragment"),
             reason=(
                 "pipeline-detected, measured live via "
                 "segfacet.synth.regression.pipeline_findings (2026-09-30, "
@@ -1422,7 +1457,10 @@ _MODE_3 = ModeSpec(
                 "L1, unlike the CANONICAL_ORDER slice it replaced). "
                 "neighbour_contact does not fire (item 187): the cap is its "
                 "own label's only component, so it has no stray component "
-                "to measure."
+                "to measure. spline_offset also fires on L5 (label 24) "
+                "since item 222 (2026-10-13): a co-detection, not a "
+                "designation -- the terminal reading of 17.27 mm is "
+                "extrapolated from the split fragment and its neighbour."
             ),
         ),
     ),
@@ -1582,24 +1620,28 @@ _MODE_6 = ModeSpec(
     ),
     mechanism=(
         "Defined against ground truth (the Stage-18 metric counts GT levels "
-        "with no candidate voxels). No registered rule decides this mode "
-        "since item 188 (2026-09-28): coverage's interior-gap detector "
-        "fires on the label gap in case.sequence.missing_levels[] that "
-        "remove_level leaves -- the vertebra is deleted without renumbering "
-        "and the remaining labels are kept -- but that detector serves mode "
-        "10 (skipped level label), because it cannot tell a missed vertebra "
-        "from a skipped label on a segmented one; so remove_level's firing "
-        "(coverage and, since item 192, sequence's skip detector, both mode-10 "
-        "detectors) is a recorded co-detection, not this mode's own evidence. "
-        "remove_level_relabel fires nothing: it deletes L3 and renumbers "
-        "L4/L5 to L3/L4, leaving a continuous label sequence with a doubled "
-        "inter-centroid spacing (the spacings_mm array of the pairs.adjacent block) that no mode-6 rule reads; fused_label "
-        "reads spacing only beside a doubled size, so it is silent there. "
-        "That doubled spacing is this mode's own "
-        "label-map signal -- it would also catch remove_level -- and its "
-        "rule is decided in a later per-mode queue (roadmap Stage 33 scope "
-        "decisions). Two further hypothesised signals cover a missing "
-        "vertebra at the FOV end: extrapolating the centroid sequence "
+        "with no candidate voxels). Decided on the label map since item 218 "
+        "(2026-10-13) by centroid_spacing's missing_level detector: a "
+        "missed vertebra leaves one gap of about two pitches between labels "
+        "of normal size, whether or not the labels were renumbered. The "
+        "detector orders the labels by per_label.{label}.curve.path_u and "
+        "takes each spacing between consecutive labels' "
+        "per_label.{label}.centroid.centroid_mm[] (so a swapped or "
+        "relabelled vertebra, which still sits at a regular pitch along the "
+        "curve, reads no gap); it fires when a gap exceeds 1.5x the mean of "
+        "the spacings beside it and both flanking labels' "
+        "per_label.{label}.geometry.physical_volume_mm3 are at most 1.5x "
+        "their larger neighbour's. remove_level (the vertebra is deleted "
+        "and the remaining labels are kept) and remove_level_relabel (L3 is "
+        "deleted and L4/L5 renumbered to L3/L4, leaving a continuous label "
+        "sequence) both read 1.887x. On remove_level, coverage's "
+        "interior-gap detector fires on the "
+        "label gap in case.sequence.missing_levels[]; it serves mode 10 "
+        "(skipped level label) because it cannot tell a missed vertebra "
+        "from a skipped label on a segmented one, so that firing is a "
+        "recorded co-detection, not this mode's own evidence. Two further "
+        "hypothesised signals cover a missing vertebra at the FOV end, "
+        "which the gap cannot see: extrapolating the centroid sequence "
         "toward the image face, and checking that no label touches a scan "
         "boundary that lacks a terminal label."
     ),
@@ -1630,40 +1672,51 @@ _MODE_6 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(),
+    intended_rules=(
+        IntendedRule(
+            rule_id="centroid_spacing",
+            detector_ids=("missing_level",),
+            evidence_rung="synthetic-demonstrable",
+        ),
+    ),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="remove_level",
             corpus="geometric",
-            expected_firing=("coverage", "sequence"),
+            # item 219 (2026-10-13): "sequence" dropped, its skip detector was retired.
+            expected_firing=("centroid_spacing", "coverage"),
             reason=(
-                "pipeline-detected; coverage (Missing interior level(s): L3 "
-                "absent within the observed present-level span) and, since "
-                "item 192 (2026-09-28), sequence's skip detector (reading "
-                "the same gap from per_label level names) both fire, "
-                "measured live via segfacet.synth.regression.pipeline_findings. "
-                "The vertebra is deleted and the remaining labels are kept, "
-                "so this is a missed vertebra, not a skipped label (mode 10). "
-                "coverage and sequence's skip both serve mode 10, not this "
-                "mode, since item 188/192: this firing is a recorded "
-                "co-detection that does not validate mode 6."
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-10-12, "
+                "item 218): centroid_spacing's missing_level detector fires "
+                "on labels 21 and 23, the gap reading 1.887x the spacing "
+                "beside it (spacings [33.49, 66.38, 36.84] mm in path order) "
+                "between flanking labels of size ratio 0.997 and 0.998, "
+                "against thresholds 1.5 and 1.5. The vertebra is deleted and "
+                "the remaining labels are kept, so this is a missed "
+                "vertebra, not a skipped label (mode 10). coverage (Missing "
+                "interior level(s): L3 absent within the observed "
+                "present-level span) also fires: it serves mode 10, so it "
+                "is a recorded co-detection that does not validate mode 6 "
+                "(re-measured 2026-10-13, item 219, after sequence's skip "
+                "detector was retired)."
             ),
         ),
         CorpusCaseExpectation(
             case_id="remove_level_relabel",
             corpus="geometric",
-            expected_firing=(),
+            expected_firing=("centroid_spacing",),
             reason=(
-                "not detected today: label 22 (L3) is deleted and labels "
-                "23/24 (L4/L5) are renumbered to 22/23, so the label "
-                "sequence stays continuous while the centroid spacing "
-                "between L2 and the renumbered L3 doubles; no mode-6 rule "
-                "reads that spacing (fused_label reads it only beside a "
-                "doubled size, so it is silent here), measured "
-                "live via segfacet.synth.regression.pipeline_findings "
-                "(2026-09-14). Recorded so the hypothesised spacing-gap "
-                "signal has its fixture; an empty expected set never "
-                "validates a mode."
+                "pipeline-detected, measured live via "
+                "segfacet.synth.regression.pipeline_findings (2026-10-12, "
+                "item 218): label 22 (L3) is deleted and labels 23/24 "
+                "(L4/L5) are renumbered to 22/23, so the label sequence "
+                "stays continuous while the centroid spacing between L2 and "
+                "the renumbered L3 doubles. centroid_spacing's missing_level "
+                "detector fires on labels 21 and 22: spacings [33.49, 66.38, "
+                "36.84] mm in path order, the gap 1.887x the spacing beside "
+                "it, flanking size ratios 0.997 and 0.998. No other rule "
+                "fires."
             ),
         ),
     ),
@@ -1817,21 +1870,20 @@ _MODE_9 = ModeSpec(
         "Severity fail: a label is certainly wrong."
     ),
     mechanism=(
-        "Two rules serve this mode (item 192, 2026-09-28): sequence's swap "
-        "and shift detectors order per_label.{label}.centroid.centroid_mm[] "
-        "head-to-tail and rank that order by segfacet.labels.CANONICAL_ORDER "
-        "(which puts T13 between T12 and L1); relabel_swap exchanges L2 and "
-        "L3 and fires swap beside mislabel's ordering, and "
-        "sequence_break's tail T13 is one rank descent and fires shift. "
-        "mislabel's ordering detector fires on "
-        "pairs.adjacent.non_monotonic_pairs[] "
-        "(relabel_swap exchanges L2 and L3). Since item 198 (2026-09-29) "
-        "those pairs are judged in CANONICAL_ORDER order, so a correctly "
-        "placed T13 or Cocc no longer fires, and sequence_break fires "
-        "ordering beside shift. A multi-relabel scramble "
-        "is not expressible by the fixture generator, which is why the "
-        "sequence edge stays needs-real-data although its case is "
-        "pipeline-detected."
+        "One rule serves this mode: mislabel's ordering detector fires on "
+        "pairs.adjacent.non_monotonic_pairs[], the consecutive pairs whose "
+        "position along the label-free path through the centroids does not "
+        "advance (relabel_swap exchanges L2 and L3). Since item 198 "
+        "(2026-09-29) those pairs are judged in segfacet.labels."
+        "CANONICAL_ORDER order, which puts T13 between T12 and L1, so a "
+        "correctly placed T13 or Cocc no longer fires, and sequence_break's "
+        "tail T13 fires ordering on the pair (T13, L1). Item 219 "
+        "(2026-10-12) retired sequence's swap and shift detectors, which "
+        "sorted centroid_mm[2] and so fired on correctly labelled curved "
+        "and reclined spines (a 210-degree arc fires shift on L5; a "
+        "reclined arc fires shift on L5 and swap on L1 and L4) where the "
+        "path reads nothing. sequence's transitional detector skips the "
+        "levels these pairs name, so T13 stays mode 9's, not mode 11's."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1850,11 +1902,6 @@ _MODE_9 = ModeSpec(
     ),
     intended_rules=(
         IntendedRule(
-            rule_id="sequence",
-            detector_ids=("shift", "swap"),
-            evidence_rung="needs-real-data",
-        ),
-        IntendedRule(
             rule_id="mislabel",
             detector_ids=("ordering",),
             evidence_rung="synthetic-demonstrable",
@@ -1864,33 +1911,34 @@ _MODE_9 = ModeSpec(
         CorpusCaseExpectation(
             case_id="relabel_swap",
             corpus="geometric",
-            expected_firing=("mislabel", "sequence"),
+            expected_firing=("mislabel",),
             reason=(
                 "pipeline-detected; measured live via "
-                "segfacet.synth.regression.pipeline_findings (2026-09-28, "
-                "item 192): mislabel's ordering detector fires (labels 21/L2 "
-                "and 22/L3 are out of expected order along the spline), and "
-                "sequence's swap detector now fires beside it on the same "
-                "pair (labels 21, 22), reading per_label centroids instead "
-                "of case.sequence.out_of_order_labels[]. A swap is the "
-                "order-breaking form of mislabelling."
+                "segfacet.synth.regression.pipeline_findings (2026-10-12, "
+                "item 219): mislabel's ordering detector fires (labels 21/L2 "
+                "and 22/L3 are out of expected order along the spline) and "
+                "nothing else does, sequence's swap detector having been "
+                "retired. A swap is the order-breaking form of "
+                "mislabelling."
             ),
         ),
         CorpusCaseExpectation(
             case_id="sequence_break",
             corpus="geometric",
-            expected_firing=("mislabel", "sequence"),
+            expected_firing=("mislabel", "spline_offset"),
             reason=(
                 "pipeline-detected; measured live via segfacet.synth."
-                "regression.pipeline_findings (2026-10-05, item 210). The "
-                "tail vertebra is relabelled to T13, a single rank descent "
-                "read from per_label centroids and named as a sequence "
-                "shift; with the pairs judged in CANONICAL_ORDER order "
-                "against the label-free path through the centroids, "
-                "mislabel's ordering detector also fires once, on the "
-                "pair (T13, L1), labels 20 and 28. Why the edge's "
-                "rung sits below this measured detection is in the "
-                "mechanism sentence."
+                "regression.pipeline_findings (2026-10-12, item 219). "
+                "spline_offset also fires on T13 (label 28) since item 222 "
+                "(2026-10-13): a co-detection, not a designation -- the "
+                "relabelled caudal vertebra sits first in anatomical order, "
+                "and its terminal reading is 33.83 mm. The "
+                "tail vertebra is relabelled to T13; with the pairs judged "
+                "in CANONICAL_ORDER order against the label-free path "
+                "through the centroids, mislabel's ordering detector fires "
+                "once, on the pair (T13, L1), labels 20 and 28. sequence's "
+                "shift detector, which also fired here, was retired, and its "
+                "transitional detector skips the levels that pair names."
             ),
         ),
     ),
@@ -1927,17 +1975,19 @@ _MODE_10 = ModeSpec(
         "case.sequence.missing_levels[] (item 188, 2026-09-28). The "
         "detector cannot tell that gap from a missed vertebra, so on "
         "remove_level (mode 6) it is a co-detection, not a validation of "
-        "this mode. sequence's skip detector reads the same gap from "
-        "per_label.{label}.level_name (item 192, 2026-09-28): it orders the "
-        "kept levels head-to-tail and names any level of the expected "
-        "sequence absent between two present ones, and it also co-detects "
-        "on remove_level, like coverage. No committed case expresses this "
+        "this mode. It is the only detector declared for this mode: "
+        "sequence's skip detector read the same gap and was retired by "
+        "item 219 (2026-10-12), and coverage's two opt-in checks are "
+        "mode-less curation checks. No committed case expresses this "
         "mode itself (only the mode-6 co-detection), so the edge is "
         "needs-real-data: a skip-relabel fixture (renumber the labels "
         "caudal to a level down by one without deleting a vertebra) is not "
         "authored. The separating signal is an ordinary inter-centroid "
-        "spacing across the label gap (the spacings_mm array of the pairs.adjacent block); as for mode 6, no mode-10 rule reads it "
-        "-- fused_label reads spacing only beside a doubled size."
+        "spacing across the label gap (the distance between consecutive "
+        "centroids along the spine curve); no mode-10 rule reads it, and "
+        "centroid_spacing reads that spacing only as a doubled gap "
+        "(missing_level, mode 6) or beside a doubled size (fused_label, "
+        "mode 2)."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -1953,12 +2003,7 @@ _MODE_10 = ModeSpec(
     intended_rules=(
         IntendedRule(
             rule_id="coverage",
-            detector_ids=("count_shortfall", "incomplete_span", "missing_interior"),
-            evidence_rung="needs-real-data",
-        ),
-        IntendedRule(
-            rule_id="sequence",
-            detector_ids=("skip",),
+            detector_ids=("missing_interior",),
             evidence_rung="needs-real-data",
         ),
     ),
@@ -1993,8 +2038,11 @@ _MODE_11 = ModeSpec(
         "levels read and names any non-default thoracic or lumbar reading "
         "the field of view does not corroborate (segfacet.labels."
         "resolve_section_counts's unaccepted mapping), plus any kept level "
-        "outside the resulting reading's expected sequence. No committed "
-        "corpus case designates it, so the edge is analytic."
+        "outside the resulting reading's expected sequence. It skips every "
+        "level named in pairs.adjacent.non_monotonic_pairs[] (item 219, "
+        "2026-10-12): a T13 below an L-level is out of order (mode 9), not "
+        "a variant. No committed corpus case designates it, so the edge is "
+        "analytic."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -2074,7 +2122,10 @@ _MODE_13 = ModeSpec(
         "cannot be computed, the record carries a stage3_unavailable reason "
         "instead of a stage3 block, every stage3-reading rule "
         "short-circuits and no finding of any kind is raised: the case "
-        "passes silently (carried defect, item 129, 2026-08-31)."
+        "passes silently (carried defect, item 129, 2026-08-31). "
+        "Closed 2026-10-13 (item 220): the collapsed_labels rule reads "
+        "stage3_unavailable and the centroids, so a collapsed pair now "
+        "raises a flagged-for-review finding."
     ),
     discriminator=(
         "Mode 14 is the converse (one label on two vertebrae rather than two "
@@ -2083,12 +2134,20 @@ _MODE_13 = ModeSpec(
         "voxel, which a collapsed pair of disjoint labels never has."
     ),
     mechanism=(
-        "No rule exists for this mode yet, which is what proposed means. "
-        "The candidate inputs are the minimum inter-label centroid distance "
-        "relative to the expected spacing "
-        "(pairs.adjacent.spacings_mm[]) and the "
-        "stage3_unavailable.reason field the degenerate case populates "
-        "(item 129), which no rule reads."
+        "collapsed_labels (item 220, 2026-10-13) judges every pair of "
+        "labels, not only anatomical neighbours. Its coincident_centroids "
+        "detector fires once, on the pair stage3_unavailable.labels[] "
+        "names, and quotes stage3_unavailable.reason and "
+        "stage3_unavailable.detail in its reason (the exact-coincidence "
+        "case, where Stage 3 is absent); its "
+        "near_coincident_centroids detector fires on every other pair "
+        "whose per_label.{label}.centroid.centroid_mm[] lie within "
+        "max_centroid_distance_mm, default 2.0 mm. The tolerance is "
+        "absolute, because the collapsed pair's own spacing is the one that "
+        "shrinks and a short record has no robust reference spacing; the "
+        "closest legitimate pair measured is 11.082 mm (VerSe19 GT). No "
+        "committed corpus case expresses the mode, so the edge is "
+        "needs-real-data."
     ),
     observability="single-channel-observable",
     candidate_features=(
@@ -2101,10 +2160,16 @@ _MODE_13 = ModeSpec(
             role="hypothesised",
         ),
     ),
-    intended_rules=(),
+    intended_rules=(
+        IntendedRule(
+            rule_id="collapsed_labels",
+            detector_ids=("coincident_centroids", "near_coincident_centroids"),
+            evidence_rung="needs-real-data",
+        ),
+    ),
     corpus_cases=(),
     severity="flagged-for-review",
-    status="proposed",
+    status="specified",
     provenance="hypothesised",
 )
 
@@ -2366,14 +2431,17 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
         "fires on the truncated remnant's volume and extent, but bounds "
         "does not opt in either, so the gate drops both findings and "
         "nothing fires on crop_fov_si at all. Border's own finding always "
-        "survives the gate (it opts in to the condition it records). The "
-        "exemption the condition still grants today, unmoved by the gate "
-        "because it is rule logic rather than a case-level exclusion: "
-        "spline_offset's detector skips terminal entries "
-        "(per_label.{label}.curve.is_terminal); coverage's border-aware "
-        "span check resolves the covered span through the FOV-end labels, "
-        "which the gate cannot do because coverage's findings are "
-        "case-level and carry no labels for the gate to match."
+        "survives the gate (it opts in to the condition it records). "
+        "spline_offset's detector judges terminal entries "
+        "(per_label.{label}.curve.is_terminal) on terminal_offset_mm "
+        "rather than the extrapolating offset_mm (item 222), and a "
+        "terminal vertebra touching an image face is a member of the "
+        "condition, so the runner's gate drops its finding like any other "
+        "label-bearing one. The exemption the condition still grants as "
+        "rule logic rather than a case-level exclusion is coverage's: its "
+        "border-aware span check resolves the covered span through the "
+        "FOV-end labels, which the gate cannot do because coverage's "
+        "findings are case-level and carry no labels for the gate to match."
     ),
     candidate_features=(
         "per_label.{label}.geometry.touches_anterior",
@@ -2387,7 +2455,7 @@ _CONDITION_FOV_TRUNCATION = ConditionSpec(
     ),
     scope="vertebra",
     recording_rules=("border",),
-    opting_in_rules=("border",),
+    opting_in_rules=("border", "collapsed_labels"),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="crop_at_border",
@@ -2464,12 +2532,9 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "the curve fitted in label order, so a genuine mislabel can also "
         "read as displaced, and mislabel's own ordering finding on that "
         "label must survive the runner's condition gate rather than be "
-        "dropped behind the anatomy condition. sequence opts in as well "
-        "(item 192, 2026-09-28): the same swap reads as displaced under "
-        "spline_offset, but sequence's own head-to-tail order is judged by "
-        "rank, which survives a displacement that does not pass a "
-        "neighbour -- exactly what a swap creates -- so its swap/shift "
-        "finding on that label must survive the gate too."
+        "dropped behind the anatomy condition. sequence opted in as well "
+        "(item 192, 2026-09-28) for its swap/shift findings; item 219 "
+        "(2026-10-12) retired those detectors and the opt-in with them."
     ),
     candidate_features=(
         "per_label.{label}.curve.offset_mm",
@@ -2477,10 +2542,11 @@ _CONDITION_DISPLACED_VERTEBRA = ConditionSpec(
         "per_label.{label}.curve.dy_mm",
         "per_label.{label}.curve.dz_mm",
         "per_label.{label}.curve.is_terminal",
+        "per_label.{label}.curve.terminal_offset_mm",
     ),
     scope="vertebra",
     recording_rules=("spline_offset",),
-    opting_in_rules=("mislabel", "sequence", "spline_offset"),
+    opting_in_rules=("mislabel", "spline_offset"),
     corpus_cases=(
         CorpusCaseExpectation(
             case_id="displace",

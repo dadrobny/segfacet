@@ -492,7 +492,9 @@ def test_ac8_absent_rung_renders_explicitly_for_every_edgeless_mode(matrix):
     # transitional detector now gives it an intended-rule edge.
     # Item 193 (2026-09-28): mode 8 joins this edgeless set -- reference_delta,
     # its only rule, becomes mode-less (no mode's own detector).
-    assert {mode.id for mode in edgeless} == {5, 6, 7, 8, 12, 13, 14}, [
+    # item 220 (2026-10-13): mode 13 gains the collapsed_labels edge.
+    # item 218 (2026-10-13): mode 6 gains the centroid_spacing edge.
+    assert {mode.id for mode in edgeless} == {5, 7, 8, 12, 14}, [
         mode.id for mode in edgeless
     ]
 
@@ -651,26 +653,9 @@ def _sequence_record(levels):
     }
 
 
-def test_ac11_sequence_rule_caps_nothing():
-    """Item 192 (2026-09-28): 'one descent' and 'two descents' are now
-    expressed as per_label-centroid orderings rather than
-    out_of_order_labels[] lists. Measured: one swap on frozenset({19, 20})
-    for the one-descent record, and one swap on frozenset({19, 20, 22, 23}),
-    reason 'Non-continuous label sequence: swap of L1, T12, L4, L3.', for the
-    two-descent record -- every offender still lands in one finding."""
-    from segfacet.config import default_config
-    from segfacet.heuristics.sequence import SequenceRule
-
-    rule = SequenceRule()
-    config = default_config()
-
-    one_descent = rule.evaluate(_sequence_record(["L1", "T12", "L2"]), config)
-    assert len(one_descent) == 1, one_descent
-
-    two_descent = rule.evaluate(
-        _sequence_record(["L1", "T12", "L2", "L4", "L3", "L5"]), config
-    )
-    assert len(two_descent) == 1, two_descent
+# item 219 (2026-10-13): test_ac11_sequence_rule_caps_nothing retired -- its
+# subject, one swap finding folding every offender, is gone with the swap
+# detector.
 
 
 # =========================================================================== #
@@ -1236,7 +1221,9 @@ _EXPECTED_DERIVED_STATUS = {
                          # stray_contact_label), 2026-09-20
     4: "validated",
     5: "proposed",
-    6: "specified",     # item 188 (2026-09-28): coverage re-homed to mode 10;
+    6: "validated",     # item 218 (2026-10-13): was "specified" -- centroid_spacing's
+                         # missing_level is mode 6's own validated edge.
+                         # Was, item 188 (2026-09-28): coverage re-homed to mode 10;
                          # remove_level's coverage finding is now a recorded
                          # co-detection, and mode 6 has no declaring rule
     7: "proposed",
@@ -1245,7 +1232,7 @@ _EXPECTED_DERIVED_STATUS = {
     10: "implemented",   # item 188 (2026-09-28): coverage's new home, still no case
     11: "implemented",   # item 192 (2026-09-28): sequence's new home, still no case
     12: "proposed",
-    13: "proposed",
+    13: "implemented",   # item 220 (2026-10-13): collapsed_labels' edge
     14: "proposed",
     15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",

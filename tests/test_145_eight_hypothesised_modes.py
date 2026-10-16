@@ -95,7 +95,7 @@ _MODE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 #: onto it (it now derives ``"implemented"``). Item 192 (2026-09-28): mode 11
 #: left this set when ``sequence``'s ``transitional`` detector declared it
 #: (it now derives ``"implemented"``).
-_PROPOSED_MODE_IDS = (5, 7, 12, 13, 14)
+_PROPOSED_MODE_IDS = (5, 7, 12, 14)  # item 220 (2026-10-13): 13 leaves
 
 #: Item 188 (2026-09-28): the one entry authored ``"specified"`` that carries
 #: no declaring rule -- ``coverage`` moved off mode 6 onto mode 10, and mode
@@ -104,7 +104,9 @@ _PROPOSED_MODE_IDS = (5, 7, 12, 13, 14)
 #: corpus cases and its candidate features.
 #: Item 193 (2026-09-28): mode 8 joins mode 6 -- ``reference_delta``, its
 #: only rule, becomes mode-less (no mode's own detector).
-_RULELESS_SPECIFIED_MODE_IDS = (6, 8)
+# Item 218 (2026-10-13): mode 6 leaves -- centroid_spacing's missing_level
+#: declares it. (6, 8) -> (8,).
+_RULELESS_SPECIFIED_MODE_IDS = (8,)
 
 #: The modes whose corpus cases live in the **geometric** manifest
 #: (``tests/corpus/manifest.json``), which is the only one the ``corpus``
@@ -128,14 +130,14 @@ _EXPECTED_DERIVED_STATUS = {
     3: "validated",  # item 167: fragmentation's neighbour_contact detector
     4: "validated",
     5: "proposed",
-    6: "specified",  # item 188 (2026-09-28): coverage re-homed to mode 10
+    6: "validated",  # item 218 (2026-10-13): was "specified" (item 188); centroid_spacing
     7: "proposed",
     8: "specified",  # item 193 (2026-09-28): reference_delta becomes mode-less
     9: "validated",
     10: "implemented",  # item 188 (2026-09-28): coverage's new home
     11: "implemented",  # item 192 (2026-09-28): sequence's new home
     12: "proposed",
-    13: "proposed",
+    13: "implemented",  # item 220 (2026-10-13): collapsed_labels
     14: "proposed",
     15: "implemented",  # item 195 (2026-09-28): force_overlap removed, no corpus case
     16: "validated",
@@ -696,7 +698,11 @@ def test_ac9_the_analytic_only_bounds_edges_are_needs_real_data_and_undemonstrat
 
 
 def test_ac10a_sequence_edge_is_needs_real_data_while_its_case_measurably_fires(measured):
-    """The divergence is a property of the **edge**, and it survives the
+    """item 219 (2026-10-13): the name is historical (it traces to AC10a);
+    ``sequence``'s edge was retired, and this now asserts mode 9's single
+    ``mislabel`` edge at ``synthetic-demonstrable`` and that its case fires.
+
+    The divergence was a property of the **edge**, and it survived the
     re-homing intact: ``sequence`` sits at ``needs-real-data`` although
     ``sequence_break`` demonstrably fires it, because a multi-relabel
     scramble is not expressible by the fixture generator.
@@ -709,14 +715,17 @@ def test_ac10a_sequence_edge_is_needs_real_data_while_its_case_measurably_fires(
     """
     import segfacet.failure_modes as fm
 
+    # item 219 (2026-10-13): sequence's swap/shift edge was retired. Mode 9
+    # keeps the single mislabel edge at synthetic-demonstrable, and
+    # sequence_break is measured firing mislabel.
     mode = _mode(fm, 9)
-    sequence_edges = [edge for edge in mode.intended_rules if edge.rule_id == "sequence"]
-    assert len(sequence_edges) == 1, mode.intended_rules
-    assert sequence_edges[0].evidence_rung == "needs-real-data"
+    assert [(e.rule_id, e.evidence_rung) for e in mode.intended_rules] == [
+        ("mislabel", "synthetic-demonstrable")
+    ], mode.intended_rules
     assert fm.derive_mode_rung(mode) == "synthetic-demonstrable"
 
     case = _case(mode, "sequence_break")
-    assert "sequence" in measured(case)
+    assert "mislabel" in measured(case)
 
 
 def test_ac10a_shifted_label_sequence_mode_is_proposed_with_no_rule(measured):
@@ -906,7 +915,8 @@ def test_ac13_co_detection_alone_does_not_validate():
     mode = dataclasses.replace(
         live,
         corpus_cases=tuple(c for c in live.corpus_cases if c.case_id == "fuse_adjacent"),
-        intended_rules=tuple(e for e in live.intended_rules if e.rule_id != "fused_label"),
+        # item 218 (2026-10-13): the rule is renamed centroid_spacing.
+        intended_rules=tuple(e for e in live.intended_rules if e.rule_id != "centroid_spacing"),
     )
     assert len(mode.corpus_cases) == 1
     assert mode.corpus_cases
@@ -1378,10 +1388,11 @@ def test_ac21_sequence_mode_severity_leads_its_rules(corpus):
 
     skipped = _mode(fm, 10)
     assert skipped.status == "specified", skipped.status
-    # Item 192 (2026-09-28): sequence's skip detector also declares mode 10.
-    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage", "sequence"}
+    # Item 192 (2026-09-28): sequence's skip detector also declared mode 10.
+    # item 219 (2026-10-13): retired; coverage's missing_interior alone.
+    assert {edge.rule_id for edge in skipped.intended_rules} == {"coverage"}
     assert skipped.corpus_cases == (), skipped.corpus_cases
-    assert _live_declared_rule_ids(10) == {"coverage", "sequence"}
+    assert _live_declared_rule_ids(10) == {"coverage"}
 
 
 # =========================================================================== #

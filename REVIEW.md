@@ -58,11 +58,10 @@ incomplete:
   self-registering, a heavy import (NumPy/SciPy/NiBabel) hoisted to
   `cli.py` module level, `backend.py` caching its CuPy probe;
 - an item's diff stepping outside its spec's authorised paths — under
-  `auto-merge` the CI `scope-check` job is no signal, so a reviewer
-  reading the queue PR and the in-loop validator are the only
-  enforcement. Inside the item loop the check is the validator's alone
-  (`.aide/conventions.md` §9, engine 2.38.0): the in-loop `reviewer`
-  agent names such an edit in its report, unranked, and the validator's
+  CI runs no scope check, so the in-loop validator's `aide scope` and a
+  reviewer reading the queue PR are the only enforcement. Inside the item
+  loop the check is the validator's alone (`.aide/conventions.md` §9, engine
+  2.38.0): the in-loop `reviewer` agent names such an edit in its report, unranked, and the validator's
   `aide scope` fails it.
 
 Style, naming, and refactoring suggestions are Nit at most.
@@ -89,10 +88,10 @@ whatever its rank.
   `docs/aide/insights.md`. Both are immutable records: a spec documents
   what its item was, an insight line is never reworded even when wrong.
   Follow-ups are new lines or new items, not edits to old ones.
-- Pre-pivot language in `docs/aide/` — vision, roadmap, item specs and
-  queues still describe the XNAT-era `segqc` project by design: they
-  are the provenance trail, annotated rather than rewritten, until the
-  re-vision lands. The retained XNAT artefacts (`command.json`,
+- Pre-pivot language in `docs/aide/` — stages, item specs and queues
+  written before the FACET re-issue (`vision.md` v3, 2026-09-03) still
+  describe the XNAT-era `segqc` project by design: they are the
+  provenance trail, annotated rather than rewritten. The retained XNAT artefacts (`command.json`,
   `docker/`, `docs/deployment.md`) await relocation, not deletion.
 - Formatting and style. There is deliberately no linter or formatter;
   `pytest` is the only gate.

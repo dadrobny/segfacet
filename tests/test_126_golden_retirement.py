@@ -86,6 +86,12 @@ _OLD_CASE_ID = {new: old for old, new in RENAMED_CASE_IDS.items()}
 #: parametrisation must skip the id no manifest case carries any more.
 _LIVE_CASE_IDS = tuple(c for c in _CASE_IDS if c != "force_overlap")
 
+#: Item 222 (2026-10-14): the cases whose spine has four levels, which carry no
+#: terminal_offset_mm leaf path.
+_FOUR_LEVEL_CASE_IDS = frozenset(
+    {"fuse_adjacent", "fuse_separate", "remove_level", "remove_level_relabel"}
+)
+
 
 # =========================================================================== #
 # Shared helpers
@@ -1081,7 +1087,14 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     STATUS_OVERRIDES entries Stage 27 carried out were deleted, so
     per_label.{label}.curve.closest_u, read by no rule, now derives
     "unwired" instead of "retune" (n +1). The deleted intensity rows are
-    not on a geometric record."""
+    not on a geometric record.
+
+    (30, 95) -> (30, 96) or (30, 95): item 222 (2026-10-14) adds the leaf path
+    per_label.{label}.curve.terminal_offset_mm, present only when a terminal
+    level has a line reading, which needs five or more levels (four spine
+    levels leave no neighbour pair to judge a terminal from). So m is 96 on a
+    case of five or more levels and stays 95 on the four-level cases; n stays
+    30 because spline_offset reads the new path."""
     import segfacet.catalogue as catalogue
 
     from segfacet.synth.golden import build_report_for_case
@@ -1091,8 +1104,11 @@ def test_ac22_documented_2694_evidence_still_verifies_unchanged(case_id):
     assert case_id in companion["cases"], f"{case_id!r} missing from the companion"
     entry = companion["cases"][case_id]
     documented_n, documented_m = entry["unwired_leaf_paths"], entry["total_leaf_paths"]
-    assert (documented_n, documented_m) == (30, 95), (  # item 208 (2026-09-30); item 215 (2026-10-06); item 216 (2026-10-06); queue 029 (2026-10-07)
-        f"{case_id!r}'s documented evidence has moved off the pinned 30/95 "
+    # Item 222 (2026-10-14): m is 96 on a case of five or more levels, 95 on a
+    # four-level case.
+    expected_m = 95 if case_id in _FOUR_LEVEL_CASE_IDS else 96
+    assert (documented_n, documented_m) == (30, expected_m), (  # item 208 (2026-09-30); item 215 (2026-10-06); item 216 (2026-10-06); queue 029 (2026-10-07)
+        f"{case_id!r}'s documented evidence has moved off the pinned 30/{expected_m} "
         f"value: {documented_n}/{documented_m}"
     )
 

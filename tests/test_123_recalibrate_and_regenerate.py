@@ -1111,7 +1111,10 @@ def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
     Item 191 (2026-09-28): the runner gates spline_offset's finding on
     crop_at_border's touching label, so neither the constant nor the fresh
     report carries one for that case."""
-    from test_098_stray_components import _PRE_098_GOLDEN_VERDICT_AND_FINDINGS
+    from test_098_stray_components import (
+        _PRE_098_GOLDEN_VERDICT_AND_FINDINGS,
+        _assert_reason_matches,
+    )
 
     manifest = load_manifest()
     cases_by_id = {c["case_id"]: c for c in manifest["cases"]}
@@ -1119,7 +1122,7 @@ def test_ac28_pinned_snapshot_reasons_equal_committed_golden_reasons():
     mode1_expected = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["displace"]["findings"][0]["reason"]
     mode1_report = build_report_for_case(cases_by_id["displace"])
     mode1_actual = next(f["reason"] for f in mode1_report["findings"] if f["rule_id"] == "spline_offset")
-    assert mode1_actual == mode1_expected
+    _assert_reason_matches(mode1_actual, mode1_expected)
 
     mode6_findings = _PRE_098_GOLDEN_VERDICT_AND_FINDINGS["crop_at_border"]["findings"]
     assert not any(f["rule_id"] == "spline_offset" for f in mode6_findings)

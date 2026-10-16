@@ -151,8 +151,10 @@ def _path_positions(centroids: Sequence[LabelCentroid]) -> List[float]:
     MST by Prim on the dense distance matrix (start at index 0, lowest index
     on ties; not scipy's csgraph, which reads a zero distance as no edge),
     longest path by double sweep, each centroid projected onto the path's
-    polyline, ``u = s / L``, direction chosen by fewer rank inversions against
-    the supplied order (a tie keeps forward). Reads only ``centroid_mm``.
+    polyline, ``u = s / L`` (``L`` the final accumulated path length, so
+    ``u`` stays in [0, 1] whatever ``sum()`` rounding does), direction
+    chosen by fewer rank inversions against the supplied order (a tie keeps
+    forward). Reads only ``centroid_mm``.
 
     ponytail: gross lateral displacement of about twice the level pitch can
     make the longest path run along the displaced spur (item 210 Left open b).
@@ -189,12 +191,12 @@ def _path_positions(centroids: Sequence[LabelCentroid]) -> List[float]:
         path.append(par[path[-1]])
 
     seg_len = [float(dmat[path[k], path[k + 1]]) for k in range(len(path) - 1)]
-    total = float(sum(seg_len))
-    if total == 0.0:
-        return [0.0] * n
     cum = [0.0]
     for sl in seg_len:
         cum.append(cum[-1] + sl)
+    total = cum[-1]
+    if total == 0.0:
+        return [0.0] * n
 
     s: List[float] = []
     for i in range(n):

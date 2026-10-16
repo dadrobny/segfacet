@@ -150,11 +150,12 @@ class RemoveLevelPerturbation(Perturbation):
     """Delete an interior (non-terminal) vertebra, leaving a coverage gap.
 
     Registered under ``"remove_level"``. Zeroes every voxel of the target
-    label, leaving a level-sequence gap that
-    :class:`~segfacet.heuristics.coverage.CoverageRule` detects via
-    ``case.sequence.missing_levels`` as a case-level
-    ``"Missing interior level(s):"`` finding (specification mode 6, vertebra
-    not segmented). Rejects a span with
+    label, leaving a gap of about two pitches between the labels either side
+    that :class:`~segfacet.heuristics.centroid_spacing.CentroidSpacingRule`'s
+    ``missing_level`` detector reads (item 218, specification mode 6,
+    vertebra not segmented). ``CoverageRule`` also fires on the level-sequence
+    gap (``case.sequence.missing_levels``) as a co-detection serving mode 10,
+    and is not designated. Rejects a span with
     fewer than 3 present labels (no interior level exists) or an explicit
     terminal (span-end) target.
     """
@@ -198,8 +199,16 @@ class RemoveLevelPerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=6,
             failure_mode_name=FAILURE_MODE_NAMES[6],
-            expected_rule_ids=frozenset({"coverage"}),
-            expected_labels=frozenset(),
+            # Item 218 (2026-10-13): designates centroid_spacing, whose
+            # missing_level detector reads the two-pitch gap between the
+            # present labels either side of the target (A9).
+            expected_rule_ids=frozenset({"centroid_spacing"}),
+            expected_labels=frozenset(
+                {
+                    max(x for x in labels if x < target),
+                    min(x for x in labels if x > target),
+                }
+            ),
             expected_verdict="flagged-for-review",
             detail=(
                 f"remove_level: deleted interior level {level_name} "
@@ -227,14 +236,13 @@ class RemoveLevelRelabelPerturbation(Perturbation):
     target label, then shifts every present label caudal to it up by one
     position in the sorted present-label order (``[20, 21, 22, 23, 24]``
     with target 22 becomes ``[20, 21, 22, 23]``: old 23 -> 22, old 24 ->
-    23). This is mode 4 (vertebra not segmented) in the form a real
+    23). This is mode 6 (vertebra not segmented) in the form a real
     segmenter produces when it misses a vertebra and miscounts the rest:
     ``case.sequence.missing_levels[]`` stays empty and the only signature
-    is a doubled inter-centroid spacing at the gap
-    (``pairs.adjacent.spacings_mm[]``), which no rule
-    reads for this mode (``fused_label`` reads it only beside a doubled
-    size, so it is silent here) -- so the expectation designates no rule and a ``"pass"``
-    verdict, honestly recording "not detected today". Rejects a span with
+    is a doubled inter-centroid spacing at the gap. Since item 218 that is
+    read by ``CentroidSpacingRule``'s ``missing_level`` detector (along the
+    spine curve), so the expectation designates it with a
+    ``"flagged-for-review"`` verdict. Rejects a span with
     fewer than 3 present labels or a terminal target, as ``remove_level``
     does.
     """
@@ -279,17 +287,22 @@ class RemoveLevelRelabelPerturbation(Perturbation):
         expectation = Expectation(
             failure_mode=6,
             failure_mode_name=FAILURE_MODE_NAMES[6],
-            expected_rule_ids=frozenset(),
-            expected_labels=frozenset(),
-            expected_verdict="pass",
+            # Item 218 (2026-10-13): the present label before the target and
+            # the target number itself, which the next label was renumbered
+            # to (A9).
+            expected_rule_ids=frozenset({"centroid_spacing"}),
+            expected_labels=frozenset(
+                {max(x for x in labels if x < target), target}
+            ),
+            expected_verdict="flagged-for-review",
             detail=(
                 f"remove_level_relabel: deleted interior level {level_name} "
                 f"(label {target}) and renumbered the caudal labels "
                 f"{renumbered!r} so the label sequence stays continuous over "
                 "the spatial gap. Mode 6 (vertebra not segmented) of the "
-                "catalogue signed off at item 150; not detected by any "
-                "shipped rule (the doubled centroid spacing is a "
-                "hypothesised signal), recorded as expected."
+                "catalogue signed off at item 150; detected since item 218 "
+                "by centroid_spacing's missing_level detector (the doubled "
+                "centroid spacing along the spine curve)."
             ),
         )
         return PerturbationResult(labelmap=out_img, expectation=expectation)

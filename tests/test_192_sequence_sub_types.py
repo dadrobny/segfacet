@@ -65,18 +65,16 @@ def seq(img: nib.Nifti1Image) -> set:
 # =========================================================================== #
 
 
-def test_ac1_swap_reported_as_swap():
-    assert seq(loaded_seg_image(_case("relabel_swap"))) == {
-        ("swap", frozenset({21, 22}))
-    }
+# item 219 (2026-10-13): retired -- sequence's swap detector was retired
+# (it duplicated mislabel's ordering); the test asserted that detector.
 
 
-def test_ac2_moved_label_reported_as_shift():
-    assert seq(relabel({20: 21, 21: 22, 22: 20})) == {("shift", frozenset({20}))}
+# item 219 (2026-10-13): retired -- sequence's shift detector was retired
+# (it duplicated mislabel's ordering); the test asserted that detector.
 
 
-def test_ac3_skipped_level_reported_as_skip():
-    assert seq(relabel({20: 19, 21: 20, 22: 21})) == {("skip", frozenset())}
+# item 219 (2026-10-13): retired -- sequence's skip detector was retired
+# (it duplicated coverage's missing_interior); the test asserted that detector.
 
 
 def test_ac4_uncorroborated_t13_reported_as_transitional():
@@ -95,39 +93,27 @@ def test_ac6_correct_coccyx_below_sacrum_fires_nothing():
     assert seq(relabel({20: 23, 21: 24, 22: 26, 23: 29, 24: 27})) == set()
 
 
-def test_ac7_sequence_break_finding_names_its_sub_type():
-    findings = pipeline_findings(_case("sequence_break"))
-    reduced = {
-        (f.detector_id, f.labels) for f in findings if f.rule_id == "sequence"
-    }
-    assert reduced == {("shift", frozenset({28}))}
+# item 219 (2026-10-13): retired -- sequence's shift detector was retired
+# (it duplicated mislabel's ordering); the test asserted that detector.
 
 
-def test_ac8_rule_declares_modes_9_10_11_and_no_other():
-    assert get_rule("sequence").mode_declaration.modes == (9, 10, 11)
+def test_ac8_rule_declares_mode_11_only():
+    # item 219 (2026-10-13): (9, 10, 11) -> (11,); swap/shift/skip retired.
+    assert get_rule("sequence").mode_declaration.modes == (11,)
 
 
 def test_ac9_each_sub_type_serves_its_own_mode():
     from segfacet import failure_modes
 
+    # item 219 (2026-10-13): only transitional is left.
     assert {
         d: failure_modes.modes_for_detector("sequence", d)
-        for d in ("shift", "skip", "swap", "transitional")
-    } == {"shift": (9,), "skip": (10,), "swap": (9,), "transitional": (11,)}
+        for d in ("transitional",)
+    } == {"transitional": (11,)}
 
 
-def test_ac10_swap_on_displaced_reading_label_still_fires():
-    record = extract_feature_record(relabel({20: 21, 21: 20}), _CFG)
-    findings = run_rules(record, _CFG)
-    reduced = {
-        (f.rule_id, f.detector_id, f.labels)
-        for f in findings
-        if f.rule_id in {"sequence", "spline_offset"}
-    }
-    assert reduced == {
-        ("sequence", "swap", frozenset({20, 21})),
-        ("spline_offset", "spline_offset", frozenset({21})),
-    }
+# item 219 (2026-10-13): retired -- sequence's swap detector was retired
+# (it duplicated mislabel's ordering); the test asserted that detector.
 
 
 # =========================================================================== #
@@ -139,23 +125,24 @@ def test_lumbar_reading_uncorroborated():
     assert seq(relabel({24: 26})) == {("transitional", frozenset({23}))}
 
 
-def test_sacral_labels_share_one_rank():
-    assert seq(relabel({23: 29, 24: 26})) == {("skip", frozenset())}
+# item 219 (2026-10-13): retired -- sequence's skip detector was retired
+# (it duplicated coverage's missing_interior); the test asserted that detector.
 
 
+# item 219 (2026-10-13): re-targeted (name kept: it traces to item 192's case) -- the old T12+L1 record could never fire
+# transitional, so it passed regardless. The contract now: a transitional level
+# fires with no centroid in the record (the centroid requirement was dropped).
 def test_no_centroid_no_finding():
     record = {
-        "case": {"sequence": {
-            "present_levels": ["L1", "T12"],
-            "is_continuous": False,
-            "out_of_order_labels": ["T12"],
-        }},
         "per_label": {
-            "19": {"label": 19, "level_name": "T12"},
-            "20": {"label": 20, "level_name": "L1"},
+            20: {"label": 20, "level_name": "L1"},
+            28: {"label": 28, "level_name": "T13"},
         },
     }
-    assert get_rule("sequence").evaluate(record, _CFG) == []
+    findings = get_rule("sequence").evaluate(record, _CFG)
+    assert [(f.detector_id, f.labels) for f in findings] == [
+        ("transitional", frozenset({28}))
+    ]
 
 
 def test_full_reversal_reads_as_flipped():

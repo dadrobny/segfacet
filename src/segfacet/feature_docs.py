@@ -65,9 +65,10 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   its ``non_monotonic_pairs`` signal from. ``is_monotonic`` itself
   (rather than ``non_monotonic_pairs[]``) is deliberately the anchor so
   ``non_monotonic_pairs[]`` -- the field Detector B actually reads and the
-  *only* leaf path exclusively consumed by ``mislabel`` -- stays a plain,
-  code-derived (mechanism A) attribution rather than being absorbed into the
-  anchor set; item 103's AC13 test asserts such an exclusively-consumed,
+  leaf path ``mislabel`` alone reads as signal (``sequence`` reads it as
+  bookkeeping since item 219, 2026-10-12, which adds no mode) -- stays a
+  plain, code-derived (mechanism A) attribution rather than being absorbed
+  into the anchor set; item 103's AC13 test asserts such a signal-only,
   non-anchor witness exists per mapped rule.
 - **Mode 6** (vertebra not segmented; ``missing_level_count``,
   candidate-vs-GT) is anchored on
@@ -79,10 +80,10 @@ Mode-anchor notes (mode ids are ``failure_modes.SPECIFICATION``'s)
   above.
 - **Mode 9** (out-of-order label sequence; ``out_of_order_label_count``) is
   anchored on ``case.sequence.is_continuous``. That flag stays the metric
-  anchor no rule reads; since item 192 (2026-09-28)
-  ``heuristics.sequence.SequenceRule`` reads ``per_label`` instead (each
-  entry's ``centroid.centroid_mm`` and ``level_name``), not the
-  ``case.sequence`` sub-block at all.
+  anchor no rule reads. Since item 219 (2026-10-12)
+  ``heuristics.sequence.SequenceRule`` no longer reads ``per_label``
+  centroids (its z-sorted swap/shift detectors were retired) and
+  ``mislabel`` reads ``pairs.adjacent.non_monotonic_pairs[]``.
 
 ``MetricSpec`` (``segfacet.eval.per_mode``) carries no record-path field, so
 this transcription cannot be read off it mechanically; a future item that adds
@@ -245,6 +246,12 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
         "segfacet.reference.delta",
     ),
     (
+        "stage3_unavailable",
+        "Stage 3 Availability",
+        "Stage 3 · item 129",
+        "segfacet.pipeline",
+    ),
+    (
         "",
         "Record Envelope",
         "Stage 2 · item 016",
@@ -259,6 +266,11 @@ BLOCK_OWNERS: Tuple[Tuple[str, str, str, str], ...] = (
 
 GROUP_INTROS: Mapping[str, str] = MappingProxyType(
     {
+        "Stage 3 Availability": (
+            "Present only when two or more labels' centroids share one exact "
+            "mm-coordinate, so the Stage 3 spline fit is not attempted (item "
+            "129); the record then carries this block instead of case.curve."
+        ),
         "Per-Label Geometry": (
             "For every present integer label, computed directly from the voxel "
             "mask (NumPy/CuPy) with spacing read from the NIfTI header."
@@ -291,19 +303,21 @@ GROUP_INTROS: Mapping[str, str] = MappingProxyType(
             "here and the orientation/curvature/consistency families below. "
             "offset_mm is a held-out (leave-one-out, down-weighted) measurement "
             "(item 120): a level's offset is its closest-approach distance to a "
-            "curve refit with that level and the case's dominant outlier "
-            "down-weighted to a negligible constant, so the level under test "
+            "curve refit with that level, and every interior level that still "
+            "reads 10 mm or more once its fellow outliers are withheld, "
+            "down-weighted to a negligible constant (item 221), so the level under test "
             "cannot pull the curve toward itself. dx_mm/dy_mm/dz_mm are "
             "anatomically readable -- array axis 0 left-right, axis 1 "
             "anterior-posterior, axis 2 cranio-caudal -- only because "
             "io.load_volume reorients every volume to axis codes (R, A, S) and "
             "centroid_mm carries no affine of its own. is_terminal (item 123) "
-            "marks the first/last vertebra of the sequence; the spline_offset "
-            "rule (item 189, moved off mislabel) "
-            "and the reference distribution both treat offset_mm as an "
-            "interior-only feature, excluding a terminal entry from their "
-            "judgement, because the held-out refit extrapolates past the end "
-            "of its parameter domain there."
+            "marks the first/last vertebra of the sequence; the reference "
+            "distribution treats offset_mm as an interior-only feature, "
+            "excluding a terminal entry, because the held-out refit "
+            "extrapolates past the end of its parameter domain there. The "
+            "spline_offset rule (item 189, moved off mislabel) judges a "
+            "terminal on terminal_offset_mm instead (item 222): its distance "
+            "to the line through its two nearest neighbours."
         ),
         "Orientation & Curvature": (
             "Per-vertebra orientation (PCA of the mean-centred, spacing-scaled "
@@ -635,7 +649,9 @@ STATUS_OVERRIDES: Mapping[str, Tuple[str, str]] = MappingProxyType(
             "retune",
             "Should be wired into the sequence rule directly; "
             "sequence-related checks should typically verify order along the "
-            "spline parameter, not only label order."
+            "spline parameter, not only label order. "
+            "2026-10-12: Done: order is judged along the label-free path by "
+            "`mislabel`, items 210/219."
         ),
         "per_label.{label}.curve.path_u": (
             "retune",
@@ -939,6 +955,36 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             computation='Literal "0.2" (no Stage 3 present) or "0.3" (Stage 3 present), stamped by build_features_block (items 215, 216).',
             units='',
             scale_sensitivity='categorical',
+        ),
+        'stage3_unavailable.reason': FeatureDoc(
+            measures='Why the Stage 3 block was not computed.',
+            computation='Literal "coincident_centroids", written by pipeline.extract_feature_record when features.spline.find_coincident_centroid_pair finds two labels with an exactly equal centroid mm-coordinate.',
+            units='',
+            scale_sensitivity='categorical',
+        ),
+        'stage3_unavailable.detail': FeatureDoc(
+            measures='Human-readable account of the coincident pair that made Stage 3 unavailable.',
+            computation='Message built in pipeline.extract_feature_record naming both levels, both labels and the shared coordinate.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'stage3_unavailable.levels[]': FeatureDoc(
+            measures='The two anatomical level names whose centroids coincide.',
+            computation='level_a and level_b of the first coincident pair found by find_coincident_centroid_pair, in ascending label order.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'stage3_unavailable.labels[]': FeatureDoc(
+            measures='The two integer labels whose centroids coincide.',
+            computation='label_a and label_b of the first coincident pair found by find_coincident_centroid_pair, in ascending label order.',
+            units='',
+            scale_sensitivity='identifier',
+        ),
+        'stage3_unavailable.coordinate_mm[]': FeatureDoc(
+            measures='The exact centroid mm-coordinate the two labels share.',
+            computation='The shared (x, y, z) centroid coordinate of the pair, as find_coincident_centroid_pair reports it.',
+            units='mm',
+            scale_sensitivity='scales with spacing',
         ),
         'case.intensity.available': FeatureDoc(
             measures='Whether intensity/radiomics features were attempted and succeeded for this case.',
@@ -1800,15 +1846,30 @@ FEATURE_DOCS: Mapping[str, FeatureDoc] = MappingProxyType(
             ),
             computation=(
                 'True for index 0 and index n-1 of the sequence (and every entry '
-                'when n <= 2); false otherwise. The spline_offset rule (item 189, '
-                'moved off mislabel) and the '
-                'reference distribution both exclude a terminal entry from their '
-                'offset judgement, because the held-out refit must extrapolate '
+                'when n <= 2); false otherwise. The reference distribution '
+                'excludes a terminal entry from its offset statistics, and the '
+                'spline_offset rule (item 189, moved off mislabel) judges a '
+                'terminal on terminal_offset_mm instead of offset_mm (item 222), '
+                'because the held-out refit must extrapolate '
                 'past the end of its own parameter domain there, which reads an '
                 'implausibly large offset unrelated to real displacement.'
             ),
             units='',
             scale_sensitivity='boolean',
+        ),
+        'per_label.{label}.curve.terminal_offset_mm': FeatureDoc(
+            measures=(
+                'How far a terminal (first or last) vertebra sits off the '
+                'straight line through its two nearest neighbours (item 222).'
+            ),
+            computation=(
+                'Perpendicular distance from the terminal centroid to the line '
+                'through the two nearest levels, skipping any level the '
+                'held-out outlier search withholds. Absent on interior labels '
+                'and on cases of fewer than five levels.'
+            ),
+            units='mm',
+            scale_sensitivity='scales with spacing',
         ),
         'per_label.{label}.orientation.eigenvalue_ratio': FeatureDoc(
             measures='Anisotropy of the per-vertebra voxel cloud.',

@@ -414,14 +414,12 @@ _ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace"})
 _ITEM_132_ADDED_MISLABEL_PAIR = ("mislabel", (21, 22))
 _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 
-#: Item 192 (2026-09-28): sequence's rewritten rule reads per_label centroids
-#: instead of relationships.out_of_order_labels[], adding a new finding to
-#: relabel_swap (swap, labels 21/22) and remove_level (skip, case-level).
-#: sequence_break's pair, ("sequence", (28,)), is unchanged against the
-#: aeb2f55 golden.
-_ITEM_192_ADDED_SEQUENCE_PAIRS = {
-    "relabel_swap": ("sequence", (21, 22)),
-    "remove_level": ("sequence", ()),
+#: Item 219 (2026-10-13): sequence's shift detector was retired, so
+#: sequence_break no longer fires the ("sequence", (28,)) pair that the
+#: aeb2f55 golden carries. The pair is put back on the fresh side before
+#: comparing, so the rest of the case's identity is still pinned exactly.
+_ITEM_219_REMOVED_SEQUENCE_PAIRS = {
+    "sequence_break": (("sequence", (28,)),),
 }
 
 #: Item 198 (2026-09-29): mislabel's ordering detector judges the pairs in
@@ -441,6 +439,19 @@ _ITEM_212_ADDED_BORDER_PAIRS = {
     "crop_at_border": (("border", (20,)), ("border", (21,))),
 }
 
+# item 218 (2026-10-13): the one centroid-spacing rule reads remove_level's
+# gap as a (21, 23) finding that the aeb2f55 golden does not carry.
+_ITEM_218_ADDED_CENTROID_SPACING_PAIRS = {
+    "remove_level": (("centroid_spacing", (21, 23)),),
+}
+
+# Item 222 (2026-10-14): a terminal vertebra is judged on its one-sided line
+# reading, so sequence_break's misplaced T13 adds a spline_offset finding on
+# (28,) that the aeb2f55 golden does not carry.
+_ITEM_222_ADDED_SPLINE_OFFSET_PAIRS = {
+    "sequence_break": (("spline_offset", (28,)),),
+}
+
 
 @pytest.mark.skipif(
     _REFERENCE_SHA is None,
@@ -458,14 +469,15 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
 
     Except for ``displace`` and ``crop_at_border``, where item
     120 deliberately adds a ``mislabel`` finding on label 22 (AC18/AC23),
-    ``relabel_swap``, where item 132 deliberately adds a
-    ``mislabel`` finding on labels (21, 22), and ``relabel_swap`` /
-    ``remove_level``, where item 192 (2026-09-28) deliberately adds a
-    ``sequence`` finding: those added pairs are stripped
+    and ``relabel_swap``, where item 132 deliberately adds a
+    ``mislabel`` finding on labels (21, 22): those added pairs are stripped
     from the fresh side before comparing so the rest of each case's
-    rule/label identity is still pinned exactly. Item 212 (2026-10-05)
+    rule/label identity is still pinned exactly. Item 219 (2026-10-13)
+    puts back the ``sequence`` pair on ``sequence_break`` that the retired
+    shift detector no longer fires. Item 212 (2026-10-05)
     re-authors ``crop_at_border`` as an anterior volume crop, which adds
-    ``border`` findings on labels (20,) and (21,)."""
+    ``border`` findings on labels (20,) and (21,). Item 218 (2026-10-13)
+    adds ``remove_level``'s ``centroid_spacing`` finding on (21, 23)."""
     fresh = build_report_for_case(case)
     historical_case_id = _OLD_CASE_ID_AT_REFERENCE_SHA.get(
         case["case_id"], case["case_id"]
@@ -484,13 +496,6 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
             "mislabel finding on labels (21, 22), but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != _ITEM_132_ADDED_MISLABEL_PAIR]
-    if case["case_id"] in _ITEM_192_ADDED_SEQUENCE_PAIRS:
-        added_pair = _ITEM_192_ADDED_SEQUENCE_PAIRS[case["case_id"]]
-        assert added_pair in fresh_pairs, (
-            f"case {case['case_id']!r}: expected item 192's deliberate "
-            f"sequence finding {added_pair!r}, but it did not fire"
-        )
-        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
     for added_pair in _ITEM_198_ADDED_MISLABEL_PAIRS.get(case["case_id"], ()):
         assert added_pair in fresh_pairs, (
             f"case {case['case_id']!r}: expected item 198's deliberate "
@@ -503,6 +508,24 @@ def test_ac7_case_identity_preserved_vs_merge_base(case):
             f"border finding {added_pair!r}, but it did not fire"
         )
         fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    # item 218 (2026-10-13): strip the deliberate centroid_spacing finding.
+    for added_pair in _ITEM_218_ADDED_CENTROID_SPACING_PAIRS.get(case["case_id"], ()):
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 218's deliberate "
+            f"centroid_spacing finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    # Item 222 (2026-10-14): strip the deliberate terminal spline_offset finding.
+    for added_pair in _ITEM_222_ADDED_SPLINE_OFFSET_PAIRS.get(case["case_id"], ()):
+        assert added_pair in fresh_pairs, (
+            f"case {case['case_id']!r}: expected item 222's deliberate "
+            f"spline_offset finding {added_pair!r}, but it did not fire"
+        )
+        fresh_pairs = [p for p in fresh_pairs if p != added_pair]
+    # item 219 (2026-10-13): re-add the retired sequence pair the golden has.
+    fresh_pairs = sorted(
+        fresh_pairs + list(_ITEM_219_REMOVED_SEQUENCE_PAIRS.get(case["case_id"], ()))
+    )
     assert fresh_pairs == _rule_label_pairs(committed["findings"]), (
         f"case {case['case_id']!r}: designated rule/labels changed relative "
         "to the pre-migration reference golden (aeb2f55)"

@@ -31,8 +31,9 @@ Covers Acceptance Criteria AC1-AC19:
 - AC14: every committed golden's per-label ``components`` block carries the
         four new keys and the whole file still validates.
 - AC15: the goldens' ``verdict``/``findings`` are unchanged (frozen snapshot).
-- AC16: intra-run determinism (``write_goldens`` into two dirs) and
-        ``reports_close`` against the committed goldens still hold.
+- AC16: intra-run byte-determinism (``write_goldens`` into two dirs) holds;
+        the committed goldens and their ``reports_close`` check were retired
+        by item 126.
 - AC17: the reference vocabulary (``INGESTED_MORPHOLOGY_FEATURES``) is
         unaffected; no ``stray_*`` key appears in a morphology-delta output.
 - AC18: the ``reference_verse_v1.json`` integrity pin and its load-and-score
@@ -57,6 +58,8 @@ from __future__ import annotations
 
 import copy
 import json
+import re
+from decimal import Decimal
 
 import jsonschema
 import numpy as np
@@ -86,7 +89,7 @@ from segfacet.reference import (
 from segfacet.reference.delta import compute_morphology_reference_delta
 from segfacet.reference.ingest import INGESTED_MORPHOLOGY_FEATURES
 from segfacet.synth.corpus import load_manifest
-from segfacet.synth.golden import build_report_for_case, write_goldens
+from segfacet.synth.golden import build_report_for_case, reports_close, write_goldens
 from segfacet.synth.regression import loaded_seg_image
 
 
@@ -941,20 +944,29 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "centroids does not advance)."
                 ),
             },
-            {
-                "rule_id": "sequence",
-                "detector_id": "swap",
-                "severity": "flagged-for-review",
-                "labels": [21, 22],
-                "reason": "Non-continuous label sequence: swap of L3, L2.",
-            },
+            # item 219 (2026-10-13): sequence's swap finding dropped (the
+            # detector was retired).
         ],
     },
     # 2026-09-28 (item 192): sequence's skip detector now also fires on this
     # case, co-detecting alongside coverage; verdict is unchanged.
+    # 2026-10-13 (item 218): centroid_spacing's missing_level detector now
+    # fires on the gap too, at its sorted position; verdict is unchanged.
     "remove_level": {
         "verdict": "flagged-for-review",
         "findings": [
+            {
+                "rule_id": "centroid_spacing",
+                "detector_id": "missing_level",
+                "severity": "flagged-for-review",
+                "labels": [21, 23],
+                "reason": (
+                    "Missing level: The gap between label 21 and label 23 "
+                    "reads 1.887x the spacing beside it, strictly above 1.5, "
+                    "between labels of normal size (at most 1.5x their "
+                    "larger neighbour): a vertebra may be missing."
+                ),
+            },
             {
                 "rule_id": "coverage",
                 "detector_id": "missing_interior",
@@ -965,13 +977,8 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "observed present-level span."
                 ),
             },
-            {
-                "rule_id": "sequence",
-                "detector_id": "skip",
-                "severity": "flagged-for-review",
-                "labels": [],
-                "reason": "Skipped level label: L3 absent between present levels.",
-            },
+            # item 219 (2026-10-13): sequence's skip finding dropped (the
+            # detector was retired).
         ],
     },
     "crop_at_border": {
@@ -1040,13 +1047,23 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
                     "does not advance)."
                 ),
             },
+            # item 219 (2026-10-13): sequence's shift finding dropped (the
+            # detector was retired).
+            # Item 222 (2026-10-14): the misplaced T13 is a terminal, now judged
+            # on its one-sided line reading; spline_offset adds a finding after
+            # mislabel's (runner order: ascending rule_id). Verdict unchanged.
             {
-                "rule_id": "sequence",
-                "detector_id": "shift",
+                "rule_id": "spline_offset",
+                "detector_id": "spline_offset",
                 "severity": "flagged-for-review",
                 "labels": [28],
-                "reason": "Non-continuous label sequence: shift of T13.",
-            }
+                "reason": (
+                    "Vertebra misaligned from spinal curve: label 28 (T13) "
+                    "centroid lies 33.8 mm off the spinal curve extrapolated "
+                    "from its two nearest neighbours (terminal vertebra, "
+                    "threshold 13.0 mm)."
+                ),
+            },
         ],
     },
     # "force_overlap" key dropped by item 195, 2026-09-28.
@@ -1077,6 +1094,29 @@ def _finding_summary(f, *, include_reason: bool) -> dict:
     return summary
 
 
+# Item 224: rendered decimals in a pinned reason can move one digit between
+# platforms (spline-fit last-ULP). Decimal tokens match within one unit of the
+# pinned token's last place; everything else is exact.
+_DECIMAL_TOKEN = re.compile(r"\d+\.\d+")
+
+
+def _assert_reason_matches(got: str, pinned: str) -> None:
+    msg = f"reason differs:\n  got:    {got!r}\n  pinned: {pinned!r}"
+    assert _DECIMAL_TOKEN.sub("#", got) == _DECIMAL_TOKEN.sub("#", pinned), msg
+    for g, p in zip(_DECIMAL_TOKEN.findall(got), _DECIMAL_TOKEN.findall(pinned)):
+        tol = Decimal(1).scaleb(-len(p.split(".")[1]))
+        assert abs(Decimal(g) - Decimal(p)) <= tol, f"{msg}\n  token: got {g} vs pinned {p}"
+
+
+def _assert_findings_match(got_findings, pinned_findings, *, include_reason: bool) -> None:
+    got = [_finding_summary(f, include_reason=False) for f in got_findings]
+    pinned = [_finding_summary(f, include_reason=False) for f in pinned_findings]
+    assert reports_close(got, pinned), f"findings differ:\n  got:    {got}\n  pinned: {pinned}"
+    if include_reason:
+        for g, p in zip(got_findings, pinned_findings):
+            _assert_reason_matches(g["reason"], p["reason"])
+
+
 @pytest.mark.parametrize(
     "case_id", sorted(_PRE_098_GOLDEN_VERDICT_AND_FINDINGS.keys())
 )
@@ -1100,11 +1140,7 @@ def test_ac15_golden_verdict_and_findings_unchanged(case_id):
     assert fresh["verdict"] == expected["verdict"]
 
     include_reason = case_id not in _FACE_NAME_SENSITIVE_CASES
-    got_findings = [_finding_summary(f, include_reason=include_reason) for f in fresh["findings"]]
-    expected_findings = [
-        _finding_summary(f, include_reason=include_reason) for f in expected["findings"]
-    ]
-    assert got_findings == expected_findings
+    _assert_findings_match(fresh["findings"], expected["findings"], include_reason=include_reason)
 
 
 # =========================================================================== #

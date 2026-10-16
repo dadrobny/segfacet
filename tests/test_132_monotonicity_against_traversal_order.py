@@ -428,19 +428,17 @@ def test_ac12_pair_loop_still_uses_gte_not_strict_gt():
 
 
 def test_ac13_mode4_fires_exactly_one_mislabel_finding_on_21_22():
-    """Item 192 (2026-09-28): sequence's swap detector now also fires on this
-    case (per_label centroids replace the retired out_of_order_labels[]
-    input), so a second finding is expected alongside mislabel's."""
+    """Item 192 (2026-09-28): sequence's swap detector also fired on this
+    case, so a second finding was expected alongside mislabel's.
+
+    Item 219 (2026-10-13): that detector was retired; one finding again."""
     case_result, _block = _run_qc_case("relabel_swap")
-    assert len(case_result.findings) == 2
+    assert len(case_result.findings) == 1
     finding = case_result.findings[0]
     assert finding.rule_id == "mislabel"
     assert finding.labels == frozenset({21, 22})
     assert finding.severity is Severity.FLAG
     assert finding.reason.startswith("Vertebra ordering inconsistent with label:")
-    assert case_result.findings[1].rule_id == "sequence"
-    assert case_result.findings[1].detector_id == "swap"
-    assert case_result.findings[1].labels == frozenset({21, 22})
 
 
 def test_ac14_mode4_verdict_is_flagged_for_review():
@@ -585,27 +583,26 @@ def test_ac24_item_039_mode4_pin_flipped():
 
 
 def test_ac25_item_129_pre_findings_baseline_reconciled():
-    """Item 192 (2026-09-28): sequence's swap detector now also fires."""
+    """Item 192 (2026-09-28): sequence's swap detector also fired.
+
+    Item 219 (2026-10-13): retired; the pinned set is mislabel's alone."""
     import test_129_coincident_centroids_and_held_out_floor as t129
 
-    assert t129._PRE_129_FINDINGS["relabel_swap"] == {
-        ("mislabel", (21, 22)),
-        ("sequence", (21, 22)),
-    }
+    assert t129._PRE_129_FINDINGS["relabel_swap"] == {("mislabel", (21, 22))}
     t129.test_ac29_no_corpus_case_changes_findings()
 
 
 def test_ac26_item_098_shared_golden_constant_reconciled():
-    """Item 192 (2026-09-28): sequence's swap finding now also fires, so
-    relabel_swap's golden entry carries two findings, mislabel then
-    sequence."""
+    """Item 192 (2026-09-28): sequence's swap finding also fired, so
+    relabel_swap's golden entry carried two findings.
+
+    Item 219 (2026-10-13): retired; one finding, mislabel."""
     import test_098_stray_components as t098
 
     expected = t098._PRE_098_GOLDEN_VERDICT_AND_FINDINGS["relabel_swap"]
     assert expected["verdict"] == "flagged-for-review"
-    assert len(expected["findings"]) == 2
+    assert len(expected["findings"]) == 1
     assert expected["findings"][0]["rule_id"] == "mislabel"
-    assert expected["findings"][1]["rule_id"] == "sequence"
     t098.test_ac15_golden_verdict_and_findings_unchanged("relabel_swap")
 
 
@@ -708,13 +705,20 @@ def test_ac28_catalogue_regenerates_byte_identically(tmp_path):
 # `per_label.{label}.orientation.spline_tangent_coronal_deg` and
 # `per_label.{label}.orientation.tangent_coronal_unwrapped_deg` (cs -3,
 # varies +3). Every other 216 row moves 1:1 with the same verdict.
+#
+# Item 220 (2026-10-13): 154 -> 159, "non-numeric" 37 -> 40, "varies" 84 -> 86:
+# the five new stage3_unavailable.* leaves (reason, detail, levels[] non-numeric;
+# labels[], coordinate_mm[] varies).
+#
+# Item 222 (2026-10-14): 159 -> 160, "varies" 86 -> 87: the new
+# per_label.{label}.curve.terminal_offset_mm leaf (varies).
 _PRE_ITEM_OBSERVED_SUMMARY = {
     "constant-synthetic": 7,
     "degenerate": 0,
-    "non-numeric": 37,
+    "non-numeric": 40,
     "placeholder": 26,
     "unobserved": 0,
-    "varies": 84,
+    "varies": 87,
 }
 
 
@@ -732,7 +736,9 @@ def test_ac29_catalogue_measured_content_unchanged(tmp_path):
     # 145 -> 156 (item 215, 2026-10-06): -9 merged identity copies, +20
     # report-only reference_delta rows; 156 -> 154 (item 216, 2026-10-06):
     # -3 merged rows, +1 case.sequence.order[]; see the summary comment above.
-    assert leaf_count == 154, f"leaf-path count {leaf_count} != 154"
+    # 154 -> 159 (item 220, 2026-10-13): five stage3_unavailable.* leaves.
+    # 159 -> 160 (item 222, 2026-10-14): per_label.{label}.curve.terminal_offset_mm.
+    assert leaf_count == 160, f"leaf-path count {leaf_count} != 160"
     assert fresh["observed_summary"] == _PRE_ITEM_OBSERVED_SUMMARY
 
     is_mono = entries_by_path["case.curve.is_monotonic"]
@@ -779,6 +785,13 @@ _PRE_ITEM_STATUS_OVERRIDES = {
 def test_ac30_status_overrides_byte_identical():
     for path, expected in _PRE_ITEM_STATUS_OVERRIDES.items():
         assert path in STATUS_OVERRIDES, f"STATUS_OVERRIDES missing {path!r}"
+        if path == "case.curve.is_monotonic":
+            # item 219 (2026-10-13): item 219 appends a dated owner's line
+            # after the unchanged item-106 note; the status stays "retune".
+            status, note = STATUS_OVERRIDES[path]
+            assert status == expected[0]
+            assert note.startswith(expected[1])
+            continue
         assert STATUS_OVERRIDES[path] == expected, (
             f"STATUS_OVERRIDES[{path!r}] changed: {STATUS_OVERRIDES[path]!r} "
             f"!= {expected!r}"

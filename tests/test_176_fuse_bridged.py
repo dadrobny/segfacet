@@ -249,7 +249,7 @@ def test_ac10_nothing_fires():
     ]
     assert len(matches) == 1, matches
     # Item 207 (2026-09-30): fused_label now fires on label 22; the name stays.
-    assert failure_modes.measured_firing(matches[0]) == ("fused_label",)
+    assert failure_modes.measured_firing(matches[0]) == ("centroid_spacing",)  # item 218 (2026-10-13): renamed
 
 
 # =========================================================================== #

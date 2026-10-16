@@ -160,7 +160,7 @@ def anatomical_order(level_names: Mapping[int, str]) -> List[int]:
     -- then the integer label. This is the record's one element order (item
     216, D7): the producer (``pipeline.extract_feature_record``), the
     serialiser (``feature_report.build_features_block``) and the readers
-    (``heuristics.fused_label``) all call it, so they agree by construction.
+    all call it, so they agree by construction.
     """
     return sorted(
         level_names,

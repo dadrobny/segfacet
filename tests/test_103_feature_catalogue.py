@@ -396,7 +396,9 @@ def test_ac4_clean_control_leaf_paths(catalogue_module):
     # record (stage3.spacing_consistency.spacings_mm[] onto
     # pairs.adjacent.spacings_mm[], -1) and stores one new field with no row,
     # case.sequence.order[] (+1). Every other 216 row it carries is a 1:1 move.
-    assert len(paths) == 95
+    # Item 222 (2026-10-14): 95 -> 96, one leaf path,
+    # per_label.{label}.curve.terminal_offset_mm.
+    assert len(paths) == 96
 
 
 def test_ac4_empty_list_yields_container_bracket_path(catalogue_module):
@@ -554,7 +556,9 @@ def test_ac9_traced_run_rules_matches_plain(catalogue_module, case_id):
         ("per_label.{label}.geometry.touches_posterior", "border"),
         # Item 192 (2026-09-28): sequence reads per_label centroids, not
         # case.sequence.out_of_order_labels[].
-        ("per_label.{label}.centroid.centroid_mm[]", "sequence"),
+        # item 219 (2026-10-13): re-pointed from "sequence" (it no longer
+        # reads centroids) to centroid_spacing, which does.
+        ("per_label.{label}.centroid.centroid_mm[]", "centroid_spacing"),
         ("case.sequence.missing_levels[]", "coverage"),
         # Item 189 (2026-09-28): the offset detector moved to spline_offset.
         ("per_label.{label}.curve.offset_mm", "spline_offset"),
@@ -621,15 +625,19 @@ _RULE_MODE_MAP = {
     # Item 206 (2026-09-30): fuse_separate (mode 2) fires fragmentation as a
     # co-detection, so (1, 4) -> (1, 2, 4).
     "fragmentation": (1, 2, 4),  # fragment (1), fuse_separate (2), islands (4)
-    "coverage": (6,),  # remove_level (6)
-    "sequence": (9,),  # sequence_break
+    # Item 218 (2026-10-13): "coverage": (6,) dropped -- remove_level now
+    # designates centroid_spacing, so no failure case designates coverage.
+    # item 219 (2026-10-13): "sequence": (9,) dropped -- no failure case
+    # designates sequence any more (sequence_break designates mislabel).
     # "overlap": (15,) dropped by item 195, 2026-09-28: force_overlap (the
     # only case that scanned to "overlap") was removed.
     # Item 174 (2026-09-23): split_own_label designates bounds for mode 3.
     "bounds": (3,),  # split_own_label (3)
     "neighbour_contact": (2,),  # split (2); item 205 (2026-09-30) moved from mode 3
     # Item 207 (2026-09-30): fuse_adjacent and fuse_separate (mode 2) designate it.
-    "fused_label": (2,),
+    # Item 218 (2026-10-13): renamed centroid_spacing (was "fused_label": (2,)),
+    # and remove_level / remove_level_relabel (mode 6) designate it too.
+    "centroid_spacing": (2, 6),  # fuse_adjacent, fuse_separate (2), remove_level (+ relabel) (6)
     # Item 208 (2026-09-30): split_own_label (mode 3) designates it.
     "split_fragment": (3,),
 }
@@ -689,8 +697,22 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     signal_paths = {
         e.path
         for e in full_catalogue.entries
-        if set(e.consuming_rules) == {rule_id}
+        # item 220 (2026-10-13): collapsed_labels also consumes centroid_mm[] as
+        # signal, so a path shared with it still counts as this rule's.
+        # item 218 (2026-10-13): so does centroid_spacing, which makes it the
+        # third consumer of centroid_mm[] beside sequence and collapsed_labels.
+        # item 219 (2026-10-13): restated -- an entry this rule classifies
+        # "signal" and every other consuming rule classifies "bookkeeping"
+        # (sequence reads non_monotonic_pairs[] as bookkeeping, which adds no
+        # mode), bar the two signal consumers named above.
+        if rule_id in e.consuming_rules
         and dict(e.mode_roles).get(rule_id) == "signal"
+        and all(
+            r == rule_id
+            or r in {"collapsed_labels", "centroid_spacing"}
+            or dict(e.mode_roles).get(r) == "bookkeeping"
+            for r in e.consuming_rules
+        )
     }
     assert signal_paths, f"expected at least one signal-classified entry consumed only by {rule_id!r}"
     if not signal_paths - set(anchor_modes_by_path):
@@ -699,6 +721,13 @@ def test_ac13_rule_mode_map_effect_on_failure_modes(
     for path in sorted(signal_paths):
         entry = _entry(full_catalogue, path)
         expected = set(modes) | declared | anchor_modes_by_path.get(path, set())
+        # item 220 (2026-10-13): add collapsed_labels' declared modes where it
+        # consumes the entry as signal too.
+        if dict(entry.mode_roles).get("collapsed_labels") == "signal":
+            expected |= set(rule_declarations["collapsed_labels"].modes)
+        # item 218 (2026-10-13): likewise centroid_spacing's declared modes.
+        if dict(entry.mode_roles).get("centroid_spacing") == "signal":
+            expected |= set(rule_declarations["centroid_spacing"].modes)
         assert set(entry.failure_modes) == expected, (entry.path, entry.failure_modes)
         # The corpus map's own contribution, which is what AC13 is about.
         assert set(modes).issubset(set(entry.failure_modes)), entry.path
