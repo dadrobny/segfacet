@@ -1,4 +1,4 @@
-<!-- aide-template: progress 1 -->
+<!-- aide-template: progress 2 -->
 # FACET — Progress Tracker
 
 > **Status:** v3.2 · **Created:** 2026-06-24 · **Re-issued:** 2026-09-22 against
