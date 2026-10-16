@@ -1,4 +1,4 @@
-<!-- aide-template: roadmap 2 -->
+<!-- aide-template: roadmap 3 -->
 # FACET — Development Roadmap
 
 > **Status:** v3.5 (2026-10-12: programme interface adopted against
