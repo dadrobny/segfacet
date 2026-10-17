@@ -405,8 +405,8 @@ Where a retirement leaves a module import unused (`re`, `pytest`, the
 - archive-rank-tie: archive merge attributed items to the later archived
   stage on a rank tie (`>=`), breaking the unarchived/archived item→stage
   equivalence; plural `Items` markers unread — blocking; fix commit
-  pending (builder, Step 3 as corrected 2026-10-17); test: the corrected
-  AC2 test, its name confirmed by the test-writer. The plural-marker half
+  pending (builder, Step 3 as corrected 2026-10-17); test: `tests/test_236_stage_archive_safe.py::test_ac2_archiving_moves_no_item_to_another_stage`
+  (the corrected AC2 test). The plural-marker half
   is out of scope (Decisions & Trade-offs, Left open). Corrected AC2 makes
   no claim about those items.
 

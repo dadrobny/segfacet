@@ -84,13 +84,10 @@ def test_ac1_archived_items_keep_their_status(trees):
             == {i.number: i.status for i in _model(unarchived).items})
 
 
-def test_ac2_archived_item_is_reported_under_its_own_stage(trees):
-    _unarchived, archived = trees
-    aide = _aide_module()
-    stage_of = {i.number: i.stage for i in _model(archived).items}
-    for num, archive_text in _archive_files(archived):
-        for item in aide.stage_item_numbers(archive_text.splitlines(), str(num)):
-            assert stage_of[item] == str(num), f"item {item} not under stage {num}"
+def test_ac2_archiving_moves_no_item_to_another_stage(trees):
+    unarchived, archived = trees
+    assert ({i.number: i.stage for i in _model(archived).items}
+            == {i.number: i.stage for i in _model(unarchived).items})
 
 
 def test_ac3_stage_list_is_unchanged_by_archiving(trees):
