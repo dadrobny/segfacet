@@ -255,7 +255,12 @@ None.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- Deleted coverage's `_find_entry_by_level_name` and the `Optional` import
+  (its only user). Reworded the `failure_modes.py` item-191 clause per A3,
+  keeping item 132's curve in the sentence as what item 210 replaced.
+- A1 confirmed: a fresh `segfacet.catalogue` build equals the committed
+  `feature_catalogue.generated.{json,md}` byte for byte, so nothing was
+  regenerated.
 
 - **Left open:** whether `fov.py`'s `_find_entry_by_level_name` and
   `mislabel.py`'s `_label_for_level`, two scans of `per_label` by
