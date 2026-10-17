@@ -88,6 +88,22 @@ run yet, so every criterion is tested before and after it.
   `progress/stage-N.md` in the archived tree, and every item that the engine's
   `stage_item_numbers` reads from that file's Stage N section, the model built
   over the archived tree gives that item stage `"N"`.
+  - **Corrected 2026-10-17 (after validation round 1): AC2 is replaced by
+    "Archiving moves no item to another stage."** The mapping from item
+    number to stage that `build_report_model` returns over the archived tree
+    equals the mapping it returns over the unarchived tree. The criterion
+    above cannot be met: an item is often named by two archived stages, its
+    deliverable plus a trail or cross-reference line. Measured: items 18
+    (stages 3 and 28), 48 (6, 14), 57 (7, 14), 84 (12, 14), 103 (3, 19),
+    154 (20, 31), 167 (30, 32) and 203 (32, 33), and one item carries one
+    stage. The unarchived tree is the reference. There, `parse_progress`
+    keeps the first line in file order among those at the item's highest
+    rank. A mention outside every stage section, such as a Human gates row,
+    defers the stage to the first stage section that names the item. The
+    equality covers exactly the items the unarchived model lists. An item
+    named only by a plural `*(Items NNN, MMM)*` marker is in neither model,
+    because `_ITEM_REF_RE` reads singular markers only (Decisions & Trade-offs,
+    Left open).
 - [ ] **AC3: The stage list is unchanged by archiving.** The list of
   `(number, title, objectives, status)` tuples in `model.stages`, built over
   the archived tree, equals the same list built over the unarchived tree.
@@ -157,6 +173,12 @@ run yet, so every criterion is tested before and after it.
   comment block where the test stood, naming item 236 and the reason, and the
   module docstring's AC list says so (the shape of
   `tests/test_135_stage29_validation.py`'s AC26–AC28 blocks).
+  - **2026-10-17, applied to a test of another module's test:** a test
+    whose only subject is a test or helper this item retires is retired with
+    it. A5 covers it as a companion: there is nothing left to repoint it to.
+    `tests/test_171_literal_negative_controls.py`'s H1 control is the one
+    found. Validation round 1 failed on it, and the Testing Strategy has the
+    detail.
 
 ## Implementation Steps
 
@@ -189,6 +211,27 @@ No dependency is added, and the report script gains no engine import.
    (AC1) and makes the deliverable's own stage win a tie (AC2). A link to a
    missing file is skipped: the stage is still listed, and none of its items
    are added.
+   - **Corrected 2026-10-17 (after validation round 1): splice the archive
+     files back, then parse once. Do not merge item maps.** The `>=` merge
+     above gives a rank tie to the archive merged last. Measured on
+     2026-10-17 over the test's two trees (23 stages archived), it moves 8
+     items to another stage: 18, 48, 57, 84, 103, 154, 167 and 203. A strict
+     `>` merge does no better and moves 14: 84, 85, 110, 119, 122, 123, 125,
+     167, 203, 214, 215, 216, 217 and 234. Some of those items are first
+     named outside every stage section, so `parse_progress` gives them the
+     first stage section that names them, in file order. A merge after the
+     fact cannot know that order. The step is now:
+     take `progress.md`'s lines, then each linked archive file that exists,
+     in ascending stage number. From that file, take its lines from its
+     `## Stage N` heading to the end. Insert them before the first remaining
+     `## Stage M` heading with M > N, or at the end when there is none. That
+     is `unarchive_stage_text`'s own placement rule, rewritten in the script
+     with no engine import. `parse_progress` on the combined text gives
+     stages, objectives and `item_status`. `parse_phases` still reads
+     `progress.md`'s own text, so the Left open on phase grouping is
+     unchanged. The same probe found the combined text's item map equal to
+     the unarchived tree's for all 221 items. A link to a missing file is
+     still skipped.
 4. **Reconcile the tests listed under Testing Strategy** (test-writer).
    Follow A5.
 5. **After the merge (orchestrator, on `aide/queue-032`, not this
@@ -216,6 +259,7 @@ No dependency is added, and the report script gains no engine import.
 - `tests/test_151_stage30_validation.py` — AC35–AC37's Stage 30 tests and companions retired
 - `tests/test_161_stage31_validation.py` — AC14, AC15 and the spliced-trail test retired, with companions
 - `tests/test_169_stage32_validation.py` — AC6, AC7 and AC13's Stage 20 tests and companions retired
+- `tests/test_171_literal_negative_controls.py` — its H1 control retired, added 2026-10-17 (A5)
 
 **Asserts against:**
 
@@ -252,6 +296,10 @@ items come from `progress.md` and its archive alone:
 - AC1 compares `{i.number: i.status}` over the two models.
 - AC2 walks the archived tree's `progress/stage-N.md` files and their
   `stage_item_numbers`.
+  - **Corrected 2026-10-17:** AC2 compares `{i.number: i.stage}` over the
+    two models, as AC1 compares statuses. It does not walk
+    `stage_item_numbers`: the engine reads plural markers and the report
+    does not, which is the KeyError on item 43 that the review replay hit.
 - AC3 compares the stage tuples.
 - AC4 and AC5 walk the repository's own `docs/aide/progress.md` sections
   (`stage_sections` plus `stage_item_numbers`) and every
@@ -334,9 +382,33 @@ test_203 read only Human gates rows, which stay in `progress.md`.
   `test_ac13_no_stage20_bullet_deferred_and_item141_points_to_154`. The
   companions go too: `test_adv_deferred_bullet_anywhere_is_flagged` and any
   other adversarial case or helper left with no caller.
+- **Retire, added 2026-10-17** — `tests/test_171_literal_negative_controls.py`:
+  `test_ac1_h1_survives_mode_count_of_15`, and the `"H1"` entry of
+  `_PRE_ITEM_BODIES` with `_h1_pre_item_body`, so that
+  `test_adv_old_literal_form_fails_under_patch[H1]` is no longer generated.
+  Both load `tests/test_151_stage30_validation.py` and call its
+  `_live_status_counts` and `test_adv_ac35_status_counts_parser_rejects_wrong_n`,
+  which the test_151 retirement above removes. H1 was a negative control of
+  that test and has no other subject, so it cannot be repointed (A5, the
+  2026-10-17 line). H2–H6 and their parametrised cases are kept. The module
+  docstring says AC1 is retired, and that the adversarial case now runs
+  over H2–H6.
+  A search on 2026-10-17 for other path-loads of the modules this list
+  edits found none that call a retired name. test_159 calls test_150's AC4,
+  and test_107 asserts names are absent from test_106. Both stay.
 
 Where a retirement leaves a module import unused (`re`, `pytest`, the
 `_aide_module` loader), drop it only if nothing else in the module uses it.
+
+## Review findings
+
+- archive-rank-tie: archive merge attributed items to the later archived
+  stage on a rank tie (`>=`), breaking the unarchived/archived item→stage
+  equivalence; plural `Items` markers unread — blocking; fix commit
+  pending (builder, Step 3 as corrected 2026-10-17); test: the corrected
+  AC2 test, its name confirmed by the test-writer. The plural-marker half
+  is out of scope (Decisions & Trade-offs, Left open). Corrected AC2 makes
+  no claim about those items.
 
 ## Validation
 
@@ -374,6 +446,9 @@ To be updated during implementation.
   The archive file keeps its `## Stage N` heading, so `parse_progress` on its
   text yields the item map directly; the merge is a `>=` rank compare so the
   deliverable's own stage wins a tie (AC1, AC2). No engine import was added.
+  - **2026-10-17:** superseded. Validation round 1 and the review both
+    showed that the `>=` merge breaks the item→stage equivalence. Step 3's
+    2026-10-17 correction replaces it with splice-then-parse.
 - **Step 1 applied as specified:** item 006 off Stage 1's CLI-wiring marker,
   item 204 off Stage 32's D3 marker, each with a dated trail line.
 
@@ -388,3 +463,11 @@ To be updated during implementation.
   after `# Phase 2` once Stages 0–10 are archived (insight
   `2026-10-17-75bd`). So archived stages are shown in the report's unphased
   table until the engine records the grouping.
+- **Left open (2026-10-17):** the report reading plural `*(Items NNN, MMM)*`
+  markers. `_ITEM_REF_RE` (`[Ii]tem\s+0*(\d+)`) matches singular markers
+  only, so items 43, 44, 46, 47, 55, 56, 59–64 and 69 are missing from the
+  model in both trees. The gap predates this item, archiving does not
+  change it, and corrected AC2 is an equality over the items the unarchived
+  model lists. Fixing it here would add those items to the live report and
+  change output outside this item's deliverable, so it is captured as
+  insight `2026-10-17-2ce4` instead.
