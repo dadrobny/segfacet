@@ -199,6 +199,10 @@ to need an edit:
   `test_ac15_…("relabel_swap")` directly. That reason has no decimal token, so
   nothing changes for it.
 
+## Review findings
+
+- **raises-unscoped** (minor): the four negative tests used a bare `pytest.raises(AssertionError)`, so any assertion in `test_098::test_ac15_golden_verdict_and_findings_unchanged` (verdict, findings, corpus build) satisfied them, not only the reason comparison; fixed with `match="reason differs"`, the message `_assert_reason_matches` raises. Tests: `test_ac1_gap_ratio_threshold_1_4_fails_ac15`, `test_ac2_gap_ratio_threshold_1_6_fails_ac15`, `test_size_ratio_clause`, `test_threshold_phrasing`.
+
 ## Dependencies
 
 None.

@@ -28,13 +28,13 @@ def _mutated(monkeypatch, case_id, detector_id, old, new):
 
 def test_ac1_gap_ratio_threshold_1_4_fails_ac15(monkeypatch):
     _mutated(monkeypatch, "remove_level", "missing_level", "strictly above 1.5", "strictly above 1.4")
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="reason differs"):
         t098.test_ac15_golden_verdict_and_findings_unchanged("remove_level")
 
 
 def test_ac2_gap_ratio_threshold_1_6_fails_ac15(monkeypatch):
     _mutated(monkeypatch, "remove_level", "missing_level", "strictly above 1.5", "strictly above 1.6")
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="reason differs"):
         t098.test_ac15_golden_verdict_and_findings_unchanged("remove_level")
 
 
@@ -45,7 +45,7 @@ def test_ac3_measured_last_digit_difference_still_passes(monkeypatch):
 
 def test_size_ratio_clause(monkeypatch):
     _mutated(monkeypatch, "remove_level", "missing_level", "at most 1.5x", "at most 1.6x")
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="reason differs"):
         t098.test_ac15_golden_verdict_and_findings_unchanged("remove_level")
 
 
@@ -55,5 +55,5 @@ def test_threshold_phrasing(monkeypatch):
     assert "threshold 0.75" in reason
     entry["findings"][0]["reason"] = reason.replace("threshold 0.75", "threshold 0.76")
     monkeypatch.setitem(_PINNED, "fragment", entry)
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="reason differs"):
         t098.test_ac15_golden_verdict_and_findings_unchanged("fragment")
