@@ -26,12 +26,18 @@ path was ever run for real:
 - **`progress.md`'s optional Environment-Gated Capability Verification
   table** — one row per capability, starting `❓ Unverified`. The queue-end
   item's Implementation Steps must add/update the row(s) for any capability
-  its stage introduced. The row flips to `✅ Verified (date, host/CI)` only
+  its stage introduced. The row flips to `✅ Verified (date)` only
   when a human or a CI runner that actually has the dependency present has
   run the gated path — never inferred from the stage's own ✅ status. A row
   still `❓ Unverified` once its stage is ✅ records why in its Notes cell.
   A row names the `[validation]` profile that would verify it in its
   Package / Tool cell, as `` `<name>` profile ``.
+- **The cells are labels; the table's trail is the record** (§1 →
+  `progress.md`). Which host or CI run verified the row, and any note longer
+  than a line, go on a trail line under the table keyed by the Capability
+  cell — `- <Capability cell> — ✅ Verified 2026-10-12: <host or CI run>` —
+  and the Notes cell then points at it. Whoever writes the row writes its
+  trail line: the queue-end item's builder, or a person.
 
 Both mechanisms are opt-in: a project with no environment-gated capability
 omits them entirely.
@@ -82,6 +88,10 @@ Two additions make the verification *planned* rather than hoped-for:
   declared a capability and has no row, whether it is still to be built or
   merged without writing one, since the missing row is the queue-end item's
   to write.
+- **Why the host moved out of the Status cell.** It made the cell prose:
+  Status cells up to 216 characters and Notes cells up to 2.2 KB in one
+  consumer (#474). The leading icon is all a reader decides on, so the
+  cell keeps it and the date, and the trail keeps the rest.
 - **Why a queue-end item replays use cases.** Tests prove the code
   runs; validation observes that it does something meaningful — so it replays
   the stage's use cases rather than re-running the suite.

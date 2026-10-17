@@ -22,6 +22,11 @@
 # engine never falls back to PATH behind a key you wrote. A [tools] table
 # that cannot be parsed is refused the same way by every verb that runs git or
 # gh; the engine parses this table alone, never the two below it.
+# [tools] gh and git reach the engine, and whatever of an adapter runs git
+# through the engine's resolver — never the raw `git …` / `gh …` an adapter's
+# control files tell an agent to type, nor its permission allow-list, which
+# match the bare name. A host whose git or gh is not on PATH still needs it
+# there for those: a PATH entry or a shim, as for `python` below.
 gh = ""       # the forge CLI `aide status` and `aide queue pr|ready` ask
 git = ""
 # The interpreter the engine PRINTS in the commands it suggests ("run

@@ -1,6 +1,6 @@
 """Tests for amending an acceptance attestation — conventions.md §1 → progress.md.
 
-The recorded defect (issue #118, spine-failure-lab under engine 1.22.0): a
+The recorded defect (issue #118, a consumer under engine 1.22.0): a
 Stage 0 box was ticked with the evidence "run on this CPU-only machine" on a
 workstation with four GPUs. ``accept`` reports an already-ticked box as
 "unchanged", so there was no CLI path to the correction at all, and it landed

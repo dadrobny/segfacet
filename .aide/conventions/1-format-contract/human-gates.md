@@ -21,6 +21,26 @@ Two of the cells have a fixed vocabulary:
 - **Status** — table-local vocabulary, like Outcome targets': `⏳ Awaiting`,
   then `✅ Approved (date)` or `❌ Declined (date)`.
 
+**The cells are labels; the trail is the record.** The Gate cell asks one
+question in one line, and the Decision / evidence cell holds a pointer, not
+the evidence. What either leaves out goes on the table's **trail**: bullets
+directly under the table, one per entry, each keyed by the gate's ID —
+`- gate-3fa1 — <entry>`.
+
+- **The verbs write the trail.** A decision's evidence is a dated trail
+  line, `- gate-3fa1 — ✅ Approved 2026-10-12: <evidence>`; `aide gate -h`
+  states what each verb writes.
+- **Context is a trail line too.** A gate raised by hand whose question
+  needs more than a line asks it in the cell and writes the rest as
+  `- gate-3fa1 — context: <what the question leaves out>`.
+- **A correction appends a line.** A trail line is never edited or
+  removed: a second decision, a corrected note or a restated question is a
+  later line, and the earlier one stays as written — a line whose row was
+  later removed included, which `aide check` reports as a warning.
+- **`aide gate list` and `aide status` read the trail**, and a row with no
+  trail line keeps reading its Decision / evidence cell, so a table written
+  before the trail reads as it did.
+
 **Reach is per gate, and never a queue.** Blocking is tied to the units that
 mean something:
 
@@ -140,7 +160,11 @@ Semantics *(aide claim, check, status, gate)*:
 - **Resolving is a CLI operation**, never a hand edit:
   ```
   aide gate (list | approve <n|ID> | decline <n|ID>) [--evidence "…"]
+  aide gate reword <n|ID> --text "…"
   ```
+- **`aide check` warns on a live gate's long Gate cell**, naming `aide gate
+  reword`, and counts the rows whose long cells `aide progress compact` would
+  move into one warning per table (§1 → `progress.md`).
 
 Agents *read* gates — to know why they must stop — and stop.
 
@@ -156,14 +180,22 @@ file, a roadmap stage, another `progress.md` row — write its ID. A position
 - **The Gate cell is the gate's identity.** Rewording it — including to
   "change what the gate asks" after a decline — makes a different gate with a
   different ID, and every citation of the old one stops resolving. Re-point
-  each at the new ID, or drop it.
+  each citation at the new ID, or drop it. The gate's trail lines are not
+  citations and stay as written; `aide check` warns on a trail key that
+  names no row, and never errors on one.
+- **Restating the same question keeps its ID: `aide gate reword`.** It
+  writes the shorter question into the Gate cell and appends `- gate-<new> —
+  reworded <date>, was: <old question>` to the trail, and the old ID names
+  the row for as long as that line stands. It is for a live gate whose
+  question has grown its context into the cell; a decided gate's question is
+  the record of what was decided, and is not reworded.
 - **A longer ID is the same ID.** `list` prints four hex digits, and more only
   where two different Gate cells would share them; any longer prefix of the
   same hash names the same gate. Two rows asking the same question share an
   ID, and a verb takes a position for them.
 - **`aide check` holds citations to the table.** Over `docs_dir`, the inbox
-  and its archives excepted: a cited gate ID that names no row is an
-  **error** — it blocks a merge, like every check error. A cited ID matching
+  and its archives excepted, and a trail line's own key excepted: a cited
+  gate ID that names no row is an **error** — it blocks a merge, like every check error. A cited ID matching
   two different Gate cells, and a citation by position (`gate 3`, `human gate
   #3`) while the `## Human gates` table has a row, are warnings naming the
   ID to write. A record is not read for positions, and a zero-padded number
@@ -240,6 +272,26 @@ file, a roadmap stage, another `progress.md` row — write its ID. A position
   question it asked, and that question is no longer asked; a check that kept
   them resolving would let an item go on waiting for — or be released by — a
   decision about something else.
+- **Why the cells became labels, and the trail the record.** The table had
+  turned into prose: Gate cells up to 1.8 KB, 28 KB of table in one consumer
+  and 14 KB in the other, and the longest evidence cells written by `aide
+  gate approve --evidence` itself, which put its note in the fourth cell
+  (#474). The width could not move — a row of another width holds every
+  item — so only what goes in the cells did. The trail is keyed by the ID
+  because the ID is what survives a renumbering, and it appends because an
+  edited record is the one thing `amend` and `retract` exist to avoid.
+- **Why `gate reword` keeps the old ID, and a hand reword does not.** A
+  check warning on a long Gate cell would otherwise invite exactly the edit
+  that breaks every citation of the gate. The verb is the reword that says
+  the question is the same one, restated; the trail line it writes is the
+  evidence of that, so the alias lasts exactly as long as the line. A
+  question that changed is still a new row. Rewording a decided gate is
+  refused because the decision answered the words it was asked in, and so is
+  a question another row once asked: its old ID would start naming this one.
+- **Why a dangling trail key warns and never errors.** A trail line's key
+  addresses the line, not a decision someone waits on, and the trail is
+  append-only. Read as a citation, a key left by a removed row was an error
+  no permitted edit could clear, and it blocked every merge (PR #478 review).
 - **Why the check reads `docs_dir` only.** Gates are cited by the documents
   that plan work. `gate-` and hex is ordinary vocabulary in a test suite,
   where an error would block a merge over a word that was never a citation.

@@ -152,16 +152,21 @@ any subject whose integer and anatomical orders disagree, such as one
 carrying T13 (insight `2026-10-06-f318`). Record in the artefact which
 cases built it, and assert that none is from the calibration or test role.
 Runs after queue 030's items 221 and 222, which change the held-out offset
-the reference records. Re-measure what the default-reference CLI fires on
-the corpora, as the item-125 gotcha in `CLAUDE.md` describes it. *Testable:*
-the rebuilt artefact lists only development-role case ids; a descriptor
-role mix-up that puts a calibration case in its inputs fails the build; a
+the reference records. Re-derive `spline_offset.max_offset_mm` from the
+rebuilt offset distribution with `sub-verse406_split-verse261` T10 (label 17)
+excluded: a rare wedge vertebra whose 18.51 mm offset is an anatomical
+outlier and set today's 13.0 mm (owner decision 2026-10-16, `gate-fac1`).
+Re-measure what the default-reference CLI fires on the corpora, as the
+item-125 gotcha in `CLAUDE.md` describes it. *Testable:* the rebuilt
+artefact lists only development-role case ids; the excluded label
+contributes no offset to the threshold derivation; a descriptor role mix-up
+that puts a calibration case in its inputs fails the build; a
 rebuild from the same inputs is byte-identical; with the VerSe data absent
 the rebuild test skips cleanly.
 
 ### Item 235: Validate stage 35: Programme Interface: the SegFACET Side
 
-Replay the stage from a clean clone and attest each of Stage 35's four
+Replay the stage from a clean clone and attest each of Stage 35's five
 acceptance criteria against live state. Case-id-list subsets resolve exactly
 the cases named, and both VerSe descriptors resolve the three role subsets
 over the release splits. An `rl1` table at the pinned version is scored by
@@ -169,7 +174,8 @@ the harness as a per-label, several-modes-per-case expectation, and a table
 at any other version is refused. Every per-case and evaluation report
 carries the FACET commit and a schema version, and a feature path moved
 without a version change fails the suite. The rebuilt reference draws only
-on development-role cases. Run the stage's use case end to end, not just the
+on development-role cases, and `spline_offset.max_offset_mm` is re-derived
+from it without the excluded wedge-vertebra label. Run the stage's use case end to end, not just the
 unit suite: `segfacet evaluate` over a VerSe role subset with a table-backed
 expectation, and `segfacet build-reference` from the development role, where
 the VerSe data is present. Stage 35 adds no Environment-Gated Capability

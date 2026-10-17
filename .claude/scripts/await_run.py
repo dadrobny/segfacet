@@ -111,6 +111,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -247,25 +248,72 @@ class _Parser(argparse.ArgumentParser):
         self.exit(EXIT_USAGE, f"{self.prog}: error: {message}\n")
 
 
-def state_dir(root: Path) -> Path:
-    """``<git-dir>/aide-runs`` for the checkout at *root* (per worktree)."""
+def _default_engine(root: Path) -> Path:
+    return root / ".aide" / "scripts" / "aide.py"
+
+
+_ENGINES: dict = {}
+
+
+def _load_engine(engine: Path):
+    """The engine module at *engine*, loaded once per path in this process."""
+    key = str(engine)
+    if key in _ENGINES:
+        return _ENGINES[key]
+    spec = importlib.util.spec_from_file_location("_aide_engine_await", engine)
+    if spec is None or spec.loader is None or not engine.is_file():
+        raise UsageError(f"the engine is not at {engine}")
+    module = importlib.util.module_from_spec(spec)
     try:
-        out = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=str(root),
+        spec.loader.exec_module(module)
+    except Exception as exc:  # a broken install, never a traceback
+        raise UsageError(f"the engine at {engine} cannot be loaded "
+                         f"({type(exc).__name__}: {exc})") from None
+    _ENGINES[key] = module
+    return module
+
+
+_GIT_MISSING = "git is not on PATH — install git or put it on PATH, then re-run"
+
+
+def git_program(root: Path, engine: Optional[Path] = None) -> str:
+    """Where git is, for this script to run it: the engine's `resolve_tool`,
+    so a `[tools] git` in `.aide/local.toml` reaches this script as it
+    reaches every engine verb (issue #452).
+
+    A key that names nothing, or a `[tools]` table that cannot be read, is
+    the engine's own one-sentence refusal; a git found nowhere is the
+    engine's too. Only with no engine at *engine* — an install broken
+    already, where `start` refuses anyway — is git looked up on PATH, so
+    `wait` and `stop` still reach a run that is under way.
+    """
+    engine = engine or _default_engine(root)
+    if not engine.is_file():
+        found = shutil.which("git")
+        if found is None:
+            raise UsageError(_GIT_MISSING)
+        return found
+    aide = _load_engine(engine)
+    try:
+        found = aide.resolve_tool("git", root)
+    except aide.MissingTool as exc:  # ToolMisconfigured names the key
+        raise UsageError(str(exc)) from None
+    if found is None:
+        raise UsageError(str(aide.GitMissing()))
+    return found
+
+
+def state_dir(root: Path, engine: Optional[Path] = None) -> Path:
+    """``<git-dir>/aide-runs`` for the checkout at *root* (per worktree)."""
+    git = git_program(root, engine)
+    try:
+        out = subprocess.run([git, "rev-parse", "--git-dir"], cwd=str(root),
                              capture_output=True, text=True, check=False)
     except OSError as exc:
         raise UsageError(f"git could not be run: {exc}") from exc
     if out.returncode != 0 or not out.stdout.strip():
         raise UsageError(f"{root} is not a git checkout: {out.stderr.strip()}")
     return (root / out.stdout.strip()).resolve() / STATE_DIR
-
-
-def _load_engine(engine: Path):
-    spec = importlib.util.spec_from_file_location("_aide_engine_await", engine)
-    if spec is None or spec.loader is None or not engine.is_file():
-        raise UsageError(f"the engine is not at {engine}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def suite_command(root: Path, engine: Path) -> List[str]:
@@ -299,11 +347,15 @@ def merge_command(engine: Path, number: int, rounds: Optional[int],
     return cmd
 
 
-def current_branch(root: Path) -> str:
+def current_branch(root: Path, engine: Optional[Path] = None) -> str:
     """The branch checked out at *root*; a detached HEAD is refused."""
-    out = subprocess.run(["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
-                         cwd=str(root), capture_output=True, text=True,
-                         check=False)
+    git = git_program(root, engine)
+    try:
+        out = subprocess.run([git, "symbolic-ref", "--quiet", "--short", "HEAD"],
+                             cwd=str(root), capture_output=True, text=True,
+                             check=False)
+    except OSError as exc:
+        raise UsageError(f"git could not be run: {exc}") from exc
     branch = out.stdout.strip()
     if out.returncode != 0 or not branch:
         raise UsageError("HEAD is detached, so there is no queue branch to "
@@ -320,7 +372,7 @@ def ci_command(root: Path, engine: Path) -> List[str]:
     if not engine.is_file():
         raise UsageError(f"the engine is not at {engine}")
     return [sys.executable, str(Path(__file__).resolve()), "poll-ci",
-            f"--branch={current_branch(root)}"]
+            f"--branch={current_branch(root, engine)}"]
 
 
 def read_ci(status_out: str, branch: str):
@@ -863,11 +915,11 @@ def main(argv: Optional[List[str]] = None, *, root: Optional[Path] = None,
     except SystemExit as exc:  # -h, or `_Parser.error`'s EXIT_USAGE
         return exc.code if isinstance(exc.code, int) else EXIT_USAGE
     root = root or _PROJECT_ROOT
-    engine = engine or root / ".aide" / "scripts" / "aide.py"
+    engine = engine or _default_engine(root)
     if args.verb == "poll-ci":
         return poll_ci(args.branch, _status_reader(root, engine))
     try:
-        directory = state_dir(root)
+        directory = state_dir(root, engine)
         if args.verb == "wait":
             seconds = min(max(args.seconds, 0.0), float(MAX_WAIT))
             return wait_run(args.label, directory, seconds)

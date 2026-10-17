@@ -22,8 +22,9 @@ check. A spec with no section cannot be read as an unconstrained one.
 
 A path declared under **Asserts against** and then changed is reported
 separately from an unauthorised one: it means an assertion in this very item now
-pins state the item moved. The three always-authorised paths (§1 → authorised
-paths) are in scope on every item without appearing in either list.
+pins state the item moved. The four always-authorised paths (§1 → authorised
+paths) are in scope on every item without appearing in either list; the stage
+archives are not, since they are written on the main or queue branch alone.
 
 **One queue's specs are checked against each other before any is built**, in the
 window `/aide-spec-queue` creates — N specs on one branch, every cross-item

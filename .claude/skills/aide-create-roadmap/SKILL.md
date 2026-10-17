@@ -47,7 +47,8 @@ read it before editing. In practice:
 1. **Read `docs/aide/progress.md` first** to see which stages have started.
 2. **Edit only the stages §1 → roadmap.md leaves open**; for a criterion of a
    started stage, run `python .aide/scripts/aide.py progress reword`, whose
-   flags are `progress -h`.
+   flags are `progress -h`. Anything else learned about a started stage goes
+   to the route §1 → roadmap.md names for it, never into the stage's section.
 3. **Add new stages** at the end to cover new or changed vision features.
 
 ### Requirements
@@ -64,7 +65,10 @@ read it before editing. In practice:
 3. **Objective → stage coverage table is mandatory** — every vision G-code maps
    to at least one stage (progress mirrors this table); what a complete table
    holds is `.aide/conventions.md` §1 → roadmap.md.
-4. **Prescriptive detail** — most work is done by AI; be specific.
+4. **Specific about what lands and how it is checked; how it is built is
+   the item spec's.** What a stage section may hold, and where text
+   that arrives after a stage has started goes instead, is
+   `.aide/conventions.md` §1 → roadmap.md.
 5. **Realistic scope** — each stage deployable locally, roughly a week.
 6. **At most one maintenance stage, and only when the project runs
    maintenance queues** — the home of the insight-derived fixes those queues

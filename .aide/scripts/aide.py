@@ -18,7 +18,11 @@ Subcommands::
     python .aide/scripts/aide.py progress set NNN dropped --reason TEXT  # ❌ on an item the stage does not need
     python .aide/scripts/aide.py progress set NNN restored --reason TEXT  # ❌ back to 📋 (--stage N --deliverable K for an unmarked bullet)
     python .aide/scripts/aide.py progress rollup [--stage N]  # a stage's cells to what its bullets roll up to
+    python .aide/scripts/aide.py progress compact  # long gate/capability/target cells to their trails
+    python .aide/scripts/aide.py progress archive [--stage N]  # settled stages to progress/ and roadmap/stage-N.md
+    python .aide/scripts/aide.py progress unarchive --stage N  # an archived stage's section back, for a correction
     python .aide/scripts/aide.py gate list|approve|decline [N|ID]  # human gates in progress.md
+    python .aide/scripts/aide.py gate reword N|ID --text QUESTION  # restate a live gate; its old ID keeps resolving
     python .aide/scripts/aide.py queue start NNN       # create the queue branch (--specs for specs-)
     python .aide/scripts/aide.py queue tidy NNN        # mark a superseded queue as completed
     python .aide/scripts/aide.py queue gate NNN        # raise a planned queue's plan-review gate
@@ -279,8 +283,11 @@ DEFAULT_CONFIG: Dict[str, Dict[str, object]] = {
     # from an ambient conda, a source build that failed on cmake, and an
     # `env` that still said OK (issue #166). `bootstrap` is what the build
     # installs with, read by its first word in `bootstrap_argv` (issue #378).
-    "python": {"venv": ".venv", "bootstrap": "pip install -e .[dev]",
-               "test_command": "python -m pytest", "import_check": "",
+    # Neither `venv` nor `bootstrap` has a default here: unset, the venv
+    # follows the tree and an explicit `bootstrap` (`venv_setting`, issue
+    # #450), which a default merged in would hide; `bootstrap_setting` reads
+    # `DEFAULT_BOOTSTRAP` in its place.
+    "python": {"test_command": "python -m pytest", "import_check": "",
                "interpreter": ""},
     "git": {"mode": "auto-merge", "main_branch": "main", "branch_prefix": "aide/"},
     # `review` names whether the item loop runs an adversarial read of the diff
@@ -920,6 +927,169 @@ def stage_sections(lines: List[str]) -> List[Tuple[int, int, str]]:
     return out
 
 
+# --------------------------------------------------------------------------- #
+# progress.md's archive — one file per settled stage (issue #475)
+# --------------------------------------------------------------------------- #
+#: The folder beside progress.md an archived stage's section is moved to, one
+#: ``stage-N.md`` per stage, N unpadded as its heading writes it.
+PROGRESS_ARCHIVE_DIR = "progress"
+_ARCHIVE_FILE_RE = re.compile(r"^stage-(\d+)\.md$")
+#: An archived stage's summary-row Title cell: the title, linked to its file.
+_ARCHIVE_LINK_RE = re.compile(
+    r"^\[(?P<title>.*)\]\(" + PROGRESS_ARCHIVE_DIR
+    + r"/stage-(?P<n>\d+)\.md\)$")
+
+
+def archive_link(stage: int) -> str:
+    """The relative link an archived stage's summary row points at."""
+    return f"{PROGRESS_ARCHIVE_DIR}/stage-{stage}.md"
+
+
+def archive_file(ddir: Path, stage: int) -> Path:
+    """Where stage *stage*'s section is kept once archived."""
+    return ddir / PROGRESS_ARCHIVE_DIR / f"stage-{stage}.md"
+
+
+def archived_stage_files(ddir: Path) -> Dict[int, Path]:
+    """Every ``progress/stage-N.md`` under *ddir*, by stage number.
+
+    The files are the record: an archived stage's deliverable bullets live
+    there and nowhere else, so this is what item status reads beside
+    progress.md (`with_archive`). The summary row's link is how progress.md
+    says the same, and `archive_consistency_errors` holds the two together.
+    """
+    folder = ddir / PROGRESS_ARCHIVE_DIR
+    out: Dict[int, Path] = {}
+    if not folder.is_dir():
+        return out
+    for path in sorted(folder.iterdir()):
+        m = _ARCHIVE_FILE_RE.match(path.name)
+        if m and path.is_file():
+            out[int(m.group(1))] = path
+    return out
+
+
+def archived_summary_stages(lines: List[str]) -> Dict[str, str]:
+    """Stage number -> summary status, for each Stage summary row whose Title
+    cell links to its own stage's archive file — the stages progress.md says
+    are archived. The number is the Stage cell as written."""
+    out: Dict[str, str] = {}
+    for line in lines:
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if not (cells and _reads(_STAGE_SUMMARY, cells)):
+            continue
+        m = _ARCHIVE_LINK_RE.match(cells[1])
+        if m and int(m.group("n")) == int(cells[0]):
+            out[cells[0]] = _icon_status(cells[3])
+    return out
+
+
+class ProgressLines(list):
+    """progress.md's lines, carrying the item status its archive holds.
+
+    A plain list of the file's lines to every reader, which indexes and
+    slices it as one, plus ``archive_status``: item -> most-advanced status
+    over the deliverable bullets of every ``progress/stage-N.md``.
+    `_parse_item_status` folds it in when handed the whole file, and only
+    then — a slice is a plain ``list``, so one stage section's items never
+    gain another file's (issue #475).
+    """
+    archive_status: Dict[int, str] = {}
+
+
+def archived_item_status(ddir: Path) -> Dict[int, str]:
+    """Item -> most-advanced status over every archived stage's bullets; an
+    unreadable archive file contributes nothing."""
+    out: Dict[int, str] = {}
+    for path in archived_stage_files(ddir).values():
+        try:
+            alines = path.read_text(encoding=_ENCODING).splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for num, st in _parse_item_status(alines)[2].items():
+            if num not in out or RANK[st] > RANK[out[num]]:
+                out[num] = st
+    return out
+
+
+def with_archive(lines: List[str], ddir: Path) -> "ProgressLines":
+    """*lines* — progress.md's — with *ddir*'s archive attached to them."""
+    out = ProgressLines(lines)
+    out.archive_status = archived_item_status(ddir)
+    return out
+
+
+def read_progress_lines(path: Path) -> List[str]:
+    """progress.md at *path*, read with the archive beside it (`with_archive`);
+    no lines when there is no file."""
+    if not path.is_file():
+        return []
+    return with_archive(path.read_text(encoding=_ENCODING).splitlines(),
+                        path.parent)
+
+
+# --------------------------------------------------------------------------- #
+# roadmap.md's archive — beside progress.md's, moved by the same verb (#476)
+# --------------------------------------------------------------------------- #
+#: The folder beside roadmap.md an archived stage's section is moved to, one
+#: ``stage-N.md`` per stage, exactly as progress.md's (`PROGRESS_ARCHIVE_DIR`).
+ROADMAP_ARCHIVE_DIR = "roadmap"
+#: The one line under an archived stage's heading in roadmap.md — the stub.
+#: No reader follows it: it keeps the stage's heading in the file, so the
+#: coverage table and the dependency graph still name a section.
+_ROADMAP_STUB_RE = re.compile(
+    r"^Archived in \[[^\]]*\]\(" + ROADMAP_ARCHIVE_DIR
+    + r"/stage-(?P<n>\d+)\.md\)\.?\s*$")
+
+
+def roadmap_archive_link(stage: int) -> str:
+    """The relative link an archived stage's roadmap.md stub points at."""
+    return f"{ROADMAP_ARCHIVE_DIR}/stage-{stage}.md"
+
+
+def roadmap_archive_file(ddir: Path, stage: int) -> Path:
+    """Where stage *stage*'s roadmap.md section is kept once archived."""
+    return ddir / ROADMAP_ARCHIVE_DIR / f"stage-{stage}.md"
+
+
+def roadmap_stub_line(stage: int) -> str:
+    """The pointer line a stub holds under its heading."""
+    link = roadmap_archive_link(stage)
+    return f"Archived in [{link}]({link})."
+
+
+def roadmap_archived_files(ddir: Path) -> Dict[int, Path]:
+    """Every ``roadmap/stage-N.md`` under *ddir*, by stage number."""
+    folder = ddir / ROADMAP_ARCHIVE_DIR
+    out: Dict[int, Path] = {}
+    if not folder.is_dir():
+        return out
+    for path in sorted(folder.iterdir()):
+        m = _ARCHIVE_FILE_RE.match(path.name)
+        if m and path.is_file():
+            out[int(m.group(1))] = path
+    return out
+
+
+def roadmap_stub_stages(rlines: List[str]) -> Set[int]:
+    """The roadmap.md stages whose section is an archive stub: a line under
+    the heading pointing at the stage's own ``roadmap/stage-N.md``."""
+    out: Set[int] = set()
+    for start, end, num in stage_sections(rlines):
+        for line in rlines[start + 1:end]:
+            m = _ROADMAP_STUB_RE.match(line.strip())
+            if m and int(m.group("n")) == int(num):
+                out.add(int(num))
+                break
+    return out
+
+
+def roadmap_whole_stages(rlines: List[str]) -> Set[int]:
+    """The roadmap.md stages that still have their whole section."""
+    return ({int(num) for _s, _e, num in stage_sections(rlines)}
+            - roadmap_stub_stages(rlines))
+
+
 def stage_deliverable_statuses(lines: List[str], start: int, end: int) -> List[str]:
     """Statuses of the flat deliverable bullets within a stage section."""
     statuses: List[str] = []
@@ -1065,6 +1235,11 @@ class HumanGate(NamedTuple):
     #: The Blocks cell as written, stripped. Read where "names nothing" must
     #: be told apart from "names something no reader parses" (issue #396).
     blocks_cell: str = ""
+    #: Full hashes of the questions this row asked before `aide gate reword`
+    #: restated it, read from the `reworded` lines of the table's trail
+    #: (issue #474). ``resolve_gate_ref`` takes an old ID for this row while
+    #: its line stands; ``gate_hash`` and ``gate_ids`` never read them.
+    aliases: Tuple[str, ...] = ()
 
     @property
     def stage_range(self) -> Optional[Tuple[int, Optional[int]]]:
@@ -1432,6 +1607,10 @@ def human_gates(lines: List[str]) -> List[HumanGate]:
         blocks = [] if (blocks_all or stage) else _blocked_item_numbers(blocks_cell)
         out.append(HumanGate(i + 1, cells[0], blocks, stage, blocks_all, kind,
                              stage_last, stage_open, blocks_cell))
+    if out:
+        aliases = _gate_aliases(lines, out)
+        out = [g._replace(aliases=aliases[n]) if aliases.get(n) else g
+               for n, g in enumerate(out)]
     return out
 
 
@@ -1531,12 +1710,23 @@ def is_gate_id(ref: str) -> bool:
 
 
 def resolve_gate_ref(ref: str, gates: List[HumanGate]) -> List[int]:
-    """Indices into *gates* whose Gate cell the ID *ref* names (hash prefix)."""
+    """Indices into *gates* whose Gate cell the ID *ref* names (hash prefix).
+
+    A row's own question decides first. Only when no Gate cell matches is an
+    old ID read: the row a `reworded` trail line says once asked that
+    question (``HumanGate.aliases``, issue #474), so a citation written
+    before `aide gate reword` keeps naming the gate it meant.
+    """
     m = _GATE_ID_RE.match(ref)
     if m is None:
         return []
+    hexes = m.group("hex")
+    direct = [i for i, g in enumerate(gates)
+              if (gate_hash(g) or "").startswith(hexes)]
+    if direct:
+        return direct
     return [i for i, g in enumerate(gates)
-            if (gate_hash(g) or "").startswith(m.group("hex"))]
+            if any(a.startswith(hexes) for a in g.aliases)]
 
 
 def gate_index_for_ref(ref: str, gates: List[HumanGate]) -> int:
@@ -1559,7 +1749,8 @@ def gate_index_for_ref(ref: str, gates: List[HumanGate]) -> int:
     if not hits:
         raise ValueError(
             f"no gate {ref} in progress.md — its row was removed, or its Gate "
-            f"cell reworded, which makes it a different gate; see `aide gate list`")
+            f"cell reworded by hand, which makes it a different gate (`aide "
+            f"gate reword` keeps the old ID); see `aide gate list`")
     if len({gate_hash(gates[i]) for i in hits}) > 1:
         ids = gate_ids(gates)
         raise ValueError(
@@ -1571,6 +1762,270 @@ def gate_index_for_ref(ref: str, gates: List[HumanGate]) -> int:
             f"{', '.join(str(i + 1) for i in hits)}) — resolve by position, "
             f"and reword one of them so each has its own ID")
     return hits[0] + 1
+
+
+# --------------------------------------------------------------------------- #
+# trails — the record under a progress.md table (conventions.md §1, #474)
+# --------------------------------------------------------------------------- #
+#: A trail line: a bullet under the table, its key, an em dash, its body.
+_TRAIL_BULLET_RE = re.compile(r"^\s*[-*]\s+(?P<rest>\S.*?)\s*$")
+#: A gate's trail line is keyed by the gate's ID.
+_GATE_TRAIL_RE = re.compile(
+    r"^(?P<key>" + _GATE_ID_SHAPE + r")\s+—\s+(?P<body>.*)$")
+#: The body `aide gate reword` writes: the old question, kept verbatim.
+_REWORDED_TRAIL_RE = re.compile(
+    r"^reworded\s+(?P<date>\d{4}-\d{2}-\d{2}),\s+was:\s+(?P<old>.+)$")
+#: The body `aide gate approve|decline --evidence` writes.
+_DECISION_TRAIL_RE = re.compile(
+    r"^(?P<mark>✅ Approved|❌ Declined)\s+(?P<date>\d{4}-\d{2}-\d{2})"
+    r"(?::\s*(?P<evidence>.*))?$")
+#: A gate Status cell moved to the trail: the status word, then its
+#: parenthesised date — never a decision line with a note after it.
+_STATUS_TRAIL_RE = re.compile(
+    r"^(?:⏳ Awaiting|✅ Approved|❌ Declined)\s*\(\d{4}-\d{2}-\d{2}")
+#: A gate's context line — what a one-line question leaves out.
+_CONTEXT_TRAIL_RE = re.compile(r"^context:\s*(?P<text>.*)$", re.IGNORECASE)
+#: What a cell moved to the trail is left holding (`aide progress compact`).
+TRAIL_POINTER = "see trail"
+#: A cell longer than this is long: `aide check` warns on it in a live row's
+#: identity cell and `aide progress compact` moves it from any other cell.
+#: Measured on the two consumers' progress.md (2026-10-12, 66 rows): every
+#: Capability cell was 26–53 characters and every Outcome target 92–142 but
+#: one (290), while every Gate cell was 201–1781; among the cells compact
+#: moves, the one-line evidence notes were 28–95 and the 142-character
+#: annotator stamps, and the prose ran from 166 (a Status parenthetical) to
+#: 2347 (a Notes cell). 150 sits above every label and below every prose cell.
+LONG_CELL = 150
+
+
+class TrailLine(NamedTuple):
+    lineno: int              # 1-based line number of the bullet
+    key: str                 # a gate ID, or the row's first cell
+    body: str                # after the dash, continuation lines joined
+
+
+def _section_span(lines: List[str], heading: "re.Pattern"
+                  ) -> Optional[Tuple[int, int]]:
+    """``(heading index, end index)`` of the section *heading* opens."""
+    head = next((i for i, line in enumerate(lines) if heading.match(line)), None)
+    if head is None:
+        return None
+    end = next((j for j in range(head + 1, len(lines))
+                if _ANY_HEADER_RE.match(lines[j])), len(lines))
+    return head, end
+
+
+def _trail_bullets(lines: List[str], table: _ProgressTable
+                   ) -> List[Tuple[int, int, str]]:
+    """``(first index, last index, text)`` of each bullet under *table*.
+
+    Every bullet in the table's section below its first row, a wrapped
+    line — indented, not itself a bullet or a row — joined to it.
+    """
+    span = _section_span(lines, table.heading)
+    if span is None:
+        return []
+    head, end = span
+    first = next((j for j in range(head + 1, end)
+                  if lines[j].strip().startswith("|")), None)
+    if first is None:
+        return []
+    out: List[Tuple[int, int, str]] = []
+    j = first + 1
+    while j < end:
+        m = _TRAIL_BULLET_RE.match(lines[j])
+        if m is None or lines[j].strip().startswith("|"):
+            j += 1
+            continue
+        parts, k = [m.group("rest")], j
+        while (k + 1 < end and lines[k + 1].strip()
+               and lines[k + 1][:1] in (" ", "\t")
+               and not _TRAIL_BULLET_RE.match(lines[k + 1])):
+            k += 1
+            parts.append(lines[k].strip())
+        out.append((j, k, " ".join(parts)))
+        j = k + 1
+    return out
+
+
+def table_trail(lines: List[str], table: _ProgressTable) -> List[TrailLine]:
+    """The trail under *table*: its keyed bullets, in file order.
+
+    A gate's line is keyed by a gate ID (``gate-<hex> — …``); a capability's
+    or a target's by its row's first cell, as written (``<cell> — …``) — the
+    longest first cell a bullet starts with, so a cell holding a dash of its
+    own is still one key. A bullet keyed to nothing is not a trail line.
+    """
+    out: List[TrailLine] = []
+    if table is _HUMAN_GATES:
+        for j, _, text in _trail_bullets(lines, table):
+            m = _GATE_TRAIL_RE.match(text)
+            if m:
+                out.append(TrailLine(j + 1, m.group("key"), m.group("body").strip()))
+        return out
+    keys = sorted({cells[0] for _, cells, problem in _table_rows(lines, table)
+                   if problem is None and cells[0]}, key=len, reverse=True)
+    for j, _, text in _trail_bullets(lines, table):
+        key = next((k for k in keys if text.startswith(k + " — ")), None)
+        if key is not None:
+            out.append(TrailLine(j + 1, key, text[len(key) + 3:].strip()))
+    return out
+
+
+def _gate_question_hash(text: str) -> Optional[str]:
+    """``gate_hash`` of a Gate cell that is not a row — an old question."""
+    return gate_hash(HumanGate(0, text, [], None, False, None))
+
+
+def _gate_aliases(lines: List[str], gates: List[HumanGate]
+                  ) -> Dict[int, Tuple[str, ...]]:
+    """``{gate index: old question hashes}`` from the `reworded` trail lines.
+
+    Each line is keyed by the ID the row had once restated, and keeps the
+    question it asked before. A key naming no row now is followed through
+    the line that restated *it*, so two rewords in a row still lead to the
+    gate; a key matching two different rows leads nowhere.
+    """
+    renames: List[Tuple[str, str]] = []
+    for t in table_trail(lines, _HUMAN_GATES):
+        m = _REWORDED_TRAIL_RE.match(t.body)
+        old = _gate_question_hash(m.group("old")) if m else None
+        if old:
+            renames.append((old, t.key[len("gate-"):]))
+    if not renames:
+        return {}
+    hashes = [gate_hash(g) or "" for g in gates]
+
+    def row_of(hexes: str, seen: Set[str]) -> Optional[int]:
+        hits = {h for h in hashes if h and h.startswith(hexes)}
+        if len(hits) == 1:
+            return hashes.index(hits.pop())
+        if hits:
+            return None
+        for old, key in reversed(renames):
+            if old.startswith(hexes) and old not in seen:
+                return row_of(key, seen | {old})
+        return None
+
+    out: Dict[int, List[str]] = {}
+    for old, key in renames:
+        n = row_of(key, {old})
+        if n is not None and old != hashes[n] and old not in out.get(n, []):
+            out.setdefault(n, []).append(old)
+    return {n: tuple(v) for n, v in out.items()}
+
+
+def _trail_insert_at(lines: List[str], table: _ProgressTable) -> Optional[int]:
+    """Where a new trail line goes: after the last trail bullet, else after
+    the table's last row; None for a section with no table."""
+    span = _section_span(lines, table.heading)
+    if span is None:
+        return None
+    head, end = span
+    pipes = [j for j in range(head + 1, end) if lines[j].strip().startswith("|")]
+    if not pipes:
+        return None
+    after = [k for _, k, _ in _trail_bullets(lines, table) if k > pipes[-1]]
+    return (after[-1] if after else pipes[-1]) + 1
+
+
+def append_trail(lines: List[str], table: _ProgressTable,
+                 new: List[str]) -> List[str]:
+    """*lines* with the trail lines *new* appended under *table*.
+
+    Below the bullets already there, else below the table's last row with a
+    blank line between, so a renderer ends the table before the list. Never
+    edits a line already written: a correction is a later line.
+    """
+    at = _trail_insert_at(lines, table)
+    if at is None:
+        raise ValueError(f"no '{table.name}' table in progress.md to write a "
+                         f"trail under")
+    out = list(lines)
+    if at > 0 and out[at - 1].strip().startswith("|"):
+        new = ["", *new]
+        if at < len(out) and out[at].strip():
+            new.append("")
+    out[at:at] = new
+    return out
+
+
+def _is_trail_pointer(cell: str) -> bool:
+    return cell.strip().lower().startswith(TRAIL_POINTER)
+
+
+def gate_trail_record(lines: List[str], gates: List[HumanGate]
+                      ) -> Dict[int, Dict[str, str]]:
+    """``{gate index: {"evidence": …, "context": …}}`` for `gate list` and
+    `aide status` — what the trail records, else what the cell holds.
+
+    Evidence is the latest decision line's note or the latest plain line
+    (a cell `aide progress compact` moved); a row with neither reads its
+    Decision / evidence cell, as every row did before the trail (issue
+    #474). Context is the latest `context:` line.
+    """
+    out: Dict[int, Dict[str, str]] = {}
+    for t in table_trail(lines, _HUMAN_GATES):
+        hits = resolve_gate_ref(t.key, gates)
+        if len({gate_hash(gates[i]) for i in hits}) != 1:
+            continue
+        rec = out.setdefault(hits[0], {})
+        if _REWORDED_TRAIL_RE.match(t.body):
+            continue
+        c = _CONTEXT_TRAIL_RE.match(t.body)
+        if c:
+            rec["context"] = c.group("text").strip()
+            continue
+        d = _DECISION_TRAIL_RE.match(t.body)
+        if d:
+            if d.group("evidence"):
+                rec["evidence"] = d.group("evidence").strip()
+            continue
+        if _STATUS_TRAIL_RE.match(t.body):
+            # A Status cell `compact` moved (`❌ Declined (date, …)`): the
+            # decision's own record, not the evidence cell's. Only the
+            # Status shape — an evidence line that opens with its mark
+            # (`❌ Declined by …: …`) is still evidence.
+            continue
+        rec["evidence"] = t.body
+    for n, g in enumerate(gates):
+        if "evidence" in out.get(n, {}):
+            continue
+        cells = _split_row(lines[g.lineno - 1])
+        cell = cells[3] if len(cells) == 4 else ""
+        if cell not in _EMPTY_CELL and not _is_trail_pointer(cell):
+            out.setdefault(n, {})["evidence"] = cell
+    return out
+
+
+def gate_trail_warnings(lines: List[str]) -> List[str]:
+    """A gate trail line whose key names no row, or two — a warning each.
+
+    The trail is append-only (§1 → human gates), so a key left behind by a
+    row removed, or a Gate cell reworded by hand, is never an error: the
+    line stays as the record, and the warning says which ID it lost.
+    """
+    gates = human_gates(lines)
+    out: List[str] = []
+    for t in table_trail(lines, _HUMAN_GATES):
+        hits = resolve_gate_ref(t.key, gates)
+        distinct = {gate_hash(gates[i]) for i in hits}
+        if len(distinct) == 1:
+            continue
+        m = _REWORDED_TRAIL_RE.match(t.body)
+        asked = f" (it restated '{m.group('old')}')" if m else ""
+        if not distinct:
+            out.append(
+                f"progress.md:{t.lineno}: trail line keyed {t.key}{asked} "
+                f"names no human gate row — the row it recorded was removed, "
+                f"or its Gate cell reworded by hand (`aide gate reword` keeps "
+                f"the ID); the line stays as the record (conventions.md §1 → "
+                f"human gates)")
+        else:
+            out.append(
+                f"progress.md:{t.lineno}: trail line keyed {t.key} matches "
+                f"more than one human gate row, so it records none of them")
+    return out
 
 
 def outcome_targets(lines: List[str]) -> List[OutcomeTarget]:
@@ -2228,12 +2683,21 @@ def stage_rollups(lines: List[str]) -> Dict[str, str]:
     A stage with no deliverable bullet has nothing to derive, and is absent.
     The one reading of "what the bullets say" that both the writer
     (`_recompute_rollups`) and `aide check` take a stage's status from.
+
+    An archived stage — its summary row linked to ``progress/stage-N.md``
+    and no section left here — rolls up to its summary row (issue #475): it
+    was archived settled, its bullets are no longer in this file, and the
+    row is the cell that kept the rollup.
     """
     out: Dict[str, str] = {}
-    for start, end, stage_num in stage_sections(lines):
+    sections = stage_sections(lines)
+    for start, end, stage_num in sections:
         derived = rollup_status(stage_deliverable_statuses(lines, start, end))
         if derived is not None:
             out[stage_num] = derived
+    for num, status in archived_summary_stages(lines).items():
+        if status and not any(_same_stage(num, n) for _, _, n in sections):
+            out[num] = status
     return out
 
 
@@ -2279,7 +2743,10 @@ def withdrawn_stage_items(lines: List[str]) -> Dict[int, List[str]]:
         for n in _parse_item_status(lines[start:end])[2]:
             inside.setdefault(n, []).append(num)
         rest[start:end] = [""] * (end - start)
-    elsewhere = _parse_item_status(rest)[2]
+    # `rest` is a plain list: an archived stage's bullets count as
+    # elsewhere too, since they sit in no withdrawn stage (issue #475).
+    elsewhere = set(_parse_item_status(rest)[2]) | set(
+        getattr(lines, "archive_status", {}))
     return {n: stages for n, stages in inside.items() if n not in elsewhere}
 
 
@@ -2659,10 +3126,15 @@ def rollup_progress(text: str, stage: Optional[int] = None
     """
     lines = text.splitlines()
     sections = stage_sections(lines)
-    if stage is not None and not any(int(n) == stage for _, _, n in sections):
+    # An archived stage has no section, and rolls up to its summary row
+    # (`stage_rollups`), so rolling it up writes the Objective rows naming
+    # it and nothing else (issue #475).
+    archived = archived_summary_stages(lines)
+    if stage is not None and not any(
+            int(n) == stage for n in [s for _, _, s in sections] + list(archived)):
         raise ValueError(f"progress.md has no '## Stage {stage}' section")
     withdrawn = withdrawn_stages(lines)
-    targets = {n for _, _, n in sections
+    targets = {n for n in [s for _, _, s in sections] + list(archived)
                if (stage is None or int(n) == stage) and n not in withdrawn}
     before = list(lines)
     _recompute_rollups(lines, downgrade_stages=targets, only=targets)
@@ -3678,7 +4150,7 @@ def _progress_item_status(repo_root: Path, config) -> Dict[int, str]:
     path = docs_dir(repo_root, config) / "progress.md"
     if not path.is_file():
         return {}
-    _, _, item_status = _parse_item_status(path.read_text(encoding=_ENCODING).splitlines())
+    _, _, item_status = _parse_item_status(read_progress_lines(path))
     return item_status
 
 
@@ -3707,8 +4179,13 @@ def record_documents(ddir: Path, item_status: Dict[int, str],
     one is: its spec is a record, and it keeps no queue open — `claim` never
     offers it (issue #393). Like ⏸️, the exemption is read on every run, so
     the warnings return once the stage's summary row is off ❌.
+
+    An archived stage's file (``progress/stage-N.md``, issue #475) is one
+    too: a section archived settled, which no verb writes into — and so is
+    its roadmap section's (``roadmap/stage-N.md``, issue #476).
     """
-    out: Set[Path] = set()
+    out: Set[Path] = set(archived_stage_files(ddir).values())
+    out.update(roadmap_archived_files(ddir).values())
     idir = ddir / "items"
     if idir.is_dir():
         for ipath in idir.glob("*.md"):
@@ -3735,7 +4212,8 @@ def _docs_records(ddir: Path) -> Set[Path]:
     statuses and the withdrawn stages; unreadable, nothing is a record."""
     path = ddir / "progress.md"
     try:
-        lines = path.read_text(encoding=_ENCODING).splitlines()
+        lines = with_archive(path.read_text(encoding=_ENCODING).splitlines(),
+                             ddir)
     except (OSError, UnicodeDecodeError):
         lines = []
     return record_documents(ddir, _parse_item_status(lines)[2],
@@ -4849,15 +5327,25 @@ def gate_reference_findings(repo_root: Path,
     ids = gate_ids(gates)
     records = record_documents(ddir, _parse_item_status(lines)[2],
                                withdrawn_stage_items(lines))
+    # A trail line's key is the line's own address, not a citation (issue
+    # #474): the trail is append-only, so a key whose row was removed or
+    # reworded by hand stays, and `gate_trail_warnings` reports it — an
+    # error here would stall every merge over a record no one may edit.
+    trail_keys = {t.lineno: t.key for t in table_trail(lines, _HUMAN_GATES)}
+    progress_path = ddir / "progress.md"
     for path in docs:
         try:
             text = path.read_text(encoding=_ENCODING)
         except (OSError, UnicodeDecodeError):
             continue
         where = _rel_display(path, repo_root)
+        keyed = trail_keys if path == progress_path else {}
         for lineno, line in enumerate(text.splitlines(), start=1):
             for m in _GATE_ID_CITATION_RE.finditer(line):
                 ref = m.group("id")
+                if (lineno in keyed and ref == keyed[lineno]
+                        and m.start() == line.index(ref)):
+                    continue
                 hits = resolve_gate_ref(ref, gates)
                 if not hits:
                     # An unreadable row is dropped before IDs are computed, so
@@ -7214,7 +7702,7 @@ def forward_dependency_warnings(ddir: Path) -> List[str]:
     under_way: Set[str] = set()
     ppath = ddir / "progress.md"
     if ppath.is_file():
-        plines = ppath.read_text(encoding=_ENCODING).splitlines()
+        plines = read_progress_lines(ppath)
         for start, _end, num in stage_sections(plines):
             if _header_status(plines[start]) == "deferred":
                 deferred.add(str(int(num)))
@@ -7329,6 +7817,9 @@ def maintenance_stage_warnings(ddir: Path) -> List[str]:
     rpath, ppath = ddir / "roadmap.md", ddir / "progress.md"
     rlines = (rpath.read_text(encoding=_ENCODING).splitlines()
               if rpath.is_file() else [])
+    # Read without the archive (`with_archive`) on purpose: only summary
+    # rows and stage headings are read here, and an archived stage keeps
+    # its row. A future read of item status here needs `with_archive`.
     plines = (ppath.read_text(encoding=_ENCODING).splitlines()
               if ppath.is_file() else [])
     for name, lines in (("roadmap.md", rlines), ("progress.md", plines)):
@@ -7411,6 +7902,276 @@ def maintenance_stage_warnings(ddir: Path) -> List[str]:
                 f"the row would follow it to 🚧 at every reopen; name the "
                 f"stages that deliver it — {rule}")
     return out
+
+
+#: A deliverable bullet of a 📋 Planned roadmap stage longer than this many
+#: characters, its continuation lines joined, is named (issue #483). It sits
+#: above the longest bullet of one consumer's early, plan-only stages (397)
+#: and the longest of a second consumer, an admission rule its stage must
+#: meet (707); every bullet over 700 in either sat in the late stages that
+#: carried item-spec content into their deliverables.
+LONG_DELIVERABLE = 800
+#: The five block labels a stage section's template gives it, read as the
+#: other roadmap readers read them: the trailing dot optional, a colon
+#: tolerated, any case (`_ROADMAP_DEPS_RE`, `_ROADMAP_ACCEPTANCE_RE`).
+_ROADMAP_LABEL_RE = re.compile(
+    r"^\*\*(?:Goal|Deliverables|Dependencies|Human\s+gate"
+    r"|Validation\s*/\s*acceptance)\s*[.:]?\*\*", re.IGNORECASE)
+_ROADMAP_GOAL_RE = re.compile(r"^\*\*Goal\s*[.:]?\*\*", re.IGNORECASE)
+_ROADMAP_DELIVERABLES_RE = re.compile(r"^\*\*Deliverables\s*[.:]?\*\*",
+                                      re.IGNORECASE)
+_BLOCKQUOTE_RE = re.compile(r"^ {0,3}>")
+_THEMATIC_BREAK_RE = re.compile(r"^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$")
+_MD_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+#: A top-level list bullet: at most one space of indent, then `-`, `*` or `+`
+#: and a space — so `**bold**` at a line's start is not one. Deliberately
+#: unmeasured, as edges the template's shape does not produce: a numbered
+#: (`1.`) deliverable list, since the template writes `-` bullets; a fence
+#: indented four or more spaces inside a nested bullet, read as bullet text;
+#: and, for the blockquote signal, a wrapped line that happens to open `>`.
+_TOP_BULLET_RE = re.compile(r"^ ?[-*+][ \t]+\S")
+_TOP_BULLET_LEAD_RE = re.compile(r"^ ?[-*+][ \t]+")
+
+
+def markdown_prose_lines(lines: List[str]) -> List[Optional[str]]:
+    """Each of *lines* as prose a shape lint reads, index for index.
+
+    ``None`` for a line inside a fenced code block (its fences included) or
+    wholly inside an HTML comment; any other line with its comment spans
+    removed. A fence closes on the same character, at least as long, with
+    nothing after it; one never closed runs to the end, as Markdown reads it.
+    """
+    out: List[Optional[str]] = []
+    fence: Optional[str] = None
+    in_comment = False
+    for line in lines:
+        if fence is not None:
+            out.append(None)
+            m = _MD_FENCE_RE.match(line)
+            if (m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence)
+                    and not m.group(2).strip()):
+                fence = None
+            continue
+        touched = in_comment or "<!--" in line
+        kept, rest = "", line
+        while rest:
+            if in_comment:
+                close = rest.find("-->")
+                if close < 0:
+                    break
+                rest, in_comment = rest[close + 3:], False
+            else:
+                begin = rest.find("<!--")
+                if begin < 0:
+                    kept += rest
+                    break
+                kept += rest[:begin]
+                rest, in_comment = rest[begin + 4:], True
+        if touched and not kept.strip():
+            out.append(None)
+            continue
+        m = _MD_FENCE_RE.match(kept)
+        if m:
+            fence = m.group(1)
+            out.append(None)
+            continue
+        out.append(kept)
+    return out
+
+
+def roadmap_stage_statuses(plines: List[str]) -> Dict[int, str]:
+    """Stage number -> its status as progress.md shows it, for the stages it
+    shows: the Stage summary row's, or the stage header's where there is no
+    readable row or the row reads 📋 while the header does not — a stage
+    either shows as started is started, as `maintenance_stage_warnings`
+    reads it. A stage in neither is absent; its caller reads it as 📋."""
+    out: Dict[int, str] = {}
+    for start, _end, num in stage_sections(plines):
+        status = _header_status(plines[start])
+        if status:
+            out[int(num)] = status
+    for line in plines:
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if cells and _reads(_STAGE_SUMMARY, cells) and cells[0].isdigit():
+            status = _icon_status(cells[3])
+            if status != "planned" or int(cells[0]) not in out:
+                out[int(cells[0])] = status
+    return out
+
+
+def _bold_lead(text: str, width: int = 60) -> str:
+    """The bold span opening *text*, shortened to *width* characters."""
+    m = re.match(r"\*\*(.+?)\*\*", text)
+    lead = m.group(1).strip() if m else text.strip()
+    return lead if len(lead) <= width else lead[:width - 1].rstrip() + "…"
+
+
+def roadmap_shape_findings(rlines: List[str],
+                           statuses: Dict[int, str]) -> List[str]:
+    """§1 → roadmap.md's content rule, checked on each stage section (issue
+    #483): a stage section is the plan and nothing else.
+
+    Four signals, each named once per stage at its first line:
+
+    1. **A blockquote** — a line opening ``>``. Every one traced in a
+       consumer's roadmap was a dated annotation added after its stage had
+       started; its fix is to move it to its route and delete it.
+    2. **A Goal of more than one paragraph** — blank-line-separated runs of
+       text from the ``**Goal.**`` opener to the next bold block or
+       thematic break; a blockquote line is no part of one, and a run that
+       is ``_italic guidance_`` throughout is not counted.
+    3. **A bold block that is not a template label** — a paragraph opening
+       ``**`` at the start of its line whose bold is none of Goal,
+       Deliverables, Dependencies, Human gate and Validation / acceptance.
+       Bold inside a bullet is not one, and neither is a line wrapped from
+       the one above it, which Markdown reads as that line's continuation.
+    4. **A deliverable bullet longer than `LONG_DELIVERABLE`** — the text of
+       a top-level bullet of the Deliverables block, its marker aside, with
+       its continuation lines (a nested bullet's included) joined by single
+       spaces.
+
+    Scoped by *statuses* (`roadmap_stage_statuses`; a stage absent from it
+    is 📋): a 📋 stage may be edited freely, so all four are named; a 🚧,
+    🔍 or ⏸️ stage is frozen and wrote the other three as its plan, so only a
+    blockquote is; a ✅ or ❌ stage is a settled record and nothing is. A
+    fenced code block and an HTML comment are never read.
+    """
+    out: List[str] = []
+    rule = "(conventions.md §1 → roadmap.md)"
+    prose = markdown_prose_lines(rlines)
+    for start, end, num in stage_sections(rlines):
+        n = int(num)
+        status = statuses.get(n, "planned")
+        if status in ("complete", "excluded"):
+            continue
+        planned = status == "planned"
+        body = [(i, prose[i]) for i in range(start + 1, end)
+                if prose[i] is not None]
+
+        runs: List[int] = []
+        inside = False
+        for i, text in body:
+            quoted = bool(_BLOCKQUOTE_RE.match(text))
+            if quoted and not inside:
+                runs.append(i)
+            inside = quoted
+        if runs:
+            fix = ("fold what is plan into the Goal or a deliverable, and "
+                   "move the rest to its route" if planned else
+                   f"it is {STATUS_TO_ICON[status]}, so nothing is added to "
+                   f"its section: an annotation added after the stage was "
+                   f"written moves to its route and is deleted, which "
+                   f"restores the stage as written (the section's git "
+                   f"history says which text that is)")
+            out.append(
+                f"roadmap.md:{runs[0] + 1}: stage {n} holds "
+                f"{len(runs)} blockquote{'' if len(runs) == 1 else 's'} — a "
+                f"stage section is the plan and nothing else; {fix} {rule}")
+        if not planned:
+            continue
+
+        goal = next((k for k, (_i, t) in enumerate(body)
+                     if _ROADMAP_GOAL_RE.match(t)), None)
+        if goal is not None:
+            runs_of_text: List[List[str]] = [[]]
+            for k in range(goal, len(body)):
+                text = body[k][1]
+                if k == goal:
+                    text = _ROADMAP_GOAL_RE.sub("", text, count=1)
+                elif (_ROADMAP_BLOCK_END_RE.match(text)
+                      or _THEMATIC_BREAK_RE.match(text)):
+                    break
+                if _BLOCKQUOTE_RE.match(text):
+                    continue
+                if text.strip():
+                    runs_of_text[-1].append(text.strip())
+                elif runs_of_text[-1]:
+                    runs_of_text.append([])
+            paragraphs = sum(
+                1 for run in runs_of_text
+                if run and not _GUIDANCE_RE.match(" ".join(run)))
+            if paragraphs > 1:
+                out.append(
+                    f"roadmap.md:{body[goal][0] + 1}: stage {n}'s Goal runs "
+                    f"{paragraphs} paragraphs — a Goal is one paragraph; keep "
+                    f"the capability the stage delivers, and move the rest "
+                    f"to a deliverable or to its route {rule}")
+
+        bold = [(i, t) for k, (i, t) in enumerate(body)
+                if _ROADMAP_BLOCK_END_RE.match(t)
+                and not _ROADMAP_LABEL_RE.match(t)
+                and not _THEMATIC_BREAK_RE.match(t)
+                and (k == 0 or not body[k - 1][1].strip())]
+        if bold:
+            lead = f"'**{_bold_lead(bold[0][1])}**'"
+            what = (f"a block with {lead}, bold that is no template label"
+                    if len(bold) == 1 else
+                    f"{len(bold)} blocks with bold that is no template "
+                    f"label, the first {lead}")
+            out.append(
+                f"roadmap.md:{bold[0][0] + 1}: stage {n} opens {what} — a "
+                f"stage section holds Goal, Deliverables, "
+                f"Dependencies, an optional Human gate and Validation / "
+                f"acceptance; fold plan text into one of them, and move the "
+                f"rest to its route {rule}")
+
+        head = next((k for k, (_i, t) in enumerate(body)
+                     if _ROADMAP_DELIVERABLES_RE.match(t)), None)
+        if head is None:
+            continue
+        bullets: List[Tuple[int, List[str]]] = []
+        current: Optional[List[str]] = None
+        after_blank = False
+        for k in range(head + 1, len(body)):
+            i, text = body[k]
+            if _ROADMAP_BLOCK_END_RE.match(text) or _THEMATIC_BREAK_RE.match(text):
+                break
+            if _TOP_BULLET_RE.match(text):
+                current = [_TOP_BULLET_LEAD_RE.sub("", text, count=1).strip()]
+                bullets.append((i, current))
+                after_blank = False
+            elif not text.strip():
+                after_blank = True
+            elif current is not None and after_blank and not text[:1].isspace():
+                current = None
+            elif current is not None:
+                current.append(text.strip())
+                after_blank = False
+        long = [(i, len(" ".join(parts))) for i, parts in bullets
+                if len(" ".join(parts)) > LONG_DELIVERABLE]
+        if long:
+            what = (f"a deliverable bullet of {long[0][1]} characters, "
+                    f"over {LONG_DELIVERABLE}" if len(long) == 1 else
+                    f"{len(long)} deliverable bullets over "
+                    f"{LONG_DELIVERABLE} characters, the first of "
+                    f"{long[0][1]}")
+            out.append(
+                f"roadmap.md:{long[0][0] + 1}: stage {n} has {what} — a "
+                f"deliverable says what lands and how "
+                f"it is checked; how it is built is the item spec's "
+                f"(§1 → items.md), and "
+                f"an absorbed inbox entry is cited as insight <ID>, never "
+                f"narrated {rule}")
+    return out
+
+
+def roadmap_shape_warnings(ddir: Path) -> List[str]:
+    """`roadmap_shape_findings` over *ddir*'s roadmap.md, each stage scoped
+    by progress.md (`roadmap_stage_statuses`). A missing roadmap.md is
+    silent, as in `root_document_warnings`; a missing progress.md reads every
+    stage as 📋. A warning, never an error: roadmaps written before the rule
+    exist, and a started stage is frozen (§1 → roadmap.md)."""
+    rpath = ddir / "roadmap.md"
+    if not rpath.is_file():
+        return []
+    ppath = ddir / "progress.md"
+    # Read without the archive (`with_archive`) on purpose: only summary
+    # rows and stage headings are read here, and an archived stage keeps
+    # its row. A future read of item status here needs `with_archive`.
+    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+              if ppath.is_file() else [])
+    return roadmap_shape_findings(rpath.read_text(encoding=_ENCODING).splitlines(),
+                                  roadmap_stage_statuses(plines))
 
 
 #: The G-code(s) opening a roadmap coverage row's first cell — `G2`, or a
@@ -8174,7 +8935,9 @@ def derived_cell_findings(lines: List[str]
                 f"stage {num}: header {header_status} disagrees with summary {summ}")
 
     stage_status = stage_rollups(lines)
-    section_nums = {num for _, _, num in stage_sections(lines)}
+    # An archived stage is named as surely as one with a section (#475).
+    section_nums = ({num for _, _, num in stage_sections(lines)}
+                    | set(archived_summary_stages(lines)))
     blocked = _blocked_objectives(lines)
     withdrawn = {n for n, st in summary_status.items() if st == "excluded"}
     for line in lines:
@@ -8314,6 +9077,7 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     warnings.extend(forward_dependency_warnings(ddir))
     warnings.extend(coverage_completeness_warnings(ddir))
     warnings.extend(maintenance_stage_warnings(ddir))
+    warnings.extend(roadmap_shape_warnings(ddir))
     # A docs_dir outside the repo falls back to its absolute spelling, which
     # cannot appear in a spec's repo-relative paths — the always-authorised
     # pin lint then has nothing to match; the other spec-shape lints still
@@ -8345,11 +9109,16 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
         # `docs_dir` exists but its central document does not: a real error.
         return [f"missing {progress_path}"], warnings
     # One read, reused: two reads can disagree if the file changes between them.
+    # The archive rides along, so item status reads its stages too (#475).
     text = progress_path.read_text(encoding=_ENCODING)
-    lines = text.splitlines()
+    lines = with_archive(text.splitlines(), ddir)
     # Before anything reads the tables: a row no reader can use is dropped by
     # every check below, including the ones that would have errored on it.
     errors.extend(unreadable_row_errors(lines))
+    errors.extend(archive_consistency_errors(ddir, lines))
+    road_errors, road_warnings = roadmap_archive_findings(ddir, lines)
+    errors.extend(road_errors)
+    warnings.extend(road_warnings)
     errors.extend(evidence_annotation_errors(repo_root, ddir, lines))
     evidence = evidence_gate_citations(ddir, lines)
     warnings.extend(gate_warnings(lines, evidence))
@@ -8359,6 +9128,8 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     errors.extend(gate_errors)
     warnings.extend(gate_ref_warnings)
     warnings.extend(capability_warnings(lines, config.get("validation") or {}))
+    warnings.extend(long_cell_warnings(lines))
+    warnings.extend(gate_trail_warnings(lines))
     # A withdrawn attestation is normal, not a defect — the point is that it
     # stays visible. Retracting is append-only, so without a surfacing rule the
     # withdrawal would live only in one commit's diff, which is exactly the
@@ -8393,7 +9164,8 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
         errors.append("progress.md: missing Stage summary table")
     if not has_obj_table:
         errors.append("progress.md: missing Objective coverage table")
-    if not sections:
+    archived = archived_summary_stages(lines)
+    if not sections and not archived:
         errors.append("progress.md: no '## Stage N' sections")
 
     # Every derived cell against the rollup (issue #285).
@@ -8407,7 +9179,9 @@ def run_checks(repo_root: Path, config: Dict[str, Dict[str, object]],
     section_nums = {num for _, _, num in sections}
 
     for num in summary_status:
-        if num not in section_nums:
+        # An archived stage's row links to its file instead (#475); one
+        # linking to no file is `archive_consistency_errors`'.
+        if num not in section_nums and num not in archived:
             warnings.append(f"stage {num}: in summary table but has no '## Stage {num}' section")
 
     # Outcome targets: goal truth gates the OBJECTIVE rows. Claiming an
@@ -8573,6 +9347,12 @@ def _parse_item_status(lines: List[str]) -> Tuple[List[str], List[str], Dict[int
     own 📋 bullet — and once spent items were discounted from the cross-spec
     checks, the mis-attribution silenced exactly the pre-build errors the
     checks exist to raise (issue #99).
+
+    Handed the whole of progress.md as `ProgressLines` — `read_progress_lines`
+    or `with_archive` — the map also holds the items of every archived stage
+    (issue #475): its bullets moved to ``progress/stage-N.md``, and an item
+    no bullet names reads as 📋 to every caller, so without them a shipped
+    item would be offered by `claim` again and its queue read as open.
     """
     item_status: Dict[int, str] = {}
     for start, last in _deliverable_bullet_spans(lines):
@@ -8580,6 +9360,9 @@ def _parse_item_status(lines: List[str]) -> Tuple[List[str], List[str], Dict[int
         for num in _bullet_marker_item_numbers(lines[last]):
             if num not in item_status or RANK[bullet_status] > RANK[item_status[num]]:
                 item_status[num] = bullet_status
+    for num, st in getattr(lines, "archive_status", {}).items():
+        if num not in item_status or RANK[st] > RANK[item_status[num]]:
+            item_status[num] = st
     return [], [], item_status
 
 
@@ -9008,7 +9791,7 @@ def queue_spec_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
     # an excluded one is (issue #393): `claim` never offers it, and its
     # owner's way back is the drop, so a conflict with it is never built.
     ppath = ddir / "progress.md"
-    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+    plines = (read_progress_lines(ppath)
               if ppath.is_file() else [])
     item_status = _parse_item_status(plines)[2]
     withdrawn = withdrawn_stage_items(plines)
@@ -9513,7 +10296,7 @@ def queue_end_findings(repo_root: Path, config: Dict[str, Dict[str, object]],
         return []
     qtext = qpath.read_text(encoding=_ENCODING)
     order = queue_item_numbers(qtext)
-    lines = ppath.read_text(encoding=_ENCODING).splitlines()
+    lines = read_progress_lines(ppath)
     item_status = _parse_item_status(lines)[2]
     withdrawn = withdrawn_stage_items(lines)
 
@@ -9804,10 +10587,17 @@ def set_gate_status(text: str, index: int, kind: str,
                     note: Optional[str] = None, today: Optional[str] = None) -> str:
     """Resolve the *index*-th (1-based) row of the ``## Human gates`` table.
 
-    Writes the decision and the date into the Status cell, and *note* into the
-    last cell. Raises ``ValueError`` for a missing table or an out-of-range
-    index — a typo must not pass as a silent no-op, which is exactly how a
-    hand-edited gate went wrong before there was a verb for it.
+    Writes the decision and the date into the Status cell. *note* goes on a
+    trail line under the table — ``- gate-<hex> — ✅ Approved <date>: <note>``
+    — and the Decision / evidence cell keeps only a pointer to it, so the
+    table stays a table (issue #474). Text that cell already held is moved
+    to a trail line of its own first, verbatim, never overwritten. A gate
+    with no ID (an empty Gate cell) has no trail key, so its note is written
+    into the cell as before.
+
+    Raises ``ValueError`` for a missing table or an out-of-range index — a
+    typo must not pass as a silent no-op, which is exactly how a hand-edited
+    gate went wrong before there was a verb for it.
     """
     lines = text.splitlines()
     gates = human_gates(lines)
@@ -9816,22 +10606,95 @@ def set_gate_status(text: str, index: int, kind: str,
     if not 1 <= index <= len(gates):
         raise ValueError(f"there are {len(gates)} human gate(s); {index} is out of range")
     gate = gates[index - 1]
-    if note and ("|" in note or "\n" in note or "\r" in note):
+    gid = gate_ids(gates)[index - 1]
+    if note and ("\n" in note or "\r" in note):
         raise ValueError(
-            "the note may not contain '|' or a line break — either breaks the "
-            "row's shape, and a gate row the parser cannot read stops being a "
-            "gate: `aide check` fails and `aide claim` holds every item until "
-            "someone repairs it")
+            "the note may not contain a line break — it is written as one "
+            "trail line, and a break would end it mid-note")
+    if note and gid is None and "|" in note:
+        raise ValueError(
+            "the note may not contain '|' — a gate with an empty Gate cell has "
+            "no ID to key a trail line by, so the note goes into its last cell, "
+            "and a '|' there breaks the row's shape: a gate row the parser "
+            "cannot read stops being a gate, `aide check` fails and `aide "
+            "claim` holds every item until someone repairs it")
     icon = {"approved": "✅ Approved", "declined": "❌ Declined"}[kind]
     import datetime as _dt
     stamp = today or _dt.date.today().isoformat()
     i = gate.lineno - 1
     cells = _split_row(lines[i])
     cells[2] = f"{icon} ({stamp})"
-    if note:
+    trail: List[str] = []
+    if note and gid is None:
         cells[3] = note
+    elif note:
+        held = cells[3].strip()
+        if held not in _EMPTY_CELL and not _is_trail_pointer(held):
+            trail.append(f"- {gid} — {held}")
+        trail.append(f"- {gid} — {icon} {stamp}: {note}")
+        cells[3] = f"{TRAIL_POINTER} ({stamp})"
     lines[i] = "| " + " | ".join(cells) + " |"
+    if trail:
+        lines = append_trail(lines, _HUMAN_GATES, trail)
     return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+
+
+def reword_gate(text: str, index: int, question: str,
+                today: Optional[str] = None) -> Tuple[str, str, str]:
+    """Restate the *index*-th gate's question; ``(text, old ID, new ID)``.
+
+    The Gate cell becomes *question*, and a trail line keyed by the new ID
+    keeps the old one verbatim — ``- gate-<new> — reworded <date>, was:
+    <old question>`` — which is what lets the old ID resolve to the row
+    while the line stands (``HumanGate.aliases``, issue #474). Refuses, by
+    ``ValueError``: a decided gate, whose question is the record of what was
+    decided; an empty question, one holding ``|`` or a line break, one the
+    row already asks, and one another row asks.
+    """
+    lines = text.splitlines()
+    gates = human_gates(lines)
+    if not gates:
+        raise ValueError("no '## Human gates' table in progress.md")
+    if not 1 <= index <= len(gates):
+        raise ValueError(f"there are {len(gates)} human gate(s); {index} is out of range")
+    gate = gates[index - 1]
+    old_id = gate_ids(gates)[index - 1]
+    question = " ".join(question.split())
+    if not question:
+        raise ValueError("the new question is empty")
+    if "|" in question:
+        raise ValueError("the new question may not contain '|' — it would "
+                         "break the row's shape, and a gate row the parser "
+                         "cannot read holds every item")
+    if gate.kind in ("approved", "declined"):
+        raise ValueError(
+            f"{old_id or f'gate {index}'} is {'✅ approved' if gate.kind == 'approved' else '❌ declined'} "
+            f"— a decided gate's question is the record of what was decided; "
+            f"to ask something else, raise a new row")
+    if old_id is None:
+        raise ValueError(f"gate {index} has an empty Gate cell, so no ID to "
+                         f"keep resolving — write its question by hand")
+    new_hash = _gate_question_hash(question)
+    if new_hash == gate_hash(gate):
+        raise ValueError(f"{old_id} already asks that question")
+    if any(gate_hash(g) == new_hash for g in gates):
+        raise ValueError("another gate row already asks that question — two "
+                         "rows asking one question share an ID")
+    if any(new_hash in g.aliases for n, g in enumerate(gates) if n != index - 1):
+        raise ValueError("another gate row once asked that question, and its "
+                         "old ID still names that row through the trail — "
+                         "ask it in other words")
+    import datetime as _dt
+    stamp = today or _dt.date.today().isoformat()
+    i = gate.lineno - 1
+    cells = _split_row(lines[i])
+    cells[0] = question
+    lines[i] = "| " + " | ".join(cells) + " |"
+    new_id = gate_ids(human_gates(lines))[index - 1]
+    lines = append_trail(lines, _HUMAN_GATES,
+                         [f"- {new_id} — reworded {stamp}, was: {gate.text}"])
+    return ("\n".join(lines) + ("\n" if text.endswith("\n") else ""),
+            old_id, new_id or "")
 
 
 #: The header a `## Human gates` table is written with when a verb has to
@@ -9939,11 +10802,15 @@ def cmd_gate(args: argparse.Namespace) -> int:
         if not gates and not unreadable:
             print("aide gate: no '## Human gates' table (nothing gated)")
             return 0
+        record = gate_trail_record(text.splitlines(), gates)
         for n, (g, gid) in enumerate(zip(gates, gate_ids(gates)), start=1):
             reach = g.reach
             mark = {"approved": "✅", "declined": "❌", "awaiting": "⏳"}.get(g.kind, "⚠")
             print(f"  {n}. {mark} {gid or '(no ID — empty Gate cell)'} "
                   f"{g.text} — blocks {reach}")
+            for label in ("context", "evidence"):
+                if record.get(n - 1, {}).get(label):
+                    print(f"       {label}: {record[n - 1][label]}")
         # Unnumbered: `approve <n>` counts readable gates only, and a row the
         # parser cannot read is not one a verb should write into.
         for lineno, problem in unreadable:
@@ -9958,6 +10825,11 @@ def cmd_gate(args: argparse.Namespace) -> int:
     if args.number is None:
         print(f"aide gate: '{args.action}' needs a gate number or ID — see "
               f"`aide gate list`", file=sys.stderr)
+        return 2
+    if args.action == "reword":
+        return _cmd_gate_reword(args, repo_root, config, ppath, text, gates)
+    if args.text is not None:
+        print("aide gate: --text belongs to `reword` alone", file=sys.stderr)
         return 2
     kind = "approved" if args.action == "approve" else "declined"
     try:
@@ -9983,6 +10855,36 @@ def cmd_gate(args: argparse.Namespace) -> int:
         # re-run, which would never commit it (issue #309).
         return _commit_or_restore(repo_root, config, f"aide gate {args.action}",
                                   "the decision", f"docs: human {handle} {kind}",
+                                  [_progress_rel(config)], before)
+    return 0
+
+
+def _cmd_gate_reword(args: argparse.Namespace, repo_root: Path, config,
+                     ppath: Path, text: str, gates: List[HumanGate]) -> int:
+    """`aide gate reword N|ID --text Q` — restate a live gate's question,
+    keeping its old ID resolving through the trail (issue #474)."""
+    if args.text is None:
+        print("aide gate: reword needs --text, the gate's new question",
+              file=sys.stderr)
+        return 2
+    if args.note is not None:
+        print("aide gate: reword takes no --evidence; the old question goes "
+              "on the trail line it writes", file=sys.stderr)
+        return 2
+    try:
+        index = gate_index_for_ref(args.number, gates)
+        updated, old_id, new_id = reword_gate(text, index, args.text)
+    except ValueError as exc:
+        print(f"aide gate: {exc}", file=sys.stderr)
+        return 2
+    before = _snapshot([ppath])
+    ppath.write_text(updated, encoding="utf-8")
+    print(f"{new_id}: reworded — {old_id} still names it while its "
+          f"`reworded` trail line stands")
+    if _commits_here(args.no_commit, repo_root, before):
+        return _commit_or_restore(repo_root, config, "aide gate reword",
+                                  "the reworded gate",
+                                  f"docs: human {old_id} reworded as {new_id}",
                                   [_progress_rel(config)], before)
     return 0
 
@@ -10015,6 +10917,37 @@ def _report_bullet_splits(number: int, lines: List[str],
             print(f"  progress.md:{lineno}: {lines[lineno - 1].strip()}")
 
 
+def _archived_target_refusal(args: argparse.Namespace) -> Optional[str]:
+    """`archived_stage_refusal` for what this `aide progress` call writes:
+    the item of `set NNN`, `reopen NNN` and `reword --item NNN`, else the
+    stage of `set --stage N` and the four acceptance verbs (issue #475).
+    None when the call is malformed — its own usage error says so — or when
+    progress.md is not there to read."""
+    if args.action == "reword" and args.item is not None:
+        item, stage = args.item, None
+    elif args.action == "set" and args.stage is not None:
+        item, stage = None, args.stage
+    elif args.action in ("set", "reopen"):
+        item, stage = args.number, None
+    else:
+        item, stage = None, args.number
+    if not isinstance(item, int) and not isinstance(stage, int):
+        return None
+    repo_root = find_repo_root(args.repo)
+    ddir = docs_dir(repo_root, load_config(repo_root))
+    path = ddir / "progress.md"
+    if not path.is_file():
+        return None
+    try:
+        lines = path.read_text(encoding=_ENCODING).splitlines()
+    except (OSError, UnicodeDecodeError):
+        return None
+    return archived_stage_refusal(
+        ddir, lines, f"aide progress {args.action}",
+        stage=stage if isinstance(stage, int) else None,
+        item=item if isinstance(item, int) else None)
+
+
 def cmd_progress(args: argparse.Namespace) -> int:
     #: The acceptance verbs, in the order §1 describes them: make an
     #: attestation, correct its evidence, withdraw it, or reword a criterion
@@ -10033,6 +10966,16 @@ def cmd_progress(args: argparse.Namespace) -> int:
             f"argument number: invalid int value: '{args.number}'")
     if args.action == "rollup":
         return _cmd_progress_rollup(args)
+    if args.action == "compact":
+        return _cmd_progress_compact(args)
+    if args.action == "archive":
+        return _cmd_progress_archive(args)
+    if args.action == "unarchive":
+        return _cmd_progress_unarchive(args)
+    refusal = _archived_target_refusal(args)
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 1
     if args.item is not None and args.action != "reword":
         print(f"aide progress {args.action}: --item belongs to `reword` alone "
               f"(reword --item NNN --text TEXT)", file=sys.stderr)
@@ -10111,6 +11054,15 @@ def cmd_progress(args: argparse.Namespace) -> int:
     if args.number not in _parse_item_status(text.splitlines())[2]:
         stage, title = _spec_stage_and_title(repo_root, config, args.number)
         healed = insert_item_reference(text, args.number, stage, title) if stage and title else None
+        archived_home = (archived_stage_refusal(
+            docs_dir(repo_root, config), text.splitlines(), "aide progress set",
+            stage=int(stage)) if healed is None and stage and stage.isdigit()
+            else None)
+        if archived_home is not None:
+            # The spec's stage is archived (issue #475): the back-fill
+            # would write into the archive, which no verb does.
+            print(archived_home, file=sys.stderr)
+            return 1
         if healed is None:
             print(
                 f"item {args.number:03d}: ERROR — no deliverable in progress.md "
@@ -10166,6 +11118,1086 @@ def cmd_progress(args: argparse.Namespace) -> int:
             return _commit_or_restore(repo_root, config, "aide progress set",
                                       "the status", message,
                                       [_progress_rel(config)], before)
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# aide progress archive / unarchive (issue #475)
+# --------------------------------------------------------------------------- #
+def _archive_header(stage: int) -> str:
+    """The one line an archive file opens with, pointing back at progress.md."""
+    return (f"> Stage {stage}'s section, archived from "
+            f"[progress.md](../progress.md) by `aide progress archive`; "
+            f"`aide progress unarchive --stage {stage}`, run on the main or "
+            f"queue branch, moves it back.")
+
+
+def _replace_cell(line: str, index: int, value: str) -> str:
+    """*line*, a ``| a | b |`` row, with cell *index* replaced by *value* and
+    the padding around it kept."""
+    parts = line.split("|")
+    cell = parts[index + 1]
+    lead = cell[:len(cell) - len(cell.lstrip())]
+    trail = cell[len(cell.rstrip()):]
+    parts[index + 1] = f"{lead}{value}{trail}"
+    return "|".join(parts)
+
+
+def _summary_row_index(lines: List[str], stage: str) -> Optional[int]:
+    """The index of stage *stage*'s readable Stage summary row, or None."""
+    for i, line in enumerate(lines):
+        cells = _split_row(line) if line.strip().startswith("|") else []
+        if cells and _reads(_STAGE_SUMMARY, cells) and _same_stage(cells[0], stage):
+            return i
+    return None
+
+
+def _without_trailing_separators(block: List[str]) -> List[str]:
+    """*block* less its trailing blank and ``---`` lines — the separator
+    between two sections, which belongs to neither."""
+    out = list(block)
+    while out and (not out[-1].strip() or out[-1].strip() == "---"):
+        out.pop()
+    return out
+
+
+#: An inline link or image target, ``](target)`` with an optional quoted
+#: title after it; a target in angle brackets is left as written.
+_INLINE_LINK_TARGET_RE = re.compile(
+    r"\]\((?P<target>[^\s()<>]+)(?P<rest>(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*)\)")
+#: A reference definition, ``[label]: target`` at the start of a line.
+_REF_DEFINITION_RE = re.compile(
+    r"^(?P<lead> {0,3}\[[^\]]+\]:[ \t]*)(?P<target>[^\s<>]+)(?P<rest>.*)$")
+#: A URL scheme (``https:``, ``mailto:``) — a target with one is absolute.
+_LINK_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+_CODE_SPAN_RE = re.compile(r"(`+).*?\1")
+
+
+def _rebase_target(target: str, up: bool) -> str:
+    """*target* one folder deeper (*up*) or back; only a relative one moves."""
+    if (target.startswith(("/", "#")) or _LINK_SCHEME_RE.match(target)):
+        return target
+    if up:
+        return "../" + target
+    return target[3:] if target.startswith("../") else target
+
+
+def rebase_links(lines: List[str], up: bool) -> List[str]:
+    """*lines* with every relative link target rebased for a section moved
+    one folder deeper — ``../`` prefixed when *up*, one leading ``../``
+    stripped otherwise, a target without one left as it is (issue #476).
+
+    The targets are inline link and image targets, their title and
+    ``#fragment`` kept, and reference definitions. A target with a URL
+    scheme, or opening ``/`` or ``#``, is not relative; an angle-bracket
+    autolink is not a target. Fenced code blocks and code spans are never
+    read, so a link written as an example stays as written.
+    """
+    out: List[str] = []
+    fence: Optional[str] = None
+    for line in lines:
+        m = _MD_FENCE_RE.match(line)
+        if fence is not None:
+            if (m and m.group(1)[0] == fence[0]
+                    and len(m.group(1)) >= len(fence)
+                    and not m.group(2).strip()):
+                fence = None
+            out.append(line)
+            continue
+        if m:
+            fence = m.group(1)
+            out.append(line)
+            continue
+        ref = _REF_DEFINITION_RE.match(line)
+        if ref:
+            out.append(ref.group("lead")
+                       + _rebase_target(ref.group("target"), up)
+                       + ref.group("rest"))
+            continue
+        parts: List[str] = []
+        pos = 0
+        for span in _CODE_SPAN_RE.finditer(line):
+            parts.append(_INLINE_LINK_TARGET_RE.sub(
+                lambda t: (f"]({_rebase_target(t.group('target'), up)}"
+                           f"{t.group('rest')})"),
+                line[pos:span.start()]))
+            parts.append(span.group(0))
+            pos = span.end()
+        parts.append(_INLINE_LINK_TARGET_RE.sub(
+            lambda t: (f"]({_rebase_target(t.group('target'), up)}"
+                       f"{t.group('rest')})"), line[pos:]))
+        out.append("".join(parts))
+    return out
+
+
+def archive_consistency_errors(ddir: Path, lines: List[str]) -> List[str]:
+    """Where progress.md and its archive disagree about a stage (#475).
+
+    A ``progress/stage-N.md`` is the archived stage's section, and its
+    summary row's Title cell links to it; each without the other, or a stage
+    archived while progress.md still has its section, leaves a stage whose
+    bullets one reader takes from one place and another from the other — so
+    each is an error, never a warning. So is a file holding no ``## Stage N``
+    section, whose items every reader would then lose.
+    """
+    files = archived_stage_files(ddir)
+    linked = {int(n) for n in archived_summary_stages(lines)}
+    rows = {int(cells[0]) for cells in (_split_row(l) for l in lines
+                                        if l.strip().startswith("|"))
+            if _reads(_STAGE_SUMMARY, cells)}
+    sections = {int(n) for _, _, n in stage_sections(lines)}
+    out: List[str] = []
+    for n in sorted(set(files) | linked):
+        rel = archive_link(n)
+        if n in files:
+            try:
+                alines = files[n].read_text(encoding=_ENCODING).splitlines()
+            except (OSError, UnicodeDecodeError) as exc:
+                out.append(f"{rel}: cannot be read ({exc.__class__.__name__}), "
+                           f"so no reader sees stage {n}'s items")
+                continue
+            if stage_section(alines, str(n)) is None:
+                out.append(f"{rel}: holds no '## Stage {n}' section, so no "
+                           f"reader sees the stage's items — restore it from "
+                           f"git history")
+        if n in files and n in sections:
+            out.append(f"stage {n}: archived in {rel} and still a '## Stage "
+                       f"{n}' section of progress.md — one stage in two "
+                       f"places; delete the copy that is stale")
+        elif n not in files:
+            if n in sections:
+                out.append(f"stage {n}: its Stage summary row links to "
+                           f"{rel}, which does not exist, and its section is "
+                           f"in progress.md — take the link off the row's "
+                           f"Title cell")
+            else:
+                out.append(f"stage {n}: its Stage summary row links to "
+                           f"{rel}, which does not exist, and progress.md "
+                           f"has no '## Stage {n}' section, so the stage's "
+                           f"section is nowhere — restore the file from git "
+                           f"history")
+        elif n not in linked and n not in sections:
+            if n in rows:
+                out.append(f"stage {n}: archived in {rel}, but its Stage "
+                           f"summary row's Title cell does not link to it — "
+                           f"write the cell as [<title>]({rel})")
+            else:
+                out.append(f"{rel}: archives stage {n}, which has no row in "
+                           f"the Stage summary table — add the row, its "
+                           f"Title cell [<title>]({rel})")
+    return out
+
+
+def archived_item_stage(ddir: Path, lines: List[str],
+                        number: int) -> Optional[int]:
+    """The archived stage holding item *number*'s bullets, when progress.md's
+    own *lines* hold none of them; else None."""
+    if number in _parse_item_status(list(lines))[2]:
+        return None
+    for n, path in archived_stage_files(ddir).items():
+        try:
+            alines = path.read_text(encoding=_ENCODING).splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if number in _parse_item_status(alines)[2]:
+            return n
+    return None
+
+
+def archived_stage_refusal(ddir: Path, lines: List[str], verb: str, *,
+                           stage: Optional[int] = None,
+                           item: Optional[int] = None) -> Optional[str]:
+    """The one sentence a writer refuses with when what it would write sits
+    in an archived stage — stage *stage*, or item *item*'s bullets — or None.
+
+    No verb writes into the archive: a correction or a reopen moves the
+    stage back first, with `aide progress unarchive`, so every later read of
+    the stage is of progress.md again (issue #475).
+    """
+    if stage is not None:
+        if (stage_section(lines, str(stage)) is not None
+                or not archive_file(ddir, stage).is_file()):
+            return None
+        what, where = f"stage {stage}", stage
+    elif item is not None:
+        found = archived_item_stage(ddir, lines, item)
+        if found is None:
+            return None
+        what, where = (f"item {item:03d}'s deliverable bullet, in stage "
+                       f"{found},"), found
+    else:
+        return None
+    return (f"{verb}: {what} is archived in {archive_link(where)}, and no "
+            f"verb writes into the archive — move it back with `aide "
+            f"progress unarchive --stage {where}` on the main or queue "
+            f"branch, then re-run; nothing was written")
+
+
+class _BranchView:
+    """What git says about the loop's branches, asked at most once per run of
+    `archive` however many stages it weighs."""
+
+    def __init__(self, repo_root: Path, config) -> None:
+        self.repo_root, self.config = repo_root, config
+        self.prefix = str(config["git"].get("branch_prefix", "aide/"))
+        self._queues: Optional[Dict[str, Optional[bool]]] = None
+        self._claims: Optional[List[str]] = None
+        self.live = in_repository(repo_root)
+
+    def unmerged_queue_branches(self) -> Dict[str, Optional[bool]]:
+        if self._queues is None:
+            self._queues = (_unmerged_queue_branches(self.repo_root, self.config)
+                            if self.live else {})
+        return self._queues
+
+    def unmerged_claim_branch(self, number: int) -> Optional[str]:
+        """A claim branch of item *number* whose work is not in main_branch —
+        by `_branch_content_landed`, the oracle `gc` deletes by; one git
+        cannot judge counts as unmerged."""
+        if not self.live:
+            return None
+        if self._claims is None:
+            self._claims = _list_claim_branches(self.repo_root, self.prefix)
+        main = str(self.config["git"].get("main_branch", "main"))
+        for br in self._claims:
+            if _branch_item_number(br, self.prefix) != number:
+                continue
+            ref = br if _local_branch_exists(self.repo_root, br) else f"origin/{br}"
+            if _branch_content_landed(self.repo_root, main, ref) is not True:
+                return br
+        return None
+
+
+def _roadmap_lines(ddir: Path) -> Optional[List[str]]:
+    """roadmap.md's lines, or None when there is no roadmap.md."""
+    rpath = ddir / "roadmap.md"
+    if not rpath.is_file():
+        return None
+    return rpath.read_text(encoding=_ENCODING).splitlines()
+
+
+def roadmap_archive_refusal(ddir: Path, stage: int,
+                            rlines: Optional[List[str]] = None) -> Optional[str]:
+    """Why stage *stage*'s roadmap.md section may not move with its
+    progress.md section — one clause — or None (issue #476).
+
+    Only a roadmap half already moved holds the stage: a
+    ``roadmap/stage-N.md`` that exists, or a stub in roadmap.md with no file
+    behind it, each a disagreement `aide check` errors on. A roadmap.md with
+    no section for the stage, or no roadmap.md, holds nothing: progress.md's
+    section moves alone. *rlines* None reads roadmap.md from *ddir*.
+    """
+    if rlines is None:
+        rlines = _roadmap_lines(ddir) or []
+    if roadmap_archive_file(ddir, stage).exists():
+        return (f"{roadmap_archive_link(stage)} already exists while its "
+                f"progress.md section is live — `aide check` names the "
+                f"disagreement; delete the copy that is stale, then re-run")
+    if stage in roadmap_stub_stages(rlines):
+        return (f"roadmap.md's '## Stage {stage}' section is an archive stub "
+                f"with no {roadmap_archive_link(stage)} behind it — restore "
+                f"the section from git history, then re-run")
+    return None
+
+
+def roadmap_catch_up(ddir: Path, lines: List[str], rlines: List[str],
+                     stage: int) -> bool:
+    """Whether stage *stage*'s progress.md section is archived and its
+    roadmap.md section is not yet: the whole section is there, with no
+    ``roadmap/stage-N.md`` beside it — a stage archived before issue #476,
+    which `archive` takes on its own."""
+    return (archive_file(ddir, stage).is_file()
+            and stage_section(lines, str(stage)) is None
+            and stage in roadmap_whole_stages(rlines)
+            and not roadmap_archive_file(ddir, stage).exists())
+
+
+def archive_refusal(ddir: Path, lines: List[str], stage: str,
+                    branches: Optional[_BranchView],
+                    rlines: Optional[List[str]] = None) -> Optional[str]:
+    """Why stage *stage* may not be archived — one clause — or None.
+
+    §1 → progress.md's eligibility rule, in its order: no archive file for
+    it already, in either folder (`roadmap_archive_refusal`); a settled
+    summary row; not the maintenance stage; no open
+    bullet and no unticked box; no unreadable gate row and no gate short of
+    ✅ Approved reaching it; no item of it with a bullet anywhere else; and
+    every queue listing its items settled, with no queue or claim branch of
+    theirs unmerged. *branches* None skips the last half, for a caller with
+    no repository to ask.
+    """
+    sec = stage_section(lines, stage)
+    if sec is None:
+        return (f"it is archived already, in {archive_link(int(stage))}"
+                if int(stage) in archived_stage_files(ddir)
+                else f"progress.md has no '## Stage {stage}' section")
+    start, end, num = sec
+    if archive_file(ddir, int(num)).exists():
+        # One stage in two places, which `check` already errors on: an
+        # archive written over it would lose whichever copy was the record.
+        return (f"{archive_link(int(num))} already exists beside its "
+                f"section — one stage in two places; delete the copy that is "
+                f"stale, then re-run")
+    road = roadmap_archive_refusal(ddir, int(num), rlines)
+    if road is not None:
+        return road
+    row = _summary_row_index(lines, num)
+    if row is None:
+        return "it has no Stage summary row"
+    summary = _icon_status(_split_row(lines[row])[3])
+    if summary not in ("complete", "excluded"):
+        return (f"its Stage summary row is {STATUS_TO_ICON[summary]}, not "
+                f"✅ or ❌")
+    if stage_title(lines[start]) == MAINTENANCE_TITLE:
+        return ("it is the maintenance stage, which every maintenance batch "
+                "writes to again")
+    open_bullets = [st for st in stage_deliverable_statuses(lines, start, end)
+                    if st not in ("complete", "excluded")]
+    if open_bullets:
+        return (f"it still has {len(open_bullets)} deliverable "
+                f"bullet{'' if len(open_bullets) == 1 else 's'} that "
+                f"{'is' if len(open_bullets) == 1 else 'are'} not ✅ or ❌")
+    boxes = [_CHECKBOX_RE.match(l) for l in lines[start:end]]
+    if any(m and m.group("mark") == " " for m in boxes):
+        return "it still has an unticked acceptance box"
+    if unreadable_gate_rows(lines):
+        # What such a row reaches is unknown, so it may be this stage: the
+        # fail-closed reading `claim` gives it too.
+        return ("a Human gates row no reader can use, which `aide check` "
+                "names, could reach it")
+    gates = human_gates(lines)
+    for g, gid in zip(gates, gate_ids(gates)):
+        rng = g.stage_range
+        if g.kind == "approved" or rng is None:
+            continue
+        first, last = rng
+        if first <= int(num) and (last is None or int(num) <= last):
+            shown = {"awaiting": "⏳ Awaiting", "declined": "❌ Declined"}.get(
+                g.kind or "", "not ✅ Approved")
+            return (f"human gate {gid if gid else repr(g.text)} reaches it "
+                    f"({g.reach}) "
+                    f"and is {shown}")
+    items = stage_item_numbers(lines, num)
+    rest = list(lines)
+    rest[start:end] = [""] * (end - start)
+    elsewhere = set(_parse_item_status(rest)[2]) | set(
+        getattr(lines, "archive_status", {}))
+    split = sorted(n for n in items if n in elsewhere)
+    if split:
+        return (f"item {split[0]:03d} also has a bullet outside it, and an "
+                f"item's status is never split between progress.md and the "
+                f"archive")
+    if not items:
+        return None
+    item_status = _parse_item_status(lines)[2]
+    withdrawn = withdrawn_stage_items(lines)
+    for qpath in iter_queue_paths(ddir / "queue"):
+        try:
+            qtext = qpath.read_text(encoding=_ENCODING)
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not set(queue_item_numbers(qtext)) & set(items):
+            continue
+        if queue_is_open(qtext, item_status, withdrawn):
+            return f"{qpath.name}, which lists its items, is still open"
+        qnum = queue_number(qpath)
+        if branches is not None and qnum is not None:
+            qbranch = queue_branch_name(branches.prefix, qnum)
+            unmerged = branches.unmerged_queue_branches()
+            if qbranch in unmerged:
+                if unmerged[qbranch] is None:
+                    main = str(branches.config["git"].get("main_branch",
+                                                          "main"))
+                    return (f"git cannot tell whether {qbranch}, the branch "
+                            f"of {qpath.name}, which lists its items, landed "
+                            f"(no start is recorded): if it did, delete it "
+                            f"with 'aide gc --merged --yes'; if it is open, "
+                            f"record its start with 'aide queue restack "
+                            f"{qnum:03d} --base {main}'")
+                return (f"{qbranch}, the branch of {qpath.name}, which lists "
+                        f"its items, is not merged")
+    if branches is not None:
+        for n in items:
+            br = branches.unmerged_claim_branch(n)
+            if br is not None:
+                return f"claim branch {br} of item {n:03d} is not merged"
+    return None
+
+
+def archive_stage_text(text: str, stage: str) -> Tuple[str, str]:
+    """``(progress.md, the archive file)`` once stage *stage* is archived.
+
+    The section moves verbatim but for its relative links, less the ``---`` separator after it, under
+    `_archive_header`; the summary row's Title cell becomes a link to the
+    file, and every other line stays as it reads. The caller has weighed the
+    stage with `archive_refusal`.
+    """
+    lines = text.splitlines()
+    sec = stage_section(lines, stage)
+    assert sec is not None
+    start, end, num = sec
+    n = int(num)
+    # One folder deeper, so its relative links are rebased to resolve there.
+    body = rebase_links(_without_trailing_separators(lines[start:end]), True)
+    kept = lines[:start] + lines[end:]
+    if end >= len(lines):
+        # The last section: the separator above it would close the file.
+        kept = _without_trailing_separators(kept)
+    row = _summary_row_index(kept, num)
+    if row is not None:
+        title = _split_row(kept[row])[1]
+        kept[row] = _replace_cell(kept[row], 1, f"[{title}]({archive_link(n)})")
+    archived = "\n".join([_archive_header(n), "", *body]) + "\n"
+    return "\n".join(kept) + "\n", archived
+
+
+def unarchive_stage_text(text: str, archived: str, stage: int) -> str:
+    """progress.md with stage *stage*'s section back from *archived*.
+
+    The section goes before the first section numbered above it, or after
+    the last one when none is, behind a ``---`` separator as the template
+    draws them; the summary row's Title cell loses its link. Raises
+    ``ValueError`` when *archived* holds no ``## Stage N`` section.
+    """
+    alines = archived.splitlines()
+    sec = stage_section(alines, str(stage))
+    if sec is None:
+        raise ValueError(f"{archive_link(stage)} holds no '## Stage {stage}' "
+                         f"section")
+    body = rebase_links(_without_trailing_separators(alines[sec[0]:]), False)
+    lines = text.splitlines()
+    after = next((s for s, _, num in stage_sections(lines) if int(num) > stage),
+                 None)
+    if after is not None:
+        lines[after:after] = body + ["", "---", ""]
+    else:
+        sections = stage_sections(lines)
+        at = sections[-1][1] if sections else len(lines)
+        rest = lines[at:]
+        head = lines[:at]
+        while head and not head[-1].strip():
+            head.pop()
+        sep = [""] if head and head[-1].strip() == "---" else ["", "---", ""]
+        lines = head + sep + body + ([""] + rest if rest else [])
+    row = _summary_row_index(lines, str(stage))
+    if row is not None:
+        m = _ARCHIVE_LINK_RE.match(_split_row(lines[row])[1])
+        if m:
+            lines[row] = _replace_cell(lines[row], 1, m.group("title"))
+    return "\n".join(lines) + "\n"
+
+
+def _roadmap_archive_header(stage: int) -> str:
+    """The one line a roadmap archive file opens with, pointing back."""
+    return (f"> Stage {stage}'s section, archived from "
+            f"[roadmap.md](../roadmap.md) by `aide progress archive`; "
+            f"`aide progress unarchive --stage {stage}`, run on the main or "
+            f"queue branch, moves it back.")
+
+
+def archive_roadmap_text(text: str, stage: int) -> Tuple[str, str]:
+    """``(roadmap.md, the archive file)`` once stage *stage*'s roadmap
+    section is archived (issue #476).
+
+    The section — its heading included — moves verbatim, less the separator
+    after it, under `_roadmap_archive_header`; in roadmap.md its heading
+    stays, with `roadmap_stub_line` under it and the separator after it as
+    it was, so the stage keeps its place among the others. The caller has
+    found the whole section there.
+    """
+    lines = text.splitlines()
+    sec = stage_section(lines, str(stage))
+    assert sec is not None
+    start, end, _num = sec
+    body = _without_trailing_separators(lines[start:end])
+    tail = lines[start + len(body):end]
+    stub = [lines[start], "", roadmap_stub_line(stage)]
+    kept = lines[:start] + stub + tail + lines[end:]
+    archived = "\n".join([_roadmap_archive_header(stage), "",
+                          *rebase_links(body, True)]) + "\n"
+    return ("\n".join(kept) + ("\n" if text.endswith("\n") else "")), archived
+
+
+def unarchive_roadmap_text(text: str, archived: str, stage: int) -> str:
+    """roadmap.md with stage *stage*'s stub replaced by the section in
+    *archived*, in the stub's place. ``ValueError`` when *archived* holds no
+    ``## Stage N`` section, or roadmap.md no stub for the stage — a whole
+    section there already, or none."""
+    alines = archived.splitlines()
+    asec = stage_section(alines, str(stage))
+    if asec is None:
+        raise ValueError(f"{roadmap_archive_link(stage)} holds no '## Stage "
+                         f"{stage}' section")
+    body = rebase_links(_without_trailing_separators(alines[asec[0]:]), False)
+    lines = text.splitlines()
+    sec = stage_section(lines, str(stage))
+    if sec is None:
+        raise ValueError(f"roadmap.md has no '## Stage {stage}' stub to put "
+                         f"the section back in place of — restore the stub "
+                         f"from git history")
+    if stage not in roadmap_stub_stages(lines):
+        raise ValueError(f"roadmap.md already has a '## Stage {stage}' "
+                         f"section beside {roadmap_archive_link(stage)} — "
+                         f"delete the copy that is stale")
+    start, end, _num = sec
+    stub = _without_trailing_separators(lines[start:end])
+    tail = lines[start + len(stub):end]
+    kept = lines[:start] + body + tail + lines[end:]
+    return "\n".join(kept) + ("\n" if text.endswith("\n") else "")
+
+
+def roadmap_archive_findings(ddir: Path,
+                             lines: List[str]) -> Tuple[List[str], List[str]]:
+    """Where roadmap.md, its archive and progress.md's archive disagree about
+    a stage (issue #476); ``(errors, warnings)``.
+
+    A stage's roadmap section is archived exactly when its progress.md
+    section is, so a ``roadmap/stage-N.md`` beside a live progress.md
+    section is an error — the plan of a live stage moved away from the
+    roadmap the spec author reads it in — as are the disagreements
+    `archive_consistency_errors` names on the progress side: a stub whose
+    file is not there, a file roadmap.md has no stub for or holding no
+    ``## Stage N`` section, a stage both archived and whole in roadmap.md,
+    a stub whose heading is not the archived section's — an archived
+    stage is frozen, so a retitle (to ``Maintenance``, say) waits for
+    `unarchive` — and a stub holding anything but its heading and its
+    pointer line.
+    The one warning is a progress.md section archived while the roadmap
+    section stays whole — every stage archived before issue #476 — which
+    loses nothing and which `aide progress archive` catches up.
+    """
+    rlines = _roadmap_lines(ddir)
+    files = roadmap_archived_files(ddir)
+    if rlines is None:
+        rlines = []
+        if not files:
+            return [], []
+    stubs = roadmap_stub_stages(rlines)
+    whole = roadmap_whole_stages(rlines)
+    progress_files = archived_stage_files(ddir)
+    progress_sections = {int(n) for _, _, n in stage_sections(lines)}
+    errors: List[str] = []
+    for start, end, num in stage_sections(rlines):
+        if int(num) not in stubs:
+            continue
+        held = [l.strip() for l in
+                _without_trailing_separators(rlines[start + 1:end])
+                if l.strip()]
+        if held != [roadmap_stub_line(int(num))]:
+            errors.append(
+                f"roadmap.md:{start + 1}: stage {int(num)}'s stub holds text "
+                f"besides its heading and its line linking to "
+                f"{roadmap_archive_link(int(num))} — a stub is the verb's, "
+                f"never a hand edit; move the text to its route (§1 → "
+                f"roadmap.md) and delete it")
+    for n in sorted(set(files) | stubs):
+        rel = roadmap_archive_link(n)
+        if n not in files:
+            errors.append(f"roadmap.md: stage {n}'s section is a stub linking "
+                          f"to {rel}, which does not exist, so the stage's "
+                          f"plan is nowhere — restore the file from git "
+                          f"history")
+            continue
+        try:
+            alines = files[n].read_text(encoding=_ENCODING).splitlines()
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"{rel}: cannot be read ({exc.__class__.__name__})")
+            continue
+        asec = stage_section(alines, str(n))
+        if asec is None:
+            errors.append(f"{rel}: holds no '## Stage {n}' section — restore "
+                          f"it from git history")
+        elif n in stubs:
+            sec = stage_section(rlines, str(n))
+            # The archived heading as unarchive would put it back: its
+            # links were rebased one folder deeper on the way out.
+            heading = rlines[sec[0]].strip()
+            archived = rebase_links([alines[asec[0]]], False)[0].strip()
+            if heading != archived:
+                errors.append(
+                    f"roadmap.md: stage {n}'s stub is headed '{heading}', but "
+                    f"{rel} holds '{archived}' — an archived stage is "
+                    f"frozen, its heading too; write the stub's heading back "
+                    f"as the file's, or move the stage back with `aide "
+                    f"progress unarchive --stage {n}` on the main or queue "
+                    f"branch before retitling it")
+        if n in whole:
+            errors.append(f"stage {n}: archived in {rel} and still a whole "
+                          f"'## Stage {n}' section of roadmap.md — one stage "
+                          f"in two places; delete the copy that is stale")
+        elif n not in stubs:
+            errors.append(f"{rel}: archives stage {n}, which roadmap.md has "
+                          f"no '## Stage {n}' stub for — write its heading "
+                          f"with '{roadmap_stub_line(n)}' under it")
+        if n not in progress_files or n in progress_sections:
+            errors.append(f"stage {n}: its roadmap.md section is archived in "
+                          f"{rel} while its progress.md section is live — a "
+                          f"roadmap section is archived exactly when its "
+                          f"progress.md section is; move it back with `aide "
+                          f"progress unarchive --stage {n}` on the main or "
+                          f"queue branch")
+    warnings = [
+        f"stage {n}: archived in {archive_link(n)} while its roadmap.md "
+        f"section is whole — `aide progress archive --stage {n}` archives "
+        f"it to {roadmap_archive_link(n)} too"
+        for n in sorted(progress_files)
+        if n in whole and n not in files and n not in progress_sections]
+    return errors, warnings
+
+
+def _archive_claim_branch_refusal(repo_root: Path, config,
+                                  tag: str) -> Optional[str]:
+    """The one sentence `archive` and `unarchive` refuse with on a claim
+    branch, or None (issue #481).
+
+    The files they write — the stage archives and roadmap.md — are in no
+    item's Authorised paths and not always authorised, so on a claim branch
+    the move is a diff `aide scope` reports out of scope. The claim branch is
+    recognised by `_branch_item_number`, the one reader `claim` and `scope`
+    use; outside a repository there is no branch to refuse. Only a claim
+    branch is refused, though the contract says "the main or queue branch
+    alone": the loop creates no other kind, so refusing the one that is in
+    scope's reach is the whole rule.
+    """
+    if not in_repository(repo_root):
+        return None
+    branch = _current_branch(repo_root)
+    prefix = str(config["git"].get("branch_prefix", "aide/"))
+    if _is_queue_branch(branch, prefix) or _branch_item_number(
+            branch, prefix) is None:
+        return None
+    main = str(config["git"].get("main_branch", "main"))
+    return (f"{tag}: {branch} is a claim branch, and no item's Authorised "
+            f"paths name the archive files this writes — run it on {main} or "
+            f"the queue branch; nothing was written")
+
+
+def _progress_archive_usage_error(args: argparse.Namespace) -> Optional[str]:
+    """The flags `archive` and `unarchive` do not take, named; or None."""
+    extra = [flag for flag, given in (
+        ("NUMBER", args.number is not None), ("STATUS", args.status is not None),
+        ("--deliverable", args.deliverable is not None),
+        ("--criterion", args.criterion is not None),
+        ("--item", args.item is not None), ("--all", args.all_criteria),
+        ("--reason", args.reason is not None), ("--text", args.text is not None),
+        ("--evidence", args.evidence is not None),
+        ("--date", args.date is not None)) if given]
+    return ", ".join(extra) if extra else None
+
+
+def _cmd_progress_archive(args: argparse.Namespace) -> int:
+    """``aide progress archive [--stage N]`` — move settled stages out (#475).
+
+    Each eligible stage's section goes to ``progress/stage-N.md`` and its
+    summary row links there; its roadmap.md section goes to
+    ``roadmap/stage-N.md``, a stub left in its place (#476). A stage whose
+    progress.md section was archived before its roadmap.md section could be
+    has the roadmap half moved on its own. Every file is committed as every
+    recording verb commits, and put back on a commit that did not happen
+    (issue #309).
+    """
+    usage = "usage: aide progress archive [--stage N] [--no-commit]"
+    extra = _progress_archive_usage_error(args)
+    if extra:
+        print(f"{usage}\naide progress archive: takes --stage N and "
+              f"--no-commit alone, not {extra}", file=sys.stderr)
+        return 2
+    repo_root = find_repo_root(args.repo)
+    config = load_config(repo_root)
+    refused = _archive_claim_branch_refusal(repo_root, config,
+                                            "aide progress archive")
+    if refused:
+        print(refused, file=sys.stderr)
+        return 1
+    ddir = docs_dir(repo_root, config)
+    progress_path = ddir / "progress.md"
+    if not progress_path.is_file():
+        print(f"error: {progress_path} not found", file=sys.stderr)
+        return 1
+    text = progress_path.read_text(encoding=_ENCODING)
+    lines = with_archive(text.splitlines(), ddir)
+    roadmap_path = ddir / "roadmap.md"
+    rtext = (roadmap_path.read_text(encoding=_ENCODING)
+             if roadmap_path.is_file() else None)
+    rlines = rtext.splitlines() if rtext is not None else []
+    branches = _BranchView(repo_root, config)
+    catch_up: List[int] = []
+    if args.stage is not None:
+        why = archive_refusal(ddir, lines, str(args.stage), branches, rlines)
+        if why is None:
+            chosen = [stage_section(lines, str(args.stage))[2]]
+        elif roadmap_catch_up(ddir, lines, rlines, args.stage):
+            chosen, catch_up = [], [args.stage]
+        else:
+            print(f"aide progress archive: stage {args.stage} is not "
+                  f"archived — {why}; nothing was written", file=sys.stderr)
+            return 1
+    else:
+        summary = {cells[0]: _icon_status(cells[3])
+                   for cells in (_split_row(l) for l in lines
+                                 if l.strip().startswith("|"))
+                   if _reads(_STAGE_SUMMARY, cells)}
+        chosen = []
+        for _, _, num in stage_sections(lines):
+            why = archive_refusal(ddir, lines, num, branches, rlines)
+            if why is None:
+                chosen.append(num)
+            elif summary.get(num) in ("complete", "excluded"):
+                print(f"stage {int(num)}: kept — {why}")
+        catch_up = [n for n in sorted(archived_stage_files(ddir))
+                    if roadmap_catch_up(ddir, lines, rlines, n)]
+        if not chosen and not catch_up:
+            print("progress.md: no change — no stage is eligible to archive")
+            return 0
+    whole = roadmap_whole_stages(rlines)
+    road = sorted({int(n) for n in chosen if int(n) in whole} | set(catch_up))
+    targets = [archive_file(ddir, int(num)) for num in chosen]
+    rtargets = [roadmap_archive_file(ddir, n) for n in road]
+    folders = [f for f, used in ((ddir / PROGRESS_ARCHIVE_DIR, chosen),
+                                 (ddir / ROADMAP_ARCHIVE_DIR, road))
+               if used and not f.exists()]
+    paths = ([progress_path] if chosen else []) + (
+        [roadmap_path] if road else [])
+    before = _snapshot([*paths, *targets, *rtargets])
+    updated = text
+    for num, target in zip(chosen, targets):
+        updated, archived = archive_stage_text(updated, num)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(archived, encoding="utf-8")
+        print(f"stage {int(num)}: archived to {archive_link(int(num))}")
+        if rtext is not None and int(num) not in whole:
+            print(f"stage {int(num)}: roadmap.md has no '## Stage {int(num)}' "
+                  f"section, so progress.md's alone moved")
+    rupdated = rtext
+    for n, target in zip(road, rtargets):
+        rupdated, rarchived = archive_roadmap_text(rupdated, n)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(rarchived, encoding="utf-8")
+        print(f"stage {n}: roadmap.md's section archived to "
+              f"{roadmap_archive_link(n)}")
+    if chosen:
+        progress_path.write_text(updated, encoding="utf-8")
+    if road:
+        roadmap_path.write_text(rupdated, encoding="utf-8")
+    if _commits_here(args.no_commit, repo_root, before):
+        stages = ", ".join(str(n) for n in sorted(
+            {int(n) for n in chosen} | set(road)))
+        many = len(chosen) + len(catch_up) > 1
+        docs = str(config["project"].get("docs_dir", "docs/aide"))
+        rels = (([_progress_rel(config)] if chosen else [])
+                + ([f"{docs}/roadmap.md"] if road else [])
+                + [_archive_rel(config, int(n)) for n in chosen]
+                + [f"{docs}/{roadmap_archive_link(n)}" for n in road])
+        code = _commit_or_restore(
+            repo_root, config, "aide progress archive", "the archive",
+            f"progress(aide): archive stage{'s' if many else ''} {stages}",
+            rels, before)
+        if code:
+            # Put back means as it was: a folder this run made goes too,
+            # when the put-back left it empty.
+            for folder in folders:
+                try:
+                    folder.rmdir()
+                except OSError:
+                    pass
+        return code
+    return 0
+
+
+def _archive_rel(config, stage: int) -> str:
+    return (str(config["project"].get("docs_dir", "docs/aide")) + "/"
+            + archive_link(stage))
+
+
+def _cmd_progress_unarchive(args: argparse.Namespace) -> int:
+    """``aide progress unarchive --stage N`` — move an archived stage back.
+
+    For a correction or a reopen, which no verb writes into the archive
+    (`archived_stage_refusal`). Both halves come back — progress.md's
+    section from ``progress/stage-N.md`` and roadmap.md's from
+    ``roadmap/stage-N.md`` in place of its stub (#476) — whichever of the
+    two files exists; each file is removed, and every path is committed as
+    `archive` commits them.
+    """
+    usage = "usage: aide progress unarchive --stage N [--no-commit]"
+    extra = _progress_archive_usage_error(args)
+    if extra or args.stage is None:
+        why = (f"takes --stage N and --no-commit alone, not {extra}" if extra
+               else "--stage N is required")
+        print(f"{usage}\naide progress unarchive: {why}", file=sys.stderr)
+        return 2
+    repo_root = find_repo_root(args.repo)
+    config = load_config(repo_root)
+    refused = _archive_claim_branch_refusal(repo_root, config,
+                                            "aide progress unarchive")
+    if refused:
+        print(refused, file=sys.stderr)
+        return 1
+    ddir = docs_dir(repo_root, config)
+    progress_path = ddir / "progress.md"
+    if not progress_path.is_file():
+        print(f"error: {progress_path} not found", file=sys.stderr)
+        return 1
+    source = archive_file(ddir, args.stage)
+    rsource = roadmap_archive_file(ddir, args.stage)
+    roadmap_path = ddir / "roadmap.md"
+    tag = "aide progress unarchive"
+    if not source.is_file() and not rsource.is_file():
+        print(f"{tag}: stage {args.stage} is not archived — there is no "
+              f"{archive_link(args.stage)} or "
+              f"{roadmap_archive_link(args.stage)}; nothing was written",
+              file=sys.stderr)
+        return 1
+    updated: Optional[str] = None
+    if source.is_file():
+        text = progress_path.read_text(encoding=_ENCODING)
+        if stage_section(text.splitlines(), str(args.stage)) is not None:
+            print(f"{tag}: progress.md already has a '## Stage {args.stage}' "
+                  f"section beside {archive_link(args.stage)} — delete the "
+                  f"copy that is stale; nothing was written", file=sys.stderr)
+            return 1
+        try:
+            updated = unarchive_stage_text(
+                text, source.read_text(encoding=_ENCODING), args.stage)
+        except ValueError as exc:
+            print(f"{tag}: {exc}; nothing was written", file=sys.stderr)
+            return 1
+    rupdated: Optional[str] = None
+    if rsource.is_file():
+        if not roadmap_path.is_file():
+            print(f"{tag}: there is no roadmap.md to move "
+                  f"{roadmap_archive_link(args.stage)} back into; nothing "
+                  f"was written", file=sys.stderr)
+            return 1
+        try:
+            rupdated = unarchive_roadmap_text(
+                roadmap_path.read_text(encoding=_ENCODING),
+                rsource.read_text(encoding=_ENCODING), args.stage)
+        except ValueError as exc:
+            print(f"{tag}: {exc}; nothing was written", file=sys.stderr)
+            return 1
+    moves = [(progress_path, source, archive_link(args.stage), updated),
+             (roadmap_path, rsource, roadmap_archive_link(args.stage),
+              rupdated)]
+    moves = [m for m in moves if m[3] is not None]
+    before = _snapshot([p for m in moves for p in (m[0], m[1])])
+    commit = _commits_here(args.no_commit, repo_root)
+    docs = str(config["project"].get("docs_dir", "docs/aide"))
+    rels: List[str] = []
+    for doc, archived, link, new_text in moves:
+        rels.append(f"{docs}/{doc.name}")
+        archive_rel = f"{docs}/{link}"
+        committed = commit and _is_tracked(repo_root, archive_rel)
+        if committed:
+            # A file `archive --no-commit` wrote and nobody committed is not
+            # in git, so its removal is no change to commit: naming it would
+            # fail the commit on a pathspec matching nothing, every time.
+            rels.append(archive_rel)
+        doc.write_text(new_text, encoding="utf-8")
+        archived.unlink()
+        # Like every committing verb, this commits the documents whole: run
+        # after an `archive --no-commit` of another stage, it records that
+        # stage's link without its still-uncommitted file, which `check`
+        # then errors on. The hazard is `--no-commit`'s, not the archive's,
+        # so it is not guarded here.
+        if commit and not committed:
+            # Only staged, it would stay staged as the add of a file now gone.
+            git(["rm", "--cached", "-q", "--ignore-unmatch", "--",
+                 archive_rel], repo_root, check=False)
+        try:
+            archived.parent.rmdir()  # only when it is empty now
+        except OSError:
+            pass
+        print(f"stage {args.stage}: moved back to {doc.name} from {link}")
+    if commit:
+        return _commit_or_restore(
+            repo_root, config, tag, "the move",
+            f"progress(aide): unarchive stage {args.stage}", rels, before)
+    return 0
+
+
+def _is_tracked(repo_root: Path, rel: str) -> bool:
+    """Whether HEAD holds *rel*, a path relative to *repo_root*.
+
+    HEAD, not the index: a file only staged and then removed is no change a
+    commit naming it can record, so the pathspec would match nothing."""
+    return git(["cat-file", "-e", f"HEAD:{rel}"], repo_root,
+               check=False).returncode == 0
+
+
+#: The cells `aide progress compact` may move, by table: ``{column: name}``.
+#: Never an identity cell (Gate, Capability, Target) — a gate's ID is a hash
+#: of its own — and never a cell a reader parses for more than its leading
+#: mark (Blocks, Objective, Attempted by, Package / Tool, Introduced by).
+_COMPACT_COLUMNS: Tuple[Tuple[_ProgressTable, int, Dict[int, str]], ...] = (
+    (_HUMAN_GATES, 2, {2: "Status", 3: "Decision / evidence"}),
+    (_CAPABILITIES, 3, {3: "Status", 4: "Notes"}),
+    (_OUTCOME_TARGETS, 3, {3: "Status", 4: "Evidence / follow-up"}),
+)
+
+
+def _short_status(cell: str) -> str:
+    """A long Status cell cut to its mark, and the first date it names.
+
+    The leading text up to the first bracket, dash or punctuation, so the
+    leading icon every reader decides on is kept as it was: `✅ Verified
+    (2026-08-29, this workstation: …)` is `✅ Verified (2026-08-29)`.
+    """
+    head = re.split(r"\s*[(—:;,]", cell, maxsplit=1)[0].strip()
+    if len(head) > 40:
+        head = " ".join(cell.split()[:2])
+    head = re.sub(r"\s+\d{4}-\d{2}-\d{2}$", "", head)
+    date = re.search(r"\b\d{4}-\d{2}-\d{2}\b", cell)
+    return f"{head} ({date.group(0)})" if date else head
+
+
+def _row_compacts(cells: List[str], key: Optional[str],
+                  columns: Dict[int, str]) -> List[int]:
+    """The columns `compact` would move out of one row — none without a key."""
+    if key is None:
+        return []
+    return [c for c in columns
+            if len(cells[c]) > LONG_CELL and not _is_trail_pointer(cells[c])]
+
+
+def _compact_rows(lines: List[str], table: _ProgressTable
+                  ) -> List[Tuple[int, List[str], str, List[int]]]:
+    """``(index, cells, key, columns)`` for every row of *table* `compact`
+    would change: its long Status, evidence or Notes cells."""
+    columns = next(t[2] for t in _COMPACT_COLUMNS if t[0] is table)
+    rows = [(i, cells) for i, cells, problem in _table_rows(lines, table)
+            if problem is None]
+    if table is _HUMAN_GATES:
+        keys = gate_ids(human_gates(lines))
+    else:
+        keys = [cells[0] or None for _, cells in rows]
+    out = []
+    for (i, cells), key in zip(rows, keys):
+        moved = _row_compacts(cells, key, columns)
+        if moved:
+            out.append((i, cells, key or "", moved))
+    return out
+
+
+def compact_progress(text: str) -> Tuple[str, List[str]]:
+    """Move every long non-identity cell of the three trail tables to the trail.
+
+    Each moved cell goes verbatim onto a trail line keyed to its row, in
+    column order, and the cell keeps a pointer: ``see trail`` for an
+    evidence or Notes cell, and for a Status cell its mark and first date
+    (``_short_status``), so its leading icon — what every reader decides on —
+    does not move. Returns ``(text, one message per moved cell)``; the text is
+    unchanged when nothing is long. Issue #474.
+    """
+    lines = text.splitlines()
+    messages: List[str] = []
+    for table, status_col, columns in _COMPACT_COLUMNS:
+        rows = _compact_rows(lines, table)
+        if not rows:
+            continue
+        trail: List[str] = []
+        for i, cells, key, moved in rows:
+            shown = key if len(key) <= 60 else key[:57] + "…"
+            for c in moved:
+                trail.append(f"- {key} — {cells[c]}")
+                messages.append(
+                    f"progress.md:{i + 1}: {table.name} '{shown}' — moved its "
+                    f"{columns[c]} cell ({len(cells[c])} characters) to the "
+                    f"trail")
+                cells[c] = (_short_status(cells[c]) if c == status_col
+                            else TRAIL_POINTER)
+            lines[i] = "| " + " | ".join(cells) + " |"
+        lines = append_trail(lines, table, trail)
+    if not messages:
+        return text, []
+    return "\n".join(lines) + ("\n" if text.endswith("\n") else ""), messages
+
+
+def long_cell_warnings(lines: List[str]) -> List[str]:
+    """`aide check`'s findings on long cells in the three trail tables.
+
+    A **live** row — a gate ⏳ Awaiting, a capability not ✅ Verified, a
+    target ❓ Unverified, or any of them under a Status no reader knows —
+    whose identity cell is longer than ``LONG_CELL`` is a warning naming the
+    fix: ``aide gate reword`` for a gate, which keeps its ID resolving; a
+    shorter label for the others. A settled row's identity cell is the record
+    of what was decided or measured, and is not warned on (the spirit of
+    #338's records exemption). Every row `aide progress compact` would change
+    is counted into **one** warning per table rather than one per row.
+    """
+    out: List[str] = []
+    live_kinds = {_HUMAN_GATES.name: ("awaiting", None),
+                  _CAPABILITIES.name: ("unverified", None),
+                  _OUTCOME_TARGETS.name: ("unverified", None)}
+    gates = human_gates(lines)
+    for g, gid in zip(gates, gate_ids(gates)):
+        if g.kind in live_kinds[_HUMAN_GATES.name] and len(g.text) > LONG_CELL:
+            fix = (f"`aide gate reword {gid} --text …`, which keeps {gid} "
+                   f"resolving" if gid else "a shorter question")
+            out.append(
+                f"progress.md:{g.lineno}: human gate {gid}'s Gate cell is "
+                f"{len(g.text)} characters — a gate asks its question in one "
+                f"line, its context on a trail line under the table; restate "
+                f"it with {fix} (conventions.md §1 → human gates)")
+    for rows, table, what in (
+            (gated_capabilities(lines), _CAPABILITIES, "Capability"),
+            (outcome_targets(lines), _OUTCOME_TARGETS, "Target")):
+        for r in rows:
+            if r.kind in live_kinds[table.name] and len(r.text) > LONG_CELL:
+                out.append(
+                    f"progress.md:{r.lineno}: {table.name} row's {what} cell "
+                    f"is {len(r.text)} characters — it is the row's label and "
+                    f"its trail key; shorten it, and put the detail on a trail "
+                    f"line under the table keyed by the new label "
+                    f"(conventions.md §1)")
+    for table, _, _ in _COMPACT_COLUMNS:
+        n = len(_compact_rows(lines, table))
+        if n:
+            out.append(
+                f"progress.md: {table.name} table — {n} row(s) hold a cell "
+                f"over {LONG_CELL} characters that `aide progress compact` "
+                f"would move to the table's trail, leaving a pointer")
+    return out
+
+
+def _cmd_progress_compact(args: argparse.Namespace) -> int:
+    """``aide progress compact`` — move long cells of the three trail tables
+    to their trails, and commit it as every recording verb does (#474)."""
+    usage = "usage: aide progress compact [--no-commit]"
+    extra = [flag for flag, given in (
+        ("NUMBER", args.number is not None), ("STATUS", args.status is not None),
+        ("--stage", args.stage is not None),
+        ("--deliverable", args.deliverable is not None),
+        ("--criterion", args.criterion is not None),
+        ("--item", args.item is not None), ("--all", args.all_criteria),
+        ("--reason", args.reason is not None), ("--text", args.text is not None),
+        ("--evidence", args.evidence is not None),
+        ("--date", args.date is not None)) if given]
+    if extra:
+        print(f"{usage}\naide progress compact: takes --no-commit alone, not "
+              f"{', '.join(extra)}", file=sys.stderr)
+        return 2
+    repo_root = find_repo_root(args.repo)
+    config = load_config(repo_root)
+    progress_path = docs_dir(repo_root, config) / "progress.md"
+    if not progress_path.is_file():
+        print(f"error: {progress_path} not found", file=sys.stderr)
+        return 1
+    text = progress_path.read_text(encoding=_ENCODING)
+    updated, messages = compact_progress(text)
+    if not messages:
+        print(f"progress.md: no change — no Status, evidence or Notes cell is "
+              f"over {LONG_CELL} characters")
+        return 0
+    for msg in messages:
+        print(msg)
+    before = _snapshot([progress_path])
+    progress_path.write_text(updated, encoding="utf-8")
+    if _commits_here(args.no_commit, repo_root, before):
+        return _commit_or_restore(
+            repo_root, config, "aide progress compact", "the compaction",
+            "progress(aide): compact long table cells into their trails",
+            [_progress_rel(config)], before)
     return 0
 
 
@@ -10867,6 +12899,8 @@ def _put_back(before: Dict[Path, Optional[bytes]]) -> None:
     """Every file in *before* back to its bytes; one that did not exist, gone."""
     for path, data in before.items():
         if data is not None:
+            # A folder the verb emptied and removed comes back with the file.
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
         elif path.exists():
             path.unlink()
@@ -13111,7 +15145,9 @@ def _queue_gate(args: argparse.Namespace) -> int:
     def key(cell: str) -> Optional[str]:
         return gate_hash(HumanGate(0, cell, [], None, False, None))
 
-    present = {gate_hash(g) for g in human_gates(lines)}
+    # A plan gate restated by `aide gate reword` still asks its question:
+    # its old hash is an alias of the row, and a re-run raises nothing.
+    present = {h for g in human_gates(lines) for h in (gate_hash(g), *g.aliases)}
     new = [r for r in rows if key(r[0]) not in present]
     before = _snapshot([ppath])
     if new:
@@ -13120,7 +15156,8 @@ def _queue_gate(args: argparse.Namespace) -> int:
     gates = human_gates(text.splitlines())
     ids = gate_ids(gates)
     for cell, blocks in rows:
-        gid = next(i for g, i in zip(gates, ids) if gate_hash(g) == key(cell))
+        gid = next(i for g, i in zip(gates, ids)
+                   if key(cell) in (gate_hash(g), *g.aliases))
         state = "raised" if (cell, blocks) in new else "already raised"
         print(f"{gid}: {state} — {cell} (blocks {blocks})")
     if new and _commits_here(args.no_commit, repo_root, before):
@@ -13341,6 +15378,9 @@ def _queue_branch_evidence_waits(repo_root: Path,
                 break
     if qtext is None:
         return {}
+    # Another ref's progress.md, read without its archive (#475): an
+    # archived stage holds no item a live branch still carries — the
+    # eligibility rule refuses one with an unmerged queue or claim branch.
     shown = git(["show", f"{branch}:./{_progress_rel(config)}"], repo_root,
                 check=False)
     item_status = (_parse_item_status(shown.stdout.splitlines())[2]
@@ -14080,26 +16120,77 @@ def _queue_restack(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 # git layer — claim / merge / env
 # --------------------------------------------------------------------------- #
+#: The files at the repository root that say a project has Python
+#: dependencies to install, so a venv to keep (issue #450). `requirements`
+#: is a glob: `requirements.txt`, `requirements-dev.txt`, ….
+PYTHON_MANIFESTS = ("pyproject.toml", "setup.py", "setup.cfg", "Pipfile",
+                    "requirements*.txt")
+
+
+def has_python_manifest(repo_root: Path) -> bool:
+    """Does *repo_root* hold one of `PYTHON_MANIFESTS`?"""
+    return any(path.is_file() for pattern in PYTHON_MANIFESTS
+               for path in Path(repo_root).glob(pattern))
+
+
+#: What `env --bootstrap` installs with when `[python] bootstrap` is unset.
+DEFAULT_BOOTSTRAP = "pip install -e .[dev]"
+
+
+def bootstrap_setting(config: Dict[str, Dict[str, object]]) -> str:
+    """`[python] bootstrap`, or `DEFAULT_BOOTSTRAP` when unset. The one
+    reader of the key; `venv_setting` asks only whether it was written."""
+    value = config["python"].get("bootstrap")
+    return DEFAULT_BOOTSTRAP if value is None else str(value)
+
+
+def venv_setting(repo_root: Path, config: Dict[str, Dict[str, object]]) -> str:
+    """The project venv's directory, relative to *repo_root*; "" when the
+    project keeps none. The one reader of `[python] venv`.
+
+    Set, the value decides — ``""`` is no venv (issue #354), and any other
+    value is checked whatever the tree holds. Unset, it is ``.venv`` where
+    the root holds a Python dependency manifest or a `.venv` directory, or
+    aide.toml sets `[python] bootstrap`, and no venv where none of the three
+    is so (issue #450): a project in another language is not refused on a
+    venv nobody meant to build until it writes ``venv = ""``.
+
+    The directory keeps a venv built by hand, with no manifest at the root,
+    the one a leading ``python`` binds to; a written `bootstrap` (``pip
+    install -r tools/requirements.txt``, say) keeps it on a fresh checkout,
+    where no directory is there yet. What none of the three covers is a
+    fresh checkout with no manifest and the default bootstrap, which the old
+    ``.venv`` default would have tried to build with ``pip install -e
+    .[dev]`` — an install that needs the root manifest it lacks.
+    """
+    value = config["python"].get("venv")
+    if value is None:
+        kept = (has_python_manifest(repo_root)
+                or (Path(repo_root) / ".venv").is_dir()
+                or config["python"].get("bootstrap") is not None)
+        return ".venv" if kept else ""
+    value = str(value)
+    return value if value.strip() else ""
+
+
 def venv_python(repo_root: Path, config: Dict[str, Dict[str, object]]) -> Path:
     """Resolve the venv interpreter path (Windows Scripts vs. posix bin)."""
-    venv = repo_root / str(config["python"].get("venv", ".venv"))
+    venv = _venv_dir(repo_root, config)
     if os.name == "nt":
         return venv / "Scripts" / "python.exe"
     return venv / "bin" / "python"
 
 
-def has_venv(config: Dict[str, Dict[str, object]]) -> bool:
-    """Does this project keep a venv? ``[python] venv = ""`` says it does not
-    (issue #354): a project in another language, whose `aide env` would
-    otherwise fail forever on a venv nobody meant to build."""
-    return bool(str(config["python"].get("venv", ".venv") or "").strip())
+def has_venv(repo_root: Path, config: Dict[str, Dict[str, object]]) -> bool:
+    """Does this project keep a venv? (`venv_setting`)"""
+    return bool(venv_setting(repo_root, config))
 
 
 def resolve_test_command(repo_root: Path, config: Dict[str, Dict[str, object]]) -> List[str]:
     """The configured test command, with a leading ``python`` bound to the venv."""
     raw = str(config["python"].get("test_command", "python -m pytest")).split()
     vpy = venv_python(repo_root, config)
-    if raw and raw[0] == "python" and has_venv(config) and vpy.exists():
+    if raw and raw[0] == "python" and has_venv(repo_root, config) and vpy.exists():
         return [str(vpy), *raw[1:]]
     return raw
 
@@ -14114,7 +16205,7 @@ _BOOTSTRAP_RECORD = "aide-bootstrap.json"
 
 
 def _venv_dir(repo_root: Path, config: Dict[str, Dict[str, object]]) -> Path:
-    return repo_root / str(config["python"].get("venv", ".venv"))
+    return repo_root / venv_setting(repo_root, config)
 
 
 def _configured_interpreter(config: Dict[str, Dict[str, object]]) -> List[str]:
@@ -14435,7 +16526,7 @@ def dependency_report(repo_root: Path, config: Dict[str, Dict[str, object]],
                 pass
             elif found_at is None and raw[0] == "python":
                 build = (f"build the venv ('{aide_command(repo_root, 'env --bootstrap')}'), "
-                         if has_venv(config) else "")
+                         if has_venv(repo_root, config) else "")
                 instead = ""
                 if shutil.which("python3"):
                     instead = (" — this machine has python3, so '"
@@ -14477,8 +16568,8 @@ def dependency_report(repo_root: Path, config: Dict[str, Dict[str, object]],
                 f"and this machine has no {printed} on PATH; {fix}")
     lines.append(Requirement("python", found, "always", None, note=note))
 
-    if has_venv(config):
-        venv = str(config["python"].get("venv", ".venv"))
+    venv = venv_setting(repo_root, config)
+    if venv:
         status, detail = env_report(repo_root, config)
         refusal = None
         if status != "ok":
@@ -14529,7 +16620,7 @@ def evaluate_profile(repo_root: Path, config: Dict[str, Dict[str, object]],
     never disagree about whether this machine has a capability.
     """
     vpy = venv_python(repo_root, config)
-    interpreter = (str(vpy) if has_venv(config) and vpy.exists()
+    interpreter = (str(vpy) if has_venv(repo_root, config) and vpy.exists()
                    else sys.executable)
     code = f"import sys\nsys.exit(0 if ({expr}) else 1)"
     try:
@@ -14568,10 +16659,16 @@ def cmd_env(args: argparse.Namespace) -> int:
               f"validation gated on it must record '❓ Unverified', never a silent pass")
         return 1
 
-    if args.bootstrap and not has_venv(config):
-        print('aide env: [python] venv = "" in aide.toml says this project '
-              'keeps no venv, so there is none to build — set it to a '
-              'directory to build one there', file=sys.stderr)
+    if args.bootstrap and not has_venv(repo_root, config):
+        if config["python"].get("venv") is None:
+            why = ("[python] venv is unset in aide.toml and the repository "
+                   "root holds no Python dependency manifest ("
+                   + ", ".join(PYTHON_MANIFESTS) + "), no .venv and no "
+                   "[python] bootstrap is set, so this project keeps no venv")
+        else:
+            why = '[python] venv = "" in aide.toml says this project keeps no venv'
+        print(f"aide env: {why}, so there is none to build — set [python] "
+              f"venv to a directory to build one there", file=sys.stderr)
         return 1
     if args.bootstrap:
         # The venv alone, as before the report existed: the validator runs
@@ -14710,18 +16807,70 @@ def _bootstrap_unfound(program: str, repo_root: Path, scripts: Path) -> str:
             f"it, or fix [python] bootstrap in aide.toml")
 
 
+def _bootstrap_precheck(bootstrap: List[str], venv: Path, repo_root: Path,
+                        config: Dict[str, Dict[str, object]]) -> Optional[str]:
+    """Why `env --bootstrap` must stop before it touches the venv, or None.
+
+    Building runs `-m venv --clear` over a venv already there, so a bootstrap
+    command whose program is then not found used to leave less than it
+    started with: a stale venv that still ran, emptied (issue #400). And a
+    `[tools] git`/`gh` key naming nothing raised `ToolMisconfigured` after
+    the clear, taking the old bootstrap record with it and writing none, so
+    the bare venv could read as OK (issue #401). The command is therefore
+    looked up first, on the PATH it will run with, the venv's current
+    script directory first.
+
+    Two outcomes are decided here and no others:
+
+    * a `[tools]` key that names nothing refuses whether or not a venv is
+      there — a configured path no new venv can make right, and a bare
+      name the venv alone would supply is not a configuration to build for;
+    * a program found nowhere refuses only when a venv is there to lose.
+      With none, the build goes ahead and the lookup after it decides,
+      because a new venv's script directory can hold a program no
+      directory holds yet (`pip3`, which `-m venv` writes).
+
+    A program found only in the old script directory passes, `[tools]`
+    git/gh included: `--clear` empties that directory, and whether the new
+    venv supplies the program again is known only after the build — which
+    then records an unrun bootstrap: as before this check for a program,
+    and in place of an uncaught `ToolMisconfigured` for a `[tools]` key.
+    """
+    if not bootstrap:
+        return None
+    vpy = venv_python(repo_root, config)
+    cmd, is_command = bootstrap_argv(bootstrap, vpy, repo_root)
+    if not is_command:
+        return None
+    path = bootstrap_command_env(venv, vpy.parent)["PATH"]
+    try:
+        found = resolve_tool(cmd[0], repo_root, path=path)
+    except ToolMisconfigured as exc:
+        kept = (f"{venv} is as it was" if venv.exists()
+                else "nothing was built")
+        return f"{exc}; {kept}"
+    if found is None and venv.exists():
+        return (f"{_bootstrap_unfound(cmd[0], repo_root, vpy.parent)}; "
+                f"{venv} is as it was, not cleared")
+    return None
+
+
 def _bootstrap_venv(repo_root: Path, config: Dict[str, Dict[str, object]]) -> int:
     """Build and populate the venv from `[python] interpreter`; 0 when built."""
     venv = _venv_dir(repo_root, config)
     # Whitespace, as `test_command` is split: shlex would re-read a value
     # that works today — a Windows path's backslashes, a quote pip was
     # handed literally — and nothing in the issue needed quoting.
-    bootstrap = str(config["python"].get("bootstrap", "pip install -e .[dev]")).split()
+    bootstrap = bootstrap_setting(config).split()
     interpreter = _configured_interpreter(config)
     # A stale venv is rebuilt from nothing: `-m venv` over an existing tree
     # re-points the scripts and pyvenv.cfg at the new interpreter and keeps
     # the old site-packages beside them, which is neither venv.
     venv_args = ["-m", "venv", *(["--clear"] if venv.exists() else []), str(venv)]
+    refused = _bootstrap_precheck(bootstrap, venv, repo_root, config)
+    if refused is not None:
+        print(f"aide env: bootstrap refused — {refused}.", file=sys.stderr)
+        return 1
     print(f"aide env: bootstrapping {venv} with {' '.join(interpreter)} …")
     try:
         made = subprocess.run([*interpreter, *venv_args], cwd=str(repo_root), check=False)
@@ -14746,9 +16895,15 @@ def _bootstrap_venv(repo_root: Path, config: Dict[str, Dict[str, object]]) -> in
         # argv is not searched for on the child's PATH, and `uv` is `uv.exe`.
         # The record then names the program that ran, venv or not.
         env = bootstrap_command_env(venv, vpy.parent)
-        found = resolve_tool(cmd[0], repo_root, path=env["PATH"])
+        try:
+            found = resolve_tool(cmd[0], repo_root, path=env["PATH"])
+        except ToolMisconfigured as exc:
+            # `_bootstrap_precheck` passed a `[tools]` git/gh that only the
+            # cleared venv held: recorded, so the bare venv never reads OK.
+            found, unrun = None, str(exc)
         if found is None:
-            unrun = _bootstrap_unfound(cmd[0], repo_root, vpy.parent)
+            if unrun is None:
+                unrun = _bootstrap_unfound(cmd[0], repo_root, vpy.parent)
         else:
             cmd = [found, *cmd[1:]]
     # The shell's statuses for a command that did not start: 127 not found,
@@ -14874,7 +17029,7 @@ def _pick_item(repo_root: Path, config, queue_text: str,
     mis-shaped to read stops everything too, since what it holds is unknown.
     """
     ppath = docs_dir(repo_root, config) / "progress.md"
-    plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
+    plines = read_progress_lines(ppath)
     _, _, item_status = _parse_item_status(plines) if plines else ([], [], {})
     gate_blocked, block_everything = gate_blocked_items(plines)
     if block_everything or unreadable_gate_rows(plines):
@@ -14931,7 +17086,7 @@ def _open_queue_texts(repo_root: Path, config) -> List[str]:
     if not qdir.is_dir():
         return []
     ppath = docs_dir(repo_root, config) / "progress.md"
-    plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
+    plines = read_progress_lines(ppath)
     item_status = _parse_item_status(plines)[2]
     withdrawn = withdrawn_stage_items(plines)
     out: List[str] = []
@@ -14951,7 +17106,7 @@ def _withdrawn_queued_lines(repo_root: Path, config) -> List[str]:
     ppath = docs_dir(repo_root, config) / "progress.md"
     if not qdir.is_dir() or not ppath.is_file():
         return []
-    plines = ppath.read_text(encoding=_ENCODING).splitlines()
+    plines = read_progress_lines(ppath)
     withdrawn = withdrawn_stage_items(plines)
     if not withdrawn:
         return []
@@ -15025,7 +17180,7 @@ def _report_nothing_claimable(repo_root: Path, config, prefix: str,
     item is named, exit 0, and the ``early ready:`` line says no.
     """
     ppath = docs_dir(repo_root, config) / "progress.md"
-    plines = ppath.read_text(encoding=_ENCODING).splitlines() if ppath.is_file() else []
+    plines = read_progress_lines(ppath)
     _, _, item_status = _parse_item_status(plines) if plines else ([], [], {})
 
     unreadable = unreadable_gate_rows(plines)
@@ -15533,7 +17688,7 @@ def _interface_pin_report(repo_root: Path, config, number: int) -> Optional[str]
     if not deps:
         return None
     ppath = docs_dir(repo_root, config) / "progress.md"
-    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+    plines = (read_progress_lines(ppath)
               if ppath.is_file() else [])
     item_status = _parse_item_status(plines)[2]
     pins = interface_pins(specs[0].read_text(encoding=_ENCODING), deps,
@@ -16983,6 +19138,9 @@ def _merge_withdrawn_item(repo_root: Path, config, number: int, base: str,
                            path.read_text(encoding=_ENCODING).splitlines()))
         except (OSError, UnicodeDecodeError):
             pass
+    # Another ref's progress.md, read without its archive (#475): an
+    # archived stage holds no item a live branch still carries — the
+    # eligibility rule refuses one with an unmerged queue or claim branch.
     shown = git(["show", f"{base}:./{rel}"], repo_root, check=False)
     if shown.returncode == 0:
         copies.append((f"on {base}", shown.stdout.splitlines()))
@@ -17089,6 +19247,18 @@ def cmd_merge(args: argparse.Namespace) -> int:
               f"{args.number:03d} restored --reason …`, then re-run "
               f"'aide merge {args.number:03d}'.", file=sys.stderr)
         return 1
+    ddir = docs_dir(repo_root, config)
+    if (ddir / "progress.md").is_file():
+        # The tick finds its bullet by the same lookup every writer does, and
+        # an archived stage's bullets are not in progress.md (issue #475).
+        archived = archived_stage_refusal(
+            ddir, (ddir / "progress.md").read_text(
+                encoding=_ENCODING).splitlines(),
+            "aide merge", item=args.number)
+        if archived is not None:
+            print(f"{archived} — nothing was merged or pushed either",
+                  file=sys.stderr)
+            return 1
     withdrawn_in, stages = _merge_withdrawn_item(repo_root, config,
                                                  args.number, main, branch)
     if withdrawn_in:
@@ -17963,6 +20133,10 @@ _ASSERTS_LABEL = "asserts against"
 #:
 #: The item's own spec is authorised separately, by number, in ``cmd_scope`` —
 #: the builder records Decisions & Trade-offs there on every item.
+#: The stage archives — ``progress/stage-N.md``, ``roadmap.md``,
+#: ``roadmap/stage-N.md`` — are deliberately absent: ``aide progress archive``
+#: and ``unarchive`` write them and refuse on a claim branch instead
+#: (`_archive_claim_branch_refusal`, issue #481).
 _ALWAYS_AUTHORISED = ("progress.md", "insights.md", "insights/archive-*.md")
 
 
@@ -19176,6 +21350,9 @@ def _queue_branch_ci(repo_root: Path, config: Dict[str, Dict[str, object]],
     items = _branch_queue_items(repo_root, config, ref, base, branch)
     if not items:
         return False, 0
+    # Another ref's progress.md, read without its archive (#475): an
+    # archived stage holds no item a live branch still carries — the
+    # eligibility rule refuses one with an unmerged queue or claim branch.
     shown = git(["show", f"{ref}:./{_docs_rel(config)}/progress.md"],
                 repo_root, check=False)
     if shown.returncode != 0:
@@ -19438,7 +21615,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"  tree: {'dirty (' + str(len(dirty.splitlines())) + ' path(s))' if dirty else 'clean'}")
 
     ppath = docs_dir(repo_root, config) / "progress.md"
-    plines = (ppath.read_text(encoding=_ENCODING).splitlines()
+    plines = (read_progress_lines(ppath)
               if ppath.is_file() else [])
     item_status = _parse_item_status(plines)[2]
     # Open as `claim` reads it (`queue_is_open`, issue #393): a 📋 item of a
@@ -19496,8 +21673,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     # stage icons deliberately do not carry (conventions.md §1).
     ppath = docs_dir(repo_root, config) / "progress.md"
     if ppath.is_file():
-        plines = ppath.read_text(encoding=_ENCODING).splitlines()
         gates = human_gates(plines)
+        record = gate_trail_record(plines, gates)
         for n, (g, gid) in enumerate(zip(gates, gate_ids(gates)), start=1):
             if g.kind == "approved":
                 continue
@@ -19506,6 +21683,11 @@ def cmd_status(args: argparse.Namespace) -> int:
                 g.kind, "⚠ unrecognised status")
             print(f"  gate {n}: {g.text}{f' ({gid})' if gid else ''} "
                   f"[blocks {reach}] — {label}")
+            # A decline's reason is what a re-plan starts from (issue #474):
+            # read from the trail, where the verb now writes it.
+            evidence = record.get(n - 1, {}).get("evidence")
+            if g.kind == "declined" and evidence:
+                print(f"    evidence: {evidence}")
         # Every table, not only gates: a row no reader can use is missing
         # from the lines above, and would otherwise be missing from here.
         for table, i, _, problem in _unreadable_rows(plines):
@@ -19584,10 +21766,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     unpublished = {br for br, why in off_origin.items()
                    if why.kind == OFF_ORIGIN_UNPUBLISHED}
     withdrawn_items: Dict[int, str] = {}
-    ppath = docs_dir(repo_root, config) / "progress.md"
-    if branches and ppath.is_file():
-        withdrawn_items = spent_by_withdrawal(
-            ppath.read_text(encoding=_ENCODING).splitlines(), item_status)
+    if branches and plines:
+        # The lines read above, archive and all: one read, reused.
+        withdrawn_items = spent_by_withdrawal(plines, item_status)
     if branches:
         for br in branches:
             num = _branch_item_number(br, prefix)
@@ -19880,7 +22061,7 @@ def cmd_gc(args: argparse.Namespace) -> int:
     item_status: Dict[int, str] = {}
     withdrawn_items: Dict[int, str] = {}
     if progress_path.is_file():
-        plines = progress_path.read_text(encoding=_ENCODING).splitlines()
+        plines = read_progress_lines(progress_path)
         _, _, item_status = _parse_item_status(plines)
         withdrawn_items = spent_by_withdrawal(plines, item_status)
 
@@ -20103,7 +22284,8 @@ def build_parser() -> argparse.ArgumentParser:
             "are all \u2705, \u274c or \u23f8\ufe0f gets none of them.\n"
             "\n"
             "Over progress.md's tables, ERRORS: a missing stage summary "
-            "table, objective coverage table or stage section; a stage "
+            "table, objective coverage table or stage section, a stage "
+            "archived to progress/stage-N.md counting as a section; a stage "
             "summary row marked \u2705 over a stage whose deliverables do not "
             "roll up to \u2705 (`aide progress -h` states the rollup), each "
             "such stage error naming `aide progress rollup --stage N`, which "
@@ -20124,7 +22306,21 @@ def build_parser() -> argparse.ArgumentParser:
             "icon \u2014 since the row is dropped from every check it would "
             "have fed. Each table is read under its template heading, or, "
             "for a summary or objective table without one, wherever its rows "
-            "are found. Warnings, and a warning never moves the exit "
+            "are found. Progress.md disagreeing with its archive about a "
+            "stage is an error too: a summary row's Title cell linking to a "
+            "progress/stage-N.md that does not exist, such a file no summary "
+            "row links to or holding no `## Stage N` section, and a stage "
+            "archived there that still has a section in progress.md. So "
+            "is roadmap.md disagreeing with its archive or with "
+            "progress.md's: a stub linking to a roadmap/stage-N.md that does "
+            "not exist, such a file roadmap.md has no stub for, holding no "
+            "`## Stage N` section or beside a whole section, a stub whose "
+            "heading is not the one in its file, a stub holding anything "
+            "but its heading and its line linking to the file, and a roadmap "
+            "section archived while its progress.md section is live; a stage "
+            "archived to progress/stage-N.md whose roadmap.md section is "
+            "still whole is a warning, which `aide progress archive` clears. "
+            "Warnings, and a warning never moves the exit "
             "code \u2014 only an error does: any other stage header, "
             "summary row or Objective row whose status is not its rollup, "
             "compared in full \u2014 a cell `aide progress set` would leave "
@@ -20135,8 +22331,9 @@ def build_parser() -> argparse.ArgumentParser:
             "up to \u2705 under a summary row that is not; a stage header "
             "disagreeing with its summary row, where neither was named "
             "against the rollup; an Objective row whose Delivered by "
-            "cell names no stage with a section; a summary row with no stage "
-            "section, an objective marked \u2705 over a target not yet \u2705 "
+            "cell names no stage with a section or an archive; a summary row "
+            "with no stage section and no link to its archive, an objective "
+            "marked \u2705 over a target not yet \u2705 "
             "Met, an Outcome target or human gate whose Status is not one of "
             "its table's marks, and every human gate still blocking \u2014 a "
             "normal state rather than a defect \u2014 save a \u274c declined "
@@ -20221,7 +22418,20 @@ def build_parser() -> argparse.ArgumentParser:
             "own, or given Validation / acceptance bullets in roadmap.md "
             "while progress.md shows it at nothing but \U0001f4cb, so a "
             "started maintenance stage keeps the criteria it was written "
-            "with; every "
+            "with; a roadmap.md stage section whose shape is not the plan's, "
+            "named once per stage and signal at its first line and scoped by "
+            "the stage's status in progress.md — its Stage summary "
+            "row, or its header where the row is missing or reads "
+            "\U0001f4cb while the header does not, \U0001f4cb where it has "
+            "neither: on a \U0001f4cb stage, a blockquote line, a Goal of "
+            "more than one blank-line-separated paragraph, a paragraph "
+            "opening in bold whose bold is not Goal, Deliverables, "
+            "Dependencies, Human gate or Validation / acceptance, and a "
+            "top-level Deliverables bullet whose text, its continuation "
+            "lines joined, is longer than 800 characters; on a \U0001f6a7, \U0001f50d or "
+            "⏸️ stage, a blockquote line alone; on a ✅ or "
+            "❌ stage, nothing — a fenced code block and an HTML "
+            "comment are never read; every "
             "retracted acceptance criterion and every reopened item, a "
             "normal state rather than a defect, each reported once, by its "
             "latest retraction or reopening, and never as open once the box "
@@ -20346,6 +22556,15 @@ def build_parser() -> argparse.ArgumentParser:
             "its summary-table row and every Objective row naming it "
             "(--stage N), or into those of every stage, up or down; it moves "
             "no bullet\n"
+            "compact: move each long cell of the Human gates, "
+            "Environment-Gated Capability Verification and Outcome targets "
+            "tables to a trail line under its table\n"
+            "archive: move each settled stage's section to "
+            "progress/stage-N.md beside progress.md, its summary row's Title "
+            "cell linking there (--stage N for one stage); its roadmap.md "
+            "section goes with it, to roadmap/stage-N.md\n"
+            "unarchive: move stage N's section back from its archive file "
+            "(--stage N), and its roadmap.md section with it\n"
             "\n"
             "The rollup, applied by set and read by `aide check`: a stage is "
             "\u2705 when every deliverable bullet in it is \u2705 or \u274c "
@@ -20516,15 +22735,92 @@ def build_parser() -> argparse.ArgumentParser:
             "left whole, a \u274c header or Objective row stays, and a "
             "stage with no deliverable bullet derives nothing. It prints "
             "each cell it writes, and commits progress.md as set does; with "
-            "every cell already its rollup it writes nothing and exits 0. It "
-            "refuses, exit 1, a stage with no section in progress.md, and, "
-            "exit 2, any argument but --stage and --no-commit."))
+            "every cell already its rollup it writes nothing and exits 0. "
+            "An archived stage has no section and rolls up to its summary "
+            "row, so rolling it up writes the Objective rows naming it. It "
+            "refuses, exit 1, a stage with neither a section in progress.md "
+            "nor a summary row linking to its archive, and, exit 2, any "
+            "argument but --stage and --no-commit.\n"
+            "\n"
+            "compact moves every Status, Decision / evidence, Notes or "
+            f"Evidence / follow-up cell longer than {LONG_CELL} characters, "
+            "verbatim, "
+            "onto a trail line under its table keyed to its row \u2014 a "
+            "gate's by its gate-<hex> ID, a capability's or a target's by its "
+            "first cell \u2014 and leaves the cell `see trail`, or for a "
+            "Status cell its leading mark and the first date it names. It "
+            "never changes a Gate, Capability or Target cell, and skips a "
+            "gate row with an empty Gate cell. It prints each cell it moves "
+            "and commits progress.md as set does; with no cell that long it "
+            "writes nothing and exits 0. It refuses, exit 2, any argument "
+            "but --no-commit.\n"
+            "\n"
+            "archive takes a stage only when its summary row is \u2705 or "
+            "\u274c; no deliverable bullet in its section is \U0001f4cb, "
+            "\U0001f6a7, \U0001f50d or \u23f8\ufe0f and no acceptance box "
+            "is unticked; it is not the maintenance stage; no human gate but "
+            "a \u2705 Approved one reaches it, as `stage N`, `stage N+` or "
+            "`stage N\u2013M`; no item its bullets name has a bullet outside "
+            "it; and every queue file listing one of those items is settled, "
+            "with neither that queue's branch nor a claim branch of the items "
+            "unmerged into main_branch. It also refuses a stage whose "
+            "progress/stage-N.md already exists, a second copy `aide check` "
+            "reports, and takes no stage while a Human gates row no reader "
+            "can use stands, since that row could reach any. It refuses a "
+            "stage whose roadmap/stage-N.md already exists, or whose "
+            "roadmap.md section is a stub already, as well. The section moves verbatim but for its relative links, less the "
+            "`---` after it, under one line pointing back at progress.md, and "
+            "the summary row's Title cell becomes a link to the file while "
+            "its Status cell stays. From then on every reader of item status "
+            "reads the archived bullets too, and the stage rolls up to its "
+            "summary row. The stage's roadmap.md section moves with it, "
+            "verbatim but for its relative links and heading included, less the `---` after it, to "
+            "roadmap/stage-N.md under one line pointing back at roadmap.md, "
+            "and in roadmap.md its heading stays with one line under it "
+            "linking to the file; where roadmap.md has no section for the "
+            "stage, progress.md's moves alone. A stage whose progress.md "
+            "section is archived and whose roadmap.md section is still whole "
+            "has its roadmap half archived alone, with --stage N or without. "
+            "In either moved section every relative link target \u2014 "
+            "inline, image or reference definition, outside code \u2014 is "
+            "rebased with a leading ../ so it resolves from the archive "
+            "file, and unarchive strips it again. "
+            "With --stage N it refuses, exit 1, a stage that is "
+            "not eligible, naming the first condition it fails; without, it "
+            "archives every eligible stage and prints each \u2705 or \u274c "
+            "stage it keeps, with why, and with none eligible it writes "
+            "nothing and exits 0. It commits progress.md, roadmap.md and the "
+            "files it writes as set does.\n"
+            "\n"
+            "unarchive puts the section back before the first stage section "
+            "numbered above it, or after the last one, takes the link off "
+            "the Title cell, removes the file and commits both as archive "
+            "does, or progress.md alone where the file was never committed. "
+            "It refuses, exit 1, a stage with no archive file, and one "
+            "progress.md has a section of as well. It moves back whichever "
+            "of progress/stage-N.md and roadmap/stage-N.md exists, the "
+            "roadmap section in place of its stub, and refuses, exit 1, a "
+            "roadmap.md with no stub for the stage. archive and unarchive "
+            "refuse, exit 2, any argument but --stage and --no-commit, and "
+            "unarchive one without --stage. Both run on the main or queue "
+            "branch alone: on a claim branch they refuse, exit 1 and writing "
+            "nothing, since no item's Authorised paths name the files they "
+            "write.\n"
+            "\n"
+            "No verb writes into the archive: set, reopen, reword, accept, "
+            "amend and retract refuse, exit 1 and writing nothing, an item "
+            "whose bullets or a stage whose section is archived, naming `aide "
+            "progress unarchive --stage N` on the main or queue branch, and "
+            "`aide merge` refuses such an "
+            "item before it merges anything."))
     p_prog.add_argument("action",
                         choices=["set", "accept", "amend", "retract", "reword",
-                                 "reopen", "rollup"])
+                                 "reopen", "rollup", "compact", "archive",
+                                 "unarchive"])
     p_prog.add_argument("number", type=_progress_number, nargs="?", default=None,
                         help="item number (set, reopen) | stage number "
-                             "(every other action; none for reword --item or rollup)")
+                             "(every other action; none for reword --item, "
+                             "rollup, compact, archive or unarchive)")
     p_prog.add_argument("status", nargs="?", default=None,
                         help="set: in-progress | in-review | done | deferred "
                              "| dropped | resumed | restored (in-review = "
@@ -20546,7 +22842,10 @@ def build_parser() -> argparse.ArgumentParser:
                              "stage whose "
                              "deliverable bullet --deliverable names, in "
                              "place of NNN; rollup: the one stage to roll "
-                             "up (default: every stage)")
+                             "up (default: every stage); archive: the one "
+                             "stage to archive (default: every eligible "
+                             "stage); unarchive: the stage to move back "
+                             "(required)")
     p_prog.add_argument("--deliverable", type=int, default=None, metavar="K",
                         help="set deferred|dropped|resumed|restored: the "
                              "1-based position "
@@ -20577,14 +22876,41 @@ def build_parser() -> argparse.ArgumentParser:
     p_prog.add_argument("--no-commit", action="store_true", help="edit only, do not git commit")
     p_prog.set_defaults(func=cmd_progress, progress_parser=p_prog)
 
-    p_gate = sub.add_parser("gate", help="list / resolve human gates in progress.md")
-    p_gate.add_argument("action", choices=["list", "approve", "decline"])
+    p_gate = sub.add_parser(
+        "gate", help="list / resolve / reword human gates in progress.md",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "list:    every gate row with its ID, status and reach, and under "
+            "it the latest context and evidence its trail records, else its "
+            "Decision / evidence cell\n"
+            "approve: \u2705 Approved (date) in the Status cell\n"
+            "decline: \u274c Declined (date) in the Status cell\n"
+            "reword:  restate a live gate's question (--text)\n"
+            "\n"
+            "approve and decline with --evidence write the note on a trail "
+            "line under the table, `- gate-<hex> \u2014 \u2705 Approved "
+            "<date>: <note>`, and leave the Decision / evidence cell "
+            "`see trail (<date>)`; text the cell held is first moved to a "
+            "trail line of its own, verbatim. Without --evidence the cell is "
+            "left as it reads.\n"
+            "\n"
+            "reword writes the new question into the Gate cell, which gives "
+            "the gate a new ID, and appends `- gate-<new> \u2014 reworded "
+            "<date>, was: <old question>` to the trail. Every reader of a gate "
+            "ID takes the old ID for the row while that line stands. It "
+            "refuses, writing nothing, a \u2705 or \u274c gate, an empty "
+            "question, one holding '|', and one this row or another already "
+            "asks."))
+    p_gate.add_argument("action", choices=["list", "approve", "decline", "reword"])
     p_gate.add_argument("number", nargs="?", default=None, metavar="N|ID",
-                        help="the gate to resolve (approve/decline): its "
+                        help="the gate to resolve or reword: its "
                              "gate-<hex> ID, or its 1-based row as `aide gate "
                              "list` numbers it today")
     p_gate.add_argument("--evidence", "--reason", dest="note", default=None,
-                        help="decision note written into the gate's last cell")
+                        help="approve/decline: decision note, written on a "
+                             "trail line under the table")
+    p_gate.add_argument("--text", default=None,
+                        help="reword: the gate's new question (required)")
     p_gate.add_argument("--no-commit", action="store_true", help="edit only, do not git commit")
     p_gate.set_defaults(func=cmd_gate)
 
@@ -21286,7 +23612,12 @@ def register_git_subcommands(sub) -> None:
             "machine lacks is a note that fails nothing: it decides only "
             "what a suggestion says. [python] venv = \"\" means the "
             "project keeps no venv: the venv line is left out, and --bootstrap "
-            "refuses. Exits 0 when every requirement the configuration needs "
+            "refuses. Unset, [python] venv is .venv where the repository "
+            "root holds a Python dependency manifest (pyproject.toml, "
+            "setup.py, setup.cfg, Pipfile or a requirements*.txt) or a .venv "
+            "directory, or aide.toml sets [python] bootstrap, and no venv "
+            "otherwise; a value that is set is checked whatever the root "
+            "holds. Exits 0 when every requirement the configuration needs "
             "is met. `aide check` without --queue errors on the offline "
             "part of the same report.\n"
             "\n"
@@ -21302,6 +23633,9 @@ def register_git_subcommands(sub) -> None:
             "then on PATH, and run with that directory first on PATH and "
             "VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT set to the venv. A "
             "command found in neither is a failed bootstrap that names it. "
+            "The command is looked up before the venv is touched: a [tools] "
+            "git or gh that names nothing refuses, and so does a command "
+            "found nowhere while a venv is there, which is left as it was. "
             "Only a first word the old reading could never have run is a "
             "command, so a bootstrap that worked runs the same way, and a "
             "shell script in the repository is written `sh <script>`. An "
@@ -21379,6 +23713,8 @@ def register_git_subcommands(sub) -> None:
             "target not yet \u2705 Met, every retracted acceptance "
             "criterion and every progress.md table row no reader can use is "
             "printed too, so none of them lives only in one commit's diff. "
+            "A declined gate is printed with the evidence its trail records, "
+            "else its Decision / evidence cell. "
             "So is every item `aide progress reopen` sent back, and a "
             "retracted criterion or reopened item that has since been "
             "re-accepted or completed again says so. "
@@ -21524,7 +23860,7 @@ def register_git_subcommands(sub) -> None:
 #: The verbs, by action, that write a document and then commit it through
 #: `_commits_here` — ``None`` for every action of the verb.
 _RECORDING_ACTIONS: Dict[str, Optional[Tuple[str, ...]]] = {
-    "gate": ("approve", "decline"),
+    "gate": ("approve", "decline", "reword"),
     "progress": None,
     "insights": ("add", "tick", "archive"),
     "ledger": ("abandon",),

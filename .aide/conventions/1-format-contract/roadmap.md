@@ -7,10 +7,14 @@ amendment the owner agrees to — a stage added, a 📋 Planned stage reworded, 
 Backlog bullet — is applied in the owner's own session instead, the feedback
 loop's included, with no need for that entry point. Both are held to the
 started-stage freeze below, and both land through the merge policy's reviewed
-PR (`.aide/README.md`). `queue-planner` and `spec-author` read it, and
-`aide check` and `aide progress reword` parse it. `.aide/templates/roadmap.md`
-draws its shape; this section names that shape and fixes what the template
-cannot carry.
+PR (`.aide/README.md`). Three verbs also write it, mechanically and only as
+their own rules fix: `aide progress reword` mirrors a reworded acceptance
+criterion into it, and `aide progress archive` and `unarchive` move a settled
+stage's section to its archive and back (below). None of them is a third
+author: each writes what an owner has already decided. `queue-planner` and
+`spec-author` read it, and `aide check` and `aide progress reword` parse it.
+`.aide/templates/roadmap.md` draws its shape; this section names that shape
+and fixes what the template cannot carry.
 
 Mandatory (consumer in brackets):
 
@@ -22,8 +26,23 @@ Mandatory (consumer in brackets):
    The acceptance bullets are the ones `progress.md` mirrors as its boxes; a
    measured outcome is a `Target:` bullet instead, and §1 → `progress.md`
    says which is which. The maintenance stage (below) is the one whose
-   Deliverables list nothing and which has no acceptance bullets. *(aide
-   check, aide progress reword, create-progress, queue-planner, spec-author)*
+   Deliverables list nothing and which has no acceptance bullets. An
+   archived stage's section is a stub (below). *(aide check, aide progress
+   reword, create-progress, queue-planner, spec-author)*
+
+**A stage section is the plan and nothing else.** It holds a Goal of one
+paragraph, the deliverable bullets, the Dependencies slot with any ordering
+sentence after it, the optional Human gate, and the acceptance bullets; no
+other text sits between those blocks or around them. A paragraph opening in
+bold opens one of those five blocks by its label, and the section holds no
+blockquote. What a stage needs to say goes in one of the five; what is not
+plan goes to its route (below).
+
+**A deliverable says what lands and how it is checked, not how it is built.**
+Field lists, function names and design choices are the item spec's (§1 →
+`items.md`), written when the item is specified, not ahead of it in the plan.
+An inbox entry a stage absorbs is cited as `insight <ID>` (§1 →
+`insights.md`), never narrated: its claim and its history stay in the inbox.
 
 **The coverage table is complete both ways.** Every G-code in `vision.md` has
 a row — an objective withdrawn from scope too, for as long as the vision lists
@@ -38,7 +57,9 @@ first: it is the only record of which stages have started.
 **A started stage is not re-edited.** A stage is started once `progress.md`
 shows it at anything but 📋 Planned — ✅, 🚧, 🔍, ⏸️ and ❌ alike. Its goal,
 deliverables, dependencies and acceptance criteria stay exactly as written;
-only a 📋 Planned stage may be edited freely.
+only a 📋 Planned stage may be edited freely. Deleting text added to a started
+stage after it was written is not an edit the freeze forbids: it restores the
+stage as written (below).
 
 **One change reaches a started stage, and only through its verb.** An
 acceptance criterion nothing has yet been claimed against is reworded with
@@ -51,6 +72,55 @@ started stage turns out to need arrives the same way, or through the queue as
 the stage that has started. The maintenance stage (below) is the one
 exception, and only in `progress.md`: its bullets are the maintenance
 queues' items, added under it after it has started.
+
+**Nothing is added to a started stage's section; what is learned after a
+stage is planned goes to its home.** Each kind of after-the-fact text has one:
+
+| What the text is | Where it goes |
+|---|---|
+| A rewording of an acceptance criterion nothing has been claimed against | `aide progress reword` (above) |
+| A restatement of a claimed or ticked box | the box's correction trail in `progress.md` (§1 → `progress.md`) |
+| Changed or retargeted scope | a new stage, appended after the last (above) |
+| Why a stage's work is deferred, or why it is dropped | the `--reason` of the `aide progress set … deferred` or `… dropped` that records it, on the bullet's trail (§1 → `progress.md`) |
+| A defect, a root cause, something learned | an inbox entry, `aide insights add` (§1 → `insights.md`) |
+| Design rationale for an item | the item's spec (§1 → `items.md`) |
+| A decision the owner must make | a human gate and its trail (§1 → human gates) |
+| A project-wide policy, such as the build posture | `vision.md` (§1 → `vision.md`) |
+
+**An annotation found in a started stage's section moves to its route and is
+deleted.** A blockquote, a dated note, a reinterpretation prepended to a
+criterion — is text added after the stage was written, so deleting it
+restores the stage as written and keeps the freeze rather than breaching it.
+Text the stage was written with stays, even in a shape this section now
+names, since the freeze keeps it; the section's history in git says which
+is which.
+Its content is not lost: the route records it, dated and attributable, where
+the reader who needs it looks. In a 📋 Planned stage the same text is folded
+into the plan, where it is plan, or sent to its route, where it is not.
+
+`aide check` warns on a stage section's shape where its status still lets the
+author fix it: on a 📋 Planned stage, a blockquote, a Goal of more than one
+paragraph, a bold paragraph opener that is not one of the five labels, and a
+deliverable bullet of more than about 800 characters; on a 🚧, 🔍 or ⏸️ stage,
+a blockquote alone — the rest was written as its plan, and the freeze keeps
+it; on a ✅ or ❌ stage, nothing. `aide check -h` states how each is read.
+
+**A settled stage's section is archived with its `progress.md` section, and a
+stub keeps its place.** `aide progress archive` (§1 → `progress.md`) moves the
+section, heading included and verbatim but for its relative links, to
+`roadmap/stage-N.md` beside this file, exactly when it archives the stage's
+`progress.md` section, and leaves a **stub**: the stage's `## Stage N — Title`
+heading with one line under it linking to that file. The section's relative
+links are rebased so they resolve from the archive file, and `aide progress
+unarchive` reverses it. What stays in this file is the Strategy section with
+the coverage table and the dependency graph, every stage not archived, whole,
+a stub for each archived stage, and the Backlog. A stub is the verb's, never a
+hand edit, and no reader follows it into the archive. **An archived stage is
+frozen, its stub's heading included**: a stage is retitled — to `Maintenance`,
+the one heading edit the freeze allows — only after `aide progress unarchive
+--stage N` has moved both sections back. `aide check` errors where this file,
+its archive and `progress.md`'s disagree about a stage, and `aide check -h`
+states each case.
 
 **A stage's blocking Dependencies name only earlier-numbered stages.** Stages
 close in number order, so a stage waiting on a later one cannot close when its
@@ -145,8 +215,9 @@ by either of its two writers, and the started-stage freeze does not reach it.
 - **Ideas only.** A bullet is a piece of scope in a sentence or two — never a
   defect, a status icon, a trail, a date, an owner or an annotation such as
   `→ Stage N`. A defect stays in the inbox (§1 → `insights-triage.md`); a
-  policy belongs in `vision.md`'s guiding principles; a decision about a stage belongs in that
-  stage.
+  policy belongs in `vision.md`'s guiding principles; a decision about a stage belongs to that
+  stage — in its plan while it is 📋 Planned, by the routes above once it
+  has started.
 - **A bullet that came from the inbox cites its entry as `insight <ID>`**,
   which `aide check` resolves like any citation (§1 → `insights.md`). Only a
   `gap` entry arrives this way, moved by the owner.
@@ -169,7 +240,10 @@ by either of its two writers, and the started-stage freeze does not reach it.
   point exists for what an amendment does not need: staging a plan from a
   vision, asking until each stage is grounded. A one-stage edit the owner has
   already agreed to needs none of that. What protects the plan is the freeze
-  and the reviewed PR, so those bind both routes alike.
+  and the reviewed PR, so those bind both routes alike. The verbs that write
+  the file are not a third route: `reword` mirrors a criterion an owner
+  rewords, and `archive` moves text the owner already settled, each within
+  its own rule.
 - **Why a started stage is frozen.** Queues were cut from it, items were
   specified against its deliverables, and `progress.md` mirrors its criteria;
   editing it re-points all of that at a plan nobody built to, and a shipped
@@ -184,6 +258,111 @@ by either of its two writers, and the started-stage freeze does not reach it.
 - **Why `reword` is the exception.** A criterion no attestation has been made
   against records nothing yet, so rewording it rewrites no history; the verb
   exists so that the edit lands in both mirrors at once or in neither.
+- **Why a stage section is the plan and nothing else.** In one consumer's
+  roadmap, stages 0–11 ran about 1 KB each, a one-paragraph Goal of 80–223
+  characters among them; stages 26–33 averaged 9.4 KB, and stage 30 ran
+  17 KB. The bytes came from each stage growing, not from more stages: the
+  late ones held what `progress.md`, `insights.md` and the item specs already
+  own — defect histories, dated decisions, reinterpretations of frozen
+  criteria, spec-grade design. Nothing in this section, the template or the
+  create-roadmap entry point said what a stage section may hold, and that
+  entry point's "be specific" pushed the other way (issue #483). Every role
+  that plans from the roadmap reads it again at each queue, so a byte that is
+  not plan is paid for every time.
+- **Why a deliverable is not a spec.** The same roadmap's deliverable bullets
+  ran a median of 84 characters in stages 0–11 and 400 in stages 26–33, one
+  of them 3,048. Stage 30's first deliverable listed a module's fields, named
+  its functions, and narrated carried defects by originating item and date:
+  the spec author's output and the inbox's provenance, written ahead of time
+  into the plan, where nothing keeps them in step with the spec that later
+  states them. Acceptance bullets stayed short — none over about 400
+  characters in either consumer — so they need no rule.
+- **Why routes, and why deleting an annotation keeps the freeze.** Ten
+  blockquotes sat in stage sections across two consumers, 15 KB in nine of
+  one's stages. Nine were traced through git history and all nine had been
+  added after their stage was written, 8 to 55 days later, each a dated
+  annotation — "Annotated … read before the text below", "Retargeted in
+  place", "Re-targeted", "Deferred", "❌ Excluded", a build posture recorded
+  as a maintainer decision. That is the freeze routed around: the stage could
+  not be edited, so a reinterpretation was prepended to it instead. The
+  freeze read as forbidding any edit, even one that removes text added in
+  breach of it, which is why the section says outright that the deletion
+  restores the stage. Every kind of such text already had a home that keeps
+  it dated and attributable; the table names it.
+- **Why the warnings follow the stage's status.** A 📋 stage may be edited
+  freely, so each of the four signals has a fix there. On a 🚧, 🔍 or ⏸️
+  stage only the blockquote does: every one observed was a post-start
+  annotation, so deleting it is the fix, while a long Goal, a bold paragraph
+  or a long deliverable in a started stage was written as its plan, and the
+  freeze keeps it. A ✅ or ❌ stage is a settled record — the records
+  exemption `aide check` applies elsewhere (issue #338) — and once archived
+  its section is a stub (issue #476). On both consumers'
+  roadmaps the warnings fired four times when they were introduced: on
+  blockquotes in three ⏸️ stages, and on one bold paragraph in a 📋 stage,
+  plan text that belongs in its Goal.
+- **Why a settled stage's section is archived, beside `progress.md`'s
+  (#476, from #170).** One consumer's `roadmap.md` reached 145 KB, most of
+  it delivered stages, frozen once started. Of its readers, the spec author
+  reads only the 🚧 stage it serves, the reviewer, validator and builders
+  name the file only as a path they must not write, `aide check` parses the
+  coverage table, the blocking Dependencies slots and a not-yet-started
+  maintenance stage's acceptance bullets, and `reword` touches a started,
+  unsettled stage. The queue planner reads the whole file at every queue,
+  and the owner at each re-staging, and the settled stages cost that read and
+  return nothing: what shipped, the planner learns from `progress.md`'s
+  summary table. Archiving by the same verb, on the same eligibility, means
+  the two archives cannot disagree about which stages are settled.
+- **Why no reader needs more than the stub.** A later stage's dependency on
+  an archived stage needs only its number and its ✅ in `progress.md`; the
+  coverage table needs only the stage's section, which the stub is; `aide
+  progress reword` reaches a started stage only while it is not archived,
+  since every writer refuses an archived stage. The one reader whose
+  findings change is the forward-dependency warning: a stub has no
+  Dependencies slot, so a settled stage whose slot named a later stage is
+  no longer named once archived — it has closed, so there is no closure
+  left for the later stage to stand in the way of, and the archive keeps the
+  slot as written.
+- **Why the stub's heading is checked against the archive.** The freeze
+  holds by construction only while a stub is the verb's: the maintenance
+  stage is never archived, so the retitle that makes one never reaches an
+  archived stage — unless the stub is retitled by hand, which would make a
+  settled stage the maintenance stage while its section, archived, still
+  says otherwise. `aide check` errors on it, and `unarchive` is the way to a
+  retitle, because it brings back the section the retitle has to land in,
+  in both documents.
+- **Why a stub, and not a link in a table.** `progress.md` links an archived
+  stage from its summary row because it has one row per stage; this file has
+  none. A heading with one line under it keeps every rule that reads "a named
+  stage has a section" true — the coverage table's completeness, the
+  dependency graph's legibility — in under 100 bytes a stage. Removing the
+  section outright was the alternative, and would have made every coverage
+  row naming a settled stage a warning.
+- **Why the archive keeps the heading.** The file reads cold as the stage it
+  holds, and `unarchive` puts back the section exactly as it moved, as
+  `progress/stage-N.md` does.
+- **Why a stage archived before #476 is a warning.** Stages a consumer
+  archived on 2.50.x moved `progress.md`'s half alone, which loses nothing:
+  the roadmap section is still there, only unarchived. An error would fail
+  `aide check` on the first run after the update over a state the verb
+  itself made, so the warning names the catch-up, and `archive` takes it.
+  Every other disagreement is an error, as the `progress.md` side's are: a
+  stub with no file, or a file beside a whole section, leaves the plan in no
+  place or two, and a roadmap section archived while its `progress.md` stage
+  is live takes the plan away from the spec author who reads it.
+- **Why the shape is a warning.** For the forward-dependency reason below:
+  roadmaps written before the rule exist, a started stage is frozen, and the
+  human at the queue boundary reads warnings.
+- **Why about 800 characters.** The threshold sits above the longest
+  deliverable of the first consumer's stages 0–11 (397 characters), above
+  the longest in the second consumer (707, an admission rule its stage must
+  meet, which is plan), and at about the first consumer's ninetieth
+  percentile (798). All 21 bullets over 700 characters in either roadmap sat
+  in the first consumer's stages 26–33.
+- **Why no byte cap and no date signal.** A section's size is the sum of the
+  four signals, and a cap would not say which part to move. Dated strings
+  are common in stage sections — 82 in the first consumer's — but an insight
+  ID carries its date (`insight 2026-10-06-f318`), so a date says little the
+  blockquote does not.
 - **Why a forward dependency is named at all.** In one consumer a stage's
   Dependencies read `Depends on Stage N+2; … may be delivered after it`, and a
   queue cut from it said outright that it did not close the stage: the work

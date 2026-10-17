@@ -134,6 +134,10 @@ is.
   `aide insights tick N --pointer "declined: <reason>"`; a `gap` moved to
   the roadmap's `# Backlog` as a `roadmap.md` amendment, its bullet citing
   `insight <ID>`, then ticked `--pointer "roadmap Backlog"`.
+- **A roadmap amendment never annotates a started stage.** What the session
+  learned about one goes to the home §1 → `roadmap.md` routes it to — its
+  table of routes says which — and an annotation already in such a stage
+  moves there too; a 📋 Planned stage is edited as plan.
 - **Make the smallest edit that carries the agreed change**, and leave the
   rest of the document as it reads.
 - **Finish with `python .aide/scripts/aide.py check`**, and clear any error

@@ -1,6 +1,6 @@
 """Tests for the roadmap↔progress acceptance-drift warning — issue #142.
 
-The recorded defect (spine-failure-lab, engine 1.34.0): fifteen of sixteen
+The recorded defect (a consumer, engine 1.34.0): fifteen of sixteen
 stages mirrored their roadmap Validation / acceptance bullets exactly, and the
 sixteenth carried a fourth, load-bearing box the roadmap never grew. The mirror
 is a stated contract in two shipped documents and was the only §1 contract with
