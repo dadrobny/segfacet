@@ -345,6 +345,14 @@ measured firing equals its expected set).
   untouched; no citation, detector text or generated doc is edited (A8).
   Validation steps 1 and 2 need the cohort and pytest, which the builder
   does not run; they are left to the validator.
+- **Validator results (2026-10-17, commit c7073fce0f).** Validation step 1:
+  `tests/test_240_verse19_probes.py` with `SEGFACET_VERSE_COHORT` set to the
+  VerSe19 three-split root (per-machine, see A5's note; no absolute path
+  here) and `-rs`: 9 passed, 0 skipped, so AC3 (minimum 11.082 mm cited) and
+  AC4 (159 masks cited) ran and passed. Validation step 2: `missing_level`
+  replayed over the 159 VerSe19 masks with two or more labels under
+  `bundled_default_config()`: 0 findings from the rule alone and 0 after
+  `run_rules`; largest gap ratio 1.378; 0 masks carry label 26 or 27.
 
 - **Left open:** Whether the sacral and coccygeal exclusion costs real
   sensitivity: a missed L5 between L4 and S1 is no longer reported by
@@ -355,3 +363,8 @@ measured firing equals its expected set).
   the L4–L5 gap read smaller, which lowers sensitivity there and adds no
   false positive. Changing that needs a sacral-labelled cohort to measure
   against.
+  - *Correction (2026-10-17, review nit):* the "adds no false positive" half
+    is unmeasured. A short L5–S1 spacing lowers the baseline and raises the
+    L4–L5 ratio, which could fire a false positive; no cohort this item can
+    read carries a sacral label (A2, validator step 2: 0 masks with 26 or
+    27), so neither direction was measured. Only the sensitivity half stands.
