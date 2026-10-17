@@ -338,7 +338,13 @@ measured firing equals its expected set).
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Built as specified.** `centroid_spacing.py` gains a module-private
+  `_is_sacral_or_coccygeal`, used by both the `fused_label` loop (no
+  behaviour change) and the `missing_level` loop, which skips gap `i` when
+  either flanking label matches. Spacings, baselines and `size_ratio` are
+  untouched; no citation, detector text or generated doc is edited (A8).
+  Validation steps 1 and 2 need the cohort and pytest, which the builder
+  does not run; they are left to the validator.
 
 - **Left open:** Whether the sacral and coccygeal exclusion costs real
   sensitivity: a missed L5 between L4 and S1 is no longer reported by
