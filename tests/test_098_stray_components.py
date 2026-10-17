@@ -1098,12 +1098,16 @@ def _finding_summary(f, *, include_reason: bool) -> dict:
 
 # Item 224: rendered decimals in a pinned reason can move one digit between
 # platforms (spline-fit last-ULP). Decimal tokens match within one unit of the
-# pinned token's last place; everything else is exact.
+# pinned token's last place; everything else is exact. Threshold clauses are
+# config literals, so they are compared exactly (item 238).
 _DECIMAL_TOKEN = re.compile(r"\d+\.\d+")
+_THRESHOLD_CLAUSE = re.compile(r"(?:threshold|above|at most) \d+\.\d+")
 
 
 def _assert_reason_matches(got: str, pinned: str) -> None:
     msg = f"reason differs:\n  got:    {got!r}\n  pinned: {pinned!r}"
+    assert _THRESHOLD_CLAUSE.findall(got) == _THRESHOLD_CLAUSE.findall(pinned), msg
+    got, pinned = _THRESHOLD_CLAUSE.sub("@", got), _THRESHOLD_CLAUSE.sub("@", pinned)
     assert _DECIMAL_TOKEN.sub("#", got) == _DECIMAL_TOKEN.sub("#", pinned), msg
     for g, p in zip(_DECIMAL_TOKEN.findall(got), _DECIMAL_TOKEN.findall(pinned)):
         tol = Decimal(1).scaleb(-len(p.split(".")[1]))

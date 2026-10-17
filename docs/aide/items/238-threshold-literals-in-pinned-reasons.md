@@ -205,7 +205,7 @@ None.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Implemented as specified: `_THRESHOLD_CLAUSE` compared exactly via `findall`, then replaced by `@` (no digit) on both sides before the existing tolerant steps.
 
 - **Masking chosen over a direct pin of 1.5.** A direct
   `assert DEFAULT_GAP_RATIO == 1.5` would catch only the gap ratio. It would
