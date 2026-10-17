@@ -84,6 +84,7 @@ class Stage:
     objectives: str
     status: str  # one of STATUS_ICONS values
     phase: Optional[str] = None  # roadmap phase number this stage belongs to
+    archive: Optional[str] = None  # progress/stage-N.md link of an archived stage
 
 
 @dataclass
@@ -207,7 +208,9 @@ def parse_progress(text: str) -> Tuple[List[Stage], List[Objective], Dict[int, T
         if len(cells) == 4 and re.fullmatch(r"\d+", cells[0]):
             status = _icon_to_status(cells[3])
             if status:
-                stages.append(Stage(cells[0], cells[1], cells[2], status))
+                tm = re.fullmatch(r"\[(.*)\]\((progress/stage-\d+\.md)\)", cells[1])
+                title, archive = (tm.group(1), tm.group(2)) if tm else (cells[1], None)
+                stages.append(Stage(cells[0], title, cells[2], status, archive=archive))
         elif len(cells) == 3 and re.fullmatch(r"G\d+.*", cells[0]):
             status = _icon_to_status(cells[2])
             code_m = re.match(r"(G\d+)\s*(.*)", cells[0])
@@ -483,6 +486,16 @@ def build_report_model(
         phases, stage_to_phase = parse_phases(progress_text)
         for stage in stages:
             stage.phase = stage_to_phase.get(stage.number)
+            # An archived stage's section lives in its linked file; a missing
+            # file is skipped (half-done archive/unarchive).
+            if stage.archive and (aide_dir / stage.archive).is_file():
+                archived = parse_progress(
+                    (aide_dir / stage.archive).read_text(encoding="utf-8")
+                )[2]
+                for num, (status, _) in archived.items():
+                    prev = item_status.get(num)
+                    if prev is None or _STATUS_RANK[status] >= _STATUS_RANK[prev[0]]:
+                        item_status[num] = (status, stage.number)
 
     titles = parse_items(aide_dir / "items")
     queued = parse_queues(aide_dir / "queue")

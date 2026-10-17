@@ -370,6 +370,13 @@ item merged into `aide/queue-032`. Items 237–240 are independent of it.
 
 To be updated during implementation.
 
+- **Archive merge lives in `build_report_model`, reusing `parse_progress`.**
+  The archive file keeps its `## Stage N` heading, so `parse_progress` on its
+  text yields the item map directly; the merge is a `>=` rank compare so the
+  deliverable's own stage wins a tie (AC1, AC2). No engine import was added.
+- **Step 1 applied as specified:** item 006 off Stage 1's CLI-wiring marker,
+  item 204 off Stage 32's D3 marker, each with a dated trail line.
+
 - **The archived-tree suite run is a Validation step, not an acceptance
   criterion.** A test that ran the suite over an archived copy of the
   repository would run the suite inside itself. AC1–AC5 cover what the
