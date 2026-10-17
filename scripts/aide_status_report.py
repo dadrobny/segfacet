@@ -482,20 +482,33 @@ def build_report_model(
     item_status: Dict[int, Tuple[str, Optional[str]]] = {}
     if progress_path.is_file():
         progress_text = progress_path.read_text(encoding="utf-8")
-        stages, objectives, item_status = parse_progress(progress_text)
+        # An archived stage's section lives in its linked file: splice each
+        # back (ascending stage, before the first later `## Stage M`), then
+        # parse once so item->stage matches the unarchived tree. A missing
+        # file is skipped (half-done archive/unarchive).
+        linked = sorted(
+            (s for s in parse_progress(progress_text)[0] if s.archive),
+            key=lambda s: int(s.number),
+        )
+        lines = progress_text.splitlines()
+        head_re = re.compile(r"^##\s+Stage\s+(\d+)")
+        for stage in linked:
+            path = aide_dir / stage.archive
+            if not path.is_file():
+                continue
+            block = path.read_text(encoding="utf-8").splitlines()
+            start = next((i for i, l in enumerate(block) if (m := head_re.match(l)) and m.group(1) == stage.number), None)
+            if start is None:
+                continue
+            at = next(
+                (i for i, l in enumerate(lines) if (m := head_re.match(l)) and int(m.group(1)) > int(stage.number)),
+                len(lines),
+            )
+            lines[at:at] = block[start:]
+        stages, objectives, item_status = parse_progress("\n".join(lines))
         phases, stage_to_phase = parse_phases(progress_text)
         for stage in stages:
             stage.phase = stage_to_phase.get(stage.number)
-            # An archived stage's section lives in its linked file; a missing
-            # file is skipped (half-done archive/unarchive).
-            if stage.archive and (aide_dir / stage.archive).is_file():
-                archived = parse_progress(
-                    (aide_dir / stage.archive).read_text(encoding="utf-8")
-                )[2]
-                for num, (status, _) in archived.items():
-                    prev = item_status.get(num)
-                    if prev is None or _STATUS_RANK[status] >= _STATUS_RANK[prev[0]]:
-                        item_status[num] = (status, stage.number)
 
     titles = parse_items(aide_dir / "items")
     queued = parse_queues(aide_dir / "queue")
