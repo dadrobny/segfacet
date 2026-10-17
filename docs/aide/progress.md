@@ -340,7 +340,8 @@ empty / trivially-failed segmentations.
 - ✅ QC verdict model: `pass` / `flagged-for-review` / `fail` with per-case + per-vertebra reasons. *(Item 008)*
 - ✅ JSON report schema v0 (machine-readable, versioned). *(Item 009)*
 - ✅ Human-readable report (Markdown/plain text) from the same model. *(Item 010)*
-- ✅ CLI wires loader → empty-check → verdict → both report formats. *(Items 006, 010)*
+- ✅ CLI wires loader → empty-check → verdict → both report formats. *(Item 010)*
+  - **2026-10-17** → item 006 taken off this bullet's marker by item 236: item 006's deliverable is the CLI entry point, Stage 0's bullet, which this wiring extends.
 
 **Acceptance.**
 
@@ -1883,7 +1884,8 @@ where wanted, in any later queue. The per-mode menu of known inputs is in
 - ✅ **D3** Stage 20 closed (its deferred validation deliverable) and this stage validated
   at the end of the last queue: artifacts regenerated from a clean tree, the specificity assertion driven over
   every corpus case, the detection count recorded per status and rung, naming the modes
-  refined and those left as documented drafts. *(Item 204)*
+  refined and those left as documented drafts.
+  - **2026-10-17** → item 204 taken off this bullet's marker by item 236: item 204 delivered this re-run as Stage 33's D6 bullet, which carries its marker.
 
 **Acceptance.**
 
@@ -2057,7 +2059,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 - ✅ Three test guards that see only half of what they guard. *(Item 225)*
 - ✅ Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
 - ✅ Stale descriptions of shipped behaviour, and the path-position end clamp. *(Item 227)*
-- 📋 Stage archive made safe, then run. *(Item 236)*
+- 🚧 Stage archive made safe, then run. *(Item 236)*
 - 📋 Dead code and stale comments left by items 210, 223 and 227. *(Item 237)*
 - 📋 Threshold literals in pinned reasons compared exactly. *(Item 238)*
 - 📋 The corpus sheet regenerated with the manifest. *(Item 239)*
