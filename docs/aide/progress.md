@@ -804,7 +804,7 @@ per-deliverable provenance.
 - ✅ Stale descriptions of shipped behaviour, and the path-position end clamp. *(Item 227)*
 - ✅ Stage archive made safe, then run. *(Item 236)*
 - ✅ Dead code and stale comments left by items 210, 223 and 227. *(Item 237)*
-- 🚧 Threshold literals in pinned reasons compared exactly. *(Item 238)*
+- 🔍 Threshold literals in pinned reasons compared exactly. *(Item 238)*
 - 📋 The corpus sheet regenerated with the manifest. *(Item 239)*
 - 📋 VerSe19 probes behind items 218 and 220. *(Item 240)*
 
