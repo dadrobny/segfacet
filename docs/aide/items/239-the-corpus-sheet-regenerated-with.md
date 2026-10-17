@@ -206,6 +206,15 @@ Existing tests to reconcile:
 - No test pins `corpus.py`'s or `corpus_sheet.py`'s docstring text or the
   `Wrote corpus manifest to` stdout line (grep 2026-10-17).
 
+## Review findings
+
+- **success-rc-unchecked** (minor): AC1, AC2 and the explicit-`--out`-naming-the-corpus-dir
+  test never checked `main`'s return code, so a `main` that returned 1 after
+  rendering passed them. Fixed by asserting `rc == 0` in
+  `test_ac1_regeneration_writes_a_sheet_matching_its_manifest`,
+  `test_ac2_default_regeneration_writes_the_committed_sheet_path` and
+  `test_explicit_out_naming_corpus_dir`.
+
 ## Validation
 
 1. `.venv/bin/python -m segfacet.synth.corpus --out <scratch>/regen` exits 0

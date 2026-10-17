@@ -48,8 +48,9 @@ def no_matplotlib_run(tmp_path_factory):
 
 
 def test_ac1_regeneration_writes_a_sheet_matching_its_manifest(tmp_path):
-    corpus.main(["--out", str(tmp_path)])
+    rc = corpus.main(["--out", str(tmp_path)])
 
+    assert rc == 0
     sheet = tmp_path / "corpus_sheet.png"
     assert sheet.is_file()
     assert _source_chunk(sheet) == _expected_source(tmp_path)
@@ -62,8 +63,9 @@ def test_ac2_default_regeneration_writes_the_committed_sheet_path(tmp_path, monk
     monkeypatch.setattr(corpus, "CORPUS_DIR", c)
     monkeypatch.setattr(corpus_sheet, "SHEET_PATH", s)
 
-    corpus.main([])
+    rc = corpus.main([])
 
+    assert rc == 0
     assert s.is_file()
     assert _source_chunk(s) == _expected_source(c)
 
@@ -111,8 +113,9 @@ def test_explicit_out_naming_corpus_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(corpus, "CORPUS_DIR", c)
     monkeypatch.setattr(corpus_sheet, "SHEET_PATH", s)
 
-    corpus.main(["--out", str(c)])
+    rc = corpus.main(["--out", str(c)])
 
+    assert rc == 0
     assert s.is_file()
     assert (c / "manifest.json").is_file()
     assert not (c / "corpus_sheet.png").exists()
