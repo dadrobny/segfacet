@@ -226,6 +226,13 @@ None.
 
 To be updated during implementation.
 
+- **Implemented as specced (steps 1-7).** `main` imports `corpus_sheet`
+  lazily, resolves the sheet path (A1), probes `import matplotlib` (A3), and
+  calls `render_sheet(out=..., manifest_path=...)` (A4). The stderr line names
+  the sheet path, says matplotlib is not importable and to rerun with the dev
+  extra (A2). The manifest line is printed before the probe, so it appears on
+  the failing path too. The committed sheet and manifest were not regenerated.
+
 - **Not an environment-gated capability.** The sheet rendering and its
   matplotlib dependency shipped with item 178. This item adds a graceful path
   for its absence and introduces no new capability, so it adds no
