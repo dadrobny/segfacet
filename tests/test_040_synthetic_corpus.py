@@ -314,8 +314,9 @@ def test_ac8_modes_4_8_reconstructed_record_rest_pipeline():
     the relabel-swap case moved into the pipeline set in item 132
     (2026-08-31), which judged monotonicity against a traversal-ordered
     reference fit (since item 210, 2026-10-05, the check fits no curve: it
-    reads position along a label-free MST path). Item 195 (2026-09-28) removed the last reconstructed
-    case (the overlap case, mode 15): no committed case is
+    reads position along a label-free MST path). Item 195 (2026-09-28)
+    removed the last reconstructed case (the overlap case, mode 15): no
+    committed case is
     reconstructed_record any more, so ``_RECONSTRUCTED_MODES`` is empty and
     every case takes the ``_PIPELINE_ONLY_MODES`` branch."""
     for case in _cases():

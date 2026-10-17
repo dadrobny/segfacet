@@ -17,8 +17,9 @@ in-suite:
         pinned to ``False`` / ``[["L2", "L3"]]`` -- item 132's traversal-
         ordered reference fit -- flipped 2026-08-31 from the ``True`` / ``()``
         measured before that item. Since item 210 (2026-10-05) the check fits
-        no curve: it reads position along a label-free MST path. Its manifest ``detection`` is now
-        ``pipeline``, flipped from ``reconstructed_record``.
+        no curve: it reads position along a label-free MST path. Its
+        manifest ``detection`` is now ``pipeline``, flipped from
+        ``reconstructed_record``.
 - AC9:  ``displace``'s maximum offset exceeds, and ``clean_control``'s
         stays below, the shipped ``mislabel.max_offset_mm`` threshold, by a
         floor margin (not an equality) so float noise cannot fail it.
@@ -324,10 +325,10 @@ def test_adv_synthetic_bare_s_zero_default_fails_the_scale_free_check():
 def test_ac7_mode4_relabel_swap_is_monotonic_pinned_true():
     """Pin FLIPPED 2026-08-31 (item 132): the stage's own acceptance
     criterion wanted ``is_monotonic is False`` on this case, and item 132's
-    traversal-ordered reference fit then measured exactly that (since item 210,
-    2026-10-05, the check fits no curve: it reads position along a label-free
-    MST path) -- update the
-    pin, don't just widen it (this test's own prior instruction). Pre-item
+    traversal-ordered reference fit then measured exactly that (since item
+    210, 2026-10-05, the check fits no curve: it reads position along a
+    label-free MST path) -- update the pin, don't just widen it (this test's
+    own prior instruction). Pre-item
     132 this read ``True`` with zero non-monotonic pairs; now it reads
     ``False`` with the swapped pair named."""
     _case_result, block = _run_qc("relabel_swap")

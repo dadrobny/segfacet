@@ -40,14 +40,14 @@ document ``force_overlap`` as structurally invisible to the plain
 ``displace`` moved into the pipeline-detectable set in item 120, which
 promoted a held-out per-label spline offset into the pipeline itself, and
 ``relabel_swap`` moved into the pipeline-detectable set in item 132
-(2026-08-31), which judges monotonicity against a traversal-ordered
+(2026-08-31), which judged monotonicity against a traversal-ordered
 reference fit rather than one fitted through the ordering under test. Since
 item 210 (2026-10-05) the check fits no curve: it reads position along a
-label-free MST path. The corpus cohort here runs the plain pipeline on each candidate, so only
-``force_overlap`` classifies ``FALSE_NEGATIVE`` -- overall cohort
-sensitivity is consequently ``7/8``, not ``1.0``. This is intentional, not a
-bug: over-claiming detection on the reconstructed mode would misrepresent
-the system's real, honest capability.
+label-free MST path. The corpus cohort here runs the plain pipeline on each
+candidate, so only ``force_overlap`` classifies ``FALSE_NEGATIVE`` -- overall
+cohort sensitivity is consequently ``7/8``, not ``1.0``. This is intentional,
+not a bug: over-claiming detection on the reconstructed mode would
+misrepresent the system's real, honest capability.
 
 All tests are deterministic, CPU-only, and portable (no network, no
 absolute paths, no wall clock).
