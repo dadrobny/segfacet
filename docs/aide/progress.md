@@ -62,7 +62,7 @@
 | 31    | Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update | G7, G8 | ✅     |
 | 32    | Selected-Mode Refinement: one failure mode fully specified end to end   | G2, G7, G8      | ✅     |
 | 33    | Corpus & Rule Re-grounding: modes 2 and 3 to the bar                    | G2, G7, G8      | ✅     |
-| 34    | Maintenance                                                             | —               | ✅     |
+| 34    | Maintenance                                                             | —               | 🚧     |
 | 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
@@ -2040,7 +2040,7 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 
 ---
 
-## Stage 34 — Maintenance — ✅
+## Stage 34 — Maintenance — 🚧
 
 **Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
 `automation` entries in maintenance queues.
@@ -2057,6 +2057,11 @@ boundary was re-drawn and mode 4 left the stage. Title corrected 2026-10-03.)
 - ✅ Three test guards that see only half of what they guard. *(Item 225)*
 - ✅ Two owner-decided retirements: `sagittal_projection` and the CI `scope-check` job. *(Item 226)*
 - ✅ Stale descriptions of shipped behaviour, and the path-position end clamp. *(Item 227)*
+- 📋 Stage archive made safe, then run. *(Item 236)*
+- 📋 Dead code and stale comments left by items 210, 223 and 227. *(Item 237)*
+- 📋 Threshold literals in pinned reasons compared exactly. *(Item 238)*
+- 📋 The corpus sheet regenerated with the manifest. *(Item 239)*
+- 📋 VerSe19 probes behind items 218 and 220. *(Item 240)*
 
 ---
 
