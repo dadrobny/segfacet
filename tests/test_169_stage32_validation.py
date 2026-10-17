@@ -8,9 +8,9 @@ the item's replay runs those by node id from a clean clone. This module
 holds only what no merged test covers -- the live-state invariants behind
 the numbers written into ``progress.md``, and the Stage 20 bullet sweep.
 
-Per the item spec's Testing Strategy, this module carries the AC tests that
-remain (AC6, AC7, AC13) plus the named adversarial cases that remain -- no
-others. AC1-AC5, AC11, AC12 and AC14-AC17 are Replay criteria: executed by the
+Per the item spec's Testing Strategy, this module once carried AC6, AC7 and
+AC13 plus the named adversarial cases; item 236 retired them, as dated below.
+AC1-AC5, AC11, AC12 and AC14-AC17 are Replay criteria: executed by the
 builder and re-executed by the validator, their evidence recorded in the item's
 Decisions log, not tested here. AC8, AC9 and AC10 are retired, as dated below.
 
@@ -27,7 +27,17 @@ is retired, with ``_STAGE_32``, ``_ANNOTATION_RE``, ``_TRAIL_LINE_RE`` and
 attested at the bar, so the assertion that the box stays unticked is false by
 design.
 
-Discipline followed (Testing Strategy):
+2026-10-17 (item 236): ``test_ac6_status_count_clause_equals_live_derivation``,
+``test_ac7_rung_count_clause_equals_live_derivation`` and
+``test_ac13_no_stage20_bullet_deferred_and_item141_points_to_154`` are retired,
+with ``test_adv_status_clause_missing_yields_no_match``,
+``test_adv_status_clause_off_by_one_disagrees_with_live``,
+``test_adv_deferred_bullet_anywhere_is_flagged`` and every helper left with no
+caller. They pinned dated counts and a bullet's wording in the Stage 20 section
+of ``progress.md``, which ``aide progress archive`` moves out (the 2026-09-16
+precedent). The module now holds no test.
+
+Discipline followed while it had them (Testing Strategy):
 
 - Stage-section and acceptance-box location goes entirely through
   ``.aide/scripts/aide.py``'s own ``stage_section`` / ``acceptance_boxes``,
@@ -48,266 +58,3 @@ Discipline followed (Testing Strategy):
   constructed sign-off mapping passed to the same in-process helpers; none
   writes a file or touches the shipped ``MODE_SIGN_OFFS``.
 """
-
-from __future__ import annotations
-
-import importlib.util
-import re
-from pathlib import Path
-from typing import List
-
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-_AIDE_SCRIPT = _REPO_ROOT / ".aide" / "scripts" / "aide.py"
-_PROGRESS_PATH = _REPO_ROOT / "docs" / "aide" / "progress.md"
-
-_STAGE_20 = "20"
-
-
-def _aide_module():
-    """Import ``.aide/scripts/aide.py`` in-process (§6: never shell out to
-    the CLI and re-parse its stdout)."""
-    spec = importlib.util.spec_from_file_location("_aide_cli_169", _AIDE_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
-
-
-def _progress_lines() -> List[str]:
-    return _PROGRESS_PATH.read_text(encoding="utf-8").splitlines()
-
-
-# =========================================================================== #
-# Continuation-line gathering (the one helper this module writes -- the
-# test_161 idiom: stage_section/acceptance_boxes return line indices, not
-# text).
-# =========================================================================== #
-
-#: A top-level Deliverables bullet: `- <icon> ...`. Sub-bullets (retraction
-#: trail lines, etc.) are indented and never match `^- `.
-_BULLET_LEAD_RE = re.compile(r"^- (\S+)")
-
-
-def _bullet_start(lines: List[str], idx: int, section_start: int):
-    """Walk back from *idx* to the nearest top-level bullet line owning it."""
-    for i in range(idx, section_start - 1, -1):
-        if lines[i].startswith("- "):
-            return i
-    return None
-
-
-def _bullet_block(lines: List[str], bullet: int, section_end: int) -> str:
-    """*bullet*'s own line plus its indented/hanging continuation lines,
-    stopping at the next top-level bullet, a blank line, or a heading."""
-    parts = [lines[bullet]]
-    for i in range(bullet + 1, section_end):
-        line = lines[i]
-        if not line.strip():
-            break
-        if line.startswith("- ") or line.startswith("#") or line.startswith(">"):
-            break
-        parts.append(line)
-    return "\n".join(parts)
-
-
-def _deferred_bullets(lines: List[str], start: int, end: int) -> List[str]:
-    """Top-level bullet lines in [start, end) leading with the deferred icon
-    `⏸️`."""
-    violations = []
-    for i in range(start, end):
-        match = _BULLET_LEAD_RE.match(lines[i])
-        if match and match.group(1) == "⏸️":
-            violations.append(lines[i].strip())
-    return violations
-
-
-# =========================================================================== #
-# Live derivations (shared by AC6-AC9).
-# =========================================================================== #
-
-
-def _live_status_counts():
-    import segfacet.failure_modes as fm
-
-    counts = {"validated": 0, "implemented": 0, "specified": 0, "proposed": 0}
-    for mode in fm.SPECIFICATION.values():
-        counts[fm.derive_status(mode)] += 1
-    return len(fm.SPECIFICATION), counts
-
-
-def _live_rung_counts():
-    import segfacet.failure_modes as fm
-
-    counts = {
-        "synthetic-demonstrable": 0,
-        "needs-real-data": 0,
-        "structurally-unobservable": 0,
-        "none": 0,
-    }
-    for mode in fm.SPECIFICATION.values():
-        rung = fm.derive_mode_rung(mode)
-        counts[rung or "none"] += 1
-    return counts
-
-
-# =========================================================================== #
-# AC6: the status-count clause equals the live derivation.
-# =========================================================================== #
-
-_STATUS_COUNTS_RE = re.compile(
-    r"derived status counts over (\d+) modes: validated (\d+), implemented (\d+), "
-    r"specified (\d+), proposed (\d+)"
-)
-
-
-def test_ac6_status_count_clause_equals_live_derivation():
-    aide = _aide_module()
-    lines = _progress_lines()
-    section = aide.stage_section(lines, _STAGE_20)
-    assert section is not None, "no Stage 20 section found in progress.md"
-    start, end, _stage_num = section
-    text = "\n".join(lines[start:end])
-
-    matches = list(_STATUS_COUNTS_RE.finditer(text))
-    assert matches, (
-        "Stage 20's section carries no derived-status-counts clause yet "
-        "(expected until item 169's bookkeeping step runs)"
-    )
-    match = matches[-1]
-    n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
-    live_n, live_counts = _live_status_counts()
-    assert n == live_n
-    assert validated == live_counts["validated"]
-    assert implemented == live_counts["implemented"]
-    assert specified == live_counts["specified"]
-    assert proposed == live_counts["proposed"]
-
-
-def test_adv_status_clause_missing_yields_no_match():
-    """`status-clause-missing`: a section carrying no status-count clause
-    yields no match -- guards a parser that would read an absent note as
-    agreement, letting an unwritten number pass as measured."""
-    assert _STATUS_COUNTS_RE.search("no such clause anywhere in this text") is None
-
-
-def test_adv_status_clause_off_by_one_disagrees_with_live():
-    """`status-clause-off-by-one`: a clause whose `validated` count is the
-    live value plus one fails -- guards the exact defect item 167's
-    2026-09-20 correction found, a hardcoded literal that happened to equal
-    live state at writing. Built from the live derivation, never a literal,
-    so the control tracks the specification instead of coinciding with it by
-    accident."""
-    live_n, live_counts = _live_status_counts()
-    text = (
-        f"derived status counts over {live_n} modes: "
-        f"validated {live_counts['validated'] + 1}, "
-        f"implemented {live_counts['implemented']}, "
-        f"specified {live_counts['specified']}, "
-        f"proposed {live_counts['proposed']}"
-    )
-    match = _STATUS_COUNTS_RE.search(text)
-    assert match is not None
-    n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
-    assert n == live_n
-    assert implemented == live_counts["implemented"]
-    assert specified == live_counts["specified"]
-    assert proposed == live_counts["proposed"]
-    assert validated != live_counts["validated"], (
-        "expected the off-by-one clause to disagree with the live validated count"
-    )
-
-
-# =========================================================================== #
-# AC7: the rung-count clause equals the live derivation.
-# =========================================================================== #
-
-_RUNG_COUNTS_RE = re.compile(
-    r"derived mode rung counts: synthetic-demonstrable (\d+), needs-real-data (\d+), "
-    r"structurally-unobservable (\d+), none (\d+)"
-)
-
-
-def test_ac7_rung_count_clause_equals_live_derivation():
-    aide = _aide_module()
-    lines = _progress_lines()
-    section = aide.stage_section(lines, _STAGE_20)
-    assert section is not None, "no Stage 20 section found in progress.md"
-    start, end, _stage_num = section
-    text = "\n".join(lines[start:end])
-
-    matches = list(_RUNG_COUNTS_RE.finditer(text))
-    assert matches, (
-        "Stage 20's section carries no derived-mode-rung-counts clause yet "
-        "(expected until item 169's bookkeeping step runs)"
-    )
-    match = matches[-1]
-    sd, nrd, su, none_ = (int(g) for g in match.groups())
-    live_counts = _live_rung_counts()
-    assert sd == live_counts["synthetic-demonstrable"]
-    assert nrd == live_counts["needs-real-data"]
-    assert su == live_counts["structurally-unobservable"]
-    assert none_ == live_counts["none"]
-
-
-# =========================================================================== #
-# AC13: no Stage 20 deliverable bullet is left deferred, and the item-141
-# bullet reads excluded with a pointer to item 154.
-# =========================================================================== #
-
-
-def test_ac13_no_stage20_bullet_deferred_and_item141_points_to_154():
-    aide = _aide_module()
-    lines = _progress_lines()
-    section = aide.stage_section(lines, _STAGE_20)
-    assert section is not None, "no Stage 20 section found in progress.md"
-    start, end, _stage_num = section
-
-    deferred = _deferred_bullets(lines, start, end)
-    assert deferred == [], (
-        f"Stage 20 deliverable bullet(s) still lead with the deferred icon: {deferred}"
-    )
-
-    marker = "*(Item 141)*"
-    hits = [i for i in range(start, end) if marker in lines[i]]
-    assert len(hits) == 1, (
-        f"expected exactly one Stage 20 deliverable carrying {marker!r}; "
-        f"found {len(hits)}"
-    )
-    bullet = _bullet_start(lines, hits[0], start)
-    assert bullet is not None, f"could not find the bullet owning {marker!r} in Stage 20"
-    assert lines[bullet].startswith("- ❌"), (
-        f"the item-141 Stage 20 deliverable must lead with the excluded icon; "
-        f"it reads: {lines[bullet][:80]!r}"
-    )
-
-    block = _bullet_block(lines, bullet, end)
-    assert "item 154" in block.lower(), (
-        f"the item-141 bullet does not name item 154: {block!r}"
-    )
-    dates = re.findall(r"\b(\d{4}-\d{2}-\d{2})\b", block)
-    assert dates, f"the item-141 bullet carries no ISO date: {block!r}"
-    assert any(d >= "2026-09-22" for d in dates), (
-        f"the item-141 bullet carries no ISO date on or after 2026-09-22: {dates}"
-    )
-
-
-def test_adv_deferred_bullet_anywhere_is_flagged():
-    """`deferred-bullet-anywhere-is-flagged`: an in-memory Stage 20 section
-    whose deferred bullet is some deliverable OTHER than item 141's is
-    flagged -- guards a scan that checks only the item-141 line and would
-    let another deferred bullet block the rollup unnoticed."""
-    aide = _aide_module()
-    section_text = (
-        "## Stage 20 — Failure-Mode Traceability (G2, G7) — \U0001f6a7\n"
-        "\n"
-        "**Deliverables.**\n"
-        "\n"
-        "- ⏸️ Some other deliverable, not item 141's own. *(Item 999)*\n"
-        "- ❌ The item-141 deliverable, resolved. *(Item 141)* item 154, 2026-09-22.\n"
-        "\n"
-        "**Acceptance.**\n"
-        "\n"
-        "- [x] Some criterion. *(evidence.)*\n"
-    ).splitlines()
-    start, end, _stage_num = aide.stage_section(section_text, _STAGE_20)
-    violations = _deferred_bullets(section_text, start, end)
-    assert violations, "expected the non-item-141 deferred bullet to be flagged"

@@ -7,8 +7,8 @@ recorded by the builder in `progress.md`'s Decisions log -- not something a
 pytest module can assert. This module covers only the subset that *can* be
 asserted in-suite:
 
-- AC7:  the neighbourhood fork -- reachable + catalogued "unwired" + honest
-        progress.md wording.
+- AC7:  the neighbourhood fork -- reachable + catalogued "unwired". (Its
+        progress.md wording test is retired by item 236, 2026-10-17.)
 - AC8:  no byte-hash fence remains, searched by assertion *shape* (see
         `_classify_sha256_compares` below), not by the `_PRE_[0-9]` name.
 - AC9:  every queue-016 spec (107-116) declares a non-empty
@@ -549,26 +549,8 @@ def test_ac7_catalogue_lists_neighbourhood_entries_as_unwired():
         assert not entry.consuming_rules, (entry.path, entry.consuming_rules)
 
 
-def test_ac7_progress_md_item_024_bullets_match_observable_behaviour():
-    """Both item-024 mentions (the Stage 3 deliverable bullet and its
-    matching acceptance box) were corrected by item 110; assert the corrected
-    wording -- reachable, wired, status "unwired", consumed by no rule --
-    still matches what the catalogue/pipeline actually do."""
-    text = _read_progress()
-    lines = text.splitlines()
-    item_024_lines = [line for line in lines if "Item 024" in line]
-    assert item_024_lines, "no progress.md line references Item 024"
-    assert len(item_024_lines) >= 2, (
-        "expected both the Stage 3 deliverable bullet (line ~256) and its "
-        f"matching acceptance box (line ~263); found {len(item_024_lines)}"
-    )
-
-    combined = "\n".join(item_024_lines)
-    assert "unwired" in combined
-    assert "Item 110" in combined
-    # The stale pre-correction claim -- that the module actively flags
-    # outliers to a verdict -- must not remain as a live, unqualified claim.
-    assert "consumed by no rule" in combined or "consumed by no rule" in text
+# Retired by item 236 (2026-10-17): AC7's item-024 wording check pinned text in a progress.md stage section, which 'aide progress archive' moves out of progress.md.
+# Removed: test_ac7_progress_md_item_024_bullets_match_observable_behaviour.
 
 
 def test_ac7_neighbourhood_module_importable_and_wired_into_pipeline_source():
