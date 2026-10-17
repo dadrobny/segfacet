@@ -11,8 +11,12 @@ covers exactly the subset the spec's Testing Strategy designates **in-suite**:
 
     AC3, AC4, AC5, AC6, AC8, AC9, AC10, AC11, AC12, AC13, AC14, AC15, AC16,
     AC17, AC18, AC22, AC23, AC24, AC25, AC26, AC27 (the conflicts half),
-    AC28, AC29, AC30, AC34, AC35, AC36, AC37, AC40 (the signature
-    half).
+    AC28, AC29, AC30, AC34, AC40 (the signature half).
+
+AC35, AC36 and AC37 were retired by item 236 (2026-10-17): they pinned counts,
+box ticks, annotations and trail lines in the Stage 30 section of
+``progress.md``, which ``aide progress archive`` moves out (the 2026-09-16
+precedent).
 
 AC39's inbox tests were retired on 2026-09-29: they read the live
 docs/aide/insights.md, which conventions §6 forbids (engine 2.10.0+); the
@@ -37,19 +41,12 @@ Discipline followed (Testing Strategy):
   primary inputs in the test body, never by calling ``derive_mode_rung`` /
   ``derive_status`` and comparing the result to itself.
 - Parsed, not eyeballed: AC28 imports ``.aide/scripts/aide.py`` in-process
-  for ``human_gates()``; AC35-AC37 parse ``progress.md``'s Stage 30 section
-  by its checkbox lines.
+  for ``human_gates()``.
 - Git-reading AC34 skips, never fails and never passes, on a shallow clone
   or a missing ``git``.
 
 Adversarial and edge cases covered (Testing Strategy's own list, plus a few):
 
-- AC35's parser rejects a missing count clause, an off-by-one count, and an
-  ``N`` disagreeing with ``len(SPECIFICATION)``.
-- AC36's parser fails on a ticked box with no annotation and an unticked box
-  with no reason.
-- AC37 fails on a reworded original annotation and on a missing trail line
-  naming item 151.
 - AC14 fails on an in-memory matrix copy with one ``analytic`` attribution
   flipped to ``corpus``.
 - AC13's weakened-edge variant changes the derived rung; a mode with no
@@ -179,17 +176,8 @@ def conformance_index(matrix):
     return {(c.corpus, c.case_id): c for c in matrix.conformance.cases}
 
 
-@pytest.fixture(scope="module")
-def detection_by_case_id():
-    """``{case_id: detection}`` over both committed manifests -- used by
-    AC35's validated-through split, independent of anything build_matrix
-    computes."""
-    out = {}
-    for case in corpus_module.load_manifest()["cases"]:
-        out[case["case_id"]] = case.get("detection")
-    for case in intensity_module.load_intensity_manifest()["cases"]:
-        out[case["case_id"]] = case.get("detection")
-    return out
+# Retired by item 236 (2026-10-17): the detection_by_case_id fixture served only the retired AC35 validated-split test.
+# Removed: detection_by_case_id.
 
 
 # =========================================================================== #
@@ -1058,170 +1046,8 @@ def test_ac34_no_failure_modes_commit_predates_the_correction():
 # =========================================================================== #
 
 
-def _stage_section(text: str, heading_prefix: str) -> str:
-    lines = text.splitlines()
-    start = None
-    end = len(lines)
-    for i, line in enumerate(lines):
-        if line.startswith(heading_prefix):
-            start = i
-        elif start is not None and line.startswith("## Stage ") and i > start:
-            end = i
-            break
-    if start is None:
-        raise AssertionError(f"no {heading_prefix!r} heading found in progress.md")
-    return "\n".join(lines[start:end])
-
-
-_STATUS_COUNTS_RE = re.compile(
-    r"derived status counts over (\d+) modes: validated (\d+), implemented (\d+), "
-    r"specified (\d+), proposed (\d+)"
-)
-_RUNG_COUNTS_RE = re.compile(
-    r"derived mode rung counts: synthetic-demonstrable (\d+), needs-real-data (\d+), "
-    r"structurally-unobservable (\d+), none (\d+); per-edge rung counts over (\d+) edges: "
-    r"synthetic-demonstrable (\d+), needs-real-data (\d+), structurally-unobservable (\d+)"
-)
-_VALIDATED_SPLIT_RE = re.compile(
-    r"validated through a pipeline-detected case (\d+), through a reconstructed record only (\d+)"
-)
-
-
-def _live_status_counts():
-    counts = {"validated": 0, "implemented": 0, "specified": 0, "proposed": 0}
-    for mode in fm.SPECIFICATION.values():
-        counts[fm.derive_status(mode)] += 1
-    return len(fm.SPECIFICATION), counts
-
-
-def _live_rung_counts():
-    mode_counts = {"synthetic-demonstrable": 0, "needs-real-data": 0, "structurally-unobservable": 0, "none": 0}
-    edge_counts = {"synthetic-demonstrable": 0, "needs-real-data": 0, "structurally-unobservable": 0}
-    total_edges = 0
-    for mode in fm.SPECIFICATION.values():
-        rung = fm.derive_mode_rung(mode)
-        mode_counts[rung or "none"] += 1
-        for edge in mode.intended_rules:
-            edge_counts[edge.evidence_rung] += 1
-            total_edges += 1
-    return mode_counts, total_edges, edge_counts
-
-
-def _live_validated_split(detection_by_case_id):
-    pipeline_detected = 0
-    reconstructed_only = 0
-    for mode in fm.SPECIFICATION.values():
-        if fm.derive_status(mode) != "validated":
-            continue
-        own_rules = {edge.rule_id for edge in mode.intended_rules}
-        demonstrating = [
-            case for case in mode.corpus_cases
-            if case.expected_firing and own_rules.intersection(case.expected_firing)
-        ]
-        detections = {detection_by_case_id.get(c.case_id) for c in demonstrating}
-        if detections & {"pipeline", "intensity_pipeline"}:
-            pipeline_detected += 1
-        elif detections == {"reconstructed_record"}:
-            reconstructed_only += 1
-    return pipeline_detected, reconstructed_only
-
-
-def test_ac35_status_counts_note_matches_live_derivation():
-    # Item 167 (A6): `aide progress amend` *appends* a dated correction under
-    # the ticked box rather than rewriting it, so the section can carry more
-    # than one status-counts clause -- the superseded one first, the current
-    # attestation last. Read the LAST match, not the first.
-    section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    matches = list(_STATUS_COUNTS_RE.finditer(section))
-    assert matches, "Stage 30's criterion-1 evidence note carries no status-counts clause yet"
-    match = matches[-1]
-    n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
-    live_n, live_counts = _live_status_counts()
-    assert n == live_n
-    assert validated == live_counts["validated"]
-    assert implemented == live_counts["implemented"]
-    assert specified == live_counts["specified"]
-    assert proposed == live_counts["proposed"]
-
-
-def test_ac35_rung_counts_note_matches_live_derivation():
-    # Item 167 (A6): read the LAST appended clause, per the note above.
-    section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    matches = list(_RUNG_COUNTS_RE.finditer(section))
-    assert matches, "Stage 30's criterion-3 evidence note carries no rung-counts clause yet"
-    match = matches[-1]
-    sd, nrd, su, none_, total_edges, e_sd, e_nrd, e_su = (int(g) for g in match.groups())
-    mode_counts, live_total_edges, edge_counts = _live_rung_counts()
-    assert sd == mode_counts["synthetic-demonstrable"]
-    assert nrd == mode_counts["needs-real-data"]
-    assert su == mode_counts["structurally-unobservable"]
-    assert none_ == mode_counts["none"]
-    assert total_edges == live_total_edges
-    assert e_sd == edge_counts["synthetic-demonstrable"]
-    assert e_nrd == edge_counts["needs-real-data"]
-    assert e_su == edge_counts["structurally-unobservable"]
-
-
-def test_ac35_validated_split_note_matches_live_derivation(detection_by_case_id):
-    # Item 167 (A6): read the LAST appended clause, per the note above.
-    section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    matches = list(_VALIDATED_SPLIT_RE.finditer(section))
-    assert matches, "Stage 30's criterion-1 evidence note carries no validated-split clause yet"
-    match = matches[-1]
-    pipeline_detected, reconstructed_only = (int(g) for g in match.groups())
-    live_pipeline, live_reconstructed = _live_validated_split(detection_by_case_id)
-    assert pipeline_detected == live_pipeline
-    assert reconstructed_only == live_reconstructed
-
-
-def test_adv_ac35_status_counts_parser_rejects_missing_clause():
-    assert _STATUS_COUNTS_RE.search("no such clause here") is None
-
-
-def test_adv_ac35_status_counts_parser_rejects_off_by_one():
-    # Item 167 (Correction 2026-09-20, C4): the old literal ("validated 7")
-    # was a hardcoded guess that happened to equal live+1 before this item;
-    # item 167 moved mode 3 to "validated", taking the live count itself to
-    # 7, so the literal stopped perturbing anything and the control passed
-    # by coincidence with live state rather than by construction. Build the
-    # perturbed clause from the live derivation instead, so it can never
-    # coincide with live state again.
-    live_n, live_counts = _live_status_counts()
-    text = (
-        f"derived status counts over {live_n} modes: "
-        f"validated {live_counts['validated'] + 1}, "
-        f"implemented {live_counts['implemented']}, "
-        f"specified {live_counts['specified']}, "
-        f"proposed {live_counts['proposed']}"
-    )
-    match = _STATUS_COUNTS_RE.search(text)
-    assert match is not None
-    n, validated, implemented, specified, proposed = (int(g) for g in match.groups())
-    assert n == live_n
-    assert implemented == live_counts["implemented"]
-    assert specified == live_counts["specified"]
-    assert proposed == live_counts["proposed"]
-    assert validated != live_counts["validated"]
-
-
-def test_adv_ac35_status_counts_parser_rejects_wrong_n():
-    # Item 171 (Correction 2026-09-20 class, item 167): the old literal ("15
-    # modes") was a hardcoded guess about the specification's mode count.
-    # Stage 33 grows that count, so a fixed literal could coincide with it
-    # again. Build the perturbed mode count from the live derivation
-    # instead, so it can never coincide with live state.
-    live_n, live_counts = _live_status_counts()
-    text = (
-        f"derived status counts over {live_n + 1} modes: "
-        f"validated {live_counts['validated']}, "
-        f"implemented {live_counts['implemented']}, "
-        f"specified {live_counts['specified']}, "
-        f"proposed {live_counts['proposed']}"
-    )
-    match = _STATUS_COUNTS_RE.search(text)
-    assert match is not None
-    n = int(match.group(1))
-    assert n != live_n
+# Retired by item 236 (2026-10-17): AC35-AC37 pinned counts, box ticks, annotations and trail lines in the Stage 30 section of progress.md, which 'aide progress archive' moves out of progress.md; their synthetic companions and parsers had no other subject.
+# Removed: _stage_section, _STATUS_COUNTS_RE, _RUNG_COUNTS_RE, _VALIDATED_SPLIT_RE, _live_status_counts, _live_rung_counts, _live_validated_split, test_ac35_status_counts_note_matches_live_derivation, test_ac35_rung_counts_note_matches_live_derivation, test_ac35_validated_split_note_matches_live_derivation, test_adv_ac35_status_counts_parser_rejects_missing_clause, test_adv_ac35_status_counts_parser_rejects_off_by_one, test_adv_ac35_status_counts_parser_rejects_wrong_n, _CHECKBOX_RE, _EVIDENCE_NOTE_RE, _acceptance_items, _is_ticked, _has_annotation, _biconditional_violations, test_ac36_stage30_has_seven_acceptance_boxes, test_ac36_every_box_ticked_implies_evidence_or_unticked_implies_reason, test_adv_ac36_ticked_box_with_no_annotation_is_flagged, test_adv_ac36_unticked_box_with_reason_is_not_flagged, _TRAIL_LINE_RE, _ITEM_143_ANNOTATION_SUBSTRING, _criterion7_box, test_ac37_criterion7_original_annotation_survives_verbatim, test_ac37_criterion7_carries_a_trail_line_dated_on_or_after_this_item_naming_it, test_adv_ac37_reworded_original_annotation_is_flagged, test_adv_ac37_missing_trail_line_naming_item151_is_flagged.
 
 
 # =========================================================================== #
@@ -1229,151 +1055,11 @@ def test_adv_ac35_status_counts_parser_rejects_wrong_n():
 # with a reason (tick-implies-evidence biconditional).
 # =========================================================================== #
 
-_CHECKBOX_RE = re.compile(r"^-\s*\[([ xX])\]\s?")
-_EVIDENCE_NOTE_RE = re.compile(r"\*\(.*?\)\*", re.DOTALL)
-
-
-def _acceptance_items(section: str) -> list:
-    lines = section.splitlines()
-    try:
-        start = next(i for i, l in enumerate(lines) if l.strip() == "**Acceptance.**")
-    except StopIteration:
-        raise AssertionError("no '**Acceptance.**' heading found under the section")
-    items: list = []
-    current: list = []
-    seen_item = False
-    for line in lines[start + 1:]:
-        stripped = line.strip()
-        if _CHECKBOX_RE.match(stripped):
-            if current:
-                items.append("\n".join(current))
-            current = [line]
-            seen_item = True
-            continue
-        if stripped == "" or stripped == "---":
-            if current:
-                items.append("\n".join(current))
-                current = []
-            if seen_item:
-                break
-            continue
-        if current:
-            current.append(line)
-    if current:
-        items.append("\n".join(current))
-    return items
-
-
-def _is_ticked(item_text: str) -> bool:
-    match = _CHECKBOX_RE.match(item_text.splitlines()[0].strip())
-    assert match is not None, item_text
-    return match.group(1).lower() == "x"
-
-
-def _has_annotation(item_text: str) -> bool:
-    return bool(_EVIDENCE_NOTE_RE.search(item_text))
-
-
-def _biconditional_violations(section: str) -> list:
-    violations = []
-    for item in _acceptance_items(section):
-        if not _has_annotation(item):
-            violations.append(item.splitlines()[0].strip())
-    return violations
-
-
-def test_ac36_stage30_has_seven_acceptance_boxes():
-    section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    items = _acceptance_items(section)
-    assert len(items) == 7, items
-
-
-def test_ac36_every_box_ticked_implies_evidence_or_unticked_implies_reason():
-    section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    violations = _biconditional_violations(section)
-    assert violations == [], (
-        f"Stage 30 acceptance box(es) with no evidence/reason annotation: {violations}"
-    )
-
-
-def test_adv_ac36_ticked_box_with_no_annotation_is_flagged():
-    synthetic_section = (
-        "## Stage 30 — Failure-Mode Specification (G2, G7, G8) — 🚧\n\n"
-        "**Acceptance.**\n\n"
-        "- [x] Every mode carries every schema field.\n"
-    )
-    violations = _biconditional_violations(synthetic_section)
-    assert violations, "expected the annotation-less ticked box to be flagged"
-
-
-def test_adv_ac36_unticked_box_with_reason_is_not_flagged():
-    synthetic_section = (
-        "## Stage 30 — Failure-Mode Specification (G2, G7, G8) — 🚧\n\n"
-        "**Acceptance.**\n\n"
-        "- [ ] Some criterion. *(Unticked: see item 151.)*\n"
-    )
-    violations = _biconditional_violations(synthetic_section)
-    assert violations == []
-
 
 # =========================================================================== #
 # AC37: criterion 7 carries this item's dated correction trail, and its
 # original attestation line survives.
 # =========================================================================== #
-
-_TRAIL_LINE_RE = re.compile(r"^\s*-\s*\*\*(\d{4}-\d{2}-\d{2})\*\*\s*→\s*(.+)$", re.M)
-
-#: A stable, distinctive substring of item 143's original criterion-7
-#: annotation (Stage 30's acceptance box 7, as committed by item 143's
-#: validator) -- pinned per AC37's own requirement that this text survive
-#: verbatim.
-_ITEM_143_ANNOTATION_SUBSTRING = (
-    "item 143 validator round 3: full suite green (6273 passed, "
-    "60 environment-gated skips, 0 failed)"
-)
-
-
-def _criterion7_box() -> str:
-    section = _stage_section(_PROGRESS_PATH.read_text(encoding="utf-8"), "## Stage 30")
-    items = _acceptance_items(section)
-    assert len(items) == 7, items
-    return items[6]
-
-
-def test_ac37_criterion7_original_annotation_survives_verbatim():
-    box = _criterion7_box()
-    assert _ITEM_143_ANNOTATION_SUBSTRING in box, box
-
-
-def test_ac37_criterion7_carries_a_trail_line_dated_on_or_after_this_item_naming_it():
-    box = _criterion7_box()
-    trail_matches = _TRAIL_LINE_RE.findall(box)
-    assert trail_matches, f"criterion 7's box carries no dated trail line yet: {box!r}"
-    found = False
-    for date_text, text in trail_matches:
-        if date_text >= "2026-09-15" and "151" in text:
-            found = True
-    assert found, (
-        f"no trail line on/after 2026-09-15 naming item 151 found: {trail_matches}"
-    )
-
-
-def test_adv_ac37_reworded_original_annotation_is_flagged():
-    box = (
-        "- [x] `build_clean_spine` stacks labels caudally along +S like real "
-        "VerSe input, every *(item 143 validator: full suite green in some "
-        "other shape entirely)*\n"
-        "  - **2026-09-15** → item 151 re-verified criterion 7.\n"
-    )
-    assert _ITEM_143_ANNOTATION_SUBSTRING not in box
-
-
-def test_adv_ac37_missing_trail_line_naming_item151_is_flagged():
-    box = (
-        f"- [x] `build_clean_spine` ... *({_ITEM_143_ANNOTATION_SUBSTRING})*\n"
-    )
-    trail_matches = _TRAIL_LINE_RE.findall(box)
-    assert not any(d >= "2026-09-15" and "151" in t for d, t in trail_matches)
 
 
 # =========================================================================== #

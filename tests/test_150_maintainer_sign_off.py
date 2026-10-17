@@ -12,7 +12,9 @@ blocks the ACs form:
 AC14's inbox tests, and AC15's verbatim-in-inbox half, were retired on
 2026-09-29: they read the live docs/aide/insights.md, which conventions §6
 forbids (engine 2.10.0+); the capture is a diff-time claim the validator
-checked at merge.
+checked at merge. AC13's Stage 20 bullet-icon test was retired by item 236
+(2026-10-17): it read a bullet's icon in a ``progress.md`` stage section,
+which ``aide progress archive`` moves out.
 
 **The gate block is expected to be red until the maintainer runs**
 ``python .aide/scripts/aide.py gate approve <n> --evidence "…"``. That redness
@@ -1006,54 +1008,8 @@ def test_adv_ac12_a_stale_artifact_and_a_vacuous_loop_are_both_caught():
 # Block 5 -- housekeeping (AC13-AC15)
 # =========================================================================== #
 
-#: The four Stage-20 deliverables this gate holds, mapped to the leading icon
-#: each bullet must now carry. **2026-09-18:** items 139, 140 and 142 were
-#: retired at the queue-022 boundary and re-queued as items 162, 163 and 169
-#: respectively, so their bullets now lead with ``❌``. **2026-09-22 (item
-#: 169):** item 141's bullet also flips to ``❌`` -- its work moved to Stage 31
-#: (item 154) and is recorded there as superseded rather than shipped under
-#: its own number, closing Stage 20's last ``⏸️`` bullet. **A dated claim**
-#: (D3): the first item that lands any of 139-142 must list this test file
-#: under its "Authorised paths -> May change" and update this test. Recorded
-#: here so that item's author does not discover it as a red suite.
-_HELD_ITEMS = {139: "❌", 140: "❌", 141: "❌", 142: "❌"}
-
-
-def _stage_20_section(text: str) -> list:
-    lines = text.splitlines()
-    start = next(
-        (i for i, line in enumerate(lines) if line.startswith("## Stage 20 —")), None
-    )
-    assert start is not None, "progress.md has no '## Stage 20 —' heading"
-    end = next(
-        (i for i in range(start + 1, len(lines)) if lines[i].startswith("## Stage ")),
-        len(lines),
-    )
-    return lines[start:end]
-
-
-@pytest.mark.parametrize("item, icon", sorted(_HELD_ITEMS.items()))
-def test_ac13_each_stage_20_held_item_bullet_carries_its_recorded_icon(item, icon):
-    """Located by the deliverable's own ``*(Item NNN)*`` marker and walked back
-    to the bullet that owns it -- not by scanning the file for the icon."""
-    section = _stage_20_section(_PROGRESS_MD.read_text(encoding="utf-8"))
-    marker = f"*(Item {item})*"
-    hits = [i for i, line in enumerate(section) if marker in line]
-    assert len(hits) == 1, (
-        f"expected exactly one Stage 20 deliverable carrying {marker}; found "
-        f"{len(hits)}"
-    )
-    bullet_start = next(
-        (i for i in range(hits[0], -1, -1) if section[i].startswith("- ")), None
-    )
-    assert bullet_start is not None, (
-        f"could not find the bullet owning {marker} in Stage 20"
-    )
-    bullet = section[bullet_start]
-    assert bullet.startswith(f"- {icon}"), (
-        f"the Stage 20 deliverable for item {item} must carry {icon!r} as its "
-        f"leading bullet icon; it reads: {bullet[:80]!r}"
-    )
+# Retired by item 236 (2026-10-17): AC13's Stage 20 bullet-icon check pinned a bullet's icon in a progress.md stage section, which 'aide progress archive' moves out of progress.md.
+# Removed: _HELD_ITEMS, _stage_20_section, test_ac13_each_stage_20_held_item_bullet_carries_its_recorded_icon.
 
 
 # --- AC15 ------------------------------------------------------------------- #

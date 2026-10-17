@@ -925,7 +925,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     },
     # 2026-08-31 (item 132): the traversal-ordered monotonicity fit now
     # surfaces the swap through plain run_qc's mislabel Detector B, so this
-    # entry moved from {"verdict": "pass", "findings": []}.
+    # entry moved from {"verdict": "pass", "findings": []}. Since item 210
+    # (2026-10-05) the check fits no curve: it reads position along a
+    # label-free MST path.
     # 2026-09-28 (item 192): sequence's swap detector now also fires on this
     # case (per_label centroids replace the integer-ordered
     # out_of_order_labels[] input); verdict is unchanged.
@@ -1096,12 +1098,16 @@ def _finding_summary(f, *, include_reason: bool) -> dict:
 
 # Item 224: rendered decimals in a pinned reason can move one digit between
 # platforms (spline-fit last-ULP). Decimal tokens match within one unit of the
-# pinned token's last place; everything else is exact.
+# pinned token's last place; everything else is exact. Threshold clauses are
+# config literals, so they are compared exactly (item 238).
 _DECIMAL_TOKEN = re.compile(r"\d+\.\d+")
+_THRESHOLD_CLAUSE = re.compile(r"(?:threshold|above|at most) \d+\.\d+")
 
 
 def _assert_reason_matches(got: str, pinned: str) -> None:
     msg = f"reason differs:\n  got:    {got!r}\n  pinned: {pinned!r}"
+    assert _THRESHOLD_CLAUSE.findall(got) == _THRESHOLD_CLAUSE.findall(pinned), msg
+    got, pinned = _THRESHOLD_CLAUSE.sub("@", got), _THRESHOLD_CLAUSE.sub("@", pinned)
     assert _DECIMAL_TOKEN.sub("#", got) == _DECIMAL_TOKEN.sub("#", pinned), msg
     for g, p in zip(_DECIMAL_TOKEN.findall(got), _DECIMAL_TOKEN.findall(pinned)):
         tol = Decimal(1).scaleb(-len(p.split(".")[1]))

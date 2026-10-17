@@ -406,11 +406,12 @@ _REFERENCE_MANIFEST_CASES = [
 _ITEM_120_ADDED_MISLABEL_PAIR = ("spline_offset", (22,))
 _ITEM_120_NEW_MISLABEL_CASES = frozenset({"displace"})
 
-#: Item 132 judges monotonicity against a traversal-ordered reference fit,
-#: which deliberately adds a ``mislabel`` finding on labels (21, 22) to
-#: ``relabel_swap`` (the pure-ordering-defect case this item's
-#: detector is built to catch) that the pre-migration committed golden
-#: (``_REFERENCE_GOLDEN_SHA``) does not carry.
+#: Item 132 judged monotonicity against a traversal-ordered reference fit,
+#: which deliberately added a ``mislabel`` finding on labels (21, 22) to
+#: ``relabel_swap`` (the pure-ordering-defect case this item's detector is
+#: built to catch) that the pre-migration committed golden
+#: (``_REFERENCE_GOLDEN_SHA``) does not carry. (Since item 210, 2026-10-05,
+#: the check fits no curve: it reads position along a label-free MST path.)
 _ITEM_132_ADDED_MISLABEL_PAIR = ("mislabel", (21, 22))
 _ITEM_132_NEW_MISLABEL_CASES = frozenset({"relabel_swap"})
 

@@ -8,9 +8,14 @@ past 12 cases) and it blanked the outline of a case whose grid differs from
 layout from the case count and places an off-grid case on ``clean_control``'s
 grid at the voxel offset its affine gives before comparing.
 
-Regenerate the committed sheet (``docs/aide/corpus_sheet.png``) with::
+The committed sheet (``docs/aide/corpus_sheet.png``) is written with the
+manifest by::
 
-    python -m segfacet.synth.corpus_sheet
+    python -m segfacet.synth.corpus
+
+``python -m segfacet.synth.corpus_sheet`` remains the way to render it alone
+from the committed manifest (for example after a corpus run without
+matplotlib).
 
 PNG bytes are not compared anywhere: matplotlib's PNG output depends on the
 matplotlib/FreeType/zlib versions in use, so it is not reproducible across

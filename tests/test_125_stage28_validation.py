@@ -16,8 +16,10 @@ in-suite:
 - AC7:  ``relabel_swap``'s ``is_monotonic``/``non_monotonic_pairs`` are
         pinned to ``False`` / ``[["L2", "L3"]]`` -- item 132's traversal-
         ordered reference fit -- flipped 2026-08-31 from the ``True`` / ``()``
-        measured before that item. Its manifest ``detection`` is now
-        ``pipeline``, flipped from ``reconstructed_record``.
+        measured before that item. Since item 210 (2026-10-05) the check fits
+        no curve: it reads position along a label-free MST path. Its
+        manifest ``detection`` is now ``pipeline``, flipped from
+        ``reconstructed_record``.
 - AC9:  ``displace``'s maximum offset exceeds, and ``clean_control``'s
         stays below, the shipped ``mislabel.max_offset_mm`` threshold, by a
         floor margin (not an equality) so float noise cannot fail it.
@@ -32,10 +34,9 @@ in-suite:
 - AC16: ``crop_at_border`` fires both ``border`` and ``mislabel``
         through plain ``run_qc``, while its manifest ``expected_rule_ids`` is
         ``["border"]`` alone -- the discrepancy asserted as a recorded fact.
-- AC17: every Stage 28 acceptance box is ticked-and-annotated or
-        unticked-and-reasoned (the tick-implies-evidence biconditional item
-        106 established). Expected to FAIL until the builder adds the
-        annotations.
+- AC17: retired by item 236 (2026-10-17). It pinned Stage 28's acceptance-box
+        ticks and annotations, which ``aide progress archive`` moves out of
+        ``progress.md`` (the 2026-09-16 precedent).
 - AC19: ``aide.py``'s own ``stray_icon_warnings`` reports nothing new in
         ``docs/aide/progress.md``.
 
@@ -324,8 +325,10 @@ def test_adv_synthetic_bare_s_zero_default_fails_the_scale_free_check():
 def test_ac7_mode4_relabel_swap_is_monotonic_pinned_true():
     """Pin FLIPPED 2026-08-31 (item 132): the stage's own acceptance
     criterion wanted ``is_monotonic is False`` on this case, and item 132's
-    traversal-ordered reference fit now measures exactly that -- update the
-    pin, don't just widen it (this test's own prior instruction). Pre-item
+    traversal-ordered reference fit then measured exactly that (since item
+    210, 2026-10-05, the check fits no curve: it reads position along a
+    label-free MST path) -- update the pin, don't just widen it (this test's
+    own prior instruction). Pre-item
     132 this read ``True`` with zero non-monotonic pairs; now it reads
     ``False`` with the swapped pair named."""
     _case_result, block = _run_qc("relabel_swap")
@@ -540,109 +543,8 @@ def test_ac16_mode6_manifest_expected_rule_ids_is_border_alone():
 # AC17: Stage 28's acceptance is ticked honestly (tick-implies-evidence).
 # =========================================================================== #
 
-_CHECKBOX_RE = re.compile(r"^-\s*\[([ xX])\]\s?")
-_EVIDENCE_NOTE_RE = re.compile(r"\*\(.*?\)\*", re.DOTALL)
-
-
-def _stage28_section(text: str) -> str:
-    lines = text.splitlines()
-    start = None
-    end = len(lines)
-    for i, line in enumerate(lines):
-        if line.startswith("## Stage 28"):
-            start = i
-        elif start is not None and line.startswith("## Stage ") and i > start:
-            end = i
-            break
-    if start is None:
-        raise AssertionError("no '## Stage 28' heading found in progress.md")
-    return "\n".join(lines[start:end])
-
-
-def _acceptance_items(section: str) -> list:
-    """Every checkbox item under '**Acceptance.**', including wrapped
-    continuation lines (item 106's ``_acceptance_items`` convention)."""
-    lines = section.splitlines()
-    try:
-        start = next(i for i, l in enumerate(lines) if l.strip() == "**Acceptance.**")
-    except StopIteration:
-        raise AssertionError(
-            "no '**Acceptance.**' heading found under the Stage-28 section of progress.md"
-        )
-    items: list = []
-    current: list = []
-    seen_item = False
-    for line in lines[start + 1 :]:
-        stripped = line.strip()
-        if _CHECKBOX_RE.match(stripped):
-            if current:
-                items.append("\n".join(current))
-            current = [line]
-            seen_item = True
-            continue
-        if stripped == "" or stripped == "---":
-            if current:
-                items.append("\n".join(current))
-                current = []
-            if seen_item:
-                break
-            continue
-        if current:
-            current.append(line)
-    if current:
-        items.append("\n".join(current))
-    return items
-
-
-def _has_annotation(item_text: str) -> bool:
-    return bool(_EVIDENCE_NOTE_RE.search(item_text))
-
-
-def _biconditional_violations(section: str) -> list:
-    violations = []
-    for item in _acceptance_items(section):
-        if not _has_annotation(item):
-            violations.append(item.splitlines()[0].strip())
-    return violations
-
-
-def test_ac17_stage28_has_five_acceptance_boxes():
-    section = _stage28_section(_read_progress())
-    items = _acceptance_items(section)
-    assert len(items) == 5, items
-
-
-def test_ac17_every_stage28_box_ticked_implies_evidence_or_unticked_implies_reason():
-    """AC17: expected to FAIL until every box carries an evidence/reason
-    annotation -- at spec time only the second box (the 1.0 mm bound, which
-    carries an unrelated historical note on why the bound was raised) has a
-    trailing ``*(...)*``; the other four have none."""
-    section = _stage28_section(_read_progress())
-    violations = _biconditional_violations(section)
-    assert violations == [], (
-        f"Stage 28 acceptance box(es) with no evidence/reason annotation: {violations}"
-    )
-
-
-def test_adv_stage28_ticked_box_with_no_annotation_is_flagged():
-    synthetic_section = (
-        "## Stage 28 — Spinal Curve Model: Formulation, Offset & Orientation (G2, G7) — 🚧\n\n"
-        "**Acceptance.**\n\n"
-        "- [x] A clean GT spine stays within a 1.0 mm pass-through bound.\n"
-    )
-    violations = _biconditional_violations(synthetic_section)
-    assert violations, "expected the annotation-less ticked box to be flagged"
-
-
-def test_adv_stage28_unticked_box_with_reason_is_not_flagged():
-    synthetic_section = (
-        "## Stage 28 — Spinal Curve Model: Formulation, Offset & Orientation (G2, G7) — 🚧\n\n"
-        "**Acceptance.**\n\n"
-        "- [ ] A clean GT spine stays within a 1.0 mm pass-through bound. "
-        "*(Unticked: not verified in this environment.)*\n"
-    )
-    violations = _biconditional_violations(synthetic_section)
-    assert violations == []
+# Retired by item 236 (2026-10-17): AC17's Stage 28 box tests pinned acceptance-box ticks and annotations in a progress.md stage section, which 'aide progress archive' moves out; the synthetic companions had no other subject.
+# Removed: _CHECKBOX_RE, _EVIDENCE_NOTE_RE, _stage28_section, _acceptance_items, _has_annotation, _biconditional_violations, test_ac17_stage28_has_five_acceptance_boxes, test_ac17_every_stage28_box_ticked_implies_evidence_or_unticked_implies_reason, test_adv_stage28_ticked_box_with_no_annotation_is_flagged, test_adv_stage28_unticked_box_with_reason_is_not_flagged.
 
 
 # =========================================================================== #

@@ -83,8 +83,8 @@ Covers Acceptance Criteria AC1-AC13 (AC9b included):
 - AC11: entries carry ``status == "unwired"`` in the regenerated catalogue,
   and every corpus case's verdict/findings are unchanged
   (``segfacet.synth.regression.verify_case`` still True for all).
-- AC12: ``progress.md``'s Item 024 mentions no longer claim outliers are
-  *flagged to a verdict*.
+- AC12: retired by item 236 (2026-10-17): it pinned item 024's wording in a
+  ``progress.md`` stage section, which ``aide progress archive`` moves out.
 - AC13: regenerating the catalogue (in-memory) and the goldens (into a
   scratch directory) twice each is byte-identical.
 
@@ -754,34 +754,8 @@ def test_ac11_corpus_findings_rule_ids_unchanged():
 # =========================================================================== #
 
 
-def _progress_item024_lines():
-    from pathlib import Path
-
-    progress = Path(__file__).resolve().parent.parent / "docs" / "aide" / "progress.md"
-    text = progress.read_text(encoding="utf-8")
-    return [line for line in text.splitlines() if "Item 024" in line]
-
-
-def test_ac12_progress_still_references_item_024():
-    assert _progress_item024_lines()
-
-
-def test_ac12_progress_no_longer_claims_outliers_flagged_to_verdict():
-    combined = "\n".join(_progress_item024_lines())
-    assert "flags isolated anatomical outliers" not in combined, (
-        "progress.md still claims outlier-flagging behaviour that no rule "
-        "has ever consumed"
-    )
-
-
-def test_ac12_progress_describes_unwired_status():
-    combined = "\n".join(_progress_item024_lines()).lower()
-    assert (
-        "unwired" in combined
-        or "no rule" in combined
-        or "not consumed" in combined
-        or "consumed by no rule" in combined
-    ), f"expected an honest 'unwired'/'no rule consumes it' description, got: {combined!r}"
+# Retired by item 236 (2026-10-17): AC12 pinned item 024's wording in a progress.md stage section, which 'aide progress archive' moves out of progress.md.
+# Removed: _progress_item024_lines, test_ac12_progress_still_references_item_024, test_ac12_progress_no_longer_claims_outliers_flagged_to_verdict, test_ac12_progress_describes_unwired_status.
 
 
 # =========================================================================== #

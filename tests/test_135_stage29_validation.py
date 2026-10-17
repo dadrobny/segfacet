@@ -54,10 +54,9 @@ established for Stage 28:
         progress.md** (Implementation Step 13) -- this pin exists so that
         edit cannot silently regress once made, not so this item passes
         before it is made.
-- AC12/AC13: Stage 28's mode-4 acceptance box (index 3 of 5) is ticked and
-        annotated; its scoliotic-case box (index 4) stays unticked with a
-        non-empty reason. Also expected to FAIL until the builder edits
-        progress.md.
+- AC12/AC13: retired by item 236 (2026-10-17). They pinned Stage 28's
+        acceptance-box ticks and annotations, which ``aide progress archive``
+        moves out of ``progress.md`` (the 2026-09-16 precedent).
 - AC25: the manifest's pipeline-detected mode count (excluding the mode-0
         clean control) is 7 of {1..7}, and the committed golden-snapshot
         inventory is 11 -> 0 with one surviving format fixture, agreeing
@@ -709,15 +708,8 @@ def test_ac24_stage29_third_box_is_unticked_naming_the_four_level_clause():
     assert "four-level" in lowered or "four level" in lowered or "4-level" in lowered, third
 
 
-def test_ac12_stage28_mode4_box_is_ticked_and_annotated():
-    section = _stage_section(_read_progress(), "## Stage 28")
-    items = _acceptance_items(section)
-    assert len(items) == 5, items
-    mode4_box = items[2]
-    assert _is_ticked(mode4_box), f"Stage 28's mode-4 acceptance box must be ticked: {mode4_box}"
-    assert _has_annotation(mode4_box), mode4_box
-    assert "132" in mode4_box, "expected the mode-4 box to name item 132"
-    assert "135" in mode4_box, "expected the mode-4 box to name item 135's replay"
+# Retired by item 236 (2026-10-17): AC12's Stage 28 mode-4 box check pinned a box's tick and annotation in a progress.md stage section, which 'aide progress archive' moves out of progress.md.
+# Removed: test_ac12_stage28_mode4_box_is_ticked_and_annotated.
 
 
 def test_adv_ticked_box_with_no_annotation_is_flagged():
