@@ -99,8 +99,9 @@ _VALID_RECONSTRUCTIONS = {
     "monotonic_true_spatial_order",
 }
 # 2026-08-31 (item 132): the swap case moved from _RECONSTRUCTED_MODES to
-# _PIPELINE_ONLY_MODES -- the traversal-ordered reference fit surfaces the
-# swap through plain run_qc.
+# _PIPELINE_ONLY_MODES -- the traversal-ordered reference fit surfaced the
+# swap through plain run_qc. Since item 210 (2026-10-05) the check fits no
+# curve: it reads position along a label-free MST path.
 #
 # Re-keyed for item 150's catalogue revision (2026-09-15). These are
 # failure-mode ids of ``segfacet.failure_modes.SPECIFICATION``, not vision.md
@@ -311,8 +312,9 @@ def test_ac8_modes_4_8_reconstructed_record_rest_pipeline():
     reconstruction. Mode 1 moved into the pipeline set in item 120, which
     promoted a held-out per-label spline offset into the pipeline itself;
     the relabel-swap case moved into the pipeline set in item 132
-    (2026-08-31), which judges monotonicity against a traversal-ordered
-    reference fit. Item 195 (2026-09-28) removed the last reconstructed
+    (2026-08-31), which judged monotonicity against a traversal-ordered
+    reference fit (since item 210, 2026-10-05, the check fits no curve: it
+    reads position along a label-free MST path). Item 195 (2026-09-28) removed the last reconstructed
     case (the overlap case, mode 15): no committed case is
     reconstructed_record any more, so ``_RECONSTRUCTED_MODES`` is empty and
     every case takes the ``_PIPELINE_ONLY_MODES`` branch."""

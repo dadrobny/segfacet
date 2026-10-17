@@ -866,7 +866,8 @@ def test_adv_expected_artifact_movement_counts_from_spec():
     rows are consumed by no rule (+16), and ``physical_volume_mm3``'s
     ``percentile_rank`` and ``value`` lose their consuming rules to the
     static scan's ambiguity once five features share each last segment (+2:
-    survivors that changed evidence bucket). ``stayed_rule_unmapped`` stays 0
+    survivors that changed evidence bucket). Since item 223 mechanism B is
+    path-aware, with no last-segment fallback. ``stayed_rule_unmapped`` stays 0
     (re-measured against the regenerated committed catalogue, not assumed).
 
     Reconciled again (item 216, 2026-10-06): the catalogue moves 156 -> 154.

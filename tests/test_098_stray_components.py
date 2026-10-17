@@ -925,7 +925,9 @@ _PRE_098_GOLDEN_VERDICT_AND_FINDINGS = {
     },
     # 2026-08-31 (item 132): the traversal-ordered monotonicity fit now
     # surfaces the swap through plain run_qc's mislabel Detector B, so this
-    # entry moved from {"verdict": "pass", "findings": []}.
+    # entry moved from {"verdict": "pass", "findings": []}. Since item 210
+    # (2026-10-05) the check fits no curve: it reads position along a
+    # label-free MST path.
     # 2026-09-28 (item 192): sequence's swap detector now also fires on this
     # case (per_label centroids replace the integer-ordered
     # out_of_order_labels[] input); verdict is unchanged.
