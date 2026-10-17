@@ -62,7 +62,7 @@
 | 31    | [Post-Sign-Off Maintenance: follow-ups, prerequisite defects, engine update](progress/stage-31.md) | G7, G8 | ✅     |
 | 32    | [Selected-Mode Refinement: one failure mode fully specified end to end](progress/stage-32.md)   | G2, G7, G8      | ✅     |
 | 33    | [Corpus & Rule Re-grounding: modes 2 and 3 to the bar](progress/stage-33.md)                    | G2, G7, G8      | ✅     |
-| 34    | Maintenance                                                             | —               | 🚧     |
+| 34    | Maintenance                                                             | —               | ✅     |
 | 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 📋     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
@@ -785,7 +785,7 @@ per-deliverable provenance.
 
 ---
 
-## Stage 34 — Maintenance — 🚧
+## Stage 34 — Maintenance — ✅
 
 **Goal.** Repair shipped work by closing insight-derived `defect`, `gap` and
 `automation` entries in maintenance queues.
@@ -806,7 +806,7 @@ per-deliverable provenance.
 - ✅ Dead code and stale comments left by items 210, 223 and 227. *(Item 237)*
 - ✅ Threshold literals in pinned reasons compared exactly. *(Item 238)*
 - ✅ The corpus sheet regenerated with the manifest. *(Item 239)*
-- 🔍 VerSe19 probes behind items 218 and 220. *(Item 240)*
+- ✅ VerSe19 probes behind items 218 and 220. *(Item 240)*
 
 ---
 
