@@ -10,8 +10,11 @@
 #     rawdata/sub-verseNNN/sub-verseNNN_ct.nii.gz
 #
 # Usage:
-#   * pick a split via `--subset training|validation|test` (root override), or
+#   * pick a split via `--subset development|calibration|test` (root override), or
 #   * point `--data-root` directly at one split directory.
+# The subsets are the three dataset roles (development = training split,
+# calibration = validation split, test = test split); see spine-failure-lab's
+# facet-interface.md "Dataset roles" table.
 # Resolving with neither yields an empty cohort (the split folders live one level
 # below `data_root`). `data_root` below is the project's known mount and is meant
 # to be overridden with `--data-root` on other machines.
@@ -28,9 +31,9 @@ scan: "rawdata/{id}/{id}_ct.nii.gz"
 label_convention: default
 role: gt
 subsets:
-  training:
+  development:
     root: dataset-verse19training
-  validation:
+  calibration:
     root: dataset-verse19validation
   test:
     root: dataset-verse19test

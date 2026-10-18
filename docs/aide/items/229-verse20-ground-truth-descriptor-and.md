@@ -281,7 +281,13 @@ through `bundled_descriptor_path("verse19.yaml")` /
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Implemented** exactly per the Implementation Steps; no Python changed.
+- **`ci.yml` untouched:** `tests/test_213_windows_ci_subset.py::_signals` returns
+  no signal for `tests/test_229_verse_role_subsets.py`, so it is not listed in
+  `WINDOWS_TESTS`.
+- **Gated tests (AC5-AC7) not run by the builder** (no pytest in this role);
+  they are unverified until the validator or a data host runs them. Not
+  recorded as passed.
 
 - **Left open:** how `segfacet evaluate` pairs a candidate-role cohort with a
   ground-truth cohort by case id. Today, with `--dataset-schema`, it evaluates

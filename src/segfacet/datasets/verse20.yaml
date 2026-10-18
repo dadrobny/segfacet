@@ -1,0 +1,33 @@
+# VerSe20 ground-truth dataset adapter (Stage 35, item 229).
+#
+# Maps the VerSe20 ground-truth release onto segfacet's Cohort/Case interface
+# (segfacet.datasets.resolve). The three released splits are sibling directories
+# under `data_root`, each with the same BIDS-ish layout:
+#
+#   dataset-01training | dataset-02validation | dataset-03test/
+#     derivatives/sub-<label>/sub-<label>[_split-verseMMM][_dir-ax|iso|sag]_seg-vert_msk.nii.gz
+#     rawdata/sub-<label>/sub-<label>[_dir-ax|iso|sag]_ct.nii.gz
+#
+# `<label>` is `verseNNN` or `glNNN`. The case id is `sub-<label>` plus any
+# `_split-verseMMM` infix; the `dir-` entity is dropped so the id equals the
+# SPINEPS candidate mask's (`sub-<label>_mod-ct_seg-vert_msk.nii.gz`).
+#
+# Subsets are the dataset roles of spine-failure-lab's facet-interface.md
+# ("Dataset roles"): development = training split, calibration = validation
+# split, test = test split. Pick one with `--subset`, or point `--data-root`
+# at one split directory. `data_root` is a relative placeholder: pass
+# `--data-root` the directory holding the three split directories.
+
+data_root: VerSe20
+seg: "derivatives/sub-*/**/*_seg-vert_msk.nii.gz"
+case_id: "(?P<id>sub-[a-z]+\\d+(?:_split-verse\\d+)?)(?:_dir-[a-z]+)?_seg-vert_msk\\.nii\\.gz$"
+scan: "rawdata/{id}/{id}*_ct.nii.gz"
+label_convention: default
+role: gt
+subsets:
+  development:
+    root: dataset-01training
+  calibration:
+    root: dataset-02validation
+  test:
+    root: dataset-03test
