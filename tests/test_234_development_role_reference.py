@@ -47,6 +47,7 @@ _V20_DIRS = ("dataset-01training", "dataset-02validation", "dataset-03test")
 _ARTIFACT_NAME = "reference_verse_v1.json"
 _SUMMARY_NAME = "verse_rebuild_summary.json"
 _EXCLUDED_CASE = "sub-verse406_split-verse261"
+_EXCLUDED_SUB = "sub-verse406"  # a split case lives under its parent subject's folder
 _LUMBAR = ("L1", "L2", "L3", "L4", "L5")
 _THORACIC = ("T8", "T9", "T10", "T11", "T12")
 
@@ -98,26 +99,33 @@ def _read_summary(out: Path) -> dict:
     return json.loads((out / _SUMMARY_NAME).read_text(encoding="utf-8"))
 
 
-def _write_case(split_dir: Path, case_id: str, *, levels=_LUMBAR) -> None:
+def _mask_path(split_dir: Path, sub: str, case_id: str) -> Path:
+    return split_dir / "derivatives" / sub / f"{case_id}_seg-vert_msk.nii.gz"
+
+
+def _write_case(split_dir: Path, case_id: str, sub: str | None = None, *, levels=_LUMBAR) -> Path:
     """One stand-in VerSe-shaped case laid out as the bundled descriptors expect:
     ``derivatives/<sub>/<id>_seg-vert_msk.nii.gz`` and ``rawdata/<sub>/<id>_ct.nii.gz``."""
-    sub = case_id  # every stand-in id is its own subject folder
+    if sub is None:
+        sub = case_id  # a non-split stand-in id is its own subject folder
     amplitude = 3.0 + (sum(map(ord, case_id)) % 5)
     spine = build_clean_spine(levels=levels, curve_amplitude_mm=amplitude)
-    mask_dir = split_dir / "derivatives" / sub
+    mask = _mask_path(split_dir, sub, case_id)
     ct_dir = split_dir / "rawdata" / sub
-    mask_dir.mkdir(parents=True, exist_ok=True)
+    mask.parent.mkdir(parents=True, exist_ok=True)
     ct_dir.mkdir(parents=True, exist_ok=True)
-    nib.save(spine.seg_img, str(mask_dir / f"{case_id}_seg-vert_msk.nii.gz"))
+    nib.save(spine.seg_img, str(mask))
     nib.save(paint_clean_scan(spine.seg_img, seed=0), str(ct_dir / f"{case_id}_ct.nii.gz"))
+    return mask
 
 
 def _release(root: Path, split_dirs, dev, cal, test, *, levels=_LUMBAR) -> Path:
     """A three-split stand-in release root holding the given case ids per role."""
     for split, ids in zip(split_dirs, (dev, cal, test)):
         (root / split).mkdir(parents=True, exist_ok=True)
-        for case_id in ids:
-            _write_case(root / split, case_id, levels=levels)
+        for entry in ids:
+            case_id, sub = (entry, None) if isinstance(entry, str) else entry
+            _write_case(root / split, case_id, sub, levels=levels)
     return root
 
 
@@ -232,7 +240,7 @@ def test_ac3(tmp_path):
 def test_ac4(tmp_path):
     tool = _load_tool()
     base = tmp_path / "roots"
-    dev_all = ["sub-verse001", "sub-verse002", _EXCLUDED_CASE]
+    dev_all = ["sub-verse001", "sub-verse002", (_EXCLUDED_CASE, _EXCLUDED_SUB)]
     v19_all = _release(base / "v19-all", _V19_DIRS, dev_all, ["sub-verse003"], ["sub-verse004"], levels=_THORACIC)
     v19_ab = _release(base / "v19-ab", _V19_DIRS, dev_all[:2], ["sub-verse003"], ["sub-verse004"], levels=_THORACIC)
     v20 = _release(base / "v20", _V20_DIRS, ["sub-gl001"], ["sub-gl003"], ["sub-gl004"])
@@ -251,7 +259,7 @@ def test_ac4(tmp_path):
     assert excluded[0]["case_id"] == _EXCLUDED_CASE
     assert excluded[0]["level_name"] == "T10"
     measured = ingest_subject(
-        v19_all / _V19_DIRS[0] / "derivatives" / "sub-verse406" / f"{_EXCLUDED_CASE}_seg-vert_msk.nii.gz",
+        _mask_path(v19_all / _V19_DIRS[0], _EXCLUDED_SUB, _EXCLUDED_CASE),
         config=bundled_default_config(), subject_id=_EXCLUDED_CASE, with_size_proxy=False,
     )
     t10_reading = next(r for r in measured.records if r.level_name == "T10").features["spline_offset_mm"]
@@ -388,7 +396,7 @@ def test_test_role_overlap(tmp_path):
 def test_excluded_case_at_non_excluded_level(tmp_path):
     tool = _load_tool()
     base = tmp_path / "roots"
-    dev_all = ["sub-verse001", "sub-verse002", _EXCLUDED_CASE]
+    dev_all = ["sub-verse001", "sub-verse002", (_EXCLUDED_CASE, _EXCLUDED_SUB)]
     v19_all = _release(base / "v19-all", _V19_DIRS, dev_all, ["sub-verse003"], ["sub-verse004"], levels=_THORACIC)
     v19_ab = _release(base / "v19-ab", _V19_DIRS, dev_all[:2], ["sub-verse003"], ["sub-verse004"], levels=_THORACIC)
     v20 = _release(base / "v20", _V20_DIRS, ["sub-gl001"], ["sub-gl003"], ["sub-gl004"])
