@@ -226,6 +226,13 @@ and `subsets` literals found every listed id present in its fixture and every
 selector a single valid key. No test relies on a listed id being skipped
 silently, or on a mixed or bare selector.
 
+## Review findings
+
+- `review_csv_column_keyset_resolves_listed_cases` (minor): no test exercised
+  the `{csv, column}` keyset positively, so dropping `("csv", "column")` from
+  `_SELECTOR_KEYSETS` left the suite green. Test: a csv subset with a
+  non-default `column` resolves exactly the listed cases.
+
 ## Dependencies
 
 None.
