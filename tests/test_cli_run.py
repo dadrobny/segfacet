@@ -7,7 +7,7 @@ plain-text reports, and handling error paths. All I/O is isolated to pytest's
 
 Fixtures are sourced from ``conftest.py`` (item 002's canonical set).
 
-Report format: v0 JSON schema (``schema_version`` = ``"0.1"``), required fields:
+Report format: v0 JSON schema (``schema_version`` = ``REPORT_SCHEMA_VERSION``), required fields:
 ``schema_version``, ``config_version``, ``case_id``, ``verdict``, ``reasons``,
 ``per_label``.  Exit codes: 0 for pass/flagged-for-review, 1 for fail or input
 error.

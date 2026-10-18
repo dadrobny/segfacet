@@ -545,7 +545,7 @@ def test_ac10_json_output_is_deterministic():
 
 
 def test_ac10_schema_version_in_report_is_always_v0():
-    """schema_version in the report is always '0.1' (the v0 schema marker)."""
+    """schema_version in the report is always REPORT_SCHEMA_VERSION."""
     for verdict in [_empty_verdict(), _simple_flag_verdict()]:
         report = serialize_report(verdict, "c", _config())
         assert report["schema_version"] == REPORT_SCHEMA_VERSION

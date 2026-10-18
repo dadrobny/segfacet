@@ -7,7 +7,7 @@ Covers all eight Acceptance Criteria plus adversarial / edge-case inputs:
   overlaps) appears in the JSON.
 * AC3 — anisotropic physical volumes / extents / centroid-mm round-trip exactly.
 * AC4 — schema extension is backward-compatible (feature-free report still valid;
-  schema_version stays "0.1").
+  the report schema_version stays REPORT_SCHEMA_VERSION).
 * AC5 — deterministic output + committed golden snapshot, stable key ordering.
 * AC6 — per-case human-readable feature table, no Python-internal leakage.
 * AC7 — empty / single-label maps handled.
@@ -248,7 +248,7 @@ def test_ac4_feature_free_report_still_valid():
 
 
 def test_ac4_features_is_optional_property():
-    """The extended schema keeps schema_version const '0.1' and lists features as
+    """The extended schema keeps schema_version const REPORT_SCHEMA_VERSION and lists features as
     an optional (non-required) property."""
     from segfacet.report import _SCHEMA
 

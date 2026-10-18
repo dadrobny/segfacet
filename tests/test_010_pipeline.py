@@ -121,7 +121,7 @@ def test_ac10_json_report_is_valid_json(labelled_blocks_files, tmp_path, capsys)
 
 
 def test_ac10_json_report_has_v0_schema_version(labelled_blocks_files, tmp_path, capsys):
-    """``segfacet_report.json`` has ``schema_version`` = ``"0.1"`` (v0 schema marker)."""
+    """``segfacet_report.json`` has ``schema_version`` = ``REPORT_SCHEMA_VERSION``."""
     scan_path, seg_path = labelled_blocks_files
     out_dir = tmp_path / "out"
     _run(
