@@ -395,3 +395,66 @@ def test_calibration_role_allowed():
     )
     result = calibrate_thresholds([case], bundled_default_config(), (axis,))
     assert result.n_candidates == 1
+
+
+# =========================================================================== #
+# Review finding: the CLI's error branches and the reader's hardening
+# =========================================================================== #
+
+_SUBJECTS = ("sub-verse004", "sub-verse005")
+
+
+def _run_review_cli(tmp_path, rows, *extra):
+    _write_dataset(tmp_path / "verse", _SUBJECTS)
+    desc = _write_descriptor(tmp_path / "d.yaml", tmp_path / "verse")
+    table = _write_table(tmp_path / "labels.csv", rows)
+    out = tmp_path / "eval"
+    rc = main(
+        [
+            "evaluate", "--dataset-schema", str(desc), "--subset", "training",
+            "--review-labels", str(table), "--out", str(out),
+            "--cohort-id", "rf", "--build-date", "2026-10-18", *extra,
+        ]
+    )
+    return rc, out
+
+
+def test_review_cli_no_matching_rows(tmp_path, capsys):
+    rc, _ = _run_review_cli(tmp_path, [_row(case_id="elsewhere")])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "Error: no cohort case has a row in the --review-labels table." in err
+
+
+def test_review_cli_calibrate_refuses_test_role(tmp_path, capsys):
+    rc, out = _run_review_cli(
+        tmp_path, [_row(case_id=_SUBJECTS[0], role="test")], "--calibrate"
+    )
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "Error: threshold calibration: test-role case(s) [" in err
+    assert _SUBJECTS[0] in err
+    assert not (out / "eval_report.json").exists()
+
+
+def test_review_reader_non_utf8_table(tmp_path):
+    path = _write_table(tmp_path / "t.csv", [_row(reviewer="Zoë")])
+    path.write_bytes(path.read_bytes().decode("utf-8").encode("latin-1"))
+    with pytest.raises(FacetInputError):
+        read_review_label_table(path)
+
+
+def test_review_reader_bom_table(tmp_path):
+    path = _write_table(tmp_path / "t.csv", _valid_rows())
+    path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+    assert len(read_review_label_table(path)) == len(_valid_rows())
+
+
+@pytest.mark.parametrize("delta", ["extra", "short"])
+def test_review_reader_ragged_row(tmp_path, delta):
+    path = _write_table(tmp_path / "t.csv", [_row()])
+    lines = path.read_text(encoding="utf-8").splitlines()
+    lines[1] = lines[1] + ",x" if delta == "extra" else lines[1].rsplit(",", 1)[0]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(FacetInputError, match="cell count differs from the header"):
+        read_review_label_table(path)

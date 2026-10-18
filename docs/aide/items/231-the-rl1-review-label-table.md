@@ -360,6 +360,17 @@ set. `tests/test_075_cli_backend.py` reads only the `--backend` action.
 `tests/test_213_windows_ci_subset.py` passes once step 5 lists the new
 module.
 
+## Review findings
+
+- `review-cli-error-branches` (minor, fixed in the hardening commit 412bded9,
+  tests added in the fix round): the `evaluate --review-labels` error
+  branches were untested beyond the AC17 happy path, as were the reader's
+  encoding, byte-order-mark and ragged-row handling. Tests:
+  `test_review_cli_no_matching_rows`,
+  `test_review_cli_calibrate_refuses_test_role`,
+  `test_review_reader_non_utf8_table`, `test_review_reader_bom_table`,
+  `test_review_reader_ragged_row`.
+
 ## Validation
 
 The suite cannot reach the primary source of A2: it is in a sibling
