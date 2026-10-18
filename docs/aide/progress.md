@@ -841,7 +841,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
   and VerSe20 training splits, and `spline_offset.max_offset_mm` re-derived from it
   with the wedge-vertebra outlier `sub-verse406_split-verse261` T10 excluded
   (`gate-fac1`). *(Item 234)*
-- 📋 Stage validation from a clean clone. *(Item 235)*
+- 🔍 Stage validation from a clean clone. *(Item 235)*
 
 **Acceptance.**
 
