@@ -260,6 +260,20 @@ and AC12 together.
     from the development role. The window rule above still binds the builder.
     The decision accepts the spec-time value, and a rebuild that lands outside
     the window is still a hand-back.
+  - **Correction, 2026-10-18 (validation round 1, owner decision).** The
+    corpus window above was taken from the corpus cases only. Validation
+    round 1 found two operator-default fixtures outside the corpus where
+    8.0 mm also fires on the interior neighbour label 21 (L2): 8.528 mm in
+    `CropAtBorderPerturbation(target_label=22, face="anterior")` over
+    `_clean()` (`tests/test_038_coverage_border_overlap_perturbations.py`),
+    and 8.368 mm in `DisplacePerturbation(target_label=22)` at its 18 mm
+    default (`tests/test_039_identity_ordering_alignment_perturbations.py`).
+    The corpus `displace` case's label 21 still reads 6.919 mm, and no corpus
+    firing set changes. The owner kept 8.0 mm and accepted both label-21
+    `spline_offset` findings as real behaviour. The window now covers the
+    operator-default fixtures as well, with these two neighbour findings
+    accepted inside it. The tests that pinned their absence are reconciled
+    (Testing Strategy).
 - **A10:** The re-derivation is from the interior distribution; the
   reference excludes terminal readings (`reference/ingest.py`, item 123). So
   it moves `max_offset_mm` for **interior** entries only. A terminal entry is
@@ -466,6 +480,8 @@ and AC12 together.
 - `tests/test_221_withhold_every_outlier.py` — retire the dated-record pin
 - `tests/test_039_identity_ordering_alignment_perturbations.py` — terminal judgement reads the terminal parameter
 - `.github/workflows/ci.yml` — `jobs.test.env.WINDOWS_TESTS` gains the new module (it reads bytes, a `tests/test_213_windows_ci_subset.py` signal)
+- `tests/test_038_coverage_border_overlap_perturbations.py` — reconcile `test_ac15_crop_at_border_leaves_other_present_labels_unflagged` only (A9 correction, 2026-10-18)
+- `tests/test_148_per_path_mode_attribution.py` — reconcile the `spline_offset` entry of `test_ac17_threshold_constants_hold_pre_item_values` only (A9 correction, 2026-10-18)
 
 **Asserts against:**
 
@@ -478,6 +494,12 @@ bullet is taken out of the list, not struck through, because `aide scope`
 reads every bullet in this section as a grant. This item does not edit
 `CLAUDE.md`. Implementation Step 10's `CLAUDE.md` bullet and Validation step
 2's `CLAUDE.md` instruction are withdrawn with it.
+
+**Correction, 2026-10-18 (validation round 1, owner decision):** the last two
+**May change** bullets, test_038 and test_148, are added for the A9
+correction. Each is scoped to the one test it names. The existing test_039
+grant also covers `test_ac5_displace_run_qc_surfaces_mislabel_finding`, on the
+same correction. None of the three grants covers any other test in its module.
 
 ## Testing Strategy
 
@@ -634,6 +656,39 @@ cohort half rewritten):
 
   The `rules.generated.md` and `failure_modes.generated.*` drift tests
   likewise follow step 9.
+
+**Correction, 2026-10-18 (validation round 1, owner decision; A9
+correction).** The sweep above missed four tests, and these are added to it.
+Each reconciliation keeps its test's original intent.
+
+- `tests/test_038_coverage_border_overlap_perturbations.py::test_ac15_crop_at_border_leaves_other_present_labels_unflagged`:
+  exempt exactly one finding from the `f.labels <= {22}` assertion, a
+  `spline_offset` finding whose labels are `{21}`. Every other finding keeps
+  the assertion. The test is about where the crop's own findings land
+  (`border`, coverage), not about the spline threshold, so the test does not
+  require the label-21 finding to be present. Say in the docstring that the
+  exemption is the accepted label-21 reading of 8.528 mm at 8.0 mm (A9
+  correction).
+- `tests/test_039_identity_ordering_alignment_perturbations.py::test_ac5_displace_run_qc_surfaces_mislabel_finding`:
+  the union of `spline_offset` finding labels becomes `== {21, 22}`, a
+  measured equality, and `22` is still required. This test is about
+  `spline_offset` itself, so the finding cannot be excluded. It is expected
+  instead. Add a dated docstring line naming the accepted label-21 reading
+  of 8.368 mm. AC6's `expected_labels == {22}` is the expectation record, and
+  it does not change.
+- `tests/test_148_per_path_mode_attribution.py::test_ac17_threshold_constants_hold_pre_item_values[spline_offset]`:
+  the `spline_offset` entry of `_EXPECTED_THRESHOLD_CONSTANTS` takes
+  `_DEFAULT_MAX_OFFSET_MM`'s new derived value of 8.0, with a dated comment
+  naming item 234 in the style of the item-189 comments beside it. The other
+  modules' entries do not change.
+- `tests/test_234_development_role_reference.py`, the case-id parse that
+  `tests/test_157_case_id_rename.py::test_ac11_no_real_module_parses_a_mode_out_of_a_case_id`
+  flags: the stand-in helpers derive the subject directory with
+  `case_id.split("_")[0]` (around lines 104 and 149). Pass the subject
+  directory to the helper as its own argument, or keep the ids in a
+  `(subject, case_id)` mapping, so nothing in the module subscripts or splits
+  a case id. Do not rename the variable just to get past the scan. test_157
+  is not edited.
 
 ## Validation
 
