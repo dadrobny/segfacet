@@ -845,9 +845,9 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 
 **Acceptance.**
 
-- [ ] A descriptor whose subsets are case-id lists resolves exactly those cases,
+- [x] A descriptor whose subsets are case-id lists resolves exactly those cases,
   and the VerSe19 and VerSe20 descriptors resolve the three role subsets over the
-  release splits (**G7**).
+  release splits (**G7**). *(validator item 235 round 1 2026-10-19, fresh clone HEAD 5826c3ff3c13 own venv (segfacet.__file__ under the clone): AC2 modules test_228/229/230/231/232/233/234/086/087/088/123 220 passed 7 skipped (exactly the 3 test_229, 3 test_234, 1 test_088 requires-marked real-data tests) with both VerSe variables unset; AC3 test_229+test_234+test_088 with both set: 30 passed 0 skipped (test_088 genuine-skip test deselected by intent; it was the only failure); AC4 six role resolutions equal an independent rglob walk: VerSe19 80/40/40, VerSe20 61/80/73; AC5 list subset picked={sub-gl003,sub-verse542,sub-verse835} resolved exactly those over the VerSe20 training split directory (the literal spec data_root of the three-split root finds no masks for a list subset because the seg glob is relative to the root, recorded as a spec finding))*
 - [x] An `rl1` table at the pinned version becomes a per-label,
   several-modes-per-case expectation the evaluation harness scores against, and a
   table at any other version is refused (**G2**). *(validator item 231 2026-10-18: aide test green (12227 passed); AC7 (rl1 tag refusal) and AC17 (CLI --review-labels scores table) tests pass)*
