@@ -27,6 +27,16 @@
       "description": "Optional summary of the chosen calibration outcome (item 055). Absent when the report was built without a CalibrationResult.",
       "$ref": "#/definitions/calibration"
     },
+    "facet_revision": {
+      "description": "Optional FACET revision block (item 232): the code revision that wrote this report. commit is null (unknown) when no git work tree tracks the package or git is unavailable.",
+      "type": "object",
+      "required": ["commit", "package_version"],
+      "properties": {
+        "commit": {"type": ["string", "null"], "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+        "package_version": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
     "run_manifest": {
       "description": "Optional Stage 17 run-manifest provenance block (item 096): segmenter version/SHA, weights hash, seed, dataset id, post-processing toggles, and resolved package versions. Absent when the evaluation was not given any manifest flags.",
       "$ref": "#/definitions/runManifest"

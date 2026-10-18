@@ -95,6 +95,7 @@ def serialize_report(
     findings: "list | None" = None,
     reference_delta: "dict | None" = None,
     run_manifest: "dict | None" = None,
+    facet_revision: "dict | None" = None,
 ) -> dict:
     """Serialize a :class:`~segfacet.verdict.Verdict` to a v0 report dict.
 
@@ -138,6 +139,11 @@ def serialize_report(
         ``run_manifest`` key and validated together with the rest of the
         report. When ``None`` (default) no ``run_manifest`` key is emitted,
         preserving every prior report shape.
+    facet_revision:
+        Optional FACET revision block (item 232), as produced by
+        ``segfacet.revision.facet_revision()``. When non-``None`` it is
+        embedded verbatim under the report's ``facet_revision`` key. When
+        ``None`` (default) no key is emitted; the builder reads no git state.
 
     Returns
     -------
@@ -197,6 +203,11 @@ def serialize_report(
     if run_manifest is not None:
         report["run_manifest"] = run_manifest
 
+    # Optional FACET revision block (item 232); caller-supplied, so this
+    # function stays pure.
+    if facet_revision is not None:
+        report["facet_revision"] = facet_revision
+
     jsonschema.validate(report, _SCHEMA)
     return report
 
@@ -210,6 +221,7 @@ def serialize_report_json(
     findings: "list | None" = None,
     reference_delta: "dict | None" = None,
     run_manifest: "dict | None" = None,
+    facet_revision: "dict | None" = None,
 ) -> str:
     """Serialize a :class:`~segfacet.verdict.Verdict` to a JSON string.
 
@@ -239,6 +251,9 @@ def serialize_report_json(
     run_manifest:
         Optional run-manifest provenance block (item 096), forwarded to
         :func:`serialize_report`.
+    facet_revision:
+        Optional FACET revision block (item 232), forwarded to
+        :func:`serialize_report`.
 
     Returns
     -------
@@ -253,5 +268,6 @@ def serialize_report_json(
         findings=findings,
         reference_delta=reference_delta,
         run_manifest=run_manifest,
+        facet_revision=facet_revision,
     )
     return json.dumps(report, indent=indent)

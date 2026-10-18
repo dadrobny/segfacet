@@ -291,7 +291,15 @@ from AC1 and AC3 together with item 233's schema-version half.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- `segfacet.revision` returns `commit=None` unless `git ls-files
+  --error-unmatch __init__.py` and then `git rev-parse HEAD` both succeed in
+  the package directory and the output is a lowercase 40- or 64-hex SHA; a
+  private `_git` helper folds `OSError`/`SubprocessError` (no git, timeout)
+  into `None`, timeout 10 s.
+- The CLI imports `from segfacet import revision` inside `_handle_run` and
+  `_handle_evaluate` and calls `revision.facet_revision()` at call time, so
+  the module attribute can be monkeypatched. `_run_batch` reuses
+  `_handle_run`, so batch reports carry the block too.
 
 - **Left open:** whether the plain-text reports (`segfacet_report.txt`,
   `eval_report.txt`) also print the revision. `spinelab` pins the JSON

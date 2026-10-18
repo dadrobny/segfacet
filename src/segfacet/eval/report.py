@@ -224,6 +224,7 @@ def build_evaluation_report(
     calibration: "Optional[CalibrationResult]" = None,
     run_manifest: "Optional[dict]" = None,
     per_mode_summary: "Optional[RunPerModeSummary]" = None,
+    facet_revision: "Optional[dict]" = None,
 ) -> dict:
     """Assemble + schema-validate the v0 evaluation-report dict.
 
@@ -251,6 +252,11 @@ def build_evaluation_report(
         the report's additive, optional ``per_mode_magnitude`` key. When
         ``None`` (default), no ``per_mode_magnitude`` key is emitted and the
         report is byte-identical to the pre-101 output for the same inputs.
+    facet_revision:
+        Optional FACET revision block (item 232), as produced by
+        ``segfacet.revision.facet_revision()``. When non-``None`` it is
+        embedded verbatim under the report's ``facet_revision`` key. When
+        ``None`` (default), no key is emitted.
 
     Returns
     -------
@@ -279,6 +285,9 @@ def build_evaluation_report(
 
     if per_mode_summary is not None:
         report["per_mode_magnitude"] = per_mode_summary.to_dict()
+
+    if facet_revision is not None:
+        report["facet_revision"] = facet_revision
 
     jsonschema.validate(report, _SCHEMA)
     return report

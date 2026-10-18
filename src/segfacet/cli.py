@@ -912,6 +912,8 @@ def _handle_run(args: argparse.Namespace) -> int:
 
     findings_dicts = [f.to_dict() for f in case_result.findings]
 
+    from segfacet import revision  # noqa: PLC0415
+
     json_str = serialize_report_json(
         verdict,
         case_id,
@@ -920,6 +922,7 @@ def _handle_run(args: argparse.Namespace) -> int:
         findings=findings_dicts,
         reference_delta=reference_delta,
         run_manifest=run_manifest,
+        facet_revision=revision.facet_revision(),
     )
     json_path = out_path / "segfacet_report.json"
     json_path.write_text(json_str, encoding="utf-8")
@@ -1208,12 +1211,15 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
             run_manifest=run_manifest,
         )
 
+    from segfacet import revision  # noqa: PLC0415
+
     report = build_evaluation_report(
         metrics,
         provenance,
         calibration=calibration,
         run_manifest=run_manifest,
         per_mode_summary=per_mode_summary,
+        facet_revision=revision.facet_revision(),
     )
 
     out_path = pathlib.Path(args.out)

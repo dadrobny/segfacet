@@ -60,6 +60,15 @@ Began at the BMEIS Hackathon 2026 as an XNAT-deployed QC gate, and doubles as a
 practical exercise in specification-driven, AI-assisted development
 (see [`.aide/`](.aide/README.md)).
 
+## Releasing
+
+Every revision `spinelab` consumes gets an annotated git tag named
+`v<package_version>`, where `package_version` is `__version__` in
+`src/segfacet/__init__.py`. To release: bump `__version__` there first, tag a
+clean commit of `main` (`git tag -a v<package_version>`), and have the owner
+push the tag. A report's `facet_revision.commit` and
+`facet_revision.package_version` are what `spinelab` pins against.
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
