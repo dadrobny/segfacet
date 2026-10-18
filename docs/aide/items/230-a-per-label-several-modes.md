@@ -332,7 +332,11 @@ expectation. Item 235 replays the stage through it.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- `label_outcome.py` imports nothing from `metrics.py` at module level
+  (`_safe_rate` is imported inside `compute_label_metrics`), so `metrics.py`
+  and `harness.py` can import the dataclasses at the top without a cycle.
+- A non-sequence `label_modes` and a malformed pair both raise
+  `FacetInputError`, as does a non-int (or bool) label or mode.
 
 - **Left open:** whether `render_evaluation_report` prints `label_metrics`,
   and whether `segfacet evaluate` takes a review-label table directly. The
