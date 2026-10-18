@@ -121,7 +121,9 @@ non-withheld neighbours), judged at 13.0 mm, inclusive, under its own parameter
 ``max_terminal_offset_mm`` (item 234 split it from ``max_offset_mm`` so the
 interior re-derivation to 8.0 mm leaves terminals at item 222's calibrated
 value; at 8.0 the corpus terminals ``clean_control`` L5 8.513 mm and others
-would fire). ``gate-fac1`` is unchanged.
+would fire). Item 234 also applies ``gate-fac1``'s exclusion: the
+sub-verse406_split-verse261 T10 offset is withheld from the reference build
+(``scripts/rebuild_verse_reference.py``); the terminal method is unchanged.
 
 Measured 2026-10-14 on the 80-subject VerSe19 training cohort at the working
 tree built on commit ``5373c58e`` (this branch; the item-222 implementation

@@ -363,9 +363,9 @@ determinism (AC5) is tested.
 - **Artifact.** sha256
   `845d29e8958d8730271d38fc1087c17e25c802886a4225d8ac235f1453875062`.
 - **Warnings.** The run printed many scipy `_fitpack_repro` "s too small"
-  RuntimeWarnings from the spline fit. They are not new to this item: the
-  fit path (`features/` spline code) is unchanged by item 234. The builder
-  did not run a pre-item rebuild to compare counts.
+  RuntimeWarnings from the spline fit. Whether they predate this item is
+  unmeasured: no pre-item rebuild was run to compare counts. Item 234 does
+  not change the fit path (`features/` spline code).
 
 ### Corpus through the default-reference CLI
 

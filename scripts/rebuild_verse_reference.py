@@ -515,7 +515,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--build-date",
         default="2026-10-18",
         metavar="<YYYY-MM-DD>",
-        help="Caller-supplied ISO build date stamped into provenance (default: %(default)s).",
+        help=(
+            "Caller-supplied ISO build date stamped into provenance. The fixed "
+            "default (%(default)s) keeps test runs deterministic; pass the "
+            "actual date for a real rebuild."
+        ),
     )
     parser.add_argument(
         "--max-cases",
@@ -537,9 +541,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
+    if args.jobs < 1:
+        parser.error("--jobs must be >= 1")
 
     out_path = Path(args.out)
     out_path.mkdir(parents=True, exist_ok=True)
+
+    from segfacet.datasets import DatasetSchemaError
 
     code = 0
     try:
@@ -551,10 +559,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             max_cases=args.max_cases,
             jobs=args.jobs,
         )
-    except RoleOverlapError as exc:
+    except (RoleOverlapError, DatasetSchemaError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         summary = _empty_summary("error", str(exc), {})
         code = 1
+
+    if summary["build"]["status"] != "ran":
+        # Never leave an earlier run's artifact beside a "no artifact" summary.
+        (out_path / "reference_verse_v1.json").unlink(missing_ok=True)
 
     summary_path = out_path / _SUMMARY_NAME
     summary_path.write_bytes(
