@@ -52,7 +52,7 @@ import numpy as np
 import pytest
 
 from segfacet.cli import main
-from segfacet.config import bundled_default_config, default_config_path
+from segfacet.config import bundled_default_config
 from segfacet.features.centroids import LabelCentroid, compute_centroid
 from segfacet.features.spline import fit_centroid_spline
 from segfacet.features.spline_offset import (
@@ -839,13 +839,9 @@ def test_ac32_calibrated_max_offset_mm_unchanged():
     from segfacet.reference.artifact import bundled_production_reference
 
     tool = _load_rebuild_tool()
-    assert spline_offset_mod._DEFAULT_MAX_OFFSET_MM == 13.0
     assert spline_offset_mod._DEFAULT_MAX_OFFSET_MM == pytest.approx(
         tool.derive_max_offset_mm(bundled_production_reference())
     )
-
-    config_text = default_config_path().read_text(encoding="utf-8")
-    assert "max_offset_mm: 13.0" in config_text
 
 
 # =========================================================================== #

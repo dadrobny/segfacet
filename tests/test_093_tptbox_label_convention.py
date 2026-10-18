@@ -260,19 +260,6 @@ _PRE_RENAME_S_FEATURE_STATS = {
 }
 
 
-def _feature_stats_to_plain_dict(stats) -> dict:
-    """Convert a schema ``FeatureStats`` dataclass to a plain JSON-shaped dict
-    for comparison against the pinned literal snapshot."""
-    return {
-        "count": stats.count,
-        "mean": stats.mean,
-        "std": stats.std,
-        "min": stats.min,
-        "max": stats.max,
-        "percentiles": dict(stats.percentiles),
-    }
-
-
 # =========================================================================== #
 # AC1: DEFAULT_LABEL_MAP matches the TPTBox vertebra table for 1-33.
 # =========================================================================== #
@@ -456,32 +443,9 @@ _AC5_FEATURES_MOVED_BY_ITEM_123_REFIT = frozenset({
 _AC5_FEATURES_ABSENT_ENTIRELY = frozenset({"spline_offset_mm"})
 
 
-def test_ac5_l6_feature_stats_byte_for_byte_identical_to_pre_rename_s():
-    """14 features moved, for two distinct reasons (AC19/AC56 third-round
-    correction): ``spline_offset_mm`` is a genuinely absent key (AC43); the
-    13 ``intensity_*`` names are present keys whose value moved (improved
-    CT discovery) and are excluded from the value comparison, not from the
-    key set -- so the key-set equality only subtracts the one key that is
-    actually missing, and a separate check confirms the other 13 are still
-    present (not silently missing themselves)."""
-    dist = bundled_production_reference()
-    l6_stats = dist.levels["L6"][ALL_STRATUM].feature_stats
-
-    assert set(l6_stats) == set(_PRE_RENAME_S_FEATURE_STATS) - _AC5_FEATURES_ABSENT_ENTIRELY
-    assert "spline_offset_mm" not in l6_stats
-
-    value_skipped_but_present = _AC5_FEATURES_MOVED_BY_ITEM_123_REFIT - _AC5_FEATURES_ABSENT_ENTIRELY
-    assert len(value_skipped_but_present) == 13
-    for feature_name in value_skipped_but_present:
-        assert feature_name in l6_stats, (
-            f"{feature_name!r} moved by value, not by absence -- it must still be a key"
-        )
-
-    for feature_name, expected in _PRE_RENAME_S_FEATURE_STATS.items():
-        if feature_name in _AC5_FEATURES_MOVED_BY_ITEM_123_REFIT:
-            continue
-        actual = _feature_stats_to_plain_dict(l6_stats[feature_name])
-        assert actual == expected, f"feature_stats mismatch for {feature_name!r}"
+# (item 234: test_ac5_l6_feature_stats_byte_for_byte_identical_to_pre_rename_s
+# was retired -- it proved item 093's re-key-not-refit of the 80-case file, and
+# VerSe20 now contributes L6 in 13 cases.)
 
 
 def test_ac5_fourteen_features_are_the_only_byte_for_byte_exclusions():

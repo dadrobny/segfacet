@@ -33,10 +33,8 @@ the test-writer's contract for the builder, mirroring how
 names) -- ``<out>/verse_rebuild_summary.json``::
 
     {
-      "cohort": {"status", "reason", "root", "mask_count", "discovery_glob",
-                 "case_ids"},
-      "staging": {"status", "stage_mode", "staged_dir",
-                  "subjects_without_scan": [{"subject_id", "reason"}, ...]},
+      "cohort": {"status", "reason", "roots", "role_counts", "case_ids",
+                 "subjects_without_scan"},
       "build": {"status", "artifact_path", "subject_count", "levels",
                 "config_hash"},
       "calibration": {"status", "p99_by_level", "qualifying_levels", "P",
@@ -70,7 +68,7 @@ from pathlib import Path
 import nibabel as nib
 import pytest
 
-from segfacet.config import bundled_default_config, default_config_path, load_config
+from segfacet.config import bundled_default_config
 from segfacet.reference import (
     ALL_STRATUM,
     FeatureStats,
@@ -107,7 +105,10 @@ from segfacet.synth.regression import pipeline_findings, pipeline_verdict_label
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _MODULE_PATH = _REPO_ROOT / "scripts" / "rebuild_verse_reference.py"
 _ENV_VAR = "SEGFACET_VERSE_COHORT"
+_ENV_VAR_V20 = "SEGFACET_VERSE20_COHORT"
 _VERSE_SEG_SUFFIX = "_seg-vert_msk.nii.gz"
+_VERSE19_DIRS = ("dataset-verse19training", "dataset-verse19validation", "dataset-verse19test")
+_VERSE20_DIRS = ("dataset-01training", "dataset-02validation", "dataset-03test")
 
 
 # =========================================================================== #
@@ -117,10 +118,11 @@ _VERSE_SEG_SUFFIX = "_seg-vert_msk.nii.gz"
 
 @pytest.fixture(autouse=True)
 def _clear_verse_cohort_env(monkeypatch):
-    """This machine has the real VerSe19 cohort mounted (item background) --
-    every test in this module resolves the cohort explicitly, never through
-    a real ambient environment variable."""
+    """This machine has the real VerSe cohorts mounted (item background) --
+    every test in this module resolves the cohorts explicitly, never through
+    a real ambient environment variable (item 234: both releases)."""
     monkeypatch.delenv(_ENV_VAR, raising=False)
+    monkeypatch.delenv(_ENV_VAR_V20, raising=False)
 
 
 def _load_tool():
@@ -136,33 +138,25 @@ def _read_summary(out: Path) -> dict:
 
 
 def _write_standin_subject(
-    root: Path,
+    split_dir: Path,
     subject_id: str,
     *,
     levels=("L1", "L2", "L3", "L4", "L5"),
     spacing=(1.0, 1.0, 1.0),
     curve_amplitude_mm=6.0,
-    nested: bool = True,
     with_scan: bool = True,
 ) -> Path:
-    """Write one stand-in VerSe-shaped subject: a mask named
-    ``<id>_seg-vert_msk.nii.gz`` and (optionally) a CT sibling named
-    ``<id>_ct.nii.gz`` -- the real VerSe naming (docs/aide/dataset-
-    verse19.md), never the synth-corpus ``_seg.nii.gz`` convention.
-
-    ``nested=True`` places the mask/CT under an extra ``wrapper/derivatives``
-    / ``wrapper/rawdata`` layer (the zip-extraction wrapper the item's AC4
-    exercises); ``nested=False`` places them directly under *root*. Returns
-    the mask path.
+    """Write one stand-in VerSe-shaped subject into a split directory: a mask
+    ``derivatives/<sub>/<id>_seg-vert_msk.nii.gz`` and (optionally) a CT
+    ``rawdata/<sub>/<id>_ct.nii.gz`` -- the real VerSe naming (docs/aide/
+    dataset-verse19.md), laid out as the bundled descriptors expect (item
+    234). Returns the mask path.
     """
     spine = build_clean_spine(levels=levels, spacing=spacing, curve_amplitude_mm=curve_amplitude_mm)
 
-    if nested:
-        mask_dir = root / "wrapper" / "derivatives" / subject_id
-        ct_dir = root / "wrapper" / "rawdata" / subject_id
-    else:
-        mask_dir = root
-        ct_dir = root
+    sub = subject_id.split("_")[0]
+    mask_dir = split_dir / "derivatives" / sub
+    ct_dir = split_dir / "rawdata" / sub
     mask_dir.mkdir(parents=True, exist_ok=True)
     ct_dir.mkdir(parents=True, exist_ok=True)
 
@@ -176,18 +170,45 @@ def _write_standin_subject(
     return mask_path
 
 
-def _build_standin_cohort(root: Path, *, n: int = 2, nested: bool = True, with_scan=True) -> Path:
-    root.mkdir(parents=True, exist_ok=True)
-    for i in range(n):
+def _make_release(root: Path, split_dirs, prefix: str, dev_ids, *, levels, with_scan: bool) -> Path:
+    """A three-split stand-in release root: *dev_ids* are full subjects in the
+    first split; the other two splits each hold one empty mask (resolved, never
+    ingested), so the tool's role-overlap guard has real calibration/test cases."""
+    for i, subject_id in enumerate(dev_ids):
         _write_standin_subject(
-            root,
-            f"sub-verse{i:03d}",
+            root / split_dirs[0],
+            subject_id,
+            levels=levels,
             spacing=(1.0, 1.0, 1.0 + 0.1 * i),
             curve_amplitude_mm=4.0 + i,
-            nested=nested,
             with_scan=with_scan,
         )
+    for split, number in zip(split_dirs[1:], (900, 901)):
+        held_out = f"{prefix}{number}"
+        path = root / split / "derivatives" / held_out / f"{held_out}{_VERSE_SEG_SUFFIX}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"")
     return root
+
+
+def _build_standin_cohort(
+    base: Path, *, n: int = 2, with_scan=True, levels=("L1", "L2", "L3", "L4", "L5")
+):
+    """``(verse19_root, verse20_root)``: *n* VerSe19 development subjects and
+    one VerSe20 development subject (the tool requires both releases)."""
+    v19 = _make_release(
+        base / "verse19", _VERSE19_DIRS, "sub-verse",
+        [f"sub-verse{i:03d}" for i in range(n)], levels=levels, with_scan=with_scan,
+    )
+    v20 = _make_release(
+        base / "verse20", _VERSE20_DIRS, "sub-gl",
+        ["sub-gl000"], levels=levels, with_scan=with_scan,
+    )
+    return v19, v20
+
+
+def _run_tool(rr, out: Path, v19: Path, v20: Path) -> int:
+    return rr.main(["--out", str(out), "--verse-cohort", str(v19), "--verse20-cohort", str(v20)])
 
 
 def _no_traceback(text: str) -> bool:
@@ -378,29 +399,31 @@ def test_ac2_no_literal_dataset_path_in_source():
 
 def test_ac2_resolves_from_env_var_when_no_cli_flag(tmp_path, monkeypatch):
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=1)
-    monkeypatch.setenv(_ENV_VAR, str(cohort))
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=1)
+    monkeypatch.setenv(_ENV_VAR, str(v19))
+    monkeypatch.setenv(_ENV_VAR_V20, str(v20))
 
     out = tmp_path / "out"
     rc = rr.main(["--out", str(out)])
     assert rc == 0
     summary = _read_summary(out)
     assert summary["cohort"]["status"] == "ran"
-    assert summary["cohort"]["mask_count"] == 1
+    assert summary["cohort"]["case_ids"] == ["sub-gl000", "sub-verse000"]
 
 
 def test_ac2_cli_flag_overrides_env_var(tmp_path, monkeypatch):
     rr = _load_tool()
-    real_cohort = _build_standin_cohort(tmp_path / "cli-cohort", n=1)
+    v19, v20 = _build_standin_cohort(tmp_path / "cli-cohort", n=1)
     bogus_env_cohort = tmp_path / "does-not-exist"
     monkeypatch.setenv(_ENV_VAR, str(bogus_env_cohort))
+    monkeypatch.setenv(_ENV_VAR_V20, str(bogus_env_cohort))
 
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(real_cohort)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
     summary = _read_summary(out)
     assert summary["cohort"]["status"] == "ran"
-    assert summary["cohort"]["mask_count"] == 1
+    assert summary["cohort"]["case_ids"] == ["sub-gl000", "sub-verse000"]
 
 
 def test_ac2_no_flag_no_env_is_not_found(tmp_path):
@@ -423,7 +446,7 @@ def test_ac3_missing_root_is_structured_skip_exit_zero(tmp_path):
     out = tmp_path / "out"
     missing = tmp_path / "no-such-cohort"
 
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(missing)])
+    rc = _run_tool(rr, out, missing, missing)
 
     assert rc == 0
     summary = _read_summary(out)
@@ -437,7 +460,7 @@ def test_ac3_existing_root_no_matching_masks_is_structured_skip(tmp_path):
     empty_root = tmp_path / "empty-cohort"
     empty_root.mkdir()
 
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(empty_root)])
+    rc = _run_tool(rr, out, empty_root, empty_root)
 
     assert rc == 0
     summary = _read_summary(out)
@@ -455,7 +478,7 @@ def test_ac3_missing_root_no_traceback_and_writes_nothing_outside_out(tmp_path):
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-        rc = rr.main(["--out", str(out), "--verse-cohort", str(missing)])
+        rc = _run_tool(rr, out, missing, missing)
 
     assert rc == 0
     assert _no_traceback(buf.getvalue())
@@ -469,26 +492,9 @@ def test_ac3_missing_root_no_traceback_and_writes_nothing_outside_out(tmp_path):
 # =========================================================================== #
 
 
-def test_ac4_nested_and_flat_layouts_yield_same_case_list(tmp_path):
-    rr = _load_tool()
-    nested_cohort = _build_standin_cohort(tmp_path / "nested", n=3, nested=True)
-    flat_cohort = _build_standin_cohort(tmp_path / "flat", n=3, nested=False)
-
-    out_nested = tmp_path / "out-nested"
-    out_flat = tmp_path / "out-flat"
-    rc1 = rr.main(["--out", str(out_nested), "--verse-cohort", str(nested_cohort)])
-    rc2 = rr.main(["--out", str(out_flat), "--verse-cohort", str(flat_cohort)])
-
-    assert rc1 == 0 and rc2 == 0
-    summary_nested = _read_summary(out_nested)
-    summary_flat = _read_summary(out_flat)
-
-    case_ids_nested = summary_nested["cohort"]["case_ids"]
-    case_ids_flat = summary_flat["cohort"]["case_ids"]
-    assert case_ids_nested, "expected at least one discovered case"
-    assert sorted(case_ids_nested) == case_ids_nested, "case_ids must be sorted"
-    assert case_ids_nested == case_ids_flat
-    assert summary_nested["cohort"]["mask_count"] == summary_flat["cohort"]["mask_count"] == 3
+# (item 234: test_ac4_nested_and_flat_layouts_yield_same_case_list was retired
+# -- the recursive discovery plus staging it tested is deleted; the descriptor
+# resolver replaces it.)
 
 
 # =========================================================================== #
@@ -496,57 +502,27 @@ def test_ac4_nested_and_flat_layouts_yield_same_case_list(tmp_path):
 # =========================================================================== #
 
 
-def test_ac5_staged_directory_is_flat_with_scan_siblings(tmp_path):
-    rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=2, nested=True, with_scan=True)
-    out = tmp_path / "out"
-    staging_dir = tmp_path / "staged"
-
-    rc = rr.main(
-        ["--out", str(out), "--verse-cohort", str(cohort), "--staging-dir", str(staging_dir)]
-    )
-    assert rc == 0
-    assert staging_dir.is_dir()
-
-    staged_files = sorted(p for p in staging_dir.iterdir() if p.is_file())
-    assert staged_files, "expected staged files"
-    # Flat: no subdirectories under the staging dir.
-    assert not any(p.is_dir() for p in staging_dir.iterdir())
-
-    mask_names = {p.name for p in staged_files if p.name.endswith(_VERSE_SEG_SUFFIX)}
-    assert mask_names == {f"sub-verse{i:03d}{_VERSE_SEG_SUFFIX}" for i in range(2)}
-    for mask_name in mask_names:
-        subject_id = mask_name[: -len(_VERSE_SEG_SUFFIX)]
-        scan_name = f"{subject_id}_scan.nii.gz"
-        assert (staging_dir / scan_name).is_file(), f"missing staged scan sibling for {subject_id}"
-
-
-def test_ac5_subject_id_matches_ingest_cohorts_stem_rule(tmp_path):
-    rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=1, nested=True)
-    out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
-    assert rc == 0
-    summary = _read_summary(out)
-    assert summary["cohort"]["case_ids"] == ["sub-verse000"]
+# (item 234: test_ac5_staged_directory_is_flat_with_scan_siblings and
+# test_ac5_subject_id_matches_ingest_cohorts_stem_rule were retired -- the
+# staging behaviour they test is deleted.)
 
 
 # =========================================================================== #
-# AC6: staging never writes inside the cohort root
+# AC6: the tool never writes inside a cohort root
 # =========================================================================== #
 
 
 def test_ac6_cohort_root_paths_and_mtimes_unchanged_after_staged_run(tmp_path):
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=2, nested=True)
-    before = _walk_tree(cohort)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=2)
+    before = (_walk_tree(v19), _walk_tree(v20))
 
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
-    after = _walk_tree(cohort)
-    assert after == before, "the cohort root must be untouched by a staged run"
+    after = (_walk_tree(v19), _walk_tree(v20))
+    assert after == before, "the cohort roots must be untouched by a run"
 
 
 # =========================================================================== #
@@ -559,9 +535,9 @@ def test_ac7_committed_reference_verse_v1_is_untouched_by_a_run(tmp_path):
     before = committed_path.read_bytes()
 
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=2)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=2)
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
     after = committed_path.read_bytes()
@@ -573,9 +549,9 @@ def test_ac7_committed_reference_verse_v1_is_untouched_by_a_run(tmp_path):
 
 def test_ac7_no_written_path_resolves_under_src_segfacet(tmp_path):
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=2)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=2)
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
     summary = _read_summary(out)
@@ -603,30 +579,22 @@ def test_ac7_no_written_path_resolves_under_src_segfacet(tmp_path):
 # =========================================================================== #
 
 
-def test_ac8_subject_without_scan_recorded_and_still_staged(tmp_path):
+def test_ac8_subject_without_scan_recorded_and_still_ingested(tmp_path):
+    """Item 234: the record moved to ``cohort.subjects_without_scan``, a list
+    of development case ids whose resolved ``scan_path`` is ``None``."""
     rr = _load_tool()
-    cohort_root = tmp_path / "cohort"
-    cohort_root.mkdir()
-    _write_standin_subject(cohort_root, "sub-verse000", nested=True, with_scan=True)
-    _write_standin_subject(cohort_root, "sub-verse001", nested=True, with_scan=False)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=1)
+    _write_standin_subject(v19 / _VERSE19_DIRS[0], "sub-verse001", with_scan=False)
 
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort_root)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
     summary = _read_summary(out)
-    missing_entries = summary["staging"]["subjects_without_scan"]
-    assert missing_entries, "expected sub-verse001 recorded as missing a scan"
-    missing_ids = {entry["subject_id"] for entry in missing_entries}
-    assert missing_ids == {"sub-verse001"}
-    for entry in missing_entries:
-        assert entry["reason"]
+    assert summary["cohort"]["subjects_without_scan"] == ["sub-verse001"]
 
-    # Still staged and still ingested: subject_count includes both subjects.
-    assert summary["build"]["subject_count"] == 2
-
-    staging_dir = Path(summary["staging"]["staged_dir"])
-    assert (staging_dir / f"sub-verse001{_VERSE_SEG_SUFFIX}").is_file()
+    # Still ingested: subject_count includes the scan-less subject.
+    assert summary["build"]["subject_count"] == 3
 
 
 # =========================================================================== #
@@ -724,15 +692,8 @@ def test_ac12_shipped_default_equals_derived_value_from_committed_artifact():
     assert derived == _DEFAULT_MAX_OFFSET_MM
 
 
-def test_ac13_config_yaml_agrees_with_code_default():
-    # Item 189 (2026-09-28): the constant moved to spline_offset.py. The
-    # shipped default_config.yaml still carries rules.mislabel.params.
-    # max_offset_mm as an unread key (spec A5 -- removing it would move
-    # config_hash), so the read below is unchanged.
-    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
-
-    cfg = load_config(default_config_path())
-    assert cfg.rule_param("mislabel", "max_offset_mm", None) == _DEFAULT_MAX_OFFSET_MM
+# (item 234: test_ac13_config_yaml_agrees_with_code_default was retired -- the
+# unread rules.mislabel.params.max_offset_mm key it read is removed.)
 
 
 def test_ac13_default_is_no_longer_fifteen():
@@ -867,9 +828,9 @@ def test_ac16_docstring_states_the_terminal_exclusion_and_why():
 
 def test_ac17_calibration_block_shape_against_standin_cohort(tmp_path):
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=3)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=3)
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
     summary = _read_summary(out)
@@ -894,9 +855,9 @@ def test_ac17_calibration_block_reports_terminal_interior_split(tmp_path):
     terminal_count / interior_count (and per-population stats), so the
     evidence for excluding terminals is regenerable from the tool."""
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=3)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=3)
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
     calibration = _read_summary(out)["calibration"]
@@ -938,19 +899,19 @@ def test_ac19_artifact_identity_preserved():
     dist = load_artifact(bundled_production_reference_path())
     assert dist.schema_version == "1.2"
     assert dist.provenance.source == "verse-v1"
-    assert dist.subject_count == 80
+    # Item 234: 141 development-role cases (80 VerSe19 + 61 VerSe20).
+    assert dist.subject_count == 141
     assert "L6" in dist.levels
     assert "S" not in dist.levels
 
-    # The level key set is pinned exactly: the real cohort's discovered
-    # levels are unaffected by the estimator/threshold recalibration (only
-    # spline_offset_mm's values move, never which levels were observed).
+    # The level key set is pinned exactly: item 234's VerSe20 development
+    # cases add T13 (2 cases) to the VerSe19 set.
     expected_levels = frozenset(
         {f"C{i}" for i in range(1, 8)}
-        | {f"T{i}" for i in range(1, 13)}
+        | {f"T{i}" for i in range(1, 14)}
         | {f"L{i}" for i in range(1, 7)}
     )
-    assert len(expected_levels) == 25
+    assert len(expected_levels) == 26
     assert set(dist.levels) == expected_levels
 
     expected_features = frozenset(
@@ -1467,15 +1428,8 @@ def test_ac42_delta_excludes_terminal_labels_symmetrically():
 # --- AC43: the committed artifact is interior-only, anomaly gone --------- #
 
 
-def test_ac43_l5_below_qualifying_count_or_absent():
-    dist = bundled_production_reference()
-    l5 = dist.levels.get("L5", {}).get(ALL_STRATUM)
-    if l5 is None:
-        return
-    offset = l5.feature_stats.get("spline_offset_mm")
-    if offset is None:
-        return
-    assert offset.count < 10
+# (item 234: test_ac43_l5_below_qualifying_count_or_absent was retired -- it
+# pinned item 123's 80-case consequence; L5 now has 16 interior readings.)
 
 
 def test_ac43_no_qualifying_level_p99_exceeds_thirteen():
@@ -1502,11 +1456,8 @@ def test_ac43_level_with_no_interior_occurrence_still_loads():
 # --- AC44/AC45: the human-agreed threshold and the interior ceiling ------ #
 
 
-def test_ac44_default_max_offset_mm_is_thirteen():
-    # Item 189 (2026-09-28): constant moved to spline_offset.py.
-    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
-
-    assert _DEFAULT_MAX_OFFSET_MM == 13.0
+# (item 234: test_ac44_default_max_offset_mm_is_thirteen was retired -- a
+# literal duplicate of AC12, which carries the equality.)
 
 
 def _interior_offset_ceiling_over_corpus(exclude_case_ids=frozenset()):
@@ -1692,70 +1643,36 @@ def test_adv_all_terminal_two_centroid_sequence_has_no_interior_at_all():
 
 def test_adv_symlinked_cohort_root_is_discovered(tmp_path):
     rr = _load_tool()
-    real_cohort = _build_standin_cohort(tmp_path / "real-cohort", n=2)
+    real_v19, v20 = _build_standin_cohort(tmp_path / "real-cohort", n=2)
     link = tmp_path / "cohort-link"
     try:
-        link.symlink_to(real_cohort, target_is_directory=True)
+        link.symlink_to(real_v19, target_is_directory=True)
     except (OSError, NotImplementedError):
         pytest.skip("platform does not support symlinks without elevation")
 
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(link)])
+    rc = _run_tool(rr, out, link, v20)
     assert rc == 0
     summary = _read_summary(out)
     assert summary["cohort"]["status"] == "ran"
-    assert summary["cohort"]["mask_count"] == 2
+    assert summary["cohort"]["case_ids"] == ["sub-gl000", "sub-verse000", "sub-verse001"]
 
 
-def test_adv_subject_id_collision_after_suffix_stripping_is_recorded_not_overwritten(tmp_path):
-    """Two distinct mask files that strip to the same subject_id (one nested
-    under wrapper/, one flat) must not silently clobber one another in the
-    staging directory."""
-    rr = _load_tool()
-    cohort_root = tmp_path / "cohort"
-    cohort_root.mkdir()
-    _write_standin_subject(cohort_root, "sub-verse000", nested=True)
-    # A second, distinct mask that collides on subject_id after suffix
-    # stripping, placed at a different nested path.
-    dup_dir = cohort_root / "wrapper" / "derivatives" / "sub-verse000" / "dup"
-    dup_dir.mkdir(parents=True)
-    spine = build_clean_spine(levels=("L1", "L2", "L3"), curve_amplitude_mm=1.0)
-    nib.save(spine.seg_img, str(dup_dir / f"sub-verse000{_VERSE_SEG_SUFFIX}"))
-
-    out = tmp_path / "out"
-    import contextlib
-    import io
-
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-        rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort_root)])
-
-    assert rc == 0
-    assert _no_traceback(buf.getvalue())
-    summary = _read_summary(out)
-    # Either both masks are discovered (two distinct staged names) or the
-    # collision is explicitly recorded -- either way, exactly one silent
-    # overwrite (mask_count == 1 with no record) is the failure this pins.
-    if summary["cohort"]["mask_count"] == 1:
-        assert summary["cohort"].get("collisions") or summary["staging"].get("collisions"), (
-            "a subject_id collision after suffix stripping must be recorded, not silently dropped"
-        )
+# (item 234: test_adv_subject_id_collision_after_suffix_stripping_is_recorded_not_overwritten
+# was retired -- the staging behaviour it tested is deleted; the resolver raises
+# on a duplicate case id within one role, which test_086 covers.)
 
 
 def test_adv_single_label_mask_does_not_crash(tmp_path):
     rr = _load_tool()
-    cohort_root = tmp_path / "cohort"
-    cohort_root.mkdir()
-    spine = build_clean_spine(levels=("L3",), curve_amplitude_mm=0.0)
-    scan_img = paint_clean_scan(spine.seg_img, seed=0)
-    nib.save(spine.seg_img, str(cohort_root / f"sub-verse000{_VERSE_SEG_SUFFIX}"))
-    nib.save(scan_img, str(cohort_root / "sub-verse000_ct.nii.gz"))
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=1, levels=("L3",))
 
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort_root)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
     summary = _read_summary(out)
-    assert summary["build"]["subject_count"] == 1
+    # One development case per release.
+    assert summary["build"]["subject_count"] == 2
 
 
 def test_adv_exactly_four_level_mask_yields_zero_offsets_not_a_crash(tmp_path):
@@ -1770,15 +1687,10 @@ def test_adv_exactly_four_level_mask_yields_zero_offsets_not_a_crash(tmp_path):
     five orders of magnitude below any genuine offset this estimator yields
     on the clean base."""
     rr = _load_tool()
-    cohort_root = tmp_path / "cohort"
-    cohort_root.mkdir()
-    spine = build_clean_spine(levels=("L1", "L2", "L3", "L4"), curve_amplitude_mm=6.0)
-    scan_img = paint_clean_scan(spine.seg_img, seed=0)
-    nib.save(spine.seg_img, str(cohort_root / f"sub-verse000{_VERSE_SEG_SUFFIX}"))
-    nib.save(scan_img, str(cohort_root / "sub-verse000_ct.nii.gz"))
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=1, levels=("L1", "L2", "L3", "L4"))
 
     out = tmp_path / "out"
-    rc = rr.main(["--out", str(out), "--verse-cohort", str(cohort_root)])
+    rc = _run_tool(rr, out, v19, v20)
     assert rc == 0
 
     artifact_path = out / "reference_verse_v1.json"
@@ -1798,12 +1710,12 @@ def test_adv_exactly_four_level_mask_yields_zero_offsets_not_a_crash(tmp_path):
 
 def test_adv_rerun_into_same_out_overwrites_cleanly(tmp_path):
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=2)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=2)
     out = tmp_path / "out"
 
-    rc1 = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc1 = _run_tool(rr, out, v19, v20)
     summary1 = _read_summary(out)
-    rc2 = rr.main(["--out", str(out), "--verse-cohort", str(cohort)])
+    rc2 = _run_tool(rr, out, v19, v20)
     summary2 = _read_summary(out)
 
     assert rc1 == 0 and rc2 == 0
@@ -1826,6 +1738,7 @@ def test_adv_out_dir_under_not_yet_existing_nested_parent_is_created(tmp_path):
 def test_adv_empty_string_env_var_treated_as_unset(tmp_path, monkeypatch):
     rr = _load_tool()
     monkeypatch.setenv(_ENV_VAR, "")
+    monkeypatch.setenv(_ENV_VAR_V20, "")
     out = tmp_path / "out"
 
     rc = rr.main(["--out", str(out)])
@@ -1851,12 +1764,12 @@ def test_adv_env_var_restored_after_monkeypatch_teardown(monkeypatch):
 
 def test_adv_two_standin_runs_produce_equal_cohort_and_calibration_blocks(tmp_path):
     rr = _load_tool()
-    cohort = _build_standin_cohort(tmp_path / "cohort", n=3)
+    v19, v20 = _build_standin_cohort(tmp_path / "cohort", n=3)
     out_a = tmp_path / "out_a"
     out_b = tmp_path / "out_b"
 
-    rr.main(["--out", str(out_a), "--verse-cohort", str(cohort)])
-    rr.main(["--out", str(out_b), "--verse-cohort", str(cohort)])
+    _run_tool(rr, out_a, v19, v20)
+    _run_tool(rr, out_b, v19, v20)
 
     summary_a = _read_summary(out_a)
     summary_b = _read_summary(out_b)

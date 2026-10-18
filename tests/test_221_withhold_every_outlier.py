@@ -1,7 +1,7 @@
 """Item 221: the held-out spline offset withholds every interior outlier.
 
-Covers AC1-AC3 and AC5-AC7 (AC4 was withdrawn on 2026-10-13 and has no
-test), plus the Testing Strategy's four named cases. The item-120
+Covers AC1-AC3, AC5 and AC6 (AC4 was withdrawn on 2026-10-13 and has no
+test; AC7's test was retired by item 234), plus the Testing Strategy's four named cases. The item-120
 computation is written out here from ``fit_centroid_spline`` and
 ``compute_spline_offsets``; it never calls the item's own helpers.
 """
@@ -9,8 +9,6 @@ computation is written out here from ``fit_centroid_spline`` and
 from __future__ import annotations
 
 import dataclasses
-import re
-from pathlib import Path
 
 import pytest
 
@@ -24,7 +22,6 @@ from segfacet.features.spline_offset import (
 )
 from segfacet.synth.clean_gt import build_clean_spine
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
 _EIGHT = ("T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8")
 
 
@@ -107,30 +104,10 @@ def test_ac6_terminal_level_is_never_withheld():
     assert _without_terminal_reading(compute_leave_one_out_spline_offsets(c)) == _item120(c, {dominant})
 
 
-def test_ac7_reverified_verse19_ceiling_is_recorded():
-    import importlib.util
-    import sys
-
-    from segfacet.reference.artifact import bundled_production_reference_path, load_artifact
-
-    module_path = _REPO_ROOT / "scripts" / "rebuild_verse_reference.py"
-    spec = importlib.util.spec_from_file_location("rebuild_verse_reference", module_path)
-    tool = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = tool
-    spec.loader.exec_module(tool)
-
-    p99 = tool._p99_by_level(load_artifact(bundled_production_reference_path()))
-    qualifying = [e["p99"] for e in p99.values() if e["count"] >= 10]
-    assert qualifying
-    expected = round(max(qualifying), 6)
-
-    text = (_REPO_ROOT / "docs" / "reference-build.md").read_text(encoding="utf-8")
-    sections = [s for s in text.split("\n## ")[1:] if s.startswith("Rebuild record — ")]
-    mine = [s for s in sections if "item 221" in s]
-    assert mine
-    match = re.search(r"P = ([0-9]+(?:\.[0-9]+)?) mm", mine[0])
-    assert match
-    assert float(match.group(1)) == expected
+# (item 234: test_ac7_reverified_verse19_ceiling_is_recorded was retired -- it
+# pinned the dated item-221 record's P against the live artifact, which the
+# development-role rebuild legitimately moves. That record is history; the
+# live P is carried by test_123's AC12.)
 
 
 def test_emptied_set_returns_first_pass():
