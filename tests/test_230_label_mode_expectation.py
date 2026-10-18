@@ -103,20 +103,21 @@ def _wrong_mode(detector):
 @functools.lru_cache(maxsize=1)
 def _scenario():
     """A hand-built label map with two labelled counted findings at two
-    different modes plus one clean label: label 1 is cut into two same-size
-    pieces (``fragmentation``/``components``), label 2 carries a one-voxel
-    island (``fragmentation``/``islands``), label 3 is a single body. The
-    modes are read from ``modes_for_detector``; the live ``run_qc`` result is
-    asserted to carry both pairs. Returns ``(case, (l1, m1), (l2, m2), l3)``."""
-    blocks = {
-        1: ((0, 4), (0, 6), (0, 6)),
-        2: ((0, 6), (10, 16), (0, 6)),
-        3: ((12, 18), (0, 6), (12, 18)),
-    }
-    img = make_labelmap((20, 20, 20), blocks)
+    different modes plus one clean label. Three lumbar-sized blocks stacked
+    along z, clear of the volume border: label 20 is cut in two same-size
+    pieces by a two-slice gap (``fragmentation``/``components``), label 21
+    carries a one-voxel island (``fragmentation``/``islands``), label 22 is a
+    single body. The modes are read from ``modes_for_detector``; the live
+    ``run_qc`` result is asserted to carry both pairs and nothing on label 22.
+    Returns ``(case, (l1, m1), (l2, m2), l3)``."""
+    l1, l2, l3 = 20, 21, 22
+    zs = {l1: (5, 25), l2: (30, 50), l3: (55, 75)}
+    img = make_labelmap(
+        (34, 34, 80), {lab: ((5, 29), (5, 29), z) for lab, z in zs.items()}
+    )
     data = np.asarray(img.dataobj).copy()
-    data[6:10, 0:6, 0:6] = 1  # second, detached piece of label 1
-    data[10, 18, 18] = 2  # one-voxel island of label 2
+    data[:, :, 14:16] = 0  # splits label 1 into two 9-slice pieces
+    data[31, 31, zs[l2][0] + 2] = l2  # one-voxel island of label 2
     img = nib.Nifti1Image(data, img.affine)
     (m1,) = modes_for_detector("fragmentation", "components")[:1]
     (m2,) = modes_for_detector("fragmentation", "islands")[:1]
@@ -129,8 +130,9 @@ def _scenario():
         for mode in modes_for_detector(f.rule_id, f.detector_id)
         for label in f.labels
     }
-    assert {(1, m1), (2, m2)} <= live
-    return SimpleNamespace(seg_img=img), (1, m1), (2, m2), 3
+    assert {(l1, m1), (l2, m2)} <= live
+    assert l3 not in {label for label, _mode in live}
+    return SimpleNamespace(seg_img=img), (l1, m1), (l2, m2), l3
 
 
 @functools.lru_cache(maxsize=1)
