@@ -66,6 +66,7 @@ import pytest
 import segfacet.synth  # noqa: F401 -- triggers self-registration of every operator
 from segfacet.config import bundled_default_config
 from segfacet.pipeline import run_qc
+from segfacet.report import REPORT_SCHEMA_VERSION
 from segfacet.synth.corpus import load_manifest
 from segfacet.synth.golden import (
     VOLATILE_POINTERS,
@@ -162,7 +163,7 @@ def test_ac2_fixed_fields_are_correct(case):
     values for every case."""
     report = build_report_for_case(case)
     assert report["case_id"] == case["case_id"]
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     assert report["config_version"] == bundled_default_config().schema_version
 
 

@@ -47,7 +47,7 @@ from segfacet.features.geometry import compute_label_geometry
 from segfacet.features.overlap import detect_overlaps
 from segfacet.features.relationships import compute_spine_relationships
 from segfacet.human_report import render_feature_table
-from segfacet.report import serialize_report, serialize_report_json
+from segfacet.report import REPORT_SCHEMA_VERSION, serialize_report, serialize_report_json
 from segfacet.verdict import Verdict
 
 from synthetic import (
@@ -244,7 +244,7 @@ def test_ac4_feature_free_report_still_valid():
     carries no 'features' key."""
     report = serialize_report(_empty_verdict(), "no-features", _config())
     assert "features" not in report
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
 
 
 def test_ac4_features_is_optional_property():
@@ -252,7 +252,7 @@ def test_ac4_features_is_optional_property():
     an optional (non-required) property."""
     from segfacet.report import _SCHEMA
 
-    assert _SCHEMA["properties"]["schema_version"]["const"] == "0.1"
+    assert _SCHEMA["properties"]["schema_version"]["const"] == REPORT_SCHEMA_VERSION
     assert "features" in _SCHEMA["properties"]
     assert "features" not in _SCHEMA["required"]
 

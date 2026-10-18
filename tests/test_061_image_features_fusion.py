@@ -64,7 +64,7 @@ from segfacet.feature_report import (
 )
 from segfacet.features.intensity import LabelIntensity
 from segfacet.human_report import render_feature_table
-from segfacet.report import serialize_report, serialize_report_json
+from segfacet.report import REPORT_SCHEMA_VERSION, serialize_report, serialize_report_json
 from segfacet.verdict import Verdict
 
 
@@ -280,7 +280,7 @@ def test_ac9_default_omits_image_features_key():
     verdict = _verdict()
     report = serialize_report(verdict, "case-061-omit", bundled_default_config())
     assert "image_features" not in report
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
 
 
 def test_ac9_report_with_only_other_optional_blocks_omits_image_features():

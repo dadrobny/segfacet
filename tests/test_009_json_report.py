@@ -17,7 +17,7 @@ import json
 import pytest
 
 from segfacet.config import HeuristicConfig, default_config
-from segfacet.report import serialize_report, serialize_report_json
+from segfacet.report import REPORT_SCHEMA_VERSION, serialize_report, serialize_report_json
 from segfacet.verdict import Reason, Severity, Verdict
 
 
@@ -548,7 +548,7 @@ def test_ac10_schema_version_in_report_is_always_v0():
     """schema_version in the report is always '0.1' (the v0 schema marker)."""
     for verdict in [_empty_verdict(), _simple_flag_verdict()]:
         report = serialize_report(verdict, "c", _config())
-        assert report["schema_version"] == "0.1"
+        assert report["schema_version"] == REPORT_SCHEMA_VERSION
 
 
 # =========================================================================== #
@@ -680,7 +680,7 @@ def test_golden_snapshot_fixed_flag_verdict():
     )
     report = serialize_report(verdict, "snapshot-case-001", cfg)
 
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     assert report["config_version"] == "0.1"
     assert report["case_id"] == "snapshot-case-001"
     assert report["verdict"] == "flagged-for-review"
@@ -706,7 +706,7 @@ def test_golden_snapshot_fail_verdict_with_label():
     )
     report = serialize_report(verdict, "snapshot-case-002", cfg)
 
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     assert report["verdict"] == "fail"
     assert len(report["reasons"]) == 1
     assert report["reasons"][0]["message"] == "too few labels"
@@ -886,7 +886,7 @@ def test_adv_returned_dict_mutation_does_not_affect_second_call():
     r1 = serialize_report(verdict, "c", cfg)
     r1["schema_version"] = "CORRUPTED"
     r2 = serialize_report(verdict, "c", cfg)
-    assert r2["schema_version"] == "0.1"
+    assert r2["schema_version"] == REPORT_SCHEMA_VERSION
 
 
 # =========================================================================== #
@@ -918,8 +918,8 @@ def test_adv_report_schema_version_is_not_config_version():
         min_label_count=0,
     )
     report = serialize_report(_empty_verdict(), "c", cfg)
-    # schema_version is the report schema version (always "0.1")
-    assert report["schema_version"] == "0.1"
+    # schema_version is the report schema version (REPORT_SCHEMA_VERSION)
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     # config_version carries the config's schema_version
     assert report["config_version"] == "future-config-99"
     assert report["schema_version"] != report["config_version"]

@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 
 from segfacet.cli import main
+from segfacet.report import REPORT_SCHEMA_VERSION
 
 
 # =========================================================================== #
@@ -128,7 +129,7 @@ def test_ac10_json_report_has_v0_schema_version(labelled_blocks_files, tmp_path,
         capsys,
     )
     data = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    assert data.get("schema_version") == "0.1"
+    assert data.get("schema_version") == REPORT_SCHEMA_VERSION
 
 
 def test_ac10_json_report_has_required_v0_fields(labelled_blocks_files, tmp_path, capsys):
