@@ -19,8 +19,10 @@ import dataclasses
 import functools
 from types import SimpleNamespace
 
+import nibabel as nib
 import numpy as np
 import pytest
+from synthetic import make_labelmap
 
 from segfacet.config import bundled_default_config
 from segfacet.eval.harness import EvaluationCase, evaluate_case, evaluate_cohort
@@ -100,30 +102,35 @@ def _wrong_mode(detector):
 
 @functools.lru_cache(maxsize=1)
 def _scenario():
-    """A corpus case with two labelled counted findings at two different
-    modes plus one further label present in the segmentation:
-    ``(case, (l1, m1), (l2, m2), clean_label)``."""
-    config = bundled_default_config()
-    for case in build_corpus():
-        result, _block = run_qc(case.seg_img, config)
-        pairs = sorted(
-            {
-                (label, mode)
-                for f in result.findings
-                if f.severity >= Severity.FLAG
-                for mode in modes_for_detector(f.rule_id, f.detector_id)
-                for label in f.labels
-            }
-        )
-        if not pairs:
-            continue
-        first = pairs[0]
-        second = [p for p in pairs if p[0] != first[0] and p[1] != first[1]]
-        present = [int(v) for v in np.unique(np.asarray(case.seg_img.dataobj)) if v > 0]
-        spare = [v for v in present if v not in (first[0], *[p[0] for p in second[:1]])]
-        if second and spare:
-            return case, first, second[0], spare[0]
-    raise AssertionError("no corpus case yields two labelled pairs at two modes")
+    """A hand-built label map with two labelled counted findings at two
+    different modes plus one clean label: label 1 is cut into two same-size
+    pieces (``fragmentation``/``components``), label 2 carries a one-voxel
+    island (``fragmentation``/``islands``), label 3 is a single body. The
+    modes are read from ``modes_for_detector``; the live ``run_qc`` result is
+    asserted to carry both pairs. Returns ``(case, (l1, m1), (l2, m2), l3)``."""
+    blocks = {
+        1: ((0, 4), (0, 6), (0, 6)),
+        2: ((0, 6), (10, 16), (0, 6)),
+        3: ((12, 18), (0, 6), (12, 18)),
+    }
+    img = make_labelmap((20, 20, 20), blocks)
+    data = np.asarray(img.dataobj).copy()
+    data[6:10, 0:6, 0:6] = 1  # second, detached piece of label 1
+    data[10, 18, 18] = 2  # one-voxel island of label 2
+    img = nib.Nifti1Image(data, img.affine)
+    (m1,) = modes_for_detector("fragmentation", "components")[:1]
+    (m2,) = modes_for_detector("fragmentation", "islands")[:1]
+    assert m1 != m2
+    result, _block = run_qc(img, bundled_default_config())
+    live = {
+        (label, mode)
+        for f in result.findings
+        if f.severity >= Severity.FLAG
+        for mode in modes_for_detector(f.rule_id, f.detector_id)
+        for label in f.labels
+    }
+    assert {(1, m1), (2, m2)} <= live
+    return SimpleNamespace(seg_img=img), (1, m1), (2, m2), 3
 
 
 @functools.lru_cache(maxsize=1)

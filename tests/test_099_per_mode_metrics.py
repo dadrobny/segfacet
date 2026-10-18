@@ -1396,6 +1396,7 @@ def test_ac25_eval_metrics_public_names_unchanged():
         "dice_vs_flag",
         "feature_divergence_vs_flag",
         "n_cases",
+        "label_metrics",
     }
     assert dataclasses.is_dataclass(PerModeSensitivity)
 
