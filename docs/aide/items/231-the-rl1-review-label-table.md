@@ -398,6 +398,13 @@ on the branch:
   (A6). The `calibrate_thresholds` call now catches `FacetInputError` the same
   way, so a test-role cohort with `--calibrate` is an error line, not a
   traceback.
+- **Reader hardening (review fix round).** The file opens as `utf-8-sig`, so a
+  BOM is accepted; a `UnicodeDecodeError` is re-raised as `FacetInputError`
+  like `csv.Error`. A row with more or fewer cells than the header is refused
+  naming its line ("cell count differs from the header"). With `--calibrate`,
+  the CLI calls `refuse_test_role(cases, purpose="threshold calibration")`
+  right after the table is applied (fail fast); the guard in
+  `calibrate_thresholds` stays.
 - **Transcription check (Validation step 3): ❓ Unverified by the builder.**
   The builder did not open the `spine-failure-lab` clone; the field list was
   copied from A2. The validator performs the comparison against commit

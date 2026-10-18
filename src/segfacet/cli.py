@@ -1114,6 +1114,7 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
             from segfacet.eval.review_labels import (  # noqa: PLC0415
                 apply_review_labels,
                 read_review_label_table,
+                refuse_test_role,
             )
 
             cases = apply_review_labels(cases, read_review_label_table(args.review_labels))
@@ -1123,6 +1124,8 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
                     file=sys.stderr,
                 )
                 return 1
+            if args.calibrate:
+                refuse_test_role(cases, purpose="threshold calibration")
     except (FacetInputError, OSError, DatasetSchemaError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

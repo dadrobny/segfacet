@@ -71,14 +71,14 @@ def read_review_label_table(path: Union[str, Path]) -> List[Dict[str, Any]]:
     fields = load_rl1_schema()["fields"]
     names = [f["name"] for f in fields]
     try:
-        fh = open(path, newline="", encoding="utf-8")  # noqa: SIM115
+        fh = open(path, newline="", encoding="utf-8-sig")  # noqa: SIM115
     except OSError as exc:
         raise FacetInputError(f"review-label table: cannot read {path}: {exc}") from exc
     with fh:
         reader = csv.DictReader(fh)
         try:
             header = list(reader.fieldnames or [])
-        except csv.Error as exc:
+        except (csv.Error, UnicodeDecodeError) as exc:
             raise FacetInputError(f"review-label table {path}: {exc}") from exc
         for col in dict.fromkeys(header):
             if header.count(col) > 1:
@@ -101,6 +101,11 @@ def read_review_label_table(path: Union[str, Path]) -> List[Dict[str, Any]]:
         try:
             for raw in reader:
                 where = f"review-label table {path}, line {reader.line_num}"
+                if None in raw or None in raw.values():
+                    raise FacetInputError(
+                        f"{where}: cell count differs from the header "
+                        f"({len(header)} columns)."
+                    )
                 if raw["schema"] != RL1_SCHEMA_TAG:
                     raise FacetInputError(
                         f"{where}: schema tag {raw['schema']!r} found, but only "
@@ -125,7 +130,7 @@ def read_review_label_table(path: Union[str, Path]) -> List[Dict[str, Any]]:
                         f"{where}: role {row['role']!r} is not one of {list(REVIEW_ROLES)}."
                     )
                 rows.append(row)
-        except csv.Error as exc:
+        except (csv.Error, UnicodeDecodeError) as exc:
             raise FacetInputError(f"review-label table {path}: {exc}") from exc
     return rows
 
