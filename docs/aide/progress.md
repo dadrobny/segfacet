@@ -851,6 +851,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 - [x] An `rl1` table at the pinned version becomes a per-label,
   several-modes-per-case expectation the evaluation harness scores against, and a
   table at any other version is refused (**G2**). *(validator item 231 2026-10-18: aide test green (12227 passed); AC7 (rl1 tag refusal) and AC17 (CLI --review-labels scores table) tests pass)*
+  - **2026-10-19** → validator item 235 round 1 2026-10-19, clone HEAD 5826c3ff3c13: AC6 the vendored rl1 schema fields equal (name,type) in order the table facet-interface.md review-label-fields at spine-failure-lab commit 7436b0f250dd (10 fields, schema..role), source.commit equals that commit, sibling CLAUDE.md read first; AC7 segfacet evaluate --dataset-schema verse20.yaml --subset calibration --review-labels on 2 real VerSe20 calibration cases (sub-verse753 labels 17-24 with 17 at mode 1 and 24 at mode 2, sub-gl045 labels 1-11 mode 0) exit 0 and eval_report metrics.label_metrics equals the in-process compute_cohort_metrics of apply_review_labels (n_clean_labels 17, flagged 1, per_mode 1 and 2 each n_labels 1 sensitivity 0.0); AC8 the same run with first row schema rl2 exits 1, stderr names rl2 and rl1, no eval_report written
 - [ ] Every per-case and evaluation report carries the FACET commit and a schema
   version, and a feature path that moves without a schema-version change fails
   the suite (**G7**).
