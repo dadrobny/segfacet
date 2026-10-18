@@ -827,7 +827,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
   expectation with several modes per case, read from `spinelab`'s `rl1` table
   against a vendored schema pinned at a `spinelab` commit. Any other version is
   refused. *(Item 230)*
-- 🚧 **Real-label expectation**: the evaluation cohort accepts a per-label
+- 🔍 **Real-label expectation**: the evaluation cohort accepts a per-label
   expectation with several modes per case, read from `spinelab`'s `rl1` table
   against a vendored schema pinned at a `spinelab` commit. Any other version is
   refused. *(Item 231)*
