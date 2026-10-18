@@ -314,3 +314,83 @@ the committed artifact is plausible. None of it changes a verdict, so
 
 `spline_offset.max_offset_mm` stays `13.0`, and `gate-fac1` (verse406 T10,
 `18.51` mm) is unchanged and still open.
+
+## Rebuild record — 2026-10-18 (item 234, development role)
+
+Item 234 rebuilt `reference_verse_v1.json` in place from the `development`
+role of both VerSe releases, through the descriptor-driven tool:
+
+```bash
+.venv/bin/python scripts/rebuild_verse_reference.py --out <scratch> \
+    --verse-cohort <VerSe19 three-split root> \
+    --verse20-cohort <VerSe20 three-split root> \
+    --build-date 2026-10-18 --jobs 30
+```
+
+It exited `0`. The wall time was not recorded by the builder; the spec-time
+probe measured about 19 CPU-hours for a serial run (item 234, A14), hence
+`--jobs 30`. A second determinism run into a separate directory was **not
+run**, so the byte-identity of two real rebuilds is unverified; the stand-in
+determinism (AC5) is tested.
+
+- **Cohort.** 141 subjects: VerSe19 80 development (of 80 / 40 / 40
+  development / calibration / test) and VerSe20 61 development (of 61 / 80 /
+  73). The role-overlap check passed. `subjects_without_scan` is empty. The
+  sorted case ids are the artifact's `provenance.case_ids`. 26 levels: C1-C7,
+  T1-T13, L1-L6.
+- **Threshold.** Read from the committed artifact with `_p99_by_level`: P =
+  7.915787852893431 mm at level `L4` (106 readings), so
+  `derive_max_offset_mm` gives **8.0 mm**, which lies inside the A9 corpus
+  window and equals `_DEFAULT_MAX_OFFSET_MM`. Qualifying levels: 23 (every level
+  with at least 10 interior readings; `L6` and `T13` do not qualify, `C1` is terminal-only). Item 123's
+  value was 13.0 mm (P = 12.91 mm at T10 over 80 VerSe19 cases).
+- **Exclusion.** The `spline_offset_mm` reading of
+  `sub-verse406_split-verse261` T10 (label 17), 18.51028119357566 mm, is
+  withheld (`gate-fac1`, owner decision 2026-10-16). T10 then has 72 readings
+  and p99 2.977 mm (73 and 7.388 mm before). P does not move.
+- **Interior development readings at or above 8.0 mm** (after the exclusion):
+  3 of 1355 interior readings, maximum 8.848 mm (`sub-verse111` L4). The spec-time
+  probe named them as `sub-verse111` L4 8.848, `sub-verse586` L5 8.143 and
+  `sub-verse107` L4 8.033, plus the excluded verse406 T10. The interior
+  p99 over all levels is 4.963 mm. 282 terminal readings are held out of the
+  reference. On ground truth these are anatomy, so false positives of the
+  `displaced_vertebra` condition (left open in the item).
+- **Intensity coverage.** Every level's `intensity_mean` count equals its
+  `record_count`: C1 27, C2 27, C3 29, C4 29, C5 33, C6 36, C7 50, L1 108,
+  L2 112, L3 112, L4 111, L5 107, L6 16, T1 67, T2 69, T3 64, T4 60, T5 57,
+  T6 56, T7 57, T8 59, T9 74, T10 87, T11 93, T12 96, T13 2. The 25 VerSe19
+  split cases keep their intensity statistics (A8).
+- **Artifact.** sha256
+  `845d29e8958d8730271d38fc1087c17e25c802886a4225d8ac235f1453875062`.
+- **Warnings.** The run printed many scipy `_fitpack_repro` "s too small"
+  RuntimeWarnings from the spline fit. They are not new to this item: the
+  fit path (`features/` spline code) is unchanged by item 234. The builder
+  did not run a pre-item rebuild to compare counts.
+
+### Corpus through the default-reference CLI
+
+`segfacet run --scan <scan> --seg <seg> --out <dir>` with no reference flag,
+every case of `tests/corpus/manifest.json`, measured 2026-10-18 against the
+rebuilt artifact. All 14 return `flagged-for-review`. The `spline_offset`
+column is unchanged from the `985ee0d0` baseline.
+
+| case | findings (by rule) |
+|---|---|
+| clean_control | 54 (bounds 20, reference_delta 34) |
+| displace | 46 (bounds 16, reference_delta 29, spline_offset 1) |
+| fragment | 55 (bounds 20, fragmentation 1, reference_delta 34) |
+| inject_islands | 55 (bounds 20, fragmentation 1, reference_delta 34) |
+| relabel_swap | 54 (bounds 20, mislabel 1, reference_delta 33) |
+| remove_level | 45 (bounds 16, centroid_spacing 1, coverage 1, reference_delta 27) |
+| crop_at_border | 25 (border 3, bounds 8, reference_delta 14) |
+| sequence_break | 45 (bounds 16, mislabel 1, reference_delta 27, spline_offset 1) |
+| fuse_adjacent | 42 (bounds 15, centroid_spacing 1, reference_delta 26) |
+| remove_level_relabel | 44 (bounds 16, centroid_spacing 1, reference_delta 27) |
+| split | 51 (bounds 18, fragmentation 1, neighbour_contact 1, reference_delta 31) |
+| split_own_label | 54 (bounds 20, reference_delta 32, spline_offset 1, split_fragment 1) |
+| crop_fov_si | 42 (bounds 16, reference_delta 26) |
+| fuse_separate | 43 (bounds 15, centroid_spacing 1, fragmentation 1, reference_delta 26) |
+
+The clean-control figure is 54 findings (was 55 at `985ee0d0`; the item-090
+gotcha in `CLAUDE.md` still says ~40). `CLAUDE.md` is not edited here (owner
+decision 2026-10-18); the correction is a separate reviewed edit.

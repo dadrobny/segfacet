@@ -41,14 +41,15 @@ _ARTIFACT = (
 # Originally recorded pre-098; item 123 (docs/aide/items/123-recalibrate-
 # and-regenerate-downstream-artifacts.md, AC33) rebuilt this artifact from
 # the real VerSe19 cohort under the item-120 held-out estimator, so this
-# literal pins the item-123 rebuilt state -- golden-decision-table.md's
+# literal pins the item-234 rebuilt state (development roles of VerSe19 and
+# VerSe20, 141 cases; item 123's digest was 2048804f...) -- golden-decision-table.md's
 # signed row for this file is "keep" (not regenerable in CI), so the fence
 # stays; only the digest moves, updated by whoever runs the actual rebuild
 # against the real cohort (this literal cannot be computed without it).
 # tests/test_115_stage26_validation.py::test_ac8_no_hardcoded_literal_fence_
 # remains caps the corpus at exactly one such fence, which is this one.
 _RELEASED_REFERENCE_VERSE_V1_SHA256 = (
-    "2048804f60208a4dea0cbe8d0980e1e6228c68b52b6331375f768254fc73b5da"
+    "845d29e8958d8730271d38fc1087c17e25c802886a4225d8ac235f1453875062"
 )
 
 
