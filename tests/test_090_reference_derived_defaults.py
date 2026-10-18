@@ -411,7 +411,7 @@ def test_ac4_no_reference_flag_restores_reference_less_shape(tmp_path):
     assert "reference_delta" not in report
     expected_keys = {
         "schema_version", "config_version", "case_id", "verdict",
-        "reasons", "per_label", "features", "findings",
+        "reasons", "per_label", "features", "findings", "facet_revision",
     }
     assert set(report.keys()) == expected_keys
 

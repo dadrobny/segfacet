@@ -211,7 +211,7 @@ def test_ac10_no_intensity_flag_report_shape_matches_pre_065_shape(tmp_path):
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
     expected_keys = {
         "schema_version", "config_version", "case_id", "verdict",
-        "reasons", "per_label", "features", "findings",
+        "reasons", "per_label", "features", "findings", "facet_revision",
     }
     assert set(report.keys()) == expected_keys
 

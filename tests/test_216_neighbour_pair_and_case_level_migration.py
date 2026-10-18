@@ -51,6 +51,7 @@ _NON_CONTENT_KEYS = (
     "per_label",
     "findings",
     "run_manifest",
+    "facet_revision",
 )
 
 _MONOTONIC_NAMES = ("is_monotonic", "non_monotonic_pairs", "path_u")
