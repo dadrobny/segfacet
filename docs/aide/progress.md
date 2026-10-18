@@ -823,7 +823,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
   ids as well as a directory root. *(Item 228)*
 - ✅ **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
   carry `development`, `calibration` and `test` subsets over the release splits. *(Item 229)*
-- 🔍 **Real-label expectation**: the evaluation cohort accepts a per-label
+- ✅ **Real-label expectation**: the evaluation cohort accepts a per-label
   expectation with several modes per case, read from `spinelab`'s `rl1` table
   against a vendored schema pinned at a `spinelab` commit. Any other version is
   refused. *(Item 230)*
