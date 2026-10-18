@@ -856,5 +856,5 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
   the suite (**G7**).
 - [x] The rebuilt reference draws only on development-role cases, and no
   calibration-role or test-role case contributes to it (**G3**). *(validator round 3 2026-10-18: gated modules test_234 + test_229 ran with SEGFACET_VERSE_COHORT and SEGFACET_VERSE20_COHORT set, 24 passed, 0 skipped (-ra); AC9 annotated closes criterion 4)*
-- [ ] `spline_offset.max_offset_mm` is re-derived from the rebuilt distribution, and
-  the excluded wedge-vertebra label contributes nothing to it (**G3**).
+- [x] `spline_offset.max_offset_mm` is re-derived from the rebuilt distribution, and
+  the excluded wedge-vertebra label contributes nothing to it (**G3**). *(validator round 3 2026-10-18: gated modules test_234 + test_229 ran on real VerSe19/VerSe20 data, 24 passed, 0 skipped (-ra); AC11 annotated closes criterion 5)*
