@@ -627,8 +627,8 @@ def test_ac12_real_verse_recalibration_and_sensitivity_guard(tmp_path):
 
     root = real_verse_cohort_dir()
     descriptor = load_descriptor(bundled_descriptor_path("verse19.yaml"))
-    train_cohort = resolve(descriptor, data_root=root, subset="training")
-    val_cohort = resolve(descriptor, data_root=root, subset="validation")
+    train_cohort = resolve(descriptor, data_root=root, subset="development")
+    val_cohort = resolve(descriptor, data_root=root, subset="calibration")
 
     def _to_eval_cases(cohort):
         return [

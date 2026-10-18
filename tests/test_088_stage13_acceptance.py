@@ -71,8 +71,8 @@ def test_committed_verse19_descriptor_shape():
     d = load_descriptor(VERSE19)
     assert isinstance(d, DatasetDescriptor)
     assert d.label_convention == "default" and d.role == "gt"
-    assert set(d.subsets) == {"training", "validation", "test"}
-    assert d.subsets["training"] == {"root": "dataset-verse19training"}
+    assert set(d.subsets) == {"development", "calibration", "test"}
+    assert d.subsets["development"] == {"root": "dataset-verse19training"}
     assert d.scan and "{id}" in d.scan
 
 
@@ -90,8 +90,8 @@ def test_standin_resolve_subsets_and_triples(tmp_path):
     )
 
     d = load_descriptor(VERSE19)
-    train = resolve(d, data_root=tmp_path, subset="training")
-    val = resolve(d, data_root=tmp_path, subset="validation")
+    train = resolve(d, data_root=tmp_path, subset="development")
+    val = resolve(d, data_root=tmp_path, subset="calibration")
 
     assert train.case_ids == ("sub-verse004", "sub-verse004_split-verse01", "sub-verse005")
     assert val.case_ids == ("sub-verse099",)
@@ -111,7 +111,7 @@ def test_standin_build_reference_and_evaluate_cli(tmp_path):
     ref = tmp_path / "reference_verse_standin.json"
     rc = main([
         "build-reference", "--dataset-schema", str(VERSE19),
-        "--data-root", str(tmp_path), "--subset", "training",
+        "--data-root", str(tmp_path), "--subset", "development",
         "--out", str(ref), "--source", "verse-standin", "--build-date", "2026-07-16",
     ])
     assert rc == 0 and ref.exists()
@@ -119,7 +119,7 @@ def test_standin_build_reference_and_evaluate_cli(tmp_path):
     out = tmp_path / "eval"
     rc = main([
         "evaluate", "--dataset-schema", str(VERSE19),
-        "--data-root", str(tmp_path), "--subset", "training",
+        "--data-root", str(tmp_path), "--subset", "development",
         "--out", str(out), "--cohort-id", "verse-standin-training",
         "--build-date", "2026-07-16",
     ])
@@ -158,7 +158,7 @@ def test_real_verse_resolves_training_split():
     everywhere else."""
     root = real_verse_cohort_dir()
     d = load_descriptor(VERSE19)
-    cohort = resolve(d, data_root=root, subset="training")
+    cohort = resolve(d, data_root=root, subset="development")
     assert len(cohort) > 0
     for case in cohort:
         assert case.role == "gt"
