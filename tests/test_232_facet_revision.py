@@ -154,7 +154,7 @@ def test_cwd_independence(monkeypatch, tmp_path):
 
 
 def test_untracked_inside_a_work_tree(tmp_path):
-    ident = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+    ident = ["-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false"]
     for argv in (
         ["git", "init"],
         ["git", "add", "tracked.txt"],
