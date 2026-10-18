@@ -210,7 +210,10 @@ form, and `spinelab`'s candidate descriptors name MSKGSTT roles with it.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- The missing-id check reuses `id_filter` and `seen` from `resolve`; the
+  shape check is in `__post_init__` against a module-level `_SELECTOR_KEYSETS`.
+  The module docstring scope note was left as is (its text does not contradict
+  this item); the `DatasetDescriptor` and `resolve` docstrings were updated.
 
 - **Left open:** whether a `subsets` value that is not itself a mapping
   (e.g. `subsets: [a, b]`) gets a `DatasetSchemaError` rather than the raw
