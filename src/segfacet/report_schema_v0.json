@@ -15,8 +15,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "description": "Version discriminator for this report schema. Always '0.1' for v0 reports.",
-      "const": "0.1"
+      "description": "Version discriminator for this report schema. Moves whenever a feature leaf path moves; see report_schema_pin.json.",
+      "const": "0.2"
     },
     "config_version": {
       "type": "string",

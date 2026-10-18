@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from segfacet.config import HeuristicConfig
     from segfacet.verdict import Reason, Verdict
 
-__all__ = ["serialize_report", "serialize_report_json"]
+__all__ = ["REPORT_SCHEMA_VERSION", "serialize_report", "serialize_report_json"]
 
 # --------------------------------------------------------------------------- #
 # Module-level schema cache
@@ -54,8 +54,9 @@ def _load_schema() -> dict:
 
 _SCHEMA: dict = _load_schema()
 
-# Report schema version discriminator — always "0.1" for v0.
-_REPORT_SCHEMA_VERSION = "0.1"
+# Report schema version. Moves whenever a feature leaf path moves; see
+# segfacet.report_schema_pin (item 233).
+REPORT_SCHEMA_VERSION = "0.2"
 
 
 # --------------------------------------------------------------------------- #
@@ -166,7 +167,7 @@ def serialize_report(
         raise ValueError("case_id must be a non-empty string")
 
     report = {
-        "schema_version": _REPORT_SCHEMA_VERSION,
+        "schema_version": REPORT_SCHEMA_VERSION,
         "config_version": config.schema_version,
         "case_id": case_id,
         "verdict": verdict.overall.label,
