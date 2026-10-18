@@ -819,7 +819,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 
 **Deliverables.**
 
-- 🔍 **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
+- ✅ **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
   ids as well as a directory root. *(Item 228)*
 - 📋 **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
   carry `development`, `calibration` and `test` subsets over the release splits. *(Item 229)*
