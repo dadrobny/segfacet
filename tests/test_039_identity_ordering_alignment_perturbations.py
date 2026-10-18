@@ -308,7 +308,7 @@ def test_ac5_displace_run_qc_surfaces_mislabel_finding():
     union = set()
     for f in spline_offset:
         union |= set(f.labels)
-    assert union == {22}
+    assert union == {21, 22}
 
 
 def test_ac6_displace_expectation_well_formed():

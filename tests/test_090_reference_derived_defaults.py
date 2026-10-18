@@ -50,6 +50,7 @@ Adversarial / edge cases included:
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 import pathlib
 
@@ -637,11 +638,27 @@ def test_ac9_helper_reads_no_file_or_clock(monkeypatch):
 # =========================================================================== #
 
 
-# (item 234: test_ac10_uncovered_level_falls_back_to_hand_set_and_fires was
-# retired -- it used T13 as the level the reference does not cover, and the
-# rebuilt artifact now covers T13. Every level it still does not cover
-# (S1-S6, Cocc) is unbounded in the hand-set bounds table, so the bounds
-# fallback has no hand-set limit to fire on.)
+def test_ac10_uncovered_level_falls_back_to_hand_set_and_fires():
+    """Item 234 (review finding): the rebuilt artifact covers every C/T/L level,
+    so the uncovered level is made by removing L3 from a copy of it. The
+    fallback must fire from the hand-set lumbar limit, not a reference limit."""
+    reference = bundled_production_reference()
+    levels = {k: v for k, v in reference.levels.items() if k != "L3"}
+    assert len(levels) == len(reference.levels) - 1
+    record = _record(
+        {
+            "label": 22, "level_name": "L3",
+            "geometry": {
+                "physical_volume_mm3": 1.0,
+                "extent_x_mm": 1.0, "extent_y_mm": 1.0, "extent_z_mm": 1.0,
+                "voxel_count": 1,
+            },
+        },
+        reference=dataclasses.replace(reference, levels=levels),
+    )
+    findings = _bounds_findings(run_rules(record, default_config()))
+    assert findings
+    assert all("for lumbar group" in f.reason for f in findings)
 
 
 def test_ac10_uncovered_level_never_crashes():

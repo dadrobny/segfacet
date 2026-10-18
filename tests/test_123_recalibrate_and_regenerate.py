@@ -684,7 +684,7 @@ def test_adv_p99_exactly_at_half_mm_multiple_rounds_up_strictly():
 
 def test_ac12_shipped_default_equals_derived_value_from_committed_artifact():
     # Item 189 (2026-09-28): _DEFAULT_MAX_OFFSET_MM moved to spline_offset.py
-    # (Detector A moved out of mislabel); the value itself is unchanged (13.0).
+    # (Detector A moved out of mislabel); item 234 re-derived it (8.0).
     from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
 
     rr = _load_tool()
@@ -1432,7 +1432,9 @@ def test_ac42_delta_excludes_terminal_labels_symmetrically():
 # pinned item 123's 80-case consequence; L5 now has 16 interior readings.)
 
 
-def test_ac43_no_qualifying_level_p99_exceeds_thirteen():
+def test_ac43_no_qualifying_level_p99_reaches_default_max_offset():
+    from segfacet.heuristics.spline_offset import _DEFAULT_MAX_OFFSET_MM
+
     dist = bundled_production_reference()
     for strata in dist.levels.values():
         stats = strata.get(ALL_STRATUM)
@@ -1443,7 +1445,9 @@ def test_ac43_no_qualifying_level_p99_exceeds_thirteen():
             continue
         p99 = offset.percentiles.get("p99")
         assert p99 is not None
-        assert p99 <= 13.0, f"qualifying level p99 {p99} exceeds 13.0 mm"
+        assert p99 < _DEFAULT_MAX_OFFSET_MM, (
+            f"qualifying level p99 {p99} reaches {_DEFAULT_MAX_OFFSET_MM} mm"
+        )
 
 
 def test_ac43_level_with_no_interior_occurrence_still_loads():

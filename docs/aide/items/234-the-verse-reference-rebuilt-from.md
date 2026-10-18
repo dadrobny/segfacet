@@ -690,6 +690,24 @@ Each reconciliation keeps its test's original intent.
   a case id. Do not rename the variable just to get past the scan. test_157
   is not edited.
 
+## Review findings
+
+- **`test_ac10_uncovered_level_falls_back_to_hand_set_and_fires`** (minor): the
+  retirement of the item-090 AC10 test left `bounds.py`'s hand-set fallback
+  unmeasured, though it stays reachable with a user reference that lacks a
+  C/T/L level, and the module docstring still listed AC10 as covered. Fixed by
+  re-adding the test over a copy of the production reference with L3 removed,
+  asserting a bounds finding still fires from the hand-set lumbar limit.
+- **`test_ac43_no_qualifying_level_p99_reaches_default_max_offset`** (minor):
+  `test_ac43_no_qualifying_level_p99_exceeds_thirteen` could no longer fail
+  (maximum p99 is 7.916 against a 13.0 literal). Fixed by re-pointing it at
+  `_DEFAULT_MAX_OFFSET_MM`, and the stale "value itself is unchanged (13.0)"
+  comment in test_123 AC12 is corrected.
+- **`test_ac5_fourteen_features_are_the_only_byte_for_byte_exclusions`**
+  (minor): its docstring claimed every other pre-rename statistic is still
+  checked byte-for-byte, a check this item retired. Fixed by correcting the
+  docstring to what the test does; no new test.
+
 ## Validation
 
 1. **The real rebuild (step 6).** Record its command, wall time and `--jobs`

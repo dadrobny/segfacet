@@ -101,7 +101,7 @@ def _read_summary(out: Path) -> dict:
 def _write_case(split_dir: Path, case_id: str, *, levels=_LUMBAR) -> None:
     """One stand-in VerSe-shaped case laid out as the bundled descriptors expect:
     ``derivatives/<sub>/<id>_seg-vert_msk.nii.gz`` and ``rawdata/<sub>/<id>_ct.nii.gz``."""
-    sub = case_id.split("_")[0]
+    sub = case_id  # every stand-in id is its own subject folder
     amplitude = 3.0 + (sum(map(ord, case_id)) % 5)
     spine = build_clean_spine(levels=levels, curve_amplitude_mm=amplitude)
     mask_dir = split_dir / "derivatives" / sub
@@ -146,7 +146,7 @@ def _t_stats(out: Path, level: str):
 
 
 def _touch_mask(root: Path, split: str, case_id: str) -> None:
-    path = root / split / "derivatives" / case_id.split("_")[0] / f"{case_id}_seg-vert_msk.nii.gz"
+    path = root / split / "derivatives" / case_id / f"{case_id}_seg-vert_msk.nii.gz"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"")
 

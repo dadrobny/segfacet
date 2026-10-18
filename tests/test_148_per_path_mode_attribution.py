@@ -1086,7 +1086,7 @@ _EXPECTED_THRESHOLD_CONSTANTS = {
     },
     "sequence": {},
     # Item 189 (2026-09-28): mislabel's Detector A moved here unchanged.
-    "spline_offset": {"_DEFAULT_MAX_OFFSET_MM": 13.0},
+    "spline_offset": {"_DEFAULT_MAX_OFFSET_MM": 8.0},
 }
 
 _RULE_MODULE_NAMES = tuple(sorted(_EXPECTED_THRESHOLD_CONSTANTS))

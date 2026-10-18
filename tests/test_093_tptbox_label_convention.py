@@ -452,8 +452,9 @@ def test_ac5_fourteen_features_are_the_only_byte_for_byte_exclusions():
     """The item-123 widening (third-round correction) excludes exactly 14
     features from the byte-for-byte value comparison -- not 1 -- and only
     one of the 14 (``spline_offset_mm``) is an absent key; the other 13
-    (``intensity_*``) are present keys whose value moved instead. Every
-    other pre-rename statistic is still checked byte-for-byte."""
+    (``intensity_*``) are present keys whose value moved instead. (Item 234
+    retired the byte-for-byte comparison of the remaining statistics; this
+    test pins the exclusion set and the key presence/absence only.)"""
     assert len(_AC5_FEATURES_MOVED_BY_ITEM_123_REFIT) == 14
     assert _AC5_FEATURES_ABSENT_ENTIRELY == {"spline_offset_mm"}
     assert _AC5_FEATURES_ABSENT_ENTIRELY < _AC5_FEATURES_MOVED_BY_ITEM_123_REFIT

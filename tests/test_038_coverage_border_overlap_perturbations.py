@@ -491,13 +491,17 @@ def test_ac14_crop_at_border_expectation_well_formed_and_pipeline_agrees():
 
 
 def test_ac15_crop_at_border_leaves_other_present_labels_unflagged():
-    """AC15: every non-empty finding.labels is a subset of {22}."""
+    """AC15: every non-empty finding.labels is a subset of {22}, except a
+    ``spline_offset`` finding on {21} (item 234, 2026-10-18: at the 8.0 mm
+    interior threshold the cropped target's neighbour may read as offset)."""
     clean = _clean()
     result = CropAtBorderPerturbation(target_label=22, face="anterior").apply(
         clean.seg_img, seed=0
     )
     findings = _findings(result.labelmap)
     for f in findings:
+        if f.rule_id == "spline_offset" and f.labels == frozenset({21}):
+            continue
         if f.labels:
             assert f.labels <= frozenset({22})
 
