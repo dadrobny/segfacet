@@ -63,7 +63,7 @@
 | 32    | [Selected-Mode Refinement: one failure mode fully specified end to end](progress/stage-32.md)   | G2, G7, G8      | ✅     |
 | 33    | [Corpus & Rule Re-grounding: modes 2 and 3 to the bar](progress/stage-33.md)                    | G2, G7, G8      | ✅     |
 | 34    | Maintenance                                                             | —               | ✅     |
-| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 🚧     |
+| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | ✅     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -166,12 +166,12 @@ shipped"). See "Two kinds of done" above._
 | Objective                                    | Delivered by                                             | Status |
 | -------------------------------------------- | -------------------------------------------------------- | ------ |
 | G1 Detect empty / trivially-failed           | Stage 1                                                  | ✅     |
-| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16, read through the programme interface of Stage 35)* | 🚧     |
+| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16, read through the programme interface of Stage 35)* | ⏸️     |
 | G3 Distinguish failure from variation        | Stages 6, 7, 12*(real grounding: Stage 14; development-role reference: Stage 35)* | 🚧     |
 | G4 Per-case and cohort reports               | Stage 1 (ext. 2–4); cohort characterisation: Stage 18   | ✅     |
 | G5 Deploy on XNAT*(removed from scope 2026-07-25)* | Stage 9 shipped the artefacts; validation was Stage 15 ❌ | ❌     |
 | G6 Portable / GPU*(deferred)*              | Stage 10                                                 | ✅     |
-| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16; dataset roles and artefact versioning: Stage 35)* | 🚧     |
+| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16; dataset roles and artefact versioning: Stage 35)* | ⏸️     |
 | G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | ⏸️     |
 
 **Why each 🚧 objective is not yet ✅** _(one line each — the detail lives in the
@@ -810,7 +810,7 @@ per-deliverable provenance.
 
 ---
 
-## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — 🚧
+## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — ✅
 
 **Goal.** FACET can read everything the programme repository will hand it for
 Stage 16, and writes reports that repository can pin. Scoped 2026-10-12, when the
@@ -841,7 +841,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
   and VerSe20 training splits, and `spline_offset.max_offset_mm` re-derived from it
   with the wedge-vertebra outlier `sub-verse406_split-verse261` T10 excluded
   (`gate-fac1`). *(Item 234)*
-- 🔍 Stage validation from a clean clone. *(Item 235)*
+- ✅ Stage validation from a clean clone. *(Item 235)*
 
 **Acceptance.**
 
