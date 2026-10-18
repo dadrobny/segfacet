@@ -67,6 +67,15 @@ selector is unchanged.
   naming the offending subset, for a subset whose selector is not a mapping
   with key set exactly one of `{root}`, `{ids}`, `{glob}`, `{csv}` or
   `{csv, column}`.
+  - *Correction 2026-10-18 (in-loop review finding, minor, accepted into
+    this item):* the key-set check alone lets a well-keyed selector with a
+    wrong-typed value through, so `{"ids": None}`, a bare-string
+    `{"ids": "sub-verse004"}` and `{"csv": 5}` escaped as a raw `TypeError`
+    or a confusing error. The construction-time check also covers value
+    types: `ids` is a list whose items are scalars, never containers, and `root`, `glob`, `csv` and `column` are
+    strings. A violation raises `DatasetSchemaError` naming the subset, under
+    this same AC. The original wording above stands as what the item was
+    first built from.
 - [ ] **AC5: `--subset` selects an `ids` subset from the CLI.** The root
   holds three real synthetic NIfTI cases (`sub-verse004`, `sub-verse005`,
   `sub-verse006`). The descriptor file declares a subset
@@ -152,6 +161,7 @@ added.
 
 - `src/segfacet/datasets/__init__.py` — the selector shape check and the missing-id error
 - `tests/test_228_case_id_list_subsets.py` — this item's tests
+- `.github/workflows/ci.yml` — added 2026-10-18 (validation round 1): the new test module writes `as_posix()` paths, so `tests/test_213_windows_ci_subset.py::test_ac5_list_is_exactly_the_os_sensitive_set` requires it listed in `jobs.test.env.WINDOWS_TESTS`
 
 **Asserts against:**
 
@@ -182,6 +192,21 @@ Adversarial cases, all part of AC4's test, parametrised. Each is a selector
 - `no-selector-key` (`{"column": "case_id"}`): guards the selector with no
   recognised key, which today falls through `_case_id_filter` as `None` and
   resolves the whole dataset.
+
+*Added 2026-10-18 (AC4's value-type correction):* three more parametrised
+cases in AC4's test, each guarding a wrong-typed value that escaped as a raw
+or confusing error rather than `DatasetSchemaError`:
+
+- `ids-none` (`{"ids": None}`): guards the raw `TypeError` from iterating
+  `None` in `_case_id_filter`.
+- `ids-bare-string` (`{"ids": "sub-verse004"}`): guards a string iterated
+  character by character into a bogus id set.
+- `csv-not-string` (`{"csv": 5}`): guards the raw error from building a path
+  out of a non-string.
+
+*Added 2026-10-18 (validation round 1):* the module uses `as_posix()`, so it
+is listed in `.github/workflows/ci.yml`'s `jobs.test.env.WINDOWS_TESTS`,
+which `tests/test_213_windows_ci_subset.py` pins.
 
 AC2 names two missing ids rather than one. This guards an error that reports
 only the first missing id, which would leave a person fixing a drifted role
