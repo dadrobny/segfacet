@@ -831,9 +831,12 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
   expectation with several modes per case, read from `spinelab`'s `rl1` table
   against a vendored schema pinned at a `spinelab` commit. Any other version is
   refused. *(Item 231)*
+- 🚧 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
+  the FACET commit written into every per-case and evaluation report, and a
+  report `schema_version` that moves whenever a feature path moves. *(Item 232)*
 - 📋 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
   the FACET commit written into every per-case and evaluation report, and a
-  report `schema_version` that moves whenever a feature path moves. *(Items 232, 233)*
+  report `schema_version` that moves whenever a feature path moves. *(Item 233)*
 - 📋 **Development-role reference**: the VerSe reference rebuilt from the VerSe19
   and VerSe20 training splits, and `spline_offset.max_offset_mm` re-derived from it
   with the wedge-vertebra outlier `sub-verse406_split-verse261` T10 excluded
