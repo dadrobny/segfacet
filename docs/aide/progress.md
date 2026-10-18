@@ -845,9 +845,9 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 - [ ] A descriptor whose subsets are case-id lists resolves exactly those cases,
   and the VerSe19 and VerSe20 descriptors resolve the three role subsets over the
   release splits (**G7**).
-- [ ] An `rl1` table at the pinned version becomes a per-label,
+- [x] An `rl1` table at the pinned version becomes a per-label,
   several-modes-per-case expectation the evaluation harness scores against, and a
-  table at any other version is refused (**G2**).
+  table at any other version is refused (**G2**). *(validator item 231 2026-10-18: aide test green (12227 passed); AC7 (rl1 tag refusal) and AC17 (CLI --review-labels scores table) tests pass)*
 - [ ] Every per-case and evaluation report carries the FACET commit and a schema
   version, and a feature path that moves without a schema-version change fails
   the suite (**G7**).
