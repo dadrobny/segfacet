@@ -63,7 +63,7 @@
 | 32    | [Selected-Mode Refinement: one failure mode fully specified end to end](progress/stage-32.md)   | G2, G7, G8      | ✅     |
 | 33    | [Corpus & Rule Re-grounding: modes 2 and 3 to the bar](progress/stage-33.md)                    | G2, G7, G8      | ✅     |
 | 34    | Maintenance                                                             | —               | ✅     |
-| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 📋     |
+| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 🚧     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -810,7 +810,7 @@ per-deliverable provenance.
 
 ---
 
-## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — 📋
+## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — 🚧
 
 **Goal.** FACET can read everything the programme repository will hand it for
 Stage 16, and writes reports that repository can pin. Scoped 2026-10-12, when the
@@ -819,7 +819,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 
 **Deliverables.**
 
-- 📋 **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
+- 🚧 **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
   ids as well as a directory root. *(Item 228)*
 - 📋 **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
   carry `development`, `calibration` and `test` subsets over the release splits. *(Item 229)*
