@@ -255,6 +255,11 @@ and AC12 together.
   - **The rule the builder applies.** Apply the re-derived value only if it
     lies in that window. Outside it, set nothing, record the measurement in
     Decisions, and hand back, as item 123 did on 2026-08-29.
+  - **Owner decision, 2026-10-18.** The owner reviewed this spec and accepted
+    the threshold result as specced: interior `spline_offset` 8.0 mm, derived
+    from the development role. The window rule above still binds the builder.
+    The decision accepts the spec-time value, and a rebuild that lands outside
+    the window is still a hand-back.
 - **A10:** The re-derivation is from the interior distribution; the
   reference excludes terminal readings (`reference/ingest.py`, item 123). So
   it moves `max_offset_mm` for **interior** entries only. A terminal entry is
@@ -273,6 +278,10 @@ and AC12 together.
 
   The terminal finding's reason text keeps its `threshold 13.0 mm` clause. The
   rule's declared `params` gains `("max_terminal_offset_mm", 13.0)`.
+
+  **Owner decision, 2026-10-18.** The owner accepted this as specced:
+  terminals stay at 13.0 mm under the new `max_terminal_offset_mm`, and
+  interior entries take the derived 8.0 mm (A9).
 - **A11:** AC11's inequality proves the exclusion only because the
   verse406 T10 reading is the largest development T10 reading. At spec time
   it is 18.510 mm, and no other T10 reading reaches the top 20 development
@@ -412,6 +421,11 @@ and AC12 together.
     - **`CLAUDE.md`, the item-090 gotcha.** It claims "~40
       `bounds`/`reference_delta` findings". Replace it with the measurement
       from Validation step 2. At spec time it was already 55.
+
+      **Correction, 2026-10-18 (owner decision):** this bullet is withdrawn.
+      This item does not edit `CLAUDE.md`. The stale count is recorded in
+      `docs/aide/insights.md` (provenance item 234) and will be fixed in a
+      separate reviewed edit after this item merges.
 11. **The integrity pin.** Set the new sha256 in
     `tests/test_128_reference_verse_v1_integrity.py`'s
     `_RELEASED_REFERENCE_VERSE_V1_SHA256` (test-writer, below). Every other
@@ -440,7 +454,6 @@ and AC12 together.
 - `docs/aide/failure_modes.generated.md` — regenerated from `failure_modes.py`
 - `docs/reference-build.md` — rebuild record, tool recipe, storage policy line
 - `docs/aide/dataset-verse19.md` — the cohort-root contract for the tool
-- `CLAUDE.md` — the item-090 gotcha's measured finding count (Validation step 2)
 - `tests/test_234_development_role_reference.py` — this item's tests
 - `tests/test_123_recalibrate_and_regenerate.py` — reconcile (Testing Strategy)
 - `tests/test_128_reference_verse_v1_integrity.py` — new digest, docstring
@@ -457,6 +470,14 @@ and AC12 together.
 **Asserts against:**
 
 - `src/segfacet/datasets/verse20.yaml` — AC2, AC3, AC5, AC6, AC9 and AC10 resolve through it unchanged
+
+**Correction, 2026-10-18 (owner decision):** `CLAUDE.md` is removed from
+**May change**. As first written, that list had a bullet reading "`CLAUDE.md`
+— the item-090 gotcha's measured finding count (Validation step 2)". The
+bullet is taken out of the list, not struck through, because `aide scope`
+reads every bullet in this section as a grant. This item does not edit
+`CLAUDE.md`. Implementation Step 10's `CLAUDE.md` bullet and Validation step
+2's `CLAUDE.md` instruction are withdrawn with it.
 
 ## Testing Strategy
 
@@ -655,6 +676,10 @@ cohort half rewritten):
    Interior corpus readings all sit below 8.0 mm except `displace` label 22,
    and terminals stay at 13.0 mm (A9, A10). A change in that column is a
    hand-back, not a record.
+
+   **Correction, 2026-10-18 (owner decision):** do not put the clean-control
+   figure into `CLAUDE.md`. Record it in the rebuild record only. The update
+   to `CLAUDE.md` is a separate reviewed edit (insight, provenance item 234).
 3. **The gated tests.** Set `SEGFACET_VERSE_COHORT` to the VerSe19
    three-split root and `SEGFACET_VERSE20_COHORT` to the VerSe20 three-split
    root (release names, symlinked if renamed). Then run
