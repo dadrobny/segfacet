@@ -834,7 +834,7 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 - ✅ **Artefact versioning**: a release tag on every revision `spinelab` consumes,
   the FACET commit written into every per-case and evaluation report, and a
   report `schema_version` that moves whenever a feature path moves. *(Item 232)*
-- 📋 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
+- 🚧 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
   the FACET commit written into every per-case and evaluation report, and a
   report `schema_version` that moves whenever a feature path moves. *(Item 233)*
 - 📋 **Development-role reference**: the VerSe reference rebuilt from the VerSe19
