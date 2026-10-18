@@ -26,7 +26,9 @@ PIN_PATH = Path(__file__).resolve().parent / "report_schema_pin.json"
 
 _REMEDY = (
     "Bump REPORT_SCHEMA_VERSION and the schema const, then run "
-    "`python -m segfacet.report_schema_pin`."
+    "`python -m segfacet.report_schema_pin`, then regenerate "
+    "tests/golden/report_format_contract.json with "
+    "`python -m tests.report_format_fixture`."
 )
 
 
