@@ -708,7 +708,24 @@ attests Stage 35 criteria 4 and 5.
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+Code half implemented 2026-10-18. The real-data rebuild, the artifact commit,
+the digests, the catalogue and rule-table regeneration, and the rebuild record
+in `docs/reference-build.md` follow the rebuild.
+
+- **Interior default set to the spec-time 8.0 mm ahead of the rebuild.**
+  `_DEFAULT_MAX_OFFSET_MM = 8.0` and the calibration docstring carry A9's
+  probe figures (P 7.916 mm at L4, count 106). The committed artifact still has
+  to confirm it (`derive_max_offset_mm`) and the A9 window.
+- **`ingest_dataset_cohort(jobs=...)` ships plain data to its workers.**
+  `LabelConvention` holds `mappingproxy` maps and does not pickle, so the
+  module-level worker `_ingest_case` receives the seg and scan paths, the case
+  id and `dict(value_to_name)`, and rebuilds the convention with
+  `LabelConvention.from_mapping`. `jobs == 1` keeps the sequential loop.
+- **The tool's skip/error summaries share one shape** (`_empty_summary`): a
+  role overlap writes `cohort.status == "error"` and the overlap message as
+  `cohort.reason`.
+- **Raw `build_date` default is `2026-10-18`** in the tool; the real rebuild
+  passes `--build-date` explicitly.
 
 - **Left open:** whether the interior threshold of 8.0 mm suits real segmenter output. The
   four development readings at or above it are anatomy, so on ground truth

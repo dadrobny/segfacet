@@ -122,6 +122,7 @@ jobs:
         tests/test_228_case_id_list_subsets.py
         tests/test_231_review_label_table.py
         tests/test_232_facet_revision.py
+        tests/test_234_development_role_reference.py
         tests/test_239_corpus_sheet_with_manifest.py
         tests/test_aide_check_no_errors.py
         tests/test_cli_run.py

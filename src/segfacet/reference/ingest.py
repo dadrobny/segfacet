@@ -484,6 +484,7 @@ def ingest_dataset_cohort(
     with_size_proxy: bool = True,
     with_intensity: bool = False,
     with_morphology: bool = False,
+    jobs: int = 1,
 ) -> CohortIngest:
     """Ingest a resolved :class:`segfacet.datasets.Cohort` (Stage 13, item 087).
 
@@ -497,26 +498,37 @@ def ingest_dataset_cohort(
     only the discovery source differs.
 
     Parameters mirror :func:`ingest_cohort` (minus the directory/suffix), forwarded
-    to :func:`ingest_subject` per case.
+    to :func:`ingest_subject` per case. ``jobs`` (item 234) above 1 maps
+    :func:`_ingest_case` over the cases with a ``ProcessPoolExecutor``, keeping
+    case order, so the result equals the sequential ``jobs == 1`` loop.
     """
     from segfacet.config import bundled_default_config
 
     if config is None:
         config = bundled_default_config()
 
-    subjects = tuple(
-        ingest_subject(
+    work = [
+        # A LabelConvention holds mappingproxy maps, which do not pickle, so
+        # the worker gets its plain mapping and rebuilds it.
+        (
             case.seg_path,
-            config=config,
-            convention=case.label_convention,
-            scan_path=case.scan_path,
-            subject_id=case.case_id,
-            with_size_proxy=with_size_proxy,
-            with_intensity=with_intensity,
-            with_morphology=with_morphology,
+            case.scan_path,
+            case.case_id,
+            dict(case.label_convention.value_to_name),
+            config,
+            with_size_proxy,
+            with_intensity,
+            with_morphology,
         )
         for case in cohort
-    )
+    ]
+    if jobs > 1 and len(work) > 1:
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=jobs) as pool:
+            subjects = tuple(pool.map(_ingest_case, work))
+    else:
+        subjects = tuple(_ingest_case(item) for item in work)
 
     records = tuple(
         record
@@ -528,4 +540,30 @@ def ingest_dataset_cohort(
         subjects=subjects,
         records=records,
         size_proxy_name=SIZE_PROXY_NAME if with_size_proxy else None,
+    )
+
+
+def _ingest_case(item) -> SubjectIngest:
+    """Module-level per-case worker so a spawn-start platform can pickle it."""
+    (
+        seg_path,
+        scan_path,
+        case_id,
+        value_to_name,
+        config,
+        with_size_proxy,
+        with_intensity,
+        with_morphology,
+    ) = item
+    from segfacet.labels import LabelConvention
+
+    return ingest_subject(
+        seg_path,
+        config=config,
+        convention=LabelConvention.from_mapping(value_to_name),
+        scan_path=scan_path,
+        subject_id=case_id,
+        with_size_proxy=with_size_proxy,
+        with_intensity=with_intensity,
+        with_morphology=with_morphology,
     )

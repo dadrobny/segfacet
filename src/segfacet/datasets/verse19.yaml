@@ -21,13 +21,15 @@
 #
 # `seg`/`scan` are relative to the *resolved* root (i.e. the selected split). The
 # `case_id` regex keeps the split-subject infix, so each `_split-verseMMM` mask is
-# its own case; a split subject whose CT is not named `<case_id>_ct.nii.gz` simply
-# resolves `scan_path = None` (geometry-only), never an error.
+# its own case. A split subject's CT lives under its parent's `rawdata/` directory
+# (`rawdata/sub-verseNNN/sub-verseNNN_split-verseMMM_ct.nii.gz`), which the `sub`
+# group addresses. A case whose CT is absent simply resolves `scan_path = None`
+# (geometry-only), never an error.
 
 data_root: /mnt/data/spine/data/datasets/VerSe/VerSe19
 seg: "derivatives/sub-*/**/*_seg-vert_msk.nii.gz"
-case_id: "(?P<id>sub-verse\\d+(?:_split-verse\\d+)?)_seg-vert_msk\\.nii\\.gz$"
-scan: "rawdata/{id}/{id}_ct.nii.gz"
+case_id: "(?P<id>(?P<sub>sub-verse\\d+)(?:_split-verse\\d+)?)_seg-vert_msk\\.nii\\.gz$"
+scan: "rawdata/{sub}/{id}_ct.nii.gz"
 label_convention: default
 role: gt
 subsets:

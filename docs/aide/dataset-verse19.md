@@ -20,11 +20,12 @@ The `.gitignore` already excludes `dataset-verse19training/` at the root level. 
 machine. **The cohort root is machine-local configuration, not a fixed path
 contract** — set it via the `SEGFACET_VERSE_COHORT` environment variable (or
 pass `--verse-cohort` directly to `scripts/rebuild_verse_reference.py`, item
-123). Unzipping produces a nested `dataset-verse19training/` wrapper
-directory around the actual dataset root on some extraction tools and not on
-others; both layouts are supported because mask discovery is **recursive**
-(a glob for `*_seg-vert_msk.nii.gz` beneath whatever root is configured), so
-no specific nesting depth is required or assumed.
+123). Since item 234 the cohort root is the directory that **holds the three
+split directories** (`dataset-verse19training`, `dataset-verse19validation`,
+`dataset-verse19test`), as `verse19.yaml` expects; the earlier nested-wrapper
+layout is no longer supported. Within each split the descriptor's mask glob
+(`derivatives/sub-*/**`) is **recursive**, so the depth beneath `derivatives/`
+is not assumed.
 
 ---
 

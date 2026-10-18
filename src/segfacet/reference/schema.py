@@ -39,6 +39,9 @@ class Provenance:
     config_hash: str
     build_date: str
     size_proxy_name: Optional[str] = None
+    #: Sorted ids of the cases the reference was built from (item 234).
+    #: ``None`` for artifacts that do not record them.
+    case_ids: Optional[Tuple[str, ...]] = None
 
 
 @dataclass(frozen=True)
@@ -125,14 +128,17 @@ def _level_distribution_from_dict(data: Mapping) -> LevelDistribution:
 def to_dict(dist: ReferenceDistribution) -> dict:
     """Produce the canonical JSON-ready nested dict for ``dist`` (pure)."""
 
+    provenance = {
+        "source": dist.provenance.source,
+        "config_hash": dist.provenance.config_hash,
+        "build_date": dist.provenance.build_date,
+        "size_proxy_name": dist.provenance.size_proxy_name,
+    }
+    if dist.provenance.case_ids is not None:
+        provenance["case_ids"] = list(dist.provenance.case_ids)
     return {
         "schema_version": dist.schema_version,
-        "provenance": {
-            "source": dist.provenance.source,
-            "config_hash": dist.provenance.config_hash,
-            "build_date": dist.provenance.build_date,
-            "size_proxy_name": dist.provenance.size_proxy_name,
-        },
+        "provenance": provenance,
         "features": list(dist.features),
         "percentiles": list(dist.percentiles),
         "subject_count": dist.subject_count,
@@ -163,6 +169,11 @@ def from_dict(data: Mapping) -> ReferenceDistribution:
             None
             if prov_data.get("size_proxy_name") is None
             else str(prov_data["size_proxy_name"])
+        ),
+        case_ids=(
+            tuple(str(c) for c in prov_data["case_ids"])
+            if prov_data.get("case_ids") is not None
+            else None
         ),
     )
     levels = {

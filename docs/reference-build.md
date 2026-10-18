@@ -43,8 +43,9 @@ The real-VerSe artifact is **additive** — it never overwrites or replaces
   replaced.** A real-VerSe build does **not** overwrite the bundled default;
   it is written to its own versioned filename and shipped alongside it.
 - **Versioned naming convention:** `reference_verse_vN.json`, with
-  `provenance.source == "verse-vN"` (`N` = 1, 2, 3, … incrementing on each
-  new real build, e.g. after a larger cohort or a schema bump). When an
+  `provenance.source == "verse-vN"`. Since item 234 a rebuild replaces
+  `reference_verse_v1.json` in place, and the cohort that built it is recorded
+  in its `provenance.case_ids` rather than implied by a version number. When an
   actual real-VerSe artifact is built by a data-holding human or CI runner,
   it is committed under `src/segfacet/reference/` as package data (so it ships
   importable/selectable by path alongside the default), and its filename
@@ -89,31 +90,35 @@ layout does not match this directly — masks live nested under
 `derivatives/sub-verseNNN/`, and CT scans are named `..._ct.nii.gz`, not
 `..._scan.nii.gz`.
 
-**Item 123 ships the reproducible path**: `scripts/rebuild_verse_reference.py`
-resolves the cohort root (`--verse-cohort`, else the `SEGFACET_VERSE_COHORT`
-environment variable), discovers masks by a **recursive** glob for
-`*_seg-vert_msk.nii.gz` beneath that root (so either nesting layout works with
-no flag), stages a flat directory of symlinks (falling back to copies) that
-satisfies `ingest_cohort`'s convention — each mask under its own filename plus
-a `<subject_id>_scan.nii.gz` sibling for every mask whose CT was found — and
-then drives `build_reference` / `write_artifact` over the staged directory
-itself:
+**Item 123 shipped the reproducible path, and item 234 rewrote its cohort
+half**: `scripts/rebuild_verse_reference.py` no longer discovers masks by a
+recursive glob or stages a directory (that mixed roles: a three-split root
+ingested all 160 VerSe19 masks). It resolves two three-split release roots
+(`--verse-cohort`, else the `SEGFACET_VERSE_COHORT` environment variable, for
+VerSe19, and `--verse20-cohort` / `SEGFACET_VERSE20_COHORT` for VerSe20),
+resolves the `development` role of the bundled `verse19.yaml` and
+`verse20.yaml` descriptors against them, and refuses to build (exit `1`, no
+artifact) if any development case also resolves in a calibration or test role.
+With either root unresolved the run is a structured skip. It ingests the
+merged cohort (`--jobs N` in parallel) and drives `aggregate_reference` /
+`write_artifact` over it:
 
 ```bash
 .venv/bin/python scripts/rebuild_verse_reference.py \
     --out out/verse-rebuild \
     --verse-cohort "$SEGFACET_VERSE_COHORT" \
-    --build-date 2026-08-29
+    --verse20-cohort "$SEGFACET_VERSE20_COHORT" \
+    --build-date 2026-10-18 --jobs 8
 ```
 
-(`--verse-cohort` may be omitted once `SEGFACET_VERSE_COHORT` is exported;
-the CLI flag overrides the environment variable when both are given.) The
-tool never writes beneath the cohort root, and never writes the committed
+(Either flag may be omitted once its variable is exported; the CLI flag
+overrides the environment variable when both are given.) The
+tool never writes beneath the cohort roots, and never writes the committed
 package copy under `src/segfacet/` — it writes
 `<out>/reference_verse_v1.json` and a structured
-`<out>/verse_rebuild_summary.json` recording the discovered cohort, the
-staging outcome, the built artifact's identity, and the derived
-`mislabel.max_offset_mm` calibration (see AC9–AC17 in
+`<out>/verse_rebuild_summary.json` recording the cohort, the
+built artifact's identity, and the derived
+`spline_offset.max_offset_mm` calibration (see AC9–AC17 in
 [`docs/aide/items/123-recalibrate-and-regenerate-downstream-artifacts.md`](aide/items/123-recalibrate-and-regenerate-downstream-artifacts.md)).
 Installing the rebuilt artifact — copying `<out>/reference_verse_v1.json`
 over `src/segfacet/reference/reference_verse_v1.json` — remains a separate,
