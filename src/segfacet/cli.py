@@ -538,6 +538,18 @@ def _build_parser() -> argparse.ArgumentParser:
             "without --per-mode."
         ),
     )
+    evaluate_parser.add_argument(
+        "--review-labels",
+        default=None,
+        metavar="<csv>",
+        help=(
+            "Path to a review-label table (schema 'rl1', pinned from "
+            "spine-failure-lab; item 231). Each cohort case with a row gets the "
+            "per-label expectation the table states and its dataset role; a "
+            "case with no row is dropped. A test-role case cannot be used with "
+            "--calibrate."
+        ),
+    )
     _add_dataset_schema_args(evaluate_parser)
     _add_run_manifest_args(evaluate_parser)
     evaluate_parser.set_defaults(handler=_handle_evaluate)
@@ -1098,6 +1110,19 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
                 return 1
         else:
             cases = load_cohort_manifest(args.cohort)
+        if args.review_labels:
+            from segfacet.eval.review_labels import (  # noqa: PLC0415
+                apply_review_labels,
+                read_review_label_table,
+            )
+
+            cases = apply_review_labels(cases, read_review_label_table(args.review_labels))
+            if not cases:
+                print(
+                    "Error: no cohort case has a row in the --review-labels table.",
+                    file=sys.stderr,
+                )
+                return 1
     except (FacetInputError, OSError, DatasetSchemaError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -1143,15 +1168,19 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
     # --- 3. Optional calibration ----------------------------------------------- #
     if args.calibrate:
         axes = default_calibration_axes()
-        calibration = calibrate_thresholds(
-            cases,
-            cfg,
-            axes,
-            reference=reference,
-            stratum=stratum,
-            lower_pct=lower_pct,
-            upper_pct=upper_pct,
-        )
+        try:
+            calibration = calibrate_thresholds(
+                cases,
+                cfg,
+                axes,
+                reference=reference,
+                stratum=stratum,
+                lower_pct=lower_pct,
+                upper_pct=upper_pct,
+            )
+        except FacetInputError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
     else:
         axes = None
         calibration = None

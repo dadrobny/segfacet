@@ -386,7 +386,22 @@ on the branch:
 
 ## Decisions & Trade-offs
 
-To be updated during implementation.
+- **Header order is free; checks run duplicates, unlisted, missing.** As A3
+  states. A row whose `schema` cell is another tag is refused before any cell of
+  that row is converted, so the tag message is never masked by a type error.
+- **`calibrate.py` imports `refuse_test_role` inside the function.** The guard
+  lives in `review_labels.py` (which imports the harness); a function-local
+  import keeps `calibrate.py`'s module-level imports unchanged.
+- **CLI.** The table is read and applied in the existing step-1 `try`, so any
+  `FacetInputError` is an `Error:` line and exit 1. An all-dropped cohort
+  prints `no cohort case has a row in the --review-labels table` and exits 1
+  (A6). The `calibrate_thresholds` call now catches `FacetInputError` the same
+  way, so a test-role cohort with `--calibrate` is an error line, not a
+  traceback.
+- **Transcription check (Validation step 3): ❓ Unverified by the builder.**
+  The builder did not open the `spine-failure-lab` clone; the field list was
+  copied from A2. The validator performs the comparison against commit
+  `7436b0f2` per the Validation section.
 
 - **Left open:** whether threshold calibration should also refuse
   calibration-role cases. The interface's dataset-roles table gives FACET's

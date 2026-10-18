@@ -446,8 +446,12 @@ def calibrate_thresholds(
     ------
     segfacet.io.FacetInputError
         If the grid size exceeds *max_grid_size*, raised before any
-        candidate is evaluated.
+        candidate is evaluated, or if any case's ``metadata["role"]`` is
+        ``"test"`` (item 231: a test-role label never calibrates).
     """
+    from segfacet.eval.review_labels import refuse_test_role  # noqa: PLC0415
+
+    refuse_test_role(cases, purpose="threshold calibration")
     size = _grid_size(axes)
     if size > max_grid_size:
         raise FacetInputError(

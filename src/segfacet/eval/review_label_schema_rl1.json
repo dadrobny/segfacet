@@ -1,0 +1,21 @@
+{
+  "schema": "rl1",
+  "source": {
+    "repository": "spine-failure-lab",
+    "path": "docs/project/facet-interface.md",
+    "table": "review-label-fields",
+    "commit": "7436b0f250dd413c2358600d9ea4d1adcace8696"
+  },
+  "fields": [
+    {"name": "schema", "type": "string"},
+    {"name": "case_id", "type": "string"},
+    {"name": "run_id", "type": "string"},
+    {"name": "mask_hash", "type": "string"},
+    {"name": "label_id", "type": "integer"},
+    {"name": "mode_id", "type": "integer"},
+    {"name": "call", "type": "string"},
+    {"name": "call_provenance", "type": "string or null"},
+    {"name": "reviewer", "type": "string"},
+    {"name": "role", "type": "string"}
+  ]
+}
