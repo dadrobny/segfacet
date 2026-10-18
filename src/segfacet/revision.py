@@ -24,16 +24,38 @@ __all__ = ["facet_revision"]
 _SHA = re.compile(r"^([0-9a-f]{40}|[0-9a-f]{64})$")
 
 
+_REDIRECT_VARS = frozenset(
+    {
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_NAMESPACE",
+        "GIT_PREFIX",
+    }
+)
+
+
 def _git(args: list, cwd: Path) -> Optional[str]:
+    # Drop repo-redirecting GIT_* vars: they would override cwd=package_dir.
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in _REDIRECT_VARS
+    }
     try:
         result = subprocess.run(
             ["git", *args],
             cwd=cwd,
+            env=env,
             capture_output=True,
             encoding="utf-8",
+            errors="replace",
             timeout=10,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
     return result.stdout.strip() if result.returncode == 0 else None
 

@@ -67,7 +67,9 @@ Every revision `spinelab` consumes gets an annotated git tag named
 `src/segfacet/__init__.py`. To release: bump `__version__` there first, tag a
 clean commit of `main` (`git tag -a v<package_version>`), and have the owner
 push the tag. A report's `facet_revision.commit` and
-`facet_revision.package_version` are what `spinelab` pins against.
+`facet_revision.package_version` are what `spinelab` pins against. When FACET
+runs from an install with no git work tree (a wheel, a Docker image),
+`facet_revision.commit` is `null` and a consumer pins by `package_version`.
 
 ## Licence
 
