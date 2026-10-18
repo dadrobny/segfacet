@@ -245,3 +245,5 @@ form, and `spinelab`'s candidate descriptors name MSKGSTT roles with it.
   error from `from_dict`'s `dict(...)` coercion. No descriptor in the batch
   is written that way, and the per-selector check is what the role lists
   need.
+
+- 2026-10-18 (fix round): `__post_init__` also checks selector value types: `ids` must be a list/tuple of str/int (bool excluded), `root`/`glob`/`csv`/`column` must be str, else `DatasetSchemaError` naming the subset. `ci.yml` WINDOWS_TESTS lists the new test module in sorted position.

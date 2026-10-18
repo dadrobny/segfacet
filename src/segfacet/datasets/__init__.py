@@ -201,7 +201,9 @@ class DatasetDescriptor:
         ``"gt"`` (default) or ``"candidate"`` — may be overridden at resolve time.
     subsets:
         Optional mapping ``name -> selector``. A selector is a mapping whose keys
-        are exactly one of (enforced at construction; ``csv`` may add ``column``): ``{"root": "<subdir>"}`` (resolve under a sibling/child dir — how
+        are exactly one of ``root``, ``ids``, ``glob`` or ``csv`` (``csv`` may add
+        ``column``); this is enforced at construction, along with value types.
+        ``{"root": "<subdir>"}`` (resolve under a sibling/child dir — how
         VerSe's train/val/test folders are modelled), ``{"ids": [...]}`` (keep
         those case ids), ``{"csv": "<path>", "column": "<col>"}`` (case ids from a
         CSV column; path relative to the descriptor's own dir), or
@@ -244,11 +246,23 @@ class DatasetDescriptor:
             )
         for name, sel in self.subsets.items():
             if not isinstance(sel, Mapping) or frozenset(sel) not in _SELECTOR_KEYSETS:
-                found = sorted(sel) if isinstance(sel, Mapping) else type(sel).__name__
+                found = sorted(map(str, sel)) if isinstance(sel, Mapping) else type(sel).__name__
                 raise DatasetSchemaError(
                     f"subset {name!r} selector must be a mapping with keys exactly one of "
                     f"{{root}}, {{ids}}, {{glob}}, {{csv}} or {{csv, column}}; got {found}"
                 )
+            for key, val in sel.items():
+                if key == "ids":
+                    ok = isinstance(val, (list, tuple)) and all(
+                        isinstance(i, (str, int)) and not isinstance(i, bool) for i in val
+                    )
+                else:
+                    ok = isinstance(val, str)
+                if not ok:
+                    raise DatasetSchemaError(
+                        f"subset {name!r} selector {key!r} has an invalid value "
+                        f"{val!r}: 'ids' must be a list of ids, the others a string"
+                    )
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any], *, descriptor_dir: Optional[str] = None) -> "DatasetDescriptor":
