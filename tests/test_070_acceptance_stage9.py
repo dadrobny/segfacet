@@ -312,9 +312,15 @@ def test_ac11_stage9_acceptance_sentence_constant_matches_roadmap_wording():
     """roadmap.md hard-wraps its prose across lines (soft line breaks in
     Markdown), so whitespace is normalised to a single space before the
     substring comparison -- this compares the *logical* sentence, not raw
-    bytes, while still catching any real wording drift."""
-    roadmap_path = REPO_ROOT / "docs" / "aide" / "roadmap.md"
-    roadmap_text = roadmap_path.read_text(encoding="utf-8")
+    bytes, while still catching any real wording drift. ``aide progress
+    archive`` moves a settled stage's roadmap section into
+    ``roadmap/stage-9.md`` (item 236), so that file is searched too once it
+    exists."""
+    docs_aide = REPO_ROOT / "docs" / "aide"
+    roadmap_text = (docs_aide / "roadmap.md").read_text(encoding="utf-8")
+    archive_path = docs_aide / "roadmap" / "stage-9.md"
+    if archive_path.is_file():
+        roadmap_text += "\n" + archive_path.read_text(encoding="utf-8")
     normalized_roadmap_text = re.sub(r"\s+", " ", roadmap_text)
     for criterion in STAGE9_ACCEPTANCE_CRITERIA:
         normalized_criterion = re.sub(r"\s+", " ", criterion)

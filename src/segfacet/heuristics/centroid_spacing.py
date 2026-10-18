@@ -46,6 +46,10 @@ sizes 0.997 / 0.998); highest silent 2.269 (``split_own_label`` L4-L5, gated
 off by size 4.800); highest silent past the size gate 1.386; VerSe19 ground
 truth reads at most 1.378 on 157 masks (A7).
 
+A gap beside a sacral or coccygeal label is not judged (item 240), because the
+sacrum's centroid does not sit at a vertebral pitch, the same reason as
+``fused_label``'s.
+
 Known blind spot: two misses with exactly one vertebra between them read about
 1.33 (each gap is the other's baseline: 2p / 1.5p), below the default 1.5, so
 neither fires.
@@ -121,6 +125,10 @@ def _severity_from_param(label: str) -> Severity:
             f"config. Known labels: {known}."
         )
     return sev
+
+
+def _is_sacral_or_coccygeal(level_name) -> bool:
+    return str(level_name).startswith("S") or level_name == "Cocc"
 
 
 def _is_num(x) -> bool:
@@ -301,7 +309,7 @@ class CentroidSpacingRule(Rule):
         findings: List[Finding] = []
         for i, k in enumerate(keys):
             level_name = per_label[k].get("level_name", "unknown")
-            if str(level_name).startswith("S") or level_name == "Cocc":
+            if _is_sacral_or_coccygeal(level_name):
                 continue  # A4
             adj_sp = [spacings[j] for j in (i - 1, i) if 0 <= j < len(spacings)]
             base = [s for j, s in enumerate(spacings) if j not in (i - 1, i)]
@@ -334,6 +342,11 @@ class CentroidSpacingRule(Rule):
                 )
 
         for i, sp in enumerate(spacings):
+            if any(
+                _is_sacral_or_coccygeal(per_label[keys[j]].get("level_name", "unknown"))
+                for j in (i, i + 1)
+            ):
+                continue  # item 240: a sacral gap is not a vertebral pitch
             beside = [spacings[j] for j in (i - 1, i + 1) if 0 <= j < len(spacings)]
             if not beside:
                 continue  # a two-label record has no baseline

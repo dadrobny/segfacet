@@ -1,14 +1,14 @@
 """Tests for item 171 -- literal negative controls rebuilt from live values.
 
-Covers Acceptance Criteria AC1-AC6 from
+Covers Acceptance Criteria AC2-AC6 (AC1 retired by item 236, 2026-10-17) from
 ``docs/aide/items/171-literal-negative-controls-rebuilt-from-live-values.md``,
 one test each, plus the one named adversarial case from its Testing
-Strategy: ``old-literal-form-fails-under-patch``, parametrised over the six
-rebuilt hits (H1-H6).
+Strategy: ``old-literal-form-fails-under-patch``, parametrised over the
+five remaining rebuilt hits (H2-H6).
 
 Each AC monkeypatches the seam its target control reads (A4) so that the
 seam reports the *old literal's* value, then calls the rebuilt control
-(H1-H6, rebuilt in place in their own modules by this same item) and asserts
+(H2-H6, rebuilt in place in their own modules by this same item) and asserts
 it still passes -- i.e. the rebuilt control is non-coincidental: it rejects
 its perturbed input regardless of what live state happens to be.
 
@@ -43,22 +43,9 @@ def _fake_finding(rule_id: str, labels=()):
     return SimpleNamespace(rule_id=rule_id, labels=tuple(labels))
 
 
-# =========================================================================== #
-# AC1: H1 (test_151) survives a mode count of 15.
-# =========================================================================== #
-
-
-def test_ac1_h1_survives_mode_count_of_15(monkeypatch):
-    module = _load_module_from_path(
-        _TESTS_DIR / "test_151_stage30_validation.py", "_test_171_test_151"
-    )
-    _, live_counts = module._live_status_counts()
-
-    monkeypatch.setattr(module, "_live_status_counts", lambda: (15, live_counts))
-    # The defect is really present before we trust the pass below (§6).
-    assert module._live_status_counts()[0] == 15
-
-    module.test_adv_ac35_status_counts_parser_rejects_wrong_n()
+# Retired 2026-10-17 by item 236 (A5): AC1 (H1, the negative control of
+# test_151's status-count parser test) went with that test's retirement; H1
+# had no other subject. H2-H6 stay.
 
 
 # =========================================================================== #
@@ -214,21 +201,6 @@ def test_ac6_h6_survives_inject_islands_ladder_already_in_mode_1(monkeypatch):
 # =========================================================================== #
 
 
-def _h1_pre_item_body(monkeypatch):
-    module = _load_module_from_path(
-        _TESTS_DIR / "test_151_stage30_validation.py", "_test_171_adv_test_151"
-    )
-    _, live_counts = module._live_status_counts()
-    monkeypatch.setattr(module, "_live_status_counts", lambda: (15, live_counts))
-
-    text = "derived status counts over 15 modes: validated 6, implemented 3, specified 0, proposed 7"
-    match = module._STATUS_COUNTS_RE.search(text)
-    assert match is not None
-    n = int(match.group(1))
-    live_n, _live_counts = module._live_status_counts()
-    assert n != live_n
-
-
 def _h2_pre_item_body(monkeypatch):
     module = _load_module_from_path(
         _TESTS_DIR / "test_041_regression_suite.py", "_test_171_adv_test_041_ac9"
@@ -336,7 +308,6 @@ def _h6_pre_item_body(monkeypatch):
 
 
 _PRE_ITEM_BODIES = {
-    "H1": _h1_pre_item_body,
     "H2": _h2_pre_item_body,
     "H3": _h3_pre_item_body,
     "H4": _h4_pre_item_body,
@@ -352,6 +323,6 @@ def test_adv_old_literal_form_fails_under_patch(hit, monkeypatch):
     pre-item body (wrong input + final rejection, literal preconditions
     dropped per A3) must still raise ``AssertionError``. A patch that
     missed its seam would let the old and rebuilt forms both pass, and
-    AC1-AC6 would certify nothing."""
+    AC2-AC6 would certify nothing."""
     with pytest.raises(AssertionError):
         _PRE_ITEM_BODIES[hit](monkeypatch)

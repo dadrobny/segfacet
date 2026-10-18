@@ -40,13 +40,14 @@ document ``force_overlap`` as structurally invisible to the plain
 ``displace`` moved into the pipeline-detectable set in item 120, which
 promoted a held-out per-label spline offset into the pipeline itself, and
 ``relabel_swap`` moved into the pipeline-detectable set in item 132
-(2026-08-31), which judges monotonicity against a traversal-ordered
-reference fit rather than one fitted through the ordering under test. The
-corpus cohort here runs the plain pipeline on each candidate, so only
-``force_overlap`` classifies ``FALSE_NEGATIVE`` -- overall cohort
-sensitivity is consequently ``7/8``, not ``1.0``. This is intentional, not a
-bug: over-claiming detection on the reconstructed mode would misrepresent
-the system's real, honest capability.
+(2026-08-31), which judged monotonicity against a traversal-ordered
+reference fit rather than one fitted through the ordering under test. Since
+item 210 (2026-10-05) the check fits no curve: it reads position along a
+label-free MST path. The corpus cohort here runs the plain pipeline on each
+candidate, so only ``force_overlap`` classifies ``FALSE_NEGATIVE`` -- overall
+cohort sensitivity is consequently ``7/8``, not ``1.0``. This is intentional,
+not a bug: over-claiming detection on the reconstructed mode would
+misrepresent the system's real, honest capability.
 
 All tests are deterministic, CPU-only, and portable (no network, no
 absolute paths, no wall clock).
@@ -79,7 +80,8 @@ from segfacet.synth.regression import loaded_seg_image
 #: Sec.6 modes the plain pipeline is documented to catch (Assumptions). Mode 1
 #: moved here in item 120, which promoted a held-out per-label spline offset
 #: into the pipeline itself. Mode 4 moved here in item 132 (2026-08-31),
-#: which judges monotonicity against a traversal-ordered reference fit.
+#: which judged monotonicity against a traversal-ordered reference fit (since
+#: item 210, 2026-10-05, it reads position along a label-free MST path).
 #: Re-keyed 2026-09-15 (item 150's catalogue revision): modes 1 (displace,
 #: fragment), 2 (fuse), 4 (islands), 6 (remove_level) and 9 (relabel swap,
 #: sequence break) have >=1 corpus case detected by plain run_qc; mode 6's

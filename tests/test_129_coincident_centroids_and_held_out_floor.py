@@ -730,7 +730,8 @@ _PRE_129_FINDINGS = {
     "fragment": {("fragmentation", (22,))},
     "inject_islands": {("fragmentation", (22,))},
     # 2026-08-31 (item 132): traversal-ordered monotonicity now surfaces the
-    # swap through plain run_qc, moved from set().
+    # swap through plain run_qc, moved from set(). Since item 210 (2026-10-05)
+    # the check fits no curve: it reads position along a label-free MST path.
     # 2026-09-28 (item 192): sequence's swap detector now also fires.
     # item 219 (2026-10-13): ("sequence", (21, 22)) dropped, swap retired.
     "relabel_swap": {("mislabel", (21, 22))},

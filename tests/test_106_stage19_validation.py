@@ -16,10 +16,10 @@ independent of the steering review's outcome.
 
 Six blocks, matching the item spec's Acceptance Criteria:
 
-- **Block A** (AC1-AC4) -- the sign-off gate: ``stage19_signoff_state()``
-  parses ``docs/aide/progress.md`` honestly, never assumes; the AC3
-  biconditional couples the stage's ``✅``/box1/box2 state to box 3's
-  sign-off in *both* directions.
+- **Block A** (AC1, AC3, AC4) -- retired by item 236 (2026-10-17), with the
+  box-tick tests of AC19, AC20, AC22 and AC24: they pinned the Stage 19
+  section's ticks, icons and annotation wording in ``progress.md``, which
+  ``aide progress archive`` moves out (the 2026-09-16 precedent).
 - **Block B** (AC5-AC10) -- regeneration replay: the documented zero-argument
   and explicit-argument ``segfacet.catalogue.main`` invocations, the committed
   artifacts vs. a live build, the four-way entry-count agreement, and the
@@ -139,308 +139,13 @@ def _read_spec() -> str:
 # assuming its content.
 # =========================================================================== #
 
-_CHECKBOX_RE = re.compile(r"^-\s*\[([ xX])\]\s?")
-_EVIDENCE_NOTE_RE = re.compile(r"\*\(.*?\)\*", re.DOTALL)
-
-
-def _stage19_section(text: str) -> str:
-    lines = text.splitlines()
-    start = None
-    end = len(lines)
-    for i, line in enumerate(lines):
-        if line.startswith("## Stage 19"):
-            start = i
-        elif start is not None and line.startswith("## Stage 20"):
-            end = i
-            break
-    if start is None:
-        raise AssertionError("no '## Stage 19' heading found in progress.md")
-    return "\n".join(lines[start:end])
-
-
-def _acceptance_items(section: str) -> list:
-    """Every checkbox item under the Stage-19 section's '**Acceptance.**'
-    heading, each including its wrapped continuation lines up to the next
-    list item or blank line (AC1)."""
-    lines = section.splitlines()
-    try:
-        start = next(i for i, l in enumerate(lines) if l.strip() == "**Acceptance.**")
-    except StopIteration:
-        raise AssertionError(
-            "no '**Acceptance.**' heading found under the Stage-19 section of "
-            "progress.md"
-        )
-    items: list = []
-    current: list = []
-    seen_item = False
-    for line in lines[start + 1 :]:
-        stripped = line.strip()
-        if _CHECKBOX_RE.match(stripped):
-            if current:
-                items.append("\n".join(current))
-            current = [line]
-            seen_item = True
-            continue
-        if stripped == "" or stripped == "---":
-            if current:
-                items.append("\n".join(current))
-                current = []
-            if seen_item:
-                break
-            continue  # a blank line before the first checkbox item -- keep scanning
-        if current:
-            current.append(line)
-    if current:
-        items.append("\n".join(current))
-    return items
-
-
-def _acceptance_item_matching(section: str, needle: str) -> str:
-    items = _acceptance_items(section)
-    matches = [it for it in items if needle.lower() in it.lower()]
-    if not matches:
-        found = [it.splitlines()[0].strip() for it in items]
-        raise AssertionError(
-            f"no Stage-19 '**Acceptance.**' item containing {needle!r} found "
-            f"under progress.md's '**Acceptance.**' heading; acceptance items "
-            f"found: {found!r}"
-        )
-    return matches[0]
-
-
-def _is_checked(item_text: str) -> bool:
-    first_line = item_text.splitlines()[0].strip()
-    m = _CHECKBOX_RE.match(first_line)
-    assert m, f"not a checkbox list item: {first_line!r}"
-    return m.group(1).lower() == "x"
-
-
-def _has_golden_decision_table_note(item_text: str) -> bool:
-    for note in _EVIDENCE_NOTE_RE.findall(item_text):
-        if "golden-decision-table.md" in note:
-            return True
-    return False
-
-
-def _signoff_state_from_text(text: str) -> str:
-    section = _stage19_section(text)
-    item = _acceptance_item_matching(
-        section, "golden decision table is complete and signed off"
-    )
-    if not _is_checked(item):
-        return "pending"
-    if _has_golden_decision_table_note(item):
-        return "signed-off"
-    return "pending"
-
-
-def stage19_signoff_state() -> str:
-    """AC1: the sign-off state parsed from ``docs/aide/progress.md``, never
-    assumed. Returns exactly ``"signed-off"`` or ``"pending"``."""
-    return _signoff_state_from_text(_read_progress())
-
-
-def _deliverable_blocks(section: str) -> list:
-    """Every '**Deliverables.**' bullet item, including wrapped continuation
-    lines (a deliverable bullet's '*(Item NNN)*' marker is often on its last
-    wrapped line, not its first)."""
-    lines = section.splitlines()
-    try:
-        start = next(i for i, l in enumerate(lines) if l.strip() == "**Deliverables.**")
-    except StopIteration:
-        raise AssertionError(
-            "no '**Deliverables.**' heading found under the Stage-19 section of progress.md"
-        )
-    blocks: list = []
-    current: list = []
-    seen_item = False
-    for line in lines[start + 1 :]:
-        stripped = line.strip()
-        if stripped.startswith("- "):
-            if current:
-                blocks.append("\n".join(current))
-            current = [line]
-            seen_item = True
-            continue
-        if stripped in ("", "**Acceptance.**", "---"):
-            if current:
-                blocks.append("\n".join(current))
-                current = []
-            if seen_item:
-                break
-            continue
-        if current:
-            current.append(line)
-    if current:
-        blocks.append("\n".join(current))
-    return blocks
-
-
-def _deliverable_block_for_item(section: str, item_no: int) -> str:
-    marker = f"(Item {item_no})"
-    for block in _deliverable_blocks(section):
-        if marker in block:
-            return block
-    raise AssertionError(f"no Stage-19 deliverable bullet found naming {marker!r}")
-
-
-def _stage19_heading_line(text: str) -> str:
-    for line in text.splitlines():
-        if line.startswith("## Stage 19"):
-            return line
-    raise AssertionError("no '## Stage 19' heading line found in progress.md")
-
-
-def _stage_summary_row_19(text: str) -> str:
-    for line in text.splitlines():
-        if re.match(r"^\|\s*19\s*\|", line):
-            return line
-    raise AssertionError("no stage-summary table row for stage 19 found")
-
-
-def _ac3_flags(text: str):
-    stage_heading_ok = _stage19_heading_line(text).rstrip().endswith("— ✅")
-    table_row_ok = "✅" in _stage_summary_row_19(text)
-    section = _stage19_section(text)
-    box1 = _acceptance_item_matching(section, "The catalogue is generated, not hand-written")
-    box2 = _acceptance_item_matching(section, "Every feature carries a status")
-    return stage_heading_ok, table_row_ok, _is_checked(box1), _is_checked(box2)
-
-
-def _check_biconditional(text: str):
-    """AC3: computes all five booleans and returns whether they agree, plus a
-    message naming any disagreement -- never ``if signed_off: assert ...``,
-    which would silently no-op on the other branch."""
-    signed_off = _signoff_state_from_text(text) == "signed-off"
-    stage_ok, table_ok, box1_ok, box2_ok = _ac3_flags(text)
-    flags = {
-        "stage_heading": stage_ok,
-        "stage_summary_row": table_ok,
-        "box1_catalogue_generated": box1_ok,
-        "box2_status_and_mode": box2_ok,
-    }
-    disagreeing = {k: v for k, v in flags.items() if v != signed_off}
-    message = (
-        f"stage19_signoff_state() signed_off={signed_off!r}; "
-        f"disagreeing flags={disagreeing!r}"
-    )
-    return not disagreeing, message
-
-
-def _minimal_box3_fragment(
-    *,
-    checked: bool,
-    note: bool,
-    mark: str = "x",
-    note_target: str = "docs/aide/golden-decision-table.md",
-    wrapped: bool = False,
-) -> str:
-    check = mark if checked else " "
-    if not note:
-        note_text = ""
-    elif wrapped:
-        note_text = (
-            "\n  *(Signed off 2026-07-28: all rows of\n"
-            f"  `{note_target}` reviewed individually.)*"
-        )
-    else:
-        note_text = f"\n  *(Signed off 2026-07-28: see `{note_target}`.)*"
-    return (
-        "## Stage 19 — Title — \U0001F6A7\n\n"
-        "**Acceptance.**\n\n"
-        f"- [{check}] The golden decision table is complete and signed off by "
-        f"the human reviewer.{note_text}\n\n"
-        "---\n\n## Stage 20 — placeholder\n"
-    )
-
-
-def _synthetic_progress_md(
-    *,
-    stage_heading_status: str,
-    table_row_status: str,
-    box1_checked: bool,
-    box2_checked: bool,
-    box3_checked: bool,
-    box3_note: bool,
-) -> str:
-    b1 = "x" if box1_checked else " "
-    b2 = "x" if box2_checked else " "
-    b3 = "x" if box3_checked else " "
-    note = (
-        "\n  *(Signed off 2026-07-28: see `docs/aide/golden-decision-table.md`.)*"
-        if box3_note
-        else ""
-    )
-    return (
-        "| Stage | Title | Objectives | Status |\n"
-        "| ----- | ----- | ---------- | ------ |\n"
-        "| 19    | Generated Feature & Rule Catalogue + Steering Review | "
-        f"G7, G8 | {table_row_status} |\n"
-        "\n"
-        "## Stage 19 — Generated Feature & Rule Catalogue + Steering "
-        f"Review (G7, G8) — {stage_heading_status}\n"
-        "\n"
-        "**Acceptance.**\n"
-        "\n"
-        f"- [{b1}] The catalogue is generated, not hand-written; the drift "
-        "test fails on a deliberately undocumented feature (**G7**).\n"
-        f"- [{b2}] Every feature carries a status and a named failure mode, "
-        "or is marked `unwired` (**G8**).\n"
-        f"- [{b3}] The golden decision table is complete and signed off by "
-        f"the human reviewer.{note}\n"
-        "\n"
-        "---\n"
-        "\n"
-        "## Stage 20 — placeholder\n"
-    )
+# Retired by item 236 (2026-10-17): the Stage 19 section tests pinned box ticks, bullet icons and annotation wording in progress.md, loop attestation state that 'aide progress archive' moves out of progress.md; their synthetic companions had no other subject.
+# Removed: _CHECKBOX_RE, _EVIDENCE_NOTE_RE, _stage19_section, _acceptance_items, _acceptance_item_matching, _is_checked, _has_golden_decision_table_note, _signoff_state_from_text, stage19_signoff_state, _deliverable_blocks, _deliverable_block_for_item, _stage19_heading_line, _stage_summary_row_19, _ac3_flags, _check_biconditional, _minimal_box3_fragment, _synthetic_progress_md, test_ac1_real_progress_md_reports_signed_off, test_adv_signoff_state_box_absent_fails_naming_heading_and_found_items, test_adv_signoff_state_unticked_with_note_is_pending, test_adv_signoff_state_ticked_without_note_is_pending, test_adv_signoff_state_uppercase_x_with_note_is_signed_off, test_adv_signoff_state_note_on_wrapped_continuation_line_is_signed_off, test_adv_signoff_state_note_naming_wrong_document_is_pending, test_ac3_biconditional_holds_on_real_progress_md, test_ac3_biconditional_passes_in_both_consistent_states, test_adv_ac3_stage_heading_ok_but_signoff_pending_fails_naming_stage_heading, test_adv_ac3_signoff_signed_but_stage_still_planned_fails_naming_stage_heading, test_adv_ac3_box1_ticked_while_box2_and_signoff_are_not_fails_naming_box1, test_ac4_deliverable_bullets_are_ticked_when_signed_off, test_ac19_checkbox2_carries_honest_partition_if_ticked, test_ac20_checkbox1_carries_generated_and_can_fail_evidence_if_ticked, test_ac22_annotations_state_stage19_decides_stage21_executes_if_ticked, test_ac24_no_annotation_asserts_real_data_coverage.
 
 
 # =========================================================================== #
 # AC1: the sign-off state is parsed, never assumed
 # =========================================================================== #
-
-
-def test_ac1_real_progress_md_reports_signed_off():
-    assert stage19_signoff_state() == "signed-off"
-
-
-def test_adv_signoff_state_box_absent_fails_naming_heading_and_found_items():
-    text = (
-        "## Stage 19 — Title — \U0001F6A7\n\n"
-        "**Acceptance.**\n\n"
-        "- [ ] Some unrelated acceptance item.\n\n"
-        "---\n\n## Stage 20 — placeholder\n"
-    )
-    with pytest.raises(AssertionError) as excinfo:
-        _signoff_state_from_text(text)
-    message = str(excinfo.value)
-    assert "Acceptance" in message
-    assert "Some unrelated acceptance item" in message
-
-
-def test_adv_signoff_state_unticked_with_note_is_pending():
-    text = _minimal_box3_fragment(checked=False, note=True)
-    assert _signoff_state_from_text(text) == "pending"
-
-
-def test_adv_signoff_state_ticked_without_note_is_pending():
-    text = _minimal_box3_fragment(checked=True, note=False)
-    assert _signoff_state_from_text(text) == "pending"
-
-
-def test_adv_signoff_state_uppercase_x_with_note_is_signed_off():
-    text = _minimal_box3_fragment(checked=True, note=True, mark="X")
-    assert _signoff_state_from_text(text) == "signed-off"
-
-
-def test_adv_signoff_state_note_on_wrapped_continuation_line_is_signed_off():
-    text = _minimal_box3_fragment(checked=True, note=True, wrapped=True)
-    assert _signoff_state_from_text(text) == "signed-off"
-
-
-def test_adv_signoff_state_note_naming_wrong_document_is_pending():
-    text = _minimal_box3_fragment(checked=True, note=True, note_target="something-else.md")
-    assert _signoff_state_from_text(text) == "pending"
 
 
 # =========================================================================== #
@@ -458,81 +163,9 @@ def test_adv_signoff_state_note_naming_wrong_document_is_pending():
 # =========================================================================== #
 
 
-def test_ac3_biconditional_holds_on_real_progress_md():
-    ok, message = _check_biconditional(_read_progress())
-    assert ok, message
-
-
-@pytest.mark.parametrize("consistent", [True, False], ids=["all-true", "all-false"])
-def test_ac3_biconditional_passes_in_both_consistent_states(consistent):
-    text = _synthetic_progress_md(
-        stage_heading_status="✅" if consistent else "\U0001F6A7",
-        table_row_status="✅" if consistent else "\U0001F6A7",
-        box1_checked=consistent,
-        box2_checked=consistent,
-        box3_checked=consistent,
-        box3_note=consistent,
-    )
-    ok, message = _check_biconditional(text)
-    assert ok, message
-
-
-def test_adv_ac3_stage_heading_ok_but_signoff_pending_fails_naming_stage_heading():
-    text = _synthetic_progress_md(
-        stage_heading_status="✅",
-        table_row_status="\U0001F6A7",
-        box1_checked=False,
-        box2_checked=False,
-        box3_checked=False,
-        box3_note=False,
-    )
-    ok, message = _check_biconditional(text)
-    assert not ok
-    assert "stage_heading" in message
-
-
-def test_adv_ac3_signoff_signed_but_stage_still_planned_fails_naming_stage_heading():
-    text = _synthetic_progress_md(
-        stage_heading_status="\U0001F6A7",
-        table_row_status="\U0001F6A7",
-        box1_checked=False,
-        box2_checked=False,
-        box3_checked=True,
-        box3_note=True,
-    )
-    ok, message = _check_biconditional(text)
-    assert not ok
-    assert "stage_heading" in message
-
-
-def test_adv_ac3_box1_ticked_while_box2_and_signoff_are_not_fails_naming_box1():
-    text = _synthetic_progress_md(
-        stage_heading_status="\U0001F6A7",
-        table_row_status="\U0001F6A7",
-        box1_checked=True,
-        box2_checked=False,
-        box3_checked=False,
-        box3_note=False,
-    )
-    ok, message = _check_biconditional(text)
-    assert not ok
-    assert "box1_catalogue_generated" in message
-
-
 # =========================================================================== #
 # AC4: a stage does not close over an unfinished deliverable
 # =========================================================================== #
-
-
-def test_ac4_deliverable_bullets_are_ticked_when_signed_off():
-    text = _read_progress()
-    section = _stage19_section(text)
-    if stage19_signoff_state() != "signed-off":
-        return  # AC3/Implementation Step 0: this item does not execute at all
-    for item_no in (103, 104, 105):
-        block = _deliverable_block_for_item(section, item_no)
-        first_line = block.splitlines()[0].strip()
-        assert first_line.startswith("- ✅"), first_line
 
 
 # =========================================================================== #
@@ -1026,31 +659,6 @@ def test_adv_missing_failure_modes_field_fails_naming_path_not_keyerror():
     assert "adv.missing.modes" in str(excinfo.value)
 
 
-def test_ac19_checkbox2_carries_honest_partition_if_ticked():
-    text = _read_progress()
-    section = _stage19_section(text)
-    box2 = _acceptance_item_matching(section, "Every feature carries a status")
-    if not _is_checked(box2):
-        return  # tick-implies-evidence: nothing to check on the honest unticked tree
-    lower = box2.lower()
-    assert "status" in lower
-    assert "rule_unmapped" in lower or "mode-unmapped" in lower or "mode unmapped" in lower
-    assert "stage 20" in lower
-    assert "synthetic" in lower
-    assert "not" in lower and "real data" in lower
-
-
-def test_ac20_checkbox1_carries_generated_and_can_fail_evidence_if_ticked():
-    text = _read_progress()
-    section = _stage19_section(text)
-    box1 = _acceptance_item_matching(section, "The catalogue is generated, not hand-written")
-    if not _is_checked(box1):
-        return  # tick-implies-evidence: nothing to check on the honest unticked tree
-    lower = box1.lower()
-    assert "aide_status_report" in lower or "status report" in lower
-    assert "drift" in lower
-
-
 # =========================================================================== #
 # Block E (AC21-AC24): the fences
 # =========================================================================== #
@@ -1122,31 +730,6 @@ def test_ac22_nine_goldens_match_corpus_case_ids(tmp_path):
     assert len(case_ids) >= 9  # the original nine, plus item 150's cases
     assert len(files) == len(case_ids)
     assert stems == case_ids
-
-
-def test_ac22_annotations_state_stage19_decides_stage21_executes_if_ticked():
-    text = _read_progress()
-    section = _stage19_section(text)
-    box1 = _acceptance_item_matching(section, "The catalogue is generated, not hand-written")
-    box2 = _acceptance_item_matching(section, "Every feature carries a status")
-    ticked = [it for it in (box1, box2) if _is_checked(it)]
-    if not ticked:
-        return  # tick-implies-evidence: nothing to check on the honest unticked tree
-    combined_lower = "\n".join(ticked).lower()
-    assert "stage 19" in combined_lower and "decide" in combined_lower
-    assert "stage 21" in combined_lower and "execut" in combined_lower
-
-
-def test_ac24_no_annotation_asserts_real_data_coverage():
-    text = _read_progress()
-    section = _stage19_section(text)
-    box1 = _acceptance_item_matching(section, "The catalogue is generated, not hand-written")
-    box2 = _acceptance_item_matching(section, "Every feature carries a status")
-    for item in (box1, box2):
-        lower = item.lower()
-        assert "real automatic-segmentation" not in lower
-        assert "real spineps" not in lower
-        assert "real-data" not in lower or "not on real data" in lower or "not real data" in lower
 
 
 # =========================================================================== #

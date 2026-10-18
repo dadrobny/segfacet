@@ -279,7 +279,7 @@ def test_ac7_committed_sheet_is_current(committed_manifest):
 
     assert _COMMITTED_SHEET.is_file(), (
         "docs/aide/corpus_sheet.png is missing or stale; regenerate with "
-        "`python -m segfacet.synth.corpus_sheet`"
+        "`python -m segfacet.synth.corpus`"
     )
 
     expected_digest = _expected_digest(MANIFEST_PATH, committed_manifest)
@@ -290,7 +290,7 @@ def test_ac7_committed_sheet_is_current(committed_manifest):
     assert source == "sha256:" + expected_digest, (
         "docs/aide/corpus_sheet.png's Source digest does not match the "
         "committed manifest + fixtures; regenerate with "
-        "`python -m segfacet.synth.corpus_sheet`"
+        "`python -m segfacet.synth.corpus`"
     )
 
 

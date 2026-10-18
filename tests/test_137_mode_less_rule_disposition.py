@@ -606,6 +606,7 @@ def test_adv_per_label_container_keeps_corpus_modes_and_gains_declaration_last()
     classifies it ``signal``, so it now honestly carries
     ``failure_modes == ()`` with both rule-sourced tags, restating the
     "keeps its corpus-derived modes" claim in the honest, narrower form.
+    Since item 223 mechanism B is path-aware, with no last-segment fallback.
 
     Reconciled again (item 150, 2026-09-14): ``border`` is now mode-less, and
     it is one of the six rules that iterate this container (``bookkeeping``),
@@ -967,7 +968,8 @@ def test_adv_measured_artifact_movement_counts_from_spec():
       out of ``("rule_mode_less", "rule_bookkeeping", "rule_not_read")`` into
       it (+2), because once five features share each last segment the static
       scan can no longer attribute them (kind 4: survivors that changed
-      bucket).
+      bucket). Since item 223 mechanism B is path-aware, with no last-segment
+      fallback.
     * ``("rule_bookkeeping",)``: 10 -> 8. ``per_label.{label}.label`` leaves
       for the mode-less bucket below (-1: ``spline_offset`` and the border
       rule's static attribution make it consumed by a mode-less rule, kind 4)

@@ -43,9 +43,10 @@ Covers Acceptance Criteria AC1-AC14:
         the ``_PRE_NNN_*`` sha256 scope-fence constants.
 - AC11: the document names ``progress.md``'s Stage-19 checkbox as the sole
         attestation and contains no sign-off field of its own.
-- AC12: ``progress.md``'s Stage-19 sign-off checkbox is honestly unticked or
-        ticked with an italic evidence note -- checked as an explicit
-        three-branch predicate, not an ``if ticked:`` no-op.
+- AC12: retired by item 236 (2026-10-17). It pinned ``progress.md``'s
+        Stage-19 sign-off checkbox, which ``aide progress archive`` moves out
+        of ``progress.md``; the loop's own attestation state is not a test's
+        subject (the 2026-09-16 precedent).
 - AC13: the Divergences section names exactly the ``keep`` rows, in both
         directions.
 - AC14: the scope fence -- ``tests/corpus/**`` and ``src/segfacet/**`` are
@@ -75,7 +76,6 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _TESTS_DIR = Path(__file__).resolve().parent
 _DOC_PATH = _REPO_ROOT / "docs" / "aide" / "golden-decision-table.md"
-_PROGRESS_PATH = _REPO_ROOT / "docs" / "aide" / "progress.md"
 
 _EXPECTED_COLUMNS = (
     "fixture",
@@ -647,56 +647,8 @@ def test_adv_ac11_signoff_line_pattern_is_actually_reachable():
 # =========================================================================== #
 
 
-def _ac12_signoff_ok(ticked: bool, block_after_checkbox: str) -> bool:
-    evidence_match = re.search(r"\*\(.*?\)\*", block_after_checkbox, re.DOTALL)
-    if not ticked:
-        return evidence_match is None
-    if evidence_match is None:
-        return False
-    return "golden-decision-table.md" in evidence_match.group(0)
-
-
-def test_adv_ac12_unticked_without_evidence_note_passes():
-    block = "The golden decision table is complete and signed off by the human reviewer."
-    assert _ac12_signoff_ok(False, block)
-
-
-def test_adv_ac12_ticked_with_evidence_note_passes():
-    block = (
-        "The golden decision table is complete and signed off by the human "
-        "reviewer. *(golden-decision-table.md, 2026-07-28)*"
-    )
-    assert _ac12_signoff_ok(True, block)
-
-
-def test_adv_ac12_ticked_without_evidence_note_fails():
-    block = "The golden decision table is complete and signed off by the human reviewer."
-    assert not _ac12_signoff_ok(True, block)
-
-
-def _stage19_signoff_block(progress_text: str):
-    anchor = "golden decision table is complete and signed off"
-    idx = progress_text.find(anchor)
-    assert idx != -1, "Stage 19 acceptance list has no golden-decision-table sign-off item"
-    line_start = progress_text.rfind("\n", 0, idx) + 1
-    checkbox_match = re.match(r"- \[([ xX])\] ", progress_text[line_start:])
-    assert checkbox_match, "sign-off item is not a checkbox list item"
-    ticked = checkbox_match.group(1).lower() == "x"
-
-    end_blank = progress_text.find("\n\n", idx)
-    end_hr = progress_text.find("\n---", idx)
-    candidates = [e for e in (end_blank, end_hr) if e != -1]
-    block_end = min(candidates) if candidates else len(progress_text)
-    return ticked, progress_text[line_start:block_end]
-
-
-def test_ac12_real_progress_md_stage19_checkbox_is_honest():
-    text = _PROGRESS_PATH.read_text(encoding="utf-8")
-    ticked, block = _stage19_signoff_block(text)
-    assert _ac12_signoff_ok(ticked, block), (
-        "progress.md's Stage-19 sign-off checkbox is neither honestly "
-        "unticked nor ticked-with-evidence"
-    )
+# Retired by item 236 (2026-10-17): AC12's real-progress.md Stage 19 box check pinned loop attestation state that 'aide progress archive' moves out of progress.md; the synthetic companions had no other subject.
+# Removed: _ac12_signoff_ok, test_adv_ac12_unticked_without_evidence_note_passes, test_adv_ac12_ticked_with_evidence_note_passes, test_adv_ac12_ticked_without_evidence_note_fails, _stage19_signoff_block, test_ac12_real_progress_md_stage19_checkbox_is_honest.
 
 
 # =========================================================================== #

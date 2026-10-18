@@ -59,7 +59,7 @@ Design decisions (recorded per item 029 spec; item 089 amendments noted):
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from segfacet.heuristics.finding import Finding
 from segfacet.heuristics.fov import derive_fov_coverage
@@ -433,18 +433,3 @@ class CoverageRule(Rule):
                 )
 
         return findings
-
-
-def _find_entry_by_level_name(per_label: dict, level_name: str) -> Optional[dict]:
-    """Locate a ``per_label`` entry whose ``level_name`` matches *level_name*.
-
-    Returns ``None`` if no entry matches or *per_label* is not a mapping, so
-    the caller treats an absent span-end entry as not touching the border
-    (the conservative choice — AC15 tolerance, per the spec's pinned lookup).
-    """
-    if not isinstance(per_label, dict):
-        return None
-    for entry in per_label.values():
-        if isinstance(entry, dict) and entry.get("level_name") == level_name:
-            return entry
-    return None

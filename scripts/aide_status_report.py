@@ -84,6 +84,7 @@ class Stage:
     objectives: str
     status: str  # one of STATUS_ICONS values
     phase: Optional[str] = None  # roadmap phase number this stage belongs to
+    archive: Optional[str] = None  # progress/stage-N.md link of an archived stage
 
 
 @dataclass
@@ -207,7 +208,9 @@ def parse_progress(text: str) -> Tuple[List[Stage], List[Objective], Dict[int, T
         if len(cells) == 4 and re.fullmatch(r"\d+", cells[0]):
             status = _icon_to_status(cells[3])
             if status:
-                stages.append(Stage(cells[0], cells[1], cells[2], status))
+                tm = re.fullmatch(r"\[(.*)\]\((progress/stage-\d+\.md)\)", cells[1])
+                title, archive = (tm.group(1), tm.group(2)) if tm else (cells[1], None)
+                stages.append(Stage(cells[0], title, cells[2], status, archive=archive))
         elif len(cells) == 3 and re.fullmatch(r"G\d+.*", cells[0]):
             status = _icon_to_status(cells[2])
             code_m = re.match(r"(G\d+)\s*(.*)", cells[0])
@@ -479,7 +482,30 @@ def build_report_model(
     item_status: Dict[int, Tuple[str, Optional[str]]] = {}
     if progress_path.is_file():
         progress_text = progress_path.read_text(encoding="utf-8")
-        stages, objectives, item_status = parse_progress(progress_text)
+        # An archived stage's section lives in its linked file: splice each
+        # back (ascending stage, before the first later `## Stage M`), then
+        # parse once so item->stage matches the unarchived tree. A missing
+        # file is skipped (half-done archive/unarchive).
+        linked = sorted(
+            (s for s in parse_progress(progress_text)[0] if s.archive),
+            key=lambda s: int(s.number),
+        )
+        lines = progress_text.splitlines()
+        head_re = re.compile(r"^##\s+Stage\s+(\d+)")
+        for stage in linked:
+            path = aide_dir / stage.archive
+            if not path.is_file():
+                continue
+            block = path.read_text(encoding="utf-8").splitlines()
+            start = next((i for i, l in enumerate(block) if (m := head_re.match(l)) and m.group(1) == stage.number), None)
+            if start is None:
+                continue
+            at = next(
+                (i for i, l in enumerate(lines) if (m := head_re.match(l)) and int(m.group(1)) > int(stage.number)),
+                len(lines),
+            )
+            lines[at:at] = block[start:]
+        stages, objectives, item_status = parse_progress("\n".join(lines))
         phases, stage_to_phase = parse_phases(progress_text)
         for stage in stages:
             stage.phase = stage_to_phase.get(stage.number)

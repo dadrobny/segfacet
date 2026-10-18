@@ -411,7 +411,10 @@ def test_ac11_relabel_swap_run_qc_does_not_surface_swap():
     """Pin FLIPPED 2026-08-31 (item 132): plain run_qc on the swapped map
     now fires MislabelRule's ordering finding (Detector B) on {21, 22} with
     verdict "flagged-for-review" -- the traversal-ordered reference fit
-    surfaces the swap that used to be a documented limitation."""
+    surfaced the swap that used to be a documented limitation. Since item 210
+    (2026-10-05) the check fits no curve: it reads each label's position along
+    a label-free MST path, and the swap is surfaced because the swapped label
+    is out of order along that path."""
     clean = _clean()
     result = RelabelSwapPerturbation(target_label=21, neighbour_label=22).apply(
         clean.seg_img, seed=0

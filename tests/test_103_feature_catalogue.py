@@ -80,8 +80,7 @@ Covers Acceptance Criteria AC1-AC25:
 Adversarial / edge-case scenarios included: ``iter_leaf_paths({})``; a 0-label
 record's ``relationships is None``; a deeply-nested empty dict beside an empty
 list; a level-name *value* that looks like an integer (never normalised); a
-rule that raises mid-trace (build continues); an ambiguous static name
-resolving to >1 path (``static-ambiguous`` on every candidate); idempotence of
+rule that raises mid-trace (build continues); idempotence of
 ``build_catalogue()`` across two calls with no input mutation; the
 status-report loader given a missing file, a directory, truncated JSON, and an
 unknown schema version.
@@ -588,7 +587,7 @@ def test_ac11_overlap_voxels_attributed_to_overlap_rule(full_catalogue):
 
 
 def test_ac12_rule_evidence_tags_and_rule_id_sets(full_catalogue):
-    allowed = {"observed", "static", "static-ambiguous"}
+    allowed = {"observed", "static"}
     for entry in full_catalogue.entries:
         rule_ids_in_evidence = set()
         for rule_id, evidence in entry.rule_evidence:
@@ -1319,37 +1318,6 @@ def test_adv_build_catalogue_idempotent_and_pure(catalogue_module, feature_docs_
     assert first == second
     assert catalogue_module.catalogue_to_dict(first) == catalogue_module.catalogue_to_dict(second)
     assert dict(feature_docs_module.FEATURE_DOCS) == docs_snapshot
-
-
-def test_adv_ambiguous_static_name_tagged_on_every_candidate(full_catalogue):
-    # A last-path-segment name shared by multiple catalogue paths (e.g.
-    # "label", "level_name") is exactly the case mechanism B's name matching
-    # is ambiguous over. Group entries by last segment; if a (rule_id,
-    # "static-ambiguous") pair appears for one member of a group, it must
-    # appear for every member of that same group -- no silent single-winner
-    # pick.
-    from collections import defaultdict
-
-    by_last_segment = defaultdict(list)
-    for entry in full_catalogue.entries:
-        last_segment = entry.path.rstrip("[]").rsplit(".", 1)[-1]
-        by_last_segment[last_segment].append(entry)
-
-    for group in by_last_segment.values():
-        if len(group) < 2:
-            continue
-        ambiguous_rule_ids = {
-            rule_id
-            for entry in group
-            for rule_id, evidence in entry.rule_evidence
-            if evidence == "static-ambiguous"
-        }
-        for rule_id in ambiguous_rule_ids:
-            for entry in group:
-                assert (rule_id, "static-ambiguous") in entry.rule_evidence, (
-                    entry.path,
-                    rule_id,
-                )
 
 
 def test_adv_status_report_loader_directory_returns_empty_tuple(asr, tmp_path):

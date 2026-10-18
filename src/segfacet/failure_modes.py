@@ -275,11 +275,13 @@ opts in to ``displaced_vertebra``. A genuine label swap can put the moved
 vertebra's centroid off the curve too, so ``spline_offset`` fires on it and
 the gate was dropping ``mislabel``'s own ordering finding on the same label,
 hiding a real segmentation defect behind the anatomy condition. The
-ordering signal is not spoiled by a displacement -- it is judged against a
-reference curve fitted in S-sorted label order, and a swapped label keeps
-its place in that order unless it moves past a neighbour. ``mislabel``
-still does not opt in to ``fov_truncation``: the crop spoils a truncated
-label's measured centroid, and the ordering is read from centroids.
+ordering signal is not spoiled by a displacement -- it reads each label's
+position along a label-free path through the centroids (item 210; item 132's
+reference curve fitted in S-sorted label order is what it replaced), and a
+swapped label keeps its place along that path unless it moves past a
+neighbour. ``mislabel`` still does not opt in to ``fov_truncation``: the crop
+spoils a truncated label's measured centroid, and the ordering is read from
+centroids.
 
 One check per failure mode for label order and label-set gaps (item 219, 2026-10-12)
 ------------------------------------------------------------------------------------

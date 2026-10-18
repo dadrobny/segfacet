@@ -33,7 +33,10 @@ Two public surfaces:
   fixtures + manifest to disk, deterministically).
 * A **CLI entry point** -- ``python -m segfacet.synth.corpus [--out DIR]``
   (:func:`main`), regenerating the committed corpus under
-  ``tests/corpus/`` by default.
+  ``tests/corpus/`` by default and, in the same run, the contact sheet
+  (``docs/aide/corpus_sheet.png`` for the default directory, else
+  ``<out>/corpus_sheet.png``). Without matplotlib the manifest is still
+  written, stderr names the unwritten sheet, and the exit code is ``1``.
 
 No committed case is ``detection == "reconstructed_record"`` any more: the
 ``force_overlap`` case (mode 15) was removed by item 195 (2026-09-28)
@@ -67,6 +70,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -552,7 +556,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     """``python -m segfacet.synth.corpus [--out DIR]`` -- regenerate the corpus.
 
     Regenerates the fixtures + manifest under ``--out`` (default:
-    :data:`CORPUS_DIR`). Returns ``0`` on success.
+    :data:`CORPUS_DIR`) and renders the contact sheet from that manifest: to
+    ``corpus_sheet.SHEET_PATH`` when ``--out`` is :data:`CORPUS_DIR`, else to
+    ``<out>/corpus_sheet.png``. Returns ``0`` on success; ``1`` (manifest
+    written, sheet not) when matplotlib is not importable.
     """
     parser = argparse.ArgumentParser(
         prog="segfacet.synth.corpus",
@@ -568,6 +575,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     manifest_path = write_corpus(Path(args.out))
     print(f"Wrote corpus manifest to {manifest_path}")
+
+    # corpus_sheet imports this module at its top level, so import it lazily.
+    from segfacet.synth import corpus_sheet
+
+    if Path(args.out).resolve() == CORPUS_DIR.resolve():
+        sheet_path = Path(corpus_sheet.SHEET_PATH)
+    else:
+        sheet_path = Path(args.out) / "corpus_sheet.png"
+    try:
+        import matplotlib  # noqa: F401
+    except ImportError:
+        print(
+            f"Did not write corpus sheet {sheet_path}: matplotlib is not "
+            "importable; rerun this command with the dev extra installed.",
+            file=sys.stderr,
+        )
+        return 1
+    corpus_sheet.render_sheet(out=sheet_path, manifest_path=manifest_path)
+    print(f"Wrote corpus sheet to {sheet_path}")
     return 0
 
 
