@@ -244,6 +244,7 @@ dependency. A7 is the interface this item **produces** for item 231.
 - `src/segfacet/eval/harness.py` — `CaseEvaluation.label_outcomes` and its wiring in `evaluate_case` (AC7, AC8)
 - `src/segfacet/eval/metrics.py` — `CohortMetrics.label_metrics` and its omission when absent (AC9–AC11)
 - `tests/test_230_label_mode_expectation.py` — the item's tests
+- `tests/test_099_per_mode_metrics.py` — added by the 2026-10-18 correction: `test_ac25_eval_metrics_public_names_unchanged` pins `CohortMetrics`'s exact field set, reconciled to include `label_metrics` and nothing else
 
 **Asserts against:**
 
@@ -322,6 +323,27 @@ These tests, together with `tests/test_053_eval_harness.py`,
 `tests/test_057_acceptance_stage7.py`, `tests/test_153_eval_harness_rekey.py`
 and `tests/test_190_condition_keyed_eval_bucket.py`, are what keep the
 one-mode metric values pinned. They must pass unchanged.
+
+**Correction (2026-10-18), after validation round 1.** The "none expected"
+claim above is wrong: the sweep missed an exact-equality pin.
+`tests/test_099_per_mode_metrics.py::test_ac25_eval_metrics_public_names_unchanged`
+asserts `{f.name for f in dataclasses.fields(CohortMetrics)} == {...}`, so the
+new `label_metrics` field fails it. It is the one existing test to reconcile:
+add `"label_metrics"` to that expected set and change nothing else in the
+file (no other assertion, no other test). The file is added to **May change**
+for this alone. The other pins listed above stand as written.
+
+**Correction (2026-10-18), after validation round 1 — scenario fixture.** The
+AC7 and AC9–AC12 fixtures above say the scenario comes from
+`segfacet.synth.corpus.build_corpus()` cases. Round 1 showed no corpus case
+under `bundled_default_config()` yields counted findings on two labels at two
+different modes, so the multi-label, multi-mode scenario cannot be drawn from
+the corpus. The test may instead construct its own label map — through
+`tests/synthetic.py` and `segfacet.synth` helpers, combining two defects on
+two different labels — and run it through `run_qc` / `evaluate_case` /
+`evaluate_cohort` exactly as the corpus case would have been. The rule that
+expected outcomes and counts are recomputed from the live results, never from
+literals, is unchanged.
 
 ## Dependencies
 
