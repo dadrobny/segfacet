@@ -121,18 +121,16 @@ def classify_label_outcomes(
 
     pairs = _validated_label_modes(expected["label_modes"])
     counted = [
-        f for f in tuple(actual.findings) if f.severity >= positive_severity
+        (f, modes_for_detector(f.rule_id, getattr(f, "detector_id", "")))
+        for f in tuple(actual.findings)
+        if f.severity >= positive_severity
     ]
     out = []
     for label, mode in pairs:
-        on_label = [f for f in counted if label in f.labels]
+        on_label = [(f, served) for f, served in counted if label in f.labels]
         detected = None
         if mode != 0:
-            detected = any(
-                mode
-                in modes_for_detector(f.rule_id, getattr(f, "detector_id", ""))
-                for f in on_label
-            )
+            detected = any(mode in served for _, served in on_label)
         out.append(
             LabelOutcome(
                 label=label,

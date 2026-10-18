@@ -38,7 +38,7 @@ Public API
 ``CaseEvaluation``
     Frozen dataclass: the per-case output record (``outcome``, ``overlap``,
     ``feature_match``, ``candidate_present``, ``subject``, ``metadata``,
-    ``per_mode``), with a JSON-serialisable ``to_dict()``.
+    ``per_mode``, ``label_outcomes``), with a JSON-serialisable ``to_dict()``.
 ``CohortEvaluation``
     Frozen dataclass wrapping a tuple of :class:`CaseEvaluation` records, with
     ``n_cases`` and a JSON-serialisable ``to_dict()``.
@@ -280,6 +280,11 @@ class CaseEvaluation:
         case's already-derived subject block/candidate/GT/spacing when
         :func:`evaluate_case` was called with ``per_mode=True``; ``None``
         otherwise (the default).
+    label_outcomes:
+        Item 230's per-label scoring: one
+        :class:`~segfacet.eval.label_outcome.LabelOutcome` per
+        ``(label, failure_mode)`` pair in the case's ``expected["label_modes"]``;
+        ``None`` when the expectation carries no ``label_modes``.
     """
 
     case_id: str
