@@ -538,6 +538,18 @@ def _build_parser() -> argparse.ArgumentParser:
             "without --per-mode."
         ),
     )
+    evaluate_parser.add_argument(
+        "--review-labels",
+        default=None,
+        metavar="<csv>",
+        help=(
+            "Path to a review-label table (schema 'rl1', pinned from "
+            "spine-failure-lab; item 231). Each cohort case with a row gets the "
+            "per-label expectation the table states and its dataset role; a "
+            "case with no row is dropped. A test-role case cannot be used with "
+            "--calibrate."
+        ),
+    )
     _add_dataset_schema_args(evaluate_parser)
     _add_run_manifest_args(evaluate_parser)
     evaluate_parser.set_defaults(handler=_handle_evaluate)
@@ -900,6 +912,8 @@ def _handle_run(args: argparse.Namespace) -> int:
 
     findings_dicts = [f.to_dict() for f in case_result.findings]
 
+    from segfacet import revision  # noqa: PLC0415
+
     json_str = serialize_report_json(
         verdict,
         case_id,
@@ -908,6 +922,7 @@ def _handle_run(args: argparse.Namespace) -> int:
         findings=findings_dicts,
         reference_delta=reference_delta,
         run_manifest=run_manifest,
+        facet_revision=revision.facet_revision(),
     )
     json_path = out_path / "segfacet_report.json"
     json_path.write_text(json_str, encoding="utf-8")
@@ -1098,6 +1113,22 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
                 return 1
         else:
             cases = load_cohort_manifest(args.cohort)
+        if args.review_labels:
+            from segfacet.eval.review_labels import (  # noqa: PLC0415
+                apply_review_labels,
+                read_review_label_table,
+                refuse_test_role,
+            )
+
+            cases = apply_review_labels(cases, read_review_label_table(args.review_labels))
+            if not cases:
+                print(
+                    "Error: no cohort case has a row in the --review-labels table.",
+                    file=sys.stderr,
+                )
+                return 1
+            if args.calibrate:
+                refuse_test_role(cases, purpose="threshold calibration")
     except (FacetInputError, OSError, DatasetSchemaError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -1143,15 +1174,19 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
     # --- 3. Optional calibration ----------------------------------------------- #
     if args.calibrate:
         axes = default_calibration_axes()
-        calibration = calibrate_thresholds(
-            cases,
-            cfg,
-            axes,
-            reference=reference,
-            stratum=stratum,
-            lower_pct=lower_pct,
-            upper_pct=upper_pct,
-        )
+        try:
+            calibration = calibrate_thresholds(
+                cases,
+                cfg,
+                axes,
+                reference=reference,
+                stratum=stratum,
+                lower_pct=lower_pct,
+                upper_pct=upper_pct,
+            )
+        except FacetInputError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
     else:
         axes = None
         calibration = None
@@ -1176,12 +1211,15 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
             run_manifest=run_manifest,
         )
 
+    from segfacet import revision  # noqa: PLC0415
+
     report = build_evaluation_report(
         metrics,
         provenance,
         calibration=calibration,
         run_manifest=run_manifest,
         per_mode_summary=per_mode_summary,
+        facet_revision=revision.facet_revision(),
     )
 
     out_path = pathlib.Path(args.out)

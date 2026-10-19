@@ -61,7 +61,7 @@ _ARTIFACT_PATH = (
 )
 _ARTIFACT_REL_POSIX = "src/segfacet/reference/reference_verse_v1.json"
 _RELEASED_DIGEST = (
-    "2048804f60208a4dea0cbe8d0980e1e6228c68b52b6331375f768254fc73b5da"
+    "845d29e8958d8730271d38fc1087c17e25c802886a4225d8ac235f1453875062"
 )
 _DECISION_TABLE = _REPO_ROOT / "docs" / "aide" / "golden-decision-table.md"
 

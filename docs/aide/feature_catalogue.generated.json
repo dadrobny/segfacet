@@ -636,17 +636,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 112.0,
-              "maximum": 112.0,
-              "minimum": 42.0,
+              "magnitude": 129.609,
+              "maximum": 129.609,
+              "minimum": 36.8457,
               "population": "reference",
               "source": [
                 "extent_x_mm"
               ],
-              "span": 70.0
+              "span": 92.7637
             },
             "verdict": "varies"
           },
@@ -708,17 +708,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 107.0,
-              "maximum": 107.0,
+              "magnitude": 118.469,
+              "maximum": 118.469,
               "minimum": 22.0,
               "population": "reference",
               "source": [
                 "extent_y_mm"
               ],
-              "span": 85.0
+              "span": 96.4688
             },
             "verdict": "varies"
           },
@@ -780,17 +780,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 114.015,
-              "maximum": 114.015,
-              "minimum": 23.0,
+              "magnitude": 129.016,
+              "maximum": 129.016,
+              "minimum": 19.2,
               "population": "reference",
               "source": [
                 "extent_z_mm"
               ],
-              "span": 91.0146
+              "span": 109.816
             },
             "verdict": "varies"
           },
@@ -864,17 +864,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 98970.7,
-              "maximum": 98970.7,
+              "magnitude": 104091.0,
+              "maximum": 104091.0,
               "minimum": 7820.0,
               "population": "reference",
               "source": [
                 "physical_volume_mm3"
               ],
-              "span": 91150.7
+              "span": 96270.9
             },
             "verdict": "varies"
           },
@@ -1663,7 +1663,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 21.0,
@@ -2022,7 +2022,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 1.0,
@@ -3961,17 +3961,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 703,
+              "count": 1355,
               "covered": true,
               "informative": true,
-              "magnitude": 18.5103,
-              "maximum": 18.5103,
+              "magnitude": 8.84817,
+              "maximum": 8.84817,
               "minimum": 0.0,
               "population": "reference",
               "source": [
                 "spline_offset_mm"
               ],
-              "span": 18.5103
+              "span": 8.84817
             },
             "verdict": "varies"
           },
@@ -4450,7 +4450,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 4.4329,
@@ -5971,7 +5971,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 4.71559,
@@ -6017,17 +6017,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 884.613,
-              "maximum": 884.613,
+              "magnitude": 910.0,
+              "maximum": 910.0,
               "minimum": 101.856,
               "population": "reference",
               "source": [
                 "intensity_iqr"
               ],
-              "span": 782.757
+              "span": 808.144
             },
             "verdict": "varies"
           },
@@ -6065,7 +6065,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 3498.18,
@@ -6113,17 +6113,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 687.217,
-              "maximum": 687.217,
+              "magnitude": 757.244,
+              "maximum": 757.244,
               "minimum": 157.012,
               "population": "reference",
               "source": [
                 "intensity_mean"
               ],
-              "span": 530.205
+              "span": 600.231
             },
             "verdict": "varies"
           },
@@ -6172,17 +6172,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 581.262,
-              "maximum": 581.262,
+              "magnitude": 728.0,
+              "maximum": 728.0,
               "minimum": 103.632,
               "population": "reference",
               "source": [
                 "intensity_median"
               ],
-              "span": 477.63
+              "span": 624.368
             },
             "verdict": "varies"
           },
@@ -6229,17 +6229,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 1298.86,
-              "maximum": -1.73518,
+              "maximum": 28.0,
               "minimum": -1298.86,
               "population": "reference",
               "source": [
                 "intensity_min"
               ],
-              "span": 1297.13
+              "span": 1326.86
             },
             "verdict": "varies"
           },
@@ -6319,17 +6319,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 410.434,
-              "maximum": 241.398,
+              "maximum": 249.0,
               "minimum": -410.434,
               "population": "reference",
               "source": [
                 "intensity_p05"
               ],
-              "span": 651.832
+              "span": 659.434
             },
             "verdict": "varies"
           },
@@ -6365,17 +6365,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 386.807,
-              "maximum": 386.807,
+              "magnitude": 484.0,
+              "maximum": 484.0,
               "minimum": -54.228,
               "population": "reference",
               "source": [
                 "intensity_p25"
               ],
-              "span": 441.035
+              "span": 538.228
             },
             "verdict": "varies"
           },
@@ -6411,17 +6411,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 581.262,
-              "maximum": 581.262,
+              "magnitude": 728.0,
+              "maximum": 728.0,
               "minimum": 103.632,
               "population": "reference",
               "source": [
                 "intensity_p50"
               ],
-              "span": 477.63
+              "span": 624.368
             },
             "verdict": "varies"
           },
@@ -6457,7 +6457,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 1125.04,
@@ -6503,7 +6503,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 1600.76,
@@ -6549,7 +6549,7 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
               "magnitude": 4750.4,
@@ -6608,17 +6608,17 @@
             },
             "numeric": true,
             "reference": {
-              "count": 863,
+              "count": 1638,
               "covered": true,
               "informative": true,
-              "magnitude": 523.795,
-              "maximum": 523.795,
+              "magnitude": 558.243,
+              "maximum": 558.243,
               "minimum": 105.859,
               "population": "reference",
               "source": [
                 "intensity_std"
               ],
-              "span": 417.937
+              "span": 452.384
             },
             "verdict": "varies"
           },

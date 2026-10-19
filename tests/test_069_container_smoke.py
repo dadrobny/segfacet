@@ -28,6 +28,7 @@ import subprocess
 from pathlib import Path
 
 from conftest import requires_docker
+from segfacet.report import REPORT_SCHEMA_VERSION
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -247,7 +248,7 @@ def test_ac8_happy_path_report_has_deterministic_content(docker_image_tag, tmp_p
     assert result.returncode == 0, result.stderr
 
     report = json.loads((out_dir / "segfacet_report.json").read_text(encoding="utf-8"))
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     assert report["case_id"]
     assert report["verdict"] in ("pass", "flagged-for-review", "fail")
 

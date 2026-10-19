@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from segfacet.config import HeuristicConfig
     from segfacet.verdict import Reason, Verdict
 
-__all__ = ["serialize_report", "serialize_report_json"]
+__all__ = ["REPORT_SCHEMA_VERSION", "serialize_report", "serialize_report_json"]
 
 # --------------------------------------------------------------------------- #
 # Module-level schema cache
@@ -54,8 +54,9 @@ def _load_schema() -> dict:
 
 _SCHEMA: dict = _load_schema()
 
-# Report schema version discriminator — always "0.1" for v0.
-_REPORT_SCHEMA_VERSION = "0.1"
+# Report schema version. Moves whenever a feature leaf path moves; see
+# segfacet.report_schema_pin (item 233).
+REPORT_SCHEMA_VERSION = "0.2"
 
 
 # --------------------------------------------------------------------------- #
@@ -95,6 +96,7 @@ def serialize_report(
     findings: "list | None" = None,
     reference_delta: "dict | None" = None,
     run_manifest: "dict | None" = None,
+    facet_revision: "dict | None" = None,
 ) -> dict:
     """Serialize a :class:`~segfacet.verdict.Verdict` to a v0 report dict.
 
@@ -138,6 +140,11 @@ def serialize_report(
         ``run_manifest`` key and validated together with the rest of the
         report. When ``None`` (default) no ``run_manifest`` key is emitted,
         preserving every prior report shape.
+    facet_revision:
+        Optional FACET revision block (item 232), as produced by
+        ``segfacet.revision.facet_revision()``. When non-``None`` it is
+        embedded verbatim under the report's ``facet_revision`` key. When
+        ``None`` (default) no key is emitted; the builder reads no git state.
 
     Returns
     -------
@@ -160,7 +167,7 @@ def serialize_report(
         raise ValueError("case_id must be a non-empty string")
 
     report = {
-        "schema_version": _REPORT_SCHEMA_VERSION,
+        "schema_version": REPORT_SCHEMA_VERSION,
         "config_version": config.schema_version,
         "case_id": case_id,
         "verdict": verdict.overall.label,
@@ -197,6 +204,11 @@ def serialize_report(
     if run_manifest is not None:
         report["run_manifest"] = run_manifest
 
+    # Optional FACET revision block (item 232); caller-supplied, so this
+    # function stays pure.
+    if facet_revision is not None:
+        report["facet_revision"] = facet_revision
+
     jsonschema.validate(report, _SCHEMA)
     return report
 
@@ -210,6 +222,7 @@ def serialize_report_json(
     findings: "list | None" = None,
     reference_delta: "dict | None" = None,
     run_manifest: "dict | None" = None,
+    facet_revision: "dict | None" = None,
 ) -> str:
     """Serialize a :class:`~segfacet.verdict.Verdict` to a JSON string.
 
@@ -239,6 +252,9 @@ def serialize_report_json(
     run_manifest:
         Optional run-manifest provenance block (item 096), forwarded to
         :func:`serialize_report`.
+    facet_revision:
+        Optional FACET revision block (item 232), forwarded to
+        :func:`serialize_report`.
 
     Returns
     -------
@@ -253,5 +269,6 @@ def serialize_report_json(
         findings=findings,
         reference_delta=reference_delta,
         run_manifest=run_manifest,
+        facet_revision=facet_revision,
     )
     return json.dumps(report, indent=indent)

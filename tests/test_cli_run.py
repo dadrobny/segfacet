@@ -7,7 +7,7 @@ plain-text reports, and handling error paths. All I/O is isolated to pytest's
 
 Fixtures are sourced from ``conftest.py`` (item 002's canonical set).
 
-Report format: v0 JSON schema (``schema_version`` = ``"0.1"``), required fields:
+Report format: v0 JSON schema (``schema_version`` = ``REPORT_SCHEMA_VERSION``), required fields:
 ``schema_version``, ``config_version``, ``case_id``, ``verdict``, ``reasons``,
 ``per_label``.  Exit codes: 0 for pass/flagged-for-review, 1 for fail or input
 error.
@@ -22,6 +22,7 @@ import sys
 import pytest
 
 from segfacet.cli import main
+from segfacet.report import REPORT_SCHEMA_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +102,7 @@ def test_run_json_fields(labelled_blocks_files, tmp_path, capsys):
         data = json.load(fh)
 
     # v0 schema required fields
-    assert "schema_version" in data and data["schema_version"] == "0.1"
+    assert "schema_version" in data and data["schema_version"] == REPORT_SCHEMA_VERSION
     assert "config_version" in data and isinstance(data["config_version"], str)
     assert data["config_version"] != ""
     assert "case_id" in data and isinstance(data["case_id"], str)
@@ -294,7 +295,7 @@ def test_run_empty_labelmap_inventory(empty_labelmap_files, tmp_path, capsys):
     with report_path.open(encoding="utf-8") as fh:
         data = json.load(fh)
     # v0 schema fields
-    assert data["schema_version"] == "0.1"
+    assert data["schema_version"] == REPORT_SCHEMA_VERSION
     assert data["verdict"] == "fail"
     # At least one reason must be present explaining the failure
     assert len(data["reasons"]) >= 1
@@ -431,7 +432,7 @@ def test_run_anisotropic_spacing_pass_verdict(tmp_path, capsys):
     assert data["verdict"] == "flagged-for-review"
     assert data["findings"]
     assert all(f["rule_id"] == "bounds" for f in data["findings"])
-    assert data["schema_version"] == "0.1"
+    assert data["schema_version"] == REPORT_SCHEMA_VERSION
 
 
 def test_run_unknown_labels_pass_verdict(tmp_path, capsys):
@@ -468,7 +469,7 @@ def test_run_unknown_labels_pass_verdict(tmp_path, capsys):
     assert code == 0
     with (out_dir / "segfacet_report.json").open(encoding="utf-8") as fh:
         report = json.load(fh)
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     assert report["verdict"] == "flagged-for-review"
     assert report["findings"]
     assert all(f["rule_id"] == "border" for f in report["findings"])
@@ -513,7 +514,7 @@ def test_run_single_voxel_volume(tmp_path, capsys):
     with (out_dir / "segfacet_report.json").open(encoding="utf-8") as fh:
         report = json.load(fh)
     # v0 schema required fields must all be present
-    assert report["schema_version"] == "0.1"
+    assert report["schema_version"] == REPORT_SCHEMA_VERSION
     assert report["verdict"] == "flagged-for-review"
     assert report["findings"]
     assert {f["rule_id"] for f in report["findings"]} <= {"bounds", "border"}

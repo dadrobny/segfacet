@@ -29,7 +29,7 @@ import pytest
 from segfacet.config import HeuristicConfig, default_config
 from segfacet.heuristics.finding import Finding
 from segfacet.human_report import render_human_report
-from segfacet.report import serialize_report, serialize_report_json
+from segfacet.report import REPORT_SCHEMA_VERSION, serialize_report, serialize_report_json
 from segfacet.verdict import Reason, Severity, Verdict
 
 # Default label convention (item 004): the labels used throughout this file.
@@ -126,10 +126,10 @@ def test_ac10_finding_def_severity_is_enum_of_three_labels():
 
 
 def test_ac10_schema_version_stays_0_1():
-    """AC10: schema_version's const is unchanged at '0.1'."""
+    """AC10: schema_version's const equals REPORT_SCHEMA_VERSION."""
     from segfacet.report import _SCHEMA
 
-    assert _SCHEMA["properties"]["schema_version"]["const"] == "0.1"
+    assert _SCHEMA["properties"]["schema_version"]["const"] == REPORT_SCHEMA_VERSION
 
 
 # =========================================================================== #

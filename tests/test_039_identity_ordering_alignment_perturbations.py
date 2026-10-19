@@ -56,7 +56,10 @@ from segfacet.features.consistency import compute_monotonic_consistency
 from segfacet.features.spline import fit_centroid_spline
 from segfacet.features.spline_offset import compute_spline_offsets
 from segfacet.heuristics.mislabel import MislabelRule
-from segfacet.heuristics.spline_offset import SplineOffsetRule  # item 189 (2026-09-28)
+from segfacet.heuristics.spline_offset import (  # item 189 (2026-09-28)
+    _DEFAULT_MAX_TERMINAL_OFFSET_MM,
+    SplineOffsetRule,
+)
 from segfacet.io import FacetInputError
 from segfacet.pipeline import extract_feature_record, run_qc
 from segfacet.synth import (
@@ -178,12 +181,18 @@ def _designated_rule_fires_reconstructed(operator_name, labelmap, expectation):
             # line reading instead, so the designated rule fires on a
             # terminal target exactly when the reconstructed record's
             # curve.terminal_offset_mm is at least the configured
-            # max_offset_mm.
-            max_offset = float(
-                cfg.rule_param("spline_offset", "max_offset_mm", default=13.0)
+            # max_terminal_offset_mm (item 234: its own parameter, no longer
+            # the interior max_offset_mm).
+            max_terminal_offset = float(
+                cfg.rule_param(
+                    "spline_offset",
+                    "max_terminal_offset_mm",
+                    default=_DEFAULT_MAX_TERMINAL_OFFSET_MM,
+                )
             )
             return fires == (
-                terminal_reading is not None and terminal_reading >= max_offset
+                terminal_reading is not None
+                and terminal_reading >= max_terminal_offset
             )
         return fires
     if operator_name == "relabel_swap":
@@ -299,7 +308,7 @@ def test_ac5_displace_run_qc_surfaces_mislabel_finding():
     union = set()
     for f in spline_offset:
         union |= set(f.labels)
-    assert union == {22}
+    assert union == {21, 22}
 
 
 def test_ac6_displace_expectation_well_formed():

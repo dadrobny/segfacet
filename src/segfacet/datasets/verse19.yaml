@@ -10,27 +10,32 @@
 #     rawdata/sub-verseNNN/sub-verseNNN_ct.nii.gz
 #
 # Usage:
-#   * pick a split via `--subset training|validation|test` (root override), or
+#   * pick a split via `--subset development|calibration|test` (root override), or
 #   * point `--data-root` directly at one split directory.
+# The subsets are the three dataset roles (development = training split,
+# calibration = validation split, test = test split); see spine-failure-lab's
+# facet-interface.md "Dataset roles" table.
 # Resolving with neither yields an empty cohort (the split folders live one level
 # below `data_root`). `data_root` below is the project's known mount and is meant
 # to be overridden with `--data-root` on other machines.
 #
 # `seg`/`scan` are relative to the *resolved* root (i.e. the selected split). The
 # `case_id` regex keeps the split-subject infix, so each `_split-verseMMM` mask is
-# its own case; a split subject whose CT is not named `<case_id>_ct.nii.gz` simply
-# resolves `scan_path = None` (geometry-only), never an error.
+# its own case. A split subject's CT lives under its parent's `rawdata/` directory
+# (`rawdata/sub-verseNNN/sub-verseNNN_split-verseMMM_ct.nii.gz`), which the `sub`
+# group addresses. A case whose CT is absent simply resolves `scan_path = None`
+# (geometry-only), never an error.
 
 data_root: /mnt/data/spine/data/datasets/VerSe/VerSe19
 seg: "derivatives/sub-*/**/*_seg-vert_msk.nii.gz"
-case_id: "(?P<id>sub-verse\\d+(?:_split-verse\\d+)?)_seg-vert_msk\\.nii\\.gz$"
-scan: "rawdata/{id}/{id}_ct.nii.gz"
+case_id: "(?P<id>(?P<sub>sub-verse\\d+)(?:_split-verse\\d+)?)_seg-vert_msk\\.nii\\.gz$"
+scan: "rawdata/{sub}/{id}_ct.nii.gz"
 label_convention: default
 role: gt
 subsets:
-  training:
+  development:
     root: dataset-verse19training
-  validation:
+  calibration:
     root: dataset-verse19validation
   test:
     root: dataset-verse19test

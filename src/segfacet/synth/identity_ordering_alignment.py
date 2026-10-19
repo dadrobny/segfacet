@@ -85,8 +85,8 @@ __all__ = [
 ]
 
 # Default translation magnitude (mm) for `displace`, split across the two
-# in-plane axes -- clears the mislabel spline-offset threshold (13.0 mm since
-# item 123; the item-039 spec measured it against the then 15.0 mm).
+# in-plane axes -- clears the spline-offset threshold (8.0 mm interior since
+# item 234, 13.0 mm from item 123; the item-039 spec measured it against 15.0 mm).
 _DEFAULT_DISPLACEMENT_MM: float = 18.0
 
 # Default replacement label for `sequence_break` -- T13 (label 28), whose

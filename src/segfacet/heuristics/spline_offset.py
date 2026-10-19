@@ -18,8 +18,9 @@ per item 189 spec A1-A3):
   skip, direction clause and severity handling move **verbatim** from
   ``mislabel.py``. The only visible difference is the finding's ``rule_id``:
   ``"spline_offset"`` instead of ``"mislabel"``.
-- Fires on ``offset_mm >= max_offset_mm`` (default ``13.0``, inclusive) and
-  is label-attributed (single offending label).
+- Fires on ``offset_mm >= max_offset_mm`` (default ``8.0`` since item 234,
+  inclusive; a terminal entry uses ``max_terminal_offset_mm``, default
+  ``13.0``) and is label-attributed (single offending label).
 - A **terminal** entry (``is_terminal`` truthy, item 123) is never judged on
   its extrapolating ``offset_mm``. Since item 222 it is judged on
   ``terminal_offset_mm`` (a one-sided line reading), and an entry without that
@@ -43,7 +44,8 @@ per item 189 spec A1-A3):
   processing.
 - The caller's record is never mutated.
 - **Params live in the rule's own section** (A3): reads
-  ``rules.spline_offset.params.max_offset_mm`` (default 13.0) and
+  ``rules.spline_offset.params.max_offset_mm`` (default 8.0),
+  ``rules.spline_offset.params.max_terminal_offset_mm`` (default 13.0) and
   ``rules.spline_offset.params.severity`` (default ``"flagged-for-review"``).
   Enabled when the section is absent, like ``neighbour_contact``. The
   retired ``mislabel.flag_offset_outliers`` key has no equivalent here: this
@@ -60,15 +62,21 @@ below) -- it opts in to no other condition, so a label this rule reports that
 is also a member of ``fov_truncation`` is gated (the crop displaces the
 truncated label's centroid, so it cannot also be judged genuinely displaced).
 
-Threshold calibration (item 123, recalibrated 2026-08-29)
------------------------------------------------------------
+Threshold calibration (item 123, recalibrated 2026-08-29; item 234, 2026-10-18)
+---------------------------------------------------------------------------------
 ``_DEFAULT_MAX_OFFSET_MM`` is derived (``scripts/rebuild_verse_reference.py
-::derive_max_offset_mm``) from the real, 80-subject VerSe19 training cohort's
-committed ``reference_verse_v1.json``: the smallest multiple of ``0.5`` mm
-strictly above ``P``, floored at ``6.0`` mm, where ``P`` is the maximum
-``spline_offset_mm`` ``p99`` over levels with at least 10 **interior**
-(non-terminal, see below) occurrences. The measured ceiling is
-``P = 12.91`` mm at level ``T10``, giving ``_DEFAULT_MAX_OFFSET_MM = 13.0``.
+::derive_max_offset_mm``) from the committed ``reference_verse_v1.json``: the
+smallest multiple of ``0.5`` mm strictly above ``P``, floored at ``6.0`` mm,
+where ``P`` is the maximum ``spline_offset_mm`` ``p99`` over levels with at
+least 10 **interior** (non-terminal, see below) occurrences. Since item 234
+the artifact is built from the ``development`` role of both VerSe releases
+(141 cases: 80 VerSe19 training, 61 VerSe20 training) and withholds the
+``spline_offset_mm`` reading of ``sub-verse406_split-verse261`` T10 (label 17,
+a rare wedge vertebra, 18.51 mm; ``gate-fac1`` owner decision 2026-10-16).
+Measured 2026-10-18 on that cohort: ``P = 7.916`` mm at level ``L4``
+(106 readings), giving ``_DEFAULT_MAX_OFFSET_MM = 8.0``. The exclusion moves
+T10's p99 but not ``P``. The item-123 value was 13.0 (``P = 12.91`` mm at T10
+over 80 VerSe19 cases, where the 18.51 mm reading set that p99).
 
 **Terminal vertebrae are excluded from this measurement** (item 123, human
 decision 2026-08-29; since item 222 the detector judges them on
@@ -79,8 +87,8 @@ held-out estimator's terminal-extrapolation artefact
 rather than real anatomy -- `L5`'s *interior* offset never exceeds `1.00` mm
 in the same cohort. Excluding terminal entries from the reference
 distribution (`reference/ingest.py`) brought the measurement back inside the
-approved corpus window. The interior ``max_offset_mm`` stays 13.0 and
-``gate-fac1`` is unchanged.
+approved corpus window. The interior threshold was 13.0 then (8.0 since item 234) and ``gate-fac1`` is
+unchanged.
 
 Corpus margins (from `tests/corpus/manifest.json`'s cases, each measured via
 a freshly built `extract_feature_record`, all on **interior** entries only,
@@ -92,10 +100,11 @@ re-measured 2026-09-28 against the lordotic base fixture, item 189):
   not the translation whose `18.025609` mm reading used to fire here). It no
   longer bounds the threshold, so ``_DEFAULT_MAX_OFFSET_MM``'s upper bound
   rests on `displace`'s reading alone. The non-firing ceiling above does not
-  move.
+  move. `displace`'s neighbours read `6.919` mm (label 21) and `6.562` mm
+  (label 23), also non-firing under 8.0 mm (item 234).
 - `displace`'s label-22 reading is `14.615923` mm and **must** fire --
-  1.62 mm above the threshold (item 177's lateral form lowered it from item
-  173's 17.615126).
+  6.62 mm above the 8.0 mm threshold (item 177's lateral form lowered it from
+  item 173's 17.615126).
 
 Corpus terminal margins (item 222, ``terminal_offset_mm``): `clean_control`
 5.05 / 8.51 mm; `displace` 7.58 / 11.15 (the displaced L3 is skipped as
@@ -108,8 +117,13 @@ Terminal calibration (item 222, 2026-10-13)
 -------------------------------------------
 Method: ``terminal_offset_mm``, the one-sided straight-line extrapolation
 (distance from the terminal centroid to the line through its two nearest
-non-withheld neighbours), judged at the existing 13.0 mm, inclusive. The
-interior ``max_offset_mm`` stays 13.0 and ``gate-fac1`` is unchanged.
+non-withheld neighbours), judged at 13.0 mm, inclusive, under its own parameter
+``max_terminal_offset_mm`` (item 234 split it from ``max_offset_mm`` so the
+interior re-derivation to 8.0 mm leaves terminals at item 222's calibrated
+value; at 8.0 the corpus terminals ``clean_control`` L5 8.513 mm and others
+would fire). Item 234 also applies ``gate-fac1``'s exclusion: the
+sub-verse406_split-verse261 T10 offset is withheld from the reference build
+(``scripts/rebuild_verse_reference.py``); the terminal method is unchanged.
 
 Measured 2026-10-14 on the 80-subject VerSe19 training cohort at the working
 tree built on commit ``5373c58e`` (this branch; the item-222 implementation
@@ -150,7 +164,12 @@ __all__ = ["SplineOffsetRule"]
 
 _MISALIGN_TAG = "Vertebra misaligned from spinal curve:"
 
-_DEFAULT_MAX_OFFSET_MM = 13.0
+_DEFAULT_MAX_OFFSET_MM = 8.0
+
+#: Terminal vertebrae are judged on ``terminal_offset_mm`` against their own
+#: threshold (item 234, A10): item 222's calibration, which the interior
+#: re-derivation does not move.
+_DEFAULT_MAX_TERMINAL_OFFSET_MM = 13.0
 
 
 # --------------------------------------------------------------------------- #
@@ -320,10 +339,14 @@ class SplineOffsetRule(Rule):
                 fires_when=(
                     "a non-terminal label's `offset_mm`, or a terminal "
                     "(sequence-first/last) label's `terminal_offset_mm`, is "
-                    ">= `max_offset_mm` (inclusive); a terminal without a "
+                    ">= `max_offset_mm` (interior) or `max_terminal_offset_mm` "
+                    "(terminal), inclusive; a terminal without a "
                     "`terminal_offset_mm` is skipped"
                 ),
-                params=(("max_offset_mm", _DEFAULT_MAX_OFFSET_MM),),
+                params=(
+                    ("max_offset_mm", _DEFAULT_MAX_OFFSET_MM),
+                    ("max_terminal_offset_mm", _DEFAULT_MAX_TERMINAL_OFFSET_MM),
+                ),
                 mode_less_reason=(
                     "the offset from the spinal curve is an "
                     "anatomy-classification signal (spondylolisthesis, "
@@ -369,11 +392,21 @@ class SplineOffsetRule(Rule):
             )
         )
 
+        max_terminal_offset = float(
+            config.rule_param(
+                self.rule_id,
+                "max_terminal_offset_mm",
+                default=_DEFAULT_MAX_TERMINAL_OFFSET_MM,
+            )
+        )
+
         per_label = record.get("per_label")
         if not isinstance(per_label, dict):
             per_label = {}
 
-        return self._detect_offset_outliers(per_label, severity, max_offset)
+        return self._detect_offset_outliers(
+            per_label, severity, max_offset, max_terminal_offset
+        )
 
     @staticmethod
     def _dominant_direction(entry: dict) -> Optional[str]:
@@ -409,7 +442,10 @@ class SplineOffsetRule(Rule):
 
     @staticmethod
     def _detect_offset_outliers(
-        per_label: dict, severity: Severity, max_offset: float
+        per_label: dict,
+        severity: Severity,
+        max_offset: float,
+        max_terminal_offset: float,
     ) -> List[Finding]:
         """Spline-offset outliers (displaced-vertebra condition)."""
         normalised = []
@@ -443,13 +479,14 @@ class SplineOffsetRule(Rule):
             direction = (
                 None if terminal else SplineOffsetRule._dominant_direction(entry)
             )
-            normalised.append((label, name, offset, direction, terminal))
+            threshold = max_terminal_offset if terminal else max_offset
+            normalised.append((label, name, offset, direction, terminal, threshold))
 
         normalised.sort(key=lambda t: t[0])
 
         findings: List[Finding] = []
-        for label, name, offset, direction, terminal in normalised:
-            if offset >= max_offset:
+        for label, name, offset, direction, terminal, threshold in normalised:
+            if offset >= threshold:
                 direction_clause = f", predominantly {direction}" if direction else ""
                 curve = (
                     "spinal curve extrapolated from its two nearest "
@@ -466,7 +503,7 @@ class SplineOffsetRule(Rule):
                             f"lies {offset:.1f} mm off the {curve}"
                             f"{direction_clause} "
                             f"({'terminal vertebra, ' if terminal else ''}"
-                            f"threshold {max_offset:.1f} mm)."
+                            f"threshold {threshold:.1f} mm)."
                         ),
                         labels=frozenset({label}),
                         detector_id="spline_offset",

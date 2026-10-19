@@ -77,6 +77,9 @@ def bundled_descriptor_path(name: str) -> "Path":
 ROLE_GT = "gt"
 ROLE_CANDIDATE = "candidate"
 _VALID_ROLES = frozenset({ROLE_GT, ROLE_CANDIDATE})
+_SELECTOR_KEYSETS = frozenset(
+    frozenset(k) for k in (("root",), ("ids",), ("glob",), ("csv",), ("csv", "column"))
+)
 
 #: Named label conventions a descriptor may request. Only the shipped default
 #: (TotalSegmentator / VerSe numbering) is built in; a dataset with its own
@@ -197,8 +200,10 @@ class DatasetDescriptor:
     role:
         ``"gt"`` (default) or ``"candidate"`` — may be overridden at resolve time.
     subsets:
-        Optional mapping ``name -> selector``. A selector is a dict with exactly
-        one of: ``{"root": "<subdir>"}`` (resolve under a sibling/child dir — how
+        Optional mapping ``name -> selector``. A selector is a mapping whose keys
+        are exactly one of ``root``, ``ids``, ``glob`` or ``csv`` (``csv`` may add
+        ``column``); this is enforced at construction, along with value types.
+        ``{"root": "<subdir>"}`` (resolve under a sibling/child dir — how
         VerSe's train/val/test folders are modelled), ``{"ids": [...]}`` (keep
         those case ids), ``{"csv": "<path>", "column": "<col>"}`` (case ids from a
         CSV column; path relative to the descriptor's own dir), or
@@ -239,6 +244,25 @@ class DatasetDescriptor:
             raise DatasetSchemaError(
                 "descriptor 'case_id' regex must contain a named group '(?P<id>...)'"
             )
+        for name, sel in self.subsets.items():
+            if not isinstance(sel, Mapping) or frozenset(sel) not in _SELECTOR_KEYSETS:
+                found = sorted(map(str, sel)) if isinstance(sel, Mapping) else type(sel).__name__
+                raise DatasetSchemaError(
+                    f"subset {name!r} selector must be a mapping with keys exactly one of "
+                    f"{{root}}, {{ids}}, {{glob}}, {{csv}} or {{csv, column}}; got {found}"
+                )
+            for key, val in sel.items():
+                if key == "ids":
+                    ok = isinstance(val, (list, tuple)) and all(
+                        isinstance(i, (str, int)) and not isinstance(i, bool) for i in val
+                    )
+                else:
+                    ok = isinstance(val, str)
+                if not ok:
+                    raise DatasetSchemaError(
+                        f"subset {name!r} selector {key!r} has an invalid value "
+                        f"{val!r}: 'ids' must be a list of ids, the others a string"
+                    )
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any], *, descriptor_dir: Optional[str] = None) -> "DatasetDescriptor":
@@ -361,7 +385,8 @@ def resolve(
     ------
     DatasetSchemaError
         For an unknown subset, invalid role, a ``case_id`` regex that fails to
-        match a discovered seg file, or a duplicate ``case_id``.
+        match a discovered seg file, a duplicate ``case_id``, or an ``ids`` / ``csv``
+        subset listing a case id with no matching mask (every such id is named).
     """
     effective_role = role if role is not None else descriptor.role
     if effective_role not in _VALID_ROLES:
@@ -415,6 +440,14 @@ def resolve(
                 metadata={"subset": subset} if subset else {},
             )
         )
+
+    if id_filter is not None:
+        missing = sorted(id_filter - seen.keys())
+        if missing:
+            raise DatasetSchemaError(
+                f"subset {subset!r} lists case id(s) with no matching mask under "
+                f"{str(root)!r}: {missing}"
+            )
 
     cases.sort(key=lambda c: c.case_id)
     return Cohort(cases=tuple(cases), name=subset)

@@ -61,6 +61,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
+from segfacet.eval.label_outcome import LabelMetrics, compute_label_metrics
 from segfacet.eval.outcome import Outcome
 from segfacet.io import FacetInputError
 
@@ -200,6 +201,10 @@ class CohortMetrics:
         The feature-divergence-vs-flag correlation.
     n_cases:
         Total number of records aggregated.
+    label_metrics:
+        Item 230: per-mode label sensitivity and clean-label false positives
+        over records carrying ``label_outcomes``; ``None`` (and omitted from
+        ``to_dict()``) when no record does.
     """
 
     counts: ConfusionCounts
@@ -210,6 +215,7 @@ class CohortMetrics:
     dice_vs_flag: CorrelationResult
     feature_divergence_vs_flag: CorrelationResult
     n_cases: int
+    label_metrics: Optional[LabelMetrics] = None
 
     def to_dict(self) -> dict:
         """Return a JSON-serialisable nested dict for this record.
@@ -220,7 +226,10 @@ class CohortMetrics:
         shape (round-trips byte-identically through ``json.dumps`` /
         ``json.loads``, no ``Outcome``/tuple/dataclass survives).
         """
-        return _tuples_to_lists(dataclasses.asdict(self))
+        d = _tuples_to_lists(dataclasses.asdict(self))
+        if self.label_metrics is None:
+            del d["label_metrics"]  # item 230 A6: absent, not null
+        return d
 
 
 # --------------------------------------------------------------------------- #
@@ -553,4 +562,5 @@ def compute_cohort_metrics(
         dice_vs_flag=dice_vs_flag,
         feature_divergence_vs_flag=feature_divergence_vs_flag,
         n_cases=len(records),
+        label_metrics=compute_label_metrics(records),
     )

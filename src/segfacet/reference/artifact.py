@@ -428,8 +428,9 @@ def bundled_production_reference_path() -> Path:
     """Absolute path to the bundled ``reference_verse_v1.json`` (via
     ``importlib.resources``), mirroring :func:`default_artifact_path`.
 
-    This is the **production** reference artifact -- built from real VerSe19
-    training-split subjects (``provenance.source == "verse-v1"``) -- that the
+    This is the **production** reference artifact -- built from the
+    ``development`` roles of both real VerSe releases (``provenance.source ==
+    "verse-v1"``, cases listed in ``provenance.case_ids``) -- that the
     run path attaches by default (item 090), distinct from the synthetic
     Plane-1 baseline :func:`default_artifact_path` still points at.
     """

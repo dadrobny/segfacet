@@ -427,9 +427,10 @@ def _spline_offset_stats(reference: dict):
                 yield level_name, stratum_name, stats
 
 
-def test_ac12_reference_verse_v1_subject_count_is_80():
+def test_ac12_reference_verse_v1_subject_count_is_141():
+    # Item 234: 80 VerSe19 + 61 VerSe20 development-role cases.
     reference = _load_json(_REFERENCE_VERSE_PATH)
-    assert reference["subject_count"] == 80
+    assert reference["subject_count"] == 141
 
 
 def test_ac12_reference_verse_v1_spline_offset_mm_clears_non_degeneracy_floor():

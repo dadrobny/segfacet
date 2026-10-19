@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "config_version": "0.1",
   "case_id": "report-format-contract",
   "verdict": "flagged-for-review",

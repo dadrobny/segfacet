@@ -50,6 +50,7 @@ Adversarial / edge cases included:
 from __future__ import annotations
 
 import copy
+import dataclasses
 import json
 import pathlib
 
@@ -96,7 +97,7 @@ from segfacet.synth.regression import loaded_seg_image
 
 _VERSE_V1_LEVELS = (
     "C1", "C2", "C3", "C4", "C5", "C6", "C7",
-    "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12",
+    "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13",
     "L1", "L2", "L3", "L4", "L5", "L6",
 )
 
@@ -267,7 +268,8 @@ def test_ac1_bundled_production_reference_is_verse_v1():
     reference = bundled_production_reference()
     assert reference.provenance.source == "verse-v1"
     assert set(reference.levels.keys()) == set(_VERSE_V1_LEVELS)
-    assert len(reference.levels) == 25
+    # Item 234: the development-role rebuild adds T13 (VerSe20).
+    assert len(reference.levels) == 26
 
 
 def test_ac1_bundled_production_reference_path_loads_via_load_artifact():
@@ -411,7 +413,7 @@ def test_ac4_no_reference_flag_restores_reference_less_shape(tmp_path):
     assert "reference_delta" not in report
     expected_keys = {
         "schema_version", "config_version", "case_id", "verdict",
-        "reasons", "per_label", "features", "findings",
+        "reasons", "per_label", "features", "findings", "facet_revision",
     }
     assert set(report.keys()) == expected_keys
 
@@ -636,26 +638,27 @@ def test_ac9_helper_reads_no_file_or_clock(monkeypatch):
 # =========================================================================== #
 
 
-def test_ac10_uncovered_level_falls_back_to_hand_set_and_fires(tmp_path):
-    from segfacet.heuristics.bounds import DEFAULT_BOUNDS
-
+def test_ac10_uncovered_level_falls_back_to_hand_set_and_fires():
+    """Item 234 (review finding): the rebuilt artifact covers every C/T/L level,
+    so the uncovered level is made by removing L3 from a copy of it. The
+    fallback must fire from the hand-set lumbar limit, not a reference limit."""
     reference = bundled_production_reference()
-    assert "T13" not in reference.levels  # transitional level, uncovered
-    oversized_vol = DEFAULT_BOUNDS["thoracic"]["max_volume_mm3"] * 10.0
+    levels = {k: v for k, v in reference.levels.items() if k != "L3"}
+    assert len(levels) == len(reference.levels) - 1
     record = _record(
         {
-            "label": 28, "level_name": "T13",
+            "label": 22, "level_name": "L3",
             "geometry": {
-                "physical_volume_mm3": oversized_vol,
-                "extent_x_mm": 30.0, "extent_y_mm": 30.0, "extent_z_mm": 25.0,
-                "voxel_count": 5000,
+                "physical_volume_mm3": 1.0,
+                "extent_x_mm": 1.0, "extent_y_mm": 1.0, "extent_z_mm": 1.0,
+                "voxel_count": 1,
             },
         },
-        reference=reference,
+        reference=dataclasses.replace(reference, levels=levels),
     )
     findings = _bounds_findings(run_rules(record, default_config()))
-    label_findings = [f for f in findings if f.labels == frozenset({28})]
-    assert len(label_findings) >= 1
+    assert findings
+    assert all("for lumbar group" in f.reason for f in findings)
 
 
 def test_ac10_uncovered_level_never_crashes():
@@ -680,29 +683,39 @@ def test_ac10_uncovered_level_never_crashes():
 # =========================================================================== #
 
 
+def _uncovered_level(reference):
+    """A recognised level the artifact does not cover (item 234: T13 is covered
+    now, so S1 or Cocc), chosen by reading the artifact's own level set."""
+    for label, name in ((26, "S1"), (27, "Cocc")):
+        if name not in reference.levels:
+            return label, name
+    raise AssertionError("expected S1 or Cocc to be uncovered by the production reference")
+
+
 def test_ac11_uncovered_level_falls_back_to_hand_set_index_threshold(tmp_path):
     reference = bundled_production_reference()
-    assert "T13" not in reference.levels
+    label, name = _uncovered_level(reference)
     below_hs = DEFAULT_FRAGMENTATION_INDEX_THRESHOLD - 0.01
     record = _record(
-        _frag_entry(28, "T13", fragmentation_index=below_hs, component_count=1),
+        _frag_entry(label, name, fragmentation_index=below_hs, component_count=1),
         reference=reference,
     )
     findings = _frag_findings(run_rules(record, default_config()))
-    index_findings = [f for f in findings if "Fragmentation:" in f.reason and f.labels == frozenset({28})]
+    index_findings = [f for f in findings if "Fragmentation:" in f.reason and f.labels == frozenset({label})]
     assert len(index_findings) == 1
 
 
 def test_ac11_uncovered_level_applies_hand_set_island_min_voxels_floor():
     reference = bundled_production_reference()
+    label, name = _uncovered_level(reference)
     tiny_island_size = DEFAULT_ISLAND_MIN_VOXELS - 1
     record = _record(
-        _frag_entry(28, "T13", fragmentation_index=1.0, component_count=2,
+        _frag_entry(label, name, fragmentation_index=1.0, component_count=2,
                      component_sizes=[1000, tiny_island_size]),
         reference=reference,
     )
     findings = _frag_findings(run_rules(record, default_config()))
-    island_findings = [f for f in findings if "Rogue island" in f.reason and f.labels == frozenset({28})]
+    island_findings = [f for f in findings if "Rogue island" in f.reason and f.labels == frozenset({label})]
     assert len(island_findings) == 1
 
 

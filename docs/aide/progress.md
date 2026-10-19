@@ -63,7 +63,7 @@
 | 32    | [Selected-Mode Refinement: one failure mode fully specified end to end](progress/stage-32.md)   | G2, G7, G8      | ✅     |
 | 33    | [Corpus & Rule Re-grounding: modes 2 and 3 to the bar](progress/stage-33.md)                    | G2, G7, G8      | ✅     |
 | 34    | Maintenance                                                             | —               | ✅     |
-| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | 📋     |
+| 35    | Programme Interface: the SegFACET Side                                  | G2, G3, G7      | ✅     |
 
 > **Supersession 2026-07-25.** Stages 0–14 are history and are not reopened. Stage 15 is
 > `❌ Excluded` (deployment left scope — see [`vision.md`](vision.md) §0). Stages 17–21
@@ -166,12 +166,12 @@ shipped"). See "Two kinds of done" above._
 | Objective                                    | Delivered by                                             | Status |
 | -------------------------------------------- | -------------------------------------------------------- | ------ |
 | G1 Detect empty / trivially-failed           | Stage 1                                                  | ✅     |
-| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16, read through the programme interface of Stage 35)* | 🚧     |
+| G2 Detect catalogued failure modes (§6)     | Stages 4, 5, 18, 28*(specification: Stage 30; MVP mode end to end: Stages 32–33; traceability and specificity: Stage 20, interleaved into 32; synthetic only — real failures: Stage 16, read through the programme interface of Stage 35)* | ⏸️     |
 | G3 Distinguish failure from variation        | Stages 6, 7, 12*(real grounding: Stage 14; development-role reference: Stage 35)* | 🚧     |
 | G4 Per-case and cohort reports               | Stage 1 (ext. 2–4); cohort characterisation: Stage 18   | ✅     |
 | G5 Deploy on XNAT*(removed from scope 2026-07-25)* | Stage 9 shipped the artefacts; validation was Stage 15 ❌ | ❌     |
 | G6 Portable / GPU*(deferred)*              | Stage 10                                                 | ✅     |
-| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16; dataset roles and artefact versioning: Stage 35)* | 🚧     |
+| G7 Evaluable & regression-testable           | Stages 5, 7, 29, 32, 33*(eval-harness re-key: Stage 31; real data: Stages 14, 16; dataset roles and artefact versioning: Stage 35)* | ⏸️     |
 | G8 Extensible / classification               | Stages 19, 27, 30 (the add-a-mode path), 31 (§6 re-issue), 32–33 (per-mode sign-off); classification arm: Stage 11*(deferred)* | ⏸️     |
 
 **Why each 🚧 objective is not yet ✅** _(one line each — the detail lives in the
@@ -810,7 +810,7 @@ per-deliverable provenance.
 
 ---
 
-## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — 📋
+## Stage 35 — Programme Interface: the SegFACET Side (G2, G3, G7) — ✅
 
 **Goal.** FACET can read everything the programme repository will hand it for
 Stage 16, and writes reports that repository can pin. Scoped 2026-10-12, when the
@@ -819,35 +819,45 @@ owner adopted `spine-failure-lab`'s `docs/project/facet-interface.md` at
 
 **Deliverables.**
 
-- 📋 **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
+- ✅ **Case-id-list subsets**: descriptor `subsets` can be an explicit list of case
   ids as well as a directory root. *(Item 228)*
-- 📋 **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
+- ✅ **VerSe20 ground-truth descriptor** beside `verse19.yaml`, and both descriptors
   carry `development`, `calibration` and `test` subsets over the release splits. *(Item 229)*
-- 📋 **Real-label expectation**: the evaluation cohort accepts a per-label
+- ✅ **Real-label expectation**: the evaluation cohort accepts a per-label
   expectation with several modes per case, read from `spinelab`'s `rl1` table
   against a vendored schema pinned at a `spinelab` commit. Any other version is
-  refused. *(Items 230, 231)*
-- 📋 **Artefact versioning**: a release tag on every revision `spinelab` consumes,
+  refused. *(Item 230)*
+- ✅ **Real-label expectation**: the evaluation cohort accepts a per-label
+  expectation with several modes per case, read from `spinelab`'s `rl1` table
+  against a vendored schema pinned at a `spinelab` commit. Any other version is
+  refused. *(Item 231)*
+- ✅ **Artefact versioning**: a release tag on every revision `spinelab` consumes,
   the FACET commit written into every per-case and evaluation report, and a
-  report `schema_version` that moves whenever a feature path moves. *(Items 232, 233)*
-- 📋 **Development-role reference**: the VerSe reference rebuilt from the VerSe19
+  report `schema_version` that moves whenever a feature path moves. *(Item 232)*
+- ✅ **Artefact versioning**: a release tag on every revision `spinelab` consumes,
+  the FACET commit written into every per-case and evaluation report, and a
+  report `schema_version` that moves whenever a feature path moves. *(Item 233)*
+- ✅ **Development-role reference**: the VerSe reference rebuilt from the VerSe19
   and VerSe20 training splits, and `spline_offset.max_offset_mm` re-derived from it
   with the wedge-vertebra outlier `sub-verse406_split-verse261` T10 excluded
   (`gate-fac1`). *(Item 234)*
-- 📋 Stage validation from a clean clone. *(Item 235)*
+- ✅ Stage validation from a clean clone. *(Item 235)*
 
 **Acceptance.**
 
-- [ ] A descriptor whose subsets are case-id lists resolves exactly those cases,
+- [x] A descriptor whose subsets are case-id lists resolves exactly those cases,
   and the VerSe19 and VerSe20 descriptors resolve the three role subsets over the
-  release splits (**G7**).
-- [ ] An `rl1` table at the pinned version becomes a per-label,
+  release splits (**G7**). *(validator item 235 round 1 2026-10-19, fresh clone HEAD 5826c3ff3c13 own venv (segfacet.__file__ under the clone): AC2 modules test_228/229/230/231/232/233/234/086/087/088/123 220 passed 7 skipped (exactly the 3 test_229, 3 test_234, 1 test_088 requires-marked real-data tests) with both VerSe variables unset; AC3 test_229+test_234+test_088 with both set: 30 passed 0 skipped (test_088 genuine-skip test deselected by intent; it was the only failure); AC4 six role resolutions equal an independent rglob walk: VerSe19 80/40/40, VerSe20 61/80/73; AC5 list subset picked={sub-gl003,sub-verse542,sub-verse835} resolved exactly those over the VerSe20 training split directory (the literal spec data_root of the three-split root finds no masks for a list subset because the seg glob is relative to the root, recorded as a spec finding))*
+- [x] An `rl1` table at the pinned version becomes a per-label,
   several-modes-per-case expectation the evaluation harness scores against, and a
-  table at any other version is refused (**G2**).
-- [ ] Every per-case and evaluation report carries the FACET commit and a schema
+  table at any other version is refused (**G2**). *(validator item 231 2026-10-18: aide test green (12227 passed); AC7 (rl1 tag refusal) and AC17 (CLI --review-labels scores table) tests pass)*
+  - **2026-10-19** → validator item 235 round 1 2026-10-19, clone HEAD 5826c3ff3c13: AC6 the vendored rl1 schema fields equal (name,type) in order the table facet-interface.md review-label-fields at spine-failure-lab commit 7436b0f250dd (10 fields, schema..role), source.commit equals that commit, sibling CLAUDE.md read first; AC7 segfacet evaluate --dataset-schema verse20.yaml --subset calibration --review-labels on 2 real VerSe20 calibration cases (sub-verse753 labels 17-24 with 17 at mode 1 and 24 at mode 2, sub-gl045 labels 1-11 mode 0) exit 0 and eval_report metrics.label_metrics equals the in-process compute_cohort_metrics of apply_review_labels (n_clean_labels 17, flagged 1, per_mode 1 and 2 each n_labels 1 sensitivity 0.0); AC8 the same run with first row schema rl2 exits 1, stderr names rl2 and rl1, no eval_report written
+- [x] Every per-case and evaluation report carries the FACET commit and a schema
   version, and a feature path that moves without a schema-version change fails
-  the suite (**G7**).
-- [ ] The rebuilt reference draws only on development-role cases, and no
-  calibration-role or test-role case contributes to it (**G3**).
-- [ ] `spline_offset.max_offset_mm` is re-derived from the rebuilt distribution, and
-  the excluded wedge-vertebra label contributes nothing to it (**G3**).
+  the suite (**G7**). *(validator item 235 round 1 2026-10-19, clone HEAD 5826c3ff3c13: AC2 modules test_232 and test_233 pass in the clone (220 passed, 7 real-data skips, none in them); AC9 segfacet run (no reference flag) on real VerSe20 case sub-verse753 writes segfacet_report.json with facet_revision.commit equal to clone HEAD and schema_version 0.2; AC10 that equals REPORT_SCHEMA_VERSION and report_schema_pin.json schema_version (0.2); AC11 eval_report.json facet_revision.commit equals clone HEAD and schema_version 0.1 equals EVAL_REPORT_SCHEMA_VERSION; AC12 clone-only rename of the report key touches_inferior to touches_inferior_item235_renamed at feature_report.py line 184 with no version change makes test_233 test_ac2_shipped_tree_has_no_pin_conflict fail (message lists added ...touches_inferior_item235_renamed, removed per src report_schema_pin.py line 59; pytest truncates the display of the removed half); the literal AC12 text (a key literal under features/) cannot move a live path because feature paths are built in feature_report.py, and the only features/ key literals are geometry face flags whose rename raises KeyError, recorded as a spec finding; AC13 sha256 of feature_report.py and geometry.py identical before and after, and the node passes again)*
+- [x] The rebuilt reference draws only on development-role cases, and no
+  calibration-role or test-role case contributes to it (**G3**). *(validator round 3 2026-10-18: gated modules test_234 + test_229 ran with SEGFACET_VERSE_COHORT and SEGFACET_VERSE20_COHORT set, 24 passed, 0 skipped (-ra); AC9 annotated closes criterion 4)*
+  - **2026-10-19** → validator item 235 round 1 2026-10-19, clone HEAD 5826c3ff3c13: AC3 gated modules test_229 + test_234 + test_088 on real VerSe19 and VerSe20 30 passed 0 skipped; AC14 fresh development-role rebuild in the clone (scripts/rebuild_verse_reference.py, build date 2026-10-18, --jobs 30, exit 0) passes assert_matches_committed_artifact against src/segfacet/reference/reference_verse_v1.json and is byte-identical (same sha256 845d29e8958d), closing item 234's unrun determinism rebuild; AC15 verse_rebuild_summary.json cohort.status and build.status ran, cohort.case_ids equal the sorted union of the two development id sets (141 = 80 + 61), role_counts equal 80/40/40 and 61/80/73
+- [x] `spline_offset.max_offset_mm` is re-derived from the rebuilt distribution, and
+  the excluded wedge-vertebra label contributes nothing to it (**G3**). *(validator round 3 2026-10-18: gated modules test_234 + test_229 ran on real VerSe19/VerSe20 data, 24 passed, 0 skipped (-ra); AC11 annotated closes criterion 5)*
+  - **2026-10-19** → validator item 235 round 1 2026-10-19, clone HEAD 5826c3ff3c13: AC3 gated modules on real VerSe19 and VerSe20 30 passed 0 skipped; AC16 rebuild summary calibration.excluded_offsets is the one element sub-verse406_split-verse261 T10 offset_mm 18.51028119357566; AC17 derive_max_offset_mm of the fresh artifact is 8.0 and equals heuristics.spline_offset._DEFAULT_MAX_OFFSET_MM (8.0), with P 7.915787852893431 at level L4 count 106 from _p99_by_level, as in item 234's record

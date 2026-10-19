@@ -38,7 +38,7 @@ Public API
 ``CaseEvaluation``
     Frozen dataclass: the per-case output record (``outcome``, ``overlap``,
     ``feature_match``, ``candidate_present``, ``subject``, ``metadata``,
-    ``per_mode``), with a JSON-serialisable ``to_dict()``.
+    ``per_mode``, ``label_outcomes``), with a JSON-serialisable ``to_dict()``.
 ``CohortEvaluation``
     Frozen dataclass wrapping a tuple of :class:`CaseEvaluation` records, with
     ``n_cases`` and a JSON-serialisable ``to_dict()``.
@@ -67,6 +67,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, Tuple, Union
 
+from segfacet.eval.label_outcome import LabelOutcome
 from segfacet.eval.outcome import CaseOutcome, Outcome
 from segfacet.eval.overlap import OverlapResult
 from segfacet.eval.feature_match import FeatureMatchResult
@@ -279,6 +280,11 @@ class CaseEvaluation:
         case's already-derived subject block/candidate/GT/spacing when
         :func:`evaluate_case` was called with ``per_mode=True``; ``None``
         otherwise (the default).
+    label_outcomes:
+        Item 230's per-label scoring: one
+        :class:`~segfacet.eval.label_outcome.LabelOutcome` per
+        ``(label, failure_mode)`` pair in the case's ``expected["label_modes"]``;
+        ``None`` when the expectation carries no ``label_modes``.
     """
 
     case_id: str
@@ -289,6 +295,7 @@ class CaseEvaluation:
     subject: str
     metadata: Optional[Mapping[str, Any]] = None
     per_mode: "Optional[PerModeMetrics]" = None
+    label_outcomes: "Optional[Tuple[LabelOutcome, ...]]" = None
 
     def to_dict(self) -> dict:
         """Return a JSON-serialisable nested dict for this record.
@@ -298,7 +305,7 @@ class CaseEvaluation:
         ``FeatureMatchResult``, ``PerModeMetrics``) are reduced to nested
         plain dicts.
         """
-        return {
+        d = {
             "case_id": self.case_id,
             "outcome": _asdict_enum_safe(self.outcome),
             "overlap": _asdict_enum_safe(self.overlap),
@@ -308,6 +315,9 @@ class CaseEvaluation:
             "metadata": dict(self.metadata) if self.metadata is not None else None,
             "per_mode": None if self.per_mode is None else self.per_mode.to_dict(),
         }
+        if self.label_outcomes is not None:
+            d["label_outcomes"] = [_asdict_enum_safe(o) for o in self.label_outcomes]
+        return d
 
 
 # --------------------------------------------------------------------------- #
@@ -411,6 +421,7 @@ def evaluate_case(
         ``classify_outcome`` (malformed ``expected`` mapping).
     """
     from segfacet.eval.feature_match import compute_feature_match
+    from segfacet.eval.label_outcome import classify_label_outcomes
     from segfacet.eval.outcome import classify_outcome
     from segfacet.eval.overlap import compute_overlap
     from segfacet.pipeline import extract_feature_record, run_qc, run_qc_with_reference
@@ -438,6 +449,10 @@ def evaluate_case(
     else:
         case_result, subject_block = run_qc(subject_img, config)
     outcome = classify_outcome(
+        case.expected, case_result, positive_severity=positive_severity
+    )
+
+    label_outcomes = classify_label_outcomes(
         case.expected, case_result, positive_severity=positive_severity
     )
 
@@ -483,6 +498,7 @@ def evaluate_case(
         subject=subject,
         metadata=case.metadata,
         per_mode=per_mode_metrics,
+        label_outcomes=label_outcomes,
     )
 
 
